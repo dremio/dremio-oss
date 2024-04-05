@@ -30,13 +30,11 @@ package io.airlift.tpch;
 
 import static java.util.Locale.ENGLISH;
 
+import io.airlift.tpch.GenerationDefinition.TpchTable;
 import java.time.LocalDate;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
-
-import io.airlift.tpch.GenerationDefinition.TpchTable;
 
 class CustomerGenerator extends TpchGenerator {
   public static final int SCALE_BASE = 150_000;
@@ -47,14 +45,19 @@ class CustomerGenerator extends TpchGenerator {
   private static final int YEAR_MIN = 1900;
   private static final int YEAR_MAX = 2050;
 
-  private final RandomAlphaNumeric addressRandom = randomAlphaNumeric(881155353, ADDRESS_AVERAGE_LENGTH);
-  private final RandomBoundedInt nationKeyRandom =  randomBoundedInt(1489529863, 0, DISTRIBUTIONS.getNations().size() - 1);;
+  private final RandomAlphaNumeric addressRandom =
+      randomAlphaNumeric(881155353, ADDRESS_AVERAGE_LENGTH);
+  private final RandomBoundedInt nationKeyRandom =
+      randomBoundedInt(1489529863, 0, DISTRIBUTIONS.getNations().size() - 1);
+  ;
   private final RandomPhoneNumber phoneRandom = randomPhoneNumber(1521138112);
-  private final RandomBoundedInt accountBalanceRandom = randomBoundedInt(298370230, ACCOUNT_BALANCE_MIN, ACCOUNT_BALANCE_MAX);
-  private final RandomString marketSegmentRandom = randomString(1140279430, DISTRIBUTIONS.getMarketSegments());
-  private final RandomText commentRandom = randomText(1335826707, TEXT_POOL, COMMENT_AVERAGE_LENGTH);
-  private final RandomBoundedInt yearRandom = randomBoundedInt(298370321, YEAR_MIN,
-    YEAR_MAX);
+  private final RandomBoundedInt accountBalanceRandom =
+      randomBoundedInt(298370230, ACCOUNT_BALANCE_MIN, ACCOUNT_BALANCE_MAX);
+  private final RandomString marketSegmentRandom =
+      randomString(1140279430, DISTRIBUTIONS.getMarketSegments());
+  private final RandomText commentRandom =
+      randomText(1335826707, TEXT_POOL, COMMENT_AVERAGE_LENGTH);
+  private final RandomBoundedInt yearRandom = randomBoundedInt(298370321, YEAR_MIN, YEAR_MAX);
 
   private final BigIntVector customerKey;
   private final BigIntVector nationKey;
@@ -68,8 +71,12 @@ class CustomerGenerator extends TpchGenerator {
   private final VarCharVector date;
   private final VarCharVector time;
 
-  public CustomerGenerator(BufferAllocator allocator, GenerationDefinition def, int
-    partitionIndex, TpchTable table, String...includedColumns) {
+  public CustomerGenerator(
+      BufferAllocator allocator,
+      GenerationDefinition def,
+      int partitionIndex,
+      TpchTable table,
+      String... includedColumns) {
     super(table, allocator, def, partitionIndex, includedColumns);
 
     // setup fields.
@@ -89,24 +96,24 @@ class CustomerGenerator extends TpchGenerator {
 
   private String getRandomTime(int seed) {
     StringBuilder sb = new StringBuilder();
-    sb.append(seed); //Year
+    sb.append(seed); // Year
     sb.append("-");
-    sb.append(String.format("%02d",  1 + (seed % 11))); //Month
+    sb.append(String.format("%02d", 1 + (seed % 11))); // Month
     sb.append("-");
-    sb.append(String.format("%02d", 1 + (seed % 27))); //Day
+    sb.append(String.format("%02d", 1 + (seed % 27))); // Day
     sb.append(" ");
-    sb.append(String.format("%02d", seed % 24)); //Hours
+    sb.append(String.format("%02d", seed % 24)); // Hours
     sb.append(":");
-    sb.append(String.format("%02d", seed % 60)); //Minutes
+    sb.append(String.format("%02d", seed % 60)); // Minutes
     sb.append(":");
-    sb.append(String.format("%02d", seed % 60)); //Seconds
+    sb.append(String.format("%02d", seed % 60)); // Seconds
     sb.append(".");
-    sb.append(String.format("%03d", seed % 1000)); //Milliseconds
+    sb.append(String.format("%03d", seed % 1000)); // Milliseconds
     return sb.toString();
   }
 
   @Override
-  protected void generateRecord(long globalRecordIndex, int outputIndex){
+  protected void generateRecord(long globalRecordIndex, int outputIndex) {
     final long customerKey = globalRecordIndex;
     final long nationKey = nationKeyRandom.nextValue();
     final int randomYear = yearRandom.nextValue();
@@ -120,8 +127,7 @@ class CustomerGenerator extends TpchGenerator {
     set(outputIndex, phone, phoneRandom.nextValue(nationKey));
     set(outputIndex, marketSegment, marketSegmentRandom.nextValue());
     set(outputIndex, comment, commentRandom.nextValue());
-    set(outputIndex, date, LocalDate.of(randomYear,1,1).toString());
+    set(outputIndex, date, LocalDate.of(randomYear, 1, 1).toString());
     set(outputIndex, time, getRandomTime(randomYear));
   }
-
 }

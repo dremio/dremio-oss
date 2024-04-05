@@ -15,19 +15,16 @@
  */
 package com.dremio.common.util;
 
-/**
- * To Manage default values of S3 Connections for plugins
- */
+/** To Manage default values of S3 Connections for plugins */
 public final class S3ConnectionConstants {
 
-  private S3ConnectionConstants() {
-  }
+  private S3ConnectionConstants() {}
 
   /**
-   * Controls how many parallel connections HttpClient spawns.
-   * Hadoop configuration property {@link org.apache.hadoop.fs.s3a.Constants#MAXIMUM_CONNECTIONS}.
+   * Controls how many parallel connections HttpClient spawns. Hadoop configuration property {@link
+   * org.apache.hadoop.fs.s3a.Constants#MAXIMUM_CONNECTIONS}.
    */
   public static final int DEFAULT_MAX_CONNECTIONS = 1000;
-  public static final int DEFAULT_MAX_THREADS = 24;
 
+  public static final int DEFAULT_MAX_THREADS = 24;
 }

@@ -16,7 +16,6 @@
 
 package com.dremio.common.util;
 
-
 /*
  * Here we compute the scale and precision of the output decimal data type
  * based on the input scale and precision. Since division operation can be
@@ -37,18 +36,19 @@ package com.dremio.common.util;
  */
 public class DecimalScalePrecisionDivideFunction extends ScalePrecisionFunctionBase {
 
-  public DecimalScalePrecisionDivideFunction(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public DecimalScalePrecisionDivideFunction(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
     super(leftPrecision, leftScale, rightPrecision, rightScale);
   }
 
   @Override
-  public void computeScalePrecision(int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
+  public void computeScalePrecision(
+      int leftPrecision, int leftScale, int rightPrecision, int rightScale) {
 
     // compute the output scale and precision here
     outputScale = leftScale + rightScale;
     int leftIntegerDigits = leftPrecision - leftScale;
     int maxResultIntegerDigits = leftIntegerDigits + rightScale;
-
 
     outputPrecision = CoreDecimalUtility.getPrecisionRange(outputScale + maxResultIntegerDigits);
 
@@ -56,6 +56,9 @@ public class DecimalScalePrecisionDivideFunction extends ScalePrecisionFunctionB
     outputPrecision = Math.max(outputPrecision, Math.max(leftPrecision, rightPrecision));
 
     // Try and increase the scale if we have any room
-    outputScale = (outputPrecision - maxResultIntegerDigits >= 0) ? (outputPrecision - maxResultIntegerDigits) : 0;
+    outputScale =
+        (outputPrecision - maxResultIntegerDigits >= 0)
+            ? (outputPrecision - maxResultIntegerDigits)
+            : 0;
   }
 }

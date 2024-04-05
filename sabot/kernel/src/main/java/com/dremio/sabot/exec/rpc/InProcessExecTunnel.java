@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot.exec.rpc;
 
-import java.io.IOException;
-import java.util.concurrent.ThreadLocalRandom;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.ExecProtos;
@@ -33,15 +27,19 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.google.common.base.Preconditions;
-
 import io.netty.buffer.ByteBuf;
+import java.io.IOException;
+import java.util.concurrent.ThreadLocalRandom;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * Optimised exec tunnel where both the sender & receiver are in the same process. Bypasses
- * netty channel & directly calls into the dst fragment.
+ * Optimised exec tunnel where both the sender & receiver are in the same process. Bypasses netty
+ * channel & directly calls into the dst fragment.
  */
 public class InProcessExecTunnel implements ExecTunnel {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InProcessExecTunnel.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(InProcessExecTunnel.class);
   private final FragmentExecutors fragmentExecutors;
   private final BufferAllocator allocator;
 
@@ -51,14 +49,17 @@ public class InProcessExecTunnel implements ExecTunnel {
   }
 
   @Override
-  public void sendStreamComplete(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, ExecRPC.FragmentStreamComplete streamComplete) {
+  public void sendStreamComplete(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener,
+      ExecRPC.FragmentStreamComplete streamComplete) {
     try {
       for (Integer minorId : streamComplete.getReceivingMinorFragmentIdList()) {
-        ExecProtos.FragmentHandle handle = ExecProtos.FragmentHandle.newBuilder()
-          .setQueryId(streamComplete.getQueryId())
-          .setMajorFragmentId(streamComplete.getReceivingMajorFragmentId())
-          .setMinorFragmentId(minorId)
-          .build();
+        ExecProtos.FragmentHandle handle =
+            ExecProtos.FragmentHandle.newBuilder()
+                .setQueryId(streamComplete.getQueryId())
+                .setMajorFragmentId(streamComplete.getReceivingMajorFragmentId())
+                .setMinorFragmentId(minorId)
+                .build();
 
         fragmentExecutors.handle(handle, streamComplete);
       }
@@ -69,21 +70,22 @@ public class InProcessExecTunnel implements ExecTunnel {
   }
 
   @Override
-  public void sendRecordBatch(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, FragmentWritableBatch batch) {
+  public void sendRecordBatch(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, FragmentWritableBatch batch) {
     Preconditions.checkNotNull(batch);
     Preconditions.checkNotNull(batch.getBuffers());
 
-    final AckSenderImpl ack = new AckSenderImpl(
-      () -> outcomeListener.success(Acks.OK, null),
-      () -> outcomeListener.failed(null)
-      );
+    final AckSenderImpl ack =
+        new AckSenderImpl(
+            () -> outcomeListener.success(Acks.OK, null), () -> outcomeListener.failed(null));
 
     // increment so we don't get false returns.
     ack.increment();
     ExecRPC.FragmentRecordBatch header = batch.getHeader();
-    header = ExecRPC.FragmentRecordBatch.newBuilder(header)
-      .setRecvEpochTimestamp(System.currentTimeMillis())
-      .build();
+    header =
+        ExecRPC.FragmentRecordBatch.newBuilder(header)
+            .setRecvEpochTimestamp(System.currentTimeMillis())
+            .build();
 
     long dataBufLen = batch.getByteCount();
     try (ArrowBuf dBodyBuf = allocator.buffer(dataBufLen)) {
@@ -109,10 +111,13 @@ public class InProcessExecTunnel implements ExecTunnel {
       ack.sendOk();
 
     } catch (Exception ex) {
-      logger.error("Failure while processing record batch. {}",
-        QueryIdHelper.getQueryIdentifiers(header.getQueryId(), header.getReceivingMajorFragmentId(),
-          header.getReceivingMinorFragmentIdList()),
-        ex);
+      logger.error(
+          "Failure while processing record batch. {}",
+          QueryIdHelper.getQueryIdentifiers(
+              header.getQueryId(),
+              header.getReceivingMajorFragmentId(),
+              header.getReceivingMinorFragmentIdList()),
+          ex);
       ack.clear();
       outcomeListener.failed(new RpcException(ex));
     } finally {
@@ -122,23 +127,27 @@ public class InProcessExecTunnel implements ExecTunnel {
     }
   }
 
-  private void submitToFragments(IncomingDataBatch incomingBatch, int minorStart, int minorStopExclusive)
-    throws FragmentSetupException, IOException {
+  private void submitToFragments(
+      IncomingDataBatch incomingBatch, int minorStart, int minorStopExclusive)
+      throws FragmentSetupException, IOException {
     ExecRPC.FragmentRecordBatch header = incomingBatch.getHeader();
 
     for (int index = minorStart; index < minorStopExclusive; ++index) {
-      // even though the below method may throw, we don't really care about aborting the loop as the query will fail anyway
-      ExecProtos.FragmentHandle handle = ExecProtos.FragmentHandle.newBuilder()
-        .setQueryId(header.getQueryId())
-        .setMajorFragmentId(header.getReceivingMajorFragmentId())
-        .setMinorFragmentId(header.getReceivingMinorFragmentId(index))
-        .build();
+      // even though the below method may throw, we don't really care about aborting the loop as the
+      // query will fail anyway
+      ExecProtos.FragmentHandle handle =
+          ExecProtos.FragmentHandle.newBuilder()
+              .setQueryId(header.getQueryId())
+              .setMajorFragmentId(header.getReceivingMajorFragmentId())
+              .setMinorFragmentId(header.getReceivingMinorFragmentId(index))
+              .build();
       fragmentExecutors.handle(handle, incomingBatch);
     }
   }
 
   @Override
-  public void sendOOBMessage(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, OutOfBandMessage message) {
+  public void sendOOBMessage(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, OutOfBandMessage message) {
     try {
       Preconditions.checkNotNull(message);
 
@@ -156,14 +165,17 @@ public class InProcessExecTunnel implements ExecTunnel {
   }
 
   @Override
-  public void informReceiverFinished(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, ExecRPC.FinishedReceiver finishedReceiver) {
+  public void informReceiverFinished(
+      RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener,
+      ExecRPC.FinishedReceiver finishedReceiver) {
     try {
       Preconditions.checkNotNull(finishedReceiver.getReceiver(), "must set receiver's handle");
       ExecTunnel.checkFragmentHandle(finishedReceiver.getReceiver());
       Preconditions.checkNotNull(finishedReceiver.getSender(), "must set sender's handle");
       ExecTunnel.checkFragmentHandle(finishedReceiver.getSender());
 
-      fragmentExecutors.receiverFinished(finishedReceiver.getSender(), finishedReceiver.getReceiver());
+      fragmentExecutors.receiverFinished(
+          finishedReceiver.getSender(), finishedReceiver.getReceiver());
       outcomeListener.success(Acks.OK, null);
     } catch (Exception e) {
       outcomeListener.failed(new RpcException(e));

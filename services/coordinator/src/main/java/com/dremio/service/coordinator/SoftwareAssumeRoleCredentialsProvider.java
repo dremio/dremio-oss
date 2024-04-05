@@ -16,12 +16,9 @@
 package com.dremio.service.coordinator;
 
 import com.dremio.common.utils.AssumeRoleCredentialsProvider;
-
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 
-/**
- * Does not work in software.
- */
+/** Does not work in software. */
 public class SoftwareAssumeRoleCredentialsProvider implements AssumeRoleCredentialsProvider {
 
   @Override

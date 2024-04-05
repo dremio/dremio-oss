@@ -17,9 +17,7 @@ package com.dremio.service;
 
 import javax.inject.Provider;
 
-/**
- * Wraps an instance with a provider to fit some interfaces.
- */
+/** Wraps an instance with a provider to fit some interfaces. */
 public final class DirectProvider<T> implements Provider<T> {
 
   private final T value;
@@ -34,7 +32,7 @@ public final class DirectProvider<T> implements Provider<T> {
     return value;
   }
 
-  public static <T> DirectProvider<T> wrap(T value){
+  public static <T> DirectProvider<T> wrap(T value) {
     return new DirectProvider<T>(value);
   }
 }

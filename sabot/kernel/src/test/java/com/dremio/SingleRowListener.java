@@ -15,12 +15,6 @@
  */
 package com.dremio;
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.QueryData;
@@ -29,11 +23,16 @@ import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Result listener that is set up to receive a single row. Useful for queries
- * such with a count(*) or limit 1. The abstract method {@link #rowArrived(QueryDataBatch)} provides
- * the means for a derived class to get the expected record's data.
+ * Result listener that is set up to receive a single row. Useful for queries such with a count(*)
+ * or limit 1. The abstract method {@link #rowArrived(QueryDataBatch)} provides the means for a
+ * derived class to get the expected record's data.
  */
 public abstract class SingleRowListener implements UserResultsListener {
   private final CountDownLatch latch = new CountDownLatch(1); // used to wait for completion
@@ -43,13 +42,12 @@ public abstract class SingleRowListener implements UserResultsListener {
   private Exception exception = null; // the exception captured from a submission failure
 
   @Override
-  public void queryIdArrived(final QueryId queryId) {
-  }
+  public void queryIdArrived(final QueryId queryId) {}
 
   @Override
   public void submissionFailed(final UserException ex) {
     exception = ex;
-    synchronized(errorList) {
+    synchronized (errorList) {
       errorList.add(ex.getOrCreatePBError(false));
     }
     latch.countDown();
@@ -95,7 +93,7 @@ public abstract class SingleRowListener implements UserResultsListener {
    * @return list of errors received
    */
   public List<DremioPBError> getErrorList() {
-    synchronized(errorList) {
+    synchronized (errorList) {
       return Collections.unmodifiableList(errorList);
     }
   }
@@ -103,16 +101,16 @@ public abstract class SingleRowListener implements UserResultsListener {
   /**
    * A record has arrived and is ready for access.
    *
-   * <p>Derived classes provide whatever implementation they require here to access
-   * the record's data.
+   * <p>Derived classes provide whatever implementation they require here to access the record's
+   * data.
    *
    * @param queryDataBatch result batch holding the row
    */
   protected abstract void rowArrived(QueryDataBatch queryDataBatch);
 
   /**
-   * Wait for the completion of this query; receiving a record or an error will both cause the
-   * query to be considered complete
+   * Wait for the completion of this query; receiving a record or an error will both cause the query
+   * to be considered complete
    *
    * @throws Exception if there was any kind of problem
    */
@@ -129,6 +127,5 @@ public abstract class SingleRowListener implements UserResultsListener {
    * <p>Derived classes may use this to free things like allocators or files that were used to
    * record data received in resultArrived().
    */
-  public void cleanup() {
-  }
+  public void cleanup() {}
 }

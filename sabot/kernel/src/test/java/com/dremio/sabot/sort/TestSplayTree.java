@@ -17,29 +17,26 @@ package com.dremio.sabot.sort;
 
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.sabot.op.sort.external.SplayTree;
+import com.dremio.sabot.op.sort.external.SplayTree.SplayIterator;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import java.util.Random;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.sabot.op.sort.external.SplayTree;
-import com.dremio.sabot.op.sort.external.SplayTree.SplayIterator;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
 public class TestSplayTree extends DremioTest {
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
-  public void sortRandom(){
+  public void sortRandom() {
     final int[] values = new int[25000];
     final Random r = new Random();
 
-    for(int i =0; i < values.length; i++){
+    for (int i = 0; i < values.length; i++) {
       values[i] = r.nextInt();
     }
 
@@ -47,79 +44,76 @@ public class TestSplayTree extends DremioTest {
   }
 
   @Test
-  public void sortSame(){
+  public void sortSame() {
     final int[] values = new int[25000];
     final Random r = new Random();
 
-    for(int i =0; i < values.length; i++){
+    for (int i = 0; i < values.length; i++) {
       values[i] = 47;
     }
 
     final int comparisons = sortData(values);
   }
 
-
   @Test
-  public void sortEmpty(){
+  public void sortEmpty() {
     final int[] values = new int[0];
     final int comparisons = sortData(values);
   }
 
-
   @Test
-  public void sortAlreadyOrdered(){
+  public void sortAlreadyOrdered() {
     final int[] values = new int[25000];
-    for(int i =0; i < values.length; i++){
+    for (int i = 0; i < values.length; i++) {
       values[i] = i;
     }
 
     final int comparisons = sortData(values);
     assertTrue(comparisons < values.length);
-
   }
 
   @Test
-  public void reverseSorted(){
+  public void reverseSorted() {
     final int[] values = new int[25000];
-    for(int i =0; i < values.length; i++){
+    for (int i = 0; i < values.length; i++) {
       values[i] = values.length - i;
     }
 
     final int comparisons = sortData(values);
     assertTrue(comparisons < values.length);
-
   }
 
-  private int sortData(int[] values){
-    try(final SplayTreeImpl tree = new SplayTreeImpl(values);
-        BufferAllocator allocator = allocatorRule.newAllocator("test-splay-tree", 0, Long.MAX_VALUE);
-        ArrowBuf data = allocator.buffer((values.length + 1) * SplayTree.NODE_SIZE )){
+  private int sortData(int[] values) {
+    try (final SplayTreeImpl tree = new SplayTreeImpl(values);
+        BufferAllocator allocator =
+            allocatorRule.newAllocator("test-splay-tree", 0, Long.MAX_VALUE);
+        ArrowBuf data = allocator.buffer((values.length + 1) * SplayTree.NODE_SIZE)) {
 
       data.setZero(0, data.capacity());
       tree.setData(data);
 
-      for(int i = 0; i < values.length; i++){
+      for (int i = 0; i < values.length; i++) {
         tree.put(i);
       }
 
       SplayIterator iter = tree.iterator();
       Integer previous = null;
-      while(iter.hasNext()){
+      while (iter.hasNext()) {
         int index = iter.next();
-        if(previous != null){
+        if (previous != null) {
           assertTrue(previous <= values[index]);
         }
       }
 
       return tree.getComparisonCount();
     }
-
   }
 
   private class SplayTreeImpl extends SplayTree implements AutoCloseable {
 
     private int[] values;
     private int comparisons;
+
     public SplayTreeImpl(int[] values) {
       this.values = values;
     }
@@ -130,12 +124,11 @@ public class TestSplayTree extends DremioTest {
       return Integer.compare(values[leftVal], values[rightVal]);
     }
 
-    public int getComparisonCount(){
+    public int getComparisonCount() {
       return comparisons;
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
   }
 }

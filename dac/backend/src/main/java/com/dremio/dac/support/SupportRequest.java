@@ -15,15 +15,13 @@
  */
 package com.dremio.dac.support;
 
+import com.dremio.service.job.proto.JobId;
 import org.immutables.value.Value;
 
-import com.dremio.service.job.proto.JobId;
-
-/**
- * Support requests
- */
+/** Support requests */
 @Value.Immutable
 public interface SupportRequest {
   String getUserId();
+
   JobId getJobId();
 }

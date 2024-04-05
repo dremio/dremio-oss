@@ -18,10 +18,9 @@ package com.dremio.exec.planner.sql.handlers;
 import com.dremio.exec.planner.physical.Prel;
 
 /**
- * A marker interface that means that this node should be finalized before execution planning. This allows calculations
- * not relevant to planning to be done only once.
+ * A marker interface that means that this node should be finalized before execution planning. This
+ * allows calculations not relevant to planning to be done only once.
  */
 public interface PrelFinalizable {
   Prel finalizeRel();
-
 }

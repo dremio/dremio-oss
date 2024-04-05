@@ -17,8 +17,10 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.TestBuilder.mapOf;
 
+import com.dremio.TestBuilder;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecConstants;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,13 +28,7 @@ import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.TestBuilder;
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.ExecConstants;
-
-/**
- * Tests for the nested data type.
- */
+/** Tests for the nested data type. */
 public class ITTestNestedSchemaChange extends ElasticBaseTestQuery {
 
   private static final Logger logger = LoggerFactory.getLogger(ITTestNestedSchemaChange.class);
@@ -40,8 +36,7 @@ public class ITTestNestedSchemaChange extends ElasticBaseTestQuery {
   private static final String NEW_NESTED_COLUMN_1 = "/json/nested/new_nested_column/file1.json";
   private static final String NEW_NESTED_COLUMN_2 = "/json/nested/new_nested_column/file2.json";
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void enableReattempts() throws Exception {
@@ -55,10 +50,7 @@ public class ITTestNestedSchemaChange extends ElasticBaseTestQuery {
     }
     elastic.dataFromFile(schema, table, NEW_NESTED_COLUMN_2);
     String query = String.format("select a from elasticsearch.%s.%s order by id", schema, table);
-    TestBuilder testBuilder = testBuilder()
-      .sqlQuery(query)
-      .ordered()
-      .baselineColumns("a");
+    TestBuilder testBuilder = testBuilder().sqlQuery(query).ordered().baselineColumns("a");
     for (int i = 0; i < 100; i++) {
       testBuilder.baselineValues(mapOf("b", mapOf("c1", 1L)));
     }

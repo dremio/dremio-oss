@@ -15,9 +15,8 @@
  */
 package com.dremio.io;
 
-import java.io.IOException;
-
 import com.google.common.base.Objects;
+import java.io.IOException;
 
 public class FilterFSOutputStream extends FSOutputStream {
   private final FSOutputStream out;
@@ -92,6 +91,7 @@ public class FilterFSOutputStream extends FSOutputStream {
   public long getPosition() throws IOException {
     return out.getPosition();
   }
+
   /**
    * @throws IOException
    * @see java.io.OutputStream#close()
@@ -100,6 +100,4 @@ public class FilterFSOutputStream extends FSOutputStream {
   public void close() throws IOException {
     out.close();
   }
-
-
 }

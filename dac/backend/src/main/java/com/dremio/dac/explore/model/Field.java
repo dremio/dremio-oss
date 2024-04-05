@@ -15,16 +15,13 @@
  */
 package com.dremio.dac.explore.model;
 
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.dac.explore.DataTypeUtil;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * column info
- */
+/** column info */
 public class Field {
   private final String name;
   private final String type;
@@ -39,8 +36,11 @@ public class Field {
   }
 
   @JsonCreator
-  public Field(@JsonProperty("name") String name, @JsonProperty("type") String type,
-    @JsonProperty("isPartitioned") boolean isPartitioned, @JsonProperty("isSorted") boolean isSorted) {
+  public Field(
+      @JsonProperty("name") String name,
+      @JsonProperty("type") String type,
+      @JsonProperty("isPartitioned") boolean isPartitioned,
+      @JsonProperty("isSorted") boolean isSorted) {
     this.name = name;
     this.type = type;
     this.isPartitioned = isPartitioned;

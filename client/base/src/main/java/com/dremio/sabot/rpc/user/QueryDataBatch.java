@@ -15,11 +15,9 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.arrow.memory.ArrowBuf;
-
 import com.dremio.exec.proto.UserBitShared.QueryData;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class QueryDataBatch implements AutoCloseable {
 
@@ -67,6 +65,4 @@ public class QueryDataBatch implements AutoCloseable {
   public void close() {
     release();
   }
-
-
 }

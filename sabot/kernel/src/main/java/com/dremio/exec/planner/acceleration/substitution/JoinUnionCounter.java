@@ -15,17 +15,13 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalUnion;
 import org.apache.calcite.rel.rules.MultiJoin;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-
-
-/**
- * Counts the number of unions and joins in the tree starting at the input root
- */
+/** Counts the number of unions and joins in the tree starting at the input root */
 public class JoinUnionCounter extends StatelessRelShuttleImpl {
 
   private int numJoins = 0;
@@ -46,13 +42,13 @@ public class JoinUnionCounter extends StatelessRelShuttleImpl {
   @Override
   public RelNode visit(LogicalUnion union) {
     numUnions++;
-    return  super.visit(union);
+    return super.visit(union);
   }
 
   @Override
   public RelNode visit(LogicalJoin join) {
     numJoins++;
-    return  super.visit(join);
+    return super.visit(join);
   }
 
   @Override
@@ -65,5 +61,4 @@ public class JoinUnionCounter extends StatelessRelShuttleImpl {
     }
     return super.visit(other);
   }
-
 }

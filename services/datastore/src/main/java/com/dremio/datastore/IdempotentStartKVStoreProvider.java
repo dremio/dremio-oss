@@ -15,15 +15,12 @@
  */
 package com.dremio.datastore;
 
-import java.util.Set;
-
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.StoreCreationFunction;
+import java.util.Set;
 
-/**
- * Wrapper around underlying KVStoreProvider to make start idempotent.
- */
+/** Wrapper around underlying KVStoreProvider to make start idempotent. */
 public class IdempotentStartKVStoreProvider implements KVStoreProvider {
 
   private final KVStoreProvider underlyingKVStoreProvider;
@@ -39,7 +36,7 @@ public class IdempotentStartKVStoreProvider implements KVStoreProvider {
 
   @Override
   public void start() throws Exception {
-    if(!started){
+    if (!started) {
       underlyingKVStoreProvider.start();
       started = true;
     }
@@ -51,7 +48,8 @@ public class IdempotentStartKVStoreProvider implements KVStoreProvider {
   }
 
   @Override
-  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
+  public <K, V, T extends KVStore<K, V>> T getStore(
+      Class<? extends StoreCreationFunction<K, V, T>> creator) {
     return underlyingKVStoreProvider.getStore(creator);
   }
 
@@ -62,7 +60,7 @@ public class IdempotentStartKVStoreProvider implements KVStoreProvider {
 
   @Override
   public void close() throws Exception {
-    if(started && !closed){
+    if (started && !closed) {
       underlyingKVStoreProvider.close();
       closed = true;
     }

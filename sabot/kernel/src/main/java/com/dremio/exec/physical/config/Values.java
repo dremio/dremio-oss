@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.JSONOptions;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractBase;
@@ -35,6 +31,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 @JsonTypeName("values")
 public class Values extends AbstractBase implements SubScan {
@@ -46,19 +45,19 @@ public class Values extends AbstractBase implements SubScan {
   public Values(
       @JsonProperty("props") OpProps props,
       @JsonProperty("fullSchema") BatchSchema schema,
-      @JsonProperty("content") JSONOptions content
-      ) {
+      @JsonProperty("content") JSONOptions content) {
     super(props);
-    this.schema = schema; //Preconditions.checkNotNull(schema);
+    this.schema = schema; // Preconditions.checkNotNull(schema);
     this.content = content;
   }
 
-  public JSONOptions getContent(){
+  public JSONOptions getContent() {
     return content;
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitValues(this, value);
   }
 

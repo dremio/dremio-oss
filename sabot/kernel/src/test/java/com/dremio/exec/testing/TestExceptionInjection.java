@@ -18,12 +18,6 @@ package com.dremio.exec.testing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
-import java.util.Properties;
-
-import org.apache.curator.test.TestingServer;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
@@ -41,26 +35,34 @@ import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.io.IOException;
+import java.util.Properties;
+import org.apache.curator.test.TestingServer;
+import org.junit.Test;
 
 public class TestExceptionInjection extends BaseTestQuery {
   private static final String NO_THROW_FAIL = "Didn't throw expected exception";
 
-  private static final UserSession session = UserSession.Builder.newBuilder()
-    .withSessionOptionManager(
-      new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
-      nodes[0].getContext().getOptionManager())
-    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1)
-      .build())
-      .withUserProperties(UserProperties.getDefaultInstance())
-      .build();
+  private static final UserSession session =
+      UserSession.Builder.newBuilder()
+          .withSessionOptionManager(
+              new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
+              nodes[0].getContext().getOptionManager())
+          .withCredentials(
+              UserBitShared.UserCredentials.newBuilder()
+                  .setUserName(UserServiceTestImpl.TEST_USER_1)
+                  .build())
+          .withUserProperties(UserProperties.getDefaultInstance())
+          .build();
 
   /**
-   * Class whose methods we want to simulate runtime at run-time for testing
-   * purposes. The class must have access to QueryId, UserSession and NodeEndpoint.
-   * For instance, these are accessible from {@link com.dremio.exec.ops.QueryContext}.
+   * Class whose methods we want to simulate runtime at run-time for testing purposes. The class
+   * must have access to QueryId, UserSession and NodeEndpoint. For instance, these are accessible
+   * from {@link com.dremio.exec.ops.QueryContext}.
    */
   private static class DummyClass {
-    private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(DummyClass.class);
+    private static final ControlsInjector injector =
+        ControlsInjectorFactory.getInjector(DummyClass.class);
     private final QueryContext context;
 
     public DummyClass(final QueryContext context) {
@@ -114,12 +116,12 @@ public class TestExceptionInjection extends BaseTestQuery {
   /**
    * Assert that DummyClass.descPassThroughMethod does indeed throw the expected exception.
    *
-   * @param dummyClass         the instance of DummyClass
+   * @param dummyClass the instance of DummyClass
    * @param exceptionClassName the expected exception
-   * @param exceptionDesc      the expected exception site description
+   * @param exceptionDesc the expected exception site description
    */
   private static void assertPassthroughThrows(
-    final DummyClass dummyClass, final String exceptionClassName, final String exceptionDesc) {
+      final DummyClass dummyClass, final String exceptionClassName, final String exceptionDesc) {
     try {
       dummyClass.descPassthroughMethod(exceptionDesc);
       fail(NO_THROW_FAIL);
@@ -135,17 +137,23 @@ public class TestExceptionInjection extends BaseTestQuery {
     // set exceptions via a string
     final String exceptionDesc = "<<injected from descPassthroughMethod()>>";
     final String exceptionClassName = "java.lang.RuntimeException";
-    final String jsonString = "{\"injections\":[{"
-      + "\"type\":\"exception\"," +
-      "\"siteClass\":\"com.dremio.exec.testing.TestExceptionInjection$DummyClass\","
-      + "\"desc\":\"" + exceptionDesc + "\","
-      + "\"nSkip\":0,"
-      + "\"nFire\":1,"
-      + "\"exceptionClass\":\"" + exceptionClassName + "\""
-      + "}]}";
+    final String jsonString =
+        "{\"injections\":[{"
+            + "\"type\":\"exception\","
+            + "\"siteClass\":\"com.dremio.exec.testing.TestExceptionInjection$DummyClass\","
+            + "\"desc\":\""
+            + exceptionDesc
+            + "\","
+            + "\"nSkip\":0,"
+            + "\"nFire\":1,"
+            + "\"exceptionClass\":\""
+            + exceptionClassName
+            + "\""
+            + "}]}";
     ControlsInjectionUtil.setControls(session, jsonString);
 
-    final QueryContext context = new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
+    final QueryContext context =
+        new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
 
     // test that the exception gets thrown
     final DummyClass dummyClass = new DummyClass(context);
@@ -161,12 +169,14 @@ public class TestExceptionInjection extends BaseTestQuery {
   @Test
   public void checkedInjection() {
     // set the injection via the parsing POJOs
-    final String controls = Controls.newBuilder()
-      .addException(DummyClass.class, DummyClass.THROWS_IOEXCEPTION, IOException.class, 0, 1)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(DummyClass.class, DummyClass.THROWS_IOEXCEPTION, IOException.class, 0, 1)
+            .build();
     ControlsInjectionUtil.setControls(session, controls);
 
-    final QueryContext context = new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
+    final QueryContext context =
+        new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
 
     // test that the expected exception (checked) gets thrown
     final DummyClass dummyClass = new DummyClass(context);
@@ -190,12 +200,14 @@ public class TestExceptionInjection extends BaseTestQuery {
     final int nSkip = 7;
     final int nFire = 3;
     final Class<? extends Throwable> exceptionClass = RuntimeException.class;
-    final String controls = Controls.newBuilder()
-      .addException(DummyClass.class, passthroughDesc, exceptionClass, nSkip, nFire)
-      .build();
+    final String controls =
+        Controls.newBuilder()
+            .addException(DummyClass.class, passthroughDesc, exceptionClass, nSkip, nFire)
+            .build();
     ControlsInjectionUtil.setControls(session, controls);
 
-    final QueryContext context = new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
+    final QueryContext context =
+        new QueryContext(session, nodes[0].getContext(), QueryId.getDefaultInstance());
 
     final DummyClass dummyClass = new DummyClass(context);
 
@@ -228,36 +240,46 @@ public class TestExceptionInjection extends BaseTestQuery {
 
       final ScanResult classpathScanResult = ClassPathScanner.fromPrescan(config);
       // Creating two nodes
-      try (
-        ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode node1 = SabotNode.start(config, clusterCoordinator, classpathScanResult);
-        SabotNode node2 = SabotNode.start(config, clusterCoordinator, classpathScanResult)) {
-
+      try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
+          SabotNode node1 = SabotNode.start(config, clusterCoordinator, classpathScanResult);
+          SabotNode node2 = SabotNode.start(config, clusterCoordinator, classpathScanResult)) {
 
         final SabotContext nodeContext1 = node1.getContext();
         final SabotContext nodeContext2 = node2.getContext();
 
-        final UserSession session = UserSession.Builder.newBuilder()
-          .withSessionOptionManager(
-            new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
-            nodeContext1.getOptionManager())
-          .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
-          .withUserProperties(UserProperties.getDefaultInstance())
-          .build();
+        final UserSession session =
+            UserSession.Builder.newBuilder()
+                .withSessionOptionManager(
+                    new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
+                    nodeContext1.getOptionManager())
+                .withCredentials(
+                    UserBitShared.UserCredentials.newBuilder()
+                        .setUserName(UserServiceTestImpl.TEST_USER_1)
+                        .build())
+                .withUserProperties(UserProperties.getDefaultInstance())
+                .build();
 
         final String passthroughDesc = "<<injected from descPassthrough>>";
         final int nSkip = 7;
         final int nFire = 3;
         final Class<? extends Throwable> exceptionClass = RuntimeException.class;
         // only node1's (address, port)
-        final String controls = Controls.newBuilder()
-          .addExceptionOnNode(DummyClass.class, passthroughDesc, exceptionClass, nodeContext1.getEndpoint(), nSkip, nFire)
-          .build();
+        final String controls =
+            Controls.newBuilder()
+                .addExceptionOnNode(
+                    DummyClass.class,
+                    passthroughDesc,
+                    exceptionClass,
+                    nodeContext1.getEndpoint(),
+                    nSkip,
+                    nFire)
+                .build();
 
         ControlsInjectionUtil.setControls(session, controls);
 
         {
-          final QueryContext queryContext1 = new QueryContext(session, nodeContext1, QueryId.getDefaultInstance());
+          final QueryContext queryContext1 =
+              new QueryContext(session, nodeContext1, QueryId.getDefaultInstance());
           final DummyClass class1 = new DummyClass(queryContext1);
 
           // these shouldn't throw
@@ -279,7 +301,8 @@ public class TestExceptionInjection extends BaseTestQuery {
           }
         }
         {
-          final QueryContext queryContext2 = new QueryContext(session, nodeContext2, QueryId.getDefaultInstance());
+          final QueryContext queryContext2 =
+              new QueryContext(session, nodeContext2, QueryId.getDefaultInstance());
           final DummyClass class2 = new DummyClass(queryContext2);
 
           // these shouldn't throw

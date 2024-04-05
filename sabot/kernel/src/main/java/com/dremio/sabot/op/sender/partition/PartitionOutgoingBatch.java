@@ -15,7 +15,6 @@
  */
 package com.dremio.sabot.op.sender.partition;
 
-
 public interface PartitionOutgoingBatch {
 
   public long getTotalRecords();

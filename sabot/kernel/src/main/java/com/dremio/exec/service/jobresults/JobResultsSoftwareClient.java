@@ -19,9 +19,7 @@ import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 import com.dremio.service.jobresults.client.JobResultsClient;
 import com.dremio.services.jobresults.common.JobResultsTunnel;
 
-/**
- * JobResultsClient implementation for Software.
- */
+/** JobResultsClient implementation for Software. */
 public class JobResultsSoftwareClient implements JobResultsClient {
   private final ExecToCoordTunnel tunnel;
 

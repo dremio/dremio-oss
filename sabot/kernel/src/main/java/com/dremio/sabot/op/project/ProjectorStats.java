@@ -21,20 +21,27 @@ import com.dremio.sabot.exec.context.MetricDef;
 
 public class ProjectorStats {
   public enum Metric implements MetricDef {
-    JAVA_EXPRESSIONS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "Maximum number of expressions evaluated completely in Java"),
+    JAVA_EXPRESSIONS(
+        DisplayType.DISPLAY_BY_DEFAULT,
+        AggregationType.MAX,
+        "Maximum number of expressions evaluated completely in Java"),
     JAVA_BUILD_TIME,
     JAVA_EVALUATE_TIME,
-    GANDIVA_EXPRESSIONS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "Maximum number of expressions evaluated completely in Gandiva"),
+    GANDIVA_EXPRESSIONS(
+        DisplayType.DISPLAY_BY_DEFAULT,
+        AggregationType.MAX,
+        "Maximum number of expressions evaluated completely in Gandiva"),
     GANDIVA_BUILD_TIME,
     GANDIVA_EVALUATE_TIME,
-    MIXED_EXPRESSIONS(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "Maximum number of expressions that could not be evaluated entirely in Java or Gandiva"),
+    MIXED_EXPRESSIONS(
+        DisplayType.DISPLAY_BY_DEFAULT,
+        AggregationType.MAX,
+        "Maximum number of expressions that could not be evaluated entirely in Java or Gandiva"),
     MIXED_SPLITS,
     PERSISTENT_CACHE_READ_TIME,
     /**
-     * This metric could take one of these 3 values:
-     * 0 for built from primary cache
-     * 1 for built from secondary cache
-     * 2 for code generated using gandiva
+     * This metric could take one of these 3 values: 0 for built from primary cache 1 for built from
+     * secondary cache 2 for code generated using gandiva
      */
     BUILT_FROM_GANDIVA_CACHE;
 

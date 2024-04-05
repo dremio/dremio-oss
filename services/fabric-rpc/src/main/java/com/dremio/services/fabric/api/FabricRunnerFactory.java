@@ -15,20 +15,16 @@
  */
 package com.dremio.services.fabric.api;
 
-/**
- * A way to get node-to-node channels.
- */
+/** A way to get node-to-node channels. */
 public interface FabricRunnerFactory {
 
   /**
    * Get a runner that can communicate with another node.
    *
-   * @param address
-   *          The hostname or IP to connect to.
-   * @param port
-   *          The port to connect to.
-   * @return The command runner to this point. Note that this is lazy. Until you
-   *         attempt to send a message, a connection may not be made.
+   * @param address The hostname or IP to connect to.
+   * @param port The port to connect to.
+   * @return The command runner to this point. Note that this is lazy. Until you attempt to send a
+   *     message, a connection may not be made.
    */
   FabricCommandRunner getCommandRunner(String address, int port);
 }

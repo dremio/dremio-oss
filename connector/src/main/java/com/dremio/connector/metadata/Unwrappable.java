@@ -15,18 +15,16 @@
  */
 package com.dremio.connector.metadata;
 
-/**
- * Objects can be unwrapped.
- */
+/** Objects can be unwrapped. */
 public interface Unwrappable {
 
   /**
    * Returns an object that implements the given type/ interface.
-   * <p>
-   * By default, this object is casted to the given type.
+   *
+   * <p>By default, this object is casted to the given type.
    *
    * @param clazz class that must be implemented
-   * @param <T>   type to unwrap to
+   * @param <T> type to unwrap to
    * @return object that implements the given type
    * @throws IllegalArgumentException if unwrap fails
    */
@@ -35,7 +33,7 @@ public interface Unwrappable {
       return clazz.cast(this);
     }
 
-    throw new IllegalArgumentException(String.format("This object (type '%s') cannot be unwrapped into '%s'",
-        getClass(), clazz));
+    throw new IllegalArgumentException(
+        String.format("This object (type '%s') cannot be unwrapped into '%s'", getClass(), clazz));
   }
 }

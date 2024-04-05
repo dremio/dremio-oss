@@ -15,8 +15,6 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.ExpressionParsingException;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
@@ -25,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Lists;
+import java.util.List;
 
 @JsonTypeName("project")
 public class Project extends SingleInputOperator {
@@ -46,7 +45,8 @@ public class Project extends SingleInputOperator {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitProject(this, value);
   }
 
@@ -72,7 +72,5 @@ public class Project extends SingleInputOperator {
     public Project internalBuild() {
       return new Project(exprs);
     }
-
   }
-
 }

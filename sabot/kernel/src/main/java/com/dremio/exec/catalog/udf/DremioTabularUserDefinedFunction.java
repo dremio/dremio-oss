@@ -15,37 +15,32 @@
  */
 package com.dremio.exec.catalog.udf;
 
+import com.dremio.exec.catalog.CatalogIdentity;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import java.lang.reflect.Type;
 import java.util.List;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.TableFunction;
 
-import com.dremio.exec.catalog.CatalogIdentity;
-import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.store.sys.udf.UserDefinedFunction;
-
-/**
- * Wraps a UserDefinedFunction to meet the TableFunction API
- */
-public final class DremioTabularUserDefinedFunction implements DremioUserDefinedFunction, TableFunction {
+/** Wraps a UserDefinedFunction to meet the TableFunction API */
+public final class DremioTabularUserDefinedFunction
+    implements DremioUserDefinedFunction, TableFunction {
   private final CatalogIdentity owner;
   private final UserDefinedFunction userDefinedFunction;
 
   public DremioTabularUserDefinedFunction(
-      CatalogIdentity owner,
-      UserDefinedFunction userDefinedFunction) {
+      CatalogIdentity owner, UserDefinedFunction userDefinedFunction) {
     this.owner = owner;
     this.userDefinedFunction = userDefinedFunction;
   }
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory, List<Object> arguments) {
-    return CalciteArrowHelper
-      .wrap(userDefinedFunction.getReturnType())
-      .toCalciteType(typeFactory, true);
+    return CalciteArrowHelper.wrap(userDefinedFunction.getReturnType())
+        .toCalciteType(typeFactory, true);
   }
 
   @Override
@@ -57,7 +52,6 @@ public final class DremioTabularUserDefinedFunction implements DremioUserDefined
   public List<FunctionParameter> getParameters() {
     return FunctionParameterImpl.createParameters(userDefinedFunction.getFunctionArgsList());
   }
-
 
   @Override
   public String getFunctionSql() {

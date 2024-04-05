@@ -25,7 +25,8 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.tools.RelBuilder;
 
 public final class ArraysOverlapConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArraysOverlapConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArraysOverlapConvertlet());
 
   private ArraysOverlapConvertlet() {}
 
@@ -48,14 +49,16 @@ public final class ArraysOverlapConvertlet implements FunctionConvertlet {
     RelBuilder relBuilder = cx.getRelBuilder();
     RexCorrelVariable rexCorrelVariable = cx.getRexCorrelVariable();
     return new CorrelatedUnnestQueryBuilder(rexCorrelVariable, relBuilder, rexBuilder)
-      .unnest(arr1)
-      .transform(builder -> {
-        RexSubQuery inSubquery = new CorrelatedUnnestQueryBuilder(rexCorrelVariable, relBuilder, rexBuilder)
-          .unnest(arr2)
-          .noOp()
-          .in(rexBuilder.makeInputRef(arr1.getType().getComponentType(), 0));
-        builder.filter(inSubquery);
-      })
-      .exists();
+        .unnest(arr1)
+        .transform(
+            builder -> {
+              RexSubQuery inSubquery =
+                  new CorrelatedUnnestQueryBuilder(rexCorrelVariable, relBuilder, rexBuilder)
+                      .unnest(arr2)
+                      .noOp()
+                      .in(rexBuilder.makeInputRef(arr1.getType().getComponentType(), 0));
+              builder.filter(inSubquery);
+            })
+        .exists();
   }
 }

@@ -23,34 +23,32 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
-/**
- * Unit tests for {@code SimpleLocalSchedulerService}
- */
+/** Unit tests for {@code SimpleLocalSchedulerService} */
 public class TestSimpleLocalSchedulerService {
 
-  /**
-   * Verify that threads created by the thread factory are daemon threads
-   */
+  /** Verify that threads created by the thread factory are daemon threads */
   @Test
   public void testThreadNameMatchesDefaultGroup() throws Exception {
     try (SimpleLocalSchedulerService service = new SimpleLocalSchedulerService(1)) {
       service.start();
       final CountDownLatch latch = new CountDownLatch(1);
       final AtomicReference<Thread> runnableThreadRef = new AtomicReference<>(null);
-      service.schedule(Schedule.SingleShotBuilder.now().build(), () -> {
-        Thread thread = Thread.currentThread();
-        runnableThreadRef.set(thread);
-        latch.countDown();
-      });
+      service.schedule(
+          Schedule.SingleShotBuilder.now().build(),
+          () -> {
+            Thread thread = Thread.currentThread();
+            runnableThreadRef.set(thread);
+            latch.countDown();
+          });
       latch.await();
       final Thread thread = runnableThreadRef.get();
       assertNotNull(thread);
       assertTrue("thread should be a daemon thread", thread.isDaemon());
-      assertTrue("thread name should start with scheduler-", thread.getName().startsWith("scheduler-"));
+      assertTrue(
+          "thread name should start with scheduler-", thread.getName().startsWith("scheduler-"));
     }
   }
 
@@ -62,18 +60,20 @@ public class TestSimpleLocalSchedulerService {
       final CountDownLatch secondLatch = new CountDownLatch(1);
       final CountDownLatch thirdLatch = new CountDownLatch(20);
       final AtomicInteger counter = new AtomicInteger(0);
-      service.schedule(Schedule.Builder.everyMillis(50).build(), () -> {
-        final int last = counter.incrementAndGet();
-        firstLatch.countDown();
-        thirdLatch.countDown();
-        if (last == 10) {
-          try {
-            secondLatch.await();
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-        }
-      });
+      service.schedule(
+          Schedule.Builder.everyMillis(50).build(),
+          () -> {
+            final int last = counter.incrementAndGet();
+            firstLatch.countDown();
+            thirdLatch.countDown();
+            if (last == 10) {
+              try {
+                secondLatch.await();
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          });
       firstLatch.await();
       Assertions.assertThat(counter.get()).isEqualTo(10);
       secondLatch.countDown();
@@ -98,8 +98,10 @@ public class TestSimpleLocalSchedulerService {
       service.start();
       final AtomicInteger counter = new AtomicInteger(0);
       final Instant firstInstant = Instant.now().plusMillis(10 * 3600 * 1000);
-      Cancellable task = service.schedule(Schedule.Builder.everyHours(10).startingAt(firstInstant).build(),
-        counter::incrementAndGet);
+      Cancellable task =
+          service.schedule(
+              Schedule.Builder.everyHours(10).startingAt(firstInstant).build(),
+              counter::incrementAndGet);
       task.cancel(false);
       assertTrue(task.isCancelled());
     }
@@ -114,17 +116,20 @@ public class TestSimpleLocalSchedulerService {
       final CountDownLatch thirdLatch = new CountDownLatch(1);
       final AtomicInteger counter = new AtomicInteger(0);
       final AtomicBoolean interrupted = new AtomicBoolean(false);
-      final Cancellable task = service.schedule(Schedule.Builder.everyMillis(50).build(), () -> {
-        counter.incrementAndGet();
-        firstLatch.countDown();
-        try {
-          secondLatch.await();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          interrupted.set(true);
-        }
-        thirdLatch.countDown();
-      });
+      final Cancellable task =
+          service.schedule(
+              Schedule.Builder.everyMillis(50).build(),
+              () -> {
+                counter.incrementAndGet();
+                firstLatch.countDown();
+                try {
+                  secondLatch.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  interrupted.set(true);
+                }
+                thirdLatch.countDown();
+              });
       firstLatch.await();
       task.cancel(true);
       thirdLatch.await();
@@ -144,10 +149,12 @@ public class TestSimpleLocalSchedulerService {
       }
       for (int i = 0; i < loopCount; i++) {
         final int currentIdx = i;
-        service.schedule(Schedule.Builder.everyMillis(50).build(), () -> {
-          counters[currentIdx].incrementAndGet();
-          latches[currentIdx].countDown();
-        });
+        service.schedule(
+            Schedule.Builder.everyMillis(50).build(),
+            () -> {
+              counters[currentIdx].incrementAndGet();
+              latches[currentIdx].countDown();
+            });
       }
       for (int i = 0; i < loopCount; i++) {
         latches[i].await();

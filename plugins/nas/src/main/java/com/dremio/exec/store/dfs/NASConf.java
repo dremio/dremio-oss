@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
-import javax.inject.Provider;
-import javax.validation.constraints.NotBlank;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -30,8 +25,10 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.Path;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.Tag;
+import java.util.List;
+import javax.inject.Provider;
+import javax.validation.constraints.NotBlank;
 
 @SourceType(value = "NAS", uiConfig = "nas-layout.json")
 public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> {
@@ -51,7 +48,6 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
 
   @Tag(3)
   public List<Property> propertyList;
-
 
   @Tag(4)
   @NotMetadataImpacting
@@ -94,7 +90,8 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
   }
 
   @Override
-  public FileSystemPlugin<NASConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public FileSystemPlugin<NASConf> newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new NASFileSystem(this, context, name, pluginIdProvider);
   }
 

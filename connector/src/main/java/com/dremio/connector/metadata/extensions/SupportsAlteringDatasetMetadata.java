@@ -15,22 +15,20 @@
  */
 package com.dremio.connector.metadata.extensions;
 
-import java.util.Map;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.options.AlterMetadataOption;
+import java.util.Map;
 
-/**
- * Implemented by plugins which can alter dataset metadata
- */
+/** Implemented by plugins which can alter dataset metadata */
 public interface SupportsAlteringDatasetMetadata {
 
   /**
-   * Updates dataset metadata with given attributes
-   * Returns new metadata object if attribute values changed else returns passed metadata reference
+   * Updates dataset metadata with given attributes Returns new metadata object if attribute values
+   * changed else returns passed metadata reference
+   *
    * @param datasetHandle
    * @param metadata
    * @param attributes
@@ -39,14 +37,16 @@ public interface SupportsAlteringDatasetMetadata {
    * @throws ConnectorException
    */
   DatasetMetadata alterMetadata(
-      final DatasetHandle datasetHandle, final DatasetMetadata metadata,
+      final DatasetHandle datasetHandle,
+      final DatasetMetadata metadata,
       final Map<String, AttributeValue> attributes,
-      final AlterMetadataOption... options
-  ) throws ConnectorException;
+      final AlterMetadataOption... options)
+      throws ConnectorException;
 
   /**
-   * Updates dataset metadata with a given attribute being applied to a given column.
-   * Returns new metadata object if attribute values changed else returns passed metadata reference
+   * Updates dataset metadata with a given attribute being applied to a given column. Returns new
+   * metadata object if attribute values changed else returns passed metadata reference
+   *
    * @param datasetHandle
    * @param metadata
    * @param columnName
@@ -57,11 +57,13 @@ public interface SupportsAlteringDatasetMetadata {
    * @throws ConnectorException
    */
   default DatasetMetadata alterDatasetSetColumnOption(
-    final DatasetHandle datasetHandle, final DatasetMetadata metadata,
-    final String columnName,
-    final String attributeName, final AttributeValue attributeValue,
-    final AlterMetadataOption... options
-  ) throws ConnectorException {
+      final DatasetHandle datasetHandle,
+      final DatasetMetadata metadata,
+      final String columnName,
+      final String attributeName,
+      final AttributeValue attributeValue,
+      final AlterMetadataOption... options)
+      throws ConnectorException {
     throw new ConnectorException(String.format("Invalid Option [%s]", attributeName));
   }
 }

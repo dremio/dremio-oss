@@ -18,19 +18,17 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.exec.catalog.MetadataObjectsUtils;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-
-import com.dremio.common.util.TestTools;
-import com.dremio.connector.metadata.DatasetHandle;
-import com.dremio.exec.catalog.MetadataObjectsUtils;
 
 /* Test if hidden indices are queryable or not */
 public class ITTestHiddenIndices extends ElasticBaseTestQuery {
@@ -42,57 +40,53 @@ public class ITTestHiddenIndices extends ElasticBaseTestQuery {
     Assume.assumeFalse(ElasticsearchCluster.USE_EXTERNAL_ES5);
   }
 
-
   @Override
   @Before
   public void before() throws Exception {
     super.before();
-    plugin = (ElasticsearchStoragePlugin) getSabotContext().getCatalogService().getSource("elasticsearch");
+    plugin =
+        (ElasticsearchStoragePlugin)
+            getSabotContext().getCatalogService().getSource("elasticsearch");
   }
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testHiddenIndex() throws Exception {
 
+    schema = ".hidden";
 
-      schema = ".hidden";
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
-      ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-              new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-                      {"San Francisco"},
-                      {"Oakland"},
-                      {"San Jose"}
-              })
-      };
+    // load up a hidden schema
+    load(schema, table, data);
 
-      //load up a hidden schema
-      load(schema, table, data);
+    schema = "nothidden";
 
-      schema = "nothidden";
+    // load up a not hidden schema
+    load(schema, table, data);
 
-      //load up a not hidden schema
-      load(schema, table, data);
+    // get all the datasets in the plugin
+    Iterator<? extends DatasetHandle> handles = plugin.listDatasetHandles().iterator();
 
-      //get all the datasets in the plugin
-      Iterator<? extends DatasetHandle> handles = plugin.listDatasetHandles().iterator();
+    // make sure you can find the not hidden schema
+    boolean foundNotHidden = false;
 
-      //make sure you can find the not hidden schema
-      boolean foundNotHidden = false;
+    // make sure you never find the hidden one
 
-      //make sure you never find the hidden one
-
-      while(handles.hasNext()){
-        DatasetHandle table = handles.next();
-        String response = MetadataObjectsUtils.toNamespaceKey(table.getDatasetPath()).getSchemaPath();
-        assertTrue(!(response.contains(".hidden")));
-        if(response.contains("nothidden")) {
-          foundNotHidden = true;
-        }
+    while (handles.hasNext()) {
+      DatasetHandle table = handles.next();
+      String response = MetadataObjectsUtils.toNamespaceKey(table.getDatasetPath()).getSchemaPath();
+      assertTrue(!(response.contains(".hidden")));
+      if (response.contains("nothidden")) {
+        foundNotHidden = true;
       }
+    }
 
-      assertTrue(foundNotHidden);
-
+    assertTrue(foundNotHidden);
   }
 }

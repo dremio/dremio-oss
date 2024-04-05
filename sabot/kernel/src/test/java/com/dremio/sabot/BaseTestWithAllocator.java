@@ -15,21 +15,19 @@
  */
 package com.dremio.sabot;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
 public abstract class BaseTestWithAllocator extends DremioTest {
 
   protected BufferAllocator allocator;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setup() {
@@ -40,5 +38,4 @@ public abstract class BaseTestWithAllocator extends DremioTest {
   public void close() throws Exception {
     AutoCloseables.close(allocator);
   }
-
 }

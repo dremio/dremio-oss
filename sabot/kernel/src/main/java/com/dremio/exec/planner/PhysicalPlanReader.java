@@ -17,21 +17,7 @@ package com.dremio.exec.planner;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Provider;
-
-import org.xerial.snappy.SnappyInputStream;
-import org.xerial.snappy.SnappyOutputStream;
-
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.serde.ProtobufByteStringSerDe;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -64,22 +50,31 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.io.CharStreams;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import javax.inject.Provider;
+import org.xerial.snappy.SnappyInputStream;
+import org.xerial.snappy.SnappyOutputStream;
 
 @SuppressWarnings("serial")
 public class PhysicalPlanReader {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PhysicalPlanReader.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PhysicalPlanReader.class);
 
   private final ObjectReader physicalPlanReader;
   private final ObjectMapper mapper;
   private final ObjectReader optionListReader;
   private final ObjectReader operatorReader;
   private final LogicalPlanPersistence lpPersistance;
-  private final Map<String,Object> injectables;
+  private final Map<String, Object> injectables;
 
   public PhysicalPlanReader(
-      SabotConfig config,
       ScanResult scanResult,
       LogicalPlanPersistence lpPersistance,
       final NodeEndpoint endpoint,
@@ -93,15 +88,14 @@ public class PhysicalPlanReader {
     // automatic serialization of protobuf.
     lpMapper.registerModule(new ProtobufModule());
 
-    final SimpleModule deserModule = new SimpleModule("CustomSerializers")
-        .addSerializer(MajorType.class, new MajorTypeSerDe.Se())
-        .addSerializer(ByteString.class, new ByteStringSer())
-        .addDeserializer(ByteString.class, new ByteStringDeser())
-        .addDeserializer(MajorType.class, new MajorTypeSerDe.De());
-
+    final SimpleModule deserModule =
+        new SimpleModule("CustomSerializers")
+            .addSerializer(MajorType.class, new MajorTypeSerDe.Se())
+            .addSerializer(ByteString.class, new ByteStringSer())
+            .addDeserializer(ByteString.class, new ByteStringDeser())
+            .addDeserializer(MajorType.class, new MajorTypeSerDe.De());
 
     ProtoSerializers.registerSchema(deserModule, SourceConfig.getSchema());
-
 
     lpMapper.registerModule(deserModule);
 
@@ -112,17 +106,19 @@ public class PhysicalPlanReader {
       lpMapper.registerSubtypes(subType);
     }
 
-    final StoragePluginResolver storagePluginResolver = new StoragePluginResolver() {
-      @Override
-      public <T extends StoragePlugin> T getSource(StoragePluginId pluginId) {
-        return catalogService.get().getSource(pluginId);
-      }
-    };
+    final StoragePluginResolver storagePluginResolver =
+        new StoragePluginResolver() {
+          @Override
+          public <T extends StoragePlugin> T getSource(StoragePluginId pluginId) {
+            return catalogService.get().getSource(pluginId);
+          }
+        };
 
     // store this map so that we can use later for fragment plan reader
     this.injectables = new HashMap<>();
     this.injectables.put(StoragePluginResolver.class.getName(), storagePluginResolver);
-    this.injectables.put(ConnectionReader.class.getName(), context.getConnectionReaderProvider().get());
+    this.injectables.put(
+        ConnectionReader.class.getName(), context.getConnectionReaderProvider().get());
     this.injectables.put(SabotContext.class.getName(), context);
     this.injectables.put(NodeEndpoint.class.getName(), endpoint);
 
@@ -146,7 +142,6 @@ public class PhysicalPlanReader {
         throws IOException, JsonProcessingException {
       return ByteString.copyFrom(p.getBinaryValue());
     }
-
   }
 
   public static class ByteStringSer extends StdSerializer<ByteString> {
@@ -156,48 +151,54 @@ public class PhysicalPlanReader {
     }
 
     @Override
-    public void serialize(ByteString value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+    public void serialize(ByteString value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
       gen.writeBinary(value.toByteArray());
     }
-
   }
 
-  public com.google.protobuf.ByteString writeJsonBytes(OptionList list, FragmentCodec codec) throws JsonProcessingException{
+  public com.google.protobuf.ByteString writeJsonBytes(OptionList list, FragmentCodec codec)
+      throws JsonProcessingException {
     return writeValueAsByteString(list, codec);
   }
 
-  public com.google.protobuf.ByteString writeJsonBytes(PhysicalOperator op, FragmentCodec codec) throws JsonProcessingException{
+  public com.google.protobuf.ByteString writeJsonBytes(PhysicalOperator op, FragmentCodec codec)
+      throws JsonProcessingException {
     return writeValueAsByteString(op, codec);
   }
 
-  public com.google.protobuf.ByteString writeObject(Object object, FragmentCodec codec) throws JsonProcessingException{
+  public com.google.protobuf.ByteString writeObject(Object object, FragmentCodec codec)
+      throws JsonProcessingException {
     return writeValueAsByteString(object, codec);
   }
 
-  private com.google.protobuf.ByteString writeValueAsByteString(Object value, FragmentCodec codec) throws JsonProcessingException{
+  private com.google.protobuf.ByteString writeValueAsByteString(Object value, FragmentCodec codec)
+      throws JsonProcessingException {
     return ProtobufByteStringSerDe.writeValue(mapper, value, toSerDeCodec(codec));
   }
 
-  private static final ProtobufByteStringSerDe.Codec SNAPPY = new ProtobufByteStringSerDe.Codec() {
-    @Override
-    public OutputStream compress(OutputStream output) {
-      return new SnappyOutputStream(output);
-    }
+  private static final ProtobufByteStringSerDe.Codec SNAPPY =
+      new ProtobufByteStringSerDe.Codec() {
+        @Override
+        public OutputStream compress(OutputStream output) {
+          return new SnappyOutputStream(output);
+        }
 
-    @Override
-    public InputStream decompress(InputStream input) throws IOException {
-      return new SnappyInputStream(input);
-    }
-  };
+        @Override
+        public InputStream decompress(InputStream input) throws IOException {
+          return new SnappyInputStream(input);
+        }
+      };
 
   private static ProtobufByteStringSerDe.Codec toSerDeCodec(FragmentCodec codec) {
     switch (codec) {
-    case NONE:
-      return ProtobufByteStringSerDe.Codec.NONE;
-    case SNAPPY:
-      return SNAPPY;
-    default:
-      throw new UnsupportedOperationException("Do not know how to compress using " + codec + " algorithm.");
+      case NONE:
+        return ProtobufByteStringSerDe.Codec.NONE;
+      case SNAPPY:
+        return SNAPPY;
+      default:
+        throw new UnsupportedOperationException(
+            "Do not know how to compress using " + codec + " algorithm.");
     }
   }
 
@@ -206,59 +207,73 @@ public class PhysicalPlanReader {
     return physicalPlanReader.readValue(json);
   }
 
-  public PhysicalPlan readPhysicalPlan(com.google.protobuf.ByteString json, FragmentCodec codec) throws JsonProcessingException, IOException {
+  public PhysicalPlan readPhysicalPlan(com.google.protobuf.ByteString json, FragmentCodec codec)
+      throws JsonProcessingException, IOException {
     return readValue(physicalPlanReader, json, codec);
   }
 
-  public OptionList readOptionList(com.google.protobuf.ByteString json, FragmentCodec codec) throws JsonProcessingException, IOException {
+  public OptionList readOptionList(com.google.protobuf.ByteString json, FragmentCodec codec)
+      throws JsonProcessingException, IOException {
     return readValue(optionListReader, json, codec);
   }
 
-  public <T> T readObject(Class<T> clazz, com.google.protobuf.ByteString json, FragmentCodec codec) throws JsonProcessingException, IOException {
+  public <T> T readObject(Class<T> clazz, com.google.protobuf.ByteString json, FragmentCodec codec)
+      throws JsonProcessingException, IOException {
     ObjectReader objectReader = mapper.readerFor(clazz);
     return readValue(objectReader, json, codec);
   }
 
-  public FragmentRoot readFragmentOperator(com.google.protobuf.ByteString json, FragmentCodec codec) throws JsonProcessingException, IOException {
-    final InjectableValues.Std injectableValues = new InjectableValues.Std(new HashMap<>(injectables));
-    PhysicalOperator op = readValue(mapper.readerFor(PhysicalOperator.class).with(injectableValues), json, codec);
-    if(op instanceof FragmentRoot){
+  public FragmentRoot readFragmentOperator(com.google.protobuf.ByteString json, FragmentCodec codec)
+      throws JsonProcessingException, IOException {
+    final InjectableValues.Std injectableValues =
+        new InjectableValues.Std(new HashMap<>(injectables));
+    PhysicalOperator op =
+        readValue(mapper.readerFor(PhysicalOperator.class).with(injectableValues), json, codec);
+    if (op instanceof FragmentRoot) {
       return (FragmentRoot) op;
-    }else{
-      throw new UnsupportedOperationException(String.format("The provided json fragment doesn't have a FragmentRoot as its root operator.  The operator was %s.", op.getClass().getCanonicalName()));
+    } else {
+      throw new UnsupportedOperationException(
+          String.format(
+              "The provided json fragment doesn't have a FragmentRoot as its root operator.  The operator was %s.",
+              op.getClass().getCanonicalName()));
     }
   }
 
-  private <T> T readValue(ObjectReader reader, com.google.protobuf.ByteString json, FragmentCodec codec)
+  private <T> T readValue(
+      ObjectReader reader, com.google.protobuf.ByteString json, FragmentCodec codec)
       throws IOException {
     codec = codec != null ? codec : FragmentCodec.NONE;
     return ProtobufByteStringSerDe.readValue(reader, json, toSerDeCodec(codec), logger);
   }
 
   // TODO: move to using ProtobufByteStringSerDe#toInputStream
-  public static InputStream toInputStream(com.google.protobuf.ByteString json, FragmentCodec codec) throws IOException {
+  public static InputStream toInputStream(com.google.protobuf.ByteString json, FragmentCodec codec)
+      throws IOException {
     final FragmentCodec c = codec != null ? codec : FragmentCodec.NONE;
 
     final InputStream input = json.newInput();
-    switch(c) {
-    case NONE:
-      return input;
+    switch (c) {
+      case NONE:
+        return input;
 
-    case SNAPPY:
-      return new SnappyInputStream(input);
+      case SNAPPY:
+        return new SnappyInputStream(input);
 
-    default:
-      throw new UnsupportedOperationException("Do not know how to uncompress using " + c + " algorithm.");
+      default:
+        throw new UnsupportedOperationException(
+            "Do not know how to uncompress using " + c + " algorithm.");
     }
   }
 
-  public static String toString(com.google.protobuf.ByteString json, FragmentCodec codec) throws IOException {
-    try(final InputStreamReader reader = new InputStreamReader(toInputStream(json, codec), UTF_8)) {
+  public static String toString(com.google.protobuf.ByteString json, FragmentCodec codec)
+      throws IOException {
+    try (final InputStreamReader reader =
+        new InputStreamReader(toInputStream(json, codec), UTF_8)) {
       return CharStreams.toString(reader);
     }
   }
 
-  public LogicalPlanPersistence getLpPersistance(){
+  public LogicalPlanPersistence getLpPersistance() {
     return lpPersistance;
   }
 }

@@ -17,9 +17,7 @@ package com.dremio.dac.model.common;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-/**
- * base class for names serialized as strings
- */
+/** base class for names serialized as strings */
 public abstract class Name {
 
   private final String name;
@@ -46,7 +44,7 @@ public abstract class Name {
     if (obj == null || obj.getClass() != this.getClass()) {
       return false;
     }
-    Name other = (Name)obj;
+    Name other = (Name) obj;
     return name.equals(other.name);
   }
 

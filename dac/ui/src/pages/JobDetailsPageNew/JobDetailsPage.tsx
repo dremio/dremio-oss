@@ -50,6 +50,7 @@ import { jobDetailsTabs, getIconName } from "dyn-load/utils/jobsUtils";
 import { TabPanel, Tab, TabList, useTabList } from "dremio-ui-lib/components";
 // @ts-ignore
 import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
+import { store } from "@app/store/store";
 
 import "./JobDetailsPage.less";
 
@@ -72,7 +73,7 @@ type ConnectedProps = {
 };
 
 const JobDetailsPage = (
-  props: ConnectedProps & RouteComponentProps<any, any>
+  props: ConnectedProps & RouteComponentProps<any, any>,
 ) => {
   const { formatMessage } = useIntl();
   const isSqlContrast = localStorageUtils?.getSqlThemeContrast();
@@ -135,7 +136,7 @@ const JobDetailsPage = (
         (tab) =>
           tab === "Overview" ||
           tab === "Profile" ||
-          (tab === "Execution" && isAdmin)
+          (tab === "Execution" && isAdmin),
       )
     : jobDetailsTabs;
 
@@ -230,7 +231,7 @@ const JobDetailsPage = (
       jobId,
       JOB_DETAILS_VIEW_ID,
       attempts,
-      skipStartAction
+      skipStartAction,
     )) as any;
     if (!response) return; // no-payload error
 
@@ -243,6 +244,17 @@ const JobDetailsPage = (
         socket.startListenToQVJobProgress(jobId);
         setIsListeningForProgress(true);
       }
+
+      // SQL tabs changed the jobList to only update if a job already exists.
+      // This forces the job details to be stored in the jobList when the list is empty
+      if (
+        GetIsSocketForSingleJob() &&
+        !jobDetailsFromStore &&
+        jobsUtils.isJobRunning(response.jobStatus)
+      ) {
+        store.dispatch({ type: "SET_JOB_LIST", jobList: [response] });
+      }
+
       setJobDetails(Immutable.fromJS(response));
     } else if (response.status === 404) {
       const errorMessage = formatMessage({ id: "Job.Details.NoData" });
@@ -309,7 +321,7 @@ const JobDetailsPage = (
                                     reflectionId
                                       ? showReflectionJobIdProfile(
                                           profileUrl,
-                                          reflectionId
+                                          reflectionId,
                                         )
                                       : showJobIdProfile(profileUrl);
                                   } else {
@@ -362,7 +374,7 @@ const JobDetailsPage = (
 
 function mapStateToProps(
   state: Record<string, any>,
-  ownProps: RouteComponentProps<any, any>
+  ownProps: RouteComponentProps<any, any>,
 ) {
   const { routeParams: { jobId } = {} } = ownProps;
 
@@ -393,5 +405,5 @@ const mapDispatchToProps = {
 export default compose(
   withRouter,
   connect(mapStateToProps, mapDispatchToProps),
-  injectIntl
+  injectIntl,
 )(JobDetailsPage);

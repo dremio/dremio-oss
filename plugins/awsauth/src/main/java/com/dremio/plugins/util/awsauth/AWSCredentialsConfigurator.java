@@ -16,13 +16,10 @@
 
 package com.dremio.plugins.util.awsauth;
 
+import com.dremio.exec.catalog.conf.Property;
 import java.util.List;
 
-import com.dremio.exec.catalog.conf.Property;
-
-/**
- * Helper to configure credentials to S3 and AWS Glue.
- */
+/** Helper to configure credentials to S3 and AWS Glue. */
 @FunctionalInterface
 public interface AWSCredentialsConfigurator {
 
@@ -33,5 +30,4 @@ public interface AWSCredentialsConfigurator {
    * @return the credentials provider type used to connect to S3 or AWS Glue.
    */
   String configureCredentials(List<Property> properties);
-
 }

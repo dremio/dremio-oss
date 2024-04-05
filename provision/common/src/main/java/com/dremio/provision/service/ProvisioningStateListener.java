@@ -17,10 +17,7 @@ package com.dremio.provision.service;
 
 import com.dremio.provision.Cluster;
 
-/**
- * Interface to allow concrete provisioning services
- * updates to Cluster in KVStore
- */
+/** Interface to allow concrete provisioning services updates to Cluster in KVStore */
 public interface ProvisioningStateListener {
 
   void started(Cluster cluster) throws ProvisioningHandlingException;

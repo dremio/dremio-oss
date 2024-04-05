@@ -16,18 +16,6 @@
 
 package com.dremio.sabot.op.join;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.util.ImmutableBitSet;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -39,15 +27,24 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.hashtable.Comparator;
-
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Join;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.ImmutableBitSet;
 
 public class JoinUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinUtils.class);
 
   public enum JoinCategory {
-    EQUALITY,  // equality join
-    INEQUALITY,  // inequality join: <>, <, >
-    CARTESIAN   // no join condition
+    EQUALITY, // equality join
+    INEQUALITY, // inequality join: <>, <, >
+    CARTESIAN // no join condition
   }
 
   // Given a Join RelNode, swap its left condition with right condition
@@ -60,14 +57,22 @@ public class JoinUtils {
     Arrays.fill(adjustments, 0, numFieldLeft, numFieldRight);
     Arrays.fill(adjustments, numFieldLeft, numFieldLeft + numFieldRight, -numFieldLeft);
 
-    return joinRel.getCondition().accept(
-      new RelOptUtil.RexInputConverter(
-        joinRel.getCluster().getRexBuilder(),
-        joinRel.getCluster().getTypeFactory().createJoinType(joinRel.getLeft().getRowType(), joinRel.getRight().getRowType()).getFieldList(),
-        joinRel.getCluster().getTypeFactory().createJoinType(joinRel.getRight().getRowType(), joinRel.getLeft().getRowType()).getFieldList(),
-        adjustments
-      )
-    );
+    return joinRel
+        .getCondition()
+        .accept(
+            new RelOptUtil.RexInputConverter(
+                joinRel.getCluster().getRexBuilder(),
+                joinRel
+                    .getCluster()
+                    .getTypeFactory()
+                    .createJoinType(joinRel.getLeft().getRowType(), joinRel.getRight().getRowType())
+                    .getFieldList(),
+                joinRel
+                    .getCluster()
+                    .getTypeFactory()
+                    .createJoinType(joinRel.getRight().getRowType(), joinRel.getLeft().getRowType())
+                    .getFieldList(),
+                adjustments));
   }
 
   public static ImmutableBitSet projectAll(int size) {
@@ -78,7 +83,7 @@ public class JoinUtils {
   // done in JoinPrel; however we have to repeat it here because a physical plan
   // may be submitted directly to Dremio.
   public static Comparator checkAndReturnSupportedJoinComparator(JoinCondition condition) {
-    switch(condition.getRelationship().toUpperCase()) {
+    switch (condition.getRelationship().toUpperCase()) {
       case "EQUALS":
       case "==": /* older json plans still have '==' */
         return Comparator.EQUALS;
@@ -91,24 +96,21 @@ public class JoinUtils {
         .build(logger);
   }
 
-    /**
-     * Check if the given RelNode contains any Cartesian join.
-     * Return true if find one. Otherwise, return false.
-     *
-     * @param relNode   the RelNode to be inspected.
-     * @param leftKeys  a list used for the left input into the join which has
-     *                  equi-join keys. It can be empty or not (but not null),
-     *                  this method will clear this list before using it.
-     * @param rightKeys a list used for the right input into the join which has
-     *                  equi-join keys. It can be empty or not (but not null),
-     *                  this method will clear this list before using it.
-     * @param filterNulls   The join key positions for which null values will not
-     *                      match. null values only match for the "is not distinct
-     *                      from" condition.
-     * @return          Return true if the given relNode contains Cartesian join.
-     *                  Otherwise, return false
-     */
-  public static boolean checkCartesianJoin(RelNode relNode, List<Integer> leftKeys, List<Integer> rightKeys, List<Boolean> filterNulls) {
+  /**
+   * Check if the given RelNode contains any Cartesian join. Return true if find one. Otherwise,
+   * return false.
+   *
+   * @param relNode the RelNode to be inspected.
+   * @param leftKeys a list used for the left input into the join which has equi-join keys. It can
+   *     be empty or not (but not null), this method will clear this list before using it.
+   * @param rightKeys a list used for the right input into the join which has equi-join keys. It can
+   *     be empty or not (but not null), this method will clear this list before using it.
+   * @param filterNulls The join key positions for which null values will not match. null values
+   *     only match for the "is not distinct from" condition.
+   * @return Return true if the given relNode contains Cartesian join. Otherwise, return false
+   */
+  public static boolean checkCartesianJoin(
+      RelNode relNode, List<Integer> leftKeys, List<Integer> rightKeys, List<Boolean> filterNulls) {
     if (relNode instanceof Join) {
       leftKeys.clear();
       rightKeys.clear();
@@ -117,20 +119,22 @@ public class JoinUtils {
       RelNode left = joinRel.getLeft();
       RelNode right = joinRel.getRight();
 
-      RexNode remaining = RelOptUtil.splitJoinCondition(left, right, joinRel.getCondition(), leftKeys, rightKeys, filterNulls);
-      if(joinRel.getJoinType() == JoinRelType.INNER) {
-        if(leftKeys.isEmpty() || rightKeys.isEmpty()) {
+      RexNode remaining =
+          RelOptUtil.splitJoinCondition(
+              left, right, joinRel.getCondition(), leftKeys, rightKeys, filterNulls);
+      if (joinRel.getJoinType() == JoinRelType.INNER) {
+        if (leftKeys.isEmpty() || rightKeys.isEmpty()) {
           return true;
         }
       } else {
-        if(!remaining.isAlwaysTrue() || leftKeys.isEmpty() || rightKeys.isEmpty()) {
+        if (!remaining.isAlwaysTrue() || leftKeys.isEmpty() || rightKeys.isEmpty()) {
           return true;
         }
       }
     }
 
     for (RelNode child : relNode.getInputs()) {
-      if(checkCartesianJoin(child, leftKeys, rightKeys, filterNulls)) {
+      if (checkCartesianJoin(child, leftKeys, rightKeys, filterNulls)) {
         return true;
       }
     }
@@ -139,8 +143,10 @@ public class JoinUtils {
   }
 
   /**
-   * Checks if implicit cast is allowed between the two input types of the join condition. Currently we allow
-   * implicit casts in join condition only between numeric types and varchar/varbinary types.
+   * Checks if implicit cast is allowed between the two input types of the join condition. Currently
+   * we allow implicit casts in join condition only between numeric types and varchar/varbinary
+   * types.
+   *
    * @param input1
    * @param input2
    * @return true if implicit cast is allowed false otherwise
@@ -152,14 +158,14 @@ public class JoinUtils {
     }
 
     // allow implicit cast if input types are date/ timestamp
-    if ((input1 == MinorType.DATE || input1 == MinorType.TIMESTAMP) &&
-        (input2 == MinorType.DATE || input2 == MinorType.TIMESTAMP)) {
+    if ((input1 == MinorType.DATE || input1 == MinorType.TIMESTAMP)
+        && (input2 == MinorType.DATE || input2 == MinorType.TIMESTAMP)) {
       return true;
     }
 
     // allow implicit cast if both the input types are varbinary/ varchar
-    if ((input1 == MinorType.VARCHAR || input1 == MinorType.VARBINARY) &&
-        (input2 == MinorType.VARCHAR || input2 == MinorType.VARBINARY)) {
+    if ((input1 == MinorType.VARCHAR || input1 == MinorType.VARBINARY)
+        && (input2 == MinorType.VARCHAR || input2 == MinorType.VARBINARY)) {
       return true;
     }
 
@@ -167,8 +173,9 @@ public class JoinUtils {
   }
 
   /**
-   * Utility method used by joins to add implicit casts on one of the sides of the join condition in case the two
-   * expressions have different types.
+   * Utility method used by joins to add implicit casts on one of the sides of the join condition in
+   * case the two expressions have different types.
+   *
    * @param leftExpressions array of expressions from left input into the join
    * @param leftBatch left input record batch
    * @param rightExpressions array of expressions from right input into the join
@@ -176,9 +183,13 @@ public class JoinUtils {
    * @param producer class producer
    * @param optionManager option manager to any specific options
    */
-  public static void addLeastRestrictiveCasts(LogicalExpression[] leftExpressions, VectorAccessible leftBatch,
-                                              LogicalExpression[] rightExpressions, VectorAccessible rightBatch,
-                                              ClassProducer producer, OptionManager optionManager) {
+  public static void addLeastRestrictiveCasts(
+      LogicalExpression[] leftExpressions,
+      VectorAccessible leftBatch,
+      LogicalExpression[] rightExpressions,
+      VectorAccessible rightBatch,
+      ClassProducer producer,
+      OptionManager optionManager) {
     assert rightExpressions.length == leftExpressions.length;
 
     for (int i = 0; i < rightExpressions.length; i++) {
@@ -193,9 +204,12 @@ public class JoinUtils {
       if (rightType != leftType) {
 
         if (!allowImplicitCast(rightType, leftType)) {
-          throw new UnsupportedOperationException(String.format("Join only supports implicit casts between " +
-              "1. Numeric data\n 2. Varchar, Varbinary data 3. Date, Timestamp data " +
-              "Left type: %s, Right type: %s. Add explicit casts to avoid this error", leftType, rightType));
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Join only supports implicit casts between "
+                      + "1. Numeric data\n 2. Varchar, Varbinary data 3. Date, Timestamp data "
+                      + "Left type: %s, Right type: %s. Add explicit casts to avoid this error",
+                  leftType, rightType));
         }
 
         // We need to add a cast to one of the expressions
@@ -205,9 +219,13 @@ public class JoinUtils {
         MinorType result = TypeCastRules.getLeastRestrictiveType(types);
 
         if (result == null) {
-          throw new RuntimeException(String.format("Join conditions cannot be compared failing left " +
-                  "expression:" + " %s failing right expression: %s", leftExpression.getCompleteType().toString(),
-              rightExpression.getCompleteType().toString()));
+          throw new RuntimeException(
+              String.format(
+                  "Join conditions cannot be compared failing left "
+                      + "expression:"
+                      + " %s failing right expression: %s",
+                  leftExpression.getCompleteType().toString(),
+                  rightExpression.getCompleteType().toString()));
         } else if (result != rightType && result != leftType) {
           // cast both to common type.
           CompleteType resultType = CompleteType.fromMinorType(result);
@@ -217,12 +235,14 @@ public class JoinUtils {
           leftExpressions[i] = producer.materialize(castExprLeft, leftBatch);
         } else if (result != rightType) {
           // Add a cast expression on top of the right expression
-          LogicalExpression castExpr = producer.addImplicitCast(rightExpression, leftExpression.getCompleteType());
+          LogicalExpression castExpr =
+              producer.addImplicitCast(rightExpression, leftExpression.getCompleteType());
           // Store the newly casted expression
           rightExpressions[i] = producer.materialize(castExpr, rightBatch);
         } else if (result != leftType) {
           // Add a cast expression on top of the left expression
-          LogicalExpression castExpr = producer.addImplicitCast(leftExpression, rightExpression.getCompleteType());
+          LogicalExpression castExpr =
+              producer.addImplicitCast(leftExpression, rightExpression.getCompleteType());
           // store the newly casted expression
           leftExpressions[i] = producer.materialize(castExpr, leftBatch);
         }
@@ -231,9 +251,10 @@ public class JoinUtils {
   }
 
   /**
-   * Utility method to check if a subquery (represented by its root RelNode) is provably scalar. Currently
-   * only aggregates with no group-by are considered scalar. In the future, this method should be generalized
-   * to include more cases and reconciled with Calcite's notion of scalar.
+   * Utility method to check if a subquery (represented by its root RelNode) is provably scalar.
+   * Currently only aggregates with no group-by are considered scalar. In the future, this method
+   * should be generalized to include more cases and reconciled with Calcite's notion of scalar.
+   *
    * @param root The root RelNode to be examined
    * @return True if the root rel or its descendant is scalar, False otherwise
    */
@@ -242,9 +263,9 @@ public class JoinUtils {
     RelNode currentrel = root;
     while (agg == null && currentrel != null) {
       if (currentrel instanceof AggregateRel) {
-        agg = (AggregateRel)currentrel;
+        agg = (AggregateRel) currentrel;
       } else if (currentrel instanceof RelSubset) {
-        currentrel = ((RelSubset)currentrel).getBest() ;
+        currentrel = ((RelSubset) currentrel).getBest();
       } else if (currentrel.getInputs().size() == 1) {
         // If the rel is not an aggregate or RelSubset, but is a single-input rel (could be Project,
         // Filter, Sort etc.), check its input
@@ -261,5 +282,4 @@ public class JoinUtils {
     }
     return false;
   }
-
 }

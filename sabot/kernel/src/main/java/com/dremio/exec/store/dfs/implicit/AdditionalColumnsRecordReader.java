@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.store.dfs.implicit;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -36,9 +27,17 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
 
 public class AdditionalColumnsRecordReader implements RecordReader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AdditionalColumnsRecordReader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AdditionalColumnsRecordReader.class);
 
   private final OperatorContext context;
   private final RecordReader inner;
@@ -49,10 +48,20 @@ public class AdditionalColumnsRecordReader implements RecordReader {
 
   private boolean skipPartition;
 
-  public AdditionalColumnsRecordReader(OperatorContext context, RecordReader inner, List<NameValuePair<?>> pairs, BufferAllocator allocator) {
+  public AdditionalColumnsRecordReader(
+      OperatorContext context,
+      RecordReader inner,
+      List<NameValuePair<?>> pairs,
+      BufferAllocator allocator) {
     this(context, inner, pairs, allocator, null);
   }
-  public AdditionalColumnsRecordReader(OperatorContext context, RecordReader inner, List<NameValuePair<?>> pairs, BufferAllocator allocator, SplitAndPartitionInfo splitAndPartitionInfo) {
+
+  public AdditionalColumnsRecordReader(
+      OperatorContext context,
+      RecordReader inner,
+      List<NameValuePair<?>> pairs,
+      BufferAllocator allocator,
+      SplitAndPartitionInfo splitAndPartitionInfo) {
     super();
     this.context = context;
     this.inner = inner;
@@ -60,7 +69,7 @@ public class AdditionalColumnsRecordReader implements RecordReader {
     this.allocator = allocator;
     this.splitAndPartitionInfo = splitAndPartitionInfo;
     this.populators = new Populator[pairs.size()];
-    for(int i = 0; i < pairs.size(); i++){
+    for (int i = 0; i < pairs.size(); i++) {
       populators[i] = pairs.get(i).createPopulator();
     }
   }
@@ -73,7 +82,7 @@ public class AdditionalColumnsRecordReader implements RecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     inner.setup(output);
-    for(Populator p : populators){
+    for (Populator p : populators) {
       p.setup(output);
     }
   }
@@ -81,16 +90,16 @@ public class AdditionalColumnsRecordReader implements RecordReader {
   @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
     inner.allocate(vectorMap);
-    for(Populator p : populators){
+    for (Populator p : populators) {
       p.allocate();
     }
   }
 
   @Override
   public int next() {
-     if (skipPartition) {
+    if (skipPartition) {
       return 0;
-     }
+    }
 
     final int count = inner.next();
     try {
@@ -109,7 +118,9 @@ public class AdditionalColumnsRecordReader implements RecordReader {
     if (skipPartition || runtimeFilter.getPartitionColumnFilter() == null) {
       return;
     }
-    final RuntimeFilterEvaluator evaluator = new RuntimeFilterEvaluator(allocator, context.getStats(), context.getOptions(), runtimeFilter);
+    final RuntimeFilterEvaluator evaluator =
+        new RuntimeFilterEvaluator(
+            allocator, context.getStats(), context.getOptions(), runtimeFilter);
     if (evaluator.canBeSkipped(splitAndPartitionInfo, nameValuePairs)) {
       skipPartition = true;
     }
@@ -123,14 +134,18 @@ public class AdditionalColumnsRecordReader implements RecordReader {
   private UserException userExceptionWithDiagnosticInfo(final Throwable t, final int count) {
     return UserException.dataReadError(t)
         .message("Failed to populate partition column values")
-        .addContext("Partition value characteristics", populators != null ? Joiner.on(",").join(populators) : "null")
+        .addContext(
+            "Partition value characteristics",
+            populators != null ? Joiner.on(",").join(populators) : "null")
         .addContext("Number of rows trying to populate", count)
         .build(logger);
   }
 
   public interface Populator extends AutoCloseable {
     void setup(OutputMutator output);
+
     void populate(final int count);
+
     void allocate();
   }
 }

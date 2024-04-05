@@ -19,5 +19,7 @@ export function assertNever(value: never, noThrow?: boolean): never {
     return value;
   }
 
-  throw new Error(`Unexpected discriminated union type: ${JSON.stringify(value)}`);
+  throw new Error(
+    `Unexpected discriminated union type: ${JSON.stringify(value)}`,
+  );
 }

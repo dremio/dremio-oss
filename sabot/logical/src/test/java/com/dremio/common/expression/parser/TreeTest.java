@@ -15,17 +15,15 @@
  */
 package com.dremio.common.expression.parser;
 
-import java.io.IOException;
-
-import org.antlr.runtime.ANTLRStringStream;
-import org.antlr.runtime.CommonTokenStream;
-import org.antlr.runtime.RecognitionException;
-import org.junit.Test;
-
 import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.parser.ExprParser.parse_return;
 import com.dremio.test.DremioTest;
+import java.io.IOException;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.RecognitionException;
+import org.junit.Test;
 
 public class TreeTest extends DremioTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TreeTest.class);
@@ -43,8 +41,9 @@ public class TreeTest extends DremioTest {
   }
 
   @Test
-  public void testIfWithCase() throws Exception{
-    testExpressionParsing("if ($F1) then case when (_MAP.R_NAME = 'AFRICA') then 2 else 4 end else if(4==3) then 1 else if(x==3) then 7 else (if(2==1) then 6 else 4 end) end");
+  public void testIfWithCase() throws Exception {
+    testExpressionParsing(
+        "if ($F1) then case when (_MAP.R_NAME = 'AFRICA') then 2 else 4 end else if(4==3) then 1 else if(x==3) then 7 else (if(2==1) then 6 else 4 end) end");
   }
 
   @Test
@@ -54,10 +53,11 @@ public class TreeTest extends DremioTest {
 
   @Test
   public void testNestedCase() throws Exception {
-    testExpressionParsing("case " +
-      "when a == 0 then (case when b == 0 then 0 else -1 end) " +
-      "when a == 1 then (case when b == 0 then 1 else -2 end)  " +
-      "else 2 end");
+    testExpressionParsing(
+        "case "
+            + "when a == 0 then (case when b == 0 then 0 else -1 end) "
+            + "when a == 1 then (case when b == 0 then 1 else -2 end)  "
+            + "else 2 end");
   }
 
   @Test
@@ -66,37 +66,37 @@ public class TreeTest extends DremioTest {
   }
 
   @Test
-  public void testAdd() throws Exception{
+  public void testAdd() throws Exception {
     testExpressionParsing("2+2");
   }
 
   @Test
-  public void testIf() throws Exception{
+  public void testIf() throws Exception {
     testExpressionParsing("if ('blue.red') then 'orange' else if (false) then 1 else 0 end");
   }
 
   @Test
-  public void testQuotedIdentifier() throws Exception{
+  public void testQuotedIdentifier() throws Exception {
     testExpressionParsing("`hello friend`.`goodbye`");
   }
 
   @Test
-  public void testSpecialQuoted() throws Exception{
+  public void testSpecialQuoted() throws Exception {
     testExpressionParsing("`*0` + `*` ");
   }
 
   @Test
-  public void testQuotedIdentifier2() throws Exception{
+  public void testQuotedIdentifier2() throws Exception {
     testExpressionParsing("`hello friend`.goodbye");
   }
 
   @Test
-  public void testComplexIdentifier() throws Exception{
+  public void testComplexIdentifier() throws Exception {
     testExpressionParsing("goodbye[4].`hello`");
   }
 
   @Test // DRILL-2606
-  public void testCastToBooleanExpr() throws Exception{
+  public void testCastToBooleanExpr() throws Exception {
     testExpressionParsing("cast( (cast( (`bool_col` ) as VARCHAR(100) ) ) as BIT )");
   }
 
@@ -105,25 +105,24 @@ public class TreeTest extends DremioTest {
     testExpressionParsing("$x in ( 1 , 2, 3, 4, 5)");
   }
 
-  private LogicalExpression parseExpression(String expr) throws RecognitionException, IOException{
+  private LogicalExpression parseExpression(String expr) throws RecognitionException, IOException {
 
     ExprLexer lexer = new ExprLexer(new ANTLRStringStream(expr));
     CommonTokenStream tokens = new CommonTokenStream(lexer);
 
-//    tokens.fill();
-//    for(Token t : (List<Token>) tokens.getTokens()){
-//      System.out.println(t + "" + t.getType());
-//    }
-//    tokens.rewind();
+    //    tokens.fill();
+    //    for(Token t : (List<Token>) tokens.getTokens()){
+    //      System.out.println(t + "" + t.getType());
+    //    }
+    //    tokens.rewind();
 
     ExprParser parser = new ExprParser(tokens);
     parse_return ret = parser.parse();
 
     return ret.e;
-
   }
 
-  private String serializeExpression(LogicalExpression expr){
+  private String serializeExpression(LogicalExpression expr) {
 
     ExpressionStringBuilder b = new ExpressionStringBuilder();
     StringBuilder sb = new StringBuilder();
@@ -132,22 +131,21 @@ public class TreeTest extends DremioTest {
   }
 
   /**
-   * Attempt to parse an expression.  Once parsed, convert it to a string and then parse it again to make sure serialization works.
+   * Attempt to parse an expression. Once parsed, convert it to a string and then parse it again to
+   * make sure serialization works.
+   *
    * @param expr
    * @throws RecognitionException
    * @throws IOException
    */
-  private void testExpressionParsing(String expr) throws RecognitionException, IOException{
+  private void testExpressionParsing(String expr) throws RecognitionException, IOException {
     logger.debug("-----" + expr + "-----");
     LogicalExpression e = parseExpression(expr);
 
     String newStringExpr = serializeExpression(e);
     logger.debug(newStringExpr);
     LogicalExpression e2 = parseExpression(newStringExpr);
-    //Assert.assertEquals(e, e2);
+    // Assert.assertEquals(e, e2);
 
   }
-
-
-
 }

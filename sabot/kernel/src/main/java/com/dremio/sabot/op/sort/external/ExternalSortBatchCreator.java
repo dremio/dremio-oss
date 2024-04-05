@@ -20,11 +20,11 @@ import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 
-public class ExternalSortBatchCreator implements SingleInputOperator.Creator<ExternalSort>{
+public class ExternalSortBatchCreator implements SingleInputOperator.Creator<ExternalSort> {
 
   @Override
-  public SingleInputOperator create(OperatorContext context, ExternalSort operator) throws ExecutionSetupException {
+  public SingleInputOperator create(OperatorContext context, ExternalSort operator)
+      throws ExecutionSetupException {
     return new ExternalSortOperator(context, operator);
   }
-
 }

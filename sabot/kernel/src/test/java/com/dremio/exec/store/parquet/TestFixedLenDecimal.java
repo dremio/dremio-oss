@@ -15,105 +15,93 @@
  */
 package com.dremio.exec.store.parquet;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import org.junit.Test;
 
-/**
- * DRILL-4704
- */
+/** DRILL-4704 */
 public class TestFixedLenDecimal extends BaseTestQuery {
 
   private static final String DATAFILE = "cp.\"parquet/fixedlenDecimal.parquet\"";
 
-  // enable decimal data type
-  @BeforeClass
-  public static void enableDecimalDataType() throws Exception {
-    runSQL(String.format("alter system set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-  }
-
-  @AfterClass
-  public static void disableDecimalDataType() throws Exception {
-    runSQL(String.format("alter system set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-  }
-
   @Test
   public void testNullCount() throws Exception {
-    String query = String.format("select count(*) as c from %s where department_id is null", DATAFILE);
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("c")
-      .baselineValues(1L)
-      .build()
-      .run();
+    String query =
+        String.format("select count(*) as c from %s where department_id is null", DATAFILE);
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("c").baselineValues(1L).build().run();
   }
 
   @Test
   public void testNotNullCount() throws Exception {
-    String query = String.format("select count(*) as c from %s where department_id is not null", DATAFILE);
+    String query =
+        String.format("select count(*) as c from %s where department_id is not null", DATAFILE);
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("c")
-      .baselineValues(106L)
-      .build()
-      .run();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(106L)
+        .build()
+        .run();
   }
 
   @Test
   public void testSimpleQueryWithCast() throws Exception {
-    String query = String.format("select cast(department_id as bigint) as c from %s where cast(employee_id as decimal) = 170", DATAFILE);
+    String query =
+        String.format(
+            "select cast(department_id as bigint) as c from %s where cast(employee_id as decimal) = 170",
+            DATAFILE);
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("c")
-      .baselineValues(80L)
-      .build()
-      .run();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(80L)
+        .build()
+        .run();
   }
 
   @Test
   public void testSimpleQueryDrill4704Fix() throws Exception {
-    String query = String.format("select cast(department_id as bigint) as c from %s where employee_id = 170", DATAFILE);
+    String query =
+        String.format(
+            "select cast(department_id as bigint) as c from %s where employee_id = 170", DATAFILE);
     testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("c")
-      .baselineValues(80L)
-      .build()
-      .run();
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(80L)
+        .build()
+        .run();
   }
 
   @Test
   public void testHash32FunctionWithSeed() throws Exception {
     try (AutoCloseable option = withOption(PlannerSettings.ENABLE_REDUCE_PROJECT, false)) {
-      String query = String.format("select hash32(department_id, hash32(employee_id)) hash1, hash32(employee_id) hash2 from %s where department_id is null", DATAFILE);
+      String query =
+          String.format(
+              "select hash32(department_id, hash32(employee_id)) hash1, hash32(employee_id) hash2 from %s where department_id is null",
+              DATAFILE);
       testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("hash1", "hash2")
-        .baselineValues(1216062191, 1216062191)
-        .go();
+          .sqlQuery(query)
+          .unOrdered()
+          .baselineColumns("hash1", "hash2")
+          .baselineValues(1216062191, 1216062191)
+          .go();
     }
-
   }
 
   @Test
   public void testHash64FunctionWithSeed() throws Exception {
     try (AutoCloseable option = withOption(PlannerSettings.ENABLE_REDUCE_PROJECT, false)) {
-      String query = String.format("select hash64(department_id, hash64(employee_id)) hash1, hash64(employee_id) hash2 from %s where department_id is null", DATAFILE);
+      String query =
+          String.format(
+              "select hash64(department_id, hash64(employee_id)) hash1, hash64(employee_id) hash2 from %s where department_id is null",
+              DATAFILE);
       testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("hash1", "hash2")
-        .baselineValues(6356026919477319845L, 6356026919477319845L)
-        .go();
+          .sqlQuery(query)
+          .unOrdered()
+          .baselineColumns("hash1", "hash2")
+          .baselineValues(6356026919477319845L, 6356026919477319845L)
+          .go();
     }
-
   }
-
 }

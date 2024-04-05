@@ -15,7 +15,7 @@
  */
 
 /**
- * This package contains optional interfaces that may be extended by implementations of various metadata API. The
- * implications of implementing each interface is documented in that class.
+ * This package contains optional interfaces that may be extended by implementations of various
+ * metadata API. The implications of implementing each interface is documented in that class.
  */
 package com.dremio.connector.metadata.extensions;

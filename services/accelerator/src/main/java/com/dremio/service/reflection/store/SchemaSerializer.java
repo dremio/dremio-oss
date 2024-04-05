@@ -15,17 +15,13 @@
  */
 package com.dremio.service.reflection.store;
 
-import java.io.IOException;
-
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
-
 import io.protostuff.Message;
 import io.protostuff.Schema;
+import java.io.IOException;
 
-/**
- * Generic protostuff schema serializer
- */
+/** Generic protostuff schema serializer */
 public abstract class SchemaSerializer<T extends Message<T>> extends Serializer<T, byte[]> {
   private final Serializer<T, byte[]> serializer;
 

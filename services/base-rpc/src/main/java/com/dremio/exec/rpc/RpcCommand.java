@@ -17,8 +17,8 @@ package com.dremio.exec.rpc;
 
 import com.google.protobuf.MessageLite;
 
-public interface RpcCommand<T extends MessageLite, C extends RemoteConnection> extends RpcConnectionHandler<C>{
+public interface RpcCommand<T extends MessageLite, C extends RemoteConnection>
+    extends RpcConnectionHandler<C> {
 
   public abstract void connectionAvailable(C connection);
-
 }

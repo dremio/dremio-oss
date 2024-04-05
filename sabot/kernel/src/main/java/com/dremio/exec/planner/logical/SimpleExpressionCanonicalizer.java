@@ -17,9 +17,10 @@ package com.dremio.exec.planner.logical;
 
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.NOT;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -31,9 +32,6 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.google.common.collect.ImmutableList;
-
 /**
  * Rewrite RexCall for known simple operator(<, >, <=, >=, =, !=) so inputs are in a fixed order.
  */
@@ -43,105 +41,115 @@ public final class SimpleExpressionCanonicalizer {
 
   /**
    * Convert a RexNode to NNF
+   *
    * @param rexNode RexNode
    * @param rexBuilder RexBuilder
    * @return NNF
    */
   public static RexNode toNnf(RexNode rexNode, RexBuilder rexBuilder) {
-    return rexNode.accept(new RexShuttle() {
-      @Override
-      public RexNode visitCall(RexCall call) {
-        switch (call.getKind()) {
-          case AND:
-          case OR: {
-            List<RexNode> childNodesNnf = MoreRelOptUtil.conDisjunctions(call)
-              .stream()
-              .map(node -> toNnf(node, rexBuilder))
-              .collect(Collectors.toList());
-            return MoreRelOptUtil.composeConDisjunction(rexBuilder, childNodesNnf, false,
-              call.getKind());
-          }
+    return rexNode.accept(
+        new RexShuttle() {
+          @Override
+          public RexNode visitCall(RexCall call) {
+            switch (call.getKind()) {
+              case AND:
+              case OR:
+                {
+                  List<RexNode> childNodesNnf =
+                      MoreRelOptUtil.conDisjunctions(call).stream()
+                          .map(node -> toNnf(node, rexBuilder))
+                          .collect(Collectors.toList());
+                  return MoreRelOptUtil.composeConDisjunction(
+                      rexBuilder, childNodesNnf, false, call.getKind());
+                }
 
-          case NOT: {
-            RexNode nodeBelowNOT = call.getOperands().get(0);
-            switch (nodeBelowNOT.getKind()) {
-              case AND: {
-                List<RexNode> childNodesNnf = RelOptUtil.conjunctions(nodeBelowNOT)
-                  .stream()
-                  .map(node -> toNnf(rexBuilder.makeCall(NOT, node), rexBuilder))
-                  .collect(Collectors.toList());
-                return RexUtil.composeDisjunction(rexBuilder, childNodesNnf, false);
-              }
-              case OR: {
-                List<RexNode> childNodesNnf = RelOptUtil.disjunctions(nodeBelowNOT)
-                  .stream()
-                  .map(node -> toNnf(rexBuilder.makeCall(NOT, node), rexBuilder))
-                  .collect(Collectors.toList());
-                return RexUtil.composeConjunction(rexBuilder, childNodesNnf, false);
-              }
+              case NOT:
+                {
+                  RexNode nodeBelowNOT = call.getOperands().get(0);
+                  switch (nodeBelowNOT.getKind()) {
+                    case AND:
+                      {
+                        List<RexNode> childNodesNnf =
+                            RelOptUtil.conjunctions(nodeBelowNOT).stream()
+                                .map(node -> toNnf(rexBuilder.makeCall(NOT, node), rexBuilder))
+                                .collect(Collectors.toList());
+                        return RexUtil.composeDisjunction(rexBuilder, childNodesNnf, false);
+                      }
+                    case OR:
+                      {
+                        List<RexNode> childNodesNnf =
+                            RelOptUtil.disjunctions(nodeBelowNOT).stream()
+                                .map(node -> toNnf(rexBuilder.makeCall(NOT, node), rexBuilder))
+                                .collect(Collectors.toList());
+                        return RexUtil.composeConjunction(rexBuilder, childNodesNnf, false);
+                      }
+                    default:
+                      return super.visitCall(call);
+                  }
+                }
+
               default:
                 return super.visitCall(call);
             }
           }
-
-          default:
-            return super.visitCall(call);
-        }
-      }
-    });
+        });
   }
 
   /**
-   * Canonicalize leaf RexNodes by the inputBitSet of both sides, in the order that
-   *  1) input refs are on the left and literals are on the right
-   *  2) if both sides are input refs, then left are the one with smaller bitSets
+   * Canonicalize leaf RexNodes by the inputBitSet of both sides, in the order that 1) input refs
+   * are on the left and literals are on the right 2) if both sides are input refs, then left are
+   * the one with smaller bitSets
+   *
    * @param rexNode RexNode to canonicalize
    * @param rexBuilder RexBuilder
    * @return canonicalized RexNode
    */
   public static RexNode canonicalizeExpression(RexNode rexNode, RexBuilder rexBuilder) {
-    return rexNode.accept(new RexShuttle(){
-      @Override
-      public RexNode visitCall(RexCall call) {
-      switch (call.getKind()) {
-        case LESS_THAN:
-        case GREATER_THAN:
-        case LESS_THAN_OR_EQUAL:
-        case GREATER_THAN_OR_EQUAL:
-        case EQUALS:
-        case NOT_EQUALS: {
-          RexNode leftOp = call.getOperands().get(0);
-          RexNode rightOp = call.getOperands().get(1);
-          ImmutableBitSet leftBitSet = RelOptUtil.InputFinder.analyze(leftOp).build();
-          ImmutableBitSet rightBitSet = RelOptUtil.InputFinder.analyze(rightOp).build();
+    return rexNode.accept(
+        new RexShuttle() {
+          @Override
+          public RexNode visitCall(RexCall call) {
+            switch (call.getKind()) {
+              case LESS_THAN:
+              case GREATER_THAN:
+              case LESS_THAN_OR_EQUAL:
+              case GREATER_THAN_OR_EQUAL:
+              case EQUALS:
+              case NOT_EQUALS:
+                {
+                  RexNode leftOp = call.getOperands().get(0);
+                  RexNode rightOp = call.getOperands().get(1);
+                  ImmutableBitSet leftBitSet = RelOptUtil.InputFinder.analyze(leftOp).build();
+                  ImmutableBitSet rightBitSet = RelOptUtil.InputFinder.analyze(rightOp).build();
 
-          // Make input refs left and literals right
-          if (leftBitSet.isEmpty() && !rightBitSet.isEmpty()) {
-            return rexBuilder.makeCall(mirrorOperation(call.getKind()),
-              ImmutableList.of(rightOp, leftOp));
-          }
+                  // Make input refs left and literals right
+                  if (leftBitSet.isEmpty() && !rightBitSet.isEmpty()) {
+                    return rexBuilder.makeCall(
+                        mirrorOperation(call.getKind()), ImmutableList.of(rightOp, leftOp));
+                  }
 
-          // Both sides are input refs, make them a fixed or der
-          if (!leftBitSet.isEmpty() && !rightBitSet.isEmpty()){
-            if (leftBitSet.compareTo(rightBitSet) > 0) {
-              return rexBuilder.makeCall(mirrorOperation(call.getKind()),
-                ImmutableList.of(rightOp, leftOp));
-            } else {
-              return call;
+                  // Both sides are input refs, make them a fixed or der
+                  if (!leftBitSet.isEmpty() && !rightBitSet.isEmpty()) {
+                    if (leftBitSet.compareTo(rightBitSet) > 0) {
+                      return rexBuilder.makeCall(
+                          mirrorOperation(call.getKind()), ImmutableList.of(rightOp, leftOp));
+                    } else {
+                      return call;
+                    }
+                  }
+
+                  return call;
+                }
+              default:
+                return super.visitCall(call);
             }
           }
-
-          return call;
-        }
-        default:
-          return super.visitCall(call);
-      }
-      }
-    });
+        });
   }
 
   /**
    * Rewrite b > a to a < b
+   *
    * @param sqlKind kind of op
    * @return mirrored op
    */

@@ -15,20 +15,6 @@
  */
 package com.dremio.telemetry.api.tracing.http;
 
-
-import java.io.IOException;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.core.Application;
-import javax.ws.rs.core.Response;
-
-import org.apache.commons.lang3.StringUtils;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.test.JerseyTest;
-import org.junit.Assert;
-import org.junit.Test;
-
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
@@ -36,6 +22,16 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import java.io.IOException;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.core.Application;
+import javax.ws.rs.core.Response;
+import org.apache.commons.lang3.StringUtils;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.test.JerseyTest;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestServerTracingFilter extends JerseyTest {
 
@@ -76,35 +72,34 @@ public class TestServerTracingFilter extends JerseyTest {
     GlobalOpenTelemetry.resetForTest();
     GlobalOpenTelemetry.set(openTelemetry);
 
-    return new ResourceConfig(Dremio.class)
-        .register(ServerTracingFilter.class);
+    return new ResourceConfig(Dremio.class).register(ServerTracingFilter.class);
   }
 
   @Test
   public void shouldPropagateRequestIdFromRequestToResponse() throws IOException {
-    Response response = target("/dremio/source_code")
-        .request()
-        .header(ServerTracingFilter.REQUEST_ID_HEADER, "test")
-        .get();
+    Response response =
+        target("/dremio/source_code")
+            .request()
+            .header(ServerTracingFilter.REQUEST_ID_HEADER, "test")
+            .get();
 
     Assert.assertEquals(response.getHeaderString(ServerTracingFilter.REQUEST_ID_HEADER), "test");
-   }
+  }
 
   @Test
   public void shouldIgnoreRequestHeaderIfResponseAlreadyContainsIt() throws IOException {
-    Response response = target("/dremio/source_code_header")
-        .request()
-        .header(ServerTracingFilter.REQUEST_ID_HEADER, "override")
-        .get();
+    Response response =
+        target("/dremio/source_code_header")
+            .request()
+            .header(ServerTracingFilter.REQUEST_ID_HEADER, "override")
+            .get();
 
     Assert.assertEquals(response.getHeaderString(ServerTracingFilter.REQUEST_ID_HEADER), "sample");
   }
 
   @Test
   public void shouldCreateRequestIdIfNotExistsOnRequest() {
-    Response response = target("/dremio/source_code")
-        .request()
-        .get();
+    Response response = target("/dremio/source_code").request().get();
 
     String customRequestId = response.getHeaderString(ServerTracingFilter.REQUEST_ID_HEADER);
     Assert.assertTrue(StringUtils.isNotBlank(customRequestId));

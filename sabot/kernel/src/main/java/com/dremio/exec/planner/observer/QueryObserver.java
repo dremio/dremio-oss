@@ -20,9 +20,7 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.proto.model.attempts.AttemptReason;
 
-/**
- * Observes the general life cycle of a QueryJob(multiple attempts).
- */
+/** Observes the general life cycle of a QueryJob(multiple attempts). */
 public interface QueryObserver {
 
   /**
@@ -30,15 +28,13 @@ public interface QueryObserver {
    *
    * @param attemptId internal QueryId for the new attempt
    * @param reason why do we need to re-attempt
-   *
    * @return AttemptObserver for the new attempt
    */
   AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason);
 
-  /**
-   * called when QueryJob is done and no more queries will be attempted
-   */
+  /** called when QueryJob is done and no more queries will be attempted */
   void execCompletion(UserResult result);
 
-  default void planParallelized(PlanningSet planningSet) {};
+  default void planParallelized(PlanningSet planningSet) {}
+  ;
 }

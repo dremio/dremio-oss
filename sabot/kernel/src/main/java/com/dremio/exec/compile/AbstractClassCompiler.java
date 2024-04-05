@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.compile;
 
-import java.io.IOException;
-
-import org.codehaus.commons.compiler.CompileException;
-
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.exec.compile.ClassTransformer.ClassNames;
 import com.dremio.exec.exception.ClassTransformationException;
+import java.io.IOException;
+import org.codehaus.commons.compiler.CompileException;
 
 public abstract class AbstractClassCompiler implements ClassCompiler {
   protected AbstractClassCompiler() {}
@@ -30,20 +28,23 @@ public abstract class AbstractClassCompiler implements ClassCompiler {
   public ClassBytes[] getClassByteCode(ClassNames className, String sourceCode, boolean debug)
       throws CompileException, IOException, ClassNotFoundException, ClassTransformationException {
     if (getLogger().isDebugEnabled()) {
-      getLogger().debug("Compiling (source size={}):\n{}", DremioStringUtils.readable(sourceCode.length()),
-          debug ? prefixLineNumbers(sourceCode) : false);
+      getLogger()
+          .debug(
+              "Compiling (source size={}):\n{}",
+              DremioStringUtils.readable(sourceCode.length()),
+              debug ? prefixLineNumbers(sourceCode) : false);
 
-/* uncomment this to get a dump of the generated source in /tmp
-      // This can be used to write out the generated operator classes for debugging purposes
-      // TODO: should these be put into a directory named with the query id and/or fragment id
-      final int lastSlash = className.slash.lastIndexOf('/');
-      final File dir = new File("/tmp", className.slash.substring(0, lastSlash));
-      dir.mkdirs();
-      final File file = new File(dir, className.slash.substring(lastSlash + 1) + ".java");
-      final FileWriter writer = new FileWriter(file);
-      writer.write(sourceCode);
-      writer.close();
-*/
+      /* uncomment this to get a dump of the generated source in /tmp
+            // This can be used to write out the generated operator classes for debugging purposes
+            // TODO: should these be put into a directory named with the query id and/or fragment id
+            final int lastSlash = className.slash.lastIndexOf('/');
+            final File dir = new File("/tmp", className.slash.substring(0, lastSlash));
+            dir.mkdirs();
+            final File file = new File(dir, className.slash.substring(lastSlash + 1) + ".java");
+            final FileWriter writer = new FileWriter(file);
+            writer.write(sourceCode);
+            writer.close();
+      */
     }
     return getByteCode(className, sourceCode, debug);
   }
@@ -65,9 +66,9 @@ public abstract class AbstractClassCompiler implements ClassCompiler {
     return out.toString();
   }
 
-  protected abstract ClassBytes[] getByteCode(ClassNames className, String sourcecode, boolean debug)
+  protected abstract ClassBytes[] getByteCode(
+      ClassNames className, String sourcecode, boolean debug)
       throws CompileException, IOException, ClassNotFoundException, ClassTransformationException;
 
   protected abstract org.slf4j.Logger getLogger();
-
 }

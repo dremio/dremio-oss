@@ -19,19 +19,17 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.test.UserExceptionAssert;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import org.junit.Test;
 
 public class TestMetadataRefresh extends BaseTestQuery {
 
@@ -45,11 +43,11 @@ public class TestMetadataRefresh extends BaseTestQuery {
       "ALTER TABLE tbl REFRESH METADATA FOR PROMOTION",
       "ALTER TABLE tbl REFRESH METADATA FOR FILES",
       "ALTER TABLE tbl REFRESH METADATA FOR FILES ()",
-      "ALTER TABLE tbl REFRESH METADATA FOR FILES LAZY UPDATE"};
+      "ALTER TABLE tbl REFRESH METADATA FOR FILES LAZY UPDATE"
+    };
     for (String q : queries) {
-      UserExceptionAssert
-        .assertThatThrownBy(() -> test(q))
-        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
+      UserExceptionAssert.assertThatThrownBy(() -> test(q))
+          .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     }
   }
 
@@ -62,18 +60,20 @@ public class TestMetadataRefresh extends BaseTestQuery {
 
     // load the metadata
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Metadata for table 'dfs_test.blue.metadata_refresh' refreshed.")
-      .build().run();
+        .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, "Metadata for table 'dfs_test.blue.metadata_refresh' refreshed.")
+        .build()
+        .run();
 
     testBuilder()
-      .sqlQuery("select count(*) as a from dfs_test.blue.metadata_refresh")
-      .unOrdered()
-      .baselineColumns("a")
-      .baselineValues(1L)
-      .build().run();
+        .sqlQuery("select count(*) as a from dfs_test.blue.metadata_refresh")
+        .unOrdered()
+        .baselineColumns("a")
+        .baselineValues(1L)
+        .build()
+        .run();
 
     // pause to ensure mtime changes on directory
     Thread.sleep(1200);
@@ -83,85 +83,111 @@ public class TestMetadataRefresh extends BaseTestQuery {
 
     // no change expected, metadata cached.
     testBuilder()
-      .sqlQuery("select count(*) as a from dfs_test.blue.metadata_refresh")
-      .unOrdered()
-      .baselineColumns("a")
-      .baselineValues(1L)
-      .build().run();
+        .sqlQuery("select count(*) as a from dfs_test.blue.metadata_refresh")
+        .unOrdered()
+        .baselineColumns("a")
+        .baselineValues(1L)
+        .build()
+        .run();
 
     // refresh metadata
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Metadata for table 'dfs_test.blue.metadata_refresh' refreshed.")
-      .build().run();
+        .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, "Metadata for table 'dfs_test.blue.metadata_refresh' refreshed.")
+        .build()
+        .run();
 
     // expect two rows.
     testBuilder()
-      .sqlQuery("select count(*) as a from dfs_test.blue.metadata_refresh")
-      .unOrdered()
-      .baselineColumns("a")
-      .baselineValues(2L)
-      .build().run();
+        .sqlQuery("select count(*) as a from dfs_test.blue.metadata_refresh")
+        .unOrdered()
+        .baselineColumns("a")
+        .baselineValues(2L)
+        .build()
+        .run();
 
     // refresh again, no change expected.
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
-      .build().run();
+        .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true,
+            "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+        .build()
+        .run();
 
     // verify that REFRESH METADATA optional paramaters are being handled properly
 
     // LAZY UPDATE, no change expected
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA LAZY UPDATE")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
-      .build().run();
+        .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA LAZY UPDATE")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true,
+            "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+        .build()
+        .run();
 
     // FORCE UPDATE on a PHYSICAL_DATASET_SOURCE_FILE, source should be refreshed
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh.\"f1.json\" REFRESH METADATA FORCE UPDATE")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Metadata for table 'dfs_test.blue.metadata_refresh.f1.json' refreshed.")
-      .build().run();
+        .sqlQuery(
+            "ALTER TABLE dfs_test.blue.metadata_refresh.\"f1.json\" REFRESH METADATA FORCE UPDATE")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true, "Metadata for table 'dfs_test.blue.metadata_refresh.f1.json' refreshed.")
+        .build()
+        .run();
 
     // LAZY UPDATE on a PHYSICAL_DATASET_SOURCE_FILE, source should be refreshed
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh.\"f1.json\" REFRESH METADATA LAZY UPDATE")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Metadata for table 'dfs_test.blue.metadata_refresh.f1.json' refreshed.")
-      .build().run();
+        .sqlQuery(
+            "ALTER TABLE dfs_test.blue.metadata_refresh.\"f1.json\" REFRESH METADATA LAZY UPDATE")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true, "Metadata for table 'dfs_test.blue.metadata_refresh.f1.json' refreshed.")
+        .build()
+        .run();
 
     // MAINTAIN WHEN MISSING, no change expected
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA MAINTAIN WHEN MISSING")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
-      .build().run();
+        .sqlQuery(
+            "ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA MAINTAIN WHEN MISSING")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true,
+            "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+        .build()
+        .run();
 
     // DELETE WHEN MISSING, no change expected
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA DELETE WHEN MISSING")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
-      .build().run();
+        .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA DELETE WHEN MISSING")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true,
+            "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+        .build()
+        .run();
 
     // verify that we can pass in multiple parameters, no change expected
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA AVOID PROMOTION LAZY UPDATE MAINTAIN WHEN MISSING")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
-      .build().run();
+        .sqlQuery(
+            "ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA AVOID PROMOTION LAZY UPDATE MAINTAIN WHEN MISSING")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true,
+            "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+        .build()
+        .run();
 
     // delete the directory
     Files.delete(root.resolve("f1.json"));
@@ -170,19 +196,25 @@ public class TestMetadataRefresh extends BaseTestQuery {
 
     // MAINTAIN WHEN MISSING with missing data, no change expected
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA MAINTAIN WHEN MISSING")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
-      .build().run();
+        .sqlQuery(
+            "ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA MAINTAIN WHEN MISSING")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true,
+            "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+        .build()
+        .run();
 
     // DELETE WHEN MISSING with missing data, expect all metadata to be removed
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA DELETE WHEN MISSING")
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' no longer exists, metadata removed.")
-      .build().run();
+        .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA DELETE WHEN MISSING")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true, "Table 'dfs_test.blue.metadata_refresh' no longer exists, metadata removed.")
+        .build()
+        .run();
   }
 
   @Test
@@ -211,31 +243,35 @@ public class TestMetadataRefresh extends BaseTestQuery {
 
     try {
       testBuilder()
-        .sqlQuery("select count(*) as a from %s.blue.metadata_refresh", name)
-        .unOrdered()
-        .baselineColumns("a")
-        .baselineValues(1L)
-        .build().run();
+          .sqlQuery("select count(*) as a from %s.blue.metadata_refresh", name)
+          .unOrdered()
+          .baselineColumns("a")
+          .baselineValues(1L)
+          .build()
+          .run();
       fail("Source should be unavailable.");
     } catch (Exception e) {
-      assertTrue(e.getMessage()
-          .contains(String.format(" '%s.blue.metadata_refresh' not found", name)));
+      assertTrue(
+          e.getMessage().contains(String.format(" '%s.blue.metadata_refresh' not found", name)));
     }
 
     // AUTO PROMOTION, data source should be promoted and Table metadata should be refreshed
     testBuilder()
-      .sqlQuery("ALTER TABLE %s.blue.metadata_refresh REFRESH METADATA AUTO PROMOTION", name)
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, String.format("Metadata for table '%s.blue.metadata_refresh' refreshed.", name))
-      .build().run();
+        .sqlQuery("ALTER TABLE %s.blue.metadata_refresh REFRESH METADATA AUTO PROMOTION", name)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true, String.format("Metadata for table '%s.blue.metadata_refresh' refreshed.", name))
+        .build()
+        .run();
 
     testBuilder()
         .sqlQuery("select count(*) as a from %s.blue.metadata_refresh", name)
         .unOrdered()
         .baselineColumns("a")
         .baselineValues(1L)
-        .build().run();
+        .build()
+        .run();
 
     // delete all data from source
     Files.delete(root.resolve("f1.json"));
@@ -243,25 +279,34 @@ public class TestMetadataRefresh extends BaseTestQuery {
 
     // AVOID PROMOTION, no change expected
     testBuilder()
-      .sqlQuery("ALTER TABLE %s.blue.metadata_refresh REFRESH METADATA AVOID PROMOTION MAINTAIN WHEN MISSING", name)
-      .unOrdered()
-      .baselineColumns("ok", "summary")
-      .baselineValues(true, String.format("Table '%s.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.", name))
-      .build().run();
+        .sqlQuery(
+            "ALTER TABLE %s.blue.metadata_refresh REFRESH METADATA AVOID PROMOTION MAINTAIN WHEN MISSING",
+            name)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true,
+            String.format(
+                "Table '%s.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.",
+                name))
+        .build()
+        .run();
 
     // verify we still have table information, but missing data
     try {
       testBuilder()
-        .sqlQuery("select count(*) as a from %s.blue.metadata_refresh", name)
-        .unOrdered()
-        .baselineColumns("a")
-        .baselineValues(1L)
-        .build().run();
+          .sqlQuery("select count(*) as a from %s.blue.metadata_refresh", name)
+          .unOrdered()
+          .baselineColumns("a")
+          .baselineValues(1L)
+          .build()
+          .run();
       fail("Data should be unavailable.");
     } catch (Exception e) {
       assertTrue(e.getMessage().contains("INVALID_DATASET_METADATA"));
-      assertFalse(e.getMessage()
-        .contains(String.format("Table '%s.blue.metadata_refresh' not found", name)));
+      assertFalse(
+          e.getMessage()
+              .contains(String.format("Table '%s.blue.metadata_refresh' not found", name)));
     }
 
     // cleanup

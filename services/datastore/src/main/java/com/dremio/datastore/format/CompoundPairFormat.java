@@ -22,9 +22,8 @@ import com.dremio.datastore.format.compound.KeyPair;
 /**
  * Format representing a collection of other formats.
  *
- * The order the keys appear in the type arguments and the constructor will match the
- * order they appear when serialized. The types and order of the keys may not be
- * altered after being deployed.
+ * <p>The order the keys appear in the type arguments and the constructor will match the order they
+ * appear when serialized. The types and order of the keys may not be altered after being deployed.
  *
  * @param <K1> - The type of the first key.
  * @param <K2> - The type of the second key.
@@ -36,7 +35,8 @@ public final class CompoundPairFormat<K1, K2> implements Format<KeyPair<K1, K2>>
   private final String key2Name;
   private final Format<K2> key2Format;
 
-  CompoundPairFormat(String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
+  CompoundPairFormat(
+      String key1Name, Format<K1> key1Format, String key2Name, Format<K2> key2Format) {
     this.key1Name = key1Name;
     this.key1Format = key1Format;
     this.key2Name = key2Name;

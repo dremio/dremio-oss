@@ -20,15 +20,8 @@ import static com.dremio.exec.catalog.VersionedPlugin.EntityType.ICEBERG_TABLE;
 import static com.dremio.exec.catalog.VersionedPlugin.EntityType.ICEBERG_VIEW;
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
-
 import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
@@ -52,8 +45,10 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.VersionedDatasetAccessOptions;
 import com.dremio.exec.store.VersionedDatasetHandle;
 import com.dremio.exec.store.Views;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.ViewHandle;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.MetadataProtoUtils;
@@ -71,21 +66,26 @@ import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.apache.iceberg.Table;
 
 /**
- * Translates the Iceberg format dataset metadata into internal dremio defined classes
- * using the Filesystem(iceberg format) storage plugin interface. To get a specific version
- * of the tables, metadata, it passes in VersionedDatasetAccessOptions to be passed to Nessie
- * so the right version can be looked up.
+ * Translates the Iceberg format dataset metadata into internal dremio defined classes using the
+ * Filesystem(iceberg format) storage plugin interface. To get a specific version of the tables,
+ * metadata, it passes in VersionedDatasetAccessOptions to be passed to Nessie so the right version
+ * can be looked up.
  */
 public class VersionedDatasetAdapter {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VersionedDatasetAdapter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VersionedDatasetAdapter.class);
 
   private final List<String> versionedTableKey;
   private final ResolvedVersionContext versionContext;
@@ -96,13 +96,14 @@ public class VersionedDatasetAdapter {
   private SplitsPointer splitsPointer;
   private DatasetConfig versionedDatasetConfig;
 
-  protected VersionedDatasetAdapter(List<String> versionedTableKey,
-                                    ResolvedVersionContext versionContext,
-                                    StoragePlugin storagePlugin,
-                                    StoragePluginId storagePluginId,
-                                    OptionManager optionManager,
-                                    DatasetHandle datasetHandle,
-                                    DatasetConfig versionedDatasetConfig) {
+  protected VersionedDatasetAdapter(
+      List<String> versionedTableKey,
+      ResolvedVersionContext versionContext,
+      StoragePlugin storagePlugin,
+      StoragePluginId storagePluginId,
+      OptionManager optionManager,
+      DatasetHandle datasetHandle,
+      DatasetConfig versionedDatasetConfig) {
     this.versionedTableKey = versionedTableKey;
     this.versionContext = versionContext;
     this.storagePlugin = storagePlugin;
@@ -118,65 +119,82 @@ public class VersionedDatasetAdapter {
 
   @WithSpan
   public DremioTable getTable(final String accessUserName) {
-    return datasetHandle.unwrap(VersionedDatasetHandle.class).translateToDremioTable(this, accessUserName);
+    return datasetHandle
+        .unwrap(VersionedDatasetHandle.class)
+        .translateToDremioTable(this, accessUserName);
   }
 
   public DremioTable translateIcebergView(String accessUserName) {
-    Preconditions.checkState(datasetHandle.unwrap(VersionedDatasetHandle.class).getType() == ICEBERG_VIEW);
+    Preconditions.checkState(
+        datasetHandle.unwrap(VersionedDatasetHandle.class).getType() == ICEBERG_VIEW);
     final ViewHandle viewHandle = datasetHandle.unwrap(ViewHandle.class);
     final List<String> viewKeyPath = viewHandle.getDatasetPath().getComponents();
 
     final ViewVersionMetadata viewVersionMetadata = viewHandle.getViewVersionMetadata();
     Preconditions.checkNotNull(viewVersionMetadata);
-    final SchemaConverter schemaConverter = SchemaConverter.getBuilder().setMapTypeEnabled(optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).setTableName(String.join(".", viewKeyPath)).build();
-    //Convert from Iceberg to Arrow schema
-    final BatchSchema batchSchema = schemaConverter.fromIceberg(viewVersionMetadata.definition().schema());
+    final SchemaConverter schemaConverter =
+        SchemaConverter.getBuilder()
+            .setMapTypeEnabled(optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
+            .setTableName(String.join(".", viewKeyPath))
+            .build();
+    // Convert from Iceberg to Arrow schema
+    final BatchSchema batchSchema =
+        schemaConverter.fromIceberg(viewVersionMetadata.definition().schema());
 
-    //The ViewFieldType list returned will contain the Calcite converted fields.
-    final List<ViewFieldType> viewFieldTypesList = ViewFieldsHelper.getBatchSchemaFields(batchSchema);
+    // The ViewFieldType list returned will contain the Calcite converted fields.
+    final List<ViewFieldType> viewFieldTypesList =
+        ViewFieldsHelper.getBatchSchemaFields(batchSchema);
 
-    final DatasetConfig viewConfig = createShallowVirtualDatasetConfig(viewKeyPath,
-      viewVersionMetadata,
-      viewFieldTypesList);
+    final DatasetConfig viewConfig =
+        createShallowVirtualDatasetConfig(viewKeyPath, viewVersionMetadata, viewFieldTypesList);
 
     viewConfig.setTag(viewHandle.getUniqueInstanceId());
-    VersionedDatasetId versionedDatasetId = new VersionedDatasetId(
-      versionedTableKey,
-      viewHandle.getContentId(),
-      TableVersionContext.of(versionContext));
+    VersionedDatasetId versionedDatasetId =
+        new VersionedDatasetId(
+            versionedTableKey, viewHandle.getContentId(), TableVersionContext.of(versionContext));
     viewConfig.setId(new EntityId(versionedDatasetId.asString()));
     viewConfig.setRecordSchema(batchSchema.toByteString());
     viewConfig.setLastModified(viewVersionMetadata.currentVersion().timestampMillis());
 
-    final View view = Views.fieldTypesToView(Iterables.getLast(viewKeyPath),
-      viewVersionMetadata.definition().sql(),
-      viewFieldTypesList,
-      viewConfig.getVirtualDataset().getContextList(),
-      batchSchema);
+    final View view =
+        Views.fieldTypesToView(
+            Iterables.getLast(viewKeyPath),
+            viewVersionMetadata.definition().sql(),
+            viewFieldTypesList,
+            viewConfig.getVirtualDataset().getContextList(),
+            batchSchema);
 
     CatalogIdentity catalogIdentity = null;
     if (optionManager.getOption(VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED)) {
       try {
-        String owner = getOwner(new EntityPath(versionedTableKey), versionedDatasetId.getVersionContext().asVersionContext().getValue());
-        if (!Strings.isNullOrEmpty(owner)) {
-          catalogIdentity = new CatalogUser(owner);
-          viewConfig.setOwner(owner);
+        VersionContext versionContext = versionedDatasetId.getVersionContext().asVersionContext();
+        catalogIdentity =
+            getOwner(
+                new EntityPath(versionedTableKey),
+                versionContext.getValue(),
+                versionContext.getType().name());
+        if (catalogIdentity != null) {
+          viewConfig.setOwner(catalogIdentity.getName());
         }
       } catch (Exception e) {
         throw UserException.dataReadError(e).buildSilently();
       }
     }
 
-    return new ViewTable(new NamespaceKey(viewKeyPath),
-      view,
-      catalogIdentity,
-      viewConfig, batchSchema, TableVersionContext.of(versionContext).asVersionContext(),
-      false);
+    return new ViewTable(
+        new NamespaceKey(viewKeyPath),
+        view,
+        catalogIdentity,
+        viewConfig,
+        batchSchema,
+        TableVersionContext.of(versionContext).asVersionContext(),
+        false);
   }
 
-  private DatasetConfig createShallowVirtualDatasetConfig(List<String> viewKeyPath,
-                                                          ViewVersionMetadata viewVersionMetadata,
-                                                          List<ViewFieldType> viewFieldTypesList) {
+  private DatasetConfig createShallowVirtualDatasetConfig(
+      List<String> viewKeyPath,
+      ViewVersionMetadata viewVersionMetadata,
+      List<ViewFieldType> viewFieldTypesList) {
     final VirtualDataset virtualDataset = new VirtualDataset();
     List<String> workspaceSchemaPath = viewVersionMetadata.definition().sessionNamespace();
     virtualDataset.setContextList(workspaceSchemaPath);
@@ -197,13 +215,14 @@ public class VersionedDatasetAdapter {
   }
 
   @WithSpan
-  public DremioTable translateIcebergTable(final String accessUserName) {
+  public DremioTable translateIcebergTable(final String accessUserName, Table table) {
     // Figure out the user we want to access the dataplane with.
     // *TBD*  Use the Filesystem(Iceberg) plugin to tell us the configuration/username
-    //Similar to SchemaConfig , we need a config for DataPlane
+    // Similar to SchemaConfig , we need a config for DataPlane
     // TODO: check access to the dataset (and use return value or make method throw)
 
-    VersionedDatasetHandle versionedDatasetHandle = datasetHandle.unwrap(VersionedDatasetHandle.class);
+    VersionedDatasetHandle versionedDatasetHandle =
+        datasetHandle.unwrap(VersionedDatasetHandle.class);
     Preconditions.checkState(versionedDatasetHandle.getType() == ICEBERG_TABLE);
     checkAccess(versionedTableKey, versionContext, accessUserName);
 
@@ -211,42 +230,57 @@ public class VersionedDatasetAdapter {
     try {
       versionedDatasetConfig = getMutatedVersionedConfig(versionContext, versionedDatasetConfig);
     } catch (final ConnectorException e) {
-      throw UserException.validationError(e)
-        .build(logger);
+      throw UserException.validationError(e).build(logger);
     }
-    VersionedDatasetId versionedDatasetId = new VersionedDatasetId(
-      versionedTableKey,
-      versionedDatasetHandle.getContentId(),
-      TableVersionContext.of(versionContext));
+    VersionedDatasetId versionedDatasetId =
+        new VersionedDatasetId(
+            versionedTableKey,
+            versionedDatasetHandle.getContentId(),
+            TableVersionContext.of(versionContext));
 
     versionedDatasetConfig.setId(new EntityId(versionedDatasetId.asString()));
     setIcebergTableUUID(versionedDatasetConfig, versionedDatasetHandle.getUniqueInstanceId());
     if (optionManager.getOption(VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED)) {
       try {
-        versionedDatasetConfig.setOwner(getOwner(new EntityPath(versionedTableKey), versionedDatasetId.getVersionContext().asVersionContext().getValue()));
+        VersionContext versionContext = versionedDatasetId.getVersionContext().asVersionContext();
+        CatalogIdentity catalogIdentity =
+            getOwner(
+                new EntityPath(versionedTableKey),
+                versionContext.getValue(),
+                versionContext.getType().name());
+        versionedDatasetConfig.setOwner(catalogIdentity != null ? catalogIdentity.getName() : null);
       } catch (Exception e) {
         throw UserException.dataReadError(e).buildSilently();
       }
     }
 
-    // Construct the TableMetadata
+    final TableMetadata tableMetadata =
+        new TableMetadataImpl(
+            storagePluginId,
+            versionedDatasetConfig,
+            accessUserName,
+            splitsPointer,
+            IcebergUtils.getPrimaryKey(table, versionedDatasetConfig)) {
+          @Override
+          public TableVersionContext getVersionContext() {
+            return TableVersionContext.of(versionContext);
+          }
+        };
 
-    final TableMetadata tableMetadata = new TableMetadataImpl(storagePluginId,
-      versionedDatasetConfig,
-      accessUserName,
-      splitsPointer,
-      getPrimaryKey(storagePlugin, versionedDatasetConfig, new NamespaceKey(versionedDatasetConfig.getFullPathList()),
-        accessUserName, versionContext)) {
-      @Override
-      public TableVersionContext getVersionContext() {
-        return TableVersionContext.of(versionContext);
-      }
-    };
+    // A versioned dataset is immutable and therefore always considered complete and up-to-date.
+    final DatasetMetadataState metadataState =
+        DatasetMetadataState.builder()
+            .setIsComplete(true)
+            .setIsExpired(false)
+            .setLastRefreshTimeMillis(System.currentTimeMillis())
+            .build();
 
-    return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
+    return new NamespaceTable(
+        tableMetadata, metadataState, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
   }
 
-  public String getOwner(EntityPath entityPath, String refValue) throws Exception {
+  public CatalogIdentity getOwner(EntityPath entityPath, String refValue, String refType)
+      throws Exception {
     return null;
   }
 
@@ -254,41 +288,23 @@ public class VersionedDatasetAdapter {
     return this.storagePlugin;
   }
 
-  private List<String> getPrimaryKey(StoragePlugin plugin,
-                                     DatasetConfig datasetConfig,
-                                     NamespaceKey versionedTableKey,
-                                     String userName,
-                                     ResolvedVersionContext versionContext) {
-    List<String> primaryKey = null;
-    if (plugin instanceof MutablePlugin) {
-      MutablePlugin mutablePlugin = (MutablePlugin) plugin;
-      try {
-        primaryKey = mutablePlugin.getPrimaryKey(versionedTableKey, datasetConfig,
-          null /* Don't care for versioned datasets */,
-          versionContext,
-          false);
-      } catch (Exception ex) {
-        logger.debug("Failed to get primary key", ex);
-      }
-    }
-    return primaryKey;
-  }
-
-  private DatasetConfig getMutatedVersionedConfig(ResolvedVersionContext versionContext,
-                                                  DatasetConfig datasetConfig) throws ConnectorException {
+  private DatasetConfig getMutatedVersionedConfig(
+      ResolvedVersionContext versionContext, DatasetConfig datasetConfig)
+      throws ConnectorException {
     final DatasetMetadata datasetMetadata = getMetadata(versionContext, datasetConfig);
     final Optional<ByteString> readSignature = getReadSignature();
-    final Function<DatasetConfig, DatasetConfig> datasetMutator = java.util.function.Function.identity();
-    MetadataObjectsUtils.overrideExtended(datasetConfig, datasetMetadata, readSignature,
-      1, Integer.MAX_VALUE);
+    final Function<DatasetConfig, DatasetConfig> datasetMutator =
+        java.util.function.Function.identity();
+    MetadataObjectsUtils.overrideExtended(
+        datasetConfig, datasetMetadata, readSignature, 1, Integer.MAX_VALUE);
     datasetConfig = datasetMutator.apply(datasetConfig);
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
     return datasetConfig;
   }
 
   /**
-   * Provide a read signature for the dataset. This is invoked only if dataset metadata is available for a
-   * dataset.
+   * Provide a read signature for the dataset. This is invoked only if dataset metadata is available
+   * for a dataset.
    *
    * @return read signature, not null
    */
@@ -302,8 +318,8 @@ public class VersionedDatasetAdapter {
         output = ((SupportsReadSignature) storagePlugin).provideSignature(datasetHandle, null);
       } catch (final ConnectorException e) {
         throw UserException.validationError(e)
-          .message("Failure while retrieving dataset [%s].", datasetHandle.getDatasetPath())
-          .build(logger);
+            .message("Failure while retrieving dataset [%s].", datasetHandle.getDatasetPath())
+            .build(logger);
       }
       if (output != BytesOutput.NONE) {
         readSignature = Optional.of(MetadataObjectsUtils.toProtostuff(output));
@@ -314,37 +330,40 @@ public class VersionedDatasetAdapter {
   }
 
   /**
-   * Given a key and VersionContext , return the {@link DatasetMetadata dataset metadata} for the versioned dataset
-   * represented by the handle.
+   * Given a key and VersionContext , return the {@link DatasetMetadata dataset metadata} for the
+   * versioned dataset represented by the handle.
    *
    * @return Dataset metadata, not null
    */
-  private DatasetMetadata getMetadata(ResolvedVersionContext versionContext,
-                                      DatasetConfig datasetConfig) throws ConnectorException {
+  private DatasetMetadata getMetadata(
+      ResolvedVersionContext versionContext, DatasetConfig datasetConfig)
+      throws ConnectorException {
     Preconditions.checkNotNull(datasetHandle);
 
     final VersionedDatasetAccessOptions versionedDatasetAccessOptions =
-        new VersionedDatasetAccessOptions.Builder()
-            .setVersionContext(versionContext)
-            .build();
+        new VersionedDatasetAccessOptions.Builder().setVersionContext(versionContext).build();
 
-    final DatasetRetrievalOptions retrievalOptions = DatasetRetrievalOptions.DEFAULT.toBuilder()
-        .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions).build();
-    final PartitionChunkListing chunkListing = storagePlugin.listPartitionChunks(datasetHandle,
-        retrievalOptions.asListPartitionChunkOptions(null));
-    final DatasetMetadata datasetMetadata = storagePlugin.getDatasetMetadata(datasetHandle,
-        chunkListing,
-        retrievalOptions.asGetMetadataOptions(null));
+    final DatasetRetrievalOptions retrievalOptions =
+        DatasetRetrievalOptions.DEFAULT.toBuilder()
+            .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions)
+            .build();
+    final PartitionChunkListing chunkListing =
+        storagePlugin.listPartitionChunks(
+            datasetHandle, retrievalOptions.asListPartitionChunkOptions(null));
+    final DatasetMetadata datasetMetadata =
+        storagePlugin.getDatasetMetadata(
+            datasetHandle, chunkListing, retrievalOptions.asGetMetadataOptions(null));
     // Construct the split pointer from the PartitionChunkListing.
     splitsPointer = constructSplitPointer(chunkListing, datasetConfig);
     return datasetMetadata;
   }
 
-  private SplitsPointer constructSplitPointer(PartitionChunkListing chunkListing, DatasetConfig datasetConfig) {
+  private SplitsPointer constructSplitPointer(
+      PartitionChunkListing chunkListing, DatasetConfig datasetConfig) {
     final List<PartitionChunk> chunkList = new ArrayList<>();
     chunkListing.iterator().forEachRemaining(chunkList::add);
     Preconditions.checkArgument(chunkList.size() == 1);
-    //For a versioned iceberg table there is just one single split  - the manifest file.
+    // For a versioned iceberg table there is just one single split  - the manifest file.
     return new AbstractSplitsPointer() {
       @Override
       public double getSplitRatio() {
@@ -363,19 +382,24 @@ public class VersionedDatasetAdapter {
 
       @Override
       public Iterable<PartitionChunkMetadata> getPartitionChunks() {
-        final PartitionProtobuf.PartitionChunk.Builder builder = PartitionProtobuf.PartitionChunk.newBuilder()
-          .setSize(0)
-          .setRowCount(0)
-          .setPartitionExtendedProperty(MetadataProtoUtils.toProtobuf(chunkList.get(0).getExtraInfo()))
-          .addAllPartitionValues((chunkList.get(0).getPartitionValues().stream().map(MetadataProtoUtils::toProtobuf)
-            .collect(Collectors.toList())))
-          .setDatasetSplit(MetadataProtoUtils.toProtobuf(chunkList.get(0).getSplits().iterator().next()))
-          .setSplitKey("0")
-          .setSplitCount(1);
+        final PartitionProtobuf.PartitionChunk.Builder builder =
+            PartitionProtobuf.PartitionChunk.newBuilder()
+                .setSize(0)
+                .setRowCount(0)
+                .setPartitionExtendedProperty(
+                    MetadataProtoUtils.toProtobuf(chunkList.get(0).getExtraInfo()))
+                .addAllPartitionValues(
+                    (chunkList.get(0).getPartitionValues().stream()
+                        .map(MetadataProtoUtils::toProtobuf)
+                        .collect(Collectors.toList())))
+                .setDatasetSplit(
+                    MetadataProtoUtils.toProtobuf(chunkList.get(0).getSplits().iterator().next()))
+                .setSplitKey("0")
+                .setSplitCount(1);
 
-        final PartitionChunkMetadata partitionChunkMetadata = new PartitionChunkMetadataImpl(
-          builder.build(),
-          PartitionChunkId.of(datasetConfig, builder.build(), 0));
+        final PartitionChunkMetadata partitionChunkMetadata =
+            new PartitionChunkMetadataImpl(
+                builder.build(), PartitionChunkId.of(datasetConfig, builder.build(), 0));
         return FluentIterable.of(partitionChunkMetadata);
       }
 
@@ -391,10 +415,9 @@ public class VersionedDatasetAdapter {
     };
   }
 
-  /**
-   * TBD We need to figure out how to do the access check with dataplane
-   */
-  private boolean checkAccess(final List<String> tableKey, ResolvedVersionContext versionContext, String userName) {
+  /** TBD We need to figure out how to do the access check with dataplane */
+  private boolean checkAccess(
+      final List<String> tableKey, ResolvedVersionContext versionContext, String userName) {
     // TODO: Needs to be implemented
     return true;
   }

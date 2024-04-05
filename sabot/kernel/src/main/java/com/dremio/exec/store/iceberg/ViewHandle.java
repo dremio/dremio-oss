@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.Objects;
-
-import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
-
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.VersionedDatasetAdapter;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.VersionedDatasetHandle;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
+import java.util.Objects;
 
 public class ViewHandle implements VersionedDatasetHandle {
   private EntityPath viewPath;
@@ -31,12 +29,15 @@ public class ViewHandle implements VersionedDatasetHandle {
   private String id;
   private String uniqueId;
 
-  private ViewHandle(final EntityPath viewpath, ViewVersionMetadata viewVersionMetadata, String id, String uniqueId) {
+  private ViewHandle(
+      final EntityPath viewpath,
+      ViewVersionMetadata viewVersionMetadata,
+      String id,
+      String uniqueId) {
     this.viewPath = viewpath;
     this.viewVersionMetadata = viewVersionMetadata;
     this.id = id;
     this.uniqueId = uniqueId;
-
   }
 
   public static Builder newBuilder() {
@@ -63,7 +64,9 @@ public class ViewHandle implements VersionedDatasetHandle {
   }
 
   @Override
-  public String getContentId() { return id;}
+  public String getContentId() {
+    return id;
+  }
 
   @Override
   public EntityPath getDatasetPath() {

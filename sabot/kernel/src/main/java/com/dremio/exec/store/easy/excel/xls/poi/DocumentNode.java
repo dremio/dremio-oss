@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.store.easy.excel.xls.poi;
 
+import com.dremio.exec.store.easy.excel.xls.properties.DocumentProperty;
 import org.apache.poi.poifs.filesystem.DocumentEntry;
 
-import com.dremio.exec.store.easy.excel.xls.properties.DocumentProperty;
-
-/**
- * Simplified implementation of {@link org.apache.poi.poifs.filesystem.DocumentNode}
- */
+/** Simplified implementation of {@link org.apache.poi.poifs.filesystem.DocumentNode} */
 public class DocumentNode extends EntryNode implements DocumentEntry {
 
   DocumentNode(DocumentProperty property, DirectoryNode parent) {

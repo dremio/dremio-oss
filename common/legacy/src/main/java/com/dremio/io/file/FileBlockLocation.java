@@ -15,22 +15,21 @@
  */
 package com.dremio.io.file;
 
+import com.google.common.net.HostAndPort;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import com.google.common.net.HostAndPort;
 
 /**
  * A file block location
  *
- * Files are composed of a sequence of blocks. Blocks do partition the whole file
- * and do not overlap.
- * Each non-empty file has a least one block, with at least one host
+ * <p>Files are composed of a sequence of blocks. Blocks do partition the whole file and do not
+ * overlap. Each non-empty file has a least one block, with at least one host
  */
 public interface FileBlockLocation {
 
   /**
    * Gets the block offset relative to the start of the file
+   *
    * @return
    */
   long getOffset();
@@ -45,7 +44,7 @@ public interface FileBlockLocation {
   /**
    * Gets the list of hosts physically storing the block.
    *
-   * For non-distributed filesystems or filesystems without hosts information available,
+   * <p>For non-distributed filesystems or filesystems without hosts information available,
    * localhost is used instead.
    *
    * @return a list of hosts. Should contain at least one host

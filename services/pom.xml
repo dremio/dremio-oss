@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -32,56 +32,58 @@
 
   <modules>
     <module>accelerator</module>
+    <module>accelerator-api</module>
     <module>arrow-flight</module>
+    <module>arrow-flight-common</module>
+    <module>authenticator</module>
     <module>base-rpc</module>
+    <module>catalog</module>
     <module>catalog-api</module>
     <module>command-pool</module>
     <module>configuration</module>
     <module>coordinator</module>
     <module>credentials</module>
     <module>datastore</module>
+    <module>embedded-catalog</module>
     <module>exec-selector</module>
     <module>executorservice</module>
     <module>fabric-rpc</module>
+    <module>functions</module>
     <module>grpc</module>
+    <module>hadoopcredentials</module>
+    <module>jobcounts</module>
     <module>jobresults</module>
     <module>jobs</module>
     <module>jobtelemetry</module>
     <module>maestro</module>
     <module>namespace</module>
-    <module>catalog</module>
-    <module>nessie-grpc</module>
-    <module>nessie-proxy</module>
     <module>nessie</module>
+    <module>nessie-grpc</module>
+    <module>nessie-metadata-cache</module>
+    <module>nessie-proxy</module>
+    <module>nessie-restjavax</module>
     <module>nessie-storage-upgrade</module>
+    <module>nessie-validation</module>
     <module>options</module>
+    <module>orphanage</module>
+    <module>orphanagecleaner</module>
+    <module>partition-stats</module>
+    <module>reindexer</module>
     <module>resourcescheduler</module>
     <module>scheduler</module>
+    <module>script</module>
     <module>spill</module>
     <module>sqlrunner</module>
+    <module>statistics</module>
+    <module>sysflight</module>
+    <module>systemicebergtablescleaner</module>
     <module>telemetry-api</module>
     <module>telemetry-impl</module>
     <module>telemetry-utils</module>
     <module>tokens</module>
     <module>transientstore</module>
+    <module>userpreferences</module>
     <module>users</module>
     <module>usersessions</module>
-    <module>statistics</module>
-    <module>sysflight</module>
-    <module>accelerator-api</module>
-    <module>orphanage</module>
-    <module>orphanagecleaner</module>
-    <module>reindexer</module>
-    <module>script</module>
-    <module>userpreferences</module>
-    <module>functions</module>
-    <module>arrow-flight-common</module>
-    <module>hadoopcredentials</module>
-    <module>jobcounts</module>
-    <module>partition-stats</module>
-    <module>nessie-validation</module>
-    <module>nessie-metadata-cache</module>
-    <module>authenticator</module>
-    <module>systemicebergtablescleaner</module>
   </modules>
 </project>

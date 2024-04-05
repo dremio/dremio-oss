@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.DremioPrepareTable;
@@ -25,13 +26,11 @@ import com.dremio.plan.serialization.PScanCrel;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Strings;
 
-/**
- * Serde for ScanCrel
- */
+/** Serde for ScanCrel */
 public final class ScanCrelSerde implements RelNodeSerde<ScanCrel, PScanCrel> {
   @Override
   public PScanCrel serialize(ScanCrel scan, RelToProto s) {
-    if(!scan.isDirectNamespaceDescendent()){
+    if (!scan.isDirectNamespaceDescendent()) {
       throw new IllegalStateException("You can only serialize direct namespace descendents.");
     }
 
@@ -46,9 +45,7 @@ public final class ScanCrelSerde implements RelNodeSerde<ScanCrel, PScanCrel> {
     if (scan.getTableMetadata().getVersionContext() != null) {
       builder.setVersionContext(scan.getTableMetadata().getVersionContext().serialize());
     }
-    return builder
-        .addAllPath(scan.getTableMetadata().getName().getPathComponents())
-        .build();
+    return builder.addAllPath(scan.getTableMetadata().getName().getPathComponents()).build();
   }
 
   @Override
@@ -56,14 +53,23 @@ public final class ScanCrelSerde implements RelNodeSerde<ScanCrel, PScanCrel> {
     if (Strings.isNullOrEmpty(node.getVersionContext())) {
       DremioPrepareTable table = s.tables().getTable(new NamespaceKey(node.getPathList()));
       if (table == null) {
-        throw new DeserializationException("Table no longer exists in source: " + node.getPathList());
+        throw new DeserializationException(
+            "Table no longer exists in source: " + node.getPathList());
       }
       return (ScanCrel) table.toRel(s.toRelContext());
     } else {
-      DremioTranslatableTable table = s.tables().getTableSnapshot(new NamespaceKey(node.getPathList()),
-        node.getVersionContext() == null ?  null : TableVersionContext.deserialize(node.getVersionContext()));
+      CatalogEntityKey catalogEntityKey =
+          CatalogEntityKey.newBuilder()
+              .keyComponents(node.getPathList())
+              .tableVersionContext(
+                  node.getVersionContext() == null
+                      ? null
+                      : TableVersionContext.deserialize(node.getVersionContext()))
+              .build();
+      DremioTranslatableTable table = s.tables().getTableSnapshot(catalogEntityKey);
       if (table == null) {
-        throw new DeserializationException("Table no longer exists in source: " + node.getPathList());
+        throw new DeserializationException(
+            "Table no longer exists in source: " + node.getPathList());
       }
       return (ScanCrel) table.toRel(s.toRelContext(), null);
     }

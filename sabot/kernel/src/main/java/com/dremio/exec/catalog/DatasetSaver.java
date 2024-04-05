@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.function.Function;
-
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import java.util.function.Function;
 
 /**
  * Simple facade around namespace that is responsible for persisting datasets. We do this to ensure
@@ -30,31 +29,28 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
  */
 public interface DatasetSaver {
   void save(
-    DatasetConfig datasetConfig,
-    DatasetHandle handle,
-    SourceMetadata sourceMetadata,
-    boolean opportunisticSave,
-    DatasetRetrievalOptions options,
-    Function<DatasetConfig, DatasetConfig> datasetMutator,
-    NamespaceAttribute... attributes
-  );
+      DatasetConfig datasetConfig,
+      DatasetHandle handle,
+      SourceMetadata sourceMetadata,
+      boolean opportunisticSave,
+      DatasetRetrievalOptions options,
+      Function<DatasetConfig, DatasetConfig> datasetMutator,
+      NamespaceAttribute... attributes);
 
   void save(
-    DatasetConfig datasetConfig,
-    DatasetHandle handle,
-    SourceMetadata sourceMetadata,
-    boolean opportunisticSave,
-    DatasetRetrievalOptions options,
-    NamespaceAttribute... attributes
-  );
+      DatasetConfig datasetConfig,
+      DatasetHandle handle,
+      SourceMetadata sourceMetadata,
+      boolean opportunisticSave,
+      DatasetRetrievalOptions options,
+      NamespaceAttribute... attributes);
 
   void save(
-    DatasetConfig datasetConfig,
-    DatasetHandle handle,
-    SourceMetadata sourceMetadata,
-    boolean opportunisticSave,
-    DatasetRetrievalOptions options,
-    String userName,
-    NamespaceAttribute... attributes
-  );
+      DatasetConfig datasetConfig,
+      DatasetHandle handle,
+      SourceMetadata sourceMetadata,
+      boolean opportunisticSave,
+      DatasetRetrievalOptions options,
+      String userName,
+      NamespaceAttribute... attributes);
 }

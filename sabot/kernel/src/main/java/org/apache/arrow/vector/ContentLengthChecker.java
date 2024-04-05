@@ -17,7 +17,8 @@
 package org.apache.arrow.vector;
 
 /**
- * When we want to limit our content to a certain max size, this interface can be used to run the content length checks
+ * When we want to limit our content to a certain max size, this interface can be used to run the
+ * content length checks
  */
 public interface ContentLengthChecker {
   boolean hasSpaceFor(final int contentLength);

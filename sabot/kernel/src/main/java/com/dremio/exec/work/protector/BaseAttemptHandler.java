@@ -24,9 +24,7 @@ import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.google.common.base.Preconditions;
 
-/**
- * Base implementation of {@link ReAttemptHandler}
- */
+/** Base implementation of {@link ReAttemptHandler} */
 abstract class BaseAttemptHandler implements ReAttemptHandler {
 
   private final long maxAttempts;
@@ -74,35 +72,42 @@ abstract class BaseAttemptHandler implements ReAttemptHandler {
 
     final UserException ex = context.getException();
     switch (ex.getErrorType()) {
-      case OUT_OF_MEMORY: {
-        if (!options.getOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM)) {
-          logger.debug("{}: retry on OOMs has been disabled", attemptId);
-          return AttemptReason.NONE;
-        }
-        if (context.containsHashAggregate()) {
-          if (ex.getContextStrings().size() > 2 && ex.getContextStrings().get(1).equals(VectorizedHashAggOperator.OUT_OF_MEMORY_MSG)) {
-            /* Vectorized Hash Agg should never run out of memory except when the setup fails during preallocation
-             * and if that happens then instead of reattempting with StreamingAgg, we should report the problem back
-             * to user so that query can be re-issued with potentially more memory.
-             */
-            logger.info("{}: couldn't recover from an out of memory failure in vectorized hash agg", attemptId);
+      case OUT_OF_MEMORY:
+        {
+          if (!options.getOption(ExecConstants.ENABLE_REATTEMPTS_ON_OOM)) {
+            logger.debug("{}: retry on OOMs has been disabled", attemptId);
             return AttemptReason.NONE;
           }
-        }
-        if (!context.containsHashAggregate() || recoveringFromOOM
+          if (context.containsHashAggregate()) {
+            if (ex.getContextStrings().size() > 2
+                && ex.getContextStrings()
+                    .get(1)
+                    .equals(VectorizedHashAggOperator.OUT_OF_MEMORY_MSG)) {
+              /* Vectorized Hash Agg should never run out of memory except when the setup fails during preallocation
+               * and if that happens then instead of reattempting with StreamingAgg, we should report the problem back
+               * to user so that query can be re-issued with potentially more memory.
+               */
+              logger.info(
+                  "{}: couldn't recover from an out of memory failure in vectorized hash agg",
+                  attemptId);
+              return AttemptReason.NONE;
+            }
+          }
+          if (!context.containsHashAggregate() || recoveringFromOOM
           // TODO(DX-5912): check this condition after merge join is implemented
           // || !options.getOption(PlannerSettings.HASHJOIN)
           ) {
-          // we are already using sort-based operations
-          logger.info("{}: couldn't recover from an out of memory failure as sort-based options are already set",
-                  attemptId);
-          return AttemptReason.NONE;
-        }
+            // we are already using sort-based operations
+            logger.info(
+                "{}: couldn't recover from an out of memory failure as sort-based options are already set",
+                attemptId);
+            return AttemptReason.NONE;
+          }
 
-        recoveringFromOOM = true;
-        // we should probably check if the sort-based options aren't already set
-        return AttemptReason.OUT_OF_MEMORY;
-      }
+          recoveringFromOOM = true;
+          // we should probably check if the sort-based options aren't already set
+          return AttemptReason.OUT_OF_MEMORY;
+        }
       case SCHEMA_CHANGE:
         return AttemptReason.SCHEMA_CHANGE;
       case JSON_FIELD_CHANGE:

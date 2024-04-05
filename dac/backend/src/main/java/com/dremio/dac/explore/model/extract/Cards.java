@@ -15,14 +15,14 @@
  */
 package com.dremio.dac.explore.model.extract;
 
-import java.util.List;
-
 import com.dremio.dac.util.JSONUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 /**
  * Container of Card
+ *
  * @param <T> the rule type
  */
 public class Cards<T> {

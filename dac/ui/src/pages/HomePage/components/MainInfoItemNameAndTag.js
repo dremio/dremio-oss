@@ -58,8 +58,12 @@ class MainInfoItemNameAndTag extends Component {
     const tagsFromItem = item.get("tags");
     const fullPath = constructFullPath(getFullPathListFromEntity(item));
     return (
-      <div style={{ display: "flex", alignItems: "center" }}>
-        <MainInfoItemName item={item} openDetailsPanel={openDetailsPanel} />
+      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+        <MainInfoItemName
+          item={item}
+          openDetailsPanel={openDetailsPanel}
+          tagsLength={tagsFromItem?.size}
+        />
         {fullPath && (
           <CopyButton
             text={fullPath}
@@ -69,7 +73,12 @@ class MainInfoItemNameAndTag extends Component {
         {tagsFromItem && tagsFromItem.size && (
           <TagList
             tags={tagsFromItem}
-            style={{ flex: 1, minWidth: 0, marginLeft: "1%" }}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              marginLeft: "1%",
+              position: "relative",
+            }}
             onTagClick={this.onTagClick}
           />
         )}

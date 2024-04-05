@@ -15,19 +15,15 @@
  */
 package com.dremio.plugins.azure;
 
+import com.dremio.plugins.util.ContainerFileSystem.ContainerCreator;
 import java.io.IOException;
 import java.util.stream.Stream;
-
-import com.dremio.plugins.util.ContainerFileSystem.ContainerCreator;
 
 interface ContainerProvider {
 
   Stream<ContainerCreator> getContainerCreators() throws IOException;
 
-  default void assertContainerExists(final String containerName) {
-  }
+  default void assertContainerExists(final String containerName) {}
 
-  default void verfiyContainersExist() throws IOException {
-
-  }
+  default void verfiyContainersExist() throws IOException {}
 }

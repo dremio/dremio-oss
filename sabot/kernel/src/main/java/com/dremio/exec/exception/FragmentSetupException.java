@@ -18,13 +18,15 @@ package com.dremio.exec.exception;
 import com.dremio.exec.work.foreman.ForemanException;
 
 public class FragmentSetupException extends ForemanException {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentSetupException.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(FragmentSetupException.class);
 
   public FragmentSetupException() {
     super();
   }
 
-  public FragmentSetupException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public FragmentSetupException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 

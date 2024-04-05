@@ -20,11 +20,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightDescriptor;
@@ -41,11 +41,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
-
-/**
- * Test functionality of the FlightClient communicating to the Flight endpoint.
- */
+/** Test functionality of the FlightClient communicating to the Flight endpoint. */
 public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   private static final String SELECT_QUERY = "SELECT 1 AS col_int, 'foobar' AS col_string";
   private static final String SELECT_QUERY_10K = "select * from cp.\"/10k_rows.parquet\"";
@@ -66,23 +62,15 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
 
   @Test(expected = FlightRuntimeException.class)
   public void testFlightClientEncryptedServerUnencrypted() throws Exception {
-    try (final FlightClient ignored = openEncryptedFlightClient(
-      DUMMY_USER,
-      DUMMY_PASSWORD,
-      null,
-      getAuthMode())
-    ) {
+    try (final FlightClient ignored =
+        openEncryptedFlightClient(DUMMY_USER, DUMMY_PASSWORD, null, getAuthMode())) {
       assertNotNull(ignored);
     }
   }
 
   @Test(expected = FlightRuntimeException.class)
   public void testBadCredentials() throws Exception {
-    try (final FlightClient ignored = openFlightClient(
-      DUMMY_USER,
-      "bad password",
-      getAuthMode())
-    ) {
+    try (final FlightClient ignored = openFlightClient(DUMMY_USER, "bad password", getAuthMode())) {
       assertNotNull(ignored);
     }
   }
@@ -91,29 +79,29 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   public void testSelectStringAndIntLiteral() throws Exception {
     // Sanity check for verifying the test framework functions.
     flightTestBuilder()
-      .sqlQuery("SELECT 1 AS col_int, 'foobar' AS col_string")
-      .baselineColumns("col_int", "col_string")
-      .baselineValues(1, "foobar")
-      .go();
+        .sqlQuery("SELECT 1 AS col_int, 'foobar' AS col_string")
+        .baselineColumns("col_int", "col_string")
+        .baselineValues(1, "foobar")
+        .go();
   }
 
   @Test
   public void testSelectNull() throws Exception {
     // Sanity check for verifying the test framework functions.
     flightTestBuilder()
-      .sqlQuery("SELECT CAST(NULL AS INT) AS col_int")
-      .baselineColumns("col_int")
-      .baselineValues(null)
-      .go();
+        .sqlQuery("SELECT CAST(NULL AS INT) AS col_int")
+        .baselineColumns("col_int")
+        .baselineValues(null)
+        .go();
   }
 
   @Test
   public void testSelectEmptyResultSet() throws Exception {
     // Sanity check for verifying the test framework functions.
     flightTestBuilder()
-      .sqlQuery("SELECT 1 AS col_int FROM (VALUES(1)) WHERE 0 = 1")
-      .expectsEmptyResultSet()
-      .go();
+        .sqlQuery("SELECT 1 AS col_int FROM (VALUES(1)) WHERE 0 = 1")
+        .expectsEmptyResultSet()
+        .go();
   }
 
   @Test
@@ -121,8 +109,9 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     try (final FlightStream stream = executeQuery(SELECT_QUERY)) {
       drainStream(stream);
 
-      stream.cancel("Query is cancelled after stream is retrieved.",
-        new Exception("Testing query data retrieval cancellation."));
+      stream.cancel(
+          "Query is cancelled after stream is retrieved.",
+          new Exception("Testing query data retrieval cancellation."));
       stream.getRoot().clear();
     }
   }
@@ -130,7 +119,8 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   @Test
   public void testFlightClientQueryCancellationBeforeStreamIsRetrieved() throws Exception {
     try (FlightStream stream = executeQuery(SELECT_QUERY)) {
-      stream.cancel("Query is cancelled", new Exception("Testing query data retrieval cancellation."));
+      stream.cancel(
+          "Query is cancelled", new Exception("Testing query data retrieval cancellation."));
     }
   }
 
@@ -149,21 +139,23 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
 
   @Test
   public void testFlightClientWithInvalidQuery() {
-    assertThatThrownBy(() -> {
-      try (final FlightStream stream = executeQuery("SELECT * from non_existent_table")) {
-        drainStream(stream);
-      }
-    })
-      .isInstanceOf(FlightRuntimeException.class)
-      .extracting("status")
-      .extracting("code")
-      .isEqualTo(FlightStatusCode.INVALID_ARGUMENT);
+    assertThatThrownBy(
+            () -> {
+              try (final FlightStream stream = executeQuery("SELECT * from non_existent_table")) {
+                drainStream(stream);
+              }
+            })
+        .isInstanceOf(FlightRuntimeException.class)
+        .extracting("status")
+        .extracting("code")
+        .isEqualTo(FlightStatusCode.INVALID_ARGUMENT);
   }
 
   @Test
   public void testDataRetrievalFor10kRows() throws Exception {
     // Act
-    final List<String> actualStringResults = executeQueryWithStringResults(getFlightClientWrapper(), SELECT_QUERY_10K);
+    final List<String> actualStringResults =
+        executeQueryWithStringResults(getFlightClientWrapper(), SELECT_QUERY_10K);
 
     // Assert
     assertEquals(TOTAL_ROWS_SELECT_QUERY_10K, actualStringResults.size());
@@ -172,24 +164,30 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   @Test
   public void testDirectCommandWithExplainPlanRetrieval() throws Exception {
     // Act
-    final List<String> actualStringResults = executeQueryWithStringResults(getFlightClientWrapper(), "EXPLAIN PLAN FOR " + SELECT_QUERY);
+    final List<String> actualStringResults =
+        executeQueryWithStringResults(getFlightClientWrapper(), "EXPLAIN PLAN FOR " + SELECT_QUERY);
 
     // Assert
     assertEquals(actualStringResults.size(), 1);
-    assertTrue(actualStringResults.get(0).contains(
-      "Project(col_int=[1], col_string=['foobar':VARCHAR(6)]) : rowType =" +
-        " RecordType(INTEGER col_int, VARCHAR(6) col_string): rowcount = 1.0"));
+    assertTrue(
+        actualStringResults
+            .get(0)
+            .contains(
+                "Project(col_int=[1], col_string=['foobar':VARCHAR(6)]) : rowType ="
+                    + " RecordType(INTEGER col_int, VARCHAR(6) col_string): rowcount = 1.0"));
   }
 
   @Test
   public void testGetSchemasUsingLegacyProducer() {
-    FlightDescriptor descriptor = FlightDescriptor.command(SELECT_QUERY_10K.getBytes(StandardCharsets.UTF_8));
+    FlightDescriptor descriptor =
+        FlightDescriptor.command(SELECT_QUERY_10K.getBytes(StandardCharsets.UTF_8));
 
     SchemaResult schema = getSchema(descriptor);
     Assert.assertEquals(schema.getSchema().getFields().size(), 1);
   }
 
-  private FlightStream executeQuery(FlightClientWrapper flightClientWrapper, String query) throws SQLException {
+  private FlightStream executeQuery(FlightClientWrapper flightClientWrapper, String query)
+      throws SQLException {
     // Assumption is that we have exactly one endpoint returned.
     Ticket ticket = getFlightInfo(flightClientWrapper, query).getEndpoints().get(0).getTicket();
     return flightClientWrapper.getSqlClient().getStream(ticket, flightClientWrapper.getOptions());
@@ -206,7 +204,8 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     return executeQuery(getFlightClientWrapper(), query);
   }
 
-  protected List<String> executeQueryWithStringResults(FlightClientWrapper flightClientWrapper, String query) throws Exception {
+  protected List<String> executeQueryWithStringResults(
+      FlightClientWrapper flightClientWrapper, String query) throws Exception {
     try (final FlightStream stream = executeQuery(flightClientWrapper, query)) {
       final List<String> actualStringResults = new ArrayList<>();
 
@@ -229,15 +228,16 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   }
 
   /**
-   * Return an array of {@link CallOption} used in all calls to Flight Server (getFlightInfo, getStream, etc.).
+   * Return an array of {@link CallOption} used in all calls to Flight Server (getFlightInfo,
+   * getStream, etc.).
    */
   abstract CallOption[] getCallOptions();
 
-  /**
-   * Returns a FlightInfo for executing given query.
-   */
-  public FlightInfo getFlightInfo(FlightClientWrapper flightClientWrapper, String query) throws SQLException {
-    final FlightDescriptor command = FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
+  /** Returns a FlightInfo for executing given query. */
+  public FlightInfo getFlightInfo(FlightClientWrapper flightClientWrapper, String query)
+      throws SQLException {
+    final FlightDescriptor command =
+        FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
     return flightClientWrapper.getClient().getInfo(command, flightClientWrapper.getOptions());
   }
 }

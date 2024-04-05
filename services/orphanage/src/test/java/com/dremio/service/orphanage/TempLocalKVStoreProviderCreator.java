@@ -15,33 +15,30 @@
  */
 package com.dremio.service.orphanage;
 
-import java.io.IOException;
-
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.KVStoreProvider;
+import java.io.IOException;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Creates a LocalKVStoreProvider off a temporary folder.
- */
+/** Creates a LocalKVStoreProvider off a temporary folder. */
 public final class TempLocalKVStoreProviderCreator {
   public static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.forClient();
   public static final ScanResult CLASSPATH_SCAN_RESULT =
-    ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
+      ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
   private final TemporaryFolder kvFolder = new TemporaryFolder();
   private KVStoreProvider kvStoreProvider;
 
   private TempLocalKVStoreProviderCreator() throws IOException {
     kvFolder.create();
-    kvStoreProvider = new LocalKVStoreProvider(
-      CLASSPATH_SCAN_RESULT,
-      kvFolder.newFolder().getPath(),
-      true /*inMemory*/,
-      false /*timed*/);
+    kvStoreProvider =
+        new LocalKVStoreProvider(
+            CLASSPATH_SCAN_RESULT,
+            kvFolder.newFolder().getPath(),
+            true /*inMemory*/,
+            false /*timed*/);
   }
 
   public static KVStoreProvider create() {

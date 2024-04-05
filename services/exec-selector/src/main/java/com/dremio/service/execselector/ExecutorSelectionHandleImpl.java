@@ -15,13 +15,10 @@
  */
 package com.dremio.service.execselector;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import java.util.Collection;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
-/**
- * Implementation of the {@link ExecutorSelectionHandle}
- */
+/** Implementation of the {@link ExecutorSelectionHandle} */
 public class ExecutorSelectionHandleImpl implements ExecutorSelectionHandle {
   private final Collection<NodeEndpoint> endpoints;
   private final String planDetails;
@@ -30,8 +27,8 @@ public class ExecutorSelectionHandleImpl implements ExecutorSelectionHandle {
     this(endpoints, "");
   }
 
-  public ExecutorSelectionHandleImpl(final Collection<NodeEndpoint> endpoints,
-                                     final String planDetails) {
+  public ExecutorSelectionHandleImpl(
+      final Collection<NodeEndpoint> endpoints, final String planDetails) {
     this.endpoints = endpoints;
     this.planDetails = planDetails;
   }

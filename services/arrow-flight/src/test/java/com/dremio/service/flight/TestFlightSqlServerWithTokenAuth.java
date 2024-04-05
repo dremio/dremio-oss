@@ -18,8 +18,9 @@ package com.dremio.service.flight;
 
 import static com.dremio.service.flight.BaseFlightQueryTest.setupBaseFlightQueryTest;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.service.flight.impl.FlightWorkManager;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.flight.CallOption;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -27,29 +28,21 @@ import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.service.flight.impl.FlightWorkManager;
-
-/**
- * Test FlightServer with bearer token authentication using FlightSql producer.
- */
+/** Test FlightServer with bearer token authentication using FlightSql producer. */
 @RunWith(Enclosed.class)
 public class TestFlightSqlServerWithTokenAuth {
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
   private static void setup() throws Exception {
     setupBaseFlightQueryTest(
-      false,
-      true,
-      "flight.endpoint.port",
-      FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT);
+        false,
+        true,
+        "flight.endpoint.port",
+        FlightWorkManager.RunQueryResponseHandlerFactory.DEFAULT);
   }
 
-  /**
-   * Query execution tests.
-   */
+  /** Query execution tests. */
   public static class QueryExecutionTests extends AbstractTestFlightSqlServer {
     public QueryExecutionTests(ExecutionMode executionMode) {
       super(executionMode);
@@ -72,9 +65,7 @@ public class TestFlightSqlServerWithTokenAuth {
     }
   }
 
-  /**
-   * Catalog methods tests.
-   */
+  /** Catalog methods tests. */
   public static class CatalogMethodsTests extends AbstractTestFlightSqlServerCatalogMethods {
     @BeforeClass
     public static void setup() throws Exception {

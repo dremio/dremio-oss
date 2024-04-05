@@ -15,27 +15,22 @@
  */
 package com.dremio.dac.api;
 
-import java.util.List;
-
 import com.dremio.dac.service.reflection.ReflectionStatusUI;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import java.util.List;
 
-/**
- * Reflection summary model for the public REST API.
- */
-@JsonAutoDetect(fieldVisibility=JsonAutoDetect.Visibility.ANY)
+/** Reflection summary model for the public REST API. */
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class ReflectionSummary {
   private final String id;
   private final ReflectionType type;
   private final String name;
-  @JsonISODateTime
-  private final long createdAt;
+  @JsonISODateTime private final long createdAt;
 
-  @JsonISODateTime
-  private final long updatedAt;
+  @JsonISODateTime private final long updatedAt;
   private final long currentSizeBytes;
   private final long totalSizeBytes;
   private final boolean enabled;
@@ -47,7 +42,12 @@ public class ReflectionSummary {
 
   private final ReflectionStatusUI status;
 
-  public ReflectionSummary(ReflectionGoal goal, ReflectionStatusUI status, Dataset dataset, long currentSize, long totalSize) {
+  public ReflectionSummary(
+      ReflectionGoal goal,
+      ReflectionStatusUI status,
+      Dataset dataset,
+      long currentSize,
+      long totalSize) {
     id = goal.getId().getId();
     name = goal.getName();
     type = goal.getType();
@@ -66,9 +66,20 @@ public class ReflectionSummary {
     totalSizeBytes = totalSize;
   }
 
-  public ReflectionSummary(String id, ReflectionType type, String name, long createdAt, long updatedAt,
-     long currentSizeBytes, long totalSizeBytes, boolean enabled, boolean arrowCachingEnabled, ReflectionStatusUI status, String datasetId,
-     Dataset.DatasetType datasetType, List<String> datasetPath) {
+  public ReflectionSummary(
+      String id,
+      ReflectionType type,
+      String name,
+      long createdAt,
+      long updatedAt,
+      long currentSizeBytes,
+      long totalSizeBytes,
+      boolean enabled,
+      boolean arrowCachingEnabled,
+      ReflectionStatusUI status,
+      String datasetId,
+      Dataset.DatasetType datasetType,
+      List<String> datasetPath) {
     this.id = id;
     this.type = type;
     this.name = name;

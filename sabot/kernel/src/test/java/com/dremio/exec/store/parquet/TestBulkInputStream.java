@@ -17,21 +17,17 @@ package com.dremio.exec.store.parquet;
 
 import static org.junit.Assert.assertEquals;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import org.apache.parquet.io.DelegatingSeekableInputStream;
 import org.apache.parquet.io.SeekableInputStream;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
-/**
- * Unit test for the simple wrappers in the BulkInputStream
- */
+/** Unit test for the simple wrappers in the BulkInputStream */
 public class TestBulkInputStream {
   private static final int TEST_DATA_SIZE = 15 * 1024;
 
@@ -40,13 +36,14 @@ public class TestBulkInputStream {
   @BeforeClass
   public static void populateData() {
     for (int i = 0; i < TEST_DATA_SIZE; i++) {
-      testData[i] = (byte)(i & 0x7f);
+      testData[i] = (byte) (i & 0x7f);
     }
   }
 
   /**
-   * Compare testData[testDataOffset..testDataOffset+length) against data[dataOffset..dataOffset+length)
-  */
+   * Compare testData[testDataOffset..testDataOffset+length) against
+   * data[dataOffset..dataOffset+length)
+   */
   private static void compareData(byte[] data, int dataOffset, int testDataOffset, int dataLength) {
     for (int i = 0; i < dataLength; i++) {
       assertEquals(testData[testDataOffset + i], data[dataOffset + i]);
@@ -54,8 +51,8 @@ public class TestBulkInputStream {
   }
 
   /**
-   * Same as above, only the data being compared is in a ByteBuf with the readerIndex set appropriately, and
-   * having at least 'dataLength' bytes
+   * Same as above, only the data being compared is in a ByteBuf with the readerIndex set
+   * appropriately, and having at least 'dataLength' bytes
    */
   private static void compareData(ByteBuf data, int testDataOffset, int dataLength) {
     for (int i = 0; i < dataLength; i++) {
@@ -104,7 +101,7 @@ public class TestBulkInputStream {
     assertEquals(streamPos, bis.getPos());
 
     // Skip some, then read
-    streamPos += 50;  // skip 50 bytes
+    streamPos += 50; // skip 50 bytes
     bis.seek(streamPos);
     bis.readFully(buf, 37);
     compareData(buf, streamPos, 37);
@@ -168,7 +165,7 @@ public class TestBulkInputStream {
     assertEquals(streamPos, inputStream.getPos());
 
     // Skip some, then read
-    streamPos += 50;  // skip 50 bytes
+    streamPos += 50; // skip 50 bytes
     inputStream.seek(streamPos);
     inputStream.readFully(buf, 0, 37);
     compareData(buf, 0, streamPos, 37);
@@ -179,37 +176,42 @@ public class TestBulkInputStream {
     streamPos = TEST_DATA_SIZE - 100;
     inputStream.seek(streamPos);
     inputStream.readFully(buf, 0, 100);
-    compareData(buf, 0, streamPos,100);
+    compareData(buf, 0, streamPos, 100);
     streamPos += 100;
     assertEquals(streamPos, inputStream.getPos());
   }
 
   @Test
   public void testAsSeekableIdentity() throws Exception {
-    testSeekableStream(BulkInputStream.wrap(new TestSeekableInputStream(testData)).asSeekableInputStream());
+    testSeekableStream(
+        BulkInputStream.wrap(new TestSeekableInputStream(testData)).asSeekableInputStream());
   }
 
   @Test
   public void testAsSeekable() throws Exception {
-    testSeekableStream(new BulkInputStream() {
-      private long pos = 0;
-      private byte[] data = testData;
-      @Override
-      public void seek(long offset) {
-        pos = offset;
-      }
-      @Override
-      public long getPos() {
-        return pos;
-      }
-      @Override
-      public void readFully(ByteBuf buf, int length) {
-        buf.writeBytes(data, (int)pos, length);
-        pos += length;
-      }
-      @Override
-      public void close() {
-      }
-    }.asSeekableInputStream());
+    testSeekableStream(
+        new BulkInputStream() {
+          private long pos = 0;
+          private byte[] data = testData;
+
+          @Override
+          public void seek(long offset) {
+            pos = offset;
+          }
+
+          @Override
+          public long getPos() {
+            return pos;
+          }
+
+          @Override
+          public void readFully(ByteBuf buf, int length) {
+            buf.writeBytes(data, (int) pos, length);
+            pos += length;
+          }
+
+          @Override
+          public void close() {}
+        }.asSeekableInputStream());
   }
 }

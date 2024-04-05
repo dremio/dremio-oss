@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.tablefunctions.copyerrors;
 
+import com.dremio.exec.record.BatchSchema;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.record.BatchSchema;
-
 /**
- * Copy Errors TableMetadata interface. This is how copy errors table is exposed to the planning environment.
+ * Copy Errors TableMetadata interface. This is how copy errors table is exposed to the planning
+ * environment.
  */
 public final class CopyErrorsCatalogMetadata {
   private final BatchSchema schema;

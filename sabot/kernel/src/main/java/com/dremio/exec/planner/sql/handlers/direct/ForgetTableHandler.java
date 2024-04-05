@@ -18,21 +18,21 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import static com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult.successful;
 import static java.util.Collections.singletonList;
 
-import java.util.List;
-
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.exception.UnsupportedForgetTableException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
 import com.dremio.service.namespace.NamespaceKey;
+import java.util.List;
+import org.apache.calcite.sql.SqlNode;
 
 /**
- * Handler for <code>ALTER (TABLE | VDS | VIEW | PDS | DATASET) tblName FORGET METADATA</code> command.
+ * Handler for <code>ALTER (TABLE | VDS | VIEW | PDS | DATASET) tblName FORGET METADATA</code>
+ * command.
  */
 public class ForgetTableHandler extends SimpleDirectHandler {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
 
   private final Catalog catalog;
 
@@ -49,6 +49,7 @@ public class ForgetTableHandler extends SimpleDirectHandler {
     } catch (UnsupportedForgetTableException u) {
       throw UserException.unsupportedError(u).build(logger);
     }
-    return singletonList(successful(String.format("Successfully removed table '%s' from namespace.", path)));
+    return singletonList(
+        successful(String.format("Successfully removed table '%s' from namespace.", path)));
   }
 }

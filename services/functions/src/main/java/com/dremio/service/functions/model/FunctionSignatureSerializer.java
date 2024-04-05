@@ -15,20 +15,23 @@
  */
 package com.dremio.service.functions.model;
 
-import java.io.IOException;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import java.io.IOException;
 
 public class FunctionSignatureSerializer extends StdSerializer<FunctionSignature> {
-  public FunctionSignatureSerializer() { this(null);}
+  public FunctionSignatureSerializer() {
+    this(null);
+  }
+
   public FunctionSignatureSerializer(Class<FunctionSignature> t) {
     super(t);
   }
 
   @Override
-  public void serialize(FunctionSignature value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+  public void serialize(FunctionSignature value, JsonGenerator gen, SerializerProvider provider)
+      throws IOException {
     gen.writeString(value.toString());
   }
 }

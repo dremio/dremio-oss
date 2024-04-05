@@ -16,13 +16,12 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -36,8 +35,8 @@
     <dremio.hive.plugin-group-id>com.dremio.plugins</dremio.hive.plugin-group-id>
     <dremio.hive.plugin-artifact-id-prefix>dremio</dremio.hive.plugin-artifact-id-prefix>
     <!-- You will also need to increase the maxSize for the MapR version, under a profile in this file  -->
-    <dremio.distribution.tar.maxSize>930000000</dremio.distribution.tar.maxSize>
-    <dremio.distribution.rpm.maxSize>920000000</dremio.distribution.rpm.maxSize>
+    <dremio.distribution.tar.maxSize>980000000</dremio.distribution.tar.maxSize>
+    <dremio.distribution.rpm.maxSize>970000000</dremio.distribution.rpm.maxSize>
   </properties>
 
   <dependencies>
@@ -190,17 +189,6 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>${dremio.hive.plugin-group-id}</groupId>
-      <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive2-plugin</artifactId>
-      <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-hive-function-registry</artifactId>
       <version>${project.version}</version>
@@ -229,10 +217,10 @@
         <executions>
           <execution>
             <id>unpack</id>
-            <phase>initialize</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
+            <phase>initialize</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>
@@ -248,13 +236,20 @@
       </plugin>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>com.dremio.distribution</groupId>
+            <artifactId>dremio-distribution-resources</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
         <executions>
           <execution>
             <id>distro-assembly</id>
-            <phase>package</phase>
             <goals>
               <goal>single</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <descriptorRefs>
                 <descriptorRef>server-tarball</descriptorRef>
@@ -265,13 +260,6 @@
             </configuration>
           </execution>
         </executions>
-        <dependencies>
-          <dependency>
-            <groupId>com.dremio.distribution</groupId>
-            <artifactId>dremio-distribution-resources</artifactId>
-            <version>${project.version}</version>
-          </dependency>
-        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -286,12 +274,9 @@
             <configuration>
               <rules>
                 <requireFilesSize>
-                  <message>
-                    The file ${dremio.distribution.name}-${project.version}.tar.gz is outside the expected size range.
+                  <message>The file ${dremio.distribution.name}-${project.version}.tar.gz is outside the expected size range.
 
-                    Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
-
-                  </message>
+                    Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).</message>
                   <maxsize>${dremio.distribution.tar.maxSize}</maxsize>
                   <minsize>500000000</minsize>
                   <files>
@@ -335,9 +320,7 @@
                 <configuration>
                   <name>${dremio.distribution.name}</name>
                   <summary>Dremio Self-service Data Platform.</summary>
-                  <description>
-                    Dremio is a platform for providing self-service analytics on modern data.
-                  </description>
+                  <description>Dremio is a platform for providing self-service analytics on modern data.</description>
                   <license>Copyright (C) 2017-2022 Dremio Corporation</license>
                   <version>${project.version}</version>
                   <vendor>Dremio Corporation</vendor>
@@ -504,18 +487,16 @@
                     </mapping>
                   </mappings>
                   <preinstallScriptlet>
-                    <script>
-getent group dremio >/dev/null || groupadd -r dremio
-getent passwd dremio >/dev/null || \
+                    <script>getent group dremio &gt;/dev/null || groupadd -r dremio
+getent passwd dremio &gt;/dev/null || \
   useradd -r -g dremio -d /var/lib/dremio -s /sbin/nologin \
   -c "Dremio DAC daemon user" dremio
-exit 0
-                    </script>
+exit 0</script>
                   </preinstallScriptlet>
-                 <postinstallScriptlet>
-                  <scriptFile>${dremio.distribution.resources.directory}/rpm/scripts/postinstall</scriptFile>
-                  <fileEncoding>utf-8</fileEncoding>
-                 </postinstallScriptlet>
+                  <postinstallScriptlet>
+                    <scriptFile>${dremio.distribution.resources.directory}/rpm/scripts/postinstall</scriptFile>
+                    <fileEncoding>utf-8</fileEncoding>
+                  </postinstallScriptlet>
                 </configuration>
               </execution>
             </executions>
@@ -533,12 +514,9 @@ exit 0
                 <configuration>
                   <rules>
                     <requireFilesSize>
-                      <message>
-                        The file ${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm is outside the expected size range.
+                      <message>The file ${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm is outside the expected size range.
 
-                        Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
-
-                      </message>
+                        Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).</message>
                       <maxsize>${dremio.distribution.rpm.maxSize}</maxsize>
                       <minsize>500000000</minsize>
                       <files>
@@ -565,8 +543,8 @@ exit 0
         </property>
       </activation>
       <properties>
-        <dremio.distribution.tar.maxSize>991400000</dremio.distribution.tar.maxSize>
-        <dremio.distribution.rpm.maxSize>980000000</dremio.distribution.rpm.maxSize>
+        <dremio.distribution.tar.maxSize>1080000000</dremio.distribution.tar.maxSize>
+        <dremio.distribution.rpm.maxSize>1080000000</dremio.distribution.rpm.maxSize>
       </properties>
       <dependencies>
         <dependency>
@@ -580,6 +558,17 @@ exit 0
           <groupId>org.json</groupId>
           <artifactId>json</artifactId>
           <version>${org.json.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>${dremio.hive.plugin-group-id}</groupId>
+          <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive2-plugin</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>
@@ -638,29 +627,6 @@ exit 0
         <dremio.hive.plugin-artifact-id-prefix>dremio-ce</dremio.hive.plugin-artifact-id-prefix>
         <dremio.hive.plugin-group-id>com.dremio.community.plugins</dremio.hive.plugin-group-id>
       </properties>
-    </profile>
-    <profile>
-      <id>hive-universal</id>
-      <activation>
-        <property>
-          <name>hive-universal</name>
-        </property>
-      </activation>
-      <dependencies>
-        <!-- overriding the scope to 'provided' will effectively exclude hive2 plugin jar -->
-        <dependency>
-          <groupId>${dremio.hive.plugin-group-id}</groupId>
-          <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive2-plugin</artifactId>
-          <version>${project.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>*</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
-          <scope>provided</scope>
-        </dependency>
-      </dependencies>
     </profile>
   </profiles>
 </project>

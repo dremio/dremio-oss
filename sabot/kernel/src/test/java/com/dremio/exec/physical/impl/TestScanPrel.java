@@ -18,22 +18,6 @@ package com.dremio.exec.physical.impl;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.hep.HepPlanner;
-import org.apache.calcite.plan.hep.HepProgramBuilder;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -54,58 +38,87 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.test.specs.OptionResolverSpec;
 import com.dremio.test.specs.OptionResolverSpecBuilder;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.hep.HepPlanner;
+import org.apache.calcite.plan.hep.HepProgramBuilder;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * TestScanPrel
- */
+/** TestScanPrel */
 public class TestScanPrel {
   private static final RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
   private static final RexBuilder rexBuilder = new DremioRexBuilder(typeFactory);
 
   @Test // Test case to ensure there is no missing information after copying a ScanPrel
   public void testDX44450() {
-    final BatchSchema batchSchema = BatchSchema.newBuilder()
-      .addField(CompleteType.VARCHAR.toField("a"))
-      .addField(CompleteType.VARCHAR.toField("b"))
-      .build();
+    final BatchSchema batchSchema =
+        BatchSchema.newBuilder()
+            .addField(CompleteType.VARCHAR.toField("a"))
+            .addField(CompleteType.VARCHAR.toField("b"))
+            .build();
 
-    final RelDataType rowType = typeFactory.createStructType(
-      ImmutableList.of(
-        typeFactory.createSqlType(SqlTypeName.VARCHAR),
-        typeFactory.createSqlType(SqlTypeName.VARCHAR)),
-      ImmutableList.of("a","b"));
+    final RelDataType rowType =
+        typeFactory.createStructType(
+            ImmutableList.of(
+                typeFactory.createSqlType(SqlTypeName.VARCHAR),
+                typeFactory.createSqlType(SqlTypeName.VARCHAR)),
+            ImmutableList.of("a", "b"));
 
     final PhysicalDataset physicalDataset = PhysicalDataset.getDefaultInstance();
-    final DatasetConfig datasetConfig = DatasetConfig.getDefaultInstance().setPhysicalDataset(physicalDataset);
+    final DatasetConfig datasetConfig =
+        DatasetConfig.getDefaultInstance().setPhysicalDataset(physicalDataset);
     final TableMetadata tableMetadata = mock(TableMetadata.class);
     when(tableMetadata.getSchema()).thenReturn(batchSchema);
     when(tableMetadata.getDatasetConfig()).thenReturn(datasetConfig);
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
     PlannerSettings context = new PlannerSettings(null, optionResolver, null);
-    RelOptPlanner planner = new HepPlanner(new HepProgramBuilder().build(), context, false,
-      null, new DremioCost.Factory());
+    RelOptPlanner planner =
+        new HepPlanner(
+            new HepProgramBuilder().build(), context, false, null, new DremioCost.Factory());
     RelOptCluster cluster = RelOptCluster.create(planner, rexBuilder);
     RelTraitSet traitSet = RelTraitSet.createEmpty();
     RelOptTable table = mock(RelOptTable.class);
     when(table.getRowType()).thenReturn(rowType);
     StoragePluginId pluginId = mock(StoragePluginId.class);
 
-    final List<SchemaPath> projectedColumns = ImmutableList.of(SchemaPath.getSimplePath("a"), SchemaPath.getSimplePath("b"));
-    final ParquetScanFilter parquetScanFilter = new ParquetScanFilter(
-      ImmutableList.of(
-        new ParquetFilterCondition(SchemaPath.getSimplePath("a"), null, null, 0)));
+    final List<SchemaPath> projectedColumns =
+        ImmutableList.of(SchemaPath.getSimplePath("a"), SchemaPath.getSimplePath("b"));
+    final ParquetScanFilter parquetScanFilter =
+        new ParquetScanFilter(
+            ImmutableList.of(
+                new ParquetFilterCondition(SchemaPath.getSimplePath("a"), null, null, 0)));
 
     final boolean arrowCachingEnabled = true;
-    final List<RuntimeFilteredRel.Info> runtimeFilters = ImmutableList.of(
-      new RuntimeFilteredRel.Info(
-        new RuntimeFilterId(1234L, false), null, "test", "test"));
+    final List<RuntimeFilteredRel.Info> runtimeFilters =
+        ImmutableList.of(
+            new RuntimeFilteredRel.Info(new RuntimeFilterId(1234L, false), null, "test", "test"));
 
     final double observedRowCountAdjustment = 0.5d;
     final List<RelHint> hints = ImmutableList.of();
     final double delta = 0.1;
-    ParquetScanPrel scanPrel = new ParquetScanPrel(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns,
-                                                   observedRowCountAdjustment, hints, parquetScanFilter, null,
-                                                   arrowCachingEnabled, runtimeFilters);
+    ParquetScanPrel scanPrel =
+        new ParquetScanPrel(
+            cluster,
+            traitSet,
+            table,
+            pluginId,
+            tableMetadata,
+            projectedColumns,
+            observedRowCountAdjustment,
+            hints,
+            parquetScanFilter,
+            null,
+            arrowCachingEnabled,
+            runtimeFilters);
 
     // test copy
     final ParquetScanPrel copiedScanPrel = (ParquetScanPrel) scanPrel.copy(traitSet, null);
@@ -117,7 +130,8 @@ public class TestScanPrel {
     Assert.assertEquals(scanPrel.getProjectedColumns(), copiedScanPrel.getProjectedColumns());
     Assert.assertEquals(scanPrel.getProjectedColumns(), copiedScanPrel.getProjectedColumns());
     Assert.assertEquals(scanPrel.getProjectedColumns(), copiedScanPrel.getProjectedColumns());
-    Assert.assertEquals(scanPrel.getCostAdjustmentFactor(), copiedScanPrel.getCostAdjustmentFactor(), delta);
+    Assert.assertEquals(
+        scanPrel.getCostAdjustmentFactor(), copiedScanPrel.getCostAdjustmentFactor(), delta);
     Assert.assertEquals(scanPrel.isArrowCachingEnabled(), copiedScanPrel.isArrowCachingEnabled());
     Assert.assertEquals(scanPrel.getRuntimeFilters(), copiedScanPrel.getRuntimeFilters());
 
@@ -130,8 +144,10 @@ public class TestScanPrel {
     Assert.assertEquals(scanPrel.getPluginId(), projectedScanPrel.getPluginId());
     Assert.assertEquals(scanPrel.getTableMetadata(), projectedScanPrel.getTableMetadata());
     Assert.assertEquals(newProjectedColumns, projectedScanPrel.getProjectedColumns());
-    Assert.assertEquals(scanPrel.getCostAdjustmentFactor(), projectedScanPrel.getCostAdjustmentFactor(), delta);
-    Assert.assertEquals(scanPrel.isArrowCachingEnabled(), projectedScanPrel.isArrowCachingEnabled());
+    Assert.assertEquals(
+        scanPrel.getCostAdjustmentFactor(), projectedScanPrel.getCostAdjustmentFactor(), delta);
+    Assert.assertEquals(
+        scanPrel.isArrowCachingEnabled(), projectedScanPrel.isArrowCachingEnabled());
     Assert.assertEquals(scanPrel.getRuntimeFilters(), projectedScanPrel.getRuntimeFilters());
   }
 }

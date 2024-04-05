@@ -15,9 +15,7 @@
  */
 package com.dremio.provision.service;
 
-/**
- *
- */
+/** */
 public class ProvisioningHandlingException extends Exception {
 
   public ProvisioningHandlingException(String msg) {
@@ -25,6 +23,6 @@ public class ProvisioningHandlingException extends Exception {
   }
 
   public ProvisioningHandlingException(String msg, Throwable t) {
-    super(msg,t);
+    super(msg, t);
   }
 }

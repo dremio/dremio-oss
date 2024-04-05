@@ -19,14 +19,11 @@ import static com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper.pro
 
 import java.io.IOException;
 import java.io.OutputStream;
-
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSError;
 import org.apache.hadoop.fs.FileSystem;
 
-/**
- * Wrapper around FSDataOutputStream to catch {@code FSError}.
- */
+/** Wrapper around FSDataOutputStream to catch {@code FSError}. */
 public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   private final FSDataOutputStream underlyingOS;
 
@@ -39,8 +36,8 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
     this(os, stats, 0);
   }
 
-  public FSDataOutputStreamWrapper(FSDataOutputStream os, FileSystem.Statistics stats,
-      long startPosition) throws IOException {
+  public FSDataOutputStreamWrapper(
+      FSDataOutputStream os, FileSystem.Statistics stats, long startPosition) throws IOException {
     super(os, stats, startPosition);
     underlyingOS = os;
   }
@@ -49,7 +46,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public void write(int b) throws IOException {
     try {
       underlyingOS.write(b);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -58,7 +55,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public void write(byte[] b) throws IOException {
     try {
       underlyingOS.write(b);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -67,7 +64,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public void write(byte[] b, int off, int len) throws IOException {
     try {
       underlyingOS.write(b, off, len);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -76,7 +73,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public void flush() throws IOException {
     try {
       underlyingOS.flush();
-    } catch(FSError e) {
+    } catch (FSError e) {
       propagateFSError(e);
     }
   }
@@ -85,7 +82,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public long getPos() throws IOException {
     try {
       return underlyingOS.getPos();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -94,7 +91,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public void close() throws IOException {
     try {
       underlyingOS.close();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -108,7 +105,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public void hflush() throws IOException {
     try {
       underlyingOS.hflush();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -117,7 +114,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public void hsync() throws IOException {
     try {
       underlyingOS.hsync();
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -126,7 +123,7 @@ public class FSDataOutputStreamWrapper extends FSDataOutputStream {
   public void setDropBehind(Boolean dropBehind) throws IOException {
     try {
       underlyingOS.setDropBehind(dropBehind);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }

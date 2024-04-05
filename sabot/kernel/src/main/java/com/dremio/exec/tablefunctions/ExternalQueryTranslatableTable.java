@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.record.BatchSchema;
 import java.util.function.Function;
-
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
@@ -30,31 +31,26 @@ import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.record.BatchSchema;
-
-/**
- * TranslatableTable implementation of External Query
- */
+/** TranslatableTable implementation of External Query */
 public final class ExternalQueryTranslatableTable implements TranslatableTable {
   private final StoragePluginId pluginId;
   private final String sql;
   private final BatchSchema batchSchema;
   private final RelDataType rowType;
 
-  private ExternalQueryTranslatableTable(BatchSchema batchSchema,
-                                         RelDataType rowType,
-                                         StoragePluginId pluginId,
-                                         String sql) {
+  private ExternalQueryTranslatableTable(
+      BatchSchema batchSchema, RelDataType rowType, StoragePluginId pluginId, String sql) {
     this.batchSchema = batchSchema;
     this.rowType = rowType;
     this.pluginId = pluginId;
     this.sql = sql;
   }
 
-  public static ExternalQueryTranslatableTable create(Function<String, BatchSchema> schemaBuilder,
-                                                      Function<BatchSchema, RelDataType> rowTypeBuilder,
-                                                      StoragePluginId pluginId, String sql) {
+  public static ExternalQueryTranslatableTable create(
+      Function<String, BatchSchema> schemaBuilder,
+      Function<BatchSchema, RelDataType> rowTypeBuilder,
+      StoragePluginId pluginId,
+      String sql) {
     final BatchSchema schema = schemaBuilder.apply(sql);
     final RelDataType rowType = rowTypeBuilder.apply(schema);
     return new ExternalQueryTranslatableTable(schema, rowType, pluginId, sql);
@@ -63,12 +59,12 @@ public final class ExternalQueryTranslatableTable implements TranslatableTable {
   @Override
   public RelNode toRel(RelOptTable.ToRelContext toRelContext, RelOptTable relOptTable) {
     return new ExternalQueryScanCrel(
-      toRelContext.getCluster(),
-      toRelContext.getCluster().traitSetOf(Convention.NONE),
-      rowType,
-      pluginId,
-      sql,
-      batchSchema);
+        toRelContext.getCluster(),
+        toRelContext.getCluster().traitSetOf(Convention.NONE),
+        rowType,
+        pluginId,
+        sql,
+        batchSchema);
   }
 
   @Override
@@ -97,7 +93,8 @@ public final class ExternalQueryTranslatableTable implements TranslatableTable {
   }
 
   @Override
-  public boolean rolledUpColumnValidInsideAgg(String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
+  public boolean rolledUpColumnValidInsideAgg(
+      String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
     return true;
   }
 }

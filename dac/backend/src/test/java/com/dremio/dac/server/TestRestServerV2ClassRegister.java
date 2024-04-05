@@ -18,30 +18,27 @@ package com.dremio.dac.server;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Collections;
-
-import org.junit.Test;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.explore.bi.PowerBIMessageBodyGenerator;
 import com.dremio.dac.explore.bi.QlikAppMessageBodyGenerator;
 import com.dremio.dac.explore.bi.TableauMessageBodyGenerator;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import org.junit.Test;
 
-/**
- * Unit tests for {@link RestServerV2}.
- */
+/** Unit tests for {@link RestServerV2}. */
 public class TestRestServerV2ClassRegister {
   @Test
   public void testRestServerV2BIToolBodyMessageGeneratorRegister() {
     // Setup
-    final ScanResult scanResult = new ScanResult(
-      Collections.EMPTY_LIST,
-      Collections.EMPTY_LIST,
-      ImmutableList.of(RestResource.class.getName()),
-      Collections.EMPTY_LIST,
-      Collections.EMPTY_LIST);
+    final ScanResult scanResult =
+        new ScanResult(
+            Collections.EMPTY_LIST,
+            Collections.EMPTY_LIST,
+            ImmutableList.of(RestResource.class.getName()),
+            Collections.EMPTY_LIST,
+            Collections.EMPTY_LIST);
 
     // Test
     final RestServerV2 server = new RestServerV2(scanResult);

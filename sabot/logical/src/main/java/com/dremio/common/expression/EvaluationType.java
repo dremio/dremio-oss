@@ -17,8 +17,8 @@
 package com.dremio.common.expression;
 
 /**
- * Dummy class carried forward for backward compatibility purposes,
- * since in 3.0 expressions had this as one of the properties.
+ * Dummy class carried forward for backward compatibility purposes, since in 3.0 expressions had
+ * this as one of the properties.
  */
 public class EvaluationType {
   public enum CodeGenOption {
@@ -38,7 +38,7 @@ public class EvaluationType {
         return CodeGenOption.valueOf(optionName);
       } catch (Exception e) {
         // The optionName may be the lower case string (e.g. java)
-        for(CodeGenOption option : CodeGenOption.values()) {
+        for (CodeGenOption option : CodeGenOption.values()) {
           if (optionName.equalsIgnoreCase(option.toString())) {
             return option;
           }
@@ -73,6 +73,7 @@ public class EvaluationType {
 
   /**
    * Checks if an evaluation type is supported
+   *
    * @param executionType Evaluation type to check
    * @return true if evaluation type is supported
    */
@@ -82,6 +83,7 @@ public class EvaluationType {
 
   /**
    * Marks an evaluation type as supported
+   *
    * @param executionType Evaluation type to be added
    */
   public void addEvaluationType(EvaluationType.ExecutionType executionType) {
@@ -90,9 +92,10 @@ public class EvaluationType {
 
   /**
    * Removes an evaluation type
+   *
    * @param executionType Evaluation type to be removed
    */
   public void removeEvaluationType(EvaluationType.ExecutionType executionType) {
-    evaluationType &= ~ executionType.getExecutionType();
+    evaluationType &= ~executionType.getExecutionType();
   }
 }

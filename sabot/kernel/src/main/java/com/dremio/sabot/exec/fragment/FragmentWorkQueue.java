@@ -15,31 +15,33 @@
  */
 package com.dremio.sabot.exec.fragment;
 
-import java.util.Optional;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.collections.Tuple;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Provides the pipeline the ability to submit work that will be executed when fragment is scheduled again for execution.
- * Relies on a {@link SharedResourceGroup} to allow the fragment to 'wake up' when work is available.
+ * Provides the pipeline the ability to submit work that will be executed when fragment is scheduled
+ * again for execution. Relies on a {@link SharedResourceGroup} to allow the fragment to 'wake up'
+ * when work is available.
  */
 public class FragmentWorkQueue {
   private static final Logger logger = LoggerFactory.getLogger(FragmentWorkQueue.class);
-  // multiple threads can add work to the queue, but only the fragment executor thread can poll from the queue
-  private final ConcurrentLinkedQueue<Tuple<Runnable, AutoCloseable>> workQueue = new ConcurrentLinkedQueue<>();
+  // multiple threads can add work to the queue, but only the fragment executor thread can poll from
+  // the queue
+  private final ConcurrentLinkedQueue<Tuple<Runnable, AutoCloseable>> workQueue =
+      new ConcurrentLinkedQueue<>();
   private final SharedResource resource;
   private volatile boolean isRetired = false;
 
   FragmentWorkQueue(SharedResourceGroup resourceGroup) {
-    resource = resourceGroup.createResource("fragment-work-queue", SharedResourceType.FRAGMENT_WORK_QUEUE);
+    resource =
+        resourceGroup.createResource("fragment-work-queue", SharedResourceType.FRAGMENT_WORK_QUEUE);
     resource.markBlocked();
   }
 
@@ -73,7 +75,7 @@ public class FragmentWorkQueue {
     synchronized (resource) {
       isRetired = true;
     }
-    while(!workQueue.isEmpty()) {
+    while (!workQueue.isEmpty()) {
       suppressingClose(workQueue.poll().second);
     }
   }

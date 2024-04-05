@@ -15,6 +15,23 @@
  */
 package com.dremio.sabot;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.Describer;
+import com.dremio.common.util.DremioGetObject;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.VectorWrapper;
+import com.dremio.exec.record.selection.SelectionVector2;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.BaseEncoding;
+import de.vandermeer.asciitable.v2.V2_AsciiTable;
+import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
+import de.vandermeer.asciitable.v2.render.WidthAbsoluteEven;
+import de.vandermeer.asciitable.v2.themes.V2_E_TableThemes;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +43,6 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.TreeMap;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -63,28 +79,7 @@ import org.joda.time.LocalTime;
 import org.joda.time.Period;
 import org.junit.Assert;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.common.expression.Describer;
-import com.dremio.common.util.DremioGetObject;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.RecordBatchData;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.selection.SelectionVector2;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.BaseEncoding;
-
-import de.vandermeer.asciitable.v2.V2_AsciiTable;
-import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
-import de.vandermeer.asciitable.v2.render.WidthAbsoluteEven;
-import de.vandermeer.asciitable.v2.themes.V2_E_TableThemes;
-
-/**
- * Class which helps to create expected results sets for test comparison purposes.
- */
+/** Class which helps to create expected results sets for test comparison purposes. */
 public final class Fixtures {
 
   public static final Cell NULL_VARCHAR = new VarChar(null);
@@ -101,8 +96,7 @@ public final class Fixtures {
   public static final Cell NULL_INTERVAL_YEAR_MONTH = new IntervalYearMonth(null);
   public static final Cell NULL_DECIMAL = new Decimal(null);
 
-
-  private Fixtures(){}
+  private Fixtures() {}
 
   public static final class Table implements RecordBatchValidator, Generator.Creator {
     private final boolean batchSequenceMustMatch;
@@ -114,14 +108,15 @@ public final class Fixtures {
 
     private final boolean expectZero;
 
-    private Table(boolean batchSequenceMustMatch, boolean expectZero, Field[] fields, DataBatch... batches) {
+    private Table(
+        boolean batchSequenceMustMatch, boolean expectZero, Field[] fields, DataBatch... batches) {
       super();
       this.batchSequenceMustMatch = batchSequenceMustMatch;
       this.expectZero = expectZero;
       this.fields = fields;
       this.batches = batches;
       int recordCount = 0;
-      for(DataBatch b : batches){
+      for (DataBatch b : batches) {
         recordCount += b.size();
       }
       this.records = expectZero ? 0 : recordCount;
@@ -133,7 +128,7 @@ public final class Fixtures {
       return this;
     }
 
-    public  Table withKeyColumnIndex(int keyColumnIndex) {
+    public Table withKeyColumnIndex(int keyColumnIndex) {
       this.keyColumnIndex = keyColumnIndex;
       return this;
     }
@@ -143,28 +138,29 @@ public final class Fixtures {
     }
 
     @Override
-    public Generator toGenerator(BufferAllocator allocator){
+    public Generator toGenerator(BufferAllocator allocator) {
       return new TableFixtureGenerator(allocator, this);
     }
 
-    public static Table fromGenerator(final Generator generator, final int batchSize) throws Exception {
+    public static Table fromGenerator(final Generator generator, final int batchSize)
+        throws Exception {
       try {
         final VectorAccessible acessible = generator.getOutput();
         List<DataBatch> batches = new ArrayList<>();
 
         int rowCount = 0;
-        while((rowCount = generator.next(batchSize)) != 0) {
+        while ((rowCount = generator.next(batchSize)) != 0) {
           final int vectors = acessible.getSchema().getFieldCount();
           final DataRow[] rows = new DataRow[rowCount];
-          for(int row = 0; row < rowCount; row++) {
+          for (int row = 0; row < rowCount; row++) {
             final Object[] values = new Object[vectors];
 
-            //data types of primitive vectors holding list values
+            // data types of primitive vectors holding list values
             final List<String> types = new ArrayList<>();
 
             int vector = 0;
 
-            for(final VectorWrapper<?> w : acessible) {
+            for (final VectorWrapper<?> w : acessible) {
               values[vector] = w.getValueVector().getObject(row);
               types.add(getBaseDataType(w));
               vector++;
@@ -174,10 +170,17 @@ public final class Fixtures {
           batches.add(Fixtures.tb(rows));
         }
 
-        //for 'Struct' type vectors, create a map of vector name to the names of vectors that constitute the struct's fields
-        final Map<String, List<String>>  fieldNameToChildren = getChildrenFieldNamesOfStructVectors(acessible);
+        // for 'Struct' type vectors, create a map of vector name to the names of vectors that
+        // constitute the struct's fields
+        final Map<String, List<String>> fieldNameToChildren =
+            getChildrenFieldNamesOfStructVectors(acessible);
 
-        final HeaderRow th = Fixtures.toHeader(fieldNameToChildren, acessible.getSchema().getFields().stream().map(Field::getName).toArray(String[]::new));
+        final HeaderRow th =
+            Fixtures.toHeader(
+                fieldNameToChildren,
+                acessible.getSchema().getFields().stream()
+                    .map(Field::getName)
+                    .toArray(String[]::new));
         return Fixtures.tNoBound(th, batches.toArray(new DataBatch[0]));
       } finally {
         generator.close();
@@ -185,13 +188,14 @@ public final class Fixtures {
     }
 
     /**
-     * For a value vector - get data type of values
-     * For a list vector - get data type of values in the list
+     * For a value vector - get data type of values For a list vector - get data type of values in
+     * the list
+     *
      * @param w
      * @return
      */
     private static String getBaseDataType(VectorWrapper<?> w) {
-      if (w.getValueVector() instanceof ListVector){
+      if (w.getValueVector() instanceof ListVector) {
         return ((ListVector) w.getValueVector()).getDataVector().getMinorType().name();
       }
       return w.getValueVector().getMinorType().name();
@@ -199,22 +203,23 @@ public final class Fixtures {
 
     /**
      * Names of fields if given vector is of struct type
+     *
      * @param accessible
      * @return
      */
     @NotNull
-    private static Map<String, List<String>> getChildrenFieldNamesOfStructVectors(final VectorAccessible accessible) {
+    private static Map<String, List<String>> getChildrenFieldNamesOfStructVectors(
+        final VectorAccessible accessible) {
       final Map<String, List<String>> structNameToChildrenNames = new HashMap<>();
-      for(final Field field : accessible.getSchema().getFields()){
-        if(field.getType().equals(ArrowType.Struct.INSTANCE)){
+      for (final Field field : accessible.getSchema().getFields()) {
+        if (field.getType().equals(ArrowType.Struct.INSTANCE)) {
 
           final List<String> children = new ArrayList<>();
-          for(final Field structChild : field.getChildren()){
+          for (final Field structChild : field.getChildren()) {
             children.add(structChild.getName());
           }
 
           structNameToChildrenNames.put(field.getName(), children);
-
         }
       }
       return structNameToChildrenNames;
@@ -231,7 +236,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void checkValid(List<RecordBatchData> actualBatches){
+    public void checkValid(List<RecordBatchData> actualBatches) {
       Preconditions.checkArgument(actualBatches.size() >= 1, "No data returned.");
 
       boolean okay = true;
@@ -239,71 +244,75 @@ public final class Fixtures {
 
       { // first, confirm that the number of records are correct.
         int recordCount = 0;
-        for(RecordBatchData d : actualBatches){
+        for (RecordBatchData d : actualBatches) {
           recordCount += d.getRecordCount();
         }
-        if(recordCount != records){
+        if (recordCount != records) {
           okay = false;
           sb.append(" - ")
-            .append("Expected ")
-            .append(records)
-            .append(" records but found ")
-            .append(recordCount)
-            .append(" records.")
-            .append("\n");
-
+              .append("Expected ")
+              .append(records)
+              .append(" records but found ")
+              .append(recordCount)
+              .append(" records.")
+              .append("\n");
         }
       }
 
       { // second, check that field types match (count and type)
         RecordBatchData data = actualBatches.get(0);
-        BatchSchema schema = data.getContainer().getSchema();
+        BatchSchema schema = data.getSchema();
 
         boolean fieldsMatch = true;
         StringBuilder fieldCompare = new StringBuilder();
-        for(int i =0; i < fields.length; i++){
+        for (int i = 0; i < fields.length; i++) {
           Field expected = fields[i];
           Field actual = schema.getFieldCount() <= i ? null : schema.getColumn(i);
-          if(i != 0){
+          if (i != 0) {
             fieldCompare.append(", ");
           }
-          if(!addField(fieldCompare, expected, actual)){
+          if (!addField(fieldCompare, expected, actual)) {
             fieldsMatch = false;
           }
         }
 
         // if extra fields in result, also add those.
-        for(int i =fields.length; i < schema.getFieldCount(); i++){
+        for (int i = fields.length; i < schema.getFieldCount(); i++) {
           fieldsMatch = false;
           fieldCompare.append(", ");
           addField(fieldCompare, null, schema.getColumn(i));
         }
 
-        if(!fieldsMatch){
-          sb.append(" - Fields don't match expectation [actual(expected)]: ").append(fieldCompare.toString()).append("\n");
+        if (!fieldsMatch) {
+          sb.append(" - Fields don't match expectation [actual(expected)]: ")
+              .append(fieldCompare.toString())
+              .append("\n");
           okay = false;
         }
       }
 
       if (!expectZero) {
         // thirdly, compare record by record.
-        if(!batchSequenceMustMatch) {
+        if (!batchSequenceMustMatch) {
           boolean tablesMatched;
           if (orderSensitive) {
             tablesMatched = compare(sb, fields, this.batches, actualBatches, this.records);
           } else {
             Map<Object, Fixtures.DataRow> resultMap = makeResultMap();
-            tablesMatched = compareTableResultMap(sb, fields, actualBatches, this.records, resultMap, this.keyColumnIndex);
+            tablesMatched =
+                compareTableResultMap(
+                    sb, fields, actualBatches, this.records, resultMap, this.keyColumnIndex);
           }
-          if(!tablesMatched){
+          if (!tablesMatched) {
             okay = false;
           }
-        }else{
-          throw new UnsupportedOperationException("We don't yet support evaluating batch boundary comparisons.");
+        } else {
+          throw new UnsupportedOperationException(
+              "We don't yet support evaluating batch boundary comparisons.");
         }
       }
 
-      if(!okay){
+      if (!okay) {
         Assert.fail("Data didn't match expected.\n" + sb.toString());
       }
     }
@@ -313,30 +322,36 @@ public final class Fixtures {
     SelectionVector2 sv2;
     List<ValueVector> vectors;
 
-    public DataHolder(RecordBatchData data){
-      this.sv2 = data.getSchema().getSelectionVectorMode() == SelectionVectorMode.TWO_BYTE ? data.getSv2() : null;
+    public DataHolder(RecordBatchData data) {
+      this.sv2 =
+          data.getSchema().getSelectionVectorMode() == SelectionVectorMode.TWO_BYTE
+              ? data.getSv2()
+              : null;
       List<ValueVector> vectors = new ArrayList<>();
-      for(VectorWrapper<?> w : data.getContainer()){
+      for (VectorWrapper<?> w : data.getVectorAccessible()) {
         vectors.add(w.getValueVector());
       }
       this.vectors = ImmutableList.copyOf(vectors);
     }
-
   }
 
   private static Object getVectorObject(ValueVector vector, int index) {
     return DremioGetObject.getObject(vector, index);
   }
 
-  private static boolean compareTableResultMap(StringBuilder sb, Field[] fields, List<RecordBatchData> actual,
-                                               int expectedRecordCount, Map<Object, Fixtures.DataRow> resultMap,
-                                               int keyColumnIndex) {
+  private static boolean compareTableResultMap(
+      StringBuilder sb,
+      Field[] fields,
+      List<RecordBatchData> actual,
+      int expectedRecordCount,
+      Map<Object, Fixtures.DataRow> resultMap,
+      int keyColumnIndex) {
 
-    int failures  = 0;
+    int failures = 0;
     NavigableMap<Integer, RangeHolder<DataHolder>> actualRange = new TreeMap<>();
     {
       int offset = 0;
-      for(RecordBatchData b : actual){
+      for (RecordBatchData b : actual) {
         actualRange.put(offset, new RangeHolder<>(new DataHolder(b), offset, b.getRecordCount()));
         offset += b.getRecordCount();
       }
@@ -348,7 +363,7 @@ public final class Fixtures {
     final V2_AsciiTable expectedOutputTable = new V2_AsciiTable();
 
     Object[] header = new Object[fields.length];
-    for(int i =0; i < header.length; i++){
+    for (int i = 0; i < header.length; i++) {
       header[i] = Describer.describe(fields[i]);
     }
 
@@ -363,27 +378,45 @@ public final class Fixtures {
     for (int rowNumber = 0; rowNumber < expectedRecordCount; rowNumber++) {
       RangeHolder<DataHolder> actualHolder = actualRange.floorEntry(rowNumber).getValue();
       final int localRowNumber = rowNumber - actualHolder.offset;
-      final int vectorOffset = actualHolder.data.sv2 == null ? localRowNumber : actualHolder.data.sv2.getIndex(localRowNumber);
+      final int vectorOffset =
+          actualHolder.data.sv2 == null
+              ? localRowNumber
+              : actualHolder.data.sv2.getIndex(localRowNumber);
       String[] actualValues = new String[fields.length];
       final boolean isValid = actualHolder.check(rowNumber);
-      Object actualKey = isValid ? getVectorObject(actualHolder.data.vectors.get(keyColumnIndex), vectorOffset) : null;
-      actualValues[keyColumnIndex] = isValid ? (actualKey != null ? actualKey.toString() : "null") : "null";
+      Object actualKey =
+          isValid
+              ? getVectorObject(actualHolder.data.vectors.get(keyColumnIndex), vectorOffset)
+              : null;
+      actualValues[keyColumnIndex] =
+          isValid ? (actualKey != null ? actualKey.toString() : "null") : "null";
       if (resultMap.containsKey(actualKey)) {
         final DataRow expectedRowData = resultMap.get(actualKey);
         for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
-          Object actualCellValue = isValid ? getVectorObject(actualHolder.data.vectors.get(columnIndex), vectorOffset) : null;
-          CellCompare comparison = expectedRowData.cells[columnIndex].compare(actualHolder.data.vectors.get(columnIndex), vectorOffset, actualHolder.check(rowNumber));
+          Object actualCellValue =
+              isValid
+                  ? getVectorObject(actualHolder.data.vectors.get(columnIndex), vectorOffset)
+                  : null;
+          CellCompare comparison =
+              expectedRowData.cells[columnIndex].compare(
+                  actualHolder.data.vectors.get(columnIndex),
+                  vectorOffset,
+                  actualHolder.check(rowNumber));
           if (!comparison.equal) {
             ok = false;
             failures++;
           }
-          actualValues[columnIndex] = (actualCellValue == null) ? "null" : actualCellValue.toString();
+          actualValues[columnIndex] =
+              (actualCellValue == null) ? "null" : actualCellValue.toString();
         }
       } else {
         ok = false;
         failures++;
         for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
-          Object actualCellValue = isValid ? getVectorObject(actualHolder.data.vectors.get(columnIndex), vectorOffset) : null;
+          Object actualCellValue =
+              isValid
+                  ? getVectorObject(actualHolder.data.vectors.get(columnIndex), vectorOffset)
+                  : null;
           actualValues[columnIndex] = actualCellValue.toString();
         }
       }
@@ -392,7 +425,7 @@ public final class Fixtures {
       actualOutputTable.addRule();
     }
 
-    if(!ok){
+    if (!ok) {
       sb.append("Failed to match: ").append(failures).append(" items");
       sb.append("\n\n---------Actual Output Table (order not important) ---------- \n");
       V2_AsciiTableRenderer rend = new V2_AsciiTableRenderer();
@@ -404,11 +437,13 @@ public final class Fixtures {
       /* build expected output table from provided map */
       for (Map.Entry<Object, DataRow> expectedEntry : resultMap.entrySet()) {
         String[] expectedValues = new String[fields.length];
-        expectedValues[0] = expectedEntry.getKey() == null ? "null" : expectedEntry.getKey().toString();
+        expectedValues[0] =
+            expectedEntry.getKey() == null ? "null" : expectedEntry.getKey().toString();
         final DataRow expectedDataRow = expectedEntry.getValue();
         for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
-          final Object expectedCellValue = ((ValueCell)expectedDataRow.cells[columnIndex]).obj;
-          expectedValues[columnIndex] = (expectedCellValue == null) ? "null" : expectedCellValue.toString();
+          final Object expectedCellValue = ((ValueCell) expectedDataRow.cells[columnIndex]).obj;
+          expectedValues[columnIndex] =
+              (expectedCellValue == null) ? "null" : expectedCellValue.toString();
         }
 
         expectedOutputTable.addRow(expectedValues);
@@ -425,13 +460,19 @@ public final class Fixtures {
     return ok;
   }
 
-  private static boolean compare(StringBuilder sb, Field[] fields, DataBatch[] expected, List<RecordBatchData> actual, int expectedRecordCount) {
+  private static boolean compare(
+      StringBuilder sb,
+      Field[] fields,
+      DataBatch[] expected,
+      List<RecordBatchData> actual,
+      int expectedRecordCount) {
     // build batch ranges.
     NavigableMap<Integer, RangeHolder<DataHolder>> actualRange = new TreeMap<>();
     {
       int offset = 0;
-      for(RecordBatchData b : actual){
-        actualRange.put(offset, new RangeHolder<DataHolder>(new DataHolder(b), offset, b.getRecordCount()));
+      for (RecordBatchData b : actual) {
+        actualRange.put(
+            offset, new RangeHolder<DataHolder>(new DataHolder(b), offset, b.getRecordCount()));
         offset += b.getRecordCount();
       }
     }
@@ -439,7 +480,7 @@ public final class Fixtures {
     NavigableMap<Integer, RangeHolder<DataBatch>> expectedRange = new TreeMap<>();
     {
       int offset = 0;
-      for(DataBatch b : expected){
+      for (DataBatch b : expected) {
         expectedRange.put(offset, new RangeHolder<DataBatch>(b, offset, b.size()));
         offset += b.size();
       }
@@ -449,7 +490,7 @@ public final class Fixtures {
     final V2_AsciiTable outputTable = new V2_AsciiTable();
 
     Object[] header = new Object[fields.length];
-    for(int i =0; i < header.length; i++){
+    for (int i = 0; i < header.length; i++) {
       header[i] = Describer.describe(fields[i]);
     }
     outputTable.addRule();
@@ -458,15 +499,22 @@ public final class Fixtures {
 
     for (int rowNumber = 0; rowNumber < expectedRecordCount; rowNumber++) {
       RangeHolder<DataBatch> batch = expectedRange.floorEntry(rowNumber).getValue();
-      DataRow expectedRowData = batch.data.rows[rowNumber - batch.offset] ;
+      DataRow expectedRowData = batch.data.rows[rowNumber - batch.offset];
       assert batch.check(rowNumber);
       RangeHolder<DataHolder> actualHolder = actualRange.floorEntry(rowNumber).getValue();
       final int localRowNumber = rowNumber - actualHolder.offset;
-      final int vectorOffset = actualHolder.data.sv2 == null ? localRowNumber : actualHolder.data.sv2.getIndex(localRowNumber);
+      final int vectorOffset =
+          actualHolder.data.sv2 == null
+              ? localRowNumber
+              : actualHolder.data.sv2.getIndex(localRowNumber);
       Object[] values = new Object[fields.length];
-      for(int columnIndex = 0; columnIndex < fields.length; columnIndex++){
-        CellCompare comparison = expectedRowData.cells[columnIndex].compare(actualHolder.data.vectors.get(columnIndex), vectorOffset, actualHolder.check(rowNumber));
-        if(!comparison.equal){
+      for (int columnIndex = 0; columnIndex < fields.length; columnIndex++) {
+        CellCompare comparison =
+            expectedRowData.cells[columnIndex].compare(
+                actualHolder.data.vectors.get(columnIndex),
+                vectorOffset,
+                actualHolder.check(rowNumber));
+        if (!comparison.equal) {
           ok = false;
         }
         values[columnIndex] = comparison.s;
@@ -475,7 +523,7 @@ public final class Fixtures {
       outputTable.addRule();
     }
 
-    if(!ok){
+    if (!ok) {
       sb.append(" - Values don't match expected. [actual (expected)]. \n");
       V2_AsciiTableRenderer rend = new V2_AsciiTableRenderer();
       rend.setTheme(V2_E_TableThemes.UTF_LIGHT.get());
@@ -484,7 +532,6 @@ public final class Fixtures {
       sb.append("\n");
     }
     return ok;
-
   }
 
   private static class RangeHolder<T> {
@@ -499,27 +546,26 @@ public final class Fixtures {
       this.length = length;
     }
 
-    public boolean check(int index){
+    public boolean check(int index) {
       return index >= offset && index < offset + length;
     }
-
   }
 
-  private static boolean addField(StringBuilder sb, Field expected, Field actual){
+  private static boolean addField(StringBuilder sb, Field expected, Field actual) {
     boolean ok = true;
-    if(actual == null){
+    if (actual == null) {
       sb.append("-:missing");
       ok = false;
     } else {
       sb.append(Describer.describe(actual));
     }
 
-    if(expected == null){
+    if (expected == null) {
       sb.append(" (-:missing)");
       return false;
     }
 
-    if(!expected.equals(actual)){
+    if (!expected.equals(actual)) {
       ok = false;
       sb.append(" (");
       sb.append(Describer.describe(expected));
@@ -529,27 +575,31 @@ public final class Fixtures {
     return ok;
   }
 
-  private static Field mergeField(Field field, ColumnHeader header, Cell c){
+  private static Field mergeField(Field field, ColumnHeader header, Cell c) {
     Preconditions.checkNotNull(field);
     Preconditions.checkNotNull(c);
     Field newField = c.toField(header);
-    if(!newField.getType().equals(field.getType())){
-      throw new UnsupportedOperationException(String.format("Not supporting mixed types yet. Initial Field was %s but new field was %s", field.getType(), newField.getType()));
+    if (!newField.getType().equals(field.getType())) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Not supporting mixed types yet. Initial Field was %s but new field was %s",
+              field.getType(), newField.getType()));
     }
     // they are the same.
     return field;
   }
 
-  public static Field[] getFields(HeaderRow row, DataBatch... data){
+  public static Field[] getFields(HeaderRow row, DataBatch... data) {
     Field[] fields = new Field[row.columns.length];
-    for(DataBatch b : data){
-      for(DataRow r : b.rows){
-        Preconditions.checkArgument(row.columns.length == r.cells.length, "Row must be equivalent length to header.");
-        for(int i =0; i < r.cells.length; i++) {
+    for (DataBatch b : data) {
+      for (DataRow r : b.rows) {
+        Preconditions.checkArgument(
+            row.columns.length == r.cells.length, "Row must be equivalent length to header.");
+        for (int i = 0; i < r.cells.length; i++) {
           Field current = fields[i];
-          if(current == null){
+          if (current == null) {
             fields[i] = r.cells[i].toField(row.columns[i]);
-          }else{
+          } else {
             fields[i] = mergeField(current, row.columns[i], r.cells[i]);
           }
         }
@@ -558,19 +608,19 @@ public final class Fixtures {
     return fields;
   }
 
-  public static LocalDateTime ts(String str){
+  public static LocalDateTime ts(String str) {
     return LocalDateTime.parse(str);
   }
 
-  public static LocalTime time(String str){
+  public static LocalTime time(String str) {
     return LocalTime.parse(str);
   }
 
-  public static LocalDate date(String str){
+  public static LocalDate date(String str) {
     return LocalDate.parse(str);
   }
 
-  public static LocalDateTime ts(long val){
+  public static LocalDateTime ts(long val) {
     return new LocalDateTime(val);
   }
 
@@ -628,26 +678,26 @@ public final class Fixtures {
       this.rows = rows;
     }
 
-    public int size(){
+    public int size() {
       return rows.length;
     }
-
   }
 
   /**
-   *
-   * @param fieldNameToChildren for 'Struct' type vectors, create a map of vector name to the names of vectors that constitute the struct's fields
+   * @param fieldNameToChildren for 'Struct' type vectors, create a map of vector name to the names
+   *     of vectors that constitute the struct's fields
    * @param headers column names
    * @return
    */
-  public static HeaderRow toHeader(final Map<String,List<String>> fieldNameToChildren, final String... headers){
+  public static HeaderRow toHeader(
+      final Map<String, List<String>> fieldNameToChildren, final String... headers) {
 
     final ColumnHeader[] allHeaders = new ColumnHeader[headers.length];
 
     int headerIndex = 0;
-    for(final String header : headers){
+    for (final String header : headers) {
 
-      if(fieldNameToChildren.containsKey(header)){ //this is a complex type
+      if (fieldNameToChildren.containsKey(header)) { // this is a complex type
 
         allHeaders[headerIndex] = struct(header, fieldNameToChildren.get(header));
 
@@ -656,13 +706,13 @@ public final class Fixtures {
       }
 
       headerIndex++;
-
     }
     return new HeaderRow(allHeaders);
   }
 
-  public static HeaderRow th(Object... headers){
-    return new HeaderRow(Arrays.stream(headers).map(Fixtures::convertToHeader).toArray(ColumnHeader[]::new));
+  public static HeaderRow th(Object... headers) {
+    return new HeaderRow(
+        Arrays.stream(headers).map(Fixtures::convertToHeader).toArray(ColumnHeader[]::new));
   }
 
   private static ColumnHeader convertToHeader(Object header) {
@@ -671,31 +721,31 @@ public final class Fixtures {
     } else if (header instanceof ColumnHeader) {
       return (ColumnHeader) header;
     } else {
-      throw new IllegalArgumentException("Header must be either a String or a ColumnHeader instance");
+      throw new IllegalArgumentException(
+          "Header must be either a String or a ColumnHeader instance");
     }
   }
 
   public static ComplexColumnHeader struct(String name, List<String> childHeaders) {
-    return new ComplexColumnHeader(name,
-        childHeaders.stream().map(Fixtures::convertToHeader).toArray(ColumnHeader[]::new));
+    return new ComplexColumnHeader(
+        name, childHeaders.stream().map(Fixtures::convertToHeader).toArray(ColumnHeader[]::new));
   }
 
   /**
-   *
    * @param dataTypes data types of columns passed in second parameter
    * @param objects column names
    * @return
    */
-  public static DataRow toRow(final List<String> dataTypes, final Object... objects){
+  public static DataRow toRow(final List<String> dataTypes, final Object... objects) {
     final Cell[] cells = new Cell[objects.length];
-    for (int i =0; i < cells.length; i++){
+    for (int i = 0; i < cells.length; i++) {
 
-      if (objects[i] instanceof List){
+      if (objects[i] instanceof List) {
         cells[i] = listToCell((List) objects[i], dataTypes.get(i));
-      } else if (objects[i] instanceof Map){
+      } else if (objects[i] instanceof Map) {
         final Cell[] mapValueCells = new Cell[((Map<?, ?>) objects[i]).size()];
-        int cellIndex =0;
-        for (final Object value : ((Map<?, ?>) objects[i]).values()){
+        int cellIndex = 0;
+        for (final Object value : ((Map<?, ?>) objects[i]).values()) {
           mapValueCells[cellIndex] = toCell(value);
           cellIndex++;
         }
@@ -703,14 +753,13 @@ public final class Fixtures {
       } else {
         cells[i] = toCell(objects[i]);
       }
-
     }
     return new DataRow(cells);
   }
 
-  public static DataRow tr(Object... objects){
+  public static DataRow tr(Object... objects) {
     Cell[] cells = new Cell[objects.length];
-    for(int i =0; i < cells.length; i++){
+    for (int i = 0; i < cells.length; i++) {
       cells[i] = toCell(objects[i]);
     }
     return new DataRow(cells);
@@ -718,17 +767,18 @@ public final class Fixtures {
 
   /**
    * Creates Cell objects for List type of data
+   *
    * @param list
    * @param dataType
    * @return
    */
-  private static Cell listToCell(final List list, final String dataType){
-    if("varchar".equalsIgnoreCase(dataType)){
+  private static Cell listToCell(final List list, final String dataType) {
+    if ("varchar".equalsIgnoreCase(dataType)) {
       final VarCharList varcharList = new VarCharList();
       varcharList.addAll(list);
       return new ListCell(varcharList);
     }
-    if("struct".equalsIgnoreCase(dataType)){
+    if ("struct".equalsIgnoreCase(dataType)) {
       final StructList structList = new StructList();
       structList.addAll(list);
       return new ListCell(structList);
@@ -736,57 +786,58 @@ public final class Fixtures {
     final IntList intList = new IntList();
     intList.addAll(list);
     return new ListCell(intList);
-
   }
 
-  private static Cell toCell(Object obj){
-    Preconditions.checkNotNull(obj, "Use Null constants to express nulls, such as NULL_VARCHAR, NULL_INT, etc.");
+  private static Cell toCell(Object obj) {
+    Preconditions.checkNotNull(
+        obj, "Use Null constants to express nulls, such as NULL_VARCHAR, NULL_INT, etc.");
 
-    if(obj instanceof Cell){
+    if (obj instanceof Cell) {
       return (Cell) obj;
-    } else if(obj instanceof String){
+    } else if (obj instanceof String) {
       return new VarChar((String) obj);
-    } else if(obj instanceof Text){
+    } else if (obj instanceof Text) {
       return new VarChar(obj.toString());
-    }else if(obj instanceof Long){
-      return new BigInt((Long)obj);
-    }else if(obj instanceof Double){
-      return new DoublePrecision((Double)obj);
-    }else if(obj instanceof Float){
-      return new Floating((Float)obj);
-    }else if(obj instanceof Integer){
-      return new IntCell((Integer)obj);
-    }else if(obj instanceof Boolean){
-      return new BooleanCell((Boolean)obj);
-    }else if(obj instanceof byte[]){
-      return new VarBinary((byte[])obj);
-    }else if(obj instanceof LocalDateTime) {
-      return new Timestamp((LocalDateTime)obj);
-    }else if(obj instanceof LocalTime) {
-      return new Time((LocalTime)obj);
-    }else if(obj instanceof LocalDate) {
-      return new Date((LocalDate)obj);
-    }else if(obj instanceof ValueList) {
-      return new ListCell((ValueList<?>)obj);
-    }else if(obj instanceof List) {
-      if(((List<?>) obj).get(0) instanceof Integer) {
+    } else if (obj instanceof Long) {
+      return new BigInt((Long) obj);
+    } else if (obj instanceof Double) {
+      return new DoublePrecision((Double) obj);
+    } else if (obj instanceof Float) {
+      return new Floating((Float) obj);
+    } else if (obj instanceof Integer) {
+      return new IntCell((Integer) obj);
+    } else if (obj instanceof Boolean) {
+      return new BooleanCell((Boolean) obj);
+    } else if (obj instanceof byte[]) {
+      return new VarBinary((byte[]) obj);
+    } else if (obj instanceof LocalDateTime) {
+      return new Timestamp((LocalDateTime) obj);
+    } else if (obj instanceof LocalTime) {
+      return new Time((LocalTime) obj);
+    } else if (obj instanceof LocalDate) {
+      return new Date((LocalDate) obj);
+    } else if (obj instanceof ValueList) {
+      return new ListCell((ValueList<?>) obj);
+    } else if (obj instanceof List) {
+      if (((List<?>) obj).get(0) instanceof Integer) {
         IntList list = new IntList();
         list.addAll((List) obj);
         return new ListCell(list);
-      } else if(((List<?>) obj).get(0) instanceof Long) {
+      } else if (((List<?>) obj).get(0) instanceof Long) {
         BigIntList list = new BigIntList();
         list.addAll((List) obj);
         return new ListCell(list);
-      } else if(((List<?>) obj).get(0) instanceof String || ((List<?>) obj).get(0) instanceof Text) {
+      } else if (((List<?>) obj).get(0) instanceof String
+          || ((List<?>) obj).get(0) instanceof Text) {
         VarCharList list = new VarCharList();
         list.addAll((List) obj);
         return new ListCell(list);
       } else {
         throw new UnsupportedOperationException("Unknown list type");
       }
-    }else if(obj instanceof BigDecimal) {
+    } else if (obj instanceof BigDecimal) {
       return new Decimal((BigDecimal) obj);
-    } else if(obj instanceof Period) {
+    } else if (obj instanceof Period) {
       Period p = (Period) obj;
 
       if (p.getYears() == 0 && p.getMonths() == 0) {
@@ -799,18 +850,19 @@ public final class Fixtures {
     } else if (obj instanceof Cell[]) {
       return new StructCell((Cell[]) obj);
     }
-    throw new UnsupportedOperationException(String.format("Unable to interpret object of type %s.", obj.getClass().getSimpleName()));
+    throw new UnsupportedOperationException(
+        String.format("Unable to interpret object of type %s.", obj.getClass().getSimpleName()));
   }
 
-  public static Table t(HeaderRow header, DataBatch... batches){
+  public static Table t(HeaderRow header, DataBatch... batches) {
     return new Table(true, false, getFields(header, batches), batches);
   }
 
-  public static Table t(HeaderRow header, DataRow... rows){
+  public static Table t(HeaderRow header, DataRow... rows) {
     return t(header, false, rows);
   }
 
-  public static Table tNoBound(HeaderRow header, DataBatch... batches){
+  public static Table tNoBound(HeaderRow header, DataBatch... batches) {
     return new Table(false, false, getFields(header, batches), batches);
   }
 
@@ -832,7 +884,7 @@ public final class Fixtures {
     return t(header, batches);
   }
 
-  public static Table t(HeaderRow header, boolean zeroRecords, DataRow... rows){
+  public static Table t(HeaderRow header, boolean zeroRecords, DataRow... rows) {
     DataBatch b = new DataBatch(rows);
     Field[] fields = getFields(header, b);
     return new Table(false, zeroRecords, fields, b);
@@ -842,11 +894,13 @@ public final class Fixtures {
     return new DataBatch(rows);
   }
 
-
   public interface Cell {
     Field toField(ColumnHeader header);
+
     CellCompare compare(ValueVector vector, int index, boolean isValid);
+
     void set(ValueVector v, int index, ArrowBuf workBuffer);
+
     Object unwrap();
   }
 
@@ -902,7 +956,6 @@ public final class Fixtures {
           return false;
         }
       }
-
     }
     return true;
   }
@@ -919,40 +972,40 @@ public final class Fixtures {
 
     @Override
     public Field toField(ColumnHeader header) {
-      return new Field(header.name, new FieldType(true, getType(), null), Collections.<Field>emptyList());
+      return new Field(
+          header.name, new FieldType(true, getType(), null), Collections.<Field>emptyList());
     }
-
 
     @Override
     @SuppressWarnings("unchecked")
     public CellCompare compare(ValueVector vector, int index, boolean isValid) {
-      V obj = isValid ? (V)getVectorObject(vector, index) : null;
-      if(obj == null && this.obj == null){
+      V obj = isValid ? (V) getVectorObject(vector, index) : null;
+      if (obj == null && this.obj == null) {
         return new CellCompare(true, objectToString(obj));
       }
-      if(this.obj == null){
+      if (this.obj == null) {
         return new CellCompare(false, objectToString(obj) + " (null)");
       }
 
-      if(obj == null){
+      if (obj == null) {
         return new CellCompare(false, null + " (" + objectToString(this.obj) + ")");
       }
 
-      if(!(obj.getClass().equals(this.obj.getClass()) ||
-          (obj instanceof List && this.obj instanceof List))) {
+      if (!(obj.getClass().equals(this.obj.getClass())
+          || (obj instanceof List && this.obj instanceof List))) {
         return new CellCompare(false, objectToString(obj) + "(" + objectToString(this.obj) + ")");
       }
 
       boolean isEqual = false;
       if (this.obj instanceof List) {
-        isEqual = evaluateListEquality((List<?>) obj, (List<?>)this.obj);
+        isEqual = evaluateListEquality((List<?>) obj, (List<?>) this.obj);
       } else {
         isEqual = evaluateEquality(obj, this.obj);
       }
 
-      if(isEqual){
+      if (isEqual) {
         return new CellCompare(true, objectToString(this.obj));
-      }else{
+      } else {
         return new CellCompare(false, objectToString(obj) + " (" + objectToString(this.obj) + ")");
       }
     }
@@ -962,12 +1015,12 @@ public final class Fixtures {
       return obj;
     }
 
-    boolean evaluateEquality(V obj1, V obj2){
+    boolean evaluateEquality(V obj1, V obj2) {
       return obj1.equals(obj2);
     }
 
     String toString(V obj) {
-      if(obj == null){
+      if (obj == null) {
         return "null";
       }
       return obj.toString();
@@ -982,7 +1035,6 @@ public final class Fixtures {
       this.equal = equal;
       this.s = s;
     }
-
   }
 
   private static class ListCell extends ValueCell<ValueList<?>> {
@@ -1005,7 +1057,9 @@ public final class Fixtures {
 
     @Override
     public Field toField(ColumnHeader header) {
-      return new Field(header.name, new FieldType(true, getType(), null),
+      return new Field(
+          header.name,
+          new FieldType(true, getType(), null),
           ImmutableList.of(obj.getValueType().toField(ListVector.DATA_VECTOR_NAME)));
     }
 
@@ -1031,7 +1085,7 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((BigIntVector) v).setSafe(index, obj);
       }
     }
@@ -1049,7 +1103,7 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((IntVector) v).setSafe(index, obj);
       }
     }
@@ -1067,18 +1121,18 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((Float4Vector) v).setSafe(index, obj);
       }
     }
 
     @Override
     boolean evaluateEquality(Float f1, Float f2) {
-      if(f1.isNaN()){
+      if (f1.isNaN()) {
         return f2.isNaN();
       }
 
-      if(f1.isInfinite()){
+      if (f1.isInfinite()) {
         return f2.isInfinite();
       }
 
@@ -1102,18 +1156,18 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((Float8Vector) v).setSafe(index, obj);
       }
     }
 
     @Override
     boolean evaluateEquality(Double f1, Double f2) {
-      if(f1.isNaN()){
+      if (f1.isNaN()) {
         return f2.isNaN();
       }
 
-      if(f1.isInfinite()){
+      if (f1.isInfinite()) {
         return f2.isInfinite();
       }
 
@@ -1138,7 +1192,7 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         byte[] bytes = obj.getBytes();
         ((VarCharVector) v).setSafe(index, bytes, 0, obj.getLength());
       }
@@ -1153,7 +1207,7 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((TimeStampMilliVector) v).setSafe(index, com.dremio.common.util.DateTimes.toMillis(obj));
       }
     }
@@ -1164,7 +1218,6 @@ public final class Fixtures {
     }
   }
 
-
   private static class Date extends ValueCell<LocalDate> {
 
     public Date(LocalDate obj) {
@@ -1173,8 +1226,9 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
-        ((DateMilliVector) v).setSafe(index,  obj.toDateTimeAtStartOfDay(DateTimeZone.UTC).getMillis());
+      if (obj != null) {
+        ((DateMilliVector) v)
+            .setSafe(index, obj.toDateTimeAtStartOfDay(DateTimeZone.UTC).getMillis());
       }
     }
 
@@ -1182,7 +1236,6 @@ public final class Fixtures {
     ArrowType getType() {
       return CompleteType.DATE.getType();
     }
-
   }
 
   private static class Time extends ValueCell<LocalTime> {
@@ -1193,7 +1246,7 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((TimeMilliVector) v).setSafe(index, (int) obj.getMillisOfDay());
       }
     }
@@ -1211,11 +1264,12 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
-        int numMillis = obj.getHours() * DateUtility.hoursToMillis
-          + obj.getMinutes() * DateUtility.minutesToMillis
-          + obj.getSeconds() * DateUtility.secondsToMillis
-          + obj.getMillis();
+      if (obj != null) {
+        int numMillis =
+            obj.getHours() * DateUtility.hoursToMillis
+                + obj.getMinutes() * DateUtility.minutesToMillis
+                + obj.getSeconds() * DateUtility.secondsToMillis
+                + obj.getMillis();
         ((IntervalDayVector) v).setSafe(index, obj.getDays(), numMillis);
       }
     }
@@ -1233,8 +1287,9 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
-        ((IntervalYearVector) v).setSafe(index, obj.getMonths() + obj.getYears() * DateUtility.yearsToMonths);
+      if (obj != null) {
+        ((IntervalYearVector) v)
+            .setSafe(index, obj.getMonths() + obj.getYears() * DateUtility.yearsToMonths);
       }
     }
 
@@ -1257,7 +1312,7 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((BitVector) v).setSafe(index, obj ? 1 : 0);
       }
     }
@@ -1280,13 +1335,13 @@ public final class Fixtures {
     }
 
     @Override
-    public String toString(byte[] obj){
+    public String toString(byte[] obj) {
       return BaseEncoding.base16().encode(obj);
     }
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((VarBinaryVector) v).setSafe(index, obj, 0, obj.length);
       }
     }
@@ -1317,7 +1372,7 @@ public final class Fixtures {
 
     @Override
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
-      if(obj != null){
+      if (obj != null) {
         ((DecimalVector) v).setSafe(index, obj);
       }
     }
@@ -1328,9 +1383,7 @@ public final class Fixtures {
     }
   }
 
-  /**
-   * Represents a cell of Union data type in tabular query results
-   */
+  /** Represents a cell of Union data type in tabular query results */
   public static class UnionCell implements Cell {
     final Cell cell;
     final Map<ArrowType, Boolean> types;
@@ -1342,14 +1395,19 @@ public final class Fixtures {
 
     @Override
     public Field toField(final ColumnHeader header) {
-      Preconditions.checkArgument(header instanceof ComplexColumnHeader, "Header for complex(union) cell not provided.");
+      Preconditions.checkArgument(
+          header instanceof ComplexColumnHeader, "Header for complex(union) cell not provided.");
       ComplexColumnHeader complexHeader = (ComplexColumnHeader) header;
-      Preconditions.checkArgument(complexHeader.fields.length == types.size(), "Union cell field count does not match header.");
+      Preconditions.checkArgument(
+          complexHeader.fields.length == types.size(),
+          "Union cell field count does not match header.");
 
       ArrayList<Field> children = new ArrayList<>();
       int i = 0;
       for (Map.Entry<ArrowType, Boolean> entry : this.types.entrySet()) {
-        Field field = new Field(complexHeader.fields[i].name, new FieldType(true, entry.getKey(), null), null);
+        Field field =
+            new Field(
+                complexHeader.fields[i].name, new FieldType(true, entry.getKey(), null), null);
         children.add(field);
         i++;
       }
@@ -1358,7 +1416,7 @@ public final class Fixtures {
     }
 
     @Override
-    public CellCompare compare(final ValueVector vector,final int index, final boolean isValid) {
+    public CellCompare compare(final ValueVector vector, final int index, final boolean isValid) {
       final UnionVector uv = (UnionVector) vector;
       final int nFields = uv.getField().getChildren().size();
 
@@ -1407,7 +1465,6 @@ public final class Fixtures {
           cell.set(structVector.getChildrenFromFields().get(i), index, workBuffer);
         }
         i++;
-
       }
     }
 
@@ -1462,16 +1519,21 @@ public final class Fixtures {
 
     @Override
     public Field toField(ColumnHeader header) {
-      Preconditions.checkArgument(header instanceof ComplexColumnHeader, "Struct cell value provided for non-struct column");
+      Preconditions.checkArgument(
+          header instanceof ComplexColumnHeader,
+          "Struct cell value provided for non-struct column");
       ComplexColumnHeader complexHeader = (ComplexColumnHeader) header;
-      Preconditions.checkArgument(complexHeader.fields.length == cells.length, "Struct cell field count does not match header.");
+      Preconditions.checkArgument(
+          complexHeader.fields.length == cells.length,
+          "Struct cell field count does not match header.");
 
       ArrayList<Field> children = new ArrayList<>();
       for (int i = 0; i < cells.length; i++) {
         children.add(cells[i].toField(complexHeader.fields[i]));
       }
 
-      return new Field(complexHeader.name, new FieldType(true, ArrowType.Struct.INSTANCE, null), children);
+      return new Field(
+          complexHeader.name, new FieldType(true, ArrowType.Struct.INSTANCE, null), children);
     }
 
     @Override
@@ -1487,17 +1549,17 @@ public final class Fixtures {
       }
 
       if (cells == null && vals == null) {
-       return new CellCompare(true, "null");
+        return new CellCompare(true, "null");
       }
       if (cells == null) {
-       return new CellCompare(false, valsToString(vals) + " (null)");
+        return new CellCompare(false, valsToString(vals) + " (null)");
       }
       if (vals == null) {
-       return new CellCompare(false, "null (" + cellsToString(cells) + ")");
+        return new CellCompare(false, "null (" + cellsToString(cells) + ")");
       }
 
       if (cells.length != vals.length) {
-       return new CellCompare(false, valsToString(vals) + " (" + cellsToString(cells) + ")");
+        return new CellCompare(false, valsToString(vals) + " (" + cellsToString(cells) + ")");
       }
 
       boolean isEqual = true;
@@ -1574,6 +1636,7 @@ public final class Fixtures {
 
   /**
    * Convert value to a union cell for tabular result comparison
+   *
    * @param val
    * @param types <All data types : is current value instance of this data type>
    * @return
@@ -1582,12 +1645,13 @@ public final class Fixtures {
     Cell cell = toCell(val);
     return new UnionCell(cell, types);
   }
+
   public abstract static class ValueList<T> extends ArrayList<T> {
 
     public abstract CompleteType getValueType();
 
     public void writeToVector(ValueVector v, int index, ArrowBuf workBuffer) {
-      UnionListWriter listWriter = ((ListVector)v).getWriter();
+      UnionListWriter listWriter = ((ListVector) v).getWriter();
       listWriter.setPosition(index);
       listWriter.startList();
       for (T val : this) {
@@ -1654,13 +1718,15 @@ public final class Fixtures {
 
     @Override
     public CompleteType getValueType() {
-      List<Field> children = Arrays.asList(CompleteType.VARCHAR.toField("varchar", true), CompleteType.INT.toField("int", true));
+      List<Field> children =
+          Arrays.asList(
+              CompleteType.VARCHAR.toField("varchar", true), CompleteType.INT.toField("int", true));
       return CompleteType.struct(children);
     }
 
     @Override
-    public void write(BaseWriter.ListWriter writer, JsonStringHashMap<String, Object> val,
-      ArrowBuf workBuffer) {
+    public void write(
+        BaseWriter.ListWriter writer, JsonStringHashMap<String, Object> val, ArrowBuf workBuffer) {
       BaseWriter.StructWriter structWriter = writer.struct();
       structWriter.start();
       // for each val entry, write to struct
@@ -1681,7 +1747,8 @@ public final class Fixtures {
 
   public static VarCharList varCharList(String... values) {
     VarCharList list = new VarCharList();
-    Collections.addAll(list, Arrays.stream(values).map(v -> v != null ? new Text(v) : null).toArray(Text[]::new));
+    Collections.addAll(
+        list, Arrays.stream(values).map(v -> v != null ? new Text(v) : null).toArray(Text[]::new));
     return list;
   }
 
@@ -1692,16 +1759,17 @@ public final class Fixtures {
     private int batchOffset = 0;
     private ArrowBuf workBuffer;
 
-    public TableFixtureGenerator(BufferAllocator allocator, Table table){
+    public TableFixtureGenerator(BufferAllocator allocator, Table table) {
       this.table = table;
       this.container = new VectorContainer(allocator);
       vectors = new ValueVector[table.fields.length];
-      for(int i = 0; i < table.fields.length; i++){
+      for (int i = 0; i < table.fields.length; i++) {
         vectors[i] = container.addOrGet(table.fields[i]);
       }
       container.buildSchema(SelectionVectorMode.NONE);
       workBuffer = allocator.buffer(256);
     }
+
     @Override
     public void close() throws Exception {
       container.close();
@@ -1716,20 +1784,18 @@ public final class Fixtures {
     @Override
     public int next(int records) {
       container.allocateNew();
-      if(batchOffset >= table.batches.length){
+      if (batchOffset >= table.batches.length) {
         return 0;
       }
       DataRow[] rows = table.batches[batchOffset].rows;
       batchOffset++;
-      for(int i =0; i < rows.length; i++){
+      for (int i = 0; i < rows.length; i++) {
         DataRow row = rows[i];
-        for (int v = 0; v < vectors.length; v++ ) {
+        for (int v = 0; v < vectors.length; v++) {
           row.cells[v].set(vectors[v], i, workBuffer);
         }
       }
       return container.setAllCount(rows.length);
     }
-
   }
-
 }

@@ -19,29 +19,37 @@ import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class UserServiceEventsImpl implements UserServiceEvents{
-  private ConcurrentHashMap<UserServiceEventTopic, ConcurrentHashMap<Integer, WeakReference<UserServiceEventSubscriber>>> subscribers;
+public class UserServiceEventsImpl implements UserServiceEvents {
+  private ConcurrentHashMap<
+          UserServiceEventTopic,
+          ConcurrentHashMap<Integer, WeakReference<UserServiceEventSubscriber>>>
+      subscribers;
 
   public UserServiceEventsImpl() {
     this.subscribers = new ConcurrentHashMap<>();
   }
+
   @Override
-  public void subscribe(UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber) {
+  public void subscribe(
+      UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber) {
     if (!subscribers.containsKey(userServiceEventTopic)) {
       subscribers.put(userServiceEventTopic, new ConcurrentHashMap<>());
     }
-    subscribers.get(userServiceEventTopic).put(subscriber.hashCode(), new WeakReference<>(subscriber));
-
+    subscribers
+        .get(userServiceEventTopic)
+        .put(subscriber.hashCode(), new WeakReference<>(subscriber));
   }
 
   @Override
   public void publish(UserServiceEvent event) {
-    ConcurrentHashMap<Integer, WeakReference<UserServiceEventSubscriber>> map = subscribers.get(event.getTopic());
+    ConcurrentHashMap<Integer, WeakReference<UserServiceEventSubscriber>> map =
+        subscribers.get(event.getTopic());
     if (map == null) {
       return;
     }
 
-    for(Map.Entry<Integer, WeakReference<UserServiceEventSubscriber>> subscribers : map.entrySet()) {
+    for (Map.Entry<Integer, WeakReference<UserServiceEventSubscriber>> subscribers :
+        map.entrySet()) {
       WeakReference<UserServiceEventSubscriber> subscriberRef = subscribers.getValue();
       UserServiceEventSubscriber subscriber = subscriberRef.get();
       subscriber.onUserServiceEvent(event);

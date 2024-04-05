@@ -18,25 +18,23 @@ package com.dremio.common.memory;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables.RollbackCloseable;
-import com.dremio.test.AllocatorRule;
-import com.dremio.test.DremioTest;
-
 public class TestMemoryDebugInfo extends DremioTest {
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testWithFullNode() {
-    try (
-        BufferAllocator root = allocatorRule.newAllocator("test-memory-debug-info", 0, 1024 * 1024);
+    try (BufferAllocator root =
+            allocatorRule.newAllocator("test-memory-debug-info", 0, 1024 * 1024);
         BufferAllocator child = root.newChildAllocator("child", 0, 16 * 1024);
         BufferAllocator grandChild1 = child.newChildAllocator("grandchild1", 0, 64 * 1024);
         BufferAllocator grandChild2 = child.newChildAllocator("grandchild2", 0, 64 * 1024)) {
@@ -60,11 +58,12 @@ public class TestMemoryDebugInfo extends DremioTest {
 
   @Test
   public void testWithRoot() {
-    try (
-        BufferAllocator root = allocatorRule.newAllocator("test-memory-debug-info", 0, 1024 * 1024);
+    try (BufferAllocator root =
+            allocatorRule.newAllocator("test-memory-debug-info", 0, 1024 * 1024);
         BufferAllocator child = root.newChildAllocator("child", 0, Integer.MAX_VALUE);
         BufferAllocator grandChild1 = child.newChildAllocator("grandchild1", 0, Integer.MAX_VALUE);
-        BufferAllocator grandChild2 = child.newChildAllocator("grandchild2", 0, Integer.MAX_VALUE)) {
+        BufferAllocator grandChild2 =
+            child.newChildAllocator("grandchild2", 0, Integer.MAX_VALUE)) {
 
       // allocate to hit the root limit.
       try (ArrowBuf buf = grandChild2.buffer(2 * 1024 * 1024)) {
@@ -90,7 +89,7 @@ public class TestMemoryDebugInfo extends DremioTest {
       BufferAllocator root = allocatorRule.newAllocator("test-memory-debug-info", 0, 1024 * 1024);
       closeable.add(root);
 
-      BufferAllocator twig = root.newChildAllocator("twig",0, 1024 * 1024);
+      BufferAllocator twig = root.newChildAllocator("twig", 0, 1024 * 1024);
       closeable.add(twig);
 
       for (int i = 0; i < 20; ++i) {

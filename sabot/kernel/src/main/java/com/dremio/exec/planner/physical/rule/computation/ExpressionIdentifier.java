@@ -15,12 +15,14 @@
  */
 package com.dremio.exec.planner.physical.rule.computation;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
@@ -28,41 +30,40 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
-/**
- * Detects the computations to be pushed down.
- */
+/** Detects the computations to be pushed down. */
 class ExpressionIdentifier {
 
-  private ExpressionIdentifier(){
-
-  }
+  private ExpressionIdentifier() {}
 
   /**
    * Detects the computation to pushed out of a join condition, providing the shifted computations
    * for the new projects under join as well as the mapping of RexNode.toString to the index of
    * those computations.
    */
-  static LeftRightAndComputationIndex identifyNodesToPush(JoinSideDetector joinSideDetector,
-      RexNode rexNode) {
+  static LeftRightAndComputationIndex identifyNodesToPush(
+      JoinSideDetector joinSideDetector, RexNode rexNode) {
     LeftAndRightNodesToPush leftAndRightNodesToPush =
-      Preconditions.checkNotNull(rexNode.accept(new Visistor(joinSideDetector)));
-    ComputationIndexAndComputations left = dedupeAndCreateComputationIndex(leftAndRightNodesToPush.left,
-      joinSideDetector.leftCount, //offset for left computation index to start at
-      0);  //left pushed down computation is not shifted
-    ComputationIndexAndComputations right = dedupeAndCreateComputationIndex(leftAndRightNodesToPush.right,
-      joinSideDetector.leftCount + left.computations.size() + joinSideDetector.rightCount, //offset for right computations to start at
-      joinSideDetector.leftCount); //right pushed down offset is shifted back by the right offset
+        Preconditions.checkNotNull(rexNode.accept(new Visistor(joinSideDetector)));
+    ComputationIndexAndComputations left =
+        dedupeAndCreateComputationIndex(
+            leftAndRightNodesToPush.left,
+            joinSideDetector.leftCount, // offset for left computation index to start at
+            0); // left pushed down computation is not shifted
+    ComputationIndexAndComputations right =
+        dedupeAndCreateComputationIndex(
+            leftAndRightNodesToPush.right,
+            joinSideDetector.leftCount
+                + left.computations.size()
+                + joinSideDetector.rightCount, // offset for right computations to start at
+            joinSideDetector
+                .leftCount); // right pushed down offset is shifted back by the right offset
     return new LeftRightAndComputationIndex(
-      ImmutableMap.<String, Integer>builder()
-        .putAll(left.rexNodeToComputationIndex)
-        .putAll(right.rexNodeToComputationIndex)
-        .build(),
-      left.computations,
-      right.computations);
+        ImmutableMap.<String, Integer>builder()
+            .putAll(left.rexNodeToComputationIndex)
+            .putAll(right.rexNodeToComputationIndex)
+            .build(),
+        left.computations,
+        right.computations);
   }
 
   private static ComputationIndexAndComputations dedupeAndCreateComputationIndex(
@@ -71,7 +72,7 @@ class ExpressionIdentifier {
     List<RexNode> computations = new ArrayList<>();
     for (RexNode rexNode : rexNodes) {
       String nodeId = rexNode.toString();
-      if(!map.containsKey(nodeId)) {
+      if (!map.containsKey(nodeId)) {
         map.put(nodeId, map.size() + replacementOffset);
         computations.add(RexUtil.shift(rexNode, -projectOffset));
       }
@@ -82,13 +83,13 @@ class ExpressionIdentifier {
   private static class Visistor extends RexVisitorImpl<LeftAndRightNodesToPush> {
     private final JoinSideDetector sideDetector;
 
-    public Visistor(
-      JoinSideDetector sideDetector) {
+    public Visistor(JoinSideDetector sideDetector) {
       super(true);
       this.sideDetector = sideDetector;
     }
 
-    @Override public LeftAndRightNodesToPush visitCall(RexCall call) {
+    @Override
+    public LeftAndRightNodesToPush visitCall(RexCall call) {
       JoinSide joinSide = sideDetector.detectSide(call);
       switch (joinSide) {
         case BOTH:
@@ -111,11 +112,13 @@ class ExpressionIdentifier {
       }
     }
 
-    @Override public LeftAndRightNodesToPush visitInputRef(RexInputRef inputRef) {
+    @Override
+    public LeftAndRightNodesToPush visitInputRef(RexInputRef inputRef) {
       return LeftAndRightNodesToPush.EMPTY;
     }
 
-    @Override public LeftAndRightNodesToPush visitLiteral(RexLiteral literal) {
+    @Override
+    public LeftAndRightNodesToPush visitLiteral(RexLiteral literal) {
       return LeftAndRightNodesToPush.EMPTY;
     }
 
@@ -132,8 +135,8 @@ class ExpressionIdentifier {
     Map<String, Integer> rexNodeToComputationIndex;
     List<RexNode> computations;
 
-    public ComputationIndexAndComputations(Map<String, Integer> rexNodeToComputationIndex,
-      List<RexNode> computations) {
+    public ComputationIndexAndComputations(
+        Map<String, Integer> rexNodeToComputationIndex, List<RexNode> computations) {
       assert computations.size() == rexNodeToComputationIndex.size();
       this.rexNodeToComputationIndex = rexNodeToComputationIndex;
       this.computations = computations;
@@ -145,15 +148,17 @@ class ExpressionIdentifier {
     final List<RexNode> leftComputations;
     final List<RexNode> rightComputations;
 
-    public LeftRightAndComputationIndex(Map<String, Integer> rexNodeToComputationIndex,
-      List<RexNode> leftComputations,
-      List<RexNode> rightComputations) {
+    public LeftRightAndComputationIndex(
+        Map<String, Integer> rexNodeToComputationIndex,
+        List<RexNode> leftComputations,
+        List<RexNode> rightComputations) {
       this.rexNodeToComputationIndex = rexNodeToComputationIndex;
       this.leftComputations = leftComputations;
       this.rightComputations = rightComputations;
     }
 
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
       }
@@ -162,30 +167,35 @@ class ExpressionIdentifier {
       }
       LeftRightAndComputationIndex that = (LeftRightAndComputationIndex) o;
       return rexNodeToComputationIndex.equals(that.rexNodeToComputationIndex)
-        && leftComputations.equals(that.leftComputations)
-        && rightComputations.equals(that.rightComputations);
+          && leftComputations.equals(that.leftComputations)
+          && rightComputations.equals(that.rightComputations);
     }
 
-    @Override public int hashCode() {
+    @Override
+    public int hashCode() {
       return Objects.hash(rexNodeToComputationIndex, leftComputations, rightComputations);
     }
 
-    @Override public String toString() {
-      return "LeftAndRightComputationIndex{" +
-        "rexNodeToComputationIndex=" + rexNodeToComputationIndex +
-        ", leftComputations=" + leftComputations +
-        ", rightComputations=" + rightComputations +
-        '}';
+    @Override
+    public String toString() {
+      return "LeftAndRightComputationIndex{"
+          + "rexNodeToComputationIndex="
+          + rexNodeToComputationIndex
+          + ", leftComputations="
+          + leftComputations
+          + ", rightComputations="
+          + rightComputations
+          + '}';
     }
   }
 
   private static class LeftAndRightNodesToPush {
     static final LeftAndRightNodesToPush EMPTY =
-      new LeftAndRightNodesToPush(ImmutableList.of(), ImmutableList.of());
+        new LeftAndRightNodesToPush(ImmutableList.of(), ImmutableList.of());
     List<RexNode> left;
     List<RexNode> right;
-    public LeftAndRightNodesToPush(List<RexNode> left,
-      List<RexNode> right) {
+
+    public LeftAndRightNodesToPush(List<RexNode> left, List<RexNode> right) {
       this.left = left;
       this.right = right;
     }

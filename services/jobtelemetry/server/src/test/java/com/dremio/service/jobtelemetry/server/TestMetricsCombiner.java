@@ -17,28 +17,24 @@ package com.dremio.service.jobtelemetry.server;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.exec.proto.CoordExecRPC;
 import java.util.stream.Stream;
-
 import org.junit.Test;
 
-import com.dremio.exec.proto.CoordExecRPC;
-
-/**
- * Test for MetricsCombiner.
- */
+/** Test for MetricsCombiner. */
 public class TestMetricsCombiner {
   @Test
   public void testCombine() {
-    CoordExecRPC.QueryProgressMetrics metrics1 = CoordExecRPC.QueryProgressMetrics
-      .newBuilder()
-      .setRowsProcessed(100)
-      .setOutputRecords(20)
-      .build();
-    CoordExecRPC.QueryProgressMetrics metrics2 = CoordExecRPC.QueryProgressMetrics
-      .newBuilder()
-      .setRowsProcessed(120)
-      .setOutputRecords(30)
-      .build();
+    CoordExecRPC.QueryProgressMetrics metrics1 =
+        CoordExecRPC.QueryProgressMetrics.newBuilder()
+            .setRowsProcessed(100)
+            .setOutputRecords(20)
+            .build();
+    CoordExecRPC.QueryProgressMetrics metrics2 =
+        CoordExecRPC.QueryProgressMetrics.newBuilder()
+            .setRowsProcessed(120)
+            .setOutputRecords(30)
+            .build();
 
     CoordExecRPC.QueryProgressMetrics output1 = MetricsCombiner.combine(() -> Stream.empty());
     assertEquals(0, output1.getRowsProcessed());
@@ -48,7 +44,8 @@ public class TestMetricsCombiner {
     assertEquals(100, output2.getRowsProcessed());
     assertEquals(20, output2.getOutputRecords());
 
-    CoordExecRPC.QueryProgressMetrics output3 = MetricsCombiner.combine(() -> Stream.of(metrics1, metrics2));
+    CoordExecRPC.QueryProgressMetrics output3 =
+        MetricsCombiner.combine(() -> Stream.of(metrics1, metrics2));
     assertEquals(220, output3.getRowsProcessed());
     assertEquals(50, output3.getOutputRecords());
   }

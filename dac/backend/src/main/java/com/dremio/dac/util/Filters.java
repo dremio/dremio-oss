@@ -20,21 +20,24 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
 public interface Filters {
-  Predicate<MinorFragmentProfile> hasOperators = new Predicate<MinorFragmentProfile>() {
-    @Override
-    public boolean apply(MinorFragmentProfile arg0) {
-      return arg0.getOperatorProfileCount() != 0;
-    }
-  };
+  Predicate<MinorFragmentProfile> hasOperators =
+      new Predicate<MinorFragmentProfile>() {
+        @Override
+        public boolean apply(MinorFragmentProfile arg0) {
+          return arg0.getOperatorProfileCount() != 0;
+        }
+      };
 
-  Predicate<MinorFragmentProfile> hasTimes = new Predicate<MinorFragmentProfile>() {
-    @Override
-    public boolean apply(MinorFragmentProfile arg0) {
-      return arg0.hasStartTime() && arg0.hasEndTime();
-    }
-  };
+  Predicate<MinorFragmentProfile> hasTimes =
+      new Predicate<MinorFragmentProfile>() {
+        @Override
+        public boolean apply(MinorFragmentProfile arg0) {
+          return arg0.hasStartTime() && arg0.hasEndTime();
+        }
+      };
 
-  Predicate<MinorFragmentProfile> hasOperatorsAndTimes = Predicates.and(Filters.hasOperators, Filters.hasTimes);
+  Predicate<MinorFragmentProfile> hasOperatorsAndTimes =
+      Predicates.and(Filters.hasOperators, Filters.hasTimes);
 
   Predicate<MinorFragmentProfile> missingOperatorsOrTimes = Predicates.not(hasOperatorsAndTimes);
 }

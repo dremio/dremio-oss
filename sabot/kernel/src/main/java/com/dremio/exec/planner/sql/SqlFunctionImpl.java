@@ -30,22 +30,24 @@ public class SqlFunctionImpl extends SqlFunction {
   private final SqlSyntax sqlSyntax;
 
   protected SqlFunctionImpl(
-    String name,
-    SqlReturnTypeInference sqlReturnTypeInference,
-    SqlOperandTypeChecker sqlOperandTypeChecker,
-    Source source,
-    boolean isDeterministic,
-    boolean isDynamic,
-    SqlSyntax sqlSyntax) {
-    super(name,
-      // We want these functions to behave like builtin and calcite denotes that by leaving the identifier as null.
-      null,
-      SqlKind.OTHER_FUNCTION,
-      sqlReturnTypeInference,
-      null,
-      sqlOperandTypeChecker,
-      null,
-      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+      String name,
+      SqlReturnTypeInference sqlReturnTypeInference,
+      SqlOperandTypeChecker sqlOperandTypeChecker,
+      Source source,
+      boolean isDeterministic,
+      boolean isDynamic,
+      SqlSyntax sqlSyntax) {
+    super(
+        name,
+        // We want these functions to behave like builtin and calcite denotes that by leaving the
+        // identifier as null.
+        null,
+        SqlKind.OTHER_FUNCTION,
+        sqlReturnTypeInference,
+        null,
+        sqlOperandTypeChecker,
+        null,
+        SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.source = source;
     this.isDeterministic = isDeterministic;
     this.isDynamic = isDynamic;
@@ -53,47 +55,44 @@ public class SqlFunctionImpl extends SqlFunction {
   }
 
   public static SqlFunction create(
-    String name,
-    SqlReturnTypeInference sqlReturnTypeInference,
-    SqlOperandTypeChecker sqlOperandTypeChecker) {
+      String name,
+      SqlReturnTypeInference sqlReturnTypeInference,
+      SqlOperandTypeChecker sqlOperandTypeChecker) {
     return SqlFunctionImpl.create(
-      name,
-      sqlReturnTypeInference,
-      sqlOperandTypeChecker,
-      Source.DREMIO);
+        name, sqlReturnTypeInference, sqlOperandTypeChecker, Source.DREMIO);
   }
 
   public static SqlFunction create(
-    String name,
-    SqlReturnTypeInference sqlReturnTypeInference,
-    SqlOperandTypeChecker sqlOperandTypeChecker,
-    Source source) {
+      String name,
+      SqlReturnTypeInference sqlReturnTypeInference,
+      SqlOperandTypeChecker sqlOperandTypeChecker,
+      Source source) {
     return SqlFunctionImpl.create(
-      name,
-      sqlReturnTypeInference,
-      sqlOperandTypeChecker,
-      source,
-      true,
-      false,
-      SqlSyntax.FUNCTION);
+        name,
+        sqlReturnTypeInference,
+        sqlOperandTypeChecker,
+        source,
+        true,
+        false,
+        SqlSyntax.FUNCTION);
   }
 
   public static SqlFunction create(
-    String name,
-    SqlReturnTypeInference sqlReturnTypeInference,
-    SqlOperandTypeChecker sqlOperandTypeChecker,
-    Source source,
-    boolean isDeterministic,
-    boolean isDynamic,
-    SqlSyntax sqlSyntax) {
+      String name,
+      SqlReturnTypeInference sqlReturnTypeInference,
+      SqlOperandTypeChecker sqlOperandTypeChecker,
+      Source source,
+      boolean isDeterministic,
+      boolean isDynamic,
+      SqlSyntax sqlSyntax) {
     return new SqlFunctionImpl(
-      name,
-      sqlReturnTypeInference,
-      sqlOperandTypeChecker,
-      source,
-      isDeterministic,
-      isDynamic,
-      sqlSyntax);
+        name,
+        sqlReturnTypeInference,
+        sqlOperandTypeChecker,
+        source,
+        isDeterministic,
+        isDynamic,
+        sqlSyntax);
   }
 
   @Override
@@ -111,7 +110,9 @@ public class SqlFunctionImpl extends SqlFunction {
     return isDynamic;
   }
 
-  public Source getSource() { return source; }
+  public Source getSource() {
+    return source;
+  }
 
   public enum Source {
     DREMIO,

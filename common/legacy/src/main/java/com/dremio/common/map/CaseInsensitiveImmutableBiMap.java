@@ -15,31 +15,34 @@
  */
 package com.dremio.common.map;
 
-import java.util.Map;
-import java.util.Set;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
+import java.util.Map;
+import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- *  A special type of {@link ImmutableBiMap} with {@link String}s as keys, and the case of a key is ignored for get operations
+ * A special type of {@link ImmutableBiMap} with {@link String}s as keys, and the case of a key is
+ * ignored for get operations
+ *
  * @param <VALUE> the type of values to be stored in the map
  */
 public final class CaseInsensitiveImmutableBiMap<VALUE> implements BiMap<String, VALUE> {
   private final ImmutableBiMap<String, VALUE> underlyingMap;
+
   private CaseInsensitiveImmutableBiMap(final ImmutableBiMap<String, VALUE> underlyingMap) {
     this.underlyingMap = underlyingMap;
   }
 
   /**
    * Returns a new instance of {@link ImmutableBiMap} with key case-insensitivity.
+   *
    * @param map map to copy from
    * @param <VALUE> type of values to be stored in the map
    * @return key case-insensitive immutable bi-map
    */
-  public static <VALUE> CaseInsensitiveImmutableBiMap<VALUE> newImmutableMap(final Map<? extends String, ? extends VALUE> map) {
+  public static <VALUE> CaseInsensitiveImmutableBiMap<VALUE> newImmutableMap(
+      final Map<? extends String, ? extends VALUE> map) {
     final ImmutableBiMap.Builder<String, VALUE> builder = ImmutableBiMap.builder();
     for (final Entry<? extends String, ? extends VALUE> entry : map.entrySet()) {
       builder.put(entry.getKey().toLowerCase(), entry.getValue());

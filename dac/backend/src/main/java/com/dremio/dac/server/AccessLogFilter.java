@@ -33,7 +33,6 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
@@ -54,13 +53,10 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpUpgradeHandler;
 import javax.servlet.http.Part;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Verbose Access log filter to help debugging
- */
+/** Verbose Access log filter to help debugging */
 final class AccessLogFilter implements Filter {
   private static final Logger logger = LoggerFactory.getLogger(AccessLogFilter.class);
 
@@ -68,14 +64,11 @@ final class AccessLogFilter implements Filter {
 
   private PrintWriter docLog;
 
-  private Set<String> printableContentTypes = new HashSet<>(asList(
-      "text/html; charset=UTF-8",
-      "application/json",
-      "text/plain"));
+  private Set<String> printableContentTypes =
+      new HashSet<>(asList("text/html; charset=UTF-8", "application/json", "text/plain"));
 
   @Override
-  public void init(FilterConfig filterConfig) throws ServletException {
-  }
+  public void init(FilterConfig filterConfig) throws ServletException {}
 
   private void log(String message) {
     logger.debug(message);
@@ -85,28 +78,26 @@ final class AccessLogFilter implements Filter {
   }
 
   String bodyToString(String contentType, StringWriter body) {
-    return
-        printableContentTypes.contains(contentType) ?
-            body.toString() :
-              contentType + " length: " + body.getBuffer().length();
+    return printableContentTypes.contains(contentType)
+        ? body.toString()
+        : contentType + " length: " + body.getBuffer().length();
   }
 
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
       throws IOException, ServletException {
-    long reqId = nextReqId ++;
-    HttpServletRequest req = (HttpServletRequest)request;
-    HttpServletResponse resp = (HttpServletResponse)response;
+    long reqId = nextReqId++;
+    HttpServletRequest req = (HttpServletRequest) request;
+    HttpServletResponse resp = (HttpServletResponse) response;
 
     StringBuffer requestURL = req.getRequestURL();
     String queryString = req.getQueryString();
     final String fullUrl;
     if (queryString == null) {
-        fullUrl = requestURL.toString();
+      fullUrl = requestURL.toString();
     } else {
       fullUrl = requestURL.append('?').append(queryString).toString();
     }
-
 
     log(format("%d: %s %s", reqId, req.getMethod(), fullUrl));
     String referer = req.getHeader("Referer");
@@ -119,27 +110,34 @@ final class AccessLogFilter implements Filter {
     chain.doFilter(new HTTPRequestWrapper(req, reqBody), new HTTPResponseWrapper(resp, respBody));
     long t1 = System.currentTimeMillis();
     if (reqBody.toString().trim().length() > 0) {
-      log(reqId + ": request body:\n" + prefixLines(reqId + ": => ", bodyToString(req.getContentType(), reqBody)));
+      log(
+          reqId
+              + ": request body:\n"
+              + prefixLines(reqId + ": => ", bodyToString(req.getContentType(), reqBody)));
     }
-    log(String.format("%d: Status %s, Content-type: %s, returned in %dms", reqId, resp.getStatus(), resp.getContentType(), t1 - t0));
+    log(
+        String.format(
+            "%d: Status %s, Content-type: %s, returned in %dms",
+            reqId, resp.getStatus(), resp.getContentType(), t1 - t0));
     if (respBody.getBuffer().length() > 0) {
-      log(reqId + ": response body:\n" + prefixLines(reqId + ": <= ", bodyToString(resp.getContentType(), respBody)));
-
+      log(
+          reqId
+              + ": response body:\n"
+              + prefixLines(reqId + ": <= ", bodyToString(resp.getContentType(), respBody)));
     }
   }
 
   private String prefixLines(String prefix, String string) {
     String[] lines = string.toString().split("\n");
     StringBuilder sb = new StringBuilder();
-    for (String line: lines) {
+    for (String line : lines) {
       sb.append(prefix).append(line).append("\n");
     }
     return sb.toString();
   }
 
   @Override
-  public void destroy() {
-  }
+  public void destroy() {}
 
   private static class HTTPResponseWrapper implements HttpServletResponse {
     private final HttpServletResponse d;
@@ -357,9 +355,7 @@ final class AccessLogFilter implements Filter {
     public Locale getLocale() {
       return d.getLocale();
     }
-
   }
-
 
   private static class HTTPRequestWrapper implements HttpServletRequest {
     private final HttpServletRequest d;
@@ -741,10 +737,10 @@ final class AccessLogFilter implements Filter {
     }
 
     @Override
-    public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
+    public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass)
+        throws IOException, ServletException {
       return d.upgrade(handlerClass);
     }
-
   }
 
   public static class WrappedReader extends Reader {
@@ -763,7 +759,7 @@ final class AccessLogFilter implements Filter {
       char[] cbuf = new char[len];
       int n = read(cbuf, 0, len);
       if (n > 0) {
-          target.put(cbuf, 0, n);
+        target.put(cbuf, 0, n);
       }
       return n;
     }
@@ -794,7 +790,6 @@ final class AccessLogFilter implements Filter {
     public void close() throws IOException {
       delegate.close();
     }
-
   }
 
   public static class WrappedWriter extends Writer {
@@ -822,7 +817,6 @@ final class AccessLogFilter implements Filter {
     public void close() throws IOException {
       d.close();
     }
-
   }
 
   public void stopLoggingToFile() {

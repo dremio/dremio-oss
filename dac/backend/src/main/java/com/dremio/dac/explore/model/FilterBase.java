@@ -34,15 +34,14 @@ import com.dremio.datastore.Converter;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-/**
- * Filter base class
- */
+/** Filter base class */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonTypeIdResolver(EnumTypeIdResolver.class)
 @TypesEnum(types = FilterType.class, format = "com.dremio.dac.proto.model.dataset.Filter%s")
 public class FilterBase {
 
-  public static final Acceptor<FilterBase, FilterVisitor<?>, FilterDefinition> acceptor = new Acceptor<FilterBase, FilterVisitor<?>, FilterDefinition>(){};
+  public static final Acceptor<FilterBase, FilterVisitor<?>, FilterDefinition> acceptor =
+      new Acceptor<FilterBase, FilterVisitor<?>, FilterDefinition>() {};
 
   public final <T> T accept(FilterVisitor<T> visitor) throws VisitorException {
     return acceptor.accept(visitor, this);
@@ -66,13 +65,21 @@ public class FilterBase {
     public T visit(FilterDefinition e) {
       return unwrap(e).accept(this);
     }
+
     public abstract T visit(FilterCleanData clean) throws Exception;
+
     public abstract T visit(FilterByType byType) throws Exception;
+
     public abstract T visit(FilterRange range) throws Exception;
+
     public abstract T visit(FilterCustom custom) throws Exception;
+
     public abstract T visit(FilterValue value) throws Exception;
+
     public abstract T visit(FilterPattern value) throws Exception;
+
     public abstract T visit(FilterConvertibleData value) throws Exception;
+
     public abstract T visit(FilterConvertibleDataWithPattern value) throws Exception;
   }
 

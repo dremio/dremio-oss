@@ -19,7 +19,7 @@ import { findLastIndex as loFindLastIndex } from "lodash";
 export function lastIndexOf<T>(
   array: T[],
   lookup: T,
-  fromIndex?: number | undefined
+  fromIndex?: number | undefined,
 ): number | undefined {
   let index: number;
   if (fromIndex != undefined) {
@@ -36,7 +36,7 @@ export function lastIndexOf<T>(
 export function indexOf<T>(
   array: T[],
   lookup: T,
-  fromIndex?: number | undefined
+  fromIndex?: number | undefined,
 ): number | undefined {
   let index: number;
   if (fromIndex != undefined) {
@@ -53,7 +53,7 @@ export function indexOf<T>(
 export function findLastIndex<T>(
   array: T[] | null | undefined,
   predicate: (elem: { value: T; index: number }) => boolean,
-  fromIndex?: number | undefined
+  fromIndex?: number | undefined,
 ): number | undefined {
   const arrayWithIndices = array?.map((value, index) => ({ value, index }));
   const index = loFindLastIndex(arrayWithIndices, predicate, fromIndex);

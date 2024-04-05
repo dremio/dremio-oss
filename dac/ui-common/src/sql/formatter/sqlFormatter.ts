@@ -65,7 +65,7 @@ export function formatQuery(query: string): string {
 
   const [astTokens, originalTokensInfo] = createAbstractSqlTokens(
     queryParseTree,
-    queryTokenStream
+    queryTokenStream,
   );
   const ast = createAST(astTokens);
   const formatter = new RiverLeftAlignFormatter(originalTokensInfo);
@@ -75,7 +75,7 @@ export function formatQuery(query: string): string {
 
 function createAbstractSqlTokens(
   queryParseTree: ParseTree,
-  queryTokenStream: CommonTokenStream
+  queryTokenStream: CommonTokenStream,
 ): [AbstractSqlToken[], OriginalTokensInfo] {
   const converter = new AbstractSqlGenerator(queryTokenStream);
   ParseTreeWalker.DEFAULT.walk(converter, queryParseTree);

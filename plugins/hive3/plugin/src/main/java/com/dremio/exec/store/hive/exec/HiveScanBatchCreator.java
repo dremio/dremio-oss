@@ -18,26 +18,6 @@ package com.dremio.exec.store.hive.exec;
 import static com.dremio.exec.store.parquet.RecordReaderIterator.EMPTY_RECORD_ITERATOR;
 import static com.dremio.hive.proto.HiveReaderProto.ReaderType.NATIVE_PARQUET;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
-import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
-import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
-import org.apache.hadoop.hive.serde2.AbstractSerDe;
-import org.apache.hadoop.hive.serde2.OpenCSVSerde;
-import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
-import org.apache.hadoop.mapred.FileSplit;
-import org.apache.hadoop.mapred.InputFormat;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.pf4j.Extension;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -65,11 +45,30 @@ import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
+import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
+import org.apache.hadoop.hive.serde2.OpenCSVSerde;
+import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
+import org.apache.hadoop.mapred.FileSplit;
+import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.pf4j.Extension;
 
 @SuppressWarnings("unused")
 @Extension
 public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveScanBatchCreator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(HiveScanBatchCreator.class);
 
   private final FragmentExecutionContext fragmentExecContext;
   private final OperatorContext context;
@@ -88,10 +87,19 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
   private RecordReaderIterator recordReaderIterator;
   private boolean produceFromBufferedSplits;
 
-  private HiveScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context, StoragePluginId storagePluginId,
-                               byte[] extendedProperty, List<SchemaPath> columns, List<String> partitionColumns, OpProps opProps,
-                               BatchSchema fullSchema, Collection<List<String>> referencedTables, ScanFilter scanFilter,
-                               boolean produceBuffered) throws ExecutionSetupException {
+  private HiveScanBatchCreator(
+      FragmentExecutionContext fragmentExecContext,
+      OperatorContext context,
+      StoragePluginId storagePluginId,
+      byte[] extendedProperty,
+      List<SchemaPath> columns,
+      List<String> partitionColumns,
+      OpProps opProps,
+      BatchSchema fullSchema,
+      Collection<List<String>> referencedTables,
+      ScanFilter scanFilter,
+      boolean produceBuffered)
+      throws ExecutionSetupException {
     this.fragmentExecContext = fragmentExecContext;
     this.context = context;
 
@@ -106,8 +114,8 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
     }
 
     // handle unexpected reader type
-    if (tableXattr.getReaderType() != HiveReaderProto.ReaderType.NATIVE_PARQUET &&
-      tableXattr.getReaderType() != HiveReaderProto.ReaderType.BASIC) {
+    if (tableXattr.getReaderType() != HiveReaderProto.ReaderType.NATIVE_PARQUET
+        && tableXattr.getReaderType() != HiveReaderProto.ReaderType.BASIC) {
       throw new UnsupportedOperationException(tableXattr.getReaderType().name());
     }
 
@@ -117,39 +125,61 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
     this.fullSchema = fullSchema;
     this.referencedTables = referencedTables;
     this.scanFilter = scanFilter;
-    this.compositeConfig = CompositeReaderConfig.getCompound(context, fullSchema, columns, partitionColumns);
+    this.compositeConfig =
+        CompositeReaderConfig.getCompound(context, fullSchema, columns, partitionColumns);
     this.produceFromBufferedSplits = produceBuffered;
   }
 
-  public HiveScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context,
-                              HiveProxyingSubScan config) throws ExecutionSetupException {
-    this(fragmentExecContext, context, config.getPluginId(), config.getExtendedProperty(), config.getColumns(),
-      config.getPartitionColumns(), config.getProps(), config.getFullSchema(), config.getReferencedTables(),
-      config.getFilter(), true);
+  public HiveScanBatchCreator(
+      FragmentExecutionContext fragmentExecContext,
+      OperatorContext context,
+      HiveProxyingSubScan config)
+      throws ExecutionSetupException {
+    this(
+        fragmentExecContext,
+        context,
+        config.getPluginId(),
+        config.getExtendedProperty(),
+        config.getColumns(),
+        config.getPartitionColumns(),
+        config.getProps(),
+        config.getFullSchema(),
+        config.getReferencedTables(),
+        config.getFilter(),
+        true);
     this.subScanConfig = config;
   }
 
-
-  public HiveScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context, OpProps opProps,
-                              TableFunctionConfig tableFunctionConfig) throws ExecutionSetupException {
-    this(fragmentExecContext, context, tableFunctionConfig.getFunctionContext().getPluginId(),
-      tableFunctionConfig.getFunctionContext().getExtendedProperty().toByteArray(),
-      tableFunctionConfig.getFunctionContext().getColumns(),
-      tableFunctionConfig.getFunctionContext().getPartitionColumns(), opProps,
-      tableFunctionConfig.getFunctionContext().getFullSchema(),
-      tableFunctionConfig.getFunctionContext().getReferencedTables(),
-      tableFunctionConfig.getFunctionContext().getScanFilter(),
-      false);
+  public HiveScanBatchCreator(
+      FragmentExecutionContext fragmentExecContext,
+      OperatorContext context,
+      OpProps opProps,
+      TableFunctionConfig tableFunctionConfig)
+      throws ExecutionSetupException {
+    this(
+        fragmentExecContext,
+        context,
+        tableFunctionConfig.getFunctionContext().getPluginId(),
+        tableFunctionConfig.getFunctionContext().getExtendedProperty().toByteArray(),
+        tableFunctionConfig.getFunctionContext().getColumns(),
+        tableFunctionConfig.getFunctionContext().getPartitionColumns(),
+        opProps,
+        tableFunctionConfig.getFunctionContext().getFullSchema(),
+        tableFunctionConfig.getFunctionContext().getReferencedTables(),
+        tableFunctionConfig.getFunctionContext().getScanFilter(),
+        false);
   }
 
-  private boolean isParquetSplit(final HiveTableXattr tableXattr, SplitAndPartitionInfo split, boolean isPartitioned) {
+  private boolean isParquetSplit(
+      final HiveTableXattr tableXattr, SplitAndPartitionInfo split, boolean isPartitioned) {
     if (tableXattr.getReaderType() == NATIVE_PARQUET) {
       return true;
     }
 
     Optional<String> tableInputFormat;
     if (isPartitioned) {
-      final HiveReaderProto.PartitionXattr partitionXattr = HiveReaderProtoUtil.getPartitionXattr(split);
+      final HiveReaderProto.PartitionXattr partitionXattr =
+          HiveReaderProtoUtil.getPartitionXattr(split);
       tableInputFormat = HiveReaderProtoUtil.getPartitionInputFormat(tableXattr, partitionXattr);
     } else {
       tableInputFormat = HiveReaderProtoUtil.getTableInputFormat(tableXattr);
@@ -161,17 +191,18 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
 
     try {
       return MapredParquetInputFormat.class.isAssignableFrom(
-        (Class<? extends InputFormat>) Class.forName(tableInputFormat.get()));
+          (Class<? extends InputFormat>) Class.forName(tableInputFormat.get()));
     } catch (ClassNotFoundException e) {
       return false;
     }
   }
 
-  private void classifySplitsAsParquetAndNonParquet(List<SplitAndPartitionInfo> allSplits,
-                                                    final HiveTableXattr tableXattr,
-                                                    boolean isPartitioned,
-                                                    List<SplitAndPartitionInfo> parquetSplits,
-                                                    List<SplitAndPartitionInfo> nonParquetSplits) {
+  private void classifySplitsAsParquetAndNonParquet(
+      List<SplitAndPartitionInfo> allSplits,
+      final HiveTableXattr tableXattr,
+      boolean isPartitioned,
+      List<SplitAndPartitionInfo> parquetSplits,
+      List<SplitAndPartitionInfo> nonParquetSplits) {
     // separate splits into parquet splits and non parquet splits
     for (SplitAndPartitionInfo split : allSplits) {
       if (isParquetSplit(tableXattr, split, isPartitioned)) {
@@ -186,9 +217,8 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
   public ProducerOperator create() throws ExecutionSetupException {
     createRecordReaderIterator();
     addSplits(subScanConfig.getSplits());
-    return new ScanOperator(subScanConfig, context, recordReaderIterator);
+    return new ScanOperator(fragmentExecContext, subScanConfig, context, recordReaderIterator);
   }
-
 
   @Override
   public RecordReaderIterator createRecordReaderIterator() {
@@ -211,39 +241,72 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
     if (pf4JStoragePlugin.isAWSGlue()) {
       String tablePath = String.join(".", referencedTables.iterator().next());
       if (!allSplitsAreOnS3(splits)) {
-        throw UserException.unsupportedError().message("AWS Glue table [%s] uses an unsupported storage system", tablePath).buildSilently();
+        throw UserException.unsupportedError()
+            .message("AWS Glue table [%s] uses an unsupported storage system", tablePath)
+            .buildSilently();
       }
 
       if (!allSplitsAreSupported(tableXattr, splits, isPartitioned)) {
-        throw UserException.unsupportedError().message("AWS Glue table [%s] uses an unsupported file format", tablePath).buildSilently();
+        throw UserException.unsupportedError()
+            .message("AWS Glue table [%s] uses an unsupported file format", tablePath)
+            .buildSilently();
       }
     }
     List<SplitAndPartitionInfo> parquetSplits = new ArrayList<>();
     List<SplitAndPartitionInfo> nonParquetSplits = new ArrayList<>();
-    classifySplitsAsParquetAndNonParquet(splits, tableXattr, isPartitioned, parquetSplits, nonParquetSplits);
+    classifySplitsAsParquetAndNonParquet(
+        splits, tableXattr, isPartitioned, parquetSplits, nonParquetSplits);
 
     if (!parquetSplits.isEmpty()) {
-      context.getStats().setLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS,
-        context.getStats().getLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS) | (1 << ScanOperator.HiveFileFormat.PARQUET.ordinal()));
+      context
+          .getStats()
+          .setLongStat(
+              ScanOperator.Metric.HIVE_FILE_FORMATS,
+              context.getStats().getLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS)
+                  | (1 << ScanOperator.HiveFileFormat.PARQUET.ordinal()));
     }
 
     // produce the buffered splits in previous batch.
     recordReaderIterator.produceFromBuffered(true);
 
-    RecordReaderIterator iteratorFromSplits = RecordReaderIterator.join(
-      Objects.requireNonNull(ScanWithDremioReader.createReaders(conf, storagePlugin, context,
-        tableXattr, compositeConfig, proxyUgi, scanFilter, fullSchema, referencedTables, parquetSplits, produceFromBufferedSplits)),
-      Objects.requireNonNull(ScanWithHiveReader.createReaders(conf, fragmentExecContext, context,
-        tableXattr, compositeConfig, proxyUgi, scanFilter, isPartitioned, referencedTables, nonParquetSplits)));
+    RecordReaderIterator iteratorFromSplits =
+        RecordReaderIterator.join(
+            Objects.requireNonNull(
+                ScanWithDremioReader.createReaders(
+                    conf,
+                    storagePlugin,
+                    context,
+                    tableXattr,
+                    compositeConfig,
+                    proxyUgi,
+                    scanFilter,
+                    fullSchema,
+                    referencedTables,
+                    parquetSplits,
+                    produceFromBufferedSplits)),
+            Objects.requireNonNull(
+                ScanWithHiveReader.createReaders(
+                    conf,
+                    fragmentExecContext,
+                    context,
+                    tableXattr,
+                    compositeConfig,
+                    proxyUgi,
+                    scanFilter,
+                    isPartitioned,
+                    referencedTables,
+                    nonParquetSplits)));
 
     List<RuntimeFilter> existingRuntimeFilters = recordReaderIterator.getRuntimeFilters();
 
     // the previous iterator might have buffered splits so need to keep that too
-    // closingjoiniterator ensures that the previous iterator is closed and up for garbage collection after its done
+    // closingjoiniterator ensures that the previous iterator is closed and up for garbage
+    // collection after its done
     recordReaderIterator = closingJoinIterator(recordReaderIterator, iteratorFromSplits);
 
     // add the existing runtimefilters to the new iterator
-    logger.debug("Adding existing {} runtime filters to the new iterator", existingRuntimeFilters.size());
+    logger.debug(
+        "Adding existing {} runtime filters to the new iterator", existingRuntimeFilters.size());
     existingRuntimeFilters.forEach(recordReaderIterator::addRuntimeFilter);
   }
 
@@ -253,7 +316,8 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
     return HiveImpersonationUtil.createProxyUgi(userName);
   }
 
-  static RecordReaderIterator closingJoinIterator(RecordReaderIterator iter1, RecordReaderIterator iter2) {
+  static RecordReaderIterator closingJoinIterator(
+      RecordReaderIterator iter1, RecordReaderIterator iter2) {
     RecordReaderIterator finalIter1 = closeIfFinished(iter1);
     return new RecordReaderIterator() {
       RecordReaderIterator it1 = finalIter1;
@@ -305,14 +369,18 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
     };
   }
 
-  private boolean allSplitsAreSupported(HiveTableXattr tableXattr, List<SplitAndPartitionInfo> splits, boolean isPartitioned) {
+  private boolean allSplitsAreSupported(
+      HiveTableXattr tableXattr, List<SplitAndPartitionInfo> splits, boolean isPartitioned) {
     for (SplitAndPartitionInfo split : splits) {
       String serialiazationLib;
       if (isPartitioned) {
-        final HiveReaderProto.PartitionXattr partitionXattr = HiveReaderProtoUtil.getPartitionXattr(split);
-        serialiazationLib = HiveReaderProtoUtil.getPartitionSerializationLib(tableXattr, partitionXattr);
+        final HiveReaderProto.PartitionXattr partitionXattr =
+            HiveReaderProtoUtil.getPartitionXattr(split);
+        serialiazationLib =
+            HiveReaderProtoUtil.getPartitionSerializationLib(tableXattr, partitionXattr);
       } else {
-        Optional<String> tableSerializationLib = HiveReaderProtoUtil.getTableSerializationLib(tableXattr);
+        Optional<String> tableSerializationLib =
+            HiveReaderProtoUtil.getTableSerializationLib(tableXattr);
 
         if (tableSerializationLib.isPresent()) {
           serialiazationLib = tableSerializationLib.get();
@@ -323,12 +391,16 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
       }
 
       try {
-        Class<? extends AbstractSerDe> aClass = (Class<? extends AbstractSerDe>) Class.forName(serialiazationLib);
-        if (!OrcSerde.class.isAssignableFrom(aClass) &&
-          !ParquetHiveSerDe.class.isAssignableFrom(aClass) &&
-          !LazySimpleSerDe.class.isAssignableFrom(aClass) &&
-          !OpenCSVSerde.class.isAssignableFrom(aClass)) {
-          logger.error("Split [{}] is not of Parquet/Orc/CSV type. SerDe of split: {}", split, serialiazationLib);
+        Class<? extends AbstractSerDe> aClass =
+            (Class<? extends AbstractSerDe>) Class.forName(serialiazationLib);
+        if (!OrcSerde.class.isAssignableFrom(aClass)
+            && !ParquetHiveSerDe.class.isAssignableFrom(aClass)
+            && !LazySimpleSerDe.class.isAssignableFrom(aClass)
+            && !OpenCSVSerde.class.isAssignableFrom(aClass)) {
+          logger.error(
+              "Split [{}] is not of Parquet/Orc/CSV type. SerDe of split: {}",
+              split,
+              serialiazationLib);
           return false;
         }
       } catch (ClassNotFoundException e) {
@@ -343,14 +415,19 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
   boolean allSplitsAreOnS3(List<SplitAndPartitionInfo> splits) {
     for (SplitAndPartitionInfo split : splits) {
       try {
-        final HiveReaderProto.HiveSplitXattr splitAttr = HiveReaderProto.HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
-        final FileSplit fullFileSplit = (FileSplit) HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
-        if (!AsyncReaderUtils.S3_FILE_SYSTEM.contains(fullFileSplit.getPath().toUri().getScheme().toLowerCase())) {
+        final HiveReaderProto.HiveSplitXattr splitAttr =
+            HiveReaderProto.HiveSplitXattr.parseFrom(
+                split.getDatasetSplitInfo().getExtendedProperty());
+        final FileSplit fullFileSplit =
+            (FileSplit) HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
+        if (!AsyncReaderUtils.S3_FILE_SYSTEM.contains(
+            fullFileSplit.getPath().toUri().getScheme().toLowerCase())) {
           logger.error("Data file {} is not on S3.", fullFileSplit.getPath());
           return false;
         }
       } catch (IOException | ReflectiveOperationException e) {
-        throw new RuntimeException("Failed to parse dataset split for " + split.getPartitionInfo().getSplitKey(), e);
+        throw new RuntimeException(
+            "Failed to parse dataset split for " + split.getPartitionInfo().getSplitKey(), e);
       }
     }
     return true;

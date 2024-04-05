@@ -17,13 +17,19 @@ package com.dremio.service.reflection.refresh;
 
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.reflection.ReflectionSettings;
+import com.dremio.service.reflection.store.DependenciesStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 
 /**
- * An package private interface that allows sharing of ReflectionService assets for the RefreshHandler.
+ * A package private interface that allows sharing of ReflectionService assets for the
+ * RefreshHandler.
  */
 public interface RefreshHelper {
   ReflectionSettings getReflectionSettings();
+
   MaterializationStore getMaterializationStore();
+
   CatalogService getCatalogService();
+
+  DependenciesStore getDependenciesStore();
 }

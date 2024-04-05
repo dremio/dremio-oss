@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -33,9 +29,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * A wrapping class that allows us to add additional information to each fragment node for planning purposes.
+ * A wrapping class that allows us to add additional information to each fragment node for planning
+ * purposes.
  */
 public class Wrapper {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Wrapper.class);
@@ -48,18 +48,21 @@ public class Wrapper {
   private boolean endpointsAssigned;
   private long initialAllocation = 0;
   private long maxMemoryAllocationPerNode = Long.MAX_VALUE;
-  private final IdentityHashMap<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets = new IdentityHashMap<>();
-  private boolean strictDependency = false; // true if the parallelization must exactly match the dependency's.
+  private final IdentityHashMap<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets =
+      new IdentityHashMap<>();
+  private boolean strictDependency =
+      false; // true if the parallelization must exactly match the dependency's.
 
-  // List of fragments this particular fragment depends on for determining its parallelization and endpoint assignments.
+  // List of fragments this particular fragment depends on for determining its parallelization and
+  // endpoint assignments.
   private final List<Wrapper> fragmentDependencies = Lists.newArrayList();
 
-  // a list of assigned endpoints. Technically, there could repeated endpoints in this list if we'd like to assign the
+  // a list of assigned endpoints. Technically, there could repeated endpoints in this list if we'd
+  // like to assign the
   // same fragment multiple times to the same endpoint.
   private final List<NodeEndpoint> endpoints = Lists.newLinkedList();
 
   private int assignedWeight = 0;
-
 
   public Wrapper(Fragment node, int majorFragmentId) {
     this.majorFragmentId = majorFragmentId;
@@ -67,7 +70,7 @@ public class Wrapper {
     this.stats = new Stats();
   }
 
-  public Map<GroupScan, ListMultimap<Integer, CompleteWork>> getSplitSets(){
+  public Map<GroupScan, ListMultimap<Integer, CompleteWork>> getSplitSets() {
     return splitSets;
   }
 
@@ -110,7 +113,8 @@ public class Wrapper {
 
   public void addAllocation(PhysicalOperator pop) {
     initialAllocation += pop.getProps().getMemReserve();
-//    logger.debug("Incrementing initialAllocation by {} to {}. Pop: {}", pop.getInitialAllocation(), initialAllocation, pop);
+    //    logger.debug("Incrementing initialAllocation by {} to {}. Pop: {}",
+    // pop.getInitialAllocation(), initialAllocation, pop);
   }
 
   @VisibleForTesting
@@ -119,23 +123,24 @@ public class Wrapper {
     this.endpoints.addAll(endpoints);
   }
 
-  public void assignEndpoints(ParallelizationParameters parameters, List<NodeEndpoint> assignedEndpoints) throws
-      PhysicalOperatorSetupException {
+  public void assignEndpoints(
+      ParallelizationParameters parameters, List<NodeEndpoint> assignedEndpoints)
+      throws PhysicalOperatorSetupException {
     Preconditions.checkState(!endpointsAssigned);
     endpointsAssigned = true;
 
     endpoints.addAll(assignedEndpoints);
 
     final Map<GroupScan, List<CompleteWork>> splitMap = stats.getSplitMap();
-    for(GroupScan scan : splitMap.keySet()){
+    for (GroupScan scan : splitMap.keySet()) {
       final ListMultimap<Integer, CompleteWork> assignments;
       if (stats.getDistributionAffinity() == DistributionAffinity.HARD) {
         assignments = HardAssignmentCreator.INSTANCE.getMappings(endpoints, splitMap.get(scan));
       } else {
         if (parameters.useNewAssignmentCreator()) {
-          assignments = AssignmentCreator2.getMappings(endpoints, splitMap.get(scan),
-              parameters.getAssignmentCreatorBalanceFactor()
-          );
+          assignments =
+              AssignmentCreator2.getMappings(
+                  endpoints, splitMap.get(scan), parameters.getAssignmentCreatorBalanceFactor());
         } else {
           assignments = AssignmentCreator.getMappings(endpoints, splitMap.get(scan));
         }
@@ -156,7 +161,13 @@ public class Wrapper {
 
   @Override
   public String toString() {
-    return "FragmentWrapper [majorFragmentId=" + majorFragmentId + ", width=" + width + ", stats=" + stats + "]";
+    return "FragmentWrapper [majorFragmentId="
+        + majorFragmentId
+        + ", width="
+        + width
+        + ", stats="
+        + stats
+        + "]";
   }
 
   public List<NodeEndpoint> getAssignedEndpoints() {
@@ -196,21 +207,21 @@ public class Wrapper {
 
   /**
    * Is the stats computation done for this fragment?
+   *
    * @return
    */
   public boolean isStatsComputationDone() {
     return statsComputed;
   }
 
-  /**
-   * Mark the end of stats computation
-   */
+  /** Mark the end of stats computation */
   public void statsComputationDone() {
     statsComputed = true;
   }
 
   /**
    * Is the endpoints assignment done for this fragment?
+   *
    * @return
    */
   public boolean isEndpointsAssignmentDone() {
@@ -219,6 +230,7 @@ public class Wrapper {
 
   /**
    * Get the list of fragements this particular fragment depends for determining its
+   *
    * @return
    */
   public List<Wrapper> getFragmentDependencies() {

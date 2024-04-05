@@ -15,13 +15,7 @@
  */
 package org.apache.arrow.vector.complex;
 
-
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -29,6 +23,10 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> {
   private ListVector listVector;
@@ -56,11 +54,14 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> 
     /* load inner data vector */
     final SerializedField vectorMetadata = metadata.getChild(2);
     if (listVector.getDataVector() == BaseRepeatedValueVector.DEFAULT_DATA_VECTOR) {
-      listVector.addOrGetVector(FieldType.nullable(getArrowMinorType(vectorMetadata.getMajorType().getMinorType()).getType()));
+      listVector.addOrGetVector(
+          FieldType.nullable(
+              getArrowMinorType(vectorMetadata.getMajorType().getMinorType()).getType()));
     }
 
     final int vectorLength = vectorMetadata.getBufferLength();
-    TypeHelper.load(listVector.vector, vectorMetadata, buffer.slice(offsetLength + bitLength, vectorLength));
+    TypeHelper.load(
+        listVector.vector, vectorMetadata, buffer.slice(offsetLength + bitLength, vectorLength));
     listVector.setLastSet(metadata.getValueCount() - 1);
     listVector.valueCount = metadata.getValueCount();
   }
@@ -74,9 +75,10 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> 
     final int valueCount = metadata.getValueCount();
     final int actualLength = metadata.getBufferLength();
     final int expectedLength = getValidityBufferSizeFromCount(valueCount);
-    assert expectedLength == actualLength:
-      String.format("Expected to load %d bytes in validity buffer but actually loaded %d bytes", expectedLength,
-        actualLength);
+    assert expectedLength == actualLength
+        : String.format(
+            "Expected to load %d bytes in validity buffer but actually loaded %d bytes",
+            expectedLength, actualLength);
 
     listVector.validityBuffer = buffer.slice(0, actualLength);
     listVector.validityBuffer.writerIndex(actualLength);
@@ -96,24 +98,25 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> 
   @Override
   public SerializedField.Builder getMetadataBuilder() {
     return SerializedField.newBuilder()
-            .setMajorType(MajorType.newBuilder().setMinorType(MinorType.LIST).setMode(DataMode.OPTIONAL).build())
-            .setNamePart(NamePart.newBuilder().setName(listVector.getField().getName()))
-            .setValueCount(listVector.getValueCount())
-            .setBufferLength(listVector.getBufferSize())
-            .addChild(buildOffsetMetadata())
-            .addChild(buildValidityMetadata())
-            .addChild(TypeHelper.getMetadata(listVector.vector));
+        .setMajorType(
+            MajorType.newBuilder().setMinorType(MinorType.LIST).setMode(DataMode.OPTIONAL).build())
+        .setNamePart(NamePart.newBuilder().setName(listVector.getField().getName()))
+        .setValueCount(listVector.getValueCount())
+        .setBufferLength(listVector.getBufferSize())
+        .addChild(buildOffsetMetadata())
+        .addChild(buildValidityMetadata())
+        .addChild(TypeHelper.getMetadata(listVector.vector));
   }
 
   @Override
   protected SerializedField buildValidityMetadata() {
-    SerializedField.Builder validityBuilder = SerializedField.newBuilder()
-      .setNamePart(NamePart.newBuilder().setName("$bits$").build())
-      .setValueCount(listVector.valueCount)
-      .setBufferLength(getValidityBufferSizeFromCount(listVector.valueCount))
-      .setMajorType(com.dremio.common.types.Types.required(MinorType.BIT));
+    SerializedField.Builder validityBuilder =
+        SerializedField.newBuilder()
+            .setNamePart(NamePart.newBuilder().setName("$bits$").build())
+            .setValueCount(listVector.valueCount)
+            .setBufferLength(getValidityBufferSizeFromCount(listVector.valueCount))
+            .setMajorType(com.dremio.common.types.Types.required(MinorType.BIT));
 
     return validityBuilder.build();
   }
-
 }

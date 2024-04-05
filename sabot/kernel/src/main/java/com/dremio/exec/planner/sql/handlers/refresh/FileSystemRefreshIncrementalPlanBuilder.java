@@ -18,11 +18,6 @@ package com.dremio.exec.planner.sql.handlers.refresh;
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 import static com.dremio.io.file.Path.SEPARATOR;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -46,52 +41,68 @@ import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * Builds plan for filesystems in case of incremental and partial refresh.
- */
-public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefreshPlanBuilder implements SupportPartialRefresh {
+/** Builds plan for filesystems in case of incremental and partial refresh. */
+public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefreshPlanBuilder
+    implements SupportPartialRefresh {
 
   private final boolean isPartialRefresh;
   private PartitionChunk inputPartitionChunk;
 
-  public FileSystemRefreshIncrementalPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlNode, UnlimitedSplitsMetadataProvider metadataProvider) {
+  public FileSystemRefreshIncrementalPlanBuilder(
+      SqlHandlerConfig config,
+      SqlRefreshDataset sqlNode,
+      UnlimitedSplitsMetadataProvider metadataProvider) {
     super(config, sqlNode, metadataProvider);
-    logger.debug("Doing a filesystem incremental refresh on dataset. Dataset's full path is {}", datasetPath);
+    logger.debug(
+        "Doing a filesystem incremental refresh on dataset. Dataset's full path is {}",
+        datasetPath);
     isPartialRefresh = sqlNode.isPartialRefresh();
-    icebergCommandType = isPartialRefresh ? IcebergCommandType.PARTIAL_METADATA_REFRESH : IcebergCommandType.INCREMENTAL_METADATA_REFRESH;
+    icebergCommandType =
+        isPartialRefresh
+            ? IcebergCommandType.PARTIAL_METADATA_REFRESH
+            : IcebergCommandType.INCREMENTAL_METADATA_REFRESH;
   }
 
   @Override
   protected DatasetConfig setupDatasetConfig() {
     datasetFileType = FileType.PARQUET;
-    //TODO: currently in the final table we write iceberg as the format of the dataset but we expect
+    // TODO: currently in the final table we write iceberg as the format of the dataset but we
+    // expect
     // all operators to have a parquet as the file type. So forcefully setting file type as parquet.
-    DatasetConfig datasetConfig =  metadataProvider.getDatasetConfig();
+    DatasetConfig datasetConfig = metadataProvider.getDatasetConfig();
     datasetConfig.getPhysicalDataset().getFormatSettings().setType(FileType.PARQUET);
     checkAndUpdateIsFileDataset();
     return datasetConfig;
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions datasetRetrievalOptions) throws ConnectorException {
+  public PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions datasetRetrievalOptions)
+      throws ConnectorException {
     DirListInputSplitProto.DirListInputSplit dirListInputSplit;
 
     if (isPartialRefresh) {
       List<String> operatingPath = generatePathsForPartialRefresh();
-      dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
-        .setRootPath(datasetPath.toString())
-        .setOperatingPath(operatingPath.get(0))
-        .setReadSignature(Long.MAX_VALUE).setIsFile(super.isFileDataset)
-        .build();
+      dirListInputSplit =
+          DirListInputSplitProto.DirListInputSplit.newBuilder()
+              .setRootPath(datasetPath.toString())
+              .setOperatingPath(operatingPath.get(0))
+              .setReadSignature(Long.MAX_VALUE)
+              .setIsFile(super.isFileDataset)
+              .build();
     } else {
-      dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
-        .setRootPath(datasetPath.toString())
-        .setOperatingPath(datasetPath.toString())
-        .setReadSignature(Long.MAX_VALUE).setIsFile(super.isFileDataset)
-        .build();
+      dirListInputSplit =
+          DirListInputSplitProto.DirListInputSplit.newBuilder()
+              .setRootPath(datasetPath.toString())
+              .setOperatingPath(datasetPath.toString())
+              .setReadSignature(Long.MAX_VALUE)
+              .setIsFile(super.isFileDataset)
+              .build();
     }
     DatasetSplit split = DatasetSplit.of(Collections.emptyList(), 1, 1, dirListInputSplit::writeTo);
     PartitionChunkListingImpl partitionChunkListing = new PartitionChunkListingImpl();
@@ -102,14 +113,26 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
 
   @Override
   public Prel getDataFileListingPrel() {
-    final FileSystemPlugin<?> metaStoragePlugin = config.getContext().getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
-    List<String> paths = isPartialRefresh ? generatePathsForPartialRefresh() : Collections.emptyList();
+    final FileSystemPlugin<?> metaStoragePlugin =
+        config.getContext().getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+    List<String> paths =
+        isPartialRefresh ? generatePathsForPartialRefresh() : Collections.emptyList();
 
-    return new DirListingInvocationPrel(cluster, cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL), table,
-                                        storagePluginId, refreshExecTableMetadata, 1.0d, ImmutableList.of(),
-                                        metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh,
-                                        metadataProvider, paths, x -> getRowCountEstimates("DirList"),
-                                        ImmutableList.of());
+    return new DirListingInvocationPrel(
+        cluster,
+        cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL),
+        table,
+        storagePluginId,
+        refreshExecTableMetadata,
+        1.0d,
+        ImmutableList.of(),
+        metaStoragePlugin,
+        metadataProvider.getTableUUId(),
+        isPartialRefresh,
+        metadataProvider,
+        paths,
+        x -> getRowCountEstimates("DirList"),
+        ImmutableList.of());
   }
 
   @Override
@@ -119,7 +142,9 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
 
   @Override
   protected void checkAndUpdateIsFileDataset() {
-    isFileDataset = DatasetType.PHYSICAL_DATASET_SOURCE_FILE.equals(metadataProvider.getDatasetConfig().getType());
+    isFileDataset =
+        DatasetType.PHYSICAL_DATASET_SOURCE_FILE.equals(
+            metadataProvider.getDatasetConfig().getType());
   }
 
   @Override
@@ -127,36 +152,50 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
     RefreshDatasetValidator validator = new FileSystemPartitionValidator(metadataProvider);
     validator.validate(sqlNode);
 
-    //Validated input partition chunks
-    inputPartitionChunk = PartitionChunk.of(
-      validator.getPartitionValues(),
-      /* TODO */ ImmutableList.of(), BytesOutput.NONE);
+    // Validated input partition chunks
+    inputPartitionChunk =
+        PartitionChunk.of(
+            validator.getPartitionValues(), /* TODO */ ImmutableList.of(), BytesOutput.NONE);
 
     List<PartitionValue> partitionValues = inputPartitionChunk.getPartitionValues();
 
     List<String> partitionPaths = new ArrayList<>();
     partitionPaths.addAll(Arrays.asList(datasetPath.toString().split(SEPARATOR)));
 
-    partitionValues.stream().forEach(x -> {
-      String partition_path = ((PartitionValue.StringPartitionValue) x).getValue();
-      partitionPaths.add(partition_path);
-    });
+    partitionValues.stream()
+        .forEach(
+            x -> {
+              String partition_path = ((PartitionValue.StringPartitionValue) x).getValue();
+              partitionPaths.add(partition_path);
+            });
 
-    return Collections.singletonList(FileSelection.getPathBasedOnFullPath(partitionPaths).toString());
+    return Collections.singletonList(
+        FileSelection.getPathBasedOnFullPath(partitionPaths).toString());
   }
 
   @Override
   public double getRowCountEstimates(String type) {
     Preconditions.checkState(datasetConfig != null, "Unexpected state");
     Preconditions.checkState(datasetConfig.getReadDefinition() != null, "Unexpected state");
-    Preconditions.checkState(datasetConfig.getReadDefinition().getManifestScanStats() != null, "Unexpected state");
+    Preconditions.checkState(
+        datasetConfig.getReadDefinition().getManifestScanStats() != null, "Unexpected state");
     double baseRowCount = datasetConfig.getReadDefinition().getManifestScanStats().getRecordCount();
-    double increaseFactor = config.getContext().getOptions().getOption(PlannerSettings.METADATA_REFRESH_INCREASE_FACTOR);
+    double increaseFactor =
+        config
+            .getContext()
+            .getOptions()
+            .getOption(PlannerSettings.METADATA_REFRESH_INCREASE_FACTOR);
 
-    //Factor by which to overestimate footerRead row count. In practice have seen that footer read is
-    //32 times slower than dirList. Kept the factor as 50 for safety now.
-    double threadFactor = config.getContext().getOptions().getOption(PlannerSettings.FOOTER_READING_DIRLIST_RATIO);
-    double minFilesChanged = config.getContext().getOptions().getOption(PlannerSettings.MIN_FILES_CHANGED_DURING_REFRESH);
+    // Factor by which to overestimate footerRead row count. In practice have seen that footer read
+    // is
+    // 32 times slower than dirList. Kept the factor as 50 for safety now.
+    double threadFactor =
+        config.getContext().getOptions().getOption(PlannerSettings.FOOTER_READING_DIRLIST_RATIO);
+    double minFilesChanged =
+        config
+            .getContext()
+            .getOptions()
+            .getOption(PlannerSettings.MIN_FILES_CHANGED_DURING_REFRESH);
 
     double addedFilesAfterLastRefresh = Math.max(baseRowCount * increaseFactor, minFilesChanged);
 
@@ -168,7 +207,7 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
         baseRowCount = baseRowCount + addedFilesAfterLastRefresh;
         break;
       case "FooterReadTableFunction":
-        //Number of threads should be thread factor times that of dirList
+        // Number of threads should be thread factor times that of dirList
         baseRowCount = 1 * threadFactor * sliceTarget;
         break;
     }

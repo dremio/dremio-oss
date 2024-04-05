@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collections;
-
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -25,6 +23,7 @@ import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
+import java.util.Collections;
 
 /**
  * UnorderedDeMuxExchange is a version of DeMuxExchange where the incoming batches are not sorted.
@@ -34,13 +33,13 @@ public class UnorderedDeMuxExchange extends AbstractDeMuxExchange {
   private final OptionManager optionManager;
 
   public UnorderedDeMuxExchange(
-    OpProps props,
-    OpProps senderProps,
-    OpProps receiverProps,
-    BatchSchema schema,
-    PhysicalOperator child,
-    LogicalExpression expr,
-    OptionManager optionManager) {
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child,
+      LogicalExpression expr,
+      OptionManager optionManager) {
     super(props, senderProps, receiverProps, schema, child, expr, optionManager);
     this.optionManager = optionManager;
   }
@@ -51,14 +50,17 @@ public class UnorderedDeMuxExchange extends AbstractDeMuxExchange {
 
     MinorFragmentIndexEndpoint sender = receiverToSenderMapping.get(minorFragmentId);
     if (sender == null) {
-      throw new IllegalStateException(String.format("Failed to find sender for receiver [%d]", minorFragmentId));
+      throw new IllegalStateException(
+          String.format("Failed to find sender for receiver [%d]", minorFragmentId));
     }
 
-    return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, Collections.singletonList(sender), false);
+    return new UnorderedReceiver(
+        receiverProps, schema, senderMajorFragmentId, Collections.singletonList(sender), false);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new UnorderedDeMuxExchange(props, senderProps, receiverProps, schema, child, expr, optionManager);
+    return new UnorderedDeMuxExchange(
+        props, senderProps, receiverProps, schema, child, expr, optionManager);
   }
 }

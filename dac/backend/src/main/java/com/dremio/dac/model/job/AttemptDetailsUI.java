@@ -22,9 +22,7 @@ import com.dremio.service.jobs.AttemptsHelper;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Attempt details that will be sent to the UI.
- */
+/** Attempt details that will be sent to the UI. */
 public class AttemptDetailsUI {
   private final String reason;
   private final JobState result;
@@ -56,7 +54,7 @@ public class AttemptDetailsUI {
       @JsonProperty("executionPlanningTime") Long executionPlanningTime,
       @JsonProperty("startingTime") Long startingTime,
       @JsonProperty("runningTime") Long runningTime,
-      @JsonProperty("totalTime") Long totalTime){
+      @JsonProperty("totalTime") Long totalTime) {
     this.reason = reason;
     this.result = result;
     this.profileUrl = profileUrl;

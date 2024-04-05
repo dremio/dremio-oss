@@ -15,12 +15,10 @@
  */
 package com.dremio.exec;
 
+import com.dremio.exec.record.HyperVectorWrapper;
 import java.util.Iterator;
-
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.exec.record.HyperVectorWrapper;
 
 public class HyperVectorValueIterator implements Iterator<Object> {
   private Field mf;
@@ -71,7 +69,7 @@ public class HyperVectorValueIterator implements Iterator<Object> {
     }
     if (indexInVectorList < hyperVector.getValueVectors().length) {
       return true;
-    } else if ( indexInCurrentVector < currVec.getValueCount()) {
+    } else if (indexInCurrentVector < currVec.getValueCount()) {
       return true;
     }
     return false;

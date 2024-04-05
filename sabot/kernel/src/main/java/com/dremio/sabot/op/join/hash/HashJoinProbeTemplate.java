@@ -17,19 +17,15 @@ package com.dremio.sabot.op.join.hash;
 
 import static com.dremio.sabot.op.common.hashtable.HashTable.BUILD_RECORD_LINK_SIZE;
 
-import java.util.BitSet;
-import java.util.List;
-
-import javax.inject.Named;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.calcite.rel.core.JoinRelType;
-
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.common.hashtable.HashTable;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.BitSet;
+import java.util.List;
+import javax.inject.Named;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.calcite.rel.core.JoinRelType;
 
 public abstract class HashJoinProbeTemplate implements HashJoinProbe {
 
@@ -66,7 +62,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
 
   private ArrowBuf[] links;
   private ArrowBuf[] starts;
-  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
+  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe
+  // side
   private BitSet[] keyMatches;
   // The index of last key in last StartIndices batch in hash table
   private int maxOffsetForLastBatch;
@@ -87,7 +84,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
 
     links = new ArrowBuf[buildInfos.size()];
 
-    for (int i =0; i < links.length; i++) {
+    for (int i = 0; i < links.length; i++) {
       links[i] = buildInfos.get(i).getLinks();
     }
 
@@ -95,7 +92,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
     this.keyMatches = new BitSet[keyMatchBitVectors.size()];
 
     if (startIndices.size() > 0) {
-      this.maxOffsetForLastBatch = maxHashTableIndex - (startIndices.size() - 1) * HashTable.BATCH_SIZE;
+      this.maxOffsetForLastBatch =
+          maxHashTableIndex - (startIndices.size() - 1) * HashTable.BATCH_SIZE;
     } else {
       this.maxOffsetForLastBatch = -1;
     }
@@ -106,7 +104,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
 
     this.probeBatch = probeBatch;
     this.projectUnmatchedProbe = joinRelType == JoinRelType.LEFT || joinRelType == JoinRelType.FULL;
-    this.projectUnmatchedBuild = joinRelType == JoinRelType.RIGHT || joinRelType == JoinRelType.FULL;
+    this.projectUnmatchedBuild =
+        joinRelType == JoinRelType.RIGHT || joinRelType == JoinRelType.FULL;
     this.hashTable = hashTable;
     this.targetRecordsPerBatch = targetRecordsPerBatch;
 
@@ -114,8 +113,11 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
   }
 
   /**
-   * Project any remaining build items that were not matched. Only used when doing a FULL or RIGHT join.
-   * @return Negative output if records were output but batch wasn't completed. Positive output if batch was completed.
+   * Project any remaining build items that were not matched. Only used when doing a FULL or RIGHT
+   * join.
+   *
+   * @return Negative output if records were output but batch wasn't completed. Positive output if
+   *     batch was completed.
    */
   @Override
   public int projectBuildNonMatches() {
@@ -129,10 +131,11 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
     int currentLinkBatch = remainderLinkBatch;
     int currentLinkOffset = remainderLinkOffset;
 
-    BitSet currentBitset = remainderOrdinalBatchIndex < 0 ? null : keyMatches[remainderOrdinalBatchIndex];
+    BitSet currentBitset =
+        remainderOrdinalBatchIndex < 0 ? null : keyMatches[remainderOrdinalBatchIndex];
 
     // determine the next set of unmatched bits.
-    while(outputRecords < targetRecordsPerBatch) {
+    while (outputRecords < targetRecordsPerBatch) {
       if (currentClearOrdinalOffset == -1) {
         // we need to move to the next bit set since the current one has no more matches.
         remainderOrdinalBatchIndex++;
@@ -149,7 +152,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
           currentLinkOffset = -1;
           break;
         }
-      } else if ((remainderOrdinalBatchIndex == (keyMatches.length - 1)) && (currentClearOrdinalOffset > maxOffsetForLastBatch)) {
+      } else if ((remainderOrdinalBatchIndex == (keyMatches.length - 1))
+          && (currentClearOrdinalOffset > maxOffsetForLastBatch)) {
         /* Current StartIndices is last batch and nextClearOrdinalOffset is greater than maxOffsetForLastBatch,
          * so no bitsets left.
          */
@@ -166,19 +170,25 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
           currentClearOrdinalOffset = -1;
         } else {
           if (currentLinkBatch == -1) {
-            // Go through all the data records in BuildInfo from beginning of StartIndices to collect the non matched data records
+            // Go through all the data records in BuildInfo from beginning of StartIndices to
+            // collect the non matched data records
             ArrowBuf startIndex;
             startIndex = starts[remainderOrdinalBatchIndex];
-            long linkMemAddr = startIndex.memoryAddress() + currentClearOrdinalOffset * HashTable.BUILD_RECORD_LINK_SIZE;
+            long linkMemAddr =
+                startIndex.memoryAddress()
+                    + currentClearOrdinalOffset * HashTable.BUILD_RECORD_LINK_SIZE;
             currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
             currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + 4));
           }
           while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
-            int composite = (currentLinkBatch << SHIFT_SIZE) | (currentLinkOffset & HashTable.BATCH_MASK);
+            int composite =
+                (currentLinkBatch << SHIFT_SIZE) | (currentLinkOffset & HashTable.BATCH_MASK);
             projectBuildRecord(composite, outputRecords);
             outputRecords++;
 
-            long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
+            long linkMemAddr =
+                links[currentLinkBatch].memoryAddress()
+                    + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
             currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
             currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + 4));
           }
@@ -186,7 +196,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
             // More records for current key should be processed.
             break;
           }
-          currentClearOrdinalOffset ++;
+          currentClearOrdinalOffset++;
         }
       }
     }
@@ -203,12 +213,10 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
   }
 
   /**
-   * Probe with current batch. If we've run out of space, return a negative
-   * record count. If we processed the entire incoming batch, return a positive
-   * record count or zero.
+   * Probe with current batch. If we've run out of space, return a negative record count. If we
+   * processed the entire incoming batch, return a positive record count or zero.
    *
-   * @return Negative if partial batch complete. Otherwise, all of probe batch
-   *         is complete.
+   * @return Negative if partial batch complete. Otherwise, all of probe batch is complete.
    */
   @Override
   public int probeBatch() {
@@ -221,7 +229,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
 
     final HashTable hashTable = this.hashTable;
 
-    // we have two incoming options: we're starting on a new batch or we're picking up an existing batch.
+    // we have two incoming options: we're starting on a new batch or we're picking up an existing
+    // batch.
     final int probeMax = probeBatch.getRecordCount();
     int outputRecords = 0;
     int currentProbeIndex = this.nextProbeIndex;
@@ -240,8 +249,9 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
           /* The current probe record has a key that matches. Get the index
            * of the first row in the build side that matches the current key
            */
-          final long memStart = starts[indexInBuild >> SHIFT_SIZE].memoryAddress() +
-            ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
+          final long memStart =
+              starts[indexInBuild >> SHIFT_SIZE].memoryAddress()
+                  + ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
           currentLinkBatch = PlatformDependent.getInt(memStart);
           currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(memStart + 4));
@@ -259,7 +269,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
           projectProbeRecord(currentProbeIndex, outputRecords);
           outputRecords++;
 
-          long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
+          long linkMemAddr =
+              links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
           currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
           currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + 4));
         }
@@ -271,8 +282,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
       }
     }
 
-    if(outputRecords == targetRecordsPerBatch){ // batch was full
-      if(currentProbeIndex < probeMax){
+    if (outputRecords == targetRecordsPerBatch) { // batch was full
+      if (currentProbeIndex < probeMax) {
         // we have remaining records to process, need to save our position for when we return.
         this.nextProbeIndex = currentProbeIndex;
         this.remainderBuildLinkBatch = currentLinkBatch;
@@ -281,7 +292,8 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
       }
     }
 
-    // we need to clear the last saved position and tell the driver that we completed consuming the current batch.
+    // we need to clear the last saved position and tell the driver that we completed consuming the
+    // current batch.
     this.nextProbeIndex = 0;
     this.remainderBuildLinkBatch = -1;
     this.remainderBuildLinkOffset = -1;
@@ -294,8 +306,9 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
       @Named("probeBatch") VectorAccessible probeBatch,
       @Named("outgoing") VectorAccessible outgoing);
 
-  public abstract void projectBuildRecord(@Named("buildIndex") long buildIndex, @Named("outIndex") int outIndex);
+  public abstract void projectBuildRecord(
+      @Named("buildIndex") long buildIndex, @Named("outIndex") int outIndex);
 
-  public abstract void projectProbeRecord(@Named("probeIndex") int probeIndex, @Named("outIndex") int outIndex);
-
+  public abstract void projectProbeRecord(
+      @Named("probeIndex") int probeIndex, @Named("outIndex") int outIndex);
 }

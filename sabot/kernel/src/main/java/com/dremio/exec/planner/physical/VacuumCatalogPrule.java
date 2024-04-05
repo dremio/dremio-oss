@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.plan.RelOptRuleCall;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VacuumOptions;
 import com.dremio.exec.planner.VacuumCatalogRemoveOrphansPlanGenerator;
@@ -24,10 +22,9 @@ import com.dremio.exec.planner.VacuumPlanGenerator;
 import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.VacuumCatalogDrel;
+import org.apache.calcite.plan.RelOptRuleCall;
 
-/**
- * Generate physical plan for VACUUM CATALOG with file systems.
- */
+/** Generate physical plan for VACUUM CATALOG with file systems. */
 public class VacuumCatalogPrule extends Prule {
 
   public VacuumCatalogPrule() {
@@ -47,15 +44,15 @@ public class VacuumCatalogPrule extends Prule {
     // Setup high values until we have a better way to estimate the cost for Catalog tables.
     IcebergCostEstimates costEstimates = vacuumCatalogDRel.getCostEstimates();
     VacuumPlanGenerator planGenerator;
-    planGenerator = new VacuumCatalogRemoveOrphansPlanGenerator(
-        vacuumCatalogDRel.getCluster(),
-        vacuumCatalogDRel.getTraitSet().plus(Prel.PHYSICAL),
-        vacuumOptions,
-        storagePluginId,
-        costEstimates,
-        vacuumCatalogDRel.getUser());
+    planGenerator =
+        new VacuumCatalogRemoveOrphansPlanGenerator(
+            vacuumCatalogDRel.getCluster(),
+            vacuumCatalogDRel.getTraitSet().plus(Prel.PHYSICAL),
+            vacuumOptions,
+            storagePluginId,
+            costEstimates,
+            vacuumCatalogDRel.getUser());
 
     return planGenerator.buildPlan();
   }
-
 }

@@ -19,7 +19,6 @@ import static com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils.STRUCTURE
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Project;
@@ -35,7 +34,9 @@ public class PushProjectForFlattenPastProjectRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new PushProjectForFlattenPastProjectRule();
 
   private PushProjectForFlattenPastProjectRule() {
-    super(RelOptHelper.some(ProjectForFlattenRel.class, RelOptHelper.any(ProjectRel.class)), "PushProjectForFlattenPastProjectRule");
+    super(
+        RelOptHelper.some(ProjectForFlattenRel.class, RelOptHelper.any(ProjectRel.class)),
+        "PushProjectForFlattenPastProjectRule");
   }
 
   @Override
@@ -43,10 +44,17 @@ public class PushProjectForFlattenPastProjectRule extends RelOptRule {
     ProjectForFlattenRel projectForFlattenRel = call.rel(0);
     ProjectRel project = call.rel(1);
 
-    List<RexNode> newItemsExprs = pushPastProject(projectForFlattenRel.getStructuredColumnExprs(), project);
+    List<RexNode> newItemsExprs =
+        pushPastProject(projectForFlattenRel.getStructuredColumnExprs(), project);
     List<RexNode> newProjExprs = pushPastProject(projectForFlattenRel.getProjExprs(), project);
-    ProjectForFlattenRel newProjectForFlattenRel = new ProjectForFlattenRel(
-      projectForFlattenRel.getCluster(), projectForFlattenRel.getTraitSet(), project.getInput(), projectForFlattenRel.getRowType(), newProjExprs, newItemsExprs);
+    ProjectForFlattenRel newProjectForFlattenRel =
+        new ProjectForFlattenRel(
+            projectForFlattenRel.getCluster(),
+            projectForFlattenRel.getTraitSet(),
+            project.getInput(),
+            projectForFlattenRel.getRowType(),
+            newProjExprs,
+            newItemsExprs);
     call.transformTo(newProjectForFlattenRel);
   }
 
@@ -56,9 +64,7 @@ public class PushProjectForFlattenPastProjectRule extends RelOptRule {
     return list;
   }
 
-  /**
-   * Shuttle that converts to equivalent expressions on the Project's input fields
-   */
+  /** Shuttle that converts to equivalent expressions on the Project's input fields */
   private static RexShuttle pushShuttle(final Project project) {
     return new RexShuttle() {
       @Override
@@ -72,14 +78,21 @@ public class PushProjectForFlattenPastProjectRule extends RelOptRule {
         RexNode after = before.accept(this);
         if (before != after) {
           if (after instanceof RexCall) {
-            if (((RexCall) after).getOperator().getName().equalsIgnoreCase(STRUCTURED_WRAPPER.getName())) {
+            if (((RexCall) after)
+                .getOperator()
+                .getName()
+                .equalsIgnoreCase(STRUCTURED_WRAPPER.getName())) {
               after = ((RexCall) after).getOperands().get(0);
             }
           }
           if (after instanceof RexInputRef) {
             RexBuilder rexBuilder = project.getCluster().getRexBuilder();
-            RelDataType type = after.getType().getComponentType() == null ? after.getType() : after.getType().getComponentType();
-            RexInputRef newInputRef = rexBuilder.makeInputRef(type, ((RexInputRef) after).getIndex());
+            RelDataType type =
+                after.getType().getComponentType() == null
+                    ? after.getType()
+                    : after.getType().getComponentType();
+            RexInputRef newInputRef =
+                rexBuilder.makeInputRef(type, ((RexInputRef) after).getIndex());
             return rexBuilder.makeFieldAccess(newInputRef, fieldAccess.getField().getName(), true);
           }
           return after;

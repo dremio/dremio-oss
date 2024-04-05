@@ -17,9 +17,7 @@ package com.dremio.configfeature;
 
 import com.dremio.service.Service;
 
-/**
- * A config feature flag provider
- */
+/** A config feature flag provider */
 public interface ConfigFeatureProvider extends Service {
   boolean isFeatureEnabled(String featureName);
 }

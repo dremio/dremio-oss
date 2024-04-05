@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.FunctionCallFactory;
@@ -37,19 +26,28 @@ import com.dremio.exec.store.parquet.CopyingFilteringReader;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /**
- * Similar to CoercionReader, additionally applies filter after coercion if the filter was modified by inner reader
- * for pushdown
- * TODO(DX-26038): duplicate logic with HiveParquetCoercionReader; make HiveParquetCoercionReaader extend FilteringCoercionReader
- * and remove the duplicate logic
+ * Similar to CoercionReader, additionally applies filter after coercion if the filter was modified
+ * by inner reader for pushdown TODO(DX-26038): duplicate logic with HiveParquetCoercionReader; make
+ * HiveParquetCoercionReaader extend FilteringCoercionReader and remove the duplicate logic
  */
 public class FilteringCoercionReader extends CoercionReader {
   private static final boolean DEBUG_PRINT = false;
 
   protected int recordCount;
   private NextMethodState nextMethodState;
-  private VectorContainer projectorOutput; // can be this.outgoing or this.filteringReaderInputMutator.container
+  private VectorContainer
+      projectorOutput; // can be this.outgoing or this.filteringReaderInputMutator.container
   private boolean setupCalledByFilteringReader; // setUp() state
   private boolean closeCalledByFilteringReader; // close() state
 
@@ -59,8 +57,12 @@ public class FilteringCoercionReader extends CoercionReader {
   private boolean initialProjectorSetUpDone;
   private OutputMutator filteringReaderInputMutator;
 
-  public FilteringCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
-                                   BatchSchema targetSchema, List<ParquetFilterCondition> parqfilterConditions) {
+  public FilteringCoercionReader(
+      OperatorContext context,
+      List<SchemaPath> columns,
+      RecordReader inner,
+      BatchSchema targetSchema,
+      List<ParquetFilterCondition> parqfilterConditions) {
     super(context, columns, inner, targetSchema);
     filterConditions = Optional.ofNullable(parqfilterConditions).orElse(Collections.emptyList());
     initialProjectorSetUpDone = false;
@@ -68,8 +70,9 @@ public class FilteringCoercionReader extends CoercionReader {
   }
 
   /**
-   * call will result in another call by this.filteringReader, the second call provides the filtering reader's input
-   * container (to which projector has to write when filtering is to be done)
+   * call will result in another call by this.filteringReader, the second call provides the
+   * filtering reader's input container (to which projector has to write when filtering is to be
+   * done)
    *
    * @param output
    * @throws ExecutionSetupException
@@ -98,17 +101,22 @@ public class FilteringCoercionReader extends CoercionReader {
       if (!filterConditions.isEmpty()) {
 
         // filter expressions on columns with schema mismatch
-        final List<LogicalExpression> logicalExpressions = filterConditions.stream()
-          .filter(fc -> fc.getFilter().exact() && fc.isModifiedForPushdown())
-          .map(ParquetFilterCondition::getExpr)
-          .filter(Objects::nonNull)
-          .collect(Collectors.toList());
+        final List<LogicalExpression> logicalExpressions =
+            filterConditions.stream()
+                .filter(fc -> fc.getFilter().exact() && fc.isModifiedForPushdown())
+                .map(ParquetFilterCondition::getExpr)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
 
         if (!logicalExpressions.isEmpty()) {
           this.needsFilteringAfterCoercion = true;
-          this.filteringReader = new CopyingFilteringReader(this, context,
-            logicalExpressions.size() == 1 ? logicalExpressions.get(0) :
-              FunctionCallFactory.createBooleanOperator("and", logicalExpressions));
+          this.filteringReader =
+              new CopyingFilteringReader(
+                  this,
+                  context,
+                  logicalExpressions.size() == 1
+                      ? logicalExpressions.get(0)
+                      : FunctionCallFactory.createBooleanOperator("and", logicalExpressions));
           setupCalledByFilteringReader = true;
           this.filteringReader.setup(output);
           setupCalledByFilteringReader = false;
@@ -121,7 +129,8 @@ public class FilteringCoercionReader extends CoercionReader {
   public int next() {
     switch (nextMethodState) {
       case FIRST_CALL_BY_FILTERING_READER:
-        // called by this.filteringReader. we just need to return number of records written by projector
+        // called by this.filteringReader. we just need to return number of records written by
+        // projector
         nextMethodState = NextMethodState.REPEATED_CALL_BY_FILTERING_READER;
         break;
       case NOT_CALLED_BY_FILTERING_READER:
@@ -133,8 +142,10 @@ public class FilteringCoercionReader extends CoercionReader {
           projectorOutput = filteringReaderInputMutator.getContainer();
         }
 
-        // we haven't set up projector in this.setup() since we didn't know the container for projector's output
-        // this is needed as incoming mutator(this.mutator) will not detect a schema change if the schema differs from first batch
+        // we haven't set up projector in this.setup() since we didn't know the container for
+        // projector's output
+        // this is needed as incoming mutator(this.mutator) will not detect a schema change if the
+        // schema differs from first batch
         if (!initialProjectorSetUpDone) {
           setupProjector(projectorOutput);
           initialProjectorSetUpDone = true;

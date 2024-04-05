@@ -15,11 +15,6 @@
  */
 package com.dremio.service.orphanage;
 
-import java.util.UUID;
-import java.util.function.BiFunction;
-
-import javax.inject.Inject;
-
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.Document;
@@ -34,24 +29,25 @@ import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.orphanage.proto.OrphanEntry;
+import java.util.UUID;
+import java.util.function.BiFunction;
+import javax.inject.Inject;
 
-/**
- *Provides the orphan store and its management
- */
+/** Provides the orphan store and its management */
 public class OrphanageImpl implements Orphanage {
 
-
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OrphanageImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(OrphanageImpl.class);
 
   protected static final String ORPHAN_STORE_NAME = "orphan_store";
-  private static final IndexKey ORPHAN_SCHEDULED_AT_INDEX_KEY = IndexKey.newBuilder("sdat", "scheduledAt", Long.class).setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG).build();
-
+  private static final IndexKey ORPHAN_SCHEDULED_AT_INDEX_KEY =
+      IndexKey.newBuilder("sdat", "scheduledAt", Long.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+          .build();
 
   private final IndexedStore<OrphanEntry.OrphanId, OrphanEntry.Orphan> orphanEntriesStore;
 
-  /**
-   * Factory for OrphanageImpl
-   */
+  /** Factory for OrphanageImpl */
   public static final class Factory implements Orphanage.Factory {
     private final KVStoreProvider kvStoreProvider;
 
@@ -71,17 +67,15 @@ public class OrphanageImpl implements Orphanage {
     this.orphanEntriesStore = createStore(kvStoreProvider);
   }
 
-
-  protected IndexedStore<OrphanEntry.OrphanId, OrphanEntry.Orphan> createStore(final KVStoreProvider kvStoreProvider) {
+  protected IndexedStore<OrphanEntry.OrphanId, OrphanEntry.Orphan> createStore(
+      final KVStoreProvider kvStoreProvider) {
     return kvStoreProvider.getStore(OrphanStoreCreator.class);
   }
-
 
   @Override
   public void addOrUpdateOrphan(OrphanEntry.OrphanId key, OrphanEntry.Orphan val) {
 
     orphanEntriesStore.put(key, val);
-
   }
 
   @Override
@@ -91,29 +85,23 @@ public class OrphanageImpl implements Orphanage {
     String key = uuid.toString();
     OrphanEntry.OrphanId orphanId = OrphanEntry.OrphanId.newBuilder().setOrphanId(key).build();
     orphanEntriesStore.put(orphanId, val);
-
   }
-
 
   @Override
   public Document<OrphanEntry.OrphanId, OrphanEntry.Orphan> getOrphan(OrphanEntry.OrphanId key) {
     return orphanEntriesStore.get(key);
   }
 
-
   @Override
   public Iterable<Document<OrphanEntry.OrphanId, OrphanEntry.Orphan>> getAllOrphans() {
 
     final SearchTypes.SearchQuery query = SearchQueryUtils.newMatchAllQuery();
-    final SearchTypes.SearchFieldSorting sort = ORPHAN_SCHEDULED_AT_INDEX_KEY.toSortField(SearchTypes.SortOrder.ASCENDING);
+    final SearchTypes.SearchFieldSorting sort =
+        ORPHAN_SCHEDULED_AT_INDEX_KEY.toSortField(SearchTypes.SortOrder.ASCENDING);
     ImmutableFindByCondition.Builder builder = new ImmutableFindByCondition.Builder();
-    FindByCondition findByCondition = builder
-      .setCondition(query)
-      .addSort(sort)
-      .build();
+    FindByCondition findByCondition = builder.setCondition(query).addSort(sort).build();
 
     return orphanEntriesStore.find(findByCondition);
-
   }
 
   @Override
@@ -122,14 +110,14 @@ public class OrphanageImpl implements Orphanage {
     orphanEntriesStore.delete(key);
   }
 
-
-  /**
-   * document converter for Orphanage with indexed on the created time of the orphan entry
-   */
-  public static class OrphanDocumentConverter implements DocumentConverter<OrphanEntry.OrphanId, OrphanEntry.Orphan> {
+  /** document converter for Orphanage with indexed on the created time of the orphan entry */
+  public static class OrphanDocumentConverter
+      implements DocumentConverter<OrphanEntry.OrphanId, OrphanEntry.Orphan> {
     private Integer version = 0;
+
     @Override
-    public void convert(DocumentWriter writer, OrphanEntry.OrphanId key, OrphanEntry.Orphan record) {
+    public void convert(
+        DocumentWriter writer, OrphanEntry.OrphanId key, OrphanEntry.Orphan record) {
       writer.write(ORPHAN_SCHEDULED_AT_INDEX_KEY, record.getScheduledAt());
     }
 
@@ -139,22 +127,24 @@ public class OrphanageImpl implements Orphanage {
     }
   }
 
-  private static BiFunction<String, StoreBuildingFactory, IndexedStore<OrphanEntry.OrphanId, OrphanEntry.Orphan>> storeCreatorFunction =
-    (s, storeBuildingFactory) -> storeBuildingFactory
-      .<OrphanEntry.OrphanId, OrphanEntry.Orphan>newStore()
-      .name(s)
-      .keyFormat(Format.ofProtobuf(OrphanEntry.OrphanId.class))
-      .valueFormat(Format.ofProtobuf(OrphanEntry.Orphan.class))
-      .buildIndexed(new OrphanDocumentConverter());
+  private static BiFunction<
+          String, StoreBuildingFactory, IndexedStore<OrphanEntry.OrphanId, OrphanEntry.Orphan>>
+      storeCreatorFunction =
+          (s, storeBuildingFactory) ->
+              storeBuildingFactory
+                  .<OrphanEntry.OrphanId, OrphanEntry.Orphan>newStore()
+                  .name(s)
+                  .keyFormat(Format.ofProtobuf(OrphanEntry.OrphanId.class))
+                  .valueFormat(Format.ofProtobuf(OrphanEntry.Orphan.class))
+                  .buildIndexed(new OrphanDocumentConverter());
 
-  /**
-   * StoreCreator for orphanage
-   */
-  public static class OrphanStoreCreator implements IndexedStoreCreationFunction<OrphanEntry.OrphanId, OrphanEntry.Orphan> {
+  /** StoreCreator for orphanage */
+  public static class OrphanStoreCreator
+      implements IndexedStoreCreationFunction<OrphanEntry.OrphanId, OrphanEntry.Orphan> {
     @Override
-    public IndexedStore<OrphanEntry.OrphanId, OrphanEntry.Orphan> build(StoreBuildingFactory factory) {
+    public IndexedStore<OrphanEntry.OrphanId, OrphanEntry.Orphan> build(
+        StoreBuildingFactory factory) {
       return storeCreatorFunction.apply(ORPHAN_STORE_NAME, factory);
     }
   }
-
 }

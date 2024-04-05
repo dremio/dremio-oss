@@ -33,7 +33,7 @@ export const ExternalLink = React.forwardRef<
       className={clsx(
         "dremio-external-link",
         `dremio-external-link--${variant}`,
-        className
+        className,
       )}
     >
       {variant === "inline" && (

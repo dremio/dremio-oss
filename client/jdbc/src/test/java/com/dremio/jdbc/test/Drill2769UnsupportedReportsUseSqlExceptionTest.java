@@ -20,6 +20,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import static org.slf4j.LoggerFactory.getLogger;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.jdbc.AlreadyClosedSqlException;
+import com.dremio.jdbc.JdbcWithServerTestBase;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Connection;
@@ -32,27 +35,19 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.jdbc.AlreadyClosedSqlException;
-import com.dremio.jdbc.JdbcWithServerTestBase;
-
-
 /**
- * Test that non-SQLException exceptions used by Dremio's current version of
- * Avatica to indicate unsupported features are wrapped in or mapped to
- * SQLException exceptions.
+ * Test that non-SQLException exceptions used by Dremio's current version of Avatica to indicate
+ * unsupported features are wrapped in or mapped to SQLException exceptions.
  *
- * <p>
- *   As of 2015-08-24, Dremio's version of Avatica used non-SQLException exception
- *   class to report that methods/features were not implemented.
- * </p>
+ * <p>As of 2015-08-24, Dremio's version of Avatica used non-SQLException exception class to report
+ * that methods/features were not implemented.
+ *
  * <pre>
  *   5 UnsupportedOperationException in ArrayImpl
  *  29 UnsupportedOperationException in AvaticaConnection
@@ -66,8 +61,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
   private static final Logger logger =
       getLogger(Drill2769UnsupportedReportsUseSqlExceptionTest.class);
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
   private static Statement plainStatement;
   private static PreparedStatement preparedStatement;
@@ -81,8 +75,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
     JdbcWithServerTestBase.setUpConnection();
 
     plainStatement = getConnection().createStatement();
-    preparedStatement =
-        getConnection().prepareStatement("VALUES 'PreparedStatement query'");
+    preparedStatement = getConnection().prepareStatement("VALUES 'PreparedStatement query'");
 
     try {
       getConnection().prepareCall("VALUES 'CallableStatement query'");
@@ -114,11 +107,10 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
   }
 
   /**
-   * Reflection-based checker that exceptions thrown by JDBC interfaces'
-   * implementation methods for unsupported-operation cases are SQLExceptions
-   * (not UnsupportedOperationExceptions).
+   * Reflection-based checker that exceptions thrown by JDBC interfaces' implementation methods for
+   * unsupported-operation cases are SQLExceptions (not UnsupportedOperationExceptions).
    *
-   * @param  <INTF>  JDBC interface type
+   * @param  <INTF> JDBC interface type
    */
   private static class NoNonSqlExceptionsChecker<INTF> {
     private final Class<INTF> jdbcIntf;
@@ -127,31 +119,29 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
     private final StringBuilder failureLinesBuf = new StringBuilder();
     private final StringBuilder successLinesBuf = new StringBuilder();
 
-    NoNonSqlExceptionsChecker(final Class<INTF> jdbcIntf,
-                              final INTF jdbcObject) {
+    NoNonSqlExceptionsChecker(final Class<INTF> jdbcIntf, final INTF jdbcObject) {
       this.jdbcIntf = jdbcIntf;
       this.jdbcObject = jdbcObject;
     }
 
     /**
-     * Hook/factory method to allow context to provide fresh object for each
-     * method.  Needed for Statement and PrepareStatement, whose execute...
-     * methods can close the statement (at least given our minimal dummy
-     * argument values).
+     * Hook/factory method to allow context to provide fresh object for each method. Needed for
+     * Statement and PrepareStatement, whose execute... methods can close the statement (at least
+     * given our minimal dummy argument values).
      */
     protected INTF getJdbcObject() throws SQLException {
       return jdbcObject;
     }
 
     /**
-     * Gets minimal value suitable for use as actual parameter value for given
-     * formal parameter type.
+     * Gets minimal value suitable for use as actual parameter value for given formal parameter
+     * type.
      */
     private static Object getDummyValueForType(Class<?> type) {
       final Object result;
       if (type == String.class) {
         result = "";
-      } else if (! type.isPrimitive()) {
+      } else if (!type.isPrimitive()) {
         result = null;
       } else {
         if (type == boolean.class) {
@@ -170,21 +160,19 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
           result = 0.0;
         } else {
           fail("Test needs to be updated to handle type " + type);
-          result = null;  // Not executed; for "final".
+          result = null; // Not executed; for "final".
         }
       }
       return result;
     }
 
-    /**
-     * Assembles method signature text for given method.
-     */
+    /** Assembles method signature text for given method. */
     private String makeLabel(Method method) {
       String methodLabel;
       methodLabel = jdbcIntf.getSimpleName() + "." + method.getName() + "(";
       boolean first = true;
       for (Class<?> paramType : method.getParameterTypes()) {
-        if (! first) {
+        if (!first) {
           methodLabel += ", ";
         }
         first = false;
@@ -194,9 +182,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
       return methodLabel;
     }
 
-    /**
-     * Assembles (minimal) arguments array for given method.
-     */
+    /** Assembles (minimal) arguments array for given method. */
     private Object[] makeArgs(Method method) {
       final List<Object> argsList = new ArrayList<>();
       for (Class<?> paramType : method.getParameterTypes()) {
@@ -207,8 +193,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
     }
 
     /**
-     * Tests one method.
-     * (Disturbs members set by makeArgsAndLabel, but those shouldn't be used
+     * Tests one method. (Disturbs members set by makeArgsAndLabel, but those shouldn't be used
      * except by this method.)
      */
     private void testOneMethod(Method method) {
@@ -236,15 +221,12 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
         final String resultLine = "- " + methodLabel + " threw <" + cause + ">\n";
 
         if (SQLException.class.isAssignableFrom(cause.getClass())
-            &&
-            ! AlreadyClosedSqlException.class.isAssignableFrom(cause.getClass())
-            ) {
+            && !AlreadyClosedSqlException.class.isAssignableFrom(cause.getClass())) {
           // Good case--almost any exception should be SQLException or subclass
           // (but make sure not accidentally closed).
           successLinesBuf.append(resultLine);
         } else if (NullPointerException.class == cause.getClass()
-                 && (method.getName().equals("isWrapperFor")
-                     || method.getName().equals("unwrap"))) {
+            && (method.getName().equals("isWrapperFor") || method.getName().equals("unwrap"))) {
           // Known good-enough case--these methods throw NullPointerException
           // because of the way we call them (with null) and the way Avatica
           // code implements them.
@@ -253,14 +235,19 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
           successLinesBuf.append(resultLine);
         } else {
           final String badResultLine =
-              "- " + methodLabel + " threw <" + cause + "> instead"
-              + " of a " + SQLException.class.getSimpleName() + "\n";
+              "- "
+                  + methodLabel
+                  + " threw <"
+                  + cause
+                  + "> instead"
+                  + " of a "
+                  + SQLException.class.getSimpleName()
+                  + "\n";
           logger.trace("Failure: " + resultLine);
           failureLinesBuf.append(badResultLine);
         }
       } catch (IllegalAccessException | IllegalArgumentException e) {
-        fail("Unexpected exception: " + e + ", cause = " + e.getCause()
-             + "  from " + method);
+        fail("Unexpected exception: " + e + ", cause = " + e.getCause() + "  from " + method);
       }
     }
 
@@ -269,17 +256,17 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
         final String methodLabel = makeLabel(method);
         if ("close".equals(method.getName())) {
           logger.debug("Skipping (because closes): " + methodLabel);
-        /* Uncomment to suppress calling DatabaseMetaData.getColumns(...), which
-           sometimes takes about 2 minutes, and other DatabaseMetaData methods
-           that query, collectively taking a while too:
-        } else if (DatabaseMetaData.class == jdbcIntf
-                 && "getColumns".equals(method.getName())) {
-          logger.debug("Skipping (because really slow): " + methodLabel);
-        } else if (DatabaseMetaData.class == jdbcIntf
-                 && ResultSet.class == method.getReturnType()) {
-          logger.debug("Skipping (because a bit slow): " + methodLabel);
-        }
-        */
+          /* Uncomment to suppress calling DatabaseMetaData.getColumns(...), which
+             sometimes takes about 2 minutes, and other DatabaseMetaData methods
+             that query, collectively taking a while too:
+          } else if (DatabaseMetaData.class == jdbcIntf
+                   && "getColumns".equals(method.getName())) {
+            logger.debug("Skipping (because really slow): " + methodLabel);
+          } else if (DatabaseMetaData.class == jdbcIntf
+                   && ResultSet.class == method.getReturnType()) {
+            logger.debug("Skipping (because a bit slow): " + methodLabel);
+          }
+          */
         } else {
           logger.debug("Testing method " + methodLabel);
           testOneMethod(method);
@@ -288,11 +275,10 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
     }
 
     /**
-     * Reports whether it's okay if given method throw given exception (that is
-     * not preferred AlreadyClosedException with regular message).
+     * Reports whether it's okay if given method throw given exception (that is not preferred
+     * AlreadyClosedException with regular message).
      */
-    protected boolean isOkaySpecialCaseException(Method method,
-                                                 Throwable cause) {
+    protected boolean isOkaySpecialCaseException(Method method, Throwable cause) {
       return false;
     }
 
@@ -310,11 +296,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
 
     public String getReport() {
       final String report =
-          "Failures:\n"
-          + getFailureLines()
-          + "(Successes:\n"
-          + getSuccessLines()
-          + ")";
+          "Failures:\n" + getFailureLines() + "(Successes:\n" + getSuccessLines() + ")";
       return report;
     }
   } // class NoNonSqlExceptionsChecker<INTF>
@@ -332,8 +314,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
     }
   }
 
-  private static class PlainStatementChecker
-      extends NoNonSqlExceptionsChecker<Statement> {
+  private static class PlainStatementChecker extends NoNonSqlExceptionsChecker<Statement> {
 
     private final Connection factoryConnection;
 
@@ -348,18 +329,15 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
     }
 
     @Override
-    protected boolean isOkaySpecialCaseException(Method method,
-                                                 Throwable cause) {
+    protected boolean isOkaySpecialCaseException(Method method, Throwable cause) {
       // New Java 8 method not supported by Avatica
-      return method.getName().equals( "executeLargeBatch" );
+      return method.getName().equals("executeLargeBatch");
     }
-
   } // class PlainStatementChecker
 
   @Test
   public void testPlainStatementMethodsThrowRight() {
-    NoNonSqlExceptionsChecker<Statement> checker =
-        new PlainStatementChecker(getConnection());
+    NoNonSqlExceptionsChecker<Statement> checker = new PlainStatementChecker(getConnection());
 
     checker.testMethods();
 
@@ -384,10 +362,9 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
     }
 
     @Override
-    protected boolean isOkaySpecialCaseException(Method method,
-                                                 Throwable cause) {
+    protected boolean isOkaySpecialCaseException(Method method, Throwable cause) {
       // New Java 8 method not supported by Avatica
-      return method.getName().equals( "executeLargeBatch" );
+      return method.getName().equals("executeLargeBatch");
     }
   } // class PreparedStatementChecker
 
@@ -418,8 +395,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
   @Test
   public void testResultSetMetaDataMethodsThrowRight() {
     NoNonSqlExceptionsChecker<ResultSetMetaData> checker =
-        new NoNonSqlExceptionsChecker<>(ResultSetMetaData.class,
-                                                         resultSetMetaData);
+        new NoNonSqlExceptionsChecker<>(ResultSetMetaData.class, resultSetMetaData);
 
     checker.testMethods();
 
@@ -431,8 +407,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
   @Test
   public void testDatabaseMetaDataMethodsThrowRight() {
     NoNonSqlExceptionsChecker<DatabaseMetaData> checker =
-        new NoNonSqlExceptionsChecker<>(DatabaseMetaData.class,
-                                                        databaseMetaData);
+        new NoNonSqlExceptionsChecker<>(DatabaseMetaData.class, databaseMetaData);
 
     checker.testMethods();
 

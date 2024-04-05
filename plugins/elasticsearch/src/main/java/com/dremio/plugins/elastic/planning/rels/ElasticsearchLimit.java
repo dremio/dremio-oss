@@ -15,24 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Iterator;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Sort;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -47,8 +29,25 @@ import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.plugins.elastic.planning.rules.ElasticSampleRule;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Iterator;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ElasticsearchLimit extends LimitRelBase implements ElasticsearchPrel, ElasticTerminalPrel {
+public class ElasticsearchLimit extends LimitRelBase
+    implements ElasticsearchPrel, ElasticTerminalPrel {
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchLimit.class);
 
@@ -56,7 +55,14 @@ public class ElasticsearchLimit extends LimitRelBase implements ElasticsearchPre
   private final int offsetSize;
   private final StoragePluginId pluginId;
 
-  public ElasticsearchLimit(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode offset, RexNode fetch, boolean pushDown, StoragePluginId pluginId) {
+  public ElasticsearchLimit(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      RexNode offset,
+      RexNode fetch,
+      boolean pushDown,
+      StoragePluginId pluginId) {
     super(cluster, traits, child, offset, fetch, pushDown);
     fetchSize = getFetch() == null ? 0 : Math.max(0, RexLiteral.intValue(getFetch()));
     offsetSize = getOffset() == null ? 0 : Math.max(0, RexLiteral.intValue(getOffset()));
@@ -75,18 +81,24 @@ public class ElasticsearchLimit extends LimitRelBase implements ElasticsearchPre
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
     double cpuCost = DremioCost.COMPARE_CPU_COST * fetchSize;
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(fetchSize, cpuCost, 0, 0);
   }
 
   @Override
-  public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation, RexNode offset, RexNode fetch) {
-    return new ElasticsearchLimit(getCluster(), traitSet, newInput, offset, fetch, isPushDown(), pluginId);
+  public Sort copy(
+      RelTraitSet traitSet,
+      RelNode newInput,
+      RelCollation newCollation,
+      RexNode offset,
+      RexNode fetch) {
+    return new ElasticsearchLimit(
+        getCluster(), traitSet, newInput, offset, fetch, isPushDown(), pluginId);
   }
 
   @Override
@@ -96,21 +108,42 @@ public class ElasticsearchLimit extends LimitRelBase implements ElasticsearchPre
 
   /**
    * Merges this limit with an ElasticsearchSample operator.
+   *
    * @param sample
    * @param treeWithoutLimit
    * @return
    */
-  public ElasticsearchLimit merge(ElasticsearchSample sample, RelNode treeWithoutLimit){
-    if(sample == null){
+  public ElasticsearchLimit merge(ElasticsearchSample sample, RelNode treeWithoutLimit) {
+    if (sample == null) {
       return this;
     }
 
-    long sampleSize = SampleRelBase.getSampleSizeAndSetMinSampleSize(PrelUtil.getPlannerSettings(getCluster().getPlanner()), ElasticSampleRule.SAMPLE_SIZE_DENOMINATOR);
+    long sampleSize =
+        SampleRelBase.getSampleSizeAndSetMinSampleSize(
+            PrelUtil.getPlannerSettings(getCluster().getPlanner()),
+            ElasticSampleRule.SAMPLE_SIZE_DENOMINATOR);
     int limitAmount = RexLiteral.intValue(getFetch());
-    int finalLimit = Math.min((int) sampleSize,  limitAmount);
-    RexNode offset = getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0), getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER));
-    RexNode fetch = getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(finalLimit), getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER));
-    return new ElasticsearchLimit(getCluster(), treeWithoutLimit.getTraitSet(), treeWithoutLimit, offset, fetch, isPushDown(), getPluginId());
+    int finalLimit = Math.min((int) sampleSize, limitAmount);
+    RexNode offset =
+        getCluster()
+            .getRexBuilder()
+            .makeExactLiteral(
+                BigDecimal.valueOf(0),
+                getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER));
+    RexNode fetch =
+        getCluster()
+            .getRexBuilder()
+            .makeExactLiteral(
+                BigDecimal.valueOf(finalLimit),
+                getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER));
+    return new ElasticsearchLimit(
+        getCluster(),
+        treeWithoutLimit.getTraitSet(),
+        treeWithoutLimit,
+        offset,
+        fetch,
+        isPushDown(),
+        getPluginId());
   }
 
   @Override

@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
@@ -41,17 +45,10 @@ import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.SortOrderParser;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-
-/**
- * Serialization/Deserialization for iceberg entities.
- */
+/** Serialization/Deserialization for iceberg entities. */
 public class IcebergSerDe {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergSerDe.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(IcebergSerDe.class);
 
   public static byte[] serializeDataFile(DataFile dataFile) {
     try {
@@ -126,24 +123,28 @@ public class IcebergSerDe {
     }
   }
 
-  public static byte[] serializePartitionSpecAsJsonMap(Map<Integer, PartitionSpec> partitionSpecMap) {
+  public static byte[] serializePartitionSpecAsJsonMap(
+      Map<Integer, PartitionSpec> partitionSpecMap) {
     try {
       Map<Integer, String> specAsJsonMap = Maps.newHashMap();
-      partitionSpecMap.forEach((specId, spec) -> specAsJsonMap.put(specId, PartitionSpecParser.toJson(spec)));
+      partitionSpecMap.forEach(
+          (specId, spec) -> specAsJsonMap.put(specId, PartitionSpecParser.toJson(spec)));
       return serializeToByteArray(specAsJsonMap);
     } catch (IOException e) {
       throw new RuntimeIOException(e, "failed to serialize PartitionSpecMap");
     }
   }
 
-  public static Map<Integer, PartitionSpec> deserializeJsonPartitionSpecMap(Schema schema, byte[] serialized) {
+  public static Map<Integer, PartitionSpec> deserializeJsonPartitionSpecMap(
+      Schema schema, byte[] serialized) {
     ImmutableMap.Builder<Integer, PartitionSpec> builder = ImmutableMap.builder();
     try {
       if (serialized.length > 0) {
         Map<Integer, String> specAsJsonMap = deserializeFromByteArray(serialized);
-        specAsJsonMap.forEach((k,v) -> {
-          builder.put(k, PartitionSpecParser.fromJson(schema, v));
-        });
+        specAsJsonMap.forEach(
+            (k, v) -> {
+              builder.put(k, PartitionSpecParser.fromJson(schema, v));
+            });
       }
       return builder.build();
     } catch (IOException e) {
@@ -167,7 +168,7 @@ public class IcebergSerDe {
       return deserializeFromByteArray(serialized);
     } catch (InvalidClassException e) {
       logger.debug("SerialVersionUID is mismatch for PartitionSpec Class");
-      return null; //serialVersionUID is mismatch;
+      return null; // serialVersionUID is mismatch;
     } catch (IOException e) {
       throw new RuntimeIOException(e, "failed to deserialize PartitionSpecMap");
     } catch (ClassNotFoundException e) {
@@ -181,7 +182,8 @@ public class IcebergSerDe {
 
   /**
    * @param schema Iceberg Table Schema
-   * @param serialized PartitionSpec serialized value with byte array {Refer: serializePartitionSpec}
+   * @param serialized PartitionSpec serialized value with byte array {Refer:
+   *     serializePartitionSpec}
    * @return PartitionSpec with schema details
    */
   public static PartitionSpec deserializePartitionSpec(Schema schema, byte[] serialized) {
@@ -213,7 +215,8 @@ public class IcebergSerDe {
 
   /**
    * @param schema Iceberg Table Schema
-   * @param sortOrderJson SortOrder serialized value with JSON as a String. {Refer: serializeSortOrder}
+   * @param sortOrderJson SortOrder serialized value with JSON as a String. {Refer:
+   *     serializeSortOrder}
    * @return SortOrder with schema details
    */
   public static SortOrder deserializeSortOrderFromJson(Schema schema, String sortOrderJson) {
@@ -222,55 +225,61 @@ public class IcebergSerDe {
 
   public static byte[] serializeToByteArray(Object object) throws IOException {
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-      ObjectOutput out = new ObjectOutputStream(bos)) {
+        ObjectOutput out = new ObjectOutputStream(bos)) {
       out.writeObject(object);
       return bos.toByteArray();
     }
   }
 
-  public static <T> T deserializeFromByteArray(byte[] bytes) throws IOException, ClassNotFoundException {
+  public static <T> T deserializeFromByteArray(byte[] bytes)
+      throws IOException, ClassNotFoundException {
     if (bytes == null || bytes.length == 0) {
       return null;
     }
     try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-      ObjectInput in = new ObjectInputStream(bis)) {
+        ObjectInput in = new ObjectInputStream(bis)) {
       return (T) in.readObject();
     }
   }
 
-  public static IcebergPartitionData partitionValueToIcebergPartition(List<PartitionProtobuf.PartitionValue> partitionValues, BatchSchema schema) {
-    if(partitionValues.isEmpty()) {
+  public static IcebergPartitionData partitionValueToIcebergPartition(
+      List<PartitionProtobuf.PartitionValue> partitionValues, BatchSchema schema) {
+    if (partitionValues.isEmpty()) {
       return null;
     }
 
     SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     Schema icebergSchema = schemaConverter.toIcebergSchema(schema);
-    PartitionSpec.Builder partitionSpec = PartitionSpec
-      .builderFor(icebergSchema);
+    PartitionSpec.Builder partitionSpec = PartitionSpec.builderFor(icebergSchema);
 
     List<Field> schemaFields = schema.getFields();
 
-    partitionValues.forEach(partitionValue -> {
-      String columnName = partitionValue.getColumn();
-      Preconditions.checkState(schemaFields.stream().anyMatch(field -> field.getName().equals(columnName)), String.format("PartitionField %s not found in batch schema", columnName));
-      partitionSpec.identity(columnName);
-    });
+    partitionValues.forEach(
+        partitionValue -> {
+          String columnName = partitionValue.getColumn();
+          Preconditions.checkState(
+              schemaFields.stream().anyMatch(field -> field.getName().equals(columnName)),
+              String.format("PartitionField %s not found in batch schema", columnName));
+          partitionSpec.identity(columnName);
+        });
 
-    //Name to value map
-    Map<String, PartitionProtobuf.PartitionValue> nameToPartValue = partitionValues.stream().collect(Collectors.toMap(p -> p.getColumn(), p -> p));
-    IcebergPartitionData icebergPartitionData = new IcebergPartitionData(partitionSpec.build().partitionType());
+    // Name to value map
+    Map<String, PartitionProtobuf.PartitionValue> nameToPartValue =
+        partitionValues.stream().collect(Collectors.toMap(p -> p.getColumn(), p -> p));
+    IcebergPartitionData icebergPartitionData =
+        new IcebergPartitionData(partitionSpec.build().partitionType());
 
     AtomicInteger index = new AtomicInteger();
 
-    schemaFields.forEach(field -> {
-      PartitionProtobuf.PartitionValue value = nameToPartValue.get(field.getName());
-      if (value != null) {
-        IcebergUtils.setPartitionSpecValue(icebergPartitionData, index.get(), field, value);
-        index.getAndIncrement();
-      }
-    });
+    schemaFields.forEach(
+        field -> {
+          PartitionProtobuf.PartitionValue value = nameToPartValue.get(field.getName());
+          if (value != null) {
+            IcebergUtils.setPartitionSpecValue(icebergPartitionData, index.get(), field, value);
+            index.getAndIncrement();
+          }
+        });
 
     return icebergPartitionData;
   }
-
 }

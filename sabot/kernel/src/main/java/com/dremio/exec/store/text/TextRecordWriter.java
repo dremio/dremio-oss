@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.store.text;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.List;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.commons.io.ByteOrderMark;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
@@ -36,9 +28,16 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.List;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.commons.io.ByteOrderMark;
 
 public class TextRecordWriter extends StringOutputRecordWriter {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextRecordWriter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TextRecordWriter.class);
 
   private final OperatorContext context;
   private final String location;
@@ -60,7 +59,8 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   private long count;
 
   // Record write status
-  private boolean fRecordStarted = false; // true once the startRecord() is called until endRecord() is called
+  private boolean fRecordStarted =
+      false; // true once the startRecord() is called until endRecord() is called
   private StringBuilder currentRecord; // contains the current record separated by field delimiter
 
   public TextRecordWriter(OperatorContext context, EasyWriter config, TextFormatConfig textConfig) {
@@ -87,7 +87,9 @@ public class TextRecordWriter extends StringOutputRecordWriter {
 
   public static final String NEWLINE = "\n";
   public static final char QUOTE = '"';
-  public static final String QUOTE_WITH_ESCAPE = "\"\""; // csv files escape quotes with double quotes
+  public static final String QUOTE_WITH_ESCAPE =
+      "\"\""; // csv files escape quotes with double quotes
+
   /*
    * Enclose 'value' in quotes while escaping any quotes that are already in it
    */
@@ -102,9 +104,12 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   @Override
   public void addField(int fieldId, String value) throws IOException {
     if (value != null) {
-      // Note: even if newline (\n) is not a line delimiter, external tools (google docs, etc.) treat it as one.
+      // Note: even if newline (\n) is not a line delimiter, external tools (google docs, etc.)
+      // treat it as one.
       // Thus, we should escape it
-      if (value.contains(fieldDelimiter) || value.contains(lineDelimiter) || value.contains(NEWLINE)) {
+      if (value.contains(fieldDelimiter)
+          || value.contains(lineDelimiter)
+          || value.contains(NEWLINE)) {
         currentRecord.append(quote(value));
       } else {
         currentRecord.append(value);
@@ -116,29 +121,30 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   @Override
   public void startPartition(WritePartition partition) throws Exception {
 
-    if(this.partition != null){
+    if (this.partition != null) {
       close();
     }
 
     this.partition = partition;
     // open a new file for writing data with new schema
     try {
-      this.path = fs.canonicalizePath(partition.getQualifiedPath(location, prefix + "_" + index + "." + extension));
+      this.path =
+          fs.canonicalizePath(
+              partition.getQualifiedPath(location, prefix + "_" + index + "." + extension));
       dos = new DataOutputStream(fs.create(path));
       stream = new PrintStream(dos);
       stream.write(ByteOrderMark.UTF_8.getBytes(), 0, ByteOrderMark.UTF_8.length());
       logger.debug("Created file: {}", path);
     } catch (IOException e) {
       throw UserException.dataWriteError(e)
-        .message("Failure while attempting to write file %s.", path)
-        .build(logger);
+          .message("Failure while attempting to write file %s.", path)
+          .build(logger);
     }
     index++;
 
     String columns = Joiner.on(fieldDelimiter).join(columnNames);
     stream.print(columns);
     stream.print(lineDelimiter);
-
   }
 
   @Override
@@ -159,7 +165,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     count++;
 
     // remove the extra delimiter at the end
-    currentRecord.deleteCharAt(currentRecord.length()-fieldDelimiter.length());
+    currentRecord.deleteCharAt(currentRecord.length() - fieldDelimiter.length());
 
     stream.print(currentRecord.toString());
     stream.print(lineDelimiter);
@@ -221,7 +227,18 @@ public class TextRecordWriter extends StringOutputRecordWriter {
 
     if (stream != null) {
       stream.flush();
-      listener.recordsWritten(count, getFileSize(), path.toString(), null, partition.getBucketNumber(), null, null, null, null, null, 0L);
+      listener.recordsWritten(
+          count,
+          getFileSize(),
+          path.toString(),
+          null,
+          partition.getBucketNumber(),
+          null,
+          null,
+          null,
+          null,
+          null,
+          0L);
       stream.close();
       stream = null;
       dos = null;
@@ -243,12 +260,12 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   }
 
   @Override
-  public FileSystem getFs(){
+  public FileSystem getFs() {
     return fs;
   }
 
   @Override
-  public Path getLocation(){
+  public Path getLocation() {
     return Path.of(location);
   }
 }

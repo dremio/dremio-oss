@@ -15,6 +15,4 @@
  */
 package com.dremio.common.expression;
 
-public class ValidationError {
-
-}
+public class ValidationError {}

@@ -19,5 +19,6 @@ import java.io.IOException;
 
 public interface InstanceSerializer<T> {
   byte[] serialize(T instance) throws IOException;
+
   T deserialize(byte[] raw) throws IOException;
 }

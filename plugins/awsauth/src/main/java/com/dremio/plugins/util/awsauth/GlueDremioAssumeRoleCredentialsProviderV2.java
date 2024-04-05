@@ -19,26 +19,24 @@ package com.dremio.plugins.util.awsauth;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.exec.hadoop.HadoopFileSystem;
-
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
-/**
- * Glue specific wrapper
- */
-public class GlueDremioAssumeRoleCredentialsProviderV2 implements AwsCredentialsProvider, AutoCloseable {
+/** Glue specific wrapper */
+public class GlueDremioAssumeRoleCredentialsProviderV2
+    implements AwsCredentialsProvider, AutoCloseable {
   private Closeable swapClassLoader() {
     return ContextClassLoaderSwapper.swapClassLoader(HadoopFileSystem.class);
   }
 
   @Override
-  public AwsCredentials resolveCredentials(){
+  public AwsCredentials resolveCredentials() {
 
     try (Closeable ignored = swapClassLoader()) {
-      final com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2 provider = new com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2();
+      final com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2 provider =
+          new com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2();
       return provider.resolveCredentials();
     }
-
   }
 
   @Override

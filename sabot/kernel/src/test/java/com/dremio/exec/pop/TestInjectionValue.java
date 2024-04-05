@@ -17,23 +17,23 @@ package com.dremio.exec.pop;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
+import java.util.List;
+import org.junit.Test;
 
 public class TestInjectionValue extends ExecTest {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestInjectionValue.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestInjectionValue.class);
 
   @Test
-  public void testInjected() throws Exception{
-    PhysicalPlanReader r = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+  public void testInjected() throws Exception {
+    PhysicalPlanReader r =
+        PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(CLASSPATH_SCAN_RESULT);
     PhysicalPlan p = r.readPhysicalPlan(readResourceAsString("/physical_screen.json"));
 
     List<PhysicalOperator> o = p.getSortedOperators(false);

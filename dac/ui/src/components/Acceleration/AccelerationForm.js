@@ -39,7 +39,10 @@ import {
 } from "@app/utils/accelerationUtils";
 import { fetchSupportFlags } from "@app/actions/supportFlags";
 import { getSupportFlags } from "@app/selectors/supportFlags";
-import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import {
+  ALLOW_REFLECTION_PARTITION_TRANFORMS,
+  ALLOW_REFLECTION_REFRESH,
+} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 import ApiUtils from "@app/utils/apiUtils/apiUtils";
 
 import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
@@ -54,6 +57,8 @@ import {
 import Message from "../Message";
 import AccelerationBasic from "./Basic/AccelerationBasic";
 import AccelerationAdvanced from "./Advanced/AccelerationAdvanced";
+import { isNotSoftware } from "@app/utils/versionUtils";
+import { REFLECTION_REFRESH_ENABLED } from "@inject/featureFlags/flags/REFLECTION_REFRESH_ENABLED";
 
 const SECTIONS = [AccelerationBasic, AccelerationAdvanced];
 
@@ -142,6 +147,10 @@ export class AccelerationForm extends Component {
   async UNSAFE_componentWillMount() {
     const { fetchSupportFlags } = this.props;
     await fetchSupportFlags(ALLOW_REFLECTION_PARTITION_TRANFORMS);
+    await fetchSupportFlags(ALLOW_REFLECTION_REFRESH);
+    if (isNotSoftware()) {
+      await this.props.fetchFeatureFlag(REFLECTION_REFRESH_ENABLED);
+    }
     this.initializeForm();
   }
 
@@ -162,7 +171,7 @@ export class AccelerationForm extends Component {
         rawReflectionValues.push(createReflectionFormValues(fixedReflection));
       } else {
         aggregationReflectionValues.push(
-          createReflectionFormValues(fixedReflection)
+          createReflectionFormValues(fixedReflection),
         );
       }
     }
@@ -205,7 +214,7 @@ export class AccelerationForm extends Component {
           ...v,
           partitionFields: preparePartitionFieldsAsFormValues(v),
         };
-      }
+      },
     );
 
     const updatedRawReflectionValues = rawReflectionValues.map((v) => {
@@ -216,7 +225,7 @@ export class AccelerationForm extends Component {
     });
 
     updatedAggregationReflectionValues.forEach((v) =>
-      aggregationReflections.addField(v)
+      aggregationReflections.addField(v),
     );
 
     updatedRawReflectionValues.forEach((v) => rawReflections.addField(v));
@@ -229,7 +238,7 @@ export class AccelerationForm extends Component {
   fetchRecommendations() {
     this.setState({ waitingForRecommendations: true });
     const endpoint = `dataset/${encodeURIComponent(
-      this.props.dataset.get("id")
+      this.props.dataset.get("id"),
     )}/reflection/recommendation`;
 
     return ApiUtils.fetchJson(
@@ -257,20 +266,20 @@ export class AccelerationForm extends Component {
           const { reflections: curReflections } = this.props;
 
           const curReflectionsAsArray = Object.values(
-            curReflections?.toJS() ?? {}
+            curReflections?.toJS() ?? {},
           );
 
           const hasExistingRawReflection = curReflectionsAsArray.some(
-            (curReflection) => curReflection.type === "RAW"
+            (curReflection) => curReflection.type === "RAW",
           );
 
           const hasExistingAggregationReflection = curReflectionsAsArray.some(
-            (curReflection) => curReflection.type === "AGGREGATION"
+            (curReflection) => curReflection.type === "AGGREGATION",
           );
 
           if (!hasExistingAggregationReflection && !isAdvancedMode) {
             aggregationReflections.forEach(() =>
-              aggregationReflections.removeField()
+              aggregationReflections.removeField(),
             );
           }
 
@@ -317,7 +326,7 @@ export class AccelerationForm extends Component {
         console.error(error);
         this.setState({ waitingForRecommendations: false });
       },
-      { method: "POST" }
+      { method: "POST" },
     );
   }
 
@@ -399,10 +408,10 @@ export class AccelerationForm extends Component {
     if (!firstAggValues) return;
 
     firstAggValues.dimensionFields.forEach(({ name }) =>
-      columnsDimensions.addField({ column: name })
+      columnsDimensions.addField({ column: name }),
     );
     firstAggValues.measureFields.forEach(({ name }) =>
-      columnsMeasures.addField({ column: name })
+      columnsMeasures.addField({ column: name }),
     );
   }
 
@@ -494,7 +503,7 @@ export class AccelerationForm extends Component {
       if (reflection.type === "RAW") {
         if (!reflection.displayFields.length) {
           errors[reflection.id] = laDeprecated(
-            "At least one display column per raw Reflection is required."
+            "At least one display column per raw Reflection is required.",
           );
         }
       } else {
@@ -505,7 +514,7 @@ export class AccelerationForm extends Component {
         ) {
           // eslint-disable-line no-lonely-if
           errors[reflection.id] = laDeprecated(
-            "At least one dimension or measure column per aggregation Reflection is required."
+            "At least one dimension or measure column per aggregation Reflection is required.",
           );
         }
       }
@@ -613,7 +622,7 @@ export class AccelerationForm extends Component {
       if (Object.keys(errors).length)
         return this.createSubmitErrorWrapper(
           errors,
-          [...values.aggregationReflections, ...values.rawReflections].length
+          [...values.aggregationReflections, ...values.rawReflections].length,
         );
       return null;
     });
@@ -624,7 +633,7 @@ export class AccelerationForm extends Component {
       Immutable.fromJS({
         id: uuidv4(),
         message,
-      })
+      }),
     );
     return Promise.reject({
       _error: {
@@ -655,7 +664,7 @@ export class AccelerationForm extends Component {
     // out of sync is not in form data, so we check independently
     if (
       this.props.reflections.some(
-        (reflection) => reflection.get("status").get("config") === "INVALID"
+        (reflection) => reflection.get("status").get("config") === "INVALID",
       )
     ) {
       return true;
@@ -666,8 +675,8 @@ export class AccelerationForm extends Component {
         !areReflectionFormValuesBasic(
           reflection,
           this.props.dataset.toJS(),
-          rawRecommendation
-        )
+          rawRecommendation,
+        ),
     );
   }
 
@@ -753,14 +762,14 @@ export class AccelerationForm extends Component {
             message={Immutable.Map({ code: "REQUESTED_REFLECTION_MISSING" })}
             isDismissable={false}
             className={"AccelerationForm__extraError"}
-          />
+          />,
         );
       }
     }
 
     if (
       this.props.reflections.some(
-        (reflection) => reflection.get("status").get("config") === "INVALID"
+        (reflection) => reflection.get("status").get("config") === "INVALID",
       )
     ) {
       messages.push(
@@ -772,7 +781,7 @@ export class AccelerationForm extends Component {
           })}
           isDismissable={false}
           className={"AccelerationForm__extraError"}
-        />
+        />,
       );
     }
 
@@ -856,5 +865,5 @@ export default connectComplexForm(
     deleteReflection: reflectionActions.delete.dispatch,
     fetchSupportFlags,
     setReflectionRecommendations,
-  }
+  },
 )(AccelerationFormWithMixin(AccelerationForm));

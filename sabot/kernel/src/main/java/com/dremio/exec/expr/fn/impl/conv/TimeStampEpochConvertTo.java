@@ -15,26 +15,26 @@
  */
 package com.dremio.exec.expr.fn.impl.conv;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.holders.TimeStampMilliHolder;
-import org.apache.arrow.vector.holders.VarBinaryHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.TimeStampMilliHolder;
+import org.apache.arrow.vector.holders.VarBinaryHolder;
 
-@FunctionTemplate(name = "convert_toTIMESTAMP_EPOCH", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+@FunctionTemplate(
+    name = "convert_toTIMESTAMP_EPOCH",
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
 public class TimeStampEpochConvertTo implements SimpleFunction {
 
   @Param TimeStampMilliHolder in;
   @Output VarBinaryHolder out;
   @Inject ArrowBuf buffer;
-
 
   @Override
   public void setup() {

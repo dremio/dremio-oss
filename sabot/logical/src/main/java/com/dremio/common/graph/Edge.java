@@ -15,7 +15,6 @@
  */
 package com.dremio.common.graph;
 
-
 class Edge<N> implements Comparable<Edge<N>> {
 
   final N from, to;
@@ -36,6 +35,4 @@ class Edge<N> implements Comparable<Edge<N>> {
   public String toString() {
     return "Edge [from=" + from + ", to=" + to + "]";
   }
-
-
 }

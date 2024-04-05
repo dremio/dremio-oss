@@ -28,5 +28,4 @@ public class TestOpProps {
     Assert.assertEquals(10, OpProps.getMajorFragmentId(OpProps.buildOperatorId(10, 300)));
     Assert.assertEquals(1000, OpProps.getMajorFragmentId(OpProps.buildOperatorId(1000, 300)));
   }
-
 }

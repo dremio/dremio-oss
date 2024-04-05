@@ -17,17 +17,13 @@ package com.dremio.dac.model.sources;
 
 import static java.util.Arrays.asList;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.List;
 
-/**
- * "dataset/{source.[folder.]*name}"
- *
- */
+/** "dataset/{source.[folder.]*name}" */
 public class PhysicalDatasetResourcePath extends ResourcePath {
 
   private final PhysicalDatasetPath dataset;
@@ -44,7 +40,8 @@ public class PhysicalDatasetResourcePath extends ResourcePath {
   public PhysicalDatasetResourcePath(String pathString) {
     List<String> path = parse(pathString, "dataset");
     if (path.size() != 1) {
-      throw new IllegalArgumentException("path should be of form: /dataset/{datasetPath}, found " + pathString);
+      throw new IllegalArgumentException(
+          "path should be of form: /dataset/{datasetPath}, found " + pathString);
     }
     this.dataset = new PhysicalDatasetPath(path.get(0));
   }

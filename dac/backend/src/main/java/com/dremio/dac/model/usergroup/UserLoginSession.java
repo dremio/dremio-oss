@@ -18,9 +18,7 @@ package com.dremio.dac.model.usergroup;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Create/Validates User login sessions using cookie.
- */
+/** Create/Validates User login sessions using cookie. */
 public class UserLoginSession {
 
   private final String token;
@@ -38,20 +36,20 @@ public class UserLoginSession {
   private final SessionPermissions permissions;
 
   @JsonCreator
-  public UserLoginSession(@JsonProperty("token") String token,
-                          @JsonProperty("userName") String userName,
-                          @JsonProperty("firstName") String firstName,
-                          @JsonProperty("lastName") String lastName,
-                          @JsonProperty("expires") long expires,
-                          @JsonProperty("email") String email,
-                          @JsonProperty("userId") String userId,
-                          @JsonProperty("admin") boolean admin,
-                          @JsonProperty("userCreateTime") Long userCreatedAt,
-                          @JsonProperty("clusterId") String clusterId,
-                          @JsonProperty("clusterCreatedAt") long clusterCreatedAt,
-                          @JsonProperty("version") String version,
-                          @JsonProperty("permissions") SessionPermissions permissions
-    ) {
+  public UserLoginSession(
+      @JsonProperty("token") String token,
+      @JsonProperty("userName") String userName,
+      @JsonProperty("firstName") String firstName,
+      @JsonProperty("lastName") String lastName,
+      @JsonProperty("expires") long expires,
+      @JsonProperty("email") String email,
+      @JsonProperty("userId") String userId,
+      @JsonProperty("admin") boolean admin,
+      @JsonProperty("userCreateTime") Long userCreatedAt,
+      @JsonProperty("clusterId") String clusterId,
+      @JsonProperty("clusterCreatedAt") long clusterCreatedAt,
+      @JsonProperty("version") String version,
+      @JsonProperty("permissions") SessionPermissions permissions) {
     this.token = token;
     this.userName = userName;
     this.firstName = firstName;

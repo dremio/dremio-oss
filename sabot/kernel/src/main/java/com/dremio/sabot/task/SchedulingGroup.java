@@ -16,9 +16,8 @@
 package com.dremio.sabot.task;
 
 import com.dremio.sabot.task.TaskManager.TaskHandle;
-/**
- * Represents a Scheduling group.
- */
+
+/** Represents a Scheduling group. */
 public interface SchedulingGroup<T extends Task> {
 
   default SchedulingGroup<T> addGroup(long weight) {

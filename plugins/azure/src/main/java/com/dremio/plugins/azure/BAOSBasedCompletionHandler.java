@@ -17,15 +17,12 @@
 package com.dremio.plugins.azure;
 
 import java.io.ByteArrayOutputStream;
-
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.Response;
 
-/**
- * Process response via {@link ByteArrayOutputStream}
- */
+/** Process response via {@link ByteArrayOutputStream} */
 class BAOSBasedCompletionHandler extends AsyncCompletionHandlerBase {
   private boolean requestFailed = false;
   private final ByteArrayOutputStream baos;

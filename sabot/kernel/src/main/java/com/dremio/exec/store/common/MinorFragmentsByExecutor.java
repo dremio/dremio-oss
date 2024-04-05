@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.store.common;
 
+import com.google.common.base.Preconditions;
+import com.google.common.net.HostAndPort;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import com.google.common.base.Preconditions;
-import com.google.common.net.HostAndPort;
-
-/**
- * A container for executor identity and all minor fragments on it
- */
+/** A container for executor identity and all minor fragments on it */
 public class MinorFragmentsByExecutor implements Comparable<MinorFragmentsByExecutor> {
   private final HostAndPort hostPort;
   private final List<Integer> minorFragmentIndices = new ArrayList<>();
@@ -39,7 +36,8 @@ public class MinorFragmentsByExecutor implements Comparable<MinorFragmentsByExec
   }
 
   public int minorFragmentIndex() {
-    Preconditions.checkState(minorFragmentIndices.size() > 0 && currMinorFragIndex < minorFragmentIndices.size());
+    Preconditions.checkState(
+        minorFragmentIndices.size() > 0 && currMinorFragIndex < minorFragmentIndices.size());
     int index = minorFragmentIndices.get(currMinorFragIndex);
     currMinorFragIndex = (currMinorFragIndex + 1) % minorFragmentIndices.size();
     return index;
@@ -85,10 +83,13 @@ public class MinorFragmentsByExecutor implements Comparable<MinorFragmentsByExec
 
   @Override
   public String toString() {
-    return "MinorFragmentsByExecutor{" +
-      "hostPort=" + hostPort +
-      ", minorFragmentIndices=" + minorFragmentIndices +
-      ", currMinorFragIndex=" + currMinorFragIndex +
-      '}';
+    return "MinorFragmentsByExecutor{"
+        + "hostPort="
+        + hostPort
+        + ", minorFragmentIndices="
+        + minorFragmentIndices
+        + ", currMinorFragIndex="
+        + currMinorFragIndex
+        + '}';
   }
 }

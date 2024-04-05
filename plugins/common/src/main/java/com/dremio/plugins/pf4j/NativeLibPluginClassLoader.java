@@ -15,6 +15,10 @@
  */
 package com.dremio.plugins.pf4j;
 
+import com.dremio.options.OptionResolver;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -26,53 +30,57 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-
 import org.pf4j.PluginClassLoader;
 import org.pf4j.PluginDescriptor;
 import org.pf4j.PluginManager;
 import org.pf4j.util.FileUtils;
-
-import com.dremio.options.OptionResolver;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Customized plugin classloader that extracts native libraries before loading them from a plugin
  * bundle.
  */
 public class NativeLibPluginClassLoader extends PluginClassLoader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NativeLibPluginClassLoader.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(NativeLibPluginClassLoader.class);
 
-  private static final List<String> BASE_PACKAGE_ALLOWLIST = ImmutableList.<String> builder()
-      .add("java/")
-      .add("javax/")
-      // Too broad of a package but until we have a proper API/SDK
-      .add("com/dremio/")
-      .add("com/fasterxml/jackson/")
-      .add("com/google/protobuf/")
-      .add("com/sun/")
-      .add("io/netty/buffer/ArrowBuf")
-      .add("io/protostuff/")
-      .add("org/apache/arrow/")
-      .add("org/apache/calcite/")
-      .add("org/apache/parquet/")
-      .add("org/ietf/jgss/")
-      .add("org/pf4j/")
-      .add("org/slf4j/")
-      // Are part of JRE, but are extended by xml-apis
-      .add("org/w3c/")
-      .add("org/xml/")
-      .add("sun/")
-      .build();
+  private static final List<String> BASE_PACKAGE_ALLOWLIST =
+      ImmutableList.<String>builder()
+          .add("java/")
+          .add("javax/")
+          // Too broad of a package but until we have a proper API/SDK
+          .add("com/dremio/")
+          .add("com/fasterxml/jackson/")
+          .add("com/google/protobuf/")
+          .add("com/sun/")
+          .add("io/netty/buffer/ArrowBuf")
+          .add("io/protostuff/")
+          .add("org/apache/arrow/")
+          .add("org/apache/calcite/")
+          .add("org/apache/parquet/")
+          .add("org/ietf/jgss/")
+          .add("org/pf4j/")
+          .add("org/slf4j/")
+          // Are part of JRE, but are extended by xml-apis
+          .add("org/w3c/")
+          .add("org/xml/")
+          .add("sun/")
+          .build();
 
   private final Path pluginPath;
   private final List<String> sharedPrefixes;
   private volatile Path tempDirectory;
 
-  public NativeLibPluginClassLoader(Path pluginPath, PluginManager pluginManager, PluginDescriptor pluginDescriptor,
-      ClassLoader parent, OptionResolver optionResolver) {
-    super(pluginManager, pluginDescriptor, AllowlistClassLoader.of(parent, getPackageAllowlist(optionResolver)), false);
+  public NativeLibPluginClassLoader(
+      Path pluginPath,
+      PluginManager pluginManager,
+      PluginDescriptor pluginDescriptor,
+      ClassLoader parent,
+      OptionResolver optionResolver) {
+    super(
+        pluginManager,
+        pluginDescriptor,
+        AllowlistClassLoader.of(parent, getPackageAllowlist(optionResolver)),
+        false);
     this.pluginPath = pluginPath;
     this.sharedPrefixes = getSharedPrefixes(optionResolver);
   }
@@ -80,7 +88,8 @@ public class NativeLibPluginClassLoader extends PluginClassLoader {
   @Override
   public Class<?> loadClass(String className) throws ClassNotFoundException {
     synchronized (getClassLoadingLock(className)) {
-      // check if this class starts with one of the shared prefixes - if so use the parent classloader to load it
+      // check if this class starts with one of the shared prefixes - if so use the parent
+      // classloader to load it
       if (sharedPrefixes.stream().anyMatch(className::startsWith)) {
         return getParent().loadClass(className);
       }
@@ -102,7 +111,8 @@ public class NativeLibPluginClassLoader extends PluginClassLoader {
 
     // Find the particular library that caller is trying to load.
     final String mappedName = System.mapLibraryName(libname);
-    final Path realFile = Paths.get(tempDirectory.toString(), "PF4J-INF", "native-libs", mappedName);
+    final Path realFile =
+        Paths.get(tempDirectory.toString(), "PF4J-INF", "native-libs", mappedName);
     if (Files.exists(realFile)) {
       return realFile.toAbsolutePath().toString();
     }
@@ -156,25 +166,26 @@ public class NativeLibPluginClassLoader extends PluginClassLoader {
   static void validateZipDirectory(Path tempDirectory, final ZipEntry entry) throws IOException {
     final Path destinationPath = tempDirectory.resolve(entry.getName()).normalize();
     if (!destinationPath.startsWith(tempDirectory)) {
-      throw new IOException(String.format("JAR entry %s is outside of the target directory %s. ", entry.getName(), tempDirectory));
+      throw new IOException(
+          String.format(
+              "JAR entry %s is outside of the target directory %s. ",
+              entry.getName(), tempDirectory));
     }
   }
 
   private static List<String> getSharedPrefixes(OptionResolver optionResolver) {
-    String sharedPrefixes = optionResolver != null ?
-        optionResolver.getOption(Pf4jPluginOptions.CLASSLOADER_SHARED_PREFIXES) :
-        Pf4jPluginOptions.CLASSLOADER_SHARED_PREFIXES.getDefault().getStringVal();
+    String sharedPrefixes =
+        optionResolver != null
+            ? optionResolver.getOption(Pf4jPluginOptions.CLASSLOADER_SHARED_PREFIXES)
+            : Pf4jPluginOptions.CLASSLOADER_SHARED_PREFIXES.getDefault().getStringVal();
     // ensure each prefix ends with a "." so that only full package names are matched
-    return Arrays.stream(sharedPrefixes.split(","))
-        .map(p -> p + ".")
-        .collect(Collectors.toList());
+    return Arrays.stream(sharedPrefixes.split(",")).map(p -> p + ".").collect(Collectors.toList());
   }
 
   private static List<String> getPackageAllowlist(OptionResolver optionResolver) {
     return ImmutableList.<String>builder()
         .addAll(BASE_PACKAGE_ALLOWLIST)
-        .addAll(getSharedPrefixes(optionResolver).stream()
-            .map(p -> p.replace(".", "/")).iterator())
+        .addAll(getSharedPrefixes(optionResolver).stream().map(p -> p.replace(".", "/")).iterator())
         .build();
   }
 }

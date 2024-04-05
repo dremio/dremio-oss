@@ -15,10 +15,12 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
-
+import com.dremio.exec.expr.fn.hll.StatisticsAggrFunctions;
+import com.dremio.sabot.exec.context.SlicedBufferManager;
+import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
+import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.util.MemoryUtil;
 import org.apache.arrow.vector.FieldVector;
@@ -29,18 +31,12 @@ import org.apache.datasketches.hll.TgtHllType;
 import org.apache.datasketches.hll.Union;
 import org.apache.datasketches.memory.WritableMemory;
 
-import com.dremio.exec.expr.fn.hll.StatisticsAggrFunctions;
-import com.dremio.sabot.exec.context.SlicedBufferManager;
-import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-import com.google.common.base.Preconditions;
-
-/**
- * A base accumulator for Union of HLL/NDV operator
- */
+/** A base accumulator for Union of HLL/NDV operator */
 abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
 
   /**
-   * holds an array of memory addresses, each is backing memory for a single Union sketch or actual HllSketch objects. AccumHolder is created for each chunk
+   * holds an array of memory addresses, each is backing memory for a single Union sketch or actual
+   * HllSketch objects. AccumHolder is created for each chunk
    */
   public static class HllUnionAccumHolder {
     /*
@@ -50,14 +46,19 @@ abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
      * Also large ArrowBuf means, less number of ByteBuffers to be maintained.
      */
     private static final int SKETCH_BUF_SIZE = 2 * 1024 * 1024;
-    private static final int sketchSize = HllSketch.getMaxUpdatableSerializationBytes(StatisticsAggrFunctions.HLL_ACCURACY, TgtHllType.HLL_8);
+    private static final int sketchSize =
+        HllSketch.getMaxUpdatableSerializationBytes(
+            StatisticsAggrFunctions.HLL_ACCURACY, TgtHllType.HLL_8);
     private static final int SKETCHES_PER_BUF = SKETCH_BUF_SIZE / sketchSize;
     private final boolean reduceNdvHeap;
     private final int count;
     private ByteBuffer[] accumAddresses;
     private Union[] accumObjs;
 
-    public HllUnionAccumHolder(int count /* number of sketch objects in this holder */, final SlicedBufferManager bufManager, boolean reduceNdvHeap) {
+    public HllUnionAccumHolder(
+        int count /* number of sketch objects in this holder */,
+        final SlicedBufferManager bufManager,
+        boolean reduceNdvHeap) {
       this.count = count;
       int numArrowBufs = (count + SKETCHES_PER_BUF - 1) / SKETCHES_PER_BUF;
       accumAddresses = new ByteBuffer[numArrowBufs];
@@ -67,7 +68,9 @@ abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
           /* Adjust the buffer size for the last arrow buf */
           bufSize = (count - i * SKETCHES_PER_BUF) * sketchSize;
         }
-        accumAddresses[i] = MemoryUtil.directBuffer(bufManager.getManagedBufferSliced(bufSize).memoryAddress(), bufSize);
+        accumAddresses[i] =
+            MemoryUtil.directBuffer(
+                bufManager.getManagedBufferSliced(bufSize).memoryAddress(), bufSize);
       }
 
       this.reduceNdvHeap = reduceNdvHeap;
@@ -116,19 +119,20 @@ abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
   protected HllUnionAccumHolder[] accumulators;
   protected final SlicedBufferManager bufManager;
 
-  public BaseNdvUnionAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+  public BaseNdvUnionAccumulatorNoSpill(
+      FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
     this.input = input;
     this.output = output;
     initArrs(0);
-    bufManager = (SlicedBufferManager)bufferManager;
+    bufManager = (SlicedBufferManager) bufferManager;
     this.reduceNdvHeap = reduceNdvHeap;
   }
 
-  FieldVector getInput(){
+  FieldVector getInput() {
     return input;
   }
 
-  private void initArrs(int size){
+  private void initArrs(int size) {
     this.accumulators = new HllUnionAccumHolder[size];
   }
 
@@ -136,20 +140,23 @@ abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
   public void resized(int newCapacity) {
     final int oldBatches = accumulators.length;
     final int currentCapacity = oldBatches * LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH;
-    if(currentCapacity >= newCapacity){
+    if (currentCapacity >= newCapacity) {
       return;
     }
 
     // save old references.
     final HllUnionAccumHolder[] oldAccumulators = this.accumulators;
 
-    final int newBatches = (int) Math.ceil( newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d) );
+    final int newBatches =
+        (int) Math.ceil(newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d));
     initArrs(newBatches);
 
     System.arraycopy(oldAccumulators, 0, this.accumulators, 0, oldBatches);
 
-    for(int i = oldAccumulators.length; i < newBatches; i++){
-      accumulators[i] = new HllUnionAccumHolder(LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH, bufManager, reduceNdvHeap);
+    for (int i = oldAccumulators.length; i < newBatches; i++) {
+      accumulators[i] =
+          new HllUnionAccumHolder(
+              LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH, bufManager, reduceNdvHeap);
     }
   }
 
@@ -164,7 +171,8 @@ abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
       total_size += sketch.getCompactSerializationBytes();
     }
 
-    ((VariableWidthVector) output).allocateNew(total_size, LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
+    ((VariableWidthVector) output)
+        .allocateNew(total_size, LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
     VarBinaryVector outVec = (VarBinaryVector) output;
 
     for (int i = 0; i < batchSize; ++i) {
@@ -179,6 +187,5 @@ abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
    */
   @SuppressWarnings("unchecked")
   @Override
-  public void close() throws Exception { }
-
+  public void close() throws Exception {}
 }

@@ -47,7 +47,7 @@ public class UnsupportedOperatorCollector {
   }
 
   public void setException(SqlUnsupportedException.ExceptionType exceptionType, String message) {
-    if(this.exceptionType != SqlUnsupportedException.ExceptionType.NONE) {
+    if (this.exceptionType != SqlUnsupportedException.ExceptionType.NONE) {
       throw new IllegalStateException("Exception was set already");
     }
 
@@ -60,6 +60,6 @@ public class UnsupportedOperatorCollector {
   }
 
   public void clean() {
-      exceptionType = SqlUnsupportedException.ExceptionType.NONE;
-    }
+    exceptionType = SqlUnsupportedException.ExceptionType.NONE;
+  }
 }

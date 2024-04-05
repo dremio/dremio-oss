@@ -22,13 +22,10 @@ import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.concurrent.Future;
-
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Tests for LocalValue
- */
+/** Tests for LocalValue */
 public class TestLocalValue {
   private static final LocalValue<String> stringLocalValue = new LocalValue<>();
   private static final LocalValue<Integer> intLocalValue = new LocalValue<>();
@@ -54,7 +51,8 @@ public class TestLocalValue {
     try {
       intLocalValue.restore(null);
       fail("Restoring null should fail");
-    } catch (Exception ignored) { }
+    } catch (Exception ignored) {
+    }
   }
 
   @Test
@@ -93,19 +91,21 @@ public class TestLocalValue {
     stringLocalValue.set("value1");
     intLocalValue.set(1);
 
-    final Runnable runnable1 = () -> {
-      assertFalse(stringLocalValue.get().isPresent());
+    final Runnable runnable1 =
+        () -> {
+          assertFalse(stringLocalValue.get().isPresent());
 
-      stringLocalValue.set("value2");
-      assertEquals("value2", stringLocalValue.get().get());
-    };
+          stringLocalValue.set("value2");
+          assertEquals("value2", stringLocalValue.get().get());
+        };
 
-    final Runnable runnable2 = () -> {
-      assertFalse(stringLocalValue.get().isPresent());
+    final Runnable runnable2 =
+        () -> {
+          assertFalse(stringLocalValue.get().isPresent());
 
-      stringLocalValue.set("value3");
-      assertEquals("value3", stringLocalValue.get().get());
-    };
+          stringLocalValue.set("value3");
+          assertEquals("value3", stringLocalValue.get().get());
+        };
 
     final Future<Void> future1 = ThreadPerTaskExecutor.run(runnable1);
     final Future<Void> future2 = ThreadPerTaskExecutor.run(runnable2);
@@ -123,20 +123,21 @@ public class TestLocalValue {
 
     final LocalValues localValues = stringLocalValue.save();
 
-    final Runnable runnable = () -> {
-      assertFalse(stringLocalValue.get().isPresent());
-      assertFalse(intLocalValue.get().isPresent());
+    final Runnable runnable =
+        () -> {
+          assertFalse(stringLocalValue.get().isPresent());
+          assertFalse(intLocalValue.get().isPresent());
 
-      stringLocalValue.restore(localValues);
-      assertEquals("value1", stringLocalValue.get().get());
-      assertEquals(Integer.valueOf(1), intLocalValue.get().get());
+          stringLocalValue.restore(localValues);
+          assertEquals("value1", stringLocalValue.get().get());
+          assertEquals(Integer.valueOf(1), intLocalValue.get().get());
 
-      stringLocalValue.set("value2");
-      assertEquals("value2", stringLocalValue.get().get());
+          stringLocalValue.set("value2");
+          assertEquals("value2", stringLocalValue.get().get());
 
-      intLocalValue.set(2);
-      assertEquals(Integer.valueOf(2), intLocalValue.get().get());
-    };
+          intLocalValue.set(2);
+          assertEquals(Integer.valueOf(2), intLocalValue.get().get());
+        };
 
     final Future<Void> future = ThreadPerTaskExecutor.run(runnable);
     future.get();
@@ -147,12 +148,14 @@ public class TestLocalValue {
 
   @Test
   public void testLocalValuesAreImmutable() {
-    final LocalValue.LocalValuesImpl initialLocalValues = (LocalValue.LocalValuesImpl) stringLocalValue.save();
+    final LocalValue.LocalValuesImpl initialLocalValues =
+        (LocalValue.LocalValuesImpl) stringLocalValue.save();
 
     stringLocalValue.set("value1");
     intLocalValue.set(1);
 
-    final LocalValue.LocalValuesImpl resultLocalValues = (LocalValue.LocalValuesImpl) stringLocalValue.save();
+    final LocalValue.LocalValuesImpl resultLocalValues =
+        (LocalValue.LocalValuesImpl) stringLocalValue.save();
 
     assertFalse(Arrays.equals(resultLocalValues.get(), initialLocalValues.get()));
   }

@@ -21,26 +21,21 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import javax.inject.Provider;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.google.common.collect.ImmutableSet;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import javax.inject.Provider;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- *
- */
+/** */
 public class TestExecutorSelectionService {
   private ClusterCoordinator clusterCoordinator;
   private TestExecutorSelectionServiceSet serviceSet;
@@ -62,19 +57,22 @@ public class TestExecutorSelectionService {
     when(clusterCoordinator.getServiceSet(any())).thenReturn(serviceSet);
 
     optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("default");
-    when(optionManager.getOption(eq(ExecutorSetService.DREMIO_VERSION_CHECK))).thenReturn(versionCheckEnabled);
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE)))
+        .thenReturn("default");
+    when(optionManager.getOption(eq(ExecutorSetService.DREMIO_VERSION_CHECK)))
+        .thenReturn(versionCheckEnabled);
 
     final ExecutorSelectorFactory executorSelectorFactory = new TestExecutorSelectorFactory();
     executorSelectorProvider = new ExecutorSelectorProvider();
     Provider<OptionManager> optionManagerProvider = () -> optionManager;
-    executorSetService = new LocalExecutorSetService(() -> clusterCoordinator,
-                                                     optionManagerProvider);
-    selectionService = new ExecutorSelectionServiceImpl(
-        () -> executorSetService,
-        optionManagerProvider,
-        () -> executorSelectorFactory,
-        executorSelectorProvider);
+    executorSetService =
+        new LocalExecutorSetService(() -> clusterCoordinator, optionManagerProvider);
+    selectionService =
+        new ExecutorSelectionServiceImpl(
+            () -> executorSetService,
+            optionManagerProvider,
+            () -> executorSelectorFactory,
+            executorSelectorProvider);
     selectionService.start();
   }
 
@@ -85,7 +83,8 @@ public class TestExecutorSelectionService {
   }
 
   // A mock executor selector
-  // Always initially created with a single node -- contains the "name" of the executor selector (used to test config changes)
+  // Always initially created with a single node -- contains the "name" of the executor selector
+  // (used to test config changes)
   // Otherwise, blindly returns the set of nodes that are registed with it.
   private static class TestExecutorSelector implements ExecutorSelector {
     private final Set<NodeEndpoint> executors;
@@ -94,13 +93,12 @@ public class TestExecutorSelectionService {
     TestExecutorSelector(String selectorName) {
       this.executors = new HashSet<>();
       this.selectorName = selectorName;
-      executors.add(NodeEndpoint.newBuilder()
-        .setAddress(selectorName)
-        .build());
+      executors.add(NodeEndpoint.newBuilder().setAddress(selectorName).build());
     }
 
     @Override
-    public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
+    public ExecutorSelectionHandle getExecutors(
+        int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
       return new ExecutorSelectionHandleImpl(executors);
     }
 
@@ -124,30 +122,35 @@ public class TestExecutorSelectionService {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
   }
 
   private static final class TestExecutorSelectorFactory implements ExecutorSelectorFactory {
     @Override
-    public ExecutorSelector createExecutorSelector(String selectorType, ReentrantReadWriteLock rwLock) {
+    public ExecutorSelector createExecutorSelector(
+        String selectorType, ReentrantReadWriteLock rwLock) {
       return new TestExecutorSelector(selectorType);
     }
   }
 
   @Test
   public void testSwitchImpl() throws Exception {
-    assertEquals("default", ((TestExecutorSelector)executorSelectorProvider.get()).getSelectorName());
+    assertEquals(
+        "default", ((TestExecutorSelector) executorSelectorProvider.get()).getSelectorName());
 
     // Switch to mode "a", expect created nodes to be "a"-nodes
-    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("aNode");
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE)))
+        .thenReturn("aNode");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("aNode"));
-    assertEquals("aNode", ((TestExecutorSelector)executorSelectorProvider.get()).getSelectorName());
+    assertEquals(
+        "aNode", ((TestExecutorSelector) executorSelectorProvider.get()).getSelectorName());
 
     // Switch to mode "b", expect created nodes to be "b"-nodes
-    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("bNode");
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE)))
+        .thenReturn("bNode");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("bNode"));
-    assertEquals("bNode", ((TestExecutorSelector)executorSelectorProvider.get()).getSelectorName());
+    assertEquals(
+        "bNode", ((TestExecutorSelector) executorSelectorProvider.get()).getSelectorName());
   }
 
   @Test
@@ -160,22 +163,28 @@ public class TestExecutorSelectionService {
     // NB: the TestExecutorSelector adds 'default'. It is *not* part of the TestSet
     TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "one"));
     serviceSet.testAddNode("two");
-    TestExecutorSelectorUtil.checkExecutors(selectionService, 3, ImmutableSet.of("default", "one", "two"));
+    TestExecutorSelectorUtil.checkExecutors(
+        selectionService, 3, ImmutableSet.of("default", "one", "two"));
     serviceSet.testRemoveNode("one");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "two"));
 
     // Switching to a new service will get the nodes of the old one
-    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("secondService");
-    // NB: the TestExecutorSelector adds 'secondService'. 'default' was part of the previous TestExecutorSelector,
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE)))
+        .thenReturn("secondService");
+    // NB: the TestExecutorSelector adds 'secondService'. 'default' was part of the previous
+    // TestExecutorSelector,
     // and is it was *not* part of the TestSet. As such, it doesn't get transferred.
-    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("two", "secondService"));
+    TestExecutorSelectorUtil.checkExecutors(
+        selectionService, 2, ImmutableSet.of("two", "secondService"));
     serviceSet.testRemoveNode("two");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
   }
 
   /**
-   * Test adding and removing nodes, some with compatible version and some with inCompatible version.
-   * Verify whether the selectionService excludes inCompatible versions because version check is enabled.
+   * Test adding and removing nodes, some with compatible version and some with inCompatible
+   * version. Verify whether the selectionService excludes inCompatible versions because version
+   * check is enabled.
+   *
    * @throws Exception
    */
   @Test
@@ -195,27 +204,34 @@ public class TestExecutorSelectionService {
     TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "two"));
 
     // Switching to a new service will get the nodes of the old one
-    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("secondService");
-    // NB: the TestExecutorSelector adds 'secondService'. 'default' was part of the previous TestExecutorSelector,
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE)))
+        .thenReturn("secondService");
+    // NB: the TestExecutorSelector adds 'secondService'. 'default' was part of the previous
+    // TestExecutorSelector,
     // and is it was *not* part of the TestSet. As such, it doesn't get transferred.
-    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "two"));
+    TestExecutorSelectorUtil.checkExecutors(
+        selectionService, 2, ImmutableSet.of("secondService", "two"));
     serviceSet.testRemoveNode("two");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
     serviceSet.testAddNode("one", "incompatible");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
     serviceSet.testRemoveNode("one", "incompatible");
     serviceSet.testAddNode("one");
-    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "one"));
+    TestExecutorSelectorUtil.checkExecutors(
+        selectionService, 2, ImmutableSet.of("secondService", "one"));
   }
 
   /**
-   * Test adding and removing nodes, some with compatible version and some with inCompatible version.
-   * Verify whether the selectionService does NOT excludes inCompatible versions because version check is disabled.
+   * Test adding and removing nodes, some with compatible version and some with inCompatible
+   * version. Verify whether the selectionService does NOT excludes inCompatible versions because
+   * version check is disabled.
+   *
    * @throws Exception
    */
   @Test
   public void testDremioVersionCheckDisabled() throws Exception {
-    // Since we are disabling version check (which is enabled by default), we need coordinator restart
+    // Since we are disabling version check (which is enabled by default), we need coordinator
+    // restart
     simulateRestartCoordinator(false);
 
     // Initial state in the service: a single 'default' node
@@ -226,7 +242,8 @@ public class TestExecutorSelectionService {
     // NB: the TestExecutorSelector adds 'default'. It is *not* part of the TestSet
     TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "one"));
     serviceSet.testAddNode("two", "incompatible");
-    TestExecutorSelectorUtil.checkExecutors(selectionService, 3, ImmutableSet.of("default", "one", "two"));
+    TestExecutorSelectorUtil.checkExecutors(
+        selectionService, 3, ImmutableSet.of("default", "one", "two"));
     serviceSet.testRemoveNode("one");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "two"));
     serviceSet.testRemoveNode("two", "incompatible");
@@ -235,17 +252,22 @@ public class TestExecutorSelectionService {
     TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "two"));
 
     // Switching to a new service will get the nodes of the old one
-    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("secondService");
-    // NB: the TestExecutorSelector adds 'secondService'. 'default' was part of the previous TestExecutorSelector,
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE)))
+        .thenReturn("secondService");
+    // NB: the TestExecutorSelector adds 'secondService'. 'default' was part of the previous
+    // TestExecutorSelector,
     // and is it was *not* part of the TestSet. As such, it doesn't get transferred.
-    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "two"));
+    TestExecutorSelectorUtil.checkExecutors(
+        selectionService, 2, ImmutableSet.of("secondService", "two"));
     serviceSet.testRemoveNode("two");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
     serviceSet.testAddNode("one", "incompatible");
-    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "one"));
+    TestExecutorSelectorUtil.checkExecutors(
+        selectionService, 2, ImmutableSet.of("secondService", "one"));
     serviceSet.testRemoveNode("one", "incompatible");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
     serviceSet.testAddNode("one");
-    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "one"));
+    TestExecutorSelectorUtil.checkExecutors(
+        selectionService, 2, ImmutableSet.of("secondService", "one"));
   }
 }

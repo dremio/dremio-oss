@@ -75,7 +75,7 @@ export class IdentifierSuggestions {
     tokenStream: CommonTokenStream,
     containerFetcher: IContainerFetcher,
     columnFetcher: IColumnFetcher,
-    queryContext: string[]
+    queryContext: string[],
   ) {
     this.analyzedIdentifier = analyzedIdentifier;
     this.cursorInfo = cursorInfo;
@@ -100,7 +100,7 @@ export class IdentifierSuggestions {
             Type.SPACE,
             Type.HOME,
             Type.FOLDER,
-          ])
+          ]),
         );
       case IdentifierType.FOLDER:
         return this.containersResult(
@@ -109,15 +109,15 @@ export class IdentifierSuggestions {
             Type.SPACE,
             Type.HOME,
             Type.FOLDER,
-          ])
+          ]),
         );
       case IdentifierType.SOURCE:
         return this.containersResult(
-          this.getContainerSuggestions([Type.SOURCE])
+          this.getContainerSuggestions([Type.SOURCE]),
         );
       case IdentifierType.SPACE:
         return this.containersResult(
-          this.getContainerSuggestions([Type.SPACE, Type.HOME])
+          this.getContainerSuggestions([Type.SPACE, Type.HOME]),
         );
       case IdentifierType.TABLE:
         return this.containersResult(
@@ -129,7 +129,7 @@ export class IdentifierSuggestions {
             Type.VIRTUAL,
             Type.PROMOTED,
             Type.DIRECT,
-          ])
+          ]),
         );
       case IdentifierType.UDF:
         return this.containersResult(
@@ -138,11 +138,11 @@ export class IdentifierSuggestions {
             Type.HOME,
             Type.FOLDER,
             Type.FUNCTION,
-          ])
+          ]),
         );
       case IdentifierType.COLUMN:
         return this.columnsResult(
-          this.getColumnSuggestions(this.analyzedIdentifier.compoundAllowed)
+          this.getColumnSuggestions(this.analyzedIdentifier.compoundAllowed),
         );
       default:
         return assertNever(this.analyzedIdentifier);
@@ -150,7 +150,7 @@ export class IdentifierSuggestions {
   }
 
   private getContainerSuggestions(
-    allowedTypes: Type[]
+    allowedTypes: Type[],
   ): Promise<CatalogContainer[]> {
     if (!this.identifierInfo.completable) {
       return Promise.resolve([]);
@@ -159,7 +159,7 @@ export class IdentifierSuggestions {
       this.identifierInfo.parentPath,
       this.identifierInfo.prefix,
       this.queryContext,
-      new Set(allowedTypes)
+      new Set(allowedTypes),
     );
   }
 
@@ -181,7 +181,7 @@ export class IdentifierSuggestions {
       this.identifierInfo,
       this.tokenStream,
       this.columnFetcher,
-      this.queryContext
+      this.queryContext,
     );
     const queryPlan = await queryVisitor.getTablesInScope();
     if (!queryPlan.tables) {
@@ -193,14 +193,15 @@ export class IdentifierSuggestions {
       : queryPlan.tables.filter(
           (table: Table) =>
             relationName.toLocaleLowerCase() ===
-            getTableName(table)?.toLocaleLowerCase()
+            getTableName(table)?.toLocaleLowerCase(),
         );
     columns = possibleTables
       .map((table: Table): [Column[], Table] => [
-        table.columns.filter((column) =>
-          getColumnName(column, table)
-            ?.toLocaleLowerCase()
-            .startsWith(this.identifierInfo.prefix.toLocaleLowerCase())
+        table.columns.filter(
+          (column) =>
+            getColumnName(column, table)
+              ?.toLocaleLowerCase()
+              .startsWith(this.identifierInfo.prefix.toLocaleLowerCase()),
         ),
         table,
       ])
@@ -208,10 +209,11 @@ export class IdentifierSuggestions {
     if (compoundAllowed && !relationName) {
       // Since we're not already qualified with a table name, we should suggest table names/aliases if possible here
       // compoundAllowed == false in some cases e.g. SET MASKING POLICY funcName (^) <-- non-qualified column names only
-      tables = queryPlan.tables.filter((table: Table) =>
-        getTableName(table)
-          ?.toLocaleLowerCase()
-          .startsWith(this.identifierInfo.prefix.toLocaleLowerCase())
+      tables = queryPlan.tables.filter(
+        (table: Table) =>
+          getTableName(table)
+            ?.toLocaleLowerCase()
+            .startsWith(this.identifierInfo.prefix.toLocaleLowerCase()),
       );
     }
     return { columns, tables };
@@ -221,7 +223,7 @@ export class IdentifierSuggestions {
     filteredColumnsWithTable: Promise<{
       columns: [Column[], Table][];
       tables: Table[];
-    }>
+    }>,
   ): Promise<GetIdentifierSuggestionsResult> {
     const columnsWithTable = await filteredColumnsWithTable;
     return {
@@ -242,8 +244,8 @@ export class IdentifierSuggestions {
                 searchTable !== table &&
                 searchColumns.some(
                   (searchColumn) =>
-                    getColumnName(searchColumn, searchTable) === name
-                )
+                    getColumnName(searchColumn, searchTable) === name,
+                ),
             );
             return !isUniqueColumnName && tableName
               ? `${tableName}.${name}` // qualify the column to avoid ambiguity
@@ -254,7 +256,7 @@ export class IdentifierSuggestions {
             ...base,
             ...(insertText ? { insertText } : {}),
           };
-        })
+        }),
       ),
       tables: columnsWithTable.tables
         .filter((table: Table) => !table.derived || !!table.alias)
@@ -273,7 +275,7 @@ export class IdentifierSuggestions {
   }
 
   private async containersResult(
-    containers: Promise<CatalogContainer[]>
+    containers: Promise<CatalogContainer[]>,
   ): Promise<GetIdentifierSuggestionsResult> {
     return {
       type: "containers",

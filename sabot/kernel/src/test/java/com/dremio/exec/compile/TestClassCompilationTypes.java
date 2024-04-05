@@ -15,54 +15,64 @@
  */
 package com.dremio.exec.compile;
 
+import com.dremio.exec.ExecTest;
 import org.codehaus.janino.ExpressionEvaluator;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.exec.ExecTest;
+public class TestClassCompilationTypes extends ExecTest {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestClassCompilationTypes.class);
 
-public class TestClassCompilationTypes extends ExecTest{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestClassCompilationTypes.class);
-
-  @Ignore @Test
+  @Ignore
+  @Test
   public void comparePerfs() throws Exception {
-    for(int i =0; i < 500; i++){
+    for (int i = 0; i < 500; i++) {
       int r = 0;
       long n0 = System.nanoTime();
       r += janino();
       long n1 = System.nanoTime();
       r += jdk();
       long n2 = System.nanoTime();
-      long janinoT = (n1 - n0)/1000;
-      long jdkT = (n2 - n1)/1000;
+      long janinoT = (n1 - n0) / 1000;
+      long jdkT = (n2 - n1) / 1000;
       System.out.println("Janino: " + janinoT + "micros.  JDK: " + jdkT + "micros. Val" + r);
     }
-
   }
 
-  private int janino() throws Exception{
+  private int janino() throws Exception {
     // Compile the expression once; relatively slow.
-    org.codehaus.janino.ExpressionEvaluator ee = new org.codehaus.janino.ExpressionEvaluator("c > d ? c : d", // expression
-        int.class, // expressionType
-        new String[] { "c", "d" }, // parameterNames
-        new Class[] { int.class, int.class } // parameterTypes
-    );
+    org.codehaus.janino.ExpressionEvaluator ee =
+        new org.codehaus.janino.ExpressionEvaluator(
+            "c > d ? c : d", // expression
+            int.class, // expressionType
+            new String[] {"c", "d"}, // parameterNames
+            new Class[] {int.class, int.class} // parameterTypes
+            );
 
     // Evaluate it with varying parameter values; very fast.
-    return (Integer) ee.evaluate(new Object[] { // parameterValues
-        10, 11, });
+    return (Integer)
+        ee.evaluate(
+            new Object[] { // parameterValues
+              10, 11,
+            });
   }
 
-  private int jdk() throws Exception{
+  private int jdk() throws Exception {
     // Compile the expression once; relatively slow.
-    ExpressionEvaluator ee = new ExpressionEvaluator("c > d ? c : d", // expression
-        int.class, // expressionType
-        new String[] { "c", "d" }, // parameterNames
-        new Class[] { int.class, int.class } // parameterTypes
-    );
+    ExpressionEvaluator ee =
+        new ExpressionEvaluator(
+            "c > d ? c : d", // expression
+            int.class, // expressionType
+            new String[] {"c", "d"}, // parameterNames
+            new Class[] {int.class, int.class} // parameterTypes
+            );
 
     // Evaluate it with varying parameter values; very fast.
-    return  (Integer) ee.evaluate(new Object[] { // parameterValues
-        10, 11, });
+    return (Integer)
+        ee.evaluate(
+            new Object[] { // parameterValues
+              10, 11,
+            });
   }
 }

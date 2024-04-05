@@ -16,18 +16,6 @@
 
 package com.dremio.exec.resolver;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.CompleteTypeInLogicalExpression;
 import com.dremio.common.expression.LogicalExpression;
@@ -38,14 +26,23 @@ import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 public class TypeCastRules {
 
   private static Map<MinorType, Set<MinorType>> rules;
   private static Map<MinorType, Set<MinorType>> insertRules;
 
-  public TypeCastRules() {
-  }
+  public TypeCastRules() {}
 
   static {
     initTypeRules();
@@ -542,91 +539,91 @@ public class TypeCastRules {
     insertRules = new HashMap<>();
     Set<MinorType> rule;
 
-    /** TINYINT cast able from **/
+    /** TINYINT cast able from * */
     rule = getTINYINTCastableFromRules(true);
     insertRules.put(MinorType.TINYINT, rule);
 
-    /** SMALLINT cast able from **/
+    /** SMALLINT cast able from * */
     rule = getSMALLINTCastableFromRules(true);
     insertRules.put(MinorType.SMALLINT, rule);
 
-    /** INT cast able from **/
+    /** INT cast able from * */
     rule = getINTCastableFromRules(true);
     insertRules.put(MinorType.INT, rule);
 
-    /** BIGINT cast able from **/
+    /** BIGINT cast able from * */
     rule = getBIGINTCastableFromRules(true);
     insertRules.put(MinorType.BIGINT, rule);
 
-    /** UINT8 cast able from **/
+    /** UINT8 cast able from * */
     rule = getUINT8CastableFromRules(true);
     insertRules.put(MinorType.UINT8, rule);
 
-    /** DECIMAL cast able from **/
+    /** DECIMAL cast able from * */
     rule = getDECIMALCastableFromRules(true);
     insertRules.put(MinorType.DECIMAL, rule);
 
-    /** DATE cast able from **/
+    /** DATE cast able from * */
     rule = getDATECastableFromRules();
     insertRules.put(MinorType.DATE, rule);
 
-    /** TIME cast able from **/
+    /** TIME cast able from * */
     rule = getTIMECastableFromRules();
     insertRules.put(MinorType.TIME, rule);
 
-    /** TIMESTAMP cast able from **/
+    /** TIMESTAMP cast able from * */
     rule = getTIMESTAMPCastableFromRules();
     insertRules.put(MinorType.TIMESTAMP, rule);
 
-    /** TIMESTAMPTZ cast able from **/
+    /** TIMESTAMPTZ cast able from * */
     rule = getTIMESTAMPTZCastableFromRules();
     insertRules.put(MinorType.TIMESTAMPTZ, rule);
 
-    /** Interval cast able from **/
+    /** Interval cast able from * */
     rule = getIntervalCastableFromRules();
     insertRules.put(MinorType.INTERVAL, rule);
 
-    /** INTERVAL YEAR cast able from **/
+    /** INTERVAL YEAR cast able from * */
     rule = getINTERVALCastableFromRules();
     insertRules.put(MinorType.INTERVALYEAR, rule);
 
-    /** INTERVAL DAY cast able from **/
+    /** INTERVAL DAY cast able from * */
     rule = getINTERVALDAYCastableFromRules();
     insertRules.put(MinorType.INTERVALDAY, rule);
 
-    /** FLOAT4 cast able from **/
+    /** FLOAT4 cast able from * */
     rule = getFLOAT4CastableFromRules(true);
     insertRules.put(MinorType.FLOAT4, rule);
 
-    /** FLOAT8 cast able from **/
+    /** FLOAT8 cast able from * */
     rule = getFLOAT8CastableFromRules(true);
     insertRules.put(MinorType.FLOAT8, rule);
 
-    /** BIT cast able from **/
+    /** BIT cast able from * */
     rule = getBITCastableFromRules();
     insertRules.put(MinorType.BIT, rule);
 
-    /** FIXEDCHAR cast able from **/
+    /** FIXEDCHAR cast able from * */
     rule = getFIXEDCHARCastableFromRules();
     insertRules.put(MinorType.FIXEDCHAR, rule);
 
-    /** FIXED16CHAR cast able from **/
+    /** FIXED16CHAR cast able from * */
     rule = getFIXED16CHARCastableFromRules();
     insertRules.put(MinorType.FIXED16CHAR, rule);
 
-    /** FIXEDSIZEBINARY cast able from **/
+    /** FIXEDSIZEBINARY cast able from * */
     rule = getFIXEDSIZEBINARYCastableFromRules();
     insertRules.put(MinorType.FIXEDSIZEBINARY, rule);
 
-    /** VARCHAR cast able from **/
+    /** VARCHAR cast able from * */
     rule = getVARCHARCastableFromRules();
     insertRules.put(MinorType.VARCHAR, rule);
 
-    /** VAR16CHAR cast able from **/
+    /** VAR16CHAR cast able from * */
     rule = getVAR16CHARCastableFromRules();
     insertRules.put(MinorType.VAR16CHAR, rule);
 
-    /** VARBINARY cast able from **/
+    /** VARBINARY cast able from * */
     rule = getVARBINARYCastableFromRules();
     insertRules.put(MinorType.VARBINARY, rule);
 
@@ -638,100 +635,101 @@ public class TypeCastRules {
 
     Set<MinorType> rule;
 
-    /** TINYINT cast able from **/
+    /** TINYINT cast able from * */
     rule = getTINYINTCastableFromRules(false);
     rules.put(MinorType.TINYINT, rule);
 
-    /** SMALLINT cast able from **/
+    /** SMALLINT cast able from * */
     rule = getSMALLINTCastableFromRules(false);
     rules.put(MinorType.SMALLINT, rule);
 
-    /** INT cast able from **/
+    /** INT cast able from * */
     rule = getINTCastableFromRules(false);
     rules.put(MinorType.INT, rule);
 
-    /** BIGINT cast able from **/
+    /** BIGINT cast able from * */
     rule = getBIGINTCastableFromRules(false);
     rules.put(MinorType.BIGINT, rule);
 
-    /** UINT8 cast able from **/
+    /** UINT8 cast able from * */
     rule = getUINT8CastableFromRules(false);
     rules.put(MinorType.UINT8, rule);
 
-    /** DECIMAL cast able from **/
+    /** DECIMAL cast able from * */
     rule = getDECIMALCastableFromRules(false);
     rules.put(MinorType.DECIMAL, rule);
 
-    /** DATE cast able from **/
+    /** DATE cast able from * */
     rule = getDATECastableFromRules();
     rules.put(MinorType.DATE, rule);
 
-    /** TIME cast able from **/
+    /** TIME cast able from * */
     rule = getTIMECastableFromRules();
     rules.put(MinorType.TIME, rule);
 
-    /** TIMESTAMP cast able from **/
+    /** TIMESTAMP cast able from * */
     rule = getTIMESTAMPCastableFromRules();
     rules.put(MinorType.TIMESTAMP, rule);
 
-    /** TIMESTAMPTZ cast able from **/
+    /** TIMESTAMPTZ cast able from * */
     rule = getTIMESTAMPTZCastableFromRules();
     rules.put(MinorType.TIMESTAMPTZ, rule);
 
-    /** Interval cast able from **/
+    /** Interval cast able from * */
     rule = getIntervalCastableFromRules();
     rules.put(MinorType.INTERVAL, rule);
 
-    /** INTERVAL YEAR cast able from **/
+    /** INTERVAL YEAR cast able from * */
     rule = getINTERVALCastableFromRules();
     rules.put(MinorType.INTERVALYEAR, rule);
 
-    /** INTERVAL DAY cast able from **/
+    /** INTERVAL DAY cast able from * */
     rule = getINTERVALDAYCastableFromRules();
     rules.put(MinorType.INTERVALDAY, rule);
 
-    /** FLOAT4 cast able from **/
+    /** FLOAT4 cast able from * */
     rule = getFLOAT4CastableFromRules(false);
     rules.put(MinorType.FLOAT4, rule);
 
-    /** FLOAT8 cast able from **/
+    /** FLOAT8 cast able from * */
     rule = getFLOAT8CastableFromRules(false);
     rules.put(MinorType.FLOAT8, rule);
 
-    /** BIT cast able from **/
+    /** BIT cast able from * */
     rule = getBITCastableFromRules();
     rules.put(MinorType.BIT, rule);
 
-    /** FIXEDCHAR cast able from **/
+    /** FIXEDCHAR cast able from * */
     rule = getFIXEDCHARCastableFromRules();
     rules.put(MinorType.FIXEDCHAR, rule);
 
-    /** FIXED16CHAR cast able from **/
+    /** FIXED16CHAR cast able from * */
     rule = getFIXED16CHARCastableFromRules();
     rules.put(MinorType.FIXED16CHAR, rule);
 
-    /** FIXEDSIZEBINARY cast able from **/
+    /** FIXEDSIZEBINARY cast able from * */
     rule = getFIXEDSIZEBINARYCastableFromRules();
     rules.put(MinorType.FIXEDSIZEBINARY, rule);
 
-    /** VARCHAR cast able from **/
+    /** VARCHAR cast able from * */
     rule = getVARCHARCastableFromRules();
     rules.put(MinorType.VARCHAR, rule);
 
-    /** VAR16CHAR cast able from **/
+    /** VAR16CHAR cast able from * */
     rule = getVAR16CHARCastableFromRules();
     rules.put(MinorType.VAR16CHAR, rule);
 
-    /** VARBINARY cast able from **/
+    /** VARBINARY cast able from * */
     rule = getVARBINARYCastableFromRules();
     rules.put(MinorType.VARBINARY, rule);
 
     rules.put(MinorType.UNION, Sets.newHashSet(MinorType.UNION));
   }
 
-  public static boolean isCastableWithNullHandling(CompleteType from, CompleteType to, NullHandling nullHandling) {
+  public static boolean isCastableWithNullHandling(
+      CompleteType from, CompleteType to, NullHandling nullHandling) {
 
-    if(from.isComplex() || to.isComplex()){
+    if (from.isComplex() || to.isComplex()) {
       return false;
     }
     return isCastable(from.toMinorType(), to.toMinorType());
@@ -743,17 +741,19 @@ public class TypeCastRules {
 
   public static boolean isCastable(MinorType from, MinorType to, boolean insertOp) {
     if (insertOp) {
-      return from.equals(MinorType.NULL) ||      //null could be casted to any other type.
-        (insertRules.get(to) == null ? false : insertRules.get(to).contains(from));
+      return from.equals(MinorType.NULL)
+          || // null could be casted to any other type.
+          (insertRules.get(to) == null ? false : insertRules.get(to).contains(from));
     } else {
-      return from.equals(MinorType.NULL) ||      //null could be casted to any other type.
-        (rules.get(to) == null ? false : rules.get(to).contains(from));
+      return from.equals(MinorType.NULL)
+          || // null could be casted to any other type.
+          (rules.get(to) == null ? false : rules.get(to).contains(from));
     }
   }
 
   public static DataMode getLeastRestrictiveDataMode(List<DataMode> dataModes) {
     boolean hasOptional = false;
-    for(DataMode dataMode : dataModes) {
+    for (DataMode dataMode : dataModes) {
       switch (dataMode) {
         case REPEATED:
           return dataMode;
@@ -762,7 +762,7 @@ public class TypeCastRules {
       }
     }
 
-    if(hasOptional) {
+    if (hasOptional) {
       return DataMode.OPTIONAL;
     } else {
       return DataMode.REQUIRED;
@@ -806,8 +806,8 @@ public class TypeCastRules {
       }
 
       // Force float -> decimal to convert both to double.
-      if ((result == MinorType.FLOAT4 && next == MinorType.DECIMAL) ||
-          (result == MinorType.DECIMAL && next == MinorType.FLOAT4)) {
+      if ((result == MinorType.FLOAT4 && next == MinorType.DECIMAL)
+          || (result == MinorType.DECIMAL && next == MinorType.FLOAT4)) {
         result = MinorType.FLOAT8;
         continue;
       }
@@ -817,7 +817,7 @@ public class TypeCastRules {
       if (isCastable(next, result, insertOp) && resultPrec >= nextPrec) {
         // result is the least restrictive between the two args; nothing to do continue
         continue;
-      } else if(isCastable(result, next, insertOp) && nextPrec >= resultPrec) {
+      } else if (isCastable(result, next, insertOp) && nextPrec >= resultPrec) {
         result = next;
         resultPrec = nextPrec;
       } else {
@@ -845,7 +845,8 @@ public class TypeCastRules {
     // Indicates whether we used secondary cast rules
     boolean secondaryCast = false;
 
-    // number of arguments that could implicitly casts using precedence map or didn't require casting at all
+    // number of arguments that could implicitly casts using precedence map or didn't require
+    // casting at all
     int nCasts = 0;
 
     /*
@@ -854,9 +855,8 @@ public class TypeCastRules {
      */
     if (holder.checkPrecisionRange()) {
       List<LogicalExpression> logicalExpressions = Lists.newArrayList();
-      for(CompleteType completeType : argumentTypes) {
-        logicalExpressions.add(
-            new CompleteTypeInLogicalExpression(completeType));
+      for (CompleteType completeType : argumentTypes) {
+        logicalExpressions.add(new CompleteTypeInLogicalExpression(completeType));
       }
 
       if (!holder.isReturnTypeIndependent()) {
@@ -871,20 +871,22 @@ public class TypeCastRules {
       final CompleteType argType = argumentTypes.get(i);
       final CompleteType parmType = holder.getParamType(i);
 
-      //@Param FieldReader will match any type
+      // @Param FieldReader will match any type
       if (holder.isFieldReader(i)) {
-//        if (Types.isComplex(call.args.get(i).getMajorType()) ||Types.isRepeated(call.args.get(i).getMajorType()) )
-        // add the max cost when encountered with a field reader considering that it is the most expensive factor
+        //        if (Types.isComplex(call.args.get(i).getMajorType())
+        // ||Types.isRepeated(call.args.get(i).getMajorType()) )
+        // add the max cost when encountered with a field reader considering that it is the most
+        // expensive factor
         // contributing to the cost.
         cost += ResolverTypePrecedence.MAX_IMPLICIT_CAST_COST;
         continue;
-//        else
-//          return -1;
+        //        else
+        //          return -1;
       }
       if (argType.isDecimal()) {
         if (parmType.getType().getTypeID() == ArrowType.ArrowTypeID.FloatingPoint
-          && ((ArrowType.FloatingPoint) parmType.getType()).getPrecision() ==
-          FloatingPointPrecision.SINGLE) {
+            && ((ArrowType.FloatingPoint) parmType.getType()).getPrecision()
+                == FloatingPointPrecision.SINGLE) {
           // do not allow decimals to be cast to float;
           return -1;
         }
@@ -895,7 +897,7 @@ public class TypeCastRules {
         List<Field> toChildren = parmType.getChildren();
         if (!fromChildren.isEmpty() && !toChildren.isEmpty()) {
           if (fromChildren.get(0).getType().getTypeID()
-            == toChildren.get(0).getType().getTypeID()) {
+              == toChildren.get(0).getType().getTypeID()) {
             continue;
           }
         }
@@ -909,13 +911,12 @@ public class TypeCastRules {
       Integer argVal = precedenceMap.get(argType.toMinorType());
 
       if (parmVal == null) {
-        throw new RuntimeException(String.format(
-            "Precedence for type %s is not defined", parmType));
+        throw new RuntimeException(
+            String.format("Precedence for type %s is not defined", parmType));
       }
 
       if (argVal == null) {
-        throw new RuntimeException(String.format(
-            "Precedence for type %s is not defined", argType));
+        throw new RuntimeException(String.format("Precedence for type %s is not defined", argType));
       }
 
       if (parmVal - argVal < 0) {
@@ -923,7 +924,8 @@ public class TypeCastRules {
         /* Precedence rules does not allow to implicitly cast, however check
          * if the seconday rules allow us to cast
          */
-        Set<MinorType> rules = ResolverTypePrecedence.SECONDARY_IMPLICIT_CAST_RULES.get(parmType.toMinorType());
+        Set<MinorType> rules =
+            ResolverTypePrecedence.SECONDARY_IMPLICIT_CAST_RULES.get(parmType.toMinorType());
         if (rules != null && rules.contains(argType.toMinorType())) {
           secondaryCast = true;
         } else {
@@ -940,10 +942,11 @@ public class TypeCastRules {
 
     if (secondaryCast) {
       // We have a secondary cast for one or more of the arguments, determine the cost associated
-      int secondaryCastCost =  Integer.MAX_VALUE - 1;
+      int secondaryCastCost = Integer.MAX_VALUE - 1;
 
       // Subtract maximum possible implicit costs from the secondary cast cost
-      secondaryCastCost -= (nCasts * (ResolverTypePrecedence.MAX_IMPLICIT_CAST_COST + DATAMODE_CAST_COST));
+      secondaryCastCost -=
+          (nCasts * (ResolverTypePrecedence.MAX_IMPLICIT_CAST_COST + DATAMODE_CAST_COST));
 
       // Add cost of implicitly casting the rest of the arguments that didn't use secondary casting
       secondaryCastCost += cost;
@@ -978,7 +981,7 @@ public class TypeCastRules {
 
   // Given a type return number of digits max value of that type has
   private static int getMaxPrecision(SqlTypeName typeName) {
-    switch(typeName) {
+    switch (typeName) {
       case TINYINT:
         return 3; // 1 byte
       case SMALLINT:
@@ -1007,13 +1010,14 @@ public class TypeCastRules {
       case BIGINT:
       case DOUBLE:
         // cast to decimal is allowed if target type has enough digits to the left of decimal point
-        return (type2.getSqlTypeName() != SqlTypeName.DECIMAL) ||
-          (type2.getPrecision() - type2.getScale() >= getMaxPrecision(type1.getSqlTypeName()));
+        return (type2.getSqlTypeName() != SqlTypeName.DECIMAL)
+            || (type2.getPrecision() - type2.getScale() >= getMaxPrecision(type1.getSqlTypeName()));
       case DECIMAL:
         switch (type2.getSqlTypeName()) {
           case DECIMAL:
-            return ( (type2.getScale() >= type1.getScale()) &&
-              (type2.getPrecision() - type2.getScale() >= type1.getPrecision() - type1.getScale()));
+            return ((type2.getScale() >= type1.getScale())
+                && (type2.getPrecision() - type2.getScale()
+                    >= type1.getPrecision() - type1.getScale()));
           case FLOAT:
           case DOUBLE:
             return true;
@@ -1040,6 +1044,4 @@ public class TypeCastRules {
         return false;
     }
   }
-
-
 }

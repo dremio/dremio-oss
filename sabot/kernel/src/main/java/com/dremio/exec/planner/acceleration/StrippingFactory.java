@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import com.dremio.common.config.SabotConfig;
+import com.dremio.exec.planner.sql.handlers.RelTransformer;
+import com.dremio.exec.proto.UserBitShared.ReflectionType;
+import com.dremio.options.OptionResolver;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
@@ -22,19 +26,15 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.planner.sql.handlers.RelTransformer;
-import com.dremio.exec.proto.UserBitShared.ReflectionType;
-import com.dremio.options.OptionResolver;
-
-/**
- * A Reflection Materialization Stripping Organizer.
- */
+/** A Reflection Materialization Stripping Organizer. */
 public class StrippingFactory {
 
   private static final String NODE_STRIPPER = "dremio.reflection.planning.node-stripper.class";
   private static final PassThruNodeStripper NO_OP_STRIPPER = new PassThruNodeStripper();
 
+  // Strip version is the version of the materialization.  We need this version so that we know what
+  // nodes to add
+  // on top of the materialization to make it equivalent with the original expanded reflection
   public static final int NO_STRIP_VERSION = 0;
   public static final int RETAIN_EXPANSION_NODE_STRIP_VERSION = 2;
   public static final int RETAIN_PROJECT_STRIP_VERSION = 3;
@@ -49,34 +49,48 @@ public class StrippingFactory {
     this.config = config;
   }
 
-  public StripResult strip(RelNode query, ReflectionType type, boolean isIncremental, int stripVersion) {
-    NodeStripper stripper = type == ReflectionType.EXTERNAL ? new PassThruNodeStripper() : config.getInstance(NODE_STRIPPER, NodeStripper.class, NO_OP_STRIPPER);
+  public StripResult strip(
+      RelNode query, ReflectionType type, boolean isIncremental, int stripVersion) {
+    NodeStripper stripper =
+        type == ReflectionType.EXTERNAL
+            ? new PassThruNodeStripper()
+            : config.getInstance(NODE_STRIPPER, NodeStripper.class, NO_OP_STRIPPER);
     return stripper.apply(options, type, query, isIncremental, stripVersion);
   }
 
   /**
    * Return a strip result with no stripping applied.
+   *
    * @param node
    * @return
    */
   public static StripResult noStrip(RelNode node) {
-    return new StripResult(ExpansionNode.removeFromTree(node), new StripLeaf(node.getCluster(), node.getCluster().traitSet(), node.getRowType()));
+    return new StripResult(
+        ExpansionNode.removeFromTree(node),
+        new StripLeaf(node.getCluster(), node.getCluster().traitSet(), node.getRowType()));
   }
 
-  /**
-   * A normalizer class doing nothing
-   */
+  /** A normalizer class doing nothing */
   private static final class PassThruNodeStripper implements NodeStripper {
 
     @Override
-    public StripResult apply(OptionResolver options, ReflectionType reflectionType, RelNode node, boolean isIncremental, int stripVersion) {
+    public StripResult apply(
+        OptionResolver options,
+        ReflectionType reflectionType,
+        RelNode node,
+        boolean isIncremental,
+        int stripVersion) {
       return noStrip(node);
     }
-
   }
 
   public interface NodeStripper {
-    StripResult apply(OptionResolver options, ReflectionType reflectionType, RelNode node, boolean isIncremental, int stripVersion);
+    StripResult apply(
+        OptionResolver options,
+        ReflectionType reflectionType,
+        RelNode node,
+        boolean isIncremental,
+        int stripVersion);
   }
 
   public static class StripResult {
@@ -94,27 +108,27 @@ public class StrippingFactory {
     }
 
     public RelNode applyStrippedNodes(RelNode belowStrippedNode) {
-      return stripFragment.accept(new RelShuttleImpl() {
+      return stripFragment.accept(
+          new RelShuttleImpl() {
 
-        @Override
-        public RelNode visit(RelNode other) {
-          if(other instanceof StripLeaf) {
-            return belowStrippedNode;
-          }
-          return super.visit(other);
-        }
-
-      });
+            @Override
+            public RelNode visit(RelNode other) {
+              if (other instanceof StripLeaf) {
+                return belowStrippedNode;
+              }
+              return super.visit(other);
+            }
+          });
     }
 
     public StripResult transformNormalized(RelTransformer transformer) {
       return new StripResult(transformer.transform(normalized), stripFragment);
     }
-
   }
 
   /**
-   * The leaf of a strip set. The strip set is at the top of the tree and should be placed above the materialization.
+   * The leaf of a strip set. The strip set is at the top of the tree and should be placed above the
+   * materialization.
    */
   public static class StripLeaf extends AbstractRelNode {
 
@@ -122,6 +136,5 @@ public class StrippingFactory {
       super(cluster, traitSet);
       this.rowType = rowType;
     }
-
   }
 }

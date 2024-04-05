@@ -17,14 +17,6 @@ package com.dremio.exec.planner.physical;
 
 import static com.dremio.exec.record.BatchSchema.assertNoUnion;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.planner.common.ScreenRelBase;
@@ -35,12 +27,20 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 
 @Options
 public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAffinity {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.screen.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.screen.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator("planner.op.screen.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.screen.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public ScreenPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child) {
     super(Prel.PHYSICAL, cluster, traits, child);
@@ -59,9 +59,7 @@ public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAf
     BatchSchema schema = childPop.getProps().getSchema();
     assertNoUnion(schema.getFields());
 
-    return new Screen(
-        creator.props(this, null, schema, RESERVE, LIMIT),
-        childPop);
+    return new Screen(creator.props(this, null, schema, RESERVE, LIMIT), childPop);
   }
 
   @Override
@@ -70,7 +68,8 @@ public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAf
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitScreen(this, value);
   }
 

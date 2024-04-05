@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -24,7 +23,8 @@ public class TestOperatorStats {
 
   @Test
   public void testWaitInProcessing() throws Exception {
-    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
+    OpProfileDef profileDef =
+        new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
     OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/);
 
     long startTime = System.nanoTime();
@@ -36,15 +36,19 @@ public class TestOperatorStats {
     long elapsedTime = System.nanoTime() - startTime;
 
     assertTrue("Expected wait time is non-zero, but got zero wait time", stats.getWaitNanos() > 0);
-    assertTrue("Expected setup time is zero, but got non-zero setup time", stats.getSetupNanos() == 0);
+    assertTrue(
+        "Expected setup time is zero, but got non-zero setup time", stats.getSetupNanos() == 0);
 
     long totalTime = stats.getProcessingNanos() + stats.getSetupNanos() + stats.getWaitNanos();
-    assertTrue("Expected total time (" + totalTime + ") to be <= elapsedTime (" + elapsedTime +")", totalTime <= elapsedTime);
+    assertTrue(
+        "Expected total time (" + totalTime + ") to be <= elapsedTime (" + elapsedTime + ")",
+        totalTime <= elapsedTime);
   }
 
   @Test
   public void testWaitInSetup() throws Exception {
-    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
+    OpProfileDef profileDef =
+        new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
     OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/);
 
     long startTime = System.nanoTime();
@@ -60,6 +64,8 @@ public class TestOperatorStats {
     assertTrue("Expected wait time is non-zero, but got zero wait time", stats.getWaitNanos() > 0);
 
     long totalTime = stats.getProcessingNanos() + stats.getSetupNanos() + stats.getWaitNanos();
-    assertTrue("Expected total time (" + totalTime + ") to be <= elapsedTime (" + elapsedTime +")", totalTime <= elapsedTime);
+    assertTrue(
+        "Expected total time (" + totalTime + ") to be <= elapsedTime (" + elapsedTime + ")",
+        totalTime <= elapsedTime);
   }
 }

@@ -14,7 +14,5 @@
  * limitations under the License.
  */
 
-/**
- * Contains all the options that are provided by the catalog to the connector.
- */
+/** Contains all the options that are provided by the catalog to the connector. */
 package com.dremio.connector.metadata.options;

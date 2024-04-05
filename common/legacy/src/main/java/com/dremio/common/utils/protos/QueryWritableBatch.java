@@ -15,12 +15,10 @@
  */
 package com.dremio.common.utils.protos;
 
-import java.util.Arrays;
-
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.google.common.base.Preconditions;
-
 import io.netty.buffer.ByteBuf;
+import java.util.Arrays;
 
 public class QueryWritableBatch {
 
@@ -30,7 +28,7 @@ public class QueryWritableBatch {
   public QueryWritableBatch(QueryData header, ByteBuf... buffers) {
     this.header = header;
     this.buffers = buffers;
-    for(ByteBuf b : buffers){
+    for (ByteBuf b : buffers) {
       Preconditions.checkNotNull(b);
     }
   }

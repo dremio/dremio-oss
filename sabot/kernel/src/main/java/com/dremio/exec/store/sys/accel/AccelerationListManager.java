@@ -15,28 +15,32 @@
  */
 package com.dremio.exec.store.sys.accel;
 
+import com.dremio.service.Service;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import java.sql.Timestamp;
 import java.util.Iterator;
 
-import com.dremio.service.Service;
-import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
-
-/**
- * Exposes the acceleration store to the execution engine
- */
+/** Exposes the acceleration store to the execution engine */
 public interface AccelerationListManager extends Service {
 
   Iterator<ReflectionInfo> getReflections();
+
   Iterator<MaterializationInfo> getMaterializations();
+
   Iterator<RefreshInfo> getRefreshInfos();
+
   Iterator<DependencyInfo> getReflectionDependencies();
 
   class ReflectionInfo {
     public final String reflection_id;
     public final String name;
     public final String type;
+    public final Timestamp createdAt;
+    public final Timestamp updatedAt;
     public final String status;
     public final int num_failures;
+    public final String lastFailureMessage;
+    public final String lastFailureStack;
     public final String datasetId;
     public final String dataset;
     public final String datasetType;
@@ -48,15 +52,61 @@ public interface AccelerationListManager extends Service {
     public final String displayColumns;
     public final String externalReflection;
     public final boolean arrow_cache;
+    public final String refreshStatus;
+    public final String accelerationStatus;
+    public final long recordCount;
+    public final long currentFootprintBytes;
+    public final long totalFootprintBytes;
+    public final long lastRefreshDurationMillis;
+    public final Timestamp lastRefreshFromTable;
+    public final String refreshMethod;
+    public final Timestamp availableUntil;
+    public final int consideredCount;
+    public final int matchedCount;
+    public final int acceleratedCount;
 
-    public ReflectionInfo(String reflectionId, String reflectionName, String type, String status, int numFailures, String datasetId,
-        String datasetName, String datasetType, String sortColumns, String partitionColumns, String distributionColumns,
-        String dimensions, String measures, String displayColumns, String externalReflection, boolean arrowCachingEnabled) {
+    public ReflectionInfo(
+        String reflectionId,
+        String reflectionName,
+        String type,
+        Timestamp createdAt,
+        Timestamp updatedAt,
+        String status,
+        int numFailures,
+        String lastFailureMessage,
+        String lastFailureStack,
+        String datasetId,
+        String datasetName,
+        String datasetType,
+        String sortColumns,
+        String partitionColumns,
+        String distributionColumns,
+        String dimensions,
+        String measures,
+        String displayColumns,
+        String externalReflection,
+        boolean arrowCachingEnabled,
+        String refreshStatus,
+        String accelerationStatus,
+        long recordCount,
+        long currentFootprintBytes,
+        long totalFootprintBytes,
+        long lastRefreshDurationMillis,
+        Timestamp lastRefreshFromTable,
+        String refreshMethod,
+        Timestamp availableUntil,
+        int consideredCount,
+        int matchedCount,
+        int acceleratedCount) {
       this.reflection_id = reflectionId;
       this.name = reflectionName;
       this.type = type;
+      this.createdAt = createdAt;
+      this.updatedAt = updatedAt;
       this.status = status;
       this.num_failures = numFailures;
+      this.lastFailureMessage = lastFailureMessage;
+      this.lastFailureStack = lastFailureStack;
       this.datasetId = datasetId;
       this.dataset = datasetName;
       this.datasetType = datasetType;
@@ -68,80 +118,153 @@ public interface AccelerationListManager extends Service {
       this.displayColumns = displayColumns;
       this.externalReflection = externalReflection;
       this.arrow_cache = arrowCachingEnabled;
+      this.refreshStatus = refreshStatus;
+      this.accelerationStatus = accelerationStatus;
+      this.recordCount = recordCount;
+      this.currentFootprintBytes = currentFootprintBytes;
+      this.totalFootprintBytes = totalFootprintBytes;
+      this.lastRefreshDurationMillis = lastRefreshDurationMillis;
+      this.lastRefreshFromTable = lastRefreshFromTable;
+      this.refreshMethod = refreshMethod;
+      this.availableUntil = availableUntil;
+      this.consideredCount = consideredCount;
+      this.matchedCount = matchedCount;
+      this.acceleratedCount = acceleratedCount;
     }
 
     public ReflectionDescriptionServiceRPC.ListReflectionsResponse toProto() {
       ReflectionDescriptionServiceRPC.ListReflectionsResponse.Builder protoReflectionInfo =
-        ReflectionDescriptionServiceRPC.ListReflectionsResponse.newBuilder();
+          ReflectionDescriptionServiceRPC.ListReflectionsResponse.newBuilder();
 
-        if(externalReflection != null) {
-          protoReflectionInfo.setExternalReflection(externalReflection);
-        }
-        if (reflection_id != null) {
-          protoReflectionInfo.setReflectionId(reflection_id);
-        }
-        if(datasetId != null) {
-          protoReflectionInfo.setDatasetId(datasetId);
-        }
-        if(dataset != null) {
-          protoReflectionInfo.setDatasetName(dataset);
-        }
-        if(datasetType != null) {
-          protoReflectionInfo.setDatasetType(datasetType);
-        }
-        if(dimensions != null) {
-          protoReflectionInfo.setDimensions(dimensions);
-        }
-        if (displayColumns != null) {
-          protoReflectionInfo.setDisplayColumns(displayColumns);
-        }
-        if (distributionColumns != null) {
-          protoReflectionInfo.setDistributionColumns(distributionColumns);
-        }
-        if (name != null) {
-          protoReflectionInfo.setReflectionName(name);
-        }
-        if (type != null) {
-          protoReflectionInfo.setType(type);
-        }
-        if (status != null) {
-          protoReflectionInfo.setStatus(status);
-        }
+      if (externalReflection != null) {
+        protoReflectionInfo.setExternalReflection(externalReflection);
+      }
+      if (reflection_id != null) {
+        protoReflectionInfo.setReflectionId(reflection_id);
+      }
+      if (datasetId != null) {
+        protoReflectionInfo.setDatasetId(datasetId);
+      }
+      if (dataset != null) {
+        protoReflectionInfo.setDatasetName(dataset);
+      }
+      if (datasetType != null) {
+        protoReflectionInfo.setDatasetType(datasetType);
+      }
+      if (createdAt != null) {
+        protoReflectionInfo.setCreatedAt(
+            com.google.protobuf.Timestamp.newBuilder().setSeconds(createdAt.getTime()));
+      }
+      if (updatedAt != null) {
+        protoReflectionInfo.setUpdatedAt(
+            com.google.protobuf.Timestamp.newBuilder().setSeconds(updatedAt.getTime()));
+      }
+      if (dimensions != null) {
+        protoReflectionInfo.setDimensions(dimensions);
+      }
+      if (displayColumns != null) {
+        protoReflectionInfo.setDisplayColumns(displayColumns);
+      }
+      if (distributionColumns != null) {
+        protoReflectionInfo.setDistributionColumns(distributionColumns);
+      }
+      if (name != null) {
+        protoReflectionInfo.setReflectionName(name);
+      }
+      if (type != null) {
+        protoReflectionInfo.setType(type);
+      }
+      if (status != null) {
+        protoReflectionInfo.setStatus(status);
+      }
 
-        protoReflectionInfo.setNumFailures(num_failures);
+      protoReflectionInfo.setNumFailures(num_failures);
 
-        if (sortColumns != null) {
-          protoReflectionInfo.setSortColumns(sortColumns);
-        }
-        if (partitionColumns != null) {
-          protoReflectionInfo.setPartitionColumns(partitionColumns);
-        }
-        if (measures != null) {
-          protoReflectionInfo.setMeasures(measures);
-        }
+      if (lastFailureMessage != null) {
+        protoReflectionInfo.setLastFailureMessage(lastFailureMessage);
+      }
+      if (lastFailureStack != null) {
+        protoReflectionInfo.setLastFailureStack(lastFailureStack);
+      }
+      if (sortColumns != null) {
+        protoReflectionInfo.setSortColumns(sortColumns);
+      }
+      if (partitionColumns != null) {
+        protoReflectionInfo.setPartitionColumns(partitionColumns);
+      }
+      if (measures != null) {
+        protoReflectionInfo.setMeasures(measures);
+      }
 
-        protoReflectionInfo.setArrowCache(arrow_cache);
+      protoReflectionInfo.setArrowCache(arrow_cache);
+
+      if (refreshStatus != null) {
+        protoReflectionInfo.setRefreshStatus(refreshStatus);
+      }
+      if (accelerationStatus != null) {
+        protoReflectionInfo.setAccelerationStatus(accelerationStatus);
+      }
+
+      protoReflectionInfo.setRecordCount(recordCount);
+      protoReflectionInfo.setCurrentFootprintBytes(currentFootprintBytes);
+      protoReflectionInfo.setTotalFootprintBytes(totalFootprintBytes);
+      protoReflectionInfo.setLastRefreshDurationMillis(lastRefreshDurationMillis);
+
+      if (lastRefreshFromTable != null) {
+        protoReflectionInfo.setLastRefreshFromTable(
+            com.google.protobuf.Timestamp.newBuilder().setSeconds(lastRefreshFromTable.getTime()));
+      }
+
+      if (refreshMethod != null) {
+        protoReflectionInfo.setRefreshMethod(refreshMethod);
+      }
+
+      if (availableUntil != null) {
+        protoReflectionInfo.setAvailableUntil(
+            com.google.protobuf.Timestamp.newBuilder().setSeconds(availableUntil.getTime()));
+      }
+      protoReflectionInfo.setConsideredCount(consideredCount);
+      protoReflectionInfo.setMatchedCount(matchedCount);
+      protoReflectionInfo.setAcceleratedCount(acceleratedCount);
 
       return protoReflectionInfo.build();
     }
 
-    public static ReflectionInfo getReflectionInfo(ReflectionDescriptionServiceRPC.ListReflectionsResponse reflectionInfoProto) {
-      return new ReflectionInfo(reflectionInfoProto.getReflectionId(),
-        reflectionInfoProto.getReflectionName(),
-        reflectionInfoProto.getType(),
-        reflectionInfoProto.getStatus(),
-        reflectionInfoProto.getNumFailures(),
-        reflectionInfoProto.getDatasetId(),
-        reflectionInfoProto.getDatasetName(),
-        reflectionInfoProto.getDatasetType(),
-        reflectionInfoProto.getSortColumns(),
-        reflectionInfoProto.getPartitionColumns(),
-        reflectionInfoProto.getDistributionColumns(),
-        reflectionInfoProto.getDimensions(),
-        reflectionInfoProto.getMeasures(),
-        reflectionInfoProto.getDisplayColumns(),
-        reflectionInfoProto.getExternalReflection(),
-        reflectionInfoProto.getArrowCache());
+    public static ReflectionInfo getReflectionInfo(
+        ReflectionDescriptionServiceRPC.ListReflectionsResponse reflectionInfoProto) {
+      return new ReflectionInfo(
+          reflectionInfoProto.getReflectionId(),
+          reflectionInfoProto.getReflectionName(),
+          reflectionInfoProto.getType(),
+          new Timestamp(reflectionInfoProto.getCreatedAt().getSeconds()),
+          new Timestamp(reflectionInfoProto.getUpdatedAt().getSeconds()),
+          reflectionInfoProto.getStatus(),
+          reflectionInfoProto.getNumFailures(),
+          reflectionInfoProto.getLastFailureMessage(),
+          reflectionInfoProto.getLastFailureStack(),
+          reflectionInfoProto.getDatasetId(),
+          reflectionInfoProto.getDatasetName(),
+          reflectionInfoProto.getDatasetType(),
+          reflectionInfoProto.getSortColumns(),
+          reflectionInfoProto.getPartitionColumns(),
+          reflectionInfoProto.getDistributionColumns(),
+          reflectionInfoProto.getDimensions(),
+          reflectionInfoProto.getMeasures(),
+          reflectionInfoProto.getDisplayColumns(),
+          reflectionInfoProto.getExternalReflection(),
+          reflectionInfoProto.getArrowCache(),
+          reflectionInfoProto.getRefreshStatus(),
+          reflectionInfoProto.getAccelerationStatus(),
+          reflectionInfoProto.getRecordCount(),
+          reflectionInfoProto.getCurrentFootprintBytes(),
+          reflectionInfoProto.getTotalFootprintBytes(),
+          reflectionInfoProto.getLastRefreshDurationMillis(),
+          new Timestamp(reflectionInfoProto.getLastRefreshFromTable().getSeconds()),
+          reflectionInfoProto.getRefreshMethod(),
+          new Timestamp(reflectionInfoProto.getAvailableUntil().getSeconds()),
+          reflectionInfoProto.getConsideredCount(),
+          reflectionInfoProto.getMatchedCount(),
+          reflectionInfoProto.getAcceleratedCount());
     }
   }
 
@@ -152,23 +275,30 @@ public interface AccelerationListManager extends Service {
     public final String dependency_type;
     public final String dependency_path;
 
-    public DependencyInfo(String reflection_id, String dependency_id, String dependency_type, String dependency_path) {
+    public DependencyInfo(
+        String reflection_id,
+        String dependency_id,
+        String dependency_type,
+        String dependency_path) {
       this.reflection_id = reflection_id;
       this.dependency_id = dependency_id;
       this.dependency_type = dependency_type;
       this.dependency_path = dependency_path;
     }
 
-    public static DependencyInfo getDependencyInfo(ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse dependencyInfoProto) {
-      return new DependencyInfo(dependencyInfoProto.getReflectionId(),
-        dependencyInfoProto.getDependencyId(),
-        dependencyInfoProto.getDependencyType(),
-        dependencyInfoProto.getDependencyPath());
+    public static DependencyInfo getDependencyInfo(
+        ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse dependencyInfoProto) {
+      return new DependencyInfo(
+          dependencyInfoProto.getReflectionId(),
+          dependencyInfoProto.getDependencyId(),
+          dependencyInfoProto.getDependencyType(),
+          dependencyInfoProto.getDependencyPath());
     }
 
     public ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse toProto() {
-      ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse.Builder protoDependencyInfo =
-        ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse.newBuilder();
+      ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse.Builder
+          protoDependencyInfo =
+              ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse.newBuilder();
 
       if (reflection_id != null) {
         protoDependencyInfo.setReflectionId(reflection_id);
@@ -208,11 +338,22 @@ public interface AccelerationListManager extends Service {
     public final Timestamp last_refresh_finished;
     public final Long last_refresh_duration;
 
-
-    public MaterializationInfo(String reflection_id, String materialization_id, Timestamp create,
-                               Timestamp expiration, Long bytes, Long seriesId, String init_refresh_job_id,
-                               Integer series_ordinal, String joinAnalysis, String state, String failureMsg,
-                               String dataPartitions, Timestamp lastRefreshFromPds, Timestamp lastRefreshFinished, Long lastRefreshDuration) {
+    public MaterializationInfo(
+        String reflection_id,
+        String materialization_id,
+        Timestamp create,
+        Timestamp expiration,
+        Long bytes,
+        Long seriesId,
+        String init_refresh_job_id,
+        Integer series_ordinal,
+        String joinAnalysis,
+        String state,
+        String failureMsg,
+        String dataPartitions,
+        Timestamp lastRefreshFromPds,
+        Timestamp lastRefreshFinished,
+        Long lastRefreshDuration) {
       this.reflection_id = reflection_id;
       this.materialization_id = materialization_id;
       this.create = create;
@@ -231,27 +372,26 @@ public interface AccelerationListManager extends Service {
     }
 
     public ReflectionDescriptionServiceRPC.ListMaterializationsResponse toProto() {
-      ReflectionDescriptionServiceRPC.ListMaterializationsResponse.Builder protoMaterializationInfo =
-        ReflectionDescriptionServiceRPC.ListMaterializationsResponse.newBuilder();
+      ReflectionDescriptionServiceRPC.ListMaterializationsResponse.Builder
+          protoMaterializationInfo =
+              ReflectionDescriptionServiceRPC.ListMaterializationsResponse.newBuilder();
 
-      if(reflection_id != null) {
+      if (reflection_id != null) {
         protoMaterializationInfo.setReflectionId(reflection_id);
       }
 
-      if(materialization_id != null) {
+      if (materialization_id != null) {
         protoMaterializationInfo.setMaterializationId(materialization_id);
       }
 
-      if(create != null) {
+      if (create != null) {
         protoMaterializationInfo.setCreated(
-          com.google.protobuf.Timestamp.newBuilder().setSeconds(create.getTime()).build()
-        );
+            com.google.protobuf.Timestamp.newBuilder().setSeconds(create.getTime()).build());
       }
 
       if (expiration != null) {
         protoMaterializationInfo.setExpires(
-          com.google.protobuf.Timestamp.newBuilder().setSeconds(expiration.getTime()).build()
-        );
+            com.google.protobuf.Timestamp.newBuilder().setSeconds(expiration.getTime()).build());
       }
 
       if (bytes != null) {
@@ -288,12 +428,12 @@ public interface AccelerationListManager extends Service {
 
       if (last_refresh_from_pds != null) {
         protoMaterializationInfo.setLastRefreshFromPds(
-          com.google.protobuf.Timestamp.newBuilder().setSeconds(last_refresh_from_pds.getTime()));
+            com.google.protobuf.Timestamp.newBuilder().setSeconds(last_refresh_from_pds.getTime()));
       }
 
       if (last_refresh_finished != null) {
         protoMaterializationInfo.setLastRefreshFinished(
-          com.google.protobuf.Timestamp.newBuilder().setSeconds(last_refresh_finished.getTime()));
+            com.google.protobuf.Timestamp.newBuilder().setSeconds(last_refresh_finished.getTime()));
       }
 
       if (last_refresh_duration != null) {
@@ -303,24 +443,24 @@ public interface AccelerationListManager extends Service {
       return protoMaterializationInfo.build();
     }
 
-    public static MaterializationInfo fromMaterializationInfo(ReflectionDescriptionServiceRPC.ListMaterializationsResponse materializationInfoProto) {
+    public static MaterializationInfo fromMaterializationInfo(
+        ReflectionDescriptionServiceRPC.ListMaterializationsResponse materializationInfoProto) {
       return new MaterializationInfo(
-        materializationInfoProto.getReflectionId(),
-        materializationInfoProto.getMaterializationId(),
-        new Timestamp(materializationInfoProto.getCreated().getSeconds()),
-        new Timestamp(materializationInfoProto.getExpires().getSeconds()),
-        materializationInfoProto.getSizeBytes(),
-        materializationInfoProto.getSeriesId(),
-        materializationInfoProto.getInitRefreshJobId(),
-        materializationInfoProto.getSeriesOrdinal(),
-        materializationInfoProto.getJoinAnalysis(),
-        materializationInfoProto.getState(),
-        materializationInfoProto.getFailureMsg(),
-        materializationInfoProto.getDataPartitions(),
-        new Timestamp(materializationInfoProto.getLastRefreshFromPds().getSeconds()),
-        new Timestamp(materializationInfoProto.getLastRefreshFinished().getSeconds()),
-        materializationInfoProto.getLastRefreshDurationMillis()
-      );
+          materializationInfoProto.getReflectionId(),
+          materializationInfoProto.getMaterializationId(),
+          new Timestamp(materializationInfoProto.getCreated().getSeconds()),
+          new Timestamp(materializationInfoProto.getExpires().getSeconds()),
+          materializationInfoProto.getSizeBytes(),
+          materializationInfoProto.getSeriesId(),
+          materializationInfoProto.getInitRefreshJobId(),
+          materializationInfoProto.getSeriesOrdinal(),
+          materializationInfoProto.getJoinAnalysis(),
+          materializationInfoProto.getState(),
+          materializationInfoProto.getFailureMsg(),
+          materializationInfoProto.getDataPartitions(),
+          new Timestamp(materializationInfoProto.getLastRefreshFromPds().getSeconds()),
+          new Timestamp(materializationInfoProto.getLastRefreshFinished().getSeconds()),
+          materializationInfoProto.getLastRefreshDurationMillis());
     }
   }
 
@@ -365,49 +505,48 @@ public interface AccelerationListManager extends Service {
         Double original_cost,
         String update_id,
         String partitions,
-        Integer series_ordinal
-    ) {
-        this.refresh_id = refresh_id;
-        this.reflection_id = reflection_id;
-        this.series_id = series_id;
-        this.created_at = created_at;
-        this.modified_at = modified_at;
-        this.path = path;
-        this.job_id = job_id;
-        this.job_start = job_start;
-        this.job_end = job_end;
-        this.input_bytes = input_bytes;
-        this.input_records = input_records;
-        this.output_bytes = output_bytes;
-        this.output_records = output_records;
-        this.bytes = footprint;
-        this.original_cost = original_cost;
-        this.update_id = update_id;
-        this.partitions = partitions;
-        this.series_ordinal = series_ordinal;
+        Integer series_ordinal) {
+      this.refresh_id = refresh_id;
+      this.reflection_id = reflection_id;
+      this.series_id = series_id;
+      this.created_at = created_at;
+      this.modified_at = modified_at;
+      this.path = path;
+      this.job_id = job_id;
+      this.job_start = job_start;
+      this.job_end = job_end;
+      this.input_bytes = input_bytes;
+      this.input_records = input_records;
+      this.output_bytes = output_bytes;
+      this.output_records = output_records;
+      this.bytes = footprint;
+      this.original_cost = original_cost;
+      this.update_id = update_id;
+      this.partitions = partitions;
+      this.series_ordinal = series_ordinal;
     }
 
-    public static RefreshInfo fromRefreshInfo(ReflectionDescriptionServiceRPC.GetRefreshInfoResponse refreshInfoProto) {
+    public static RefreshInfo fromRefreshInfo(
+        ReflectionDescriptionServiceRPC.GetRefreshInfoResponse refreshInfoProto) {
       return new RefreshInfo(
-        refreshInfoProto.getId(),
-        refreshInfoProto.getReflectionId(),
-        refreshInfoProto.getSeriesId(),
-        new Timestamp(refreshInfoProto.getCreatedAt()),
-        new Timestamp(refreshInfoProto.getModifiedAt()),
-        refreshInfoProto.getPath(),
-        refreshInfoProto.getJobId(),
-        new Timestamp(refreshInfoProto.getJobStart()),
-        new Timestamp(refreshInfoProto.getJobEnd()),
-        refreshInfoProto.getInputBytes(),
-        refreshInfoProto.getInputRecords(),
-        refreshInfoProto.getOutputBytes(),
-        refreshInfoProto.getOutputRecords(),
-        refreshInfoProto.getFootprint(),
-        refreshInfoProto.getOriginalCost(),
-        refreshInfoProto.getUpdateId(),
-        refreshInfoProto.getPartition(),
-        refreshInfoProto.getSeriesOrdinal()
-      );
+          refreshInfoProto.getId(),
+          refreshInfoProto.getReflectionId(),
+          refreshInfoProto.getSeriesId(),
+          new Timestamp(refreshInfoProto.getCreatedAt()),
+          new Timestamp(refreshInfoProto.getModifiedAt()),
+          refreshInfoProto.getPath(),
+          refreshInfoProto.getJobId(),
+          new Timestamp(refreshInfoProto.getJobStart()),
+          new Timestamp(refreshInfoProto.getJobEnd()),
+          refreshInfoProto.getInputBytes(),
+          refreshInfoProto.getInputRecords(),
+          refreshInfoProto.getOutputBytes(),
+          refreshInfoProto.getOutputRecords(),
+          refreshInfoProto.getFootprint(),
+          refreshInfoProto.getOriginalCost(),
+          refreshInfoProto.getUpdateId(),
+          refreshInfoProto.getPartition(),
+          refreshInfoProto.getSeriesOrdinal());
     }
   }
 }

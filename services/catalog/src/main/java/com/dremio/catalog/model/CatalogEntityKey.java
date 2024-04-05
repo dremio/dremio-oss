@@ -17,13 +17,6 @@ package com.dremio.catalog.model;
 
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
@@ -33,13 +26,17 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Preconditions;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Class representing a generic catalog entity key
- */
+/** Class representing a generic catalog entity key */
 @JsonDeserialize(builder = CatalogEntityKey.Builder.class)
 public class CatalogEntityKey {
-  public static final String KEY_DELIMITER = ReservedCharacters.getInformationSeparatorOne(); // : separated key and version
+  public static final String KEY_DELIMITER =
+      ReservedCharacters.getInformationSeparatorOne(); // : separated key and version
   private static final Logger logger = LoggerFactory.getLogger(CatalogEntityKey.class);
   private List<String> keyComponents;
   private TableVersionContext tableVersionContext;
@@ -77,6 +74,8 @@ public class CatalogEntityKey {
     return tableVersionContext;
   }
 
+  // TODO(DX-85701) :  This check might need to change if  NOT_SPECIFIED is made the default value
+  // for TableVersionContext
   public boolean hasTableVersionContext() {
     return tableVersionContext != null;
   }
@@ -86,10 +85,13 @@ public class CatalogEntityKey {
   }
 
   public static CatalogEntityKey fromNamespaceKey(NamespaceKey namespaceKey) {
+    if (namespaceKey == null) {
+      return null;
+    }
     return CatalogEntityKey.newBuilder()
-      .keyComponents(namespaceKey.getPathComponents())
-      .tableVersionContext(null)
-      .build();
+        .keyComponents(namespaceKey.getPathComponents())
+        .tableVersionContext(null)
+        .build();
   }
 
   @JsonIgnore
@@ -104,19 +106,19 @@ public class CatalogEntityKey {
 
   public CatalogEntityKey asLowerCase() {
     return CatalogEntityKey.newBuilder()
-      .keyComponents(keyComponents.stream().map(String::toLowerCase).collect(Collectors.toList()))
-      .tableVersionContext(tableVersionContext)
-      .build();
+        .keyComponents(keyComponents.stream().map(String::toLowerCase).collect(Collectors.toList()))
+        .tableVersionContext(tableVersionContext)
+        .build();
   }
 
   @JsonIgnore
-  public  boolean isKeyForImmutableEntity() {
-    switch(tableVersionContext.getType()) {
-      case SNAPSHOT_ID :
+  public boolean isKeyForImmutableEntity() {
+    switch (tableVersionContext.getType()) {
+      case SNAPSHOT_ID:
       case COMMIT:
-      case TIMESTAMP :
+      case TIMESTAMP:
         return true;
-      default :
+      default:
         return false;
     }
   }
@@ -137,7 +139,8 @@ public class CatalogEntityKey {
     if (obj != null && obj instanceof CatalogEntityKey) {
       CatalogEntityKey o = (CatalogEntityKey) obj;
       pathComponentsComparison = keyComponents.equals(o.keyComponents);
-      tableVersionComparison = tableVersionContext == null ? true : tableVersionContext.equals(o.tableVersionContext);
+      tableVersionComparison =
+          tableVersionContext == null ? true : tableVersionContext.equals(o.tableVersionContext);
       return pathComponentsComparison && tableVersionComparison;
     }
     return false;
@@ -168,8 +171,7 @@ public class CatalogEntityKey {
     private TableVersionContext tableVersionContext;
     private String joinedKeyWithVersion; // see toString()
 
-    public Builder() {
-    }
+    public Builder() {}
 
     public Builder keyComponents(List<String> key) {
       keyComponents = key;
@@ -183,8 +185,11 @@ public class CatalogEntityKey {
 
     public CatalogEntityKey build() {
       Preconditions.checkNotNull(keyComponents);
-      if (keyComponents.stream().anyMatch((a) -> a.contains(ReservedCharacters.getInformationSeparatorOne()))) {
-        throw UserException.validationError().message("Invalid CatalogEntityKey format %s", keyComponents).build(logger);
+      if (keyComponents.stream()
+          .anyMatch((a) -> a.contains(ReservedCharacters.getInformationSeparatorOne()))) {
+        throw UserException.validationError()
+            .message("Invalid CatalogEntityKey format %s", keyComponents)
+            .build(logger);
       }
       this.joinedKeyWithVersion = serialize();
       return new CatalogEntityKey(this);
@@ -209,26 +214,31 @@ public class CatalogEntityKey {
       List<String> keyPaths = PathUtils.parseFullPath(keyParts.get(0));
       if (keyPaths.isEmpty() || keyParts.size() > 2) {
         logger.debug("Invalid CatalogEntityKey format {}", keyInStringFormat);
-        throw UserException.validationError().message("Invalid CatalogEntityKey format %s", keyInStringFormat).build(logger);
+        throw UserException.validationError()
+            .message("Invalid CatalogEntityKey format %s", keyInStringFormat)
+            .build(logger);
       }
       if (keyParts.size() == 2) {
         String versionString = keyParts.get(1);
-        tVersionContext = versionString == null ? null : TableVersionContext.deserialize(versionString);
+        tVersionContext =
+            versionString == null ? null : TableVersionContext.deserialize(versionString);
       }
       return CatalogEntityKey.newBuilder()
-        .keyComponents(keyPaths)
-        .tableVersionContext(tVersionContext);
+          .keyComponents(keyPaths)
+          .tableVersionContext(tVersionContext);
     }
   }
 
-  public static CatalogEntityKey namespaceKeyToCatalogEntityKey(NamespaceKey namespaceKey, VersionContext versionContext) {
+  public static CatalogEntityKey namespaceKeyToCatalogEntityKey(
+      NamespaceKey namespaceKey, VersionContext versionContext) {
     return namespaceKeyToCatalogEntityKey(namespaceKey, TableVersionContext.of(versionContext));
   }
 
-  public static CatalogEntityKey namespaceKeyToCatalogEntityKey(NamespaceKey namespaceKey, TableVersionContext versionContext) {
+  public static CatalogEntityKey namespaceKeyToCatalogEntityKey(
+      NamespaceKey namespaceKey, TableVersionContext versionContext) {
     return CatalogEntityKey.newBuilder()
-      .keyComponents(namespaceKey.getPathComponents())
-      .tableVersionContext(versionContext)
-      .build();
+        .keyComponents(namespaceKey.getPathComponents())
+        .tableVersionContext(versionContext)
+        .build();
   }
 }

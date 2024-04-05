@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 
-/**
- * An exception that maps to HTTP 500
- */
+/** An exception that maps to HTTP 500 */
 public class ServerErrorException extends WebApplicationException {
   public ServerErrorException(Throwable cause) {
     super(cause.getMessage(), cause, Response.Status.INTERNAL_SERVER_ERROR);

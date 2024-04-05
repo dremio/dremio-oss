@@ -17,21 +17,6 @@ package com.dremio.service.users;
 
 import static java.lang.String.format;
 
-import java.io.IOException;
-import java.security.SecureRandom;
-import java.security.spec.InvalidKeySpecException;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-import javax.inject.Inject;
-import javax.inject.Provider;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.KVUtil;
 import com.dremio.datastore.SearchQueryUtils;
@@ -70,25 +55,37 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
 import io.protostuff.ByteString;
+import java.io.IOException;
+import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import javax.inject.Inject;
+import javax.inject.Provider;
 
-/**
- * User group service with local kv store.
- */
+/** User group service with local kv store. */
 public class SimpleUserService implements UserService, Service {
   public static final String LOWER_CASE_INDICES = "lowerCaseIndices";
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SimpleUserService.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SimpleUserService.class);
 
-  private final Function<UserInfo, User> infoConfigTransformer = new Function<UserInfo, User>(){
-    @Override
-    public User apply(UserInfo input) {
-      return fromUserConfig(input.getConfig());
-    }};
+  private final Function<UserInfo, User> infoConfigTransformer =
+      new Function<UserInfo, User>() {
+        @Override
+        public User apply(UserInfo input) {
+          return fromUserConfig(input.getConfig());
+        }
+      };
 
-  @VisibleForTesting
-  public static final String USER_STORE = "userGroup";
+  @VisibleForTesting public static final String USER_STORE = "userGroup";
 
   private static final SecretKeyFactory secretKey = UserServiceUtils.buildSecretKey();
   private final Supplier<LegacyIndexedStore<UID, UserInfo>> userStore;
@@ -96,12 +93,14 @@ public class SimpleUserService implements UserService, Service {
   private final UserServiceEvents userServiceEvents;
   private final boolean isMaster;
 
-  // when we call hasAnyUser() we cache the result in here so we never hit the kvStore once the value is true
+  // when we call hasAnyUser() we cache the result in here so we never hit the kvStore once the
+  // value is true
   private final AtomicBoolean anyUserFound = new AtomicBoolean();
 
   @Inject
   public SimpleUserService(Provider<LegacyKVStoreProvider> kvStoreProvider, boolean isMaster) {
-    this.userStore = Suppliers.memoize(() -> kvStoreProvider.get().getStore(UserGroupStoreBuilder.class));
+    this.userStore =
+        Suppliers.memoize(() -> kvStoreProvider.get().getStore(UserGroupStoreBuilder.class));
     this.kvStoreProvider = kvStoreProvider;
     this.userServiceEvents = new UserServiceEventsImpl();
     this.isMaster = isMaster;
@@ -115,7 +114,8 @@ public class SimpleUserService implements UserService, Service {
   public void start() throws Exception {
     if (isMaster) {
       final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider.get());
-      final Optional<ConfigurationEntry> entry = Optional.ofNullable(configurationStore.get(LOWER_CASE_INDICES));
+      final Optional<ConfigurationEntry> entry =
+          Optional.ofNullable(configurationStore.get(LOWER_CASE_INDICES));
       if (!entry.isPresent()) {
         this.addIndexKeyId();
         final ConfigurationEntry newEntry = new ConfigurationEntry();
@@ -127,14 +127,17 @@ public class SimpleUserService implements UserService, Service {
   }
 
   protected UserInfo findUserByUserName(String userName) {
-    final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(SearchQueryUtils.newTermQuery(UserIndexKeys.NAME_LOWERCASE, userName.toLowerCase(Locale.ROOT)))
-      .setLimit(1);
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .setCondition(
+                SearchQueryUtils.newTermQuery(
+                    UserIndexKeys.NAME_LOWERCASE, userName.toLowerCase(Locale.ROOT)))
+            .setLimit(1);
 
-    final List<UserInfo> userInfos = Lists.newArrayList(KVUtil.values(userStore.get().find(condition)));
+    final List<UserInfo> userInfos =
+        Lists.newArrayList(KVUtil.values(userStore.get().find(condition)));
     return userInfos.size() == 0 ? null : userInfos.get(0);
   }
-
 
   @Override
   public User getUser(String userName) throws UserNotFoundException {
@@ -164,18 +167,19 @@ public class SimpleUserService implements UserService, Service {
 
   @Override
   public User createUser(final User userConfig, final String authKey)
-    throws IOException, IllegalArgumentException {
+      throws IOException, IllegalArgumentException {
     final String userName = userConfig.getUserName();
     if (findUserByUserName(userName) != null) {
       throw new UserAlreadyExistException(userName);
     }
     validateUsername(userName);
     validatePassword(authKey);
-    UserConfig newUser = toUserConfig(userConfig)
-      .setUid(new UID(UUID.randomUUID().toString()))
-      .setCreatedAt(System.currentTimeMillis())
-      .setModifiedAt(userConfig.getCreatedAt())
-      .setTag(null);
+    UserConfig newUser =
+        toUserConfig(userConfig)
+            .setUid(new UID(UUID.randomUUID().toString()))
+            .setCreatedAt(System.currentTimeMillis())
+            .setModifiedAt(userConfig.getCreatedAt())
+            .setTag(null);
     UserInfo userInfo = new UserInfo();
     userInfo.setConfig(newUser);
     userInfo.setAuth(buildUserAuth(newUser.getUid(), authKey));
@@ -195,8 +199,9 @@ public class SimpleUserService implements UserService, Service {
   private UserConfig merge(User newUser, UserConfig originalUserConfig) {
     UserConfig updatedUserConfig = toUserConfig(newUser);
     // fields that cannot be updated
-    updatedUserConfig.setUid(originalUserConfig.getUid())
-      .setCreatedAt(originalUserConfig.getCreatedAt());
+    updatedUserConfig
+        .setUid(originalUserConfig.getUid())
+        .setCreatedAt(originalUserConfig.getCreatedAt());
 
     if (newUser instanceof SimpleUser) {
       // SimpleUser does not handle type, so maintain the already set type
@@ -231,25 +236,25 @@ public class SimpleUserService implements UserService, Service {
 
   @Override
   public User updateUser(final User userGroup, final String authKey)
-    throws IOException, IllegalArgumentException, UserNotFoundException {
+      throws IOException, IllegalArgumentException, UserNotFoundException {
     final UserInfo oldUserInfo = findUserByUserName(userGroup.getUserName());
     return doUpdateUser(oldUserInfo, userGroup, authKey);
   }
 
   @Override
   public User updateUserById(final User userGroup, final String authKey)
-    throws IllegalArgumentException, UserNotFoundException {
+      throws IllegalArgumentException, UserNotFoundException {
     Preconditions.checkNotNull(userGroup.getUID());
     final UserInfo oldUserInfo = userStore.get().get(userGroup.getUID());
     return doUpdateUser(oldUserInfo, userGroup, authKey);
   }
 
   /**
-   * Given existing oldUserInfo, update it with fields from newUser. If a non-null
-   * authKey is provided, treat that as an attempted password change.
+   * Given existing oldUserInfo, update it with fields from newUser. If a non-null authKey is
+   * provided, treat that as an attempted password change.
    */
   protected User doUpdateUser(UserInfo oldUserInfo, User newUser, String authKey)
-    throws UserNotFoundException {
+      throws UserNotFoundException {
     // Handle exception if user was not found
     final String userName = newUser.getUserName();
     if (oldUserInfo == null) {
@@ -261,7 +266,8 @@ public class SimpleUserService implements UserService, Service {
     }
 
     // reject userName changes
-    if (!Strings.isNullOrEmpty(userName) && !oldUserInfo.getConfig().getUserName().equals(userName)) {
+    if (!Strings.isNullOrEmpty(userName)
+        && !oldUserInfo.getConfig().getUserName().equals(userName)) {
       throw new IllegalArgumentException("Updating username is not supported.");
     }
 
@@ -271,7 +277,7 @@ public class SimpleUserService implements UserService, Service {
     UserInfo newUserInfo = new UserInfo();
     newUserInfo.setConfig(updatedUserConfig);
 
-    if(authKey != null) {
+    if (authKey != null) {
       if (newUserInfo.getConfig().getType() == UserType.REMOTE) {
         throw new IllegalArgumentException("Cannot set password for an external user.");
       }
@@ -290,24 +296,30 @@ public class SimpleUserService implements UserService, Service {
   }
 
   @Override
-  public User updateUserName(final String oldUserName, final String newUserName, final User userGroup, final String authKey)
-    throws IOException, IllegalArgumentException, UserNotFoundException {
+  public User updateUserName(
+      final String oldUserName,
+      final String newUserName,
+      final User userGroup,
+      final String authKey)
+      throws IOException, IllegalArgumentException, UserNotFoundException {
     final UserInfo oldUserInfo = findUserByUserName(oldUserName);
     if (oldUserInfo == null) {
       throw new UserNotFoundException(oldUserName);
     }
     final UserInfo newUserInfo = findUserByUserName(newUserName);
     // rename can change the case of the username
-    if (newUserInfo != null && !newUserInfo.getConfig().getUid().equals(oldUserInfo.getConfig().getUid())) {
+    if (newUserInfo != null
+        && !newUserInfo.getConfig().getUid().equals(oldUserInfo.getConfig().getUid())) {
       throw UserException.validationError()
-        .message("User '%s' already exists.", newUserName)
-        .build(logger);
+          .message("User '%s' already exists.", newUserName)
+          .build(logger);
     }
     validateUsername(newUserName);
 
     UserConfig userConfig = merge(userGroup, oldUserInfo.getConfig());
     if (!userConfig.getUserName().equals(newUserName)) {
-      throw new IllegalArgumentException("Usernames do not match " + newUserName + " , " + userConfig.getUserName());
+      throw new IllegalArgumentException(
+          "Usernames do not match " + newUserName + " , " + userConfig.getUserName());
     }
     userConfig.setModifiedAt(System.currentTimeMillis());
 
@@ -351,18 +363,19 @@ public class SimpleUserService implements UserService, Service {
       }
 
       return AuthResult.builder()
-        .setUserName(userName)
-        .setUserId(userInfo.getConfig().getUid().getId())
-        .build();
+          .setUserName(userName)
+          .setUserId(userInfo.getConfig().getUid().getId())
+          .build();
     } catch (InvalidKeySpecException ikse) {
       throw new UserLoginException(userName, "Invalid user credentials");
     }
   }
 
   @Override
-  public Iterable<? extends User> getAllUsers(Integer limit) throws IOException{
-    Iterable<? extends User> configs = Iterables.transform(KVUtil.values(userStore.get().find()), infoConfigTransformer);
-    if(limit == null){
+  public Iterable<? extends User> getAllUsers(Integer limit) throws IOException {
+    Iterable<? extends User> configs =
+        Iterables.transform(KVUtil.values(userStore.get().find()), infoConfigTransformer);
+    if (limit == null) {
       return configs;
     } else {
       return Iterables.limit(configs, limit);
@@ -380,29 +393,33 @@ public class SimpleUserService implements UserService, Service {
   }
 
   @Override
-  public Iterable<? extends User> searchUsers(String searchTerm, String sortColumn, SortOrder order,
-                                              Integer limit) throws IOException {
+  public Iterable<? extends User> searchUsers(
+      String searchTerm, String sortColumn, SortOrder order, Integer limit) throws IOException {
     final SearchQuery query;
     if (Strings.isNullOrEmpty(searchTerm)) {
       query = SearchQueryUtils.newMatchAllQuery();
     } else {
-      query = SearchQueryUtils.or(
-        SearchQueryUtils.newContainsTerm(UserIndexKeys.NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
-        SearchQueryUtils.newContainsTerm(UserIndexKeys.FIRST_NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
-        SearchQueryUtils.newContainsTerm(UserIndexKeys.LAST_NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
-        SearchQueryUtils.newContainsTerm(UserIndexKeys.EMAIL_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)));
+      query =
+          SearchQueryUtils.or(
+              SearchQueryUtils.newContainsTerm(
+                  UserIndexKeys.NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
+              SearchQueryUtils.newContainsTerm(
+                  UserIndexKeys.FIRST_NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
+              SearchQueryUtils.newContainsTerm(
+                  UserIndexKeys.LAST_NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
+              SearchQueryUtils.newContainsTerm(
+                  UserIndexKeys.EMAIL_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)));
     }
     return searchUsers(query, sortColumn, order, 0, limit);
   }
 
   @Override
   public Iterable<? extends User> searchUsers(
-    SearchQuery searchQuery,
-    String sortColumn,
-    SortOrder sortOrder,
-    Integer startIndex,
-    Integer pageSize
-  ) {
+      SearchQuery searchQuery,
+      String sortColumn,
+      SortOrder sortOrder,
+      Integer startIndex,
+      Integer pageSize) {
     LegacyFindByCondition condition = new LegacyFindByCondition();
     if (searchQuery == null) {
       condition.setCondition(SearchQueryUtils.newMatchAllQuery());
@@ -419,8 +436,8 @@ public class SimpleUserService implements UserService, Service {
     }
 
     return Lists.newArrayList(KVUtil.values(userStore.get().find(condition))).stream()
-      .map(infoConfigTransformer)
-      .collect(Collectors.toList());
+        .map(infoConfigTransformer)
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -432,12 +449,11 @@ public class SimpleUserService implements UserService, Service {
   }
 
   @Override
-  public void close() throws Exception {
-
-  }
+  public void close() throws Exception {}
 
   @Override
-  public void subscribe(UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber) {
+  public void subscribe(
+      UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber) {
     this.userServiceEvents.subscribe(userServiceEventTopic, subscriber);
   }
 
@@ -469,13 +485,16 @@ public class SimpleUserService implements UserService, Service {
       }
 
       if (userConfig.getUserName() != null) {
-        writer.write(UserIndexKeys.NAME_LOWERCASE, userConfig.getUserName().toLowerCase(Locale.ROOT));
+        writer.write(
+            UserIndexKeys.NAME_LOWERCASE, userConfig.getUserName().toLowerCase(Locale.ROOT));
       }
       if (userConfig.getFirstName() != null) {
-        writer.write(UserIndexKeys.FIRST_NAME_LOWERCASE, userConfig.getFirstName().toLowerCase(Locale.ROOT));
+        writer.write(
+            UserIndexKeys.FIRST_NAME_LOWERCASE, userConfig.getFirstName().toLowerCase(Locale.ROOT));
       }
       if (userConfig.getLastName() != null) {
-        writer.write(UserIndexKeys.LAST_NAME_LOWERCASE, userConfig.getLastName().toLowerCase(Locale.ROOT));
+        writer.write(
+            UserIndexKeys.LAST_NAME_LOWERCASE, userConfig.getLastName().toLowerCase(Locale.ROOT));
       }
       if (userConfig.getEmail() != null) {
         writer.write(UserIndexKeys.EMAIL_LOWERCASE, userConfig.getEmail().toLowerCase(Locale.ROOT));
@@ -485,17 +504,16 @@ public class SimpleUserService implements UserService, Service {
 
   private static SearchFieldSorting buildSorter(final String sortColumn, final SortOrder order) {
 
-    if(Strings.isNullOrEmpty(sortColumn)){
+    if (Strings.isNullOrEmpty(sortColumn)) {
       return UserServiceUtils.DEFAULT_SORTER;
     }
 
     final IndexKey key = UserIndexKeys.MAPPING.getKey(sortColumn);
 
-    if(key == null){
-      throw UserException
-        .functionError()
-        .message("Unable to sort by field %s", sortColumn)
-        .build(logger);
+    if (key == null) {
+      throw UserException.functionError()
+          .message("Unable to sort by field %s", sortColumn)
+          .build(logger);
     }
 
     if (order == null) {
@@ -506,7 +524,8 @@ public class SimpleUserService implements UserService, Service {
   }
 
   @Override
-  public void deleteUser(final String userName, String version) throws UserNotFoundException, IOException {
+  public void deleteUser(final String userName, String version)
+      throws UserNotFoundException, IOException {
     final UserInfo info = findUserByUserName(userName);
     if (info != null) {
       deleteUser(info.getConfig().getUid(), version);
@@ -539,7 +558,8 @@ public class SimpleUserService implements UserService, Service {
     }
   }
 
-  protected UserAuth buildUserAuth(final UID uid, final String authKey) throws IllegalArgumentException {
+  protected UserAuth buildUserAuth(final UID uid, final String authKey)
+      throws IllegalArgumentException {
     final UserAuth userAuth = new UserAuth();
     final SecureRandom random = new SecureRandom();
     final byte[] prefix = new byte[16];
@@ -556,16 +576,19 @@ public class SimpleUserService implements UserService, Service {
     return userAuth;
   }
 
-  private byte[] buildUserAuthKey(final String authKey, final byte[] prefix) throws InvalidKeySpecException {
+  private byte[] buildUserAuthKey(final String authKey, final byte[] prefix)
+      throws InvalidKeySpecException {
     final PBEKeySpec spec = new PBEKeySpec(authKey.toCharArray(), prefix, 65536, 128);
     return secretKey.generateSecret(spec).getEncoded();
   }
 
   /**
    * Used only by command line for set-password
+   *
    * @param userName username of user whose password is being reset
    * @param password password
-   * @throws IllegalArgumentException if user does not exist or password doesn't fit minimum requirements
+   * @throws IllegalArgumentException if user does not exist or password doesn't fit minimum
+   *     requirements
    */
   public void setPassword(String userName, String password) throws IllegalArgumentException {
     validatePassword(password);
@@ -583,44 +606,45 @@ public class SimpleUserService implements UserService, Service {
   public static void validatePassword(String input) throws IllegalArgumentException {
     if (!UserServiceUtils.validatePassword(input)) {
       throw UserException.validationError()
-        .message("Invalid password: must be at least 8 letters long, must contain at least one number and one letter")
-        .build(logger);
+          .message(
+              "Invalid password: must be at least 8 letters long, must contain at least one number and one letter")
+          .build(logger);
     }
   }
 
   public static void validateUsername(String input) {
     if (!UserServiceUtils.validateUsername(input)) {
       throw UserException.validationError()
-        .message("Invalid username: can not contain quotes or colons.")
-        .build(logger);
+          .message("Invalid username: can not contain quotes or colons.")
+          .build(logger);
     }
   }
 
   protected UserConfig toUserConfig(User user) {
     return new UserConfig()
-      .setUid(user.getUID())
-      .setUserName(user.getUserName())
-      .setFirstName(user.getFirstName())
-      .setLastName(user.getLastName())
-      .setEmail(user.getEmail())
-      .setCreatedAt(user.getCreatedAt())
-      .setModifiedAt(user.getModifiedAt())
-      .setTag(user.getVersion())
-      .setActive(user.isActive());
+        .setUid(user.getUID())
+        .setUserName(user.getUserName())
+        .setFirstName(user.getFirstName())
+        .setLastName(user.getLastName())
+        .setEmail(user.getEmail())
+        .setCreatedAt(user.getCreatedAt())
+        .setModifiedAt(user.getModifiedAt())
+        .setTag(user.getVersion())
+        .setActive(user.isActive());
   }
 
   protected User fromUserConfig(UserConfig userConfig) {
     return SimpleUser.newBuilder()
-      .setUID(userConfig.getUid())
-      .setUserName(userConfig.getUserName())
-      .setFirstName(userConfig.getFirstName())
-      .setLastName(userConfig.getLastName())
-      .setEmail(userConfig.getEmail())
-      .setCreatedAt(userConfig.getCreatedAt())
-      .setModifiedAt(userConfig.getModifiedAt())
-      .setVersion(userConfig.getTag())
-      .setActive(userConfig.getActive())
-      .build();
+        .setUID(userConfig.getUid())
+        .setUserName(userConfig.getUserName())
+        .setFirstName(userConfig.getFirstName())
+        .setLastName(userConfig.getLastName())
+        .setEmail(userConfig.getEmail())
+        .setCreatedAt(userConfig.getCreatedAt())
+        .setModifiedAt(userConfig.getModifiedAt())
+        .setVersion(userConfig.getTag())
+        .setActive(userConfig.getActive())
+        .build();
   }
 
   protected LegacyIndexedStore<UID, UserInfo> getUserStore() {
@@ -632,12 +656,12 @@ public class SimpleUserService implements UserService, Service {
     anyUserFound.set(false);
   }
 
-  /**
-   * Add lower-case indices for users
-   */
+  /** Add lower-case indices for users */
   private void addIndexKeyId() {
-    userStore.get().find()
-      .forEach(record -> userStore.get().put(record.getKey(), record.getValue()));
+    userStore
+        .get()
+        .find()
+        .forEach(record -> userStore.get().put(record.getKey(), record.getValue()));
   }
 
   private static final class UserVersionExtractor implements VersionExtractor<UserInfo> {
@@ -652,19 +676,19 @@ public class SimpleUserService implements UserService, Service {
     }
   }
 
-  /**
-   * Class for creating kvstore.
-   */
-  public static class UserGroupStoreBuilder implements LegacyIndexedStoreCreationFunction<UID, UserInfo> {
+  /** Class for creating kvstore. */
+  public static class UserGroupStoreBuilder
+      implements LegacyIndexedStoreCreationFunction<UID, UserInfo> {
 
     @Override
     public LegacyIndexedStore<UID, UserInfo> build(LegacyStoreBuildingFactory factory) {
-      return factory.<UID, UserInfo>newStore()
-        .name(USER_STORE)
-        .keyFormat(Format.wrapped(UID.class, UID::getId, UID::new, Format.ofString()))
-        .valueFormat(Format.ofProtostuff(UserInfo.class))
-        .versionExtractor(UserVersionExtractor.class)
-        .buildIndexed(new UserConverter());
+      return factory
+          .<UID, UserInfo>newStore()
+          .name(USER_STORE)
+          .keyFormat(Format.wrapped(UID.class, UID::getId, UID::new, Format.ofString()))
+          .valueFormat(Format.ofProtostuff(UserInfo.class))
+          .versionExtractor(UserVersionExtractor.class)
+          .buildIndexed(new UserConverter());
     }
   }
 }

@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.planner;
 
-import org.junit.Test;
-
 import com.dremio.PlanTestBase;
 import com.dremio.exec.ExecConstants;
+import org.junit.Test;
 
 public class TestHyperLogLog extends PlanTestBase {
 
@@ -36,81 +35,86 @@ public class TestHyperLogLog extends PlanTestBase {
     final String exactPlan = "StreamAgg(group=[{}], cnt=[COUNT($0)])";
     final String ndvPlan = "StreamAgg(group=[{}], cnt=[HLL($0)])";
     if (expectExact) {
-      testPlanSubstrPatterns(sql, new String[]{exactPlan}, new String[]{ndvPlan});
+      testPlanSubstrPatterns(sql, new String[] {exactPlan}, new String[] {ndvPlan});
     } else {
-      testPlanSubstrPatterns(sql, new String[]{ndvPlan}, new String[]{exactPlan});
+      testPlanSubstrPatterns(sql, new String[] {ndvPlan}, new String[] {exactPlan});
     }
     testBuilder()
-      .sqlQuery(sql)
-      .unOrdered()
-      .baselineColumns("cnt")
-      .baselineValues(value)
-      .build()
-      .run();
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(value)
+        .build()
+        .run();
   }
 
   @Test
   public void ndv() throws Exception {
     test("set planner.slice_target = 1");
-    test("SELECT l_returnflag, sum(l_extendedprice), ndv(l_partkey)\n" +
-      "FROM cp.\"tpch/lineitem.parquet\"\n" +
-      "group by l_returnflag");
+    test(
+        "SELECT l_returnflag, sum(l_extendedprice), ndv(l_partkey)\n"
+            + "FROM cp.\"tpch/lineitem.parquet\"\n"
+            + "group by l_returnflag");
   }
 
   @Test
   public void ndv2() throws Exception {
     test("set planner.slice_target = 1");
-    test("SELECT l_returnflag, sum(l_extendedprice), ndv(l_partkey), ndv(l_suppkey)\n" +
-      "FROM cp.\"tpch/lineitem.parquet\"\n" +
-      "group by l_returnflag");
+    test(
+        "SELECT l_returnflag, sum(l_extendedprice), ndv(l_partkey), ndv(l_suppkey)\n"
+            + "FROM cp.\"tpch/lineitem.parquet\"\n"
+            + "group by l_returnflag");
   }
 
   @Test
   public void testNdvSinglePhase() throws Exception {
     testBuilder()
-      .sqlQuery("select ndv(l_linenumber) as ndv_linenumber, ndv(l_orderkey) ndv_orderkey, ndv(concat(l_orderkey, l_linenumber)) ndv_key, count(1) as cnt from cp.\"tpch/lineitem.parquet\"")
-      .ordered()
-      .baselineColumns("ndv_linenumber", "ndv_orderkey", "ndv_key", "cnt")
-      .baselineValues(7L,14906L, 60336L, 60175L)
-      .go();
+        .sqlQuery(
+            "select ndv(l_linenumber) as ndv_linenumber, ndv(l_orderkey) ndv_orderkey, ndv(concat(l_orderkey, l_linenumber)) ndv_key, count(1) as cnt from cp.\"tpch/lineitem.parquet\"")
+        .ordered()
+        .baselineColumns("ndv_linenumber", "ndv_orderkey", "ndv_key", "cnt")
+        .baselineValues(7L, 14906L, 60336L, 60175L)
+        .go();
   }
 
   @Test
   public void testNdvAllTypes() throws Exception {
-    String sql = "SELECT \n" +
-        "    ndv(bool_col) as a, \n" +
-        "    ndv(int_col) as b,\n" +
-        "    ndv(bigint_col) as c, \n" +
-        "    ndv(float4_col) as d, \n" +
-        "    ndv(float8_col) as e, \n" +
-        "    ndv(date_col) as f, \n" +
-        "    ndv(timestamp_col) as g, \n" +
-        "    ndv(time_col) as h, \n" +
-        "    ndv(varchar_col) as i, \n" +
-        "    ndv(varbinary_col) as j,\n" +
-        "    ndv(INTERVAL '4 5:12:10' DAY TO SECOND) as k, \n" +
-        "    ndv(INTERVAL '2-6' YEAR TO MONTH) as l\n" +
-        "FROM cp.parquet.\"all_scalar_types.parquet\"";
+    String sql =
+        "SELECT \n"
+            + "    ndv(bool_col) as a, \n"
+            + "    ndv(int_col) as b,\n"
+            + "    ndv(bigint_col) as c, \n"
+            + "    ndv(float4_col) as d, \n"
+            + "    ndv(float8_col) as e, \n"
+            + "    ndv(date_col) as f, \n"
+            + "    ndv(timestamp_col) as g, \n"
+            + "    ndv(time_col) as h, \n"
+            + "    ndv(varchar_col) as i, \n"
+            + "    ndv(varbinary_col) as j,\n"
+            + "    ndv(INTERVAL '4 5:12:10' DAY TO SECOND) as k, \n"
+            + "    ndv(INTERVAL '2-6' YEAR TO MONTH) as l\n"
+            + "FROM cp.parquet.\"all_scalar_types.parquet\"";
     testBuilder()
-      .sqlQuery(sql)
-      .ordered()
-      .baselineColumns("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l")
-      .baselineValues(1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L)
-      .go();
+        .sqlQuery(sql)
+        .ordered()
+        .baselineColumns("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l")
+        .baselineValues(1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L)
+        .go();
   }
 
   @Test
   public void testNdvMultiPhase() throws Exception {
     test("set planner.slice_target = 1");
-    String sql = "select ndv(l_linenumber) as ndv_linenumber, ndv(l_orderkey) ndv_orderkey, ndv(concat(l_orderkey, l_linenumber)) ndv_key, count(1) as cnt from cp.\"tpch/lineitem.parquet\"";
+    String sql =
+        "select ndv(l_linenumber) as ndv_linenumber, ndv(l_orderkey) ndv_orderkey, ndv(concat(l_orderkey, l_linenumber)) ndv_key, count(1) as cnt from cp.\"tpch/lineitem.parquet\"";
     test(sql);
     try {
       testBuilder()
-        .sqlQuery(sql)
-        .ordered()
-        .baselineColumns("ndv_linenumber", "ndv_orderkey", "ndv_key", "cnt")
-        .baselineValues(7L, 14906L, 60336L, 60175L)
-        .go();
+          .sqlQuery(sql)
+          .ordered()
+          .baselineColumns("ndv_linenumber", "ndv_orderkey", "ndv_key", "cnt")
+          .baselineValues(7L, 14906L, 60336L, 60175L)
+          .go();
     } finally {
       testNoResult("set planner.slice_target = " + ExecConstants.SLICE_TARGET_DEFAULT);
     }
@@ -120,11 +124,6 @@ public class TestHyperLogLog extends PlanTestBase {
   public void testNdvDecimal() throws Exception {
     // Uses the actual decimal hll function. Gets a better estimate. Actual number of values is 1000
     String sql = "SELECT ndv(expr$0) from cp.\"parquet/decimals.parquet\"";
-    testBuilder()
-      .sqlQuery(sql)
-      .ordered()
-      .baselineColumns("EXPR$0")
-      .baselineValues(1004L)
-      .go();
+    testBuilder().sqlQuery(sql).ordered().baselineColumns("EXPR$0").baselineValues(1004L).go();
   }
 }

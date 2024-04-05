@@ -31,7 +31,7 @@ export const projectBase = defineRoute(getSonarContext().getProjectBaseRoute);
 /** home */
 export const home = projectBase.extend(() => "home");
 export const resource = home.extend(
-  (params: ResourceIdParam) => `${params.resourceId}/folder/**`
+  (params: ResourceIdParam) => `${params.resourceId}/folder/**`,
 );
 export const redirect = projectBase.extend(() => "*/**/");
 export const redirectTo = projectBase.extend(() => "*/**");
@@ -39,7 +39,7 @@ export const redirectTo = projectBase.extend(() => "*/**");
 /** Datasets */
 export const datasets = projectBase.extend(() => "datasets");
 export const space = projectBase.extend(
-  (params: ResourceIdParam) => `space/${params.resourceId}`
+  (params: ResourceIdParam) => `space/${params.resourceId}`,
 );
 export const spaceFolder = space.extend(() => `folder/**`);
 
@@ -51,20 +51,20 @@ export const external = sources.extend(() => "external/list");
 export const nessie = sources.extend(() => "nessie/list");
 export const arctic = sources.extend(() => "arctic/list");
 export const arcticSource = sources.extend(
-  (params: SourceNameParam) => `arctic/${params.sourceName}`
+  (params: SourceNameParam) => `arctic/${params.sourceName}`,
 );
 export const nessieSource = sources.extend(
-  (params: SourceNameParam) => `nessie/${params.sourceName}`
+  (params: SourceNameParam) => `nessie/${params.sourceName}`,
 );
 export const source = projectBase.extend(
-  (params: ResourceIdParam) => `source/${params.resourceId}`
+  (params: ResourceIdParam) => `source/${params.resourceId}`,
 );
 export const sourceFolder = source.extend(() => `folder/**`);
 
 /** Listing */
 export const projectsList = defineRoute(() => "/sonar");
 export const sourcesList = projectBase.extend(
-  (params: SourceTypeParam) => `sources/${params.sourceType}/list`
+  (params: SourceTypeParam) => `sources/${params.sourceType}/list`,
 );
 export const allSourcesList = projectBase.extend(() => "sources/list");
 export const spacesList = projectBase.extend(() => "spaces/list");

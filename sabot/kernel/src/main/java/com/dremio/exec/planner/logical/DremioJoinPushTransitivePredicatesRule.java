@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.partition.FindSimpleFilters;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -28,25 +29,21 @@ import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexChecker;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
-import org.apache.calcite.util.Litmus;
 import org.apache.commons.collections4.CollectionUtils;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.partition.FindSimpleFilters;
-
 /**
- * Dremio version of JoinPushTransitivePredicatesRule extended from Calcite
- * to avoid getting into infinite loop of transitive filter push down.
+ * Dremio version of JoinPushTransitivePredicatesRule extended from Calcite to avoid getting into
+ * infinite loop of transitive filter push down.
  */
 public class DremioJoinPushTransitivePredicatesRule extends RelOptRule {
 
   public DremioJoinPushTransitivePredicatesRule() {
-    super(RelOptRule.operand(LogicalJoin.class, RelOptRule.any()),
-      DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-      "DremioJoinPushTransitivePredicatesRule");
+    super(
+        RelOptRule.operand(LogicalJoin.class, RelOptRule.any()),
+        DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+        "DremioJoinPushTransitivePredicatesRule");
   }
 
   @Override
@@ -65,8 +62,10 @@ public class DremioJoinPushTransitivePredicatesRule extends RelOptRule {
 
     RelOptPredicateList preds = mq.getPulledUpPredicates(join);
 
-    List<RexNode> leftInferredPredicates = getCanonicalizedPredicates(join, rexBuilder, preds.leftInferredPredicates);
-    List<RexNode> rightInferredPredicates = getCanonicalizedPredicates(join, rexBuilder, preds.rightInferredPredicates);
+    List<RexNode> leftInferredPredicates =
+        getCanonicalizedPredicates(rexBuilder, preds.leftInferredPredicates);
+    List<RexNode> rightInferredPredicates =
+        getCanonicalizedPredicates(rexBuilder, preds.rightInferredPredicates);
 
     List<RexNode> leftPredicates = new ArrayList<>();
     List<RexNode> rightPredicates = new ArrayList<>();
@@ -79,28 +78,37 @@ public class DremioJoinPushTransitivePredicatesRule extends RelOptRule {
 
     RelNode left = getNewChild(join.getLeft(), leftPredicates, rexBuilder);
     RelNode right = getNewChild(join.getRight(), rightPredicates, rexBuilder);
-    return join.copy(join.getTraitSet(), join.getCondition(), left, right, join.getJoinType(), join.isSemiJoinDone());
+    return join.copy(
+        join.getTraitSet(),
+        join.getCondition(),
+        left,
+        right,
+        join.getJoinType(),
+        join.isSemiJoinDone());
   }
 
-  private static RelNode getNewChild(RelNode node,
-                              List<RexNode> predicates,
-                                     RexBuilder builder) {
+  private static RelNode getNewChild(RelNode node, List<RexNode> predicates, RexBuilder builder) {
     if (!predicates.isEmpty()) {
       node = LogicalFilter.create(node, RexUtil.composeConjunction(builder, predicates, false));
     }
     return node;
   }
 
-  private static void match(Join join,
-                     List<RexNode> leftInferredPredicates,
-                     List<RexNode> rightInferredPredicates,
-                     List<RexNode> leftPredicates,
-                     List<RexNode> rightPredicates) {
+  private static void match(
+      Join join,
+      List<RexNode> leftInferredPredicates,
+      List<RexNode> rightInferredPredicates,
+      List<RexNode> leftPredicates,
+      List<RexNode> rightPredicates) {
     RelNode left = join.getLeft();
     RelNode right = join.getRight();
+    RexBuilder rexBuilder = join.getCluster().getRexBuilder();
 
-    boolean leftPredMatch = predicatesMatchWithNullability(leftInferredPredicates, left.getRowType());
-    boolean rightPredMatch = predicatesMatchWithNullability(rightInferredPredicates, right.getRowType());
+    boolean leftPredMatch =
+        predicatesMatchWithNullability(leftInferredPredicates, left.getRowType(), rexBuilder);
+
+    boolean rightPredMatch =
+        predicatesMatchWithNullability(rightInferredPredicates, right.getRowType(), rexBuilder);
 
     if (!leftPredMatch && !rightPredMatch) {
       // If the inferred predicates cannot be applied on both sides
@@ -115,13 +123,17 @@ public class DremioJoinPushTransitivePredicatesRule extends RelOptRule {
     }
   }
 
-  public static List<RexNode> getCanonicalizedPredicates(RelNode join, RexBuilder builder, List<RexNode> inferredPredicates) {
+  public static List<RexNode> getCanonicalizedPredicates(
+      RexBuilder builder, List<RexNode> inferredPredicates) {
     List<RexNode> predicates = new ArrayList<>();
-    // To simplify predicates of the type "Input IS NOT DISTINCT FROM Constant" so that we don't end up
-    // with filter conditions like: condition=[AND(=($0, 3), IS NOT DISTINCT FROM($0, CAST(3):INTEGER))]
+    // To simplify predicates of the type "Input IS NOT DISTINCT FROM Constant" so that we don't end
+    // up
+    // with filter conditions like: condition=[AND(=($0, 3), IS NOT DISTINCT FROM($0,
+    // CAST(3):INTEGER))]
     for (RexNode predicate : inferredPredicates) {
       predicate = predicate.accept(new MoreRelOptUtil.RexLiteralCanonicalizer(builder));
-      final FindSimpleFilters.StateHolder holder = predicate.accept(new FindSimpleFilters(builder, false));
+      final FindSimpleFilters.StateHolder holder =
+          predicate.accept(new FindSimpleFilters(builder, false));
       if (holder.hasConditions()) {
         predicates.addAll(holder.getConditions());
       } else {
@@ -139,17 +151,24 @@ public class DremioJoinPushTransitivePredicatesRule extends RelOptRule {
     return FlattenVisitors.count(predicates) == 0;
   }
 
-  public static boolean predicatesMatchWithNullability(List<RexNode> predicates, RelDataType rowType) {
+  public static boolean predicatesMatchWithNullability(
+      List<RexNode> predicates, RelDataType rowType, RexBuilder rexBuilder) {
     // Make sure the filter we are pushing matches the row type
+    // If the decimal precision and scale do not match, we update the data type of operand in order
+    // to match the row
+    // type.
     if (CollectionUtils.isEmpty(predicates)) {
       return false;
     }
-    boolean match = true;
-    for (RexNode predicate : predicates) {
-      RexChecker checker = new RexChecker(rowType, null, Litmus.IGNORE);
-      predicate.accept(checker);
-      match &= checker.getFailureCount() == 0;
+    for (int i = 0; i < predicates.size(); i++) {
+      MoreRelOptUtil.RexTypeMatcher typeMatcher =
+          new MoreRelOptUtil.RexTypeMatcher(rowType, rexBuilder);
+      RexNode predicate = predicates.get(i).accept(typeMatcher);
+      if (!typeMatcher.isValid()) {
+        return false;
+      }
+      predicates.set(i, predicate);
     }
-    return match;
+    return true;
   }
 }

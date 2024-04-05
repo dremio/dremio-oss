@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.util.List;
-
-import org.apache.hadoop.hive.ql.exec.UDF;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
@@ -46,10 +36,18 @@ import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JInvocation;
 import com.sun.codemodel.JTryBlock;
 import com.sun.codemodel.JVar;
+import java.util.List;
+import org.apache.hadoop.hive.ql.exec.UDF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HiveFuncHolder extends AbstractFunctionHolder {
   static final Logger DEPRECATED_FUNCTION_WARNING_LOGGER =
-    LoggerFactory.getLogger("hive.deprecated.function.warning.logger");
+      LoggerFactory.getLogger("hive.deprecated.function.warning.logger");
 
   private CompleteType[] argTypes;
   private ObjectInspector returnOI;
@@ -60,9 +58,9 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
   private String udfName = "";
   private boolean isRandom;
 
-
   /**
    * Create holder for GenericUDF
+   *
    * @param genericUdfClazz implementation class
    * @param argTypes
    * @param returnOI
@@ -83,38 +81,38 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
 
   /**
    * Create holder for UDF
+   *
    * @param udfName name of the UDF class
    * @param udfClazz UDF implementation class
    * @param argTypes
    * @param returnOI
    * @param returnType
    */
-  public HiveFuncHolder(String udfName, Class< ? extends UDF> udfClazz, CompleteType[] argTypes,
-                        ObjectInspector returnOI, CompleteType returnType, boolean isRandom) {
+  public HiveFuncHolder(
+      String udfName,
+      Class<? extends UDF> udfClazz,
+      CompleteType[] argTypes,
+      ObjectInspector returnOI,
+      CompleteType returnType,
+      boolean isRandom) {
     this(GenericUDFBridge.class, argTypes, returnOI, returnType, isRandom);
     this.isGenericUDF = false;
     this.udfClazz = udfClazz;
     this.udfName = udfName;
   }
 
-  /**
-   * UDF return type
-   */
+  /** UDF return type */
   public CompleteType getReturnType() {
     return returnType;
   }
 
-  /**
-   * Aggregate function
-   */
+  /** Aggregate function */
   public boolean isAggregating() {
     // currently only simple UDFS are supported
     return false;
   }
 
-  /**
-   * is the function non-deterministic?
-   */
+  /** is the function non-deterministic? */
   public boolean isRandom() {
     return isRandom;
   }
@@ -151,30 +149,45 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
 
   /**
    * Start generating code
+   *
    * @return workspace variables
    */
   @Override
-  public JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, FunctionErrorContext errorContext){
+  public JVar[] renderStart(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      FunctionErrorContext errorContext) {
     JVar[] workspaceJVars = new JVar[5];
 
     workspaceJVars[0] = g.declareClassField("returnOI", g.getModel()._ref(ObjectInspector.class));
     workspaceJVars[1] = g.declareClassField("udfInstance", g.getModel()._ref(GenericUDF.class));
-    workspaceJVars[2] = g.declareClassField("deferredObjects", g.getModel()._ref(DeferredObject[].class));
+    workspaceJVars[2] =
+        g.declareClassField("deferredObjects", g.getModel()._ref(DeferredObject[].class));
     workspaceJVars[3] = g.declareClassField("arguments", g.getModel()._ref(DeferredObject[].class));
-    workspaceJVars[4] = g.declareClassField("returnValueHolder", CodeModelArrowHelper.getHolderType(g.getModel(), returnType.toMinorType(), DataMode.OPTIONAL));
+    workspaceJVars[4] =
+        g.declareClassField(
+            "returnValueHolder",
+            CodeModelArrowHelper.getHolderType(
+                g.getModel(), returnType.toMinorType(), DataMode.OPTIONAL));
 
     return workspaceJVars;
   }
 
   /**
    * Complete code generation
+   *
    * @param g
    * @param inputVariables
    * @param workspaceJVars
    * @return HoldingContainer for return value
    */
   @Override
-  public HoldingContainer renderEnd(ClassGenerator<?> g, CompleteType resolvedOutput, HoldingContainer[] inputVariables, JVar[]  workspaceJVars) {
+  public HoldingContainer renderEnd(
+      ClassGenerator<?> g,
+      CompleteType resolvedOutput,
+      HoldingContainer[] inputVariables,
+      JVar[] workspaceJVars) {
     generateSetup(g, workspaceJVars);
     return generateEval(g, inputVariables, workspaceJVars);
   }
@@ -184,9 +197,9 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
       return JExpr._new(m.directClass(genericUdfClazz.getCanonicalName()));
     } else {
       return JExpr._new(m.directClass(GenericUDFBridge.class.getCanonicalName()))
-        .arg(JExpr.lit(udfName))
-        .arg(JExpr.lit(false))
-        .arg(JExpr.lit(udfClazz.getCanonicalName().toString()));
+          .arg(JExpr.lit(udfName))
+          .arg(JExpr.lit(false))
+          .arg(JExpr.lit(udfClazz.getCanonicalName().toString()));
     }
   }
 
@@ -201,31 +214,35 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
     JBlock sub = new JBlock(true, true);
 
     // declare and instantiate argument ObjectInspector's
-    JVar oiArray = sub.decl(
-      m._ref(ObjectInspector[].class),
-      "argOIs",
-      JExpr.newArray(m._ref(ObjectInspector.class), argTypes.length));
+    JVar oiArray =
+        sub.decl(
+            m._ref(ObjectInspector[].class),
+            "argOIs",
+            JExpr.newArray(m._ref(ObjectInspector.class), argTypes.length));
 
     JClass oih = m.directClass(ObjectInspectorHelper.class.getCanonicalName());
     JClass mt = m.directClass(MinorType.class.getCanonicalName());
     JClass mode = m.directClass(DataMode.class.getCanonicalName());
-    for(int i=0; i<argTypes.length; i++) {
+    for (int i = 0; i < argTypes.length; i++) {
       sub.assign(
-        oiArray.component(JExpr.lit(i)),
-        oih.staticInvoke("getObjectInspector")
-          .arg(mode.staticInvoke("valueOf").arg(JExpr.lit("OPTIONAL")))
-          .arg(mt.staticInvoke("valueOf").arg(JExpr.lit(argTypes[i].toMinorType().name())))
-          .arg((((PrimitiveObjectInspector) returnOI).getPrimitiveCategory() ==
-              PrimitiveObjectInspector.PrimitiveCategory.STRING) ? JExpr.lit(true) : JExpr.lit(false)));
+          oiArray.component(JExpr.lit(i)),
+          oih.staticInvoke("getObjectInspector")
+              .arg(mode.staticInvoke("valueOf").arg(JExpr.lit("OPTIONAL")))
+              .arg(mt.staticInvoke("valueOf").arg(JExpr.lit(argTypes[i].toMinorType().name())))
+              .arg(
+                  (((PrimitiveObjectInspector) returnOI).getPrimitiveCategory()
+                          == PrimitiveObjectInspector.PrimitiveCategory.STRING)
+                      ? JExpr.lit(true)
+                      : JExpr.lit(false)));
     }
 
     // declare and instantiate DeferredObject array
     sub.assign(workspaceJVars[2], JExpr.newArray(m._ref(DeferredObject.class), argTypes.length));
 
-    for(int i=0; i<argTypes.length; i++) {
+    for (int i = 0; i < argTypes.length; i++) {
       sub.assign(
-        workspaceJVars[2].component(JExpr.lit(i)),
-        JExpr._new(m.directClass(DeferredObject.class.getCanonicalName())));
+          workspaceJVars[2].component(JExpr.lit(i)),
+          JExpr._new(m.directClass(DeferredObject.class.getCanonicalName())));
     }
 
     // declare empty array for argument deferred objects
@@ -236,44 +253,62 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
 
     // create try..catch block to initialize the UDF instance with argument OIs
     JTryBlock udfInitTry = sub._try();
-    udfInitTry.body().assign(
-      workspaceJVars[0],
-      workspaceJVars[1].invoke("initialize")
-      .arg(oiArray));
+    udfInitTry
+        .body()
+        .assign(workspaceJVars[0], workspaceJVars[1].invoke("initialize").arg(oiArray));
 
     JCatchBlock udfInitCatch = udfInitTry._catch(m.directClass(Exception.class.getCanonicalName()));
     JVar exVar = udfInitCatch.param("ex");
-    udfInitCatch.body()
-      ._throw(JExpr._new(m.directClass(RuntimeException.class.getCanonicalName()))
-        .arg(JExpr.lit("Failed to initialize GenericUDF")).arg(exVar));
+    udfInitCatch
+        .body()
+        ._throw(
+            JExpr._new(m.directClass(RuntimeException.class.getCanonicalName()))
+                .arg(JExpr.lit("Failed to initialize GenericUDF"))
+                .arg(exVar));
 
-    sub.add(ObjectInspectorHelper.initReturnValueHolder(g, m, workspaceJVars[4], returnOI, returnType.toMinorType()));
+    sub.add(
+        ObjectInspectorHelper.initReturnValueHolder(
+            g, m, workspaceJVars[4], returnOI, returnType.toMinorType()));
 
     // now add it to the doSetup block in Generated class
     JBlock setup = g.getBlock(ClassGenerator.BlockType.SETUP);
-    setup.directStatement(String.format("/** start %s for function %s **/ ",
-      ClassGenerator.BlockType.SETUP.name(), genericUdfClazz.getName() + (!isGenericUDF ? "("+udfName+")" : "")));
+    setup.directStatement(
+        String.format(
+            "/** start %s for function %s **/ ",
+            ClassGenerator.BlockType.SETUP.name(),
+            genericUdfClazz.getName() + (!isGenericUDF ? "(" + udfName + ")" : "")));
 
     setup.add(sub);
 
-    setup.directStatement(String.format("/** end %s for function %s **/ ",
-      ClassGenerator.BlockType.SETUP.name(), genericUdfClazz.getName() + (!isGenericUDF ? "("+udfName+")" : "")));
+    setup.directStatement(
+        String.format(
+            "/** end %s for function %s **/ ",
+            ClassGenerator.BlockType.SETUP.name(),
+            genericUdfClazz.getName() + (!isGenericUDF ? "(" + udfName + ")" : "")));
   }
 
-  private HoldingContainer generateEval(ClassGenerator<?> g, HoldingContainer[] inputVariables, JVar[] workspaceJVars) {
+  private HoldingContainer generateEval(
+      ClassGenerator<?> g, HoldingContainer[] inputVariables, JVar[] workspaceJVars) {
 
     HoldingContainer out = g.declare(returnType);
 
     JCodeModel m = g.getModel();
     JBlock sub = new JBlock(true, true);
 
-    // initialize DeferredObject's. For an optional type, assign the value holder only if it is not null
-    for(int i=0; i<argTypes.length; i++) {
-      sub.assign(workspaceJVars[3].component(JExpr.lit(i)), workspaceJVars[2].component(JExpr.lit(i)));
+    // initialize DeferredObject's. For an optional type, assign the value holder only if it is not
+    // null
+    for (int i = 0; i < argTypes.length; i++) {
+      sub.assign(
+          workspaceJVars[3].component(JExpr.lit(i)), workspaceJVars[2].component(JExpr.lit(i)));
       JBlock conditionalBlock = new JBlock(false, false);
       JConditional jc = conditionalBlock._if(inputVariables[i].getIsSet().ne(JExpr.lit(0)));
-      jc._then().assign(JExpr.ref(workspaceJVars[3].component(JExpr.lit(i)), "valueHolder"), inputVariables[i].getHolder());
-      jc._else().assign(JExpr.ref(workspaceJVars[3].component(JExpr.lit(i)), "valueHolder"), JExpr._null());
+      jc._then()
+          .assign(
+              JExpr.ref(workspaceJVars[3].component(JExpr.lit(i)), "valueHolder"),
+              inputVariables[i].getHolder());
+      jc._else()
+          .assign(
+              JExpr.ref(workspaceJVars[3].component(JExpr.lit(i)), "valueHolder"), JExpr._null());
       sub.add(conditionalBlock);
     }
 
@@ -282,26 +317,35 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
 
     // create try..catch block to call the GenericUDF instance with given input
     JTryBlock udfEvalTry = sub._try();
-    udfEvalTry.body().assign(retVal,
-      workspaceJVars[1].invoke("evaluate").arg(workspaceJVars[3]));
+    udfEvalTry.body().assign(retVal, workspaceJVars[1].invoke("evaluate").arg(workspaceJVars[3]));
 
     JCatchBlock udfEvalCatch = udfEvalTry._catch(m.directClass(Exception.class.getCanonicalName()));
     JVar exVar = udfEvalCatch.param("ex");
-    udfEvalCatch.body()
-      ._throw(JExpr._new(m.directClass(RuntimeException.class.getCanonicalName()))
-        .arg(JExpr.lit("GenericUDF.evaluate method failed")).arg(exVar));
+    udfEvalCatch
+        .body()
+        ._throw(
+            JExpr._new(m.directClass(RuntimeException.class.getCanonicalName()))
+                .arg(JExpr.lit("GenericUDF.evaluate method failed"))
+                .arg(exVar));
 
     // get the ValueHolder from retVal and return ObjectInspector
-    sub.add(ObjectInspectorHelper.getObject(m, returnOI, workspaceJVars[0], workspaceJVars[4], retVal));
+    sub.add(
+        ObjectInspectorHelper.getObject(m, returnOI, workspaceJVars[0], workspaceJVars[4], retVal));
     sub.assign(out.getHolder(), workspaceJVars[4]);
 
     // now add it to the doEval block in Generated class
     JBlock setup = g.getBlock(ClassGenerator.BlockType.EVAL);
-    setup.directStatement(String.format("/** start %s for function %s **/ ",
-      ClassGenerator.BlockType.EVAL.name(), genericUdfClazz.getName() + (!isGenericUDF ? "("+udfName+")" : "")));
+    setup.directStatement(
+        String.format(
+            "/** start %s for function %s **/ ",
+            ClassGenerator.BlockType.EVAL.name(),
+            genericUdfClazz.getName() + (!isGenericUDF ? "(" + udfName + ")" : "")));
     setup.add(sub);
-    setup.directStatement(String.format("/** end %s for function %s **/ ",
-      ClassGenerator.BlockType.EVAL.name(), genericUdfClazz.getName() + (!isGenericUDF ? "("+udfName+")" : "")));
+    setup.directStatement(
+        String.format(
+            "/** end %s for function %s **/ ",
+            ClassGenerator.BlockType.EVAL.name(),
+            genericUdfClazz.getName() + (!isGenericUDF ? "(" + udfName + ")" : "")));
 
     return out;
   }

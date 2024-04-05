@@ -20,23 +20,21 @@ import static com.dremio.reflection.hints.ExplanationUtil.fieldMissingExplanatio
 import static com.dremio.reflection.hints.ExplanationUtil.filterOverSpecified;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.reflection.hints.features.FieldMissingFeature;
 import com.dremio.reflection.hints.features.FilterDisjointFeature;
 import com.dremio.reflection.hints.features.HintFeature;
 import com.dremio.reflection.hints.features.MaterializationFilterOverSpecifiedFeature;
 import com.dremio.sabot.kernel.proto.ReflectionExplanation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ReflectionExplanationManager {
   public static final int MAX_REFLECTIONS_TO_DISPLAY_TO_SHOW = 5;
@@ -44,19 +42,19 @@ public class ReflectionExplanationManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(ReflectionExplanationManager.class);
   private final ReflectionExplanationFeatureGatherer reflectionExplanationFeatureGatherer;
 
-  public ReflectionExplanationManager(ReflectionExplanationFeatureGatherer reflectionExplanationFeatureGatherer) {
+  public ReflectionExplanationManager(
+      ReflectionExplanationFeatureGatherer reflectionExplanationFeatureGatherer) {
     this.reflectionExplanationFeatureGatherer = reflectionExplanationFeatureGatherer;
   }
 
   public Stream<ReflectionExplanationsAndQueryDistance> generateDisplayExplanations() {
-    List<ReflectionExplanationsAndQueryDistance> reflectionExplanationsAndQueryDistanceList
-      = reflectionExplanationFeatureGatherer.reflectionIdToFeatureList.entrySet()
-      .stream()
-      .filter(e -> e.getValue().size() <= MAX_NUMBER_OF_HINTS_PER_REFLECTION)
-      .map(this::entryToDisplayHint)
-      .filter(this::nonZeroDistance)
-      .sorted()
-      .collect(Collectors.toList());
+    List<ReflectionExplanationsAndQueryDistance> reflectionExplanationsAndQueryDistanceList =
+        reflectionExplanationFeatureGatherer.reflectionIdToFeatureList.entrySet().stream()
+            .filter(e -> e.getValue().size() <= MAX_NUMBER_OF_HINTS_PER_REFLECTION)
+            .map(this::entryToDisplayHint)
+            .filter(this::nonZeroDistance)
+            .sorted()
+            .collect(Collectors.toList());
 
     for (int i = 0; i < reflectionExplanationsAndQueryDistanceList.size(); i++) {
       ReflectionExplanationsAndQueryDistance r = reflectionExplanationsAndQueryDistanceList.get(i);
@@ -70,58 +68,67 @@ public class ReflectionExplanationManager {
   }
 
   private ReflectionExplanationsAndQueryDistance entryToDisplayHint(
-    Entry<String, Set<HintFeature>> reflectionIdAndFeatureSet) {
-    return new ReflectionExplanationsAndQueryDistance(reflectionIdAndFeatureSet.getKey(),
-      queryDistance(reflectionIdAndFeatureSet.getValue()));
+      Entry<String, Set<HintFeature>> reflectionIdAndFeatureSet) {
+    return new ReflectionExplanationsAndQueryDistance(
+        reflectionIdAndFeatureSet.getKey(), queryDistance(reflectionIdAndFeatureSet.getValue()));
   }
 
-  private void decorateWithDisplayMessages(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+  private void decorateWithDisplayMessages(
+      ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
     String reflectionId = reflectionExplanationsAndQueryDistance.reflectionId;
-    Set<HintFeature> hintFeatureSet = reflectionExplanationFeatureGatherer.reflectionIdToFeatureList.get(reflectionId);
-    reflectionExplanationsAndQueryDistance.displayHintMessageList = hintFeatureSet
-      .stream()
-      .map(this::featureToExplanation)
-      .collect(toImmutableList());
+    Set<HintFeature> hintFeatureSet =
+        reflectionExplanationFeatureGatherer.reflectionIdToFeatureList.get(reflectionId);
+    reflectionExplanationsAndQueryDistance.displayHintMessageList =
+        hintFeatureSet.stream().map(this::featureToExplanation).collect(toImmutableList());
   }
 
   private ReflectionExplanation featureToExplanation(HintFeature hintFeature) {
-    if(hintFeature instanceof FieldMissingFeature){
+    if (hintFeature instanceof FieldMissingFeature) {
       return fieldMissingToDisplayHintMessage((FieldMissingFeature) hintFeature);
-    } else if(hintFeature instanceof MaterializationFilterOverSpecifiedFeature) {
-      return featureToExplanation((MaterializationFilterOverSpecifiedFeature)hintFeature);
-    } else if(hintFeature instanceof FilterDisjointFeature) {
+    } else if (hintFeature instanceof MaterializationFilterOverSpecifiedFeature) {
+      return featureToExplanation((MaterializationFilterOverSpecifiedFeature) hintFeature);
+    } else if (hintFeature instanceof FilterDisjointFeature) {
       return clauseToDisplayHintMessage((FilterDisjointFeature) hintFeature);
     } else {
       throw new RuntimeException("Unknown Type" + hintFeature.getClass());
     }
   }
 
-  private ReflectionExplanation clauseToDisplayHintMessage(FilterDisjointFeature filterDisjointFeature) {
-    return disjointFilterExplanation(getFilterWithColumnName(filterDisjointFeature.getMaterializationFilter(), filterDisjointFeature.getDatasetRowType()));
+  private ReflectionExplanation clauseToDisplayHintMessage(
+      FilterDisjointFeature filterDisjointFeature) {
+    return disjointFilterExplanation(
+        getFilterWithColumnName(
+            filterDisjointFeature.getMaterializationFilter(),
+            filterDisjointFeature.getDatasetRowType()));
   }
 
-  private ReflectionExplanation fieldMissingToDisplayHintMessage(FieldMissingFeature fieldMissingFeature){
+  private ReflectionExplanation fieldMissingToDisplayHintMessage(
+      FieldMissingFeature fieldMissingFeature) {
     try {
       List<String> names = fieldMissingFeature.getUserQueryNode().getRowType().getFieldNames();
-      if(names.size() > fieldMissingFeature.getIndex()) {
-        return fieldMissingExplanation(names.get(fieldMissingFeature.getIndex()), fieldMissingFeature.getIndex());
+      if (names.size() > fieldMissingFeature.getIndex()) {
+        return fieldMissingExplanation(
+            names.get(fieldMissingFeature.getIndex()), fieldMissingFeature.getIndex());
       } else {
-        return fieldMissingExplanation(fieldMissingFeature.getName(), fieldMissingFeature.getIndex());
+        return fieldMissingExplanation(
+            fieldMissingFeature.getName(), fieldMissingFeature.getIndex());
       }
     } catch (Exception ex) {
-      LOGGER.warn("Failed to create display data",  ex);
-      return fieldMissingExplanation(
-          fieldMissingFeature.getName(),
-          fieldMissingFeature.getIndex());
+      LOGGER.warn("Failed to create display data", ex);
+      return fieldMissingExplanation(fieldMissingFeature.getName(), fieldMissingFeature.getIndex());
     }
   }
 
   private ReflectionExplanation featureToExplanation(
       MaterializationFilterOverSpecifiedFeature materializationFilterOverSpecified) {
-    return filterOverSpecified(getFilterWithColumnName(materializationFilterOverSpecified.getMaterializationFilter(), materializationFilterOverSpecified.getDatasetRowType()));
+    return filterOverSpecified(
+        getFilterWithColumnName(
+            materializationFilterOverSpecified.getMaterializationFilter(),
+            materializationFilterOverSpecified.getDatasetRowType()));
   }
 
-  private boolean nonZeroDistance(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+  private boolean nonZeroDistance(
+      ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
     return reflectionExplanationsAndQueryDistance.queryDistance != 0.0;
   }
 
@@ -130,7 +137,8 @@ public class ReflectionExplanationManager {
   }
 
   // Get filter and rewrite rex index with column name
-  private String getFilterWithColumnName(RexNode materializationFilter, RelDataType datasetRowType) {
+  private String getFilterWithColumnName(
+      RexNode materializationFilter, RelDataType datasetRowType) {
     StringBuilder modified = new StringBuilder();
 
     String original = materializationFilter.toString();
@@ -141,7 +149,7 @@ public class ReflectionExplanationManager {
       if (original.charAt(index) == '\'') {
         // Index after the closing single quote
         int nextIndex = original.indexOf('\'', index + 1);
-        nextIndex =  nextIndex != -1 ? nextIndex + 1 : index + 1;
+        nextIndex = nextIndex != -1 ? nextIndex + 1 : index + 1;
         modified.append(original, index, nextIndex);
         index = nextIndex;
         continue;
@@ -153,7 +161,10 @@ public class ReflectionExplanationManager {
           nextIndex++;
         }
         int columnIndex = Integer.valueOf(original.substring(index + 1, nextIndex));
-        modified.append((nextIndex - index == 1 || columnIndex >= fields.size()) ? '$' : fields.get(columnIndex));
+        modified.append(
+            (nextIndex - index == 1 || columnIndex >= fields.size())
+                ? '$'
+                : fields.get(columnIndex));
         index = nextIndex;
         continue;
       }

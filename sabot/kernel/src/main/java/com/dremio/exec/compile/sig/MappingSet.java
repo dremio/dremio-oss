@@ -15,11 +15,9 @@
  */
 package com.dremio.exec.compile.sig;
 
-import java.util.Arrays;
-
 import com.dremio.exec.expr.DirectExpression;
 import com.google.common.base.Preconditions;
-
+import java.util.Arrays;
 
 public class MappingSet {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MappingSet.class);
@@ -37,15 +35,21 @@ public class MappingSet {
   private boolean nullConstant;
 
   public MappingSet(GeneratorMapping mapping) {
-    this("inIndex", "outIndex", new GeneratorMapping[] { mapping, mapping });
+    this("inIndex", "outIndex", new GeneratorMapping[] {mapping, mapping});
   }
 
   public boolean hasEmbeddedConstant() {
     return constant == current;
   }
 
-  public MappingSet(String readIndex, String writeIndex, String workspaceIndex, String incoming, String outgoing,
-      String workspace, GeneratorMapping... mappings) {
+  public MappingSet(
+      String readIndex,
+      String writeIndex,
+      String workspaceIndex,
+      String incoming,
+      String outgoing,
+      String workspace,
+      GeneratorMapping... mappings) {
     this(readIndex, writeIndex, incoming, outgoing, mappings);
     this.workspaceIndex = DirectExpression.direct(workspaceIndex);
     this.workspace = DirectExpression.direct(workspace);
@@ -59,7 +63,12 @@ public class MappingSet {
     this(readIndex, writeIndex, "incoming", "outgoing", mappings);
   }
 
-  public MappingSet(String readIndex, String writeIndex, String incoming, String outgoing, GeneratorMapping... mappings) {
+  public MappingSet(
+      String readIndex,
+      String writeIndex,
+      String incoming,
+      String outgoing,
+      GeneratorMapping... mappings) {
     this.readIndex = DirectExpression.direct(readIndex);
     this.writeIndex = DirectExpression.direct(writeIndex);
     this.incoming = DirectExpression.direct(incoming);
@@ -117,7 +126,8 @@ public class MappingSet {
     assert current == mappings[mappingIndex];
     mappingIndex--;
     if (mappingIndex < 0) {
-      throw new IllegalStateException("You tried to traverse higher than the provided mapping provides.");
+      throw new IllegalStateException(
+          "You tried to traverse higher than the provided mapping provides.");
     }
     current = mappings[mappingIndex];
   }

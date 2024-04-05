@@ -15,11 +15,10 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 import org.projectnessie.client.api.DeleteBranchBuilder;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.Reference;
-
-import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcDeleteBranch extends BaseGrpcDeleteReference<Branch, DeleteBranchBuilder>
     implements DeleteBranchBuilder {

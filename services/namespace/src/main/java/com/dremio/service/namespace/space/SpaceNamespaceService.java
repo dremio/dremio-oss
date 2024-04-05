@@ -15,20 +15,23 @@
  */
 package com.dremio.service.namespace.space;
 
-import java.util.List;
-
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import java.util.List;
 
-/**
- * Namespace operations for Spaces.
- */
+/** Namespace operations for Spaces. */
 public interface SpaceNamespaceService {
-  void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig, NamespaceAttribute... attributes) throws NamespaceException;
+  void addOrUpdateSpace(
+      NamespaceKey spacePath, SpaceConfig spaceConfig, NamespaceAttribute... attributes)
+      throws NamespaceException;
+
   SpaceConfig getSpace(NamespaceKey spacePath) throws NamespaceException;
+
   SpaceConfig getSpaceById(String id) throws NamespaceException;
+
   List<SpaceConfig> getSpaces();
+
   void deleteSpace(NamespaceKey spacePath, String version) throws NamespaceException;
 }

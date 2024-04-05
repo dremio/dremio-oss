@@ -15,23 +15,20 @@
  */
 package com.dremio.datastore;
 
+import com.dremio.common.SuppressForbidden;
+import com.google.common.base.Preconditions;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
-import com.dremio.common.SuppressForbidden;
-import com.google.common.base.Preconditions;
-
-/**
- * Utilities for datastore and other applications
- */
+/** Utilities for datastore and other applications */
 @SuppressForbidden
 public final class DataStoreUtils {
 
   /**
    * Convert a class name to an instance.
    *
-   * @param className   The class name to load.
-   * @param clazz       The expected class type.
+   * @param className The class name to load.
+   * @param clazz The expected class type.
    * @param failOnEmpty Whether to fail or return null if no value is given.
    * @return The newly created instance (or null if !failOnEmpty and emptry string used).
    */
@@ -39,9 +36,10 @@ public final class DataStoreUtils {
   public static <T> T getInstance(String className, Class<T> clazz, boolean failOnEmpty) {
     if (className == null || className.isEmpty()) {
       if (failOnEmpty) {
-        throw new DatastoreException(String.format(
-            "Failure trying to resolve class for expected type of %s. The provided class name was either empty or null.",
-            clazz.getName()));
+        throw new DatastoreException(
+            String.format(
+                "Failure trying to resolve class for expected type of %s. The provided class name was either empty or null.",
+                clazz.getName()));
       }
 
       return null;
@@ -51,19 +49,19 @@ public final class DataStoreUtils {
         Preconditions.checkArgument(clazz.isAssignableFrom(outcome));
         return (T) getInstance(outcome);
       } catch (Exception ex) {
-        throw new DatastoreException(String.format(
-            "Failure while trying to load class named %s which should be a subclass of %s. ",
-            className,
-            clazz.getName()));
+        throw new DatastoreException(
+            String.format(
+                "Failure while trying to load class named %s which should be a subclass of %s. ",
+                className, clazz.getName()));
       }
     }
   }
 
-  private DataStoreUtils() {
-  }
+  private DataStoreUtils() {}
 
   /**
    * Makes a constructor accessible so classes are instantiable.
+   *
    * @param clazz to instantiate
    * @param <T> type to instantiate
    * @return instance
@@ -75,7 +73,10 @@ public final class DataStoreUtils {
       Constructor<?> constructor = clazz.getDeclaredConstructor();
       constructor.setAccessible(true);
       return (T) constructor.newInstance();
-    } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+    } catch (NoSuchMethodException
+        | InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException e) {
       throw new DatastoreException("Could not get instance of class: " + clazz.getName(), e);
     }
   }

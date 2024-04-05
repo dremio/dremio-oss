@@ -21,9 +21,10 @@ import APICall from "@app/core/APICall";
 export const getClusterInfo = async () => {
   const apiCall = new APICall().path("info");
   const method = "GET";
+  const token = localStorageUtils.getAuthToken();
   const headers = {
     "Content-Type": "application/json",
-    Authorization: localStorageUtils.getAuthToken(),
+    ...(token && { Authorization: token }),
   };
   const apiResponse = await fetch(apiCall, { method, headers });
   if (apiResponse.ok) {

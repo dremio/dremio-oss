@@ -20,17 +20,6 @@ import static com.dremio.exec.planner.sql.TestSerializerRoundtrip.CATALOG_READER
 import static com.dremio.exec.planner.sql.TestSerializerRoundtrip.FACTORY;
 import static com.dremio.exec.planner.sql.TestSerializerRoundtrip.OPERATOR_TABLE;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.RelNode;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.planner.sql.TestSerializerRoundtrip.Output;
 import com.dremio.test.GoldenFileTestBuilder.InputAndOutput;
 import com.dremio.test.GoldenFileTestBuilder.MultiLineString;
@@ -38,23 +27,31 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.io.Resources;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.RelNode;
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
- * Ensures that the current serializer can deserialize the binaries created by old serializers.
- * This is important for the migration / upgrade story:
- * Suppose we persist a query plan and upgrade the serializers,
- * then we need to ensure the current serializer can deserialize it otherwise we will end up with an exception in production.
+ * Ensures that the current serializer can deserialize the binaries created by old serializers. This
+ * is important for the migration / upgrade story: Suppose we persist a query plan and upgrade the
+ * serializers, then we need to ensure the current serializer can deserialize it otherwise we will
+ * end up with an exception in production.
  *
- * When a developer introduces a breaking change in the proto serializer they should:
- * 1) leave the original field and rename it to "legacyXXX"
- * 2) make a copy of the baselines and add it to the migrations folder
- * 3) Update MIGRATION_BASELINE_PATHS
- * 4) Add the new field
- * 5) Update the baseline files
+ * <p>When a developer introduces a breaking change in the proto serializer they should: 1) leave
+ * the original field and rename it to "legacyXXX" 2) make a copy of the baselines and add it to the
+ * migrations folder 3) Update MIGRATION_BASELINE_PATHS 4) Add the new field 5) Update the baseline
+ * files
  */
 public final class TestSerializerMigration {
   // Migration Paths
-  private static final Path MIGRATIONS_DIRECTORY = Paths.get(Resources.getResource("migrations").getPath());
+  private static final Path MIGRATIONS_DIRECTORY =
+      Paths.get(Resources.getResource("migrations").getPath());
   private static final Path VERSION_1_19 = MIGRATIONS_DIRECTORY.resolve("1.19");
   private static final Path VERSION_24_2 = MIGRATIONS_DIRECTORY.resolve("24.2");
 
@@ -78,27 +75,30 @@ public final class TestSerializerMigration {
   public void testMigration() throws IOException {
     for (Path path : MIGRATION_BASELINE_PATHS) {
       OBJECT_MAPPER
-        .readValue(
-          new File(path.toUri().getPath()),
-          new TypeReference<List<InputAndOutput<MultiLineString, Output>>>(){})
-        .stream()
-        .filter(record -> record.exceptionMessage == null)
-        .forEach(record -> {
-          MockDremioQueryParser parseTool = new MockDremioQueryParser(OPERATOR_TABLE, CATALOG, "user1");
-          parseTool.parse(record.input.toString());
-          RelNode deserializedRelNode = FACTORY
-            .getDeserializer(
-              parseTool.getCluster(),
-              CATALOG_READER,
-              OPERATOR_TABLE,
-              null)
-            .deserialize(record.output.getQueryPlanBinary().getBytes());
+          .readValue(
+              new File(path.toUri().getPath()),
+              new TypeReference<List<InputAndOutput<MultiLineString, Output>>>() {})
+          .stream()
+          .filter(record -> record.exceptionMessage == null)
+          .forEach(
+              record -> {
+                MockDremioQueryParser parseTool =
+                    new MockDremioQueryParser(OPERATOR_TABLE, CATALOG, "user1");
+                parseTool.parse(record.input.toString());
+                RelNode deserializedRelNode =
+                    FACTORY
+                        .getDeserializer(
+                            parseTool.getCluster(), CATALOG_READER, OPERATOR_TABLE, null)
+                        .deserialize(record.output.getQueryPlanBinary().getBytes());
 
-          String errorMessage = String.format("Could not migrate '%s' query: '%s'.", record.description, record.input);
-          MultiLineString actualQueryPlan = MultiLineString.create(RelOptUtil.toString(deserializedRelNode));
-          MultiLineString expectedQueryPlan = record.output.getQueryPlanText();
-          Assert.assertEquals(errorMessage, expectedQueryPlan, actualQueryPlan);
-        });
+                String errorMessage =
+                    String.format(
+                        "Could not migrate '%s' query: '%s'.", record.description, record.input);
+                MultiLineString actualQueryPlan =
+                    MultiLineString.create(RelOptUtil.toString(deserializedRelNode));
+                MultiLineString expectedQueryPlan = record.output.getQueryPlanText();
+                Assert.assertEquals(errorMessage, expectedQueryPlan, actualQueryPlan);
+              });
     }
   }
 }

@@ -15,9 +15,6 @@
  */
 package com.dremio.sabot.driver;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -49,10 +46,10 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Factor class used to generate a PipelineDriver.
- */
+/** Factor class used to generate a PipelineDriver. */
 public class PipelineCreator {
 
   private final FragmentExecutionContext fec;
@@ -91,40 +88,49 @@ public class PipelineCreator {
       FunctionLookupContext functionLookupContext,
       PhysicalOperator operator,
       TunnelProvider tunnelProvider,
-      SharedResourcesContext sharedResourcesContext
-      ) throws Exception {
+      SharedResourcesContext sharedResourcesContext)
+      throws Exception {
 
-    PipelineCreator pipelineCreator = new PipelineCreator(fec,
-      operatorContextCreator,
-      functionLookupContext,
-      buffers,
-      creator,
-      tunnelProvider,
-      sharedResourcesContext);
+    PipelineCreator pipelineCreator =
+        new PipelineCreator(
+            fec,
+            operatorContextCreator,
+            functionLookupContext,
+            buffers,
+            creator,
+            tunnelProvider,
+            sharedResourcesContext);
     return pipelineCreator.get(operator);
   }
 
   private Pipeline get(PhysicalOperator operator) throws Exception {
-    try(RollbackCloseable closeable = AutoCloseables.rollbackable(AutoCloseables.all(operators))) {
+    try (RollbackCloseable closeable = AutoCloseables.rollbackable(AutoCloseables.all(operators))) {
       final CreatorVisitor visitor = new CreatorVisitor();
       OpPipe opPipe = operator.accept(visitor, null);
       Preconditions.checkNotNull(opPipe.getPipe());
-      Pipeline driver = new Pipeline(opPipe.getPipe(), visitor.terminal, operators, shrinkableOperators, sharedResourcesContext);
+      Pipeline driver =
+          new Pipeline(
+              opPipe.getPipe(),
+              visitor.terminal,
+              operators,
+              shrinkableOperators,
+              sharedResourcesContext);
       closeable.commit();
       return driver;
     }
   }
 
-  private class CreatorVisitor extends AbstractPhysicalVisitor<OpPipe, Void,  Exception> {
+  private class CreatorVisitor extends AbstractPhysicalVisitor<OpPipe, Void, Exception> {
 
     private TerminalOperator terminal;
 
     /**
      * Record the operators we're generating so that we can close them out.
+     *
      * @param operator
      * @return
      */
-    private <X extends Operator, T extends SmartOp<X>> T record(T operator){
+    private <X extends Operator, T extends SmartOp<X>> T record(T operator) {
       operators.add(operator);
       Operator inner = operator.getInner();
       if (inner instanceof Operator.ShrinkableOperator) {
@@ -134,7 +140,7 @@ public class PipelineCreator {
       return operator;
     }
 
-    private void terminal(TerminalOperator terminal){
+    private void terminal(TerminalOperator terminal) {
       assert this.terminal == null;
       this.terminal = terminal;
     }
@@ -171,28 +177,30 @@ public class PipelineCreator {
 
     private OpPipe dualInput(PhysicalOperator config) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
-      DualInputOperator sink = record(
-          SmartOp.contextualize(
-              creator.getDualInputOperator(context, config),
-              context,
-              config,
-              functionLookupContext));
+      DualInputOperator sink =
+          record(
+              SmartOp.contextualize(
+                  creator.getDualInputOperator(context, config),
+                  context,
+                  config,
+                  functionLookupContext));
       List<PhysicalOperator> operators = Lists.newArrayList(config.iterator());
       Preconditions.checkArgument(operators.size() == 2);
       OpPipe left = operators.get(0).accept(this, null);
-      OpPipe right = operators.get(1).accept(this,  null);
+      OpPipe right = operators.get(1).accept(this, null);
       return pair(new WyePipe(sink, left, right), sink).associate(left, right);
     }
 
     @Override
     public OpPipe visitSender(Sender config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
-      TerminalOperator sink = record(
-          SmartOp.contextualize(
-              creator.getTerminalOperator(tunnelProvider, context, config),
-              context,
-              config,
-              functionLookupContext));
+      TerminalOperator sink =
+          record(
+              SmartOp.contextualize(
+                  creator.getTerminalOperator(tunnelProvider, context, config),
+                  context,
+                  config,
+                  functionLookupContext));
       terminal(sink);
       OpPipe input = config.getChild().accept(this, null);
       return pair(new StraightPipe(sink, input), sink).associate(input);
@@ -201,43 +209,47 @@ public class PipelineCreator {
     @Override
     public OpPipe visitReceiver(Receiver config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
-      ProducerOperator receiver = record(
-          SmartOp.contextualize(
-              creator.getReceiverOperator(buffers, context, config),
-              context,
-              config,
-              functionLookupContext));
+      ProducerOperator receiver =
+          record(
+              SmartOp.contextualize(
+                  creator.getReceiverOperator(buffers, context, config),
+                  context,
+                  config,
+                  functionLookupContext));
       return pair(null, receiver);
     }
 
     @Override
     public OpPipe visitBridgeFileReader(BridgeFileReader config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
-      ProducerOperator receiver = record(
-        SmartOp.contextualize(
-          creator.getReceiverOperator(buffers, context, config),
-          context,
-          config,
-          functionLookupContext));
+      ProducerOperator receiver =
+          record(
+              SmartOp.contextualize(
+                  creator.getReceiverOperator(buffers, context, config),
+                  context,
+                  config,
+                  functionLookupContext));
       return pair(null, receiver);
     }
 
     @Override
     public OpPipe visitSubScan(SubScan config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
-      ProducerOperator producer = record(
-          SmartOp.contextualize(
-              creator.getProducerOperator(fec, context, config),
-              context,
-              config,
-              functionLookupContext));
+      ProducerOperator producer =
+          record(
+              SmartOp.contextualize(
+                  creator.getProducerOperator(fec, context, config),
+                  context,
+                  config,
+                  functionLookupContext));
       return pair(null, producer);
     }
 
     @Override
     public OpPipe visitGroupScan(GroupScan config, Void value) throws Exception {
-      if(config instanceof SubScan){
-        // some scans are both subscans and groupscans (e.g. SystemTableScan). If they match do, delegate to visitSubScan.
+      if (config instanceof SubScan) {
+        // some scans are both subscans and groupscans (e.g. SystemTableScan). If they match do,
+        // delegate to visitSubScan.
         return visitSubScan((SubScan) config, value);
       } else {
         return super.visitGroupScan(config, value);
@@ -247,9 +259,13 @@ public class PipelineCreator {
     @Override
     public OpPipe visitScreen(Screen config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
-      TerminalOperator sink = record(
-          SmartOp.contextualize(
-              creator.getTerminalOperator(tunnelProvider, context, config), context, config, functionLookupContext));
+      TerminalOperator sink =
+          record(
+              SmartOp.contextualize(
+                  creator.getTerminalOperator(tunnelProvider, context, config),
+                  context,
+                  config,
+                  functionLookupContext));
       terminal(sink);
       OpPipe input = config.getChild().accept(this, null);
       return pair(new StraightPipe(sink, input), sink).associate(input);
@@ -257,33 +273,44 @@ public class PipelineCreator {
 
     @Override
     public OpPipe visitTableFunction(AbstractTableFunctionPOP config, Void value) throws Exception {
-      Preconditions.checkArgument(config instanceof AbstractSingle, "Object %s was expected to be implementation of AbstractSingle, but was not. Class was %s.", config.toString(), config.getClass().getName());
+      Preconditions.checkArgument(
+          config instanceof AbstractSingle,
+          "Object %s was expected to be implementation of AbstractSingle, but was not. Class was %s.",
+          config.toString(),
+          config.getClass().getName());
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
-      SingleInputOperator sink = record(
-              SmartOp.contextualize(creator.getSingleInputOperator(fec, context, config),
-                      context,
-                      config,
-                      functionLookupContext));
+      SingleInputOperator sink =
+          record(
+              SmartOp.contextualize(
+                  creator.getSingleInputOperator(fec, context, config),
+                  context,
+                  config,
+                  functionLookupContext));
       OpPipe input = ((AbstractSingle) config).getChild().accept(this, null);
       return pair(new StraightPipe(sink, input), sink).associate(input);
     }
 
     @Override
     public OpPipe visitOp(PhysicalOperator config, Void value) throws Exception {
-      Preconditions.checkArgument(config instanceof AbstractSingle, "Object %s was expected to be implementation of AbstractSingle, but was not. Class was %s.", config.toString(), config.getClass().getName());
+      Preconditions.checkArgument(
+          config instanceof AbstractSingle,
+          "Object %s was expected to be implementation of AbstractSingle, but was not. Class was %s.",
+          config.toString(),
+          config.getClass().getName());
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
-      SingleInputOperator sink = record(
-        SmartOp.contextualize(creator.getSingleInputOperator(context, config),
-          context,
-          config,
-          functionLookupContext));
+      SingleInputOperator sink =
+          record(
+              SmartOp.contextualize(
+                  creator.getSingleInputOperator(context, config),
+                  context,
+                  config,
+                  functionLookupContext));
       OpPipe input = ((AbstractSingle) config).getChild().accept(this, null);
       return pair(new StraightPipe(sink, input), sink).associate(input);
     }
-
   }
 
-  private static OpPipe pair(Pipe pipe, Operator op){
+  private static OpPipe pair(Pipe pipe, Operator op) {
     return new OpPipe(pipe, op);
   }
 
@@ -296,9 +323,9 @@ public class PipelineCreator {
       this.pipe = pipe;
     }
 
-    private OpPipe associate(OpPipe... upstreams){
-      for(OpPipe p : upstreams){
-        if(p != null && p.pipe != null){
+    private OpPipe associate(OpPipe... upstreams) {
+      for (OpPipe p : upstreams) {
+        if (p != null && p.pipe != null) {
           p.pipe.setDownstream(this.pipe);
         }
       }
@@ -312,7 +339,5 @@ public class PipelineCreator {
     public Pipe getPipe() {
       return pipe;
     }
-
   }
-
 }

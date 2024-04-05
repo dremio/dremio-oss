@@ -15,9 +15,7 @@
  */
 package com.dremio.connector.metadata;
 
-/**
- * Interface for a connector to provide details of affinity related to a split.
- */
+/** Interface for a connector to provide details of affinity related to a split. */
 public interface DatasetSplitAffinity {
 
   /**
@@ -30,8 +28,7 @@ public interface DatasetSplitAffinity {
   /**
    * Get the factor.
    *
-   * @return the factor
-   * TODO: what does this mean, similar to {@link DatasetStats#getScanFactor}?
+   * @return the factor TODO: what does this mean, similar to {@link DatasetStats#getScanFactor}?
    */
   double getFactor();
 

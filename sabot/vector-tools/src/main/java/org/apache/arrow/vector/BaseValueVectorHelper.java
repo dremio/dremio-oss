@@ -15,25 +15,29 @@
  */
 package org.apache.arrow.vector;
 
-
-import java.util.function.Consumer;
-import java.util.function.IntConsumer;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.types.pojo.Field;
 
 public abstract class BaseValueVectorHelper<T extends FieldVector> implements ValueVectorHelper {
 
-  private enum Mode {FIXED, VARIABLE, OTHER}
+  private enum Mode {
+    FIXED,
+    VARIABLE,
+    OTHER
+  }
+
   private final Mode mode;
+
   @SuppressWarnings("checkstyle:VisibilityModifier")
   protected final T vector;
+
   private final BaseFixedWidthVector fixedVector;
   private final BaseVariableWidthVector variableVector;
   private final IntConsumer countSetter;
@@ -41,7 +45,7 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
 
   public BaseValueVectorHelper(T vector) {
     this.vector = vector;
-    if(vector instanceof BaseFixedWidthVector) {
+    if (vector instanceof BaseFixedWidthVector) {
       fixedVector = (BaseFixedWidthVector) vector;
       countSetter = i -> fixedVector.valueCount = i;
       validitySetter = i -> fixedVector.validityBuffer = i;
@@ -57,22 +61,26 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
       mode = Mode.OTHER;
       fixedVector = null;
       variableVector = null;
-      countSetter = i -> {throw new UnsupportedOperationException();};
-      validitySetter = i -> {throw new UnsupportedOperationException();};
+      countSetter =
+          i -> {
+            throw new UnsupportedOperationException();
+          };
+      validitySetter =
+          i -> {
+            throw new UnsupportedOperationException();
+          };
     }
   }
 
-  /**
-   * Returns true if non variable
-   */
+  /** Returns true if non variable */
   private final boolean checkFixedOrVariable() {
-    switch(mode) {
-    case FIXED:
-    case OTHER:
-    default:
-      return true;
-    case VARIABLE:
-      return false;
+    switch (mode) {
+      case FIXED:
+      case OTHER:
+      default:
+        return true;
+      case VARIABLE:
+        return false;
     }
   }
 
@@ -83,8 +91,10 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
 
   @Override
   public SerializedField.Builder getMetadataBuilder() {
-    return SerializedField.newBuilder().setNamePart(NamePart.newBuilder().setName(vector.getField().getName())
-      .build()).setValueCount(vector.getValueCount()).setBufferLength(vector.getBufferSize());
+    return SerializedField.newBuilder()
+        .setNamePart(NamePart.newBuilder().setName(vector.getField().getName()).build())
+        .setValueCount(vector.getValueCount())
+        .setBufferLength(vector.getBufferSize());
   }
 
   /* number of bytes for the validity buffer for the given valueCount */
@@ -93,24 +103,30 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
   }
 
   protected SerializedField buildValidityMetadata() {
-    SerializedField.Builder validityBuilder = SerializedField.newBuilder()
-          .setNamePart(NamePart.newBuilder().setName("$bits$").build())
-          .setValueCount(vector.getValueCount())
-          .setBufferLength(getValidityBufferSizeFromCount(vector.getValueCount()))
-          .setMajorType(MajorType.newBuilder().setMode(DataMode.REQUIRED).setMinorType(TypeProtos.MinorType.BIT));
+    SerializedField.Builder validityBuilder =
+        SerializedField.newBuilder()
+            .setNamePart(NamePart.newBuilder().setName("$bits$").build())
+            .setValueCount(vector.getValueCount())
+            .setBufferLength(getValidityBufferSizeFromCount(vector.getValueCount()))
+            .setMajorType(
+                MajorType.newBuilder()
+                    .setMode(DataMode.REQUIRED)
+                    .setMinorType(TypeProtos.MinorType.BIT));
 
     return validityBuilder.build();
   }
 
   @Override
-  public void loadFromValidityAndDataBuffers(SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
-    if(!checkFixedOrVariable()) {
-      throw new UnsupportedOperationException("this loader is not supported for variable width vectors");
+  public void loadFromValidityAndDataBuffers(
+      SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
+    if (!checkFixedOrVariable()) {
+      throw new UnsupportedOperationException(
+          "this loader is not supported for variable width vectors");
     }
 
     /* clear the current buffers (if any) */
     vector.clear();
-      /* get the metadata children */
+    /* get the metadata children */
     final SerializedField bitsField = metadata.getChild(0);
     final SerializedField valuesField = metadata.getChild(1);
     /* load inner validity buffer */
@@ -124,9 +140,10 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
     final int valueCount = metadata.getValueCount();
     final int actualLength = metadata.getBufferLength();
     final int expectedLength = getValidityBufferSizeFromCount(valueCount);
-    assert expectedLength == actualLength:
-      String.format("Expected to load %d bytes but actually loaded %d bytes in validity buffer",  expectedLength,
-      actualLength);
+    assert expectedLength == actualLength
+        : String.format(
+            "Expected to load %d bytes but actually loaded %d bytes in validity buffer",
+            expectedLength, actualLength);
     ArrowBuf validity = buffer.slice(0, actualLength);
     validity.writerIndex(actualLength);
     validity.getReferenceManager().retain(1);
@@ -143,8 +160,7 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
     final SerializedField valuesField = metadata.getChild(1);
     final long valuesLength = buffer.capacity();
 
-
-    if(checkFixedOrVariable()) {
+    if (checkFixedOrVariable()) {
       fixedVector.allocateNew(metadata.getValueCount());
     } else {
       variableVector.allocateNew(valuesLength, metadata.getValueCount());
@@ -153,11 +169,11 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
     /* set inner validity buffer */
     setValidityBuffer(bitsField);
 
-    if(checkFixedOrVariable()) {
+    if (checkFixedOrVariable()) {
       /* load inner value buffer */
       fixedVector.valueBuffer.close();
       loadDataAndPossiblyOffsetBuffer(valuesField, buffer.slice(0, valuesLength));
-    }else {
+    } else {
       /* load inner offset and value buffers */
       variableVector.offsetBuffer.close();
       variableVector.valueBuffer.close();
@@ -182,7 +198,7 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
     loadValidityBuffer(bitsField, buffer);
 
     loadDataAndPossiblyOffsetBuffer(valuesField, buffer.slice(bitsLength, valuesLength));
-    if(!checkFixedOrVariable()) {
+    if (!checkFixedOrVariable()) {
       variableVector.setLastSet(metadata.getValueCount() - 1);
     }
     countSetter.accept(metadata.getValueCount());
@@ -194,12 +210,13 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
     final int valueCount = metadata.getValueCount();
     final int actualLength = metadata.getBufferLength();
     final int expectedLength = getValidityBufferSizeFromCount(valueCount);
-      assert expectedLength == actualLength:
-      String.format("Expected to load %d bytes but actually set %d bytes in validity buffer",  expectedLength,
-      actualLength);
+    assert expectedLength == actualLength
+        : String.format(
+            "Expected to load %d bytes but actually set %d bytes in validity buffer",
+            expectedLength, actualLength);
 
     int index;
-    for (index = 0;index < valueCount;index ++) {
+    for (index = 0; index < valueCount; index++) {
       BitVectorHelper.setBit(validityBuffer(), index);
     }
     validityBuffer().writerIndex(actualLength);
@@ -213,5 +230,4 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
   public void materialize(Field field) {
     throw new UnsupportedOperationException();
   }
-
 }

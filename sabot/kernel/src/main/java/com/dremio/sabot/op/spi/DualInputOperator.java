@@ -27,11 +27,11 @@ public interface DualInputOperator extends Producer {
     CAN_CONSUME_L(MasterState.CAN_CONSUME_L),
     CAN_CONSUME_R(MasterState.CAN_CONSUME_R),
     CAN_PRODUCE(MasterState.CAN_PRODUCE),
-    DONE(MasterState.DONE)
-    ;
+    DONE(MasterState.DONE);
 
     final MasterState master;
-    State(MasterState master){
+
+    State(MasterState master) {
       this.master = master;
     }
 
@@ -48,16 +48,20 @@ public interface DualInputOperator extends Producer {
 
   VectorAccessible setup(VectorAccessible left, VectorAccessible right) throws Exception;
 
-
   /**
    * Returns the current state of the operator.
+   *
    * @return current operator state.
    */
   @Override
   DualInputOperator.State getState();
+
   void noMoreToConsumeLeft() throws Exception;
+
   void noMoreToConsumeRight() throws Exception;
+
   void consumeDataLeft(int records) throws Exception;
+
   void consumeDataRight(int records) throws Exception;
 
   interface Creator<T extends PhysicalOperator> {

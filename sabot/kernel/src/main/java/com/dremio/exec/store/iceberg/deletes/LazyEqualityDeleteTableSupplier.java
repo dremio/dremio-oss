@@ -15,22 +15,22 @@
  */
 package com.dremio.exec.store.iceberg.deletes;
 
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
-import javax.annotation.concurrent.NotThreadSafe;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * A closeable Supplier of {@link EqualityDeleteHashTable EqualityDeleteHashTable(s)} sourced from one or more
- * {@link EqualityDeleteFileReader} instances.  Hash tables will not be built until get() is called.
+ * A closeable Supplier of {@link EqualityDeleteHashTable EqualityDeleteHashTable(s)} sourced from
+ * one or more {@link EqualityDeleteFileReader} instances. Hash tables will not be built until get()
+ * is called.
  */
 @NotThreadSafe
-public class LazyEqualityDeleteTableSupplier implements Supplier<List<EqualityDeleteHashTable>>, AutoCloseable {
+public class LazyEqualityDeleteTableSupplier
+    implements Supplier<List<EqualityDeleteHashTable>>, AutoCloseable {
 
   private final List<SchemaPath> allEqualityFields;
   private List<EqualityDeleteFileReader> readers;
@@ -39,25 +39,28 @@ public class LazyEqualityDeleteTableSupplier implements Supplier<List<EqualityDe
   public LazyEqualityDeleteTableSupplier(List<EqualityDeleteFileReader> readers) {
     this.readers = Preconditions.checkNotNull(readers);
     this.tables = null;
-    this.allEqualityFields = readers.stream()
-        .flatMap(r -> r.getEqualityFields().stream())
-        .distinct()
-        .collect(Collectors.toList());
+    this.allEqualityFields =
+        readers.stream()
+            .flatMap(r -> r.getEqualityFields().stream())
+            .distinct()
+            .collect(Collectors.toList());
   }
 
   @Override
   public List<EqualityDeleteHashTable> get() {
     Preconditions.checkState(readers != null || tables != null, "Instance has been closed");
     if (tables == null) {
-      tables = readers.stream()
-          .map(reader -> {
-            try {
-              return reader.buildHashTable();
-            } finally {
-              AutoCloseables.close(RuntimeException.class, reader);
-            }
-          })
-          .collect(Collectors.toList());
+      tables =
+          readers.stream()
+              .map(
+                  reader -> {
+                    try {
+                      return reader.buildHashTable();
+                    } finally {
+                      AutoCloseables.close(RuntimeException.class, reader);
+                    }
+                  })
+              .collect(Collectors.toList());
       readers = null;
     }
 

@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * {@link CompoundKey} representation for 3 keys.
  *
- * There are multiple key elements per instance where K1, K2 and K3 denote the key elements.
+ * <p>There are multiple key elements per instance where K1, K2 and K3 denote the key elements.
  *
  * @param <K1> - The type of the first key.
  * @param <K2> - The type of the second key.
@@ -66,12 +66,15 @@ public final class KeyTriple<K1, K2, K3> extends AbstractList<Object> implements
   @Override
   public Object get(int index) {
     checkElementIndex(index, size());
-    switch(index) {
-    case 0: return key1;
-    case 1: return key2;
-    case 2: return key3;
-    default:
-      throw new AssertionError("unexpected index " + index);
+    switch (index) {
+      case 0:
+        return key1;
+      case 1:
+        return key2;
+      case 2:
+        return key3;
+      default:
+        throw new AssertionError("unexpected index " + index);
     }
   }
 
@@ -103,9 +106,9 @@ public final class KeyTriple<K1, K2, K3> extends AbstractList<Object> implements
 
     final KeyTriple<?, ?, ?> keyTriple = (KeyTriple<?, ?, ?>) o;
 
-    return KeyUtils.equals(key1, keyTriple.key1) &&
-      KeyUtils.equals(key2, keyTriple.key2) &&
-      KeyUtils.equals(key3, keyTriple.key3);
+    return KeyUtils.equals(key1, keyTriple.key1)
+        && KeyUtils.equals(key2, keyTriple.key2)
+        && KeyUtils.equals(key3, keyTriple.key3);
   }
 
   @Override
@@ -115,13 +118,19 @@ public final class KeyTriple<K1, K2, K3> extends AbstractList<Object> implements
 
   @Override
   public String toString() {
-    return "KeyTriple{ key1=" + KeyUtils.toString(key1) +
-      ", key2=" + KeyUtils.toString(key2) +
-      ", key3=" + KeyUtils.toString(key3) +
-      '}';
+    return "KeyTriple{ key1="
+        + KeyUtils.toString(key1)
+        + ", key2="
+        + KeyUtils.toString(key2)
+        + ", key3="
+        + KeyUtils.toString(key3)
+        + '}';
   }
 
   private static void checkValueValidity(boolean operation, List<Object> list) {
-    checkArgument(operation, "any following components must not have a value if preceding components are null: %s", list);
+    checkArgument(
+        operation,
+        "any following components must not have a value if preceding components are null: %s",
+        list);
   }
 }

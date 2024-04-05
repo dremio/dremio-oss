@@ -18,28 +18,21 @@ package com.dremio.resource;
 import java.io.Closeable;
 import java.io.IOException;
 
-/**
- * To return allocated resources
- */
+/** To return allocated resources */
 public interface ResourceSet extends Closeable {
-  /**
-   * Returns the per-node memory limit for the query
-   */
+  /** Returns the per-node memory limit for the query */
   long getPerNodeQueryMemoryLimit();
 
   @Override
   /**
-   * At this point Resource Allocation will be considered complete
-   * all unused resources released, query ends from resource allocation prospective
+   * At this point Resource Allocation will be considered complete all unused resources released,
+   * query ends from resource allocation prospective
    */
   void close() throws IOException;
 
-  default void setCloseAction(Runnable action) {
-  }
+  default void setCloseAction(Runnable action) {}
 
-  /**
-   * NoOp Implementation if needed to operations that don't deal with resource allocations
-   */
+  /** NoOp Implementation if needed to operations that don't deal with resource allocations */
   class ResourceSetNoOp implements ResourceSet {
     @Override
     public long getPerNodeQueryMemoryLimit() {
@@ -47,8 +40,6 @@ public interface ResourceSet extends Closeable {
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() throws IOException {}
   }
 }

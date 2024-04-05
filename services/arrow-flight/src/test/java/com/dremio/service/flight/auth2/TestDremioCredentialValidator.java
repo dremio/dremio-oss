@@ -19,6 +19,8 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 
+import com.dremio.service.flight.BasicFlightAuthenticationTest;
+import com.dremio.service.users.UserLoginException;
 import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.ErrorFlightMetadata;
 import org.apache.arrow.flight.FlightRuntimeException;
@@ -28,12 +30,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.service.flight.BasicFlightAuthenticationTest;
-import com.dremio.service.users.UserLoginException;
-
-/**
- * Unit tests for DremioCredentialValidator.
- */
+/** Unit tests for DremioCredentialValidator. */
 public class TestDremioCredentialValidator extends BasicFlightAuthenticationTest {
   private DremioCredentialValidator credentialValidator;
 
@@ -68,10 +65,11 @@ public class TestDremioCredentialValidator extends BasicFlightAuthenticationTest
     // Arrange
     final String badUsername = "BadUserName";
     final String badPassword = "BadPassword";
-    doThrow(new UserLoginException(badUsername, "Invalid User credentials")).when(getMockUserService())
-      .authenticate(eq(badUsername), eq(badPassword));
+    doThrow(new UserLoginException(badUsername, "Invalid User credentials"))
+        .when(getMockUserService())
+        .authenticate(eq(badUsername), eq(badPassword));
 
-   // Act
+    // Act
     try {
       credentialValidator.validate("BadUserName", "BadPassword");
       testFailed();

@@ -15,18 +15,6 @@
  */
 package com.dremio.sabot.op.sender.roundrobin;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
-
-import javax.annotation.Nullable;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.compression.NoCompressionCodec;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.physical.config.RoundRobinSender;
@@ -47,12 +35,20 @@ import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.base.Function;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 
-/**
- * Round Robin Sender broadcasts incoming batches to receivers in a round robin fashion.
- */
+/** Round Robin Sender broadcasts incoming batches to receivers in a round robin fashion. */
 public class RoundRobinOperator extends BaseSender {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RoundRobinOperator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(RoundRobinOperator.class);
 
   private State state = State.NEEDS_SETUP;
 
@@ -82,7 +78,9 @@ public class RoundRobinOperator extends BaseSender {
     }
   }
 
-  public RoundRobinOperator(TunnelProvider tunnelProvider, OperatorContext context, RoundRobinSender config) throws OutOfMemoryException {
+  public RoundRobinOperator(
+      TunnelProvider tunnelProvider, OperatorContext context, RoundRobinSender config)
+      throws OutOfMemoryException {
     super(config);
     this.config = config;
     this.allocator = context.getAllocator();
@@ -91,21 +89,22 @@ public class RoundRobinOperator extends BaseSender {
 
     List<MinorFragmentEndpoint> destinations = config.getDestinations(context.getEndpointsIndex());
     final ArrayListMultimap<NodeEndpoint, Integer> dests = ArrayListMultimap.create();
-    for(MinorFragmentEndpoint destination : destinations) {
+    for (MinorFragmentEndpoint destination : destinations) {
       dests.put(destination.getEndpoint(), destination.getMinorFragmentId());
     }
 
     this.tunnels = new ArrayList<>();
     this.minorFragments = new ArrayList<>();
-    for(final NodeEndpoint ep : dests.keySet()){
-      List<Integer> minorsList= dests.get(ep);
+    for (final NodeEndpoint ep : dests.keySet()) {
+      List<Integer> minorsList = dests.get(ep);
       minorFragments.add(minorsList);
       tunnels.add(tunnelProvider.getExecTunnel(ep));
     }
 
     int destCount = dests.keySet().size();
     this.currentTunnelsIndex = ThreadLocalRandom.current().nextInt(destCount);
-    this.currentMinorFragmentsIndex = ThreadLocalRandom.current().nextInt(minorFragments.get(currentTunnelsIndex).size());
+    this.currentMinorFragmentsIndex =
+        ThreadLocalRandom.current().nextInt(minorFragments.get(currentTunnelsIndex).size());
   }
 
   @Override
@@ -136,25 +135,25 @@ public class RoundRobinOperator extends BaseSender {
   @Override
   public void noMoreToConsume() {
     for (int i = 0; i < tunnels.size(); ++i) {
-      final FragmentStreamComplete completion = FragmentStreamComplete.newBuilder()
-        .setQueryId(handle.getQueryId())
-        .setSendingMajorFragmentId(handle.getMajorFragmentId())
-        .setSendingMinorFragmentId(handle.getMinorFragmentId())
-        .setReceivingMajorFragmentId(config.getReceiverMajorFragmentId())
-        .addAllReceivingMinorFragmentId(minorFragments.get(i))
-        .build();
+      final FragmentStreamComplete completion =
+          FragmentStreamComplete.newBuilder()
+              .setQueryId(handle.getQueryId())
+              .setSendingMajorFragmentId(handle.getMajorFragmentId())
+              .setSendingMinorFragmentId(handle.getMinorFragmentId())
+              .setReceivingMajorFragmentId(config.getReceiverMajorFragmentId())
+              .addAllReceivingMinorFragmentId(minorFragments.get(i))
+              .build();
       tunnels.get(i).sendStreamComplete(completion);
     }
     state = State.DONE;
   }
 
+  @Override
+  public void receivingFragmentFinished(FragmentHandle handle) {}
 
   @Override
-  public void receivingFragmentFinished(FragmentHandle handle) {
-  }
-
-  @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitTerminalOperator(this, value);
   }
 
@@ -164,27 +163,38 @@ public class RoundRobinOperator extends BaseSender {
 
     List<ArrowBuf> buffers = arrowRecordBatch.getBuffers();
 
-    buffers = FluentIterable.from(buffers)
-      .transform(new Function<ArrowBuf, ArrowBuf>() {
-        @Nullable
-        @Override
-        public ArrowBuf apply(@Nullable ArrowBuf buf) {
-          long writerIndex = buf.writerIndex();
-          ArrowBuf newBuf = buf.getReferenceManager().transferOwnership(buf, allocator).getTransferredBuffer();
-          newBuf.writerIndex(writerIndex);
-          buf.close();
-          return newBuf;
-        }
-      }).toList();
+    buffers =
+        FluentIterable.from(buffers)
+            .transform(
+                new Function<ArrowBuf, ArrowBuf>() {
+                  @Nullable
+                  @Override
+                  public ArrowBuf apply(@Nullable ArrowBuf buf) {
+                    long writerIndex = buf.writerIndex();
+                    ArrowBuf newBuf =
+                        buf.getReferenceManager()
+                            .transferOwnership(buf, allocator)
+                            .getTransferredBuffer();
+                    newBuf.writerIndex(writerIndex);
+                    buf.close();
+                    return newBuf;
+                  }
+                })
+            .toList();
 
-    FragmentWritableBatch batch = new FragmentWritableBatch(
-      handle.getQueryId(),
-      handle.getMajorFragmentId(),
-      handle.getMinorFragmentId(),
-      config.getReceiverMajorFragmentId(),
-      new ArrowRecordBatch(arrowRecordBatch.getLength(), arrowRecordBatch.getNodes(), buffers, NoCompressionCodec.DEFAULT_BODY_COMPRESSION, false),
-      minorFragments.get(currentTunnelsIndex).get(currentMinorFragmentsIndex)
-    );
+    FragmentWritableBatch batch =
+        new FragmentWritableBatch(
+            handle.getQueryId(),
+            handle.getMajorFragmentId(),
+            handle.getMinorFragmentId(),
+            config.getReceiverMajorFragmentId(),
+            new ArrowRecordBatch(
+                arrowRecordBatch.getLength(),
+                arrowRecordBatch.getNodes(),
+                buffers,
+                NoCompressionCodec.DEFAULT_BODY_COMPRESSION,
+                false),
+            minorFragments.get(currentTunnelsIndex).get(currentMinorFragmentsIndex));
     updateStats(batch);
     tunnels.get(currentTunnelsIndex).sendRecordBatch(batch, latencyTracker.getLatencyObserver());
 
@@ -200,10 +210,10 @@ public class RoundRobinOperator extends BaseSender {
 
   public static class Creator implements TerminalOperator.Creator<RoundRobinSender> {
     @Override
-    public TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, RoundRobinSender operator)
-      throws ExecutionSetupException {
+    public TerminalOperator create(
+        TunnelProvider tunnelProvider, OperatorContext context, RoundRobinSender operator)
+        throws ExecutionSetupException {
       return new RoundRobinOperator(tunnelProvider, context, operator);
     }
   }
-
 }

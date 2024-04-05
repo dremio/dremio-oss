@@ -15,17 +15,13 @@
  */
 package com.dremio.exec.rpc;
 
-import java.util.concurrent.ExecutionException;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
-
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.socket.SocketChannel;
-
+import java.util.concurrent.ExecutionException;
+import org.apache.arrow.memory.BufferAllocator;
 
 public abstract class RemoteConnection implements ConnectionThrottle, AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RemoteConnection.class);
@@ -43,7 +39,7 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
     return channel.eventLoop().inEventLoop();
   }
 
-  protected RemoteConnection(RemoteConnection connection){
+  protected RemoteConnection(RemoteConnection connection) {
     this.channel = connection.channel;
     this.clientName = connection.clientName;
     this.writeManager = new WriteManager();
@@ -61,16 +57,17 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
     this.clientName = name;
     this.writeManager = new WriteManager();
     this.requestIdMap = new RequestIdMap(getName());
-    if(!blockOnSocket){
+    if (!blockOnSocket) {
       writeManager.disable();
     }
-    channel.pipeline()
-        .addLast(BACK_PRESSURE_HANDLER, new BackPressureHandler());
+    channel.pipeline().addLast(BACK_PRESSURE_HANDLER, new BackPressureHandler());
   }
 
   public String getName() {
     if (name == null) {
-      name = String.format("%s <--> %s (%s)", channel.localAddress(), channel.remoteAddress(), clientName);
+      name =
+          String.format(
+              "%s <--> %s (%s)", channel.localAddress(), channel.remoteAddress(), clientName);
     }
     return name;
   }
@@ -107,9 +104,8 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
   }
 
   /**
-   * The write manager is responsible for controlling whether or not a write can
-   * be sent. It controls whether or not to block a sender if we have tcp
-   * backpressure on the receive side.
+   * The write manager is responsible for controlling whether or not a write can be sent. It
+   * controls whether or not to block a sender if we have tcp backpressure on the receive side.
    */
   private static class WriteManager {
     private final ResettableBarrier barrier = new ResettableBarrier();
@@ -129,7 +125,6 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
       } else if (!disabled) {
         barrier.closeBarrier();
       }
-
     }
 
     public void disable() {
@@ -144,7 +139,6 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
       writeManager.setWritable(ctx.channel().isWritable());
       ctx.fireChannelWritabilityChanged();
     }
-
   }
 
   public void setChannelCloseHandler(ChannelFutureListener closeHandler) {
@@ -152,8 +146,10 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
   }
 
   /**
-   * For incoming messages, remove the outcome listener and return it. Can only be done once per coordinationId
-   * creation. CoordinationId's are recycled so they will show up once we run through all 4B of them.
+   * For incoming messages, remove the outcome listener and return it. Can only be done once per
+   * coordinationId creation. CoordinationId's are recycled so they will show up once we run through
+   * all 4B of them.
+   *
    * @param rpcType The rpc type associated with the coordination.
    * @param coordinationId The coordination id that was returned with the listener was created.
    * @param clazz The class that is expected in response.
@@ -165,16 +161,19 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
 
   /**
    * Create a new rpc listener that will be notified when the response is returned.
+   *
    * @param handler The outcome handler to be notified when the response arrives.
    * @param clazz The Class associated with the response object.
    * @return The new listener. Also carries the coordination id for use in the rpc message.
    */
-  <V> ChannelListenerWithCoordinationId createNewRpcListener(RpcOutcomeListener<V> handler, Class<V> clazz) {
+  <V> ChannelListenerWithCoordinationId createNewRpcListener(
+      RpcOutcomeListener<V> handler, Class<V> clazz) {
     return requestIdMap.createNewRpcListener(handler, clazz, this);
   }
 
   /**
    * Inform the local outcome listener that the remote operation could not be handled.
+   *
    * @param coordinationId The id that failed.
    * @param failure The failure that occurred.
    */
@@ -191,12 +190,11 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
   }
 
   /**
-   * Called from the RpcBus's channel close handler to close all remaining
-   * resources associated with this connection. Ensures that any pending
-   * back-pressure items are also unblocked so they can be thrown away.
+   * Called from the RpcBus's channel close handler to close all remaining resources associated with
+   * this connection. Ensures that any pending back-pressure items are also unblocked so they can be
+   * thrown away.
    *
-   * @param ex
-   *          The exception that caused the channel to close.
+   * @param ex The exception that caused the channel to close.
    */
   void channelClosed(RpcException ex) {
     // this could possibly overrelease but it doesn't matter since we're only
@@ -210,11 +208,10 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
   }
 
   /**
-   * Connection consumer wants to close connection. Initiate connection close
-   * and complete. This is a blocking call that ensures that the connection is
-   * closed before returning. As part of this call, the channel close handler
-   * will be triggered which will call channelClosed() above. The latter will
-   * happen in a separate thread while this method is blocking.
+   * Connection consumer wants to close connection. Initiate connection close and complete. This is
+   * a blocking call that ensures that the connection is closed before returning. As part of this
+   * call, the channel close handler will be triggered which will call channelClosed() above. The
+   * latter will happen in a separate thread while this method is blocking.
    */
   @Override
   public void close() {
@@ -233,5 +230,4 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
       }
     }
   }
-
 }

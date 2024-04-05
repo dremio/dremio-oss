@@ -15,12 +15,6 @@
  */
 package com.dremio.dac.service.collaboration;
 
-
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.datastore.VersionExtractor;
@@ -36,17 +30,20 @@ import com.dremio.datastore.indexed.IndexKey;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
-/**
- * Collaboration Tag store
- */
+/** Collaboration Tag store */
 public class CollaborationTagStore {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CollaborationTagStore.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CollaborationTagStore.class);
 
-  public static final IndexKey ENTITY_ID = IndexKey.newBuilder("id", "ENTITY_ID", String.class)
-    .build();
-  public static final IndexKey LAST_MODIFIED = IndexKey.newBuilder("lastModified", "LAST_MODIFIED", Long.class)
-    .build();
+  public static final IndexKey ENTITY_ID =
+      IndexKey.newBuilder("id", "ENTITY_ID", String.class).build();
+  public static final IndexKey LAST_MODIFIED =
+      IndexKey.newBuilder("lastModified", "LAST_MODIFIED", Long.class).build();
 
   private static final String TAGS_STORE = "collaboration_tags";
   private final Supplier<LegacyIndexedStore<String, CollaborationTag>> tagsStore;
@@ -55,7 +52,8 @@ public class CollaborationTagStore {
 
   public CollaborationTagStore(final LegacyKVStoreProvider storeProvider) {
     Preconditions.checkNotNull(storeProvider, "kvStore provider required");
-    tagsStore = Suppliers.memoize(() -> storeProvider.getStore(CollaborationTagsStoreCreator.class));
+    tagsStore =
+        Suppliers.memoize(() -> storeProvider.getStore(CollaborationTagsStoreCreator.class));
   }
 
   public void save(CollaborationTag tag) {
@@ -89,36 +87,39 @@ public class CollaborationTagStore {
     for (String tag : collaborationTag.getTagsList()) {
       if (tag.length() > MAX_TAG_LENGTH) {
         throw UserException.validationError()
-          .message("Tags must be at most %s characters in length, but found [%s] which is [%s] long.", MAX_TAG_LENGTH, tag, tag.length())
-          .build(logger);
+            .message(
+                "Tags must be at most %s characters in length, but found [%s] which is [%s] long.",
+                MAX_TAG_LENGTH, tag, tag.length())
+            .build(logger);
       }
 
       if (seenTags.contains(tag)) {
         throw UserException.validationError()
-          .message("Tags must be unique but found multiple instances of [%s].", tag)
-          .build(logger);
+            .message("Tags must be unique but found multiple instances of [%s].", tag)
+            .build(logger);
       }
 
       seenTags.add(tag);
     }
   }
 
-  /**
-   * store creator
-   */
-  public static final class CollaborationTagsStoreCreator implements LegacyIndexedStoreCreationFunction<String, CollaborationTag> {
+  /** store creator */
+  public static final class CollaborationTagsStoreCreator
+      implements LegacyIndexedStoreCreationFunction<String, CollaborationTag> {
     @Override
     public LegacyIndexedStore<String, CollaborationTag> build(LegacyStoreBuildingFactory factory) {
-      return factory.<String, CollaborationTag>newStore()
-        .name(TAGS_STORE)
-        .keyFormat(Format.ofString())
-        .valueFormat(Format.ofProtostuff(CollaborationTag.class))
-        .versionExtractor(CollaborationTagVersionExtractor.class)
-        .buildIndexed(new CollaborationTagConverter());
+      return factory
+          .<String, CollaborationTag>newStore()
+          .name(TAGS_STORE)
+          .keyFormat(Format.ofString())
+          .valueFormat(Format.ofProtostuff(CollaborationTag.class))
+          .versionExtractor(CollaborationTagVersionExtractor.class)
+          .buildIndexed(new CollaborationTagConverter());
     }
   }
 
-  private static final class CollaborationTagVersionExtractor implements VersionExtractor<CollaborationTag> {
+  private static final class CollaborationTagVersionExtractor
+      implements VersionExtractor<CollaborationTag> {
     @Override
     public String getTag(CollaborationTag value) {
       return value.getTag();
@@ -130,7 +131,8 @@ public class CollaborationTagStore {
     }
   }
 
-  private static final class CollaborationTagConverter implements DocumentConverter<String, CollaborationTag> {
+  private static final class CollaborationTagConverter
+      implements DocumentConverter<String, CollaborationTag> {
     @Override
     public Integer getVersion() {
       return 0;

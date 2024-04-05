@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.util.rhash;
 
+import com.google.common.hash.Funnel;
+import com.google.common.hash.HashFunction;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -23,19 +25,17 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 
-import com.google.common.hash.Funnel;
-import com.google.common.hash.HashFunction;
-
 /**
  * An extension for Rendezvous hash class that does gives top "X" nodes for a given key.
- * @param <K>
- *            type of key
- * @param <N>
- *            type node/site or whatever want to be returned (ie IP address or String)
+ *
+ * @param <K> type of key
+ * @param <N> type node/site or whatever want to be returned (ie IP address or String)
  */
-public class MultiValuedRendezvousHash<K,  N extends Comparable<? super N>> extends RendezvousHash<K, N> {
+public class MultiValuedRendezvousHash<K, N extends Comparable<? super N>>
+    extends RendezvousHash<K, N> {
 
-  public MultiValuedRendezvousHash(HashFunction hasher, Funnel<K> keyFunnel, Funnel<N> nodeFunnel, Collection<N> init) {
+  public MultiValuedRendezvousHash(
+      HashFunction hasher, Funnel<K> keyFunnel, Funnel<N> nodeFunnel, Collection<N> init) {
     super(hasher, keyFunnel, nodeFunnel, init);
   }
 
@@ -50,15 +50,21 @@ public class MultiValuedRendezvousHash<K,  N extends Comparable<? super N>> exte
     PriorityQueue<Long> nodeHashes = new PriorityQueue<>(numNodes);
     Map<Long, N> nodeMap = new HashMap<>();
     for (N node : getOrdered()) {
-      long nodeHash = getHasher().newHasher()
-          .putObject(key, getKeyFunnel())
-          .putObject(node, getNodeFunnel())
-          .hash().asLong();
+      long nodeHash =
+          getHasher()
+              .newHasher()
+              .putObject(key, getKeyFunnel())
+              .putObject(node, getNodeFunnel())
+              .hash()
+              .asLong();
       if (canAdd(nodeHash, nodeHashes, numNodes)) {
         nodeMap.put(nodeHash, node);
       }
     }
-    return nodeHashes.stream().sorted(Comparator.reverseOrder()).map(nh -> nodeMap.get(nh)).collect(Collectors.toList());
+    return nodeHashes.stream()
+        .sorted(Comparator.reverseOrder())
+        .map(nh -> nodeMap.get(nh))
+        .collect(Collectors.toList());
   }
 
   private boolean canAdd(long nodeHash, PriorityQueue<Long> nodeHashes, int numNodes) {

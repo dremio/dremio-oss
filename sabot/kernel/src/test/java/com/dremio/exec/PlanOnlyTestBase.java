@@ -15,17 +15,6 @@
  */
 package com.dremio.exec;
 
-import java.io.File;
-import java.util.function.Supplier;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.util.Pair;
-import org.apache.commons.io.FileUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.util.TestTools;
@@ -48,10 +37,17 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.io.File;
+import java.util.function.Supplier;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.util.Pair;
+import org.apache.commons.io.FileUtils;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
-/**
- * Base class for tests to look at pure plans
- */
+/** Base class for tests to look at pure plans */
 public class PlanOnlyTestBase extends BaseTestQuery {
 
   private static final String TEST_PATH = TestTools.getWorkingPath() + "/src/test/resources";
@@ -87,25 +83,28 @@ public class PlanOnlyTestBase extends BaseTestQuery {
   }
 
   protected QueryContext createContext(SabotContext context) {
-    final QueryContext queryContext = new QueryContext(session(), context, UserBitShared.QueryId.getDefaultInstance());
+    final QueryContext queryContext =
+        new QueryContext(session(), context, UserBitShared.QueryId.getDefaultInstance());
     queryContext.setGroupResourceInformation(context.getClusterResourceInformation());
     return queryContext;
   }
 
   protected PhysicalPlan createPlan(String sql, QueryContext queryContext) throws Exception {
-    final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
-    final SqlConverter converter = new SqlConverter(
-      queryContext.getPlannerSettings(),
-      queryContext.getOperatorTable(),
-      queryContext,
-      queryContext.getMaterializationProvider(),
-      queryContext.getFunctionRegistry(),
-      queryContext.getSession(),
-      observer,
-      queryContext.getSubstitutionProviderFactory(),
-      queryContext.getConfig(),
-      queryContext.getScanResult(),
-      queryContext.getRelMetadataQuerySupplier());
+    final AttemptObserver observer =
+        new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
+    final SqlConverter converter =
+        new SqlConverter(
+            queryContext.getPlannerSettings(),
+            queryContext.getOperatorTable(),
+            queryContext,
+            queryContext.getMaterializationProvider(),
+            queryContext.getFunctionRegistry(),
+            queryContext.getSession(),
+            observer,
+            queryContext.getSubstitutionProviderFactory(),
+            queryContext.getConfig(),
+            queryContext.getScanResult(),
+            queryContext.getRelMetadataQuerySupplier());
     final SqlNode node = converter.parse(sql);
     final SqlHandlerConfig config = new SqlHandlerConfig(queryContext, converter, observer, null);
 
@@ -124,12 +123,15 @@ public class PlanOnlyTestBase extends BaseTestQuery {
 
   private static UserSession session() {
     return UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.ANONYMOUS).build())
-      .setSupportComplexTypes(true)
-      .build();
+        .withSessionOptionManager(
+            new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+            getSabotContext().getOptionManager())
+        .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+        .withCredentials(
+            UserBitShared.UserCredentials.newBuilder()
+                .setUserName(UserServiceTestImpl.ANONYMOUS)
+                .build())
+        .setSupportComplexTypes(true)
+        .build();
   }
 }

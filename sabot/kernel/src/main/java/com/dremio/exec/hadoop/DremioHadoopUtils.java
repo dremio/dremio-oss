@@ -17,16 +17,12 @@ package com.dremio.exec.hadoop;
 
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 
+import com.google.common.base.Joiner;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.base.Joiner;
-
-/**
- * Hadoop Utility Class
- */
+/** Hadoop Utility Class */
 public class DremioHadoopUtils {
 
   public static Path toHadoopPath(com.dremio.io.file.Path path) {
@@ -44,16 +40,19 @@ public class DremioHadoopUtils {
    * @return container name
    */
   public static String getContainerName(Path path) {
-    final List<String> pathComponents = Arrays.asList(
-        removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString())
-            .split(Path.SEPARATOR)
-    );
+    final List<String> pathComponents =
+        Arrays.asList(
+            removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString())
+                .split(Path.SEPARATOR));
     return pathComponents.get(0);
   }
 
   public static Path pathWithoutContainer(Path path) {
-    List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
-    return new Path("/" + Joiner.on(Path.SEPARATOR).join(pathComponents.subList(1, pathComponents.size())));
+    List<String> pathComponents =
+        Arrays.asList(
+            removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString())
+                .split(Path.SEPARATOR));
+    return new Path(
+        "/" + Joiner.on(Path.SEPARATOR).join(pathComponents.subList(1, pathComponents.size())));
   }
-
 }

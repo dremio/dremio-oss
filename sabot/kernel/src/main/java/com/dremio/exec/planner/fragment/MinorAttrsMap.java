@@ -15,19 +15,16 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
+import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
-import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
-
-/**
- * Map for minor-specific attributes.
- */
+/** Map for minor-specific attributes. */
 public class MinorAttrsMap {
   private final Map<Key, MinorAttr> map;
 
@@ -42,27 +39,23 @@ public class MinorAttrsMap {
   public ByteString getAttrValue(Key key) {
     MinorAttr attr = map.get(key);
     if (attr == null) {
-      throw new NullPointerException(String.format(
-        "Could not find minor specific attr value for operator %d-xx-%d, %s\nMap:%s",
-        OpProps.getMajorFragmentId(key.getOperatorId()),
-        OpProps.getLocalOperatorId(key.getOperatorId()),
-        key.getName(), map));
+      throw new NullPointerException(
+          String.format(
+              "Could not find minor specific attr value for operator %d-xx-%d, %s\nMap:%s",
+              OpProps.getMajorFragmentId(key.getOperatorId()),
+              OpProps.getLocalOperatorId(key.getOperatorId()),
+              key.getName(),
+              map));
     }
     return attr.getValue();
   }
 
-  public static MinorAttrsMap create(
-      List<MinorAttr> attrsList) {
+  public static MinorAttrsMap create(List<MinorAttr> attrsList) {
     /* Make it immutable so that it's thread-safe */
-    Map<Key, MinorAttr> map = ImmutableMap.copyOf(
-      attrsList
-        .stream()
-        .collect(
-          Collectors.toMap(
-            s -> new Key(s.getOperatorId(), s.getName()),
-            s -> s)
-        )
-    );
+    Map<Key, MinorAttr> map =
+        ImmutableMap.copyOf(
+            attrsList.stream()
+                .collect(Collectors.toMap(s -> new Key(s.getOperatorId(), s.getName()), s -> s)));
     return new MinorAttrsMap(map);
   }
 

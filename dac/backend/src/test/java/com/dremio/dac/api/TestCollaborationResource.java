@@ -21,15 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import javax.ws.rs.client.Entity;
-
-import org.junit.Test;
-
 import com.dremio.common.util.TestTools;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.server.BaseTestServer;
@@ -50,10 +41,14 @@ import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Strings;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import javax.ws.rs.client.Entity;
+import org.junit.Test;
 
-/**
- * Tests the {@link CollaborationResource} API
- */
+/** Tests the {@link CollaborationResource} API */
 public class TestCollaborationResource extends BaseTestServer {
   @Test
   public void testGetTags() throws Exception {
@@ -64,7 +59,16 @@ public class TestCollaborationResource extends BaseTestServer {
     DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
     // Test no tags
-    Tags noTags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet(), Tags.class);
+    Tags noTags =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("tag"))
+                .buildGet(),
+            Tags.class);
     assertEquals(noTags.getTags().size(), 0);
 
     CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
@@ -74,12 +78,22 @@ public class TestCollaborationResource extends BaseTestServer {
     Tags newTags = new Tags(tagList, null);
     collaborationHelper.setTags(dataset.getId().getId(), newTags);
 
-    Tags tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet(), Tags.class);
+    Tags tags =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("tag"))
+                .buildGet(),
+            Tags.class);
     assertEquals(tags.getTags().size(), 2);
     assertTrue(tags.getTags().containsAll(tagList));
 
     // cleanup space
-    newNamespaceService().deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    newNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
   }
 
   @Test
@@ -93,7 +107,16 @@ public class TestCollaborationResource extends BaseTestServer {
     List<String> tagList = Arrays.asList("tag1", "tag2");
     Tags newTags = new Tags(tagList, null);
 
-    Tags tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)), Tags.class);
+    Tags tags =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("tag"))
+                .buildPost(Entity.json(newTags)),
+            Tags.class);
     assertEquals(2, tags.getTags().size());
     assertTrue(tags.getTags().containsAll(tagList));
     assertNotNull(tags.getVersion());
@@ -101,7 +124,16 @@ public class TestCollaborationResource extends BaseTestServer {
     // test update of existing tags
     tagList = Arrays.asList("tag1", "tag3");
     newTags = new Tags(tagList, tags.getVersion());
-    tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)), Tags.class);
+    tags =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("tag"))
+                .buildPost(Entity.json(newTags)),
+            Tags.class);
 
     // verify the new tags
     assertEquals(2, tags.getTags().size());
@@ -111,19 +143,32 @@ public class TestCollaborationResource extends BaseTestServer {
     // clear out tags
     tagList = Collections.emptyList();
     newTags = new Tags(tagList, tags.getVersion());
-    tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)), Tags.class);
+    tags =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("tag"))
+                .buildPost(Entity.json(newTags)),
+            Tags.class);
 
     // verify the new tags are empty
     assertEquals(tags.getTags().size(), 0);
 
     // cleanup space
-    newNamespaceService().deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    newNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
   }
 
   @Test
   public void testGetTagsErrors() throws Exception {
     // invalid id
-    expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("tag")).buildGet());
+    expectStatus(
+        BAD_REQUEST,
+        getBuilder(getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("tag"))
+            .buildGet());
   }
 
   @Test
@@ -132,7 +177,10 @@ public class TestCollaborationResource extends BaseTestServer {
     Tags newTags = new Tags(tagList, null);
 
     // set tags for an invalid id
-    expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("tag")).buildPost(Entity.json(newTags)));
+    expectStatus(
+        BAD_REQUEST,
+        getBuilder(getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("tag"))
+            .buildPost(Entity.json(newTags)));
 
     // create space
     NamespaceKey spacePath = new NamespaceKey("testspace");
@@ -143,23 +191,55 @@ public class TestCollaborationResource extends BaseTestServer {
     // set invalid tags (duplicate)
     tagList = Arrays.asList("tag1", "tag2", "tag1");
     newTags = new Tags(tagList, null);
-    expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)));
+    expectStatus(
+        BAD_REQUEST,
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(dataset.getId().getId())
+                    .path("collaboration")
+                    .path("tag"))
+            .buildPost(Entity.json(newTags)));
 
     // update tags with invalid version
     tagList = Arrays.asList("tag1", "tag2");
     newTags = new Tags(tagList, null);
-    expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)));
+    expectSuccess(
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(dataset.getId().getId())
+                    .path("collaboration")
+                    .path("tag"))
+            .buildPost(Entity.json(newTags)));
 
     newTags = new Tags(tagList, "5");
-    expectStatus(CONFLICT, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)));
+    expectStatus(
+        CONFLICT,
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(dataset.getId().getId())
+                    .path("collaboration")
+                    .path("tag"))
+            .buildPost(Entity.json(newTags)));
 
     // test tag size limit - 128 max
     tagList = Arrays.asList("tag1", Strings.repeat("tag", 43));
     newTags = new Tags(tagList, null);
-    expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)));
+    expectStatus(
+        BAD_REQUEST,
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(dataset.getId().getId())
+                    .path("collaboration")
+                    .path("tag"))
+            .buildPost(Entity.json(newTags)));
 
     // cleanup space
-    newNamespaceService().deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    newNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
   }
 
   @Test
@@ -170,7 +250,16 @@ public class TestCollaborationResource extends BaseTestServer {
     createSpaceAndVDS(spacePath, vdsPath);
     DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
-    Wiki emptyWiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet(), Wiki.class);
+    Wiki emptyWiki =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("wiki"))
+                .buildGet(),
+            Wiki.class);
     assertEquals(emptyWiki.getText(), "");
 
     CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
@@ -178,11 +267,21 @@ public class TestCollaborationResource extends BaseTestServer {
     Wiki newWiki = new Wiki("sample wiki text", null);
     collaborationHelper.setWiki(dataset.getId().getId(), newWiki);
 
-    Wiki wiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet(), Wiki.class);
+    Wiki wiki =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("wiki"))
+                .buildGet(),
+            Wiki.class);
     assertEquals(wiki.getText(), newWiki.getText());
 
     // cleanup space
-    newNamespaceService().deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    newNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
   }
 
   @Test
@@ -195,26 +294,56 @@ public class TestCollaborationResource extends BaseTestServer {
 
     // create wiki
     Wiki newWiki = new Wiki("sample wiki text", null);
-    Wiki wiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)), Wiki.class);
+    Wiki wiki =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("wiki"))
+                .buildPost(Entity.json(newWiki)),
+            Wiki.class);
     assertEquals(wiki.getText(), newWiki.getText());
     assertEquals(wiki.getVersion().longValue(), 0L);
 
     // update wiki
     newWiki = new Wiki("some text", wiki.getVersion());
-    expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
+    expectSuccess(
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(dataset.getId().getId())
+                    .path("collaboration")
+                    .path("wiki"))
+            .buildPost(Entity.json(newWiki)));
 
-    wiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet(), Wiki.class);
+    wiki =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path("catalog")
+                        .path(dataset.getId().getId())
+                        .path("collaboration")
+                        .path("wiki"))
+                .buildGet(),
+            Wiki.class);
     assertEquals(wiki.getText(), newWiki.getText());
     assertEquals(wiki.getVersion().longValue(), 1L);
 
     // cleanup space
-    newNamespaceService().deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    newNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
   }
 
   @Test
   public void testGetWikiErrors() throws Exception {
     // invalid id
-    expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("wiki")).buildGet());
+    expectStatus(
+        BAD_REQUEST,
+        getBuilder(
+                getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("wiki"))
+            .buildGet());
   }
 
   @Test
@@ -222,7 +351,11 @@ public class TestCollaborationResource extends BaseTestServer {
     Wiki newWiki = new Wiki("sample wiki text", null);
 
     // set tags for an invalid id
-    expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
+    expectStatus(
+        BAD_REQUEST,
+        getBuilder(
+                getPublicAPI(3).path("catalog").path("bad-id").path("collaboration").path("wiki"))
+            .buildPost(Entity.json(newWiki)));
 
     // create space
     NamespaceKey spacePath = new NamespaceKey("testspace");
@@ -232,24 +365,42 @@ public class TestCollaborationResource extends BaseTestServer {
 
     // update tags with invalid version
     newWiki = new Wiki("sample wiki text", null);
-    expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
+    expectSuccess(
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(dataset.getId().getId())
+                    .path("collaboration")
+                    .path("wiki"))
+            .buildPost(Entity.json(newWiki)));
 
     newWiki = new Wiki("sample wiki text", 5L);
-    expectStatus(CONFLICT, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
+    expectStatus(
+        CONFLICT,
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(dataset.getId().getId())
+                    .path("collaboration")
+                    .path("wiki"))
+            .buildPost(Entity.json(newWiki)));
 
     // test wiki test size limit - 100k max
-    //newWiki = new Wiki(Strings.repeat("f", 100_001), "0");
-    //expectStatus(BAD_REQUEST, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
+    // newWiki = new Wiki(Strings.repeat("f", 100_001), "0");
+    // expectStatus(BAD_REQUEST,
+    // getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
 
     // cleanup space
-    newNamespaceService().deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    newNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
   }
 
   @Test
   public void testOrphanPruning() throws Exception {
     // do a quick prune to clear the wiki/tags store
     final DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
-    CollaborationHelper.pruneOrphans(daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    CollaborationHelper.pruneOrphans(
+        daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
 
     // create a source
     final NASConf nasConf = new NASConf();
@@ -283,17 +434,23 @@ public class TestCollaborationResource extends BaseTestServer {
     addWiki(sourceKey.getPathComponents(), "text");
 
     // nothing deleted so no pruned items
-    int pruneCount = CollaborationHelper.pruneOrphans(daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    int pruneCount =
+        CollaborationHelper.pruneOrphans(
+            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
     assertEquals(0, pruneCount);
 
     // delete the space and children
     newNamespaceService().deleteSpace(spacePath, spaceVersion);
-    pruneCount = CollaborationHelper.pruneOrphans(daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    pruneCount =
+        CollaborationHelper.pruneOrphans(
+            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
     assertEquals(5, pruneCount);
 
     // delete the source
     newNamespaceService().deleteSource(sourceKey, sourceConfig.getTag());
-    pruneCount = CollaborationHelper.pruneOrphans(daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    pruneCount =
+        CollaborationHelper.pruneOrphans(
+            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
     assertEquals(1, pruneCount);
   }
 
@@ -309,20 +466,23 @@ public class TestCollaborationResource extends BaseTestServer {
   }
 
   private void addWiki(List<String> path, String text) throws Exception {
-    final NameSpaceContainer container = newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
+    final NameSpaceContainer container =
+        newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
     final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
 
     collaborationHelper.setWiki(NamespaceUtils.getIdOrNull(container), new Wiki(text, null));
   }
 
   private void addTags(List<String> path, List<String> tags) throws Exception {
-    final NameSpaceContainer container = newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
+    final NameSpaceContainer container =
+        newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
     final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
 
     collaborationHelper.setTags(NamespaceUtils.getIdOrNull(container), new Tags(tags, null));
   }
 
-  private String createSpaceAndVDS(NamespaceKey spacePath, List<String> vdsPath) throws NamespaceException {
+  private String createSpaceAndVDS(NamespaceKey spacePath, List<String> vdsPath)
+      throws NamespaceException {
     // create space
     final SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName(spacePath.getRoot());
@@ -343,6 +503,8 @@ public class TestCollaborationResource extends BaseTestServer {
     datasetConfig.setType(DatasetType.VIRTUAL_DATASET);
     datasetConfig.setVirtualDataset(virtualDataset);
 
-    getSabotContext().getViewCreator(SystemUser.SYSTEM_USERNAME).createView(vdsPath, "select * from sys.version", null, false);
+    getSabotContext()
+        .getViewCreator(SystemUser.SYSTEM_USERNAME)
+        .createView(vdsPath, "select * from sys.version", null, false);
   }
 }

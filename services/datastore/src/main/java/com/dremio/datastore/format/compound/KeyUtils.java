@@ -18,18 +18,15 @@ package com.dremio.datastore.format.compound;
 import java.util.Arrays;
 import java.util.Objects;
 
-/**
- * Utilities for working with values in CompoundKey classes.
- */
+/** Utilities for working with values in CompoundKey classes. */
 public final class KeyUtils {
 
-  private KeyUtils() {
-  }
+  private KeyUtils() {}
 
   /**
    * Tests Objects for equality.
    *
-   * @param left  one Object or byte[] to be tested for equality
+   * @param left one Object or byte[] to be tested for equality
    * @param right the other Object or byte[] to be tested for equality
    * @return <tt>true</tt> if the values of the two Objects are equal
    */

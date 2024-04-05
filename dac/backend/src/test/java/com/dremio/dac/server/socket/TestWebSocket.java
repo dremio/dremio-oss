@@ -24,34 +24,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.core.MediaType;
-
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
-import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
-import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
@@ -67,35 +39,62 @@ import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.options.OptionValue;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.core.MediaType;
+import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.WebSocket;
+import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
+import org.eclipse.jetty.websocket.client.WebSocketClient;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Testing web socket.
- */
+/** Testing web socket. */
 public class TestWebSocket extends BaseTestServer {
 
   private WebSocketClient client = new WebSocketClient();
   private TestSocket socket;
-  private static OptionValue option = OptionValue.createBoolean(SYSTEM, JOBS_UI_CHECK.getOptionName(), false);
+  private static OptionValue option =
+      OptionValue.createBoolean(SYSTEM, JOBS_UI_CHECK.getOptionName(), false);
 
   // Test query that takes reasonable amount of time (21^4 cartesian join)
-  public static final String LONG_TEST_QUERY = "select t1.id as id \n" +
-    "from (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t1(id) \n" +
-    "join (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t2(id) on t1.id = t2.id \n" +
-    "join (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t3(id) on t2.id = t3.id \n" +
-    "join (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t4(id) on t3.id = t4.id \n" +
-    "WHERE t1.id <> 1";
+  public static final String LONG_TEST_QUERY =
+      "select t1.id as id \n"
+          + "from (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t1(id) \n"
+          + "join (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t2(id) on t1.id = t2.id \n"
+          + "join (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t3(id) on t2.id = t3.id \n"
+          + "join (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t4(id) on t3.id = t4.id \n"
+          + "WHERE t1.id <> 1";
 
   @Before
   public void setup() throws Exception {
     client.start();
-    URI socketUri = new URI(getAPIv2().path("socket").getUri().toString().replace("http://", "ws://"));
+    URI socketUri =
+        new URI(getAPIv2().path("socket").getUri().toString().replace("http://", "ws://"));
     ClientUpgradeRequest request = new ClientUpgradeRequest();
     request.setSubProtocols(Lists.newArrayList(getAuthHeaderValue()));
     this.socket = new TestSocket();
     client.connect(socket, socketUri, request);
     socket.awaitConnection(2);
     getSabotContext().getOptionManager().setOption(option);
-    assertEquals(getAuthHeaderValue(), socket.session.getUpgradeResponse().getAcceptedSubProtocol());
+    assertEquals(
+        getAuthHeaderValue(), socket.session.getUpgradeResponse().getAcceptedSubProtocol());
   }
 
   @After
@@ -109,18 +108,19 @@ public class TestWebSocket extends BaseTestServer {
     socket.awaitCompletion(1, 2);
   }
 
-
   @Test
   public void runAndTransform() throws Exception {
     final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
 
-    final InitialTransformAndRunResponse runResp = expectSuccess(
-      getBuilder(
-        getAPIv2()
-          .path(versionedResourcePath(resp.getDataset()))
-          .path("transformAndRun")
-          .queryParam("newVersion", newVersion())
-      ).buildPost(entity(new TransformSort("id", ASC), JSON)), InitialTransformAndRunResponse.class);
+    final InitialTransformAndRunResponse runResp =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path(versionedResourcePath(resp.getDataset()))
+                        .path("transformAndRun")
+                        .queryParam("newVersion", newVersion()))
+                .buildPost(entity(new TransformSort("id", ASC), JSON)),
+            InitialTransformAndRunResponse.class);
     socket.send(new SocketMessage.ListenProgress(runResp.getJobId()));
     List<Payload> payloads = socket.awaitCompletion(10);
     if (payloads.get(1) instanceof SocketMessage.ErrorPayload) {
@@ -134,11 +134,13 @@ public class TestWebSocket extends BaseTestServer {
   @Test
   public void testRunNewUntitledFromSql() throws IOException, InterruptedException {
     final String query = "select * from sys.version";
-    final Invocation invocation = getBuilder(
-      getAPIv2()
-        .path("datasets/new_untitled_sql_and_run")
-        .queryParam("newVersion", newVersion())
-    ).buildPost(Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
+    final Invocation invocation =
+        getBuilder(
+                getAPIv2()
+                    .path("datasets/new_untitled_sql_and_run")
+                    .queryParam("newVersion", newVersion()))
+            .buildPost(
+                Entity.entity(new CreateFromSQL(query, null), MediaType.APPLICATION_JSON_TYPE));
     InitialRunResponse runResponse = expectSuccess(invocation, InitialRunResponse.class);
     socket.send(new SocketMessage.ListenProgress(runResponse.getJobId()));
     List<Payload> payloads = socket.awaitCompletion(10);
@@ -153,43 +155,52 @@ public class TestWebSocket extends BaseTestServer {
   @Test
   public void jobProgress() throws Exception {
     final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
-    final InitialRunResponse runResp = expectSuccess(getBuilder(getAPIv2().path(versionedResourcePath(resp.getDataset()) + "/run")).buildGet(), InitialRunResponse.class);
+    final InitialRunResponse runResp =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(resp.getDataset()) + "/run"))
+                .buildGet(),
+            InitialRunResponse.class);
     socket.send(new SocketMessage.ListenProgress(runResp.getJobId()));
     List<Payload> payloads = socket.awaitCompletion(10);
-    assertEquals(payloads.get(0), new SocketMessage.ConnectionEstablished(SocketServlet.SOCKET_TIMEOUT_MS));
+    assertEquals(
+        payloads.get(0), new SocketMessage.ConnectionEstablished(SocketServlet.SOCKET_TIMEOUT_MS));
     JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(payloads.size() - 1);
     assertTrue(progressUpdate.getUpdate().isComplete());
-    expectSuccess(getBuilder(runResp.getPaginationUrl() + "?offset=0&limit=50").buildGet(), JobDataFragment.class);
+    expectSuccess(
+        getBuilder(runResp.getPaginationUrl() + "?offset=0&limit=50").buildGet(),
+        JobDataFragment.class);
 
     // verify that we got PLANNING, STARTING, RUNNING, FINISHED and in sequential order
     final AtomicInteger planningIndex = new AtomicInteger(-1);
     final AtomicInteger startIndex = new AtomicInteger(-1);
     final AtomicInteger runningIndex = new AtomicInteger(-1);
     final AtomicInteger completedIndex = new AtomicInteger(-1);
-    IntStream.range(0, payloads.size()).forEach(index -> {
-      final Payload payload = payloads.get(index);
-      if (!(payload instanceof JobProgressUpdate)) {
-        return;
-      }
+    IntStream.range(0, payloads.size())
+        .forEach(
+            index -> {
+              final Payload payload = payloads.get(index);
+              if (!(payload instanceof JobProgressUpdate)) {
+                return;
+              }
 
-      final JobProgressUpdate update = (JobProgressUpdate) payload;
-      switch (update.getUpdate().getState()) {
-        case STARTING:
-          startIndex.set(index);
-          break;
-        case RUNNING:
-          runningIndex.set(index);
-          break;
-        case COMPLETED:
-          completedIndex.set(index);
-          break;
-        case PLANNING:
-          planningIndex.set(index);
-          break;
-        default:
-          break;
-      }
-    });
+              final JobProgressUpdate update = (JobProgressUpdate) payload;
+              switch (update.getUpdate().getState()) {
+                case STARTING:
+                  startIndex.set(index);
+                  break;
+                case RUNNING:
+                  runningIndex.set(index);
+                  break;
+                case COMPLETED:
+                  completedIndex.set(index);
+                  break;
+                case PLANNING:
+                  planningIndex.set(index);
+                  break;
+                default:
+                  break;
+              }
+            });
 
     assertTrue(planningIndex.longValue() > -1);
     assertTrue(startIndex.longValue() > -1);
@@ -204,10 +215,15 @@ public class TestWebSocket extends BaseTestServer {
   @Test
   public void jobDetailsUpdate() throws Exception {
     final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
-    final InitialRunResponse runResp = expectSuccess(getBuilder(getAPIv2().path(versionedResourcePath(resp.getDataset()) + "/run")).buildGet(), InitialRunResponse.class);
+    final InitialRunResponse runResp =
+        expectSuccess(
+            getBuilder(getAPIv2().path(versionedResourcePath(resp.getDataset()) + "/run"))
+                .buildGet(),
+            InitialRunResponse.class);
     socket.send(new SocketMessage.ListenDetails(runResp.getJobId()));
     List<Payload> payloads = socket.awaitCompletion(2, 10);
-    SocketMessage.JobDetailsUpdate detailsUpdate = (SocketMessage.JobDetailsUpdate) payloads.get(payloads.size() - 1);
+    SocketMessage.JobDetailsUpdate detailsUpdate =
+        (SocketMessage.JobDetailsUpdate) payloads.get(payloads.size() - 1);
     assertTrue(detailsUpdate.getJobId().equals(runResp.getJobId()));
   }
 
@@ -217,13 +233,15 @@ public class TestWebSocket extends BaseTestServer {
 
     final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
 
-    final InitialTransformAndRunResponse runResp = expectSuccess(
-      getBuilder(
-        getAPIv2()
-          .path(versionedResourcePath(resp.getDataset()))
-          .path("transformAndRun")
-          .queryParam("newVersion", newVersion())
-      ).buildPost(entity(new TransformSort("id", ASC), JSON)), InitialTransformAndRunResponse.class);
+    final InitialTransformAndRunResponse runResp =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2()
+                        .path(versionedResourcePath(resp.getDataset()))
+                        .path("transformAndRun")
+                        .queryParam("newVersion", newVersion()))
+                .buildPost(entity(new TransformSort("id", ASC), JSON)),
+            InitialTransformAndRunResponse.class);
 
     socket.send(new SocketMessage.ListenRecords(runResp.getJobId()));
 
@@ -252,10 +270,7 @@ public class TestWebSocket extends BaseTestServer {
     assertTrue(isRecordsUpdate);
   }
 
-
-  /**
-   * A test web socket handling class.
-   */
+  /** A test web socket handling class. */
   @WebSocket(maxTextMessageSize = 128 * 1024)
   public static class TestSocket {
 
@@ -265,8 +280,7 @@ public class TestWebSocket extends BaseTestServer {
     private final CountDownLatch connect = new CountDownLatch(1);
     private final Semaphore messagesArrived = new Semaphore(0);
 
-    public TestSocket() {
-    }
+    public TestSocket() {}
 
     @OnWebSocketConnect
     public void onConnect(Session session) {
@@ -275,7 +289,9 @@ public class TestWebSocket extends BaseTestServer {
     }
 
     public void send(Payload payload) throws IOException {
-      session.getRemote().sendString(JSONUtil.mapper().writeValueAsString(new SocketMessage(payload)));
+      session
+          .getRemote()
+          .sendString(JSONUtil.mapper().writeValueAsString(new SocketMessage(payload)));
     }
 
     @OnWebSocketError
@@ -301,10 +317,13 @@ public class TestWebSocket extends BaseTestServer {
       }
     }
 
-    public List<Payload> awaitCompletion(int messagesExpected, long secondsToWait) throws InterruptedException {
+    public List<Payload> awaitCompletion(int messagesExpected, long secondsToWait)
+        throws InterruptedException {
       if (!messagesArrived.tryAcquire(messagesExpected, secondsToWait, TimeUnit.SECONDS)) {
-        throw new AssertionError(String.format("Expected %d messages but didn't receive them within timeout. Total messages received %d.",
-          messagesExpected, messagesArrived.availablePermits()));
+        throw new AssertionError(
+            String.format(
+                "Expected %d messages but didn't receive them within timeout. Total messages received %d.",
+                messagesExpected, messagesArrived.availablePermits()));
       }
       return Lists.newArrayList(messages);
     }
@@ -325,7 +344,8 @@ public class TestWebSocket extends BaseTestServer {
             completed = true;
           }
         } else if (payload instanceof SocketMessage.JobProgressUpdateForNewUI) {
-          SocketMessage.JobProgressUpdateForNewUI update = (SocketMessage.JobProgressUpdateForNewUI) payload;
+          SocketMessage.JobProgressUpdateForNewUI update =
+              (SocketMessage.JobProgressUpdateForNewUI) payload;
           if (update.getUpdate().isComplete()) {
             completed = true;
           }

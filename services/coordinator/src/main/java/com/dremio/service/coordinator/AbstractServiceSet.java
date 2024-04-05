@@ -15,23 +15,20 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
-/**
- * Base implementation for {@code ServiceSet}
- */
+/** Base implementation for {@code ServiceSet} */
 public abstract class AbstractServiceSet implements ServiceSet {
-  private final ConcurrentHashMap<NodeStatusListener, NodeStatusListener> listeners = new ConcurrentHashMap<>(
-      16, 0.75f, 16);
+  private final ConcurrentHashMap<NodeStatusListener, NodeStatusListener> listeners =
+      new ConcurrentHashMap<>(16, 0.75f, 16);
 
-  protected AbstractServiceSet() {
-  }
+  protected AbstractServiceSet() {}
 
   /**
    * Actions to take when there are a set of new de-active nodes.
+   *
    * @param unregisteredNodes
    */
   protected void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {

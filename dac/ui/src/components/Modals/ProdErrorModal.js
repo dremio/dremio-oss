@@ -15,18 +15,15 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import clsx from "clsx";
 import Modal from "components/Modals/Modal";
 import { modalContent } from "uiTheme/radium/modal";
 import FontIcon from "components/Icon/FontIcon";
-import SimpleButton from "components/Buttons/SimpleButton";
 import CopyButton from "components/Buttons/CopyButton";
 import sentryUtil from "utils/sentryUtil";
 import config from "dyn-load/utils/config";
-
+import { Button } from "dremio-ui-lib/components";
 import { modalFooter } from "uiTheme/radium/modal";
 import { formDescription } from "uiTheme/radium/typography";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import { FormattedMessage } from "react-intl";
 
 export default class ProdErrorModal extends Component {
@@ -98,25 +95,22 @@ export default class ProdErrorModal extends Component {
           }}
         >
           {showGoHome && (
-            <SimpleButton
+            <Button
               data-qa="goHome"
-              type="button"
-              buttonStyle="secondary"
-              className={clsx(classes["secondaryButtonPsuedoClasses"])}
+              variant="secondary"
               onClick={() => (window.location = "/")}
             >
               {laDeprecated("Go Home")}
-            </SimpleButton>
+            </Button>
           )}
-          <SimpleButton
+          <Button
             data-qa="reload"
-            type="button"
-            buttonStyle="primary"
-            className={clsx(classes["primaryButtonPsuedoClasses"])}
+            variant="primary"
+            className="ml-1"
             onClick={() => window.location.reload()}
           >
             {laDeprecated("Reload")}
-          </SimpleButton>
+          </Button>
         </div>
       </Modal>
     );

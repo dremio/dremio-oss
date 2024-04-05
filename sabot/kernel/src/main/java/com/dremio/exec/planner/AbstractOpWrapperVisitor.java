@@ -19,9 +19,10 @@ import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.Exchange;
 import com.dremio.exec.planner.fragment.Wrapper;
 
-public abstract class AbstractOpWrapperVisitor<RET, EXCEP extends Throwable> extends
-    AbstractPhysicalVisitor<RET, Wrapper, EXCEP> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractOpWrapperVisitor.class);
+public abstract class AbstractOpWrapperVisitor<RET, EXCEP extends Throwable>
+    extends AbstractPhysicalVisitor<RET, Wrapper, EXCEP> {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AbstractOpWrapperVisitor.class);
 
   @Override
   public final RET visitExchange(Exchange exchange, Wrapper wrapper) throws EXCEP {
@@ -39,5 +40,4 @@ public abstract class AbstractOpWrapperVisitor<RET, EXCEP extends Throwable> ext
   public RET visitReceivingExchange(Exchange exchange, Wrapper wrapper) throws EXCEP {
     return visitOp(exchange, wrapper);
   }
-
 }

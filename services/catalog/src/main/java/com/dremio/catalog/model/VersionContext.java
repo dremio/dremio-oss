@@ -15,38 +15,30 @@
  */
 package com.dremio.catalog.model;
 
-import java.time.Instant;
-
-import javax.annotation.Nullable;
-
-import org.apache.commons.lang3.StringUtils;
-import org.immutables.value.Value;
-import org.immutables.value.Value.Style.ImplementationVisibility;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import java.time.Instant;
+import javax.annotation.Nullable;
+import org.apache.commons.lang3.StringUtils;
+import org.immutables.value.Value;
+import org.immutables.value.Value.Style.ImplementationVisibility;
 
 /**
  * Represents Dremio's idea of the currently requested version for versioned queries
  *
- * Normal types include:
- *  - BRANCH, specified by name
- *  - TAG, specified by name
- *  - BARE_COMMIT, specified by hexadecimal hash
+ * <p>Normal types include: - BRANCH, specified by name - TAG, specified by name - BARE_COMMIT,
+ * specified by hexadecimal hash
  *
- *  Special types include:
- *  - NOT_SPECIFIED, which represents a "not set" case, this will either be
- *      overridden later or use the repository default
- *  - REF, which represents a BRANCH, a TAG, or a BARE_COMMIT, but we don't yet know which
- *     - Special case for REF type: For ease of parsing user input, if refName
- *         is null or empty, NOT_SPECIFIED will be returned
- *  - *_AS_OF_TIMESTAMP, which represent a time-based lookup. These will resolve
- *      to the hash of the commit in the history of the branch/tag that was
- *      active at the requested timestamp.
+ * <p>Special types include: - NOT_SPECIFIED, which represents a "not set" case, this will either be
+ * overridden later or use the repository default - REF, which represents a BRANCH, a TAG, or a
+ * BARE_COMMIT, but we don't yet know which - Special case for REF type: For ease of parsing user
+ * input, if refName is null or empty, NOT_SPECIFIED will be returned - *_AS_OF_TIMESTAMP, which
+ * represent a time-based lookup. These will resolve to the hash of the commit in the history of the
+ * branch/tag that was active at the requested timestamp.
  */
 @Value.Immutable
 @Value.Style(visibility = ImplementationVisibility.PACKAGE)
@@ -65,8 +57,10 @@ public abstract class VersionContext {
   }
 
   public abstract Type getType();
+
   @Nullable
   public abstract String getValue();
+
   @Nullable
   public abstract Instant getTimestamp();
 
@@ -74,55 +68,43 @@ public abstract class VersionContext {
     if (Strings.isNullOrEmpty(refName)) {
       return NOT_SPECIFIED;
     }
-    return ImmutableVersionContext.builder()
-      .type(Type.REF)
-      .value(refName)
-      .build();
+    return ImmutableVersionContext.builder().type(Type.REF).value(refName).build();
   }
 
   public static VersionContext ofBranch(String branchName) {
-    return ImmutableVersionContext.builder()
-      .type(Type.BRANCH)
-      .value(branchName)
-      .build();
+    return ImmutableVersionContext.builder().type(Type.BRANCH).value(branchName).build();
   }
 
   public static VersionContext ofTag(String tagName) {
-    return ImmutableVersionContext.builder()
-      .type(Type.TAG)
-      .value(tagName)
-      .build();
+    return ImmutableVersionContext.builder().type(Type.TAG).value(tagName).build();
   }
 
   public static VersionContext ofCommit(String commitHash) {
-    return ImmutableVersionContext.builder()
-      .type(Type.COMMIT)
-      .value(commitHash)
-      .build();
+    return ImmutableVersionContext.builder().type(Type.COMMIT).value(commitHash).build();
   }
 
   public static VersionContext ofRefAsOfTimestamp(String refName, Instant timestamp) {
     return ImmutableVersionContext.builder()
-      .type(Type.REF_AS_OF_TIMESTAMP)
-      .value(refName)
-      .timestamp(timestamp)
-      .build();
+        .type(Type.REF_AS_OF_TIMESTAMP)
+        .value(refName)
+        .timestamp(timestamp)
+        .build();
   }
 
   public static VersionContext ofBranchAsOfTimestamp(String branchName, Instant timestamp) {
     return ImmutableVersionContext.builder()
-      .type(Type.BRANCH_AS_OF_TIMESTAMP)
-      .value(branchName)
-      .timestamp(timestamp)
-      .build();
+        .type(Type.BRANCH_AS_OF_TIMESTAMP)
+        .value(branchName)
+        .timestamp(timestamp)
+        .build();
   }
 
   public static VersionContext ofTagAsOfTimestamp(String tagName, Instant timestamp) {
     return ImmutableVersionContext.builder()
-      .type(Type.TAG_AS_OF_TIMESTAMP)
-      .value(tagName)
-      .timestamp(timestamp)
-      .build();
+        .type(Type.TAG_AS_OF_TIMESTAMP)
+        .value(tagName)
+        .timestamp(timestamp)
+        .build();
   }
 
   @Value.Check
@@ -133,7 +115,7 @@ public abstract class VersionContext {
         Preconditions.checkArgument(getValue() == null);
         break;
       case REF: // Intentional fallthrough
-      case TAG:  // Intentional fallthrough
+      case TAG: // Intentional fallthrough
       case BRANCH:
         Preconditions.checkNotNull(getValue());
         Preconditions.checkArgument(getTimestamp() == null);
@@ -155,15 +137,12 @@ public abstract class VersionContext {
 
   private static void validateHash(String hash) {
     Preconditions.checkNotNull(hash);
+    Preconditions.checkArgument(!hash.isEmpty(), "If commit is non-null, it must not be empty.");
     Preconditions.checkArgument(
-      !hash.isEmpty(),
-      "If commit is non-null, it must not be empty.");
+        hash.length() <= 64, String.format("commitHash %s is too long.", hash));
     Preconditions.checkArgument(
-      hash.length() <= 64,
-      String.format("commitHash %s is too long.", hash));
-    Preconditions.checkArgument(
-      Lists.charactersOf(hash).stream().allMatch(c -> Character.digit(c, 16) >= 0),
-      String.format("commitHash %s must be hexadecimal.", hash));
+        Lists.charactersOf(hash).stream().allMatch(c -> Character.digit(c, 16) >= 0),
+        String.format("commitHash %s must be hexadecimal.", hash));
   }
 
   public VersionContext orElse(VersionContext other) {
@@ -173,9 +152,8 @@ public abstract class VersionContext {
 
   // Minor immutables warnings, it's worth having this clearly named singleton
   @SuppressWarnings({"VisibilityModifier", "StaticInitializerReferencesSubClass"})
-  public static VersionContext NOT_SPECIFIED = ImmutableVersionContext.builder()
-    .type(Type.NOT_SPECIFIED)
-    .build();
+  public static VersionContext NOT_SPECIFIED =
+      ImmutableVersionContext.builder().type(Type.NOT_SPECIFIED).build();
 
   public String toStringFirstLetterCapitalized() {
     return StringUtils.capitalize(toString());

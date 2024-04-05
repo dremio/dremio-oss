@@ -17,11 +17,6 @@ package com.dremio.sabot.op.common.ht2;
 
 import static com.koloboke.collect.impl.hash.QHashCapacities.nearestGreaterCapacity;
 
-import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.google.common.base.Stopwatch;
@@ -33,14 +28,17 @@ import com.google.common.primitives.Longs;
 import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
 import com.koloboke.collect.impl.hash.QHashCapacities;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
  * A hash table of blocks. Table is broken into a fixed block and a variable block.
  *
- * Built from the following koloboke independent implementations and customized
- * for this purpose: UpdatableQHashObjSetGO < UpdatableObjQHashSetSO < UpdatableSeparateKVObjQHashGO < UpdatableSeparateKVObjQHashSO < UpdatableQHash
+ * <p>Built from the following koloboke independent implementations and customized for this purpose:
+ * UpdatableQHashObjSetGO &lt UpdatableObjQHashSetSO &lt UpdatableSeparateKVObjQHashGO &lt
+ * UpdatableSeparateKVObjQHashSO &lt UpdatableQHash
  */
 public final class QBlockHashTable implements AutoCloseable {
   public static final int CONTROL_WIDTH = 8;
@@ -68,7 +66,6 @@ public final class QBlockHashTable implements AutoCloseable {
   private int batches;
   private int currentOrdinal;
 
-
   private ControlBlock[] controlBlocks;
   private FixedBlockVector[] fixedBlocks = new FixedBlockVector[0];
   private VariableBlockVector[] variableBlocks = new VariableBlockVector[0];
@@ -82,7 +79,13 @@ public final class QBlockHashTable implements AutoCloseable {
   private Stopwatch rehashTimer = Stopwatch.createUnstarted();
   private Stopwatch initTimer = Stopwatch.createUnstarted();
 
-  public QBlockHashTable(HashConfig config, PivotDef pivot, BufferAllocator allocator, int initialSize, int defaultVariableLengthSize, ResizeListener listener) {
+  public QBlockHashTable(
+      HashConfig config,
+      PivotDef pivot,
+      BufferAllocator allocator,
+      int initialSize,
+      int defaultVariableLengthSize,
+      ResizeListener listener) {
     this.pivot = pivot;
     this.allocator = allocator;
     this.config = new HashConfigWrapper(config);
@@ -94,21 +97,28 @@ public final class QBlockHashTable implements AutoCloseable {
 
   /**
    * Add or find a key. Returns the ordinal of the key in the table.
+   *
    * @param keyFixedVectorAddr
    * @param keyVarVectorAddr
    * @param keyIndex
    * @return ordinal of inserted key.
    */
-  public final int add(final long keyFixedVectorAddr, final long keyVarVectorAddr, final int keyIndex) {
+  public final int add(
+      final long keyFixedVectorAddr, final long keyVarVectorAddr, final int keyIndex) {
     return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, true);
   }
 
-  public final int find(final long keyFixedVectorAddr, final long keyVarVectorAddr, final int keyIndex) {
+  public final int find(
+      final long keyFixedVectorAddr, final long keyVarVectorAddr, final int keyIndex) {
     return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, false);
   }
 
   @SuppressWarnings("checkstyle:InnerAssignment") // complex legacy code
-  private final int getOrInsert(final long keyFixedVectorAddr, final long keyVarVectorAddr, final int keyIndex, boolean insertNew) {
+  private final int getOrInsert(
+      final long keyFixedVectorAddr,
+      final long keyVarVectorAddr,
+      final int keyIndex,
+      boolean insertNew) {
     final int blockWidth = pivot.getBlockWidth();
     final int capacity = this.capacity;
     final boolean fixedOnly = this.fixedOnly;
@@ -123,7 +133,7 @@ public final class QBlockHashTable implements AutoCloseable {
     final int keyHash;
     final int dataWidth;
 
-    if(fixedOnly){
+    if (fixedOnly) {
       dataWidth = blockWidth;
       keyVarAddr = -1;
       keyVarLen = 0;
@@ -139,22 +149,32 @@ public final class QBlockHashTable implements AutoCloseable {
     int controlIndex = keyHash % capacity;
 
     int controlChunkIndex = controlIndex >>> BITS_IN_CHUNK;
-    long tableControlAddr = tableControlAddresses[controlChunkIndex] + ((controlIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
+    long tableControlAddr =
+        tableControlAddresses[controlChunkIndex]
+            + ((controlIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
 
     long control = PlatformDependent.getLong(tableControlAddr);
 
-    keyAbsent: if (control != LFREE) {
+    keyAbsent:
+    if (control != LFREE) {
       int dataChunkIndex;
       long tableDataAddr;
 
       int ordinal = (int) control;
       int tableHash = (int) (control >>> 32);
 
-      if (keyHash == tableHash){
+      if (keyHash == tableHash) {
         // collision, check equality
         dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
-        tableDataAddr = tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth);
-        if(fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth) && (fixedOnly || variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] + PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))){
+        tableDataAddr =
+            tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth);
+        if (fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth)
+            && (fixedOnly
+                || variableKeyEquals(
+                    keyVarAddr,
+                    initVariableAddresses[dataChunkIndex]
+                        + PlatformDependent.getInt(tableDataAddr + dataWidth),
+                    keyVarLen))) {
           return ordinal;
         }
       }
@@ -169,16 +189,25 @@ public final class QBlockHashTable implements AutoCloseable {
         // try to find with backIndex. //
         // calculate batch offset.
         controlChunkIndex = backIndex >>> BITS_IN_CHUNK;
-        tableControlAddr = tableControlAddresses[controlChunkIndex] + ((backIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
+        tableControlAddr =
+            tableControlAddresses[controlChunkIndex]
+                + ((backIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
         control = PlatformDependent.getLong(tableControlAddr);
         tableHash = (int) (control >>> 32);
         if (control == LFREE) {
           break keyAbsent;
-        } else if(keyHash == tableHash){
+        } else if (keyHash == tableHash) {
           ordinal = (int) control;
           dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
-          tableDataAddr = tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth);
-          if(fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth) && (fixedOnly || variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] + PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))){
+          tableDataAddr =
+              tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth);
+          if (fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth)
+              && (fixedOnly
+                  || variableKeyEquals(
+                      keyVarAddr,
+                      initVariableAddresses[dataChunkIndex]
+                          + PlatformDependent.getInt(tableDataAddr + dataWidth),
+                      keyVarLen))) {
             // key is present
             return ordinal;
           }
@@ -194,17 +223,26 @@ public final class QBlockHashTable implements AutoCloseable {
         // try to find with forwardIndex. //
         // calculate batch offset.
         controlChunkIndex = forwardIndex >>> BITS_IN_CHUNK;
-        tableControlAddr = tableControlAddresses[controlChunkIndex] + ((forwardIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
+        tableControlAddr =
+            tableControlAddresses[controlChunkIndex]
+                + ((forwardIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
         control = PlatformDependent.getLong(tableControlAddr);
         tableHash = (int) (control >>> 32);
 
         if (control == LFREE) {
           break keyAbsent;
-        } else if(keyHash == tableHash){
+        } else if (keyHash == tableHash) {
           ordinal = (int) control;
           dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
-          tableDataAddr = tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth);
-          if(fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth) && (fixedOnly || variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] + PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))){
+          tableDataAddr =
+              tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth);
+          if (fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth)
+              && (fixedOnly
+                  || variableKeyEquals(
+                      keyVarAddr,
+                      initVariableAddresses[dataChunkIndex]
+                          + PlatformDependent.getInt(tableDataAddr + dataWidth),
+                      keyVarLen))) {
             // key is present
             return ordinal;
           }
@@ -213,27 +251,35 @@ public final class QBlockHashTable implements AutoCloseable {
       }
     }
 
-    if(!insertNew){
+    if (!insertNew) {
       return -1;
     } else {
       // key is absent, let's insert.
-      return insert(blockWidth, tableControlAddr, keyHash, dataWidth, keyFixedAddr, keyVarAddr, keyVarLen);
+      return insert(
+          blockWidth, tableControlAddr, keyHash, dataWidth, keyFixedAddr, keyVarAddr, keyVarLen);
     }
-
   }
 
-  private int insert(final long blockWidth, long tableControlAddr, final int keyHash, final int dataWidth, final long keyFixedAddr, final long keyVarAddr, final int keyVarLen){
+  private int insert(
+      final long blockWidth,
+      long tableControlAddr,
+      final int keyHash,
+      final int dataWidth,
+      final long keyFixedAddr,
+      final long keyVarAddr,
+      final int keyVarLen) {
 
     final int insertedOrdinal = currentOrdinal;
 
     // let's make sure we have space to write.
-    if((insertedOrdinal & CHUNK_OFFSET_MASK) == 0){
+    if ((insertedOrdinal & CHUNK_OFFSET_MASK) == 0) {
       addDataBlocks();
     }
 
     // first we need to make sure we are up to date on the
     final int dataChunkIndex = insertedOrdinal >>> BITS_IN_CHUNK;
-    final long tableDataAddr = tableFixedAddresses[dataChunkIndex] + ((insertedOrdinal & CHUNK_OFFSET_MASK) * blockWidth);
+    final long tableDataAddr =
+        tableFixedAddresses[dataChunkIndex] + ((insertedOrdinal & CHUNK_OFFSET_MASK) * blockWidth);
 
     // set the ordinal value for the insertion.
     PlatformDependent.putInt(tableControlAddr, insertedOrdinal);
@@ -242,7 +288,7 @@ public final class QBlockHashTable implements AutoCloseable {
     // set the body part of the fixed data in the table.
     Copier.copy(keyFixedAddr, tableDataAddr, dataWidth);
 
-    if(!fixedOnly) {
+    if (!fixedOnly) {
       long tableVarAddr = openVariableAddresses[dataChunkIndex];
       final VariableBlockVector block = variableBlocks[dataChunkIndex];
       final int tableVarOffset = (int) (tableVarAddr - initVariableAddresses[dataChunkIndex]);
@@ -252,7 +298,7 @@ public final class QBlockHashTable implements AutoCloseable {
 
       // now do variable length value.
       // we'll set the variable value first so we can write the fixed data in a straight insertion.
-      if(maxVariableAddresses[dataChunkIndex] < tableVarAddr + keyVarLen + 4){
+      if (maxVariableAddresses[dataChunkIndex] < tableVarAddr + keyVarLen + 4) {
         block.ensureAvailableDataSpace(tableVarOffset + keyVarLen + 4);
         tableVarAddr = block.getMemoryAddress() + tableVarOffset;
         this.initVariableAddresses[dataChunkIndex] = block.getMemoryAddress();
@@ -278,7 +324,7 @@ public final class QBlockHashTable implements AutoCloseable {
 
   private void addDataBlocks() {
 
-    try(RollbackCloseable rollbackable = new RollbackCloseable()) {
+    try (RollbackCloseable rollbackable = new RollbackCloseable()) {
 
       // make sure can fit the next batch.
       listener.addBatch();
@@ -288,17 +334,23 @@ public final class QBlockHashTable implements AutoCloseable {
         rollbackable.add(newFixed);
         newFixed.ensureAvailableBlocks(MAX_VALUES_PER_BATCH);
         fixedBlocks = ObjectArrays.concat(fixedBlocks, newFixed);
-        tableFixedAddresses = Longs.concat(tableFixedAddresses, new long[]{newFixed.getMemoryAddress()});
+        tableFixedAddresses =
+            Longs.concat(tableFixedAddresses, new long[] {newFixed.getMemoryAddress()});
       }
 
       {
-        VariableBlockVector newVariable = new VariableBlockVector(allocator, pivot.getVariableCount());
+        VariableBlockVector newVariable =
+            new VariableBlockVector(allocator, pivot.getVariableCount());
         rollbackable.add(newVariable);
-        newVariable.ensureAvailableDataSpace(pivot.getVariableCount() == 0 ? 0 : MAX_VALUES_PER_BATCH * defaultVariableLengthSize);
+        newVariable.ensureAvailableDataSpace(
+            pivot.getVariableCount() == 0 ? 0 : MAX_VALUES_PER_BATCH * defaultVariableLengthSize);
         variableBlocks = ObjectArrays.concat(variableBlocks, newVariable);
-        initVariableAddresses = Longs.concat(initVariableAddresses, new long[]{newVariable.getMemoryAddress()});
-        openVariableAddresses = Longs.concat(openVariableAddresses, new long[]{newVariable.getMemoryAddress()});
-        maxVariableAddresses = Longs.concat(maxVariableAddresses, new long[]{newVariable.getMaxMemoryAddress()});
+        initVariableAddresses =
+            Longs.concat(initVariableAddresses, new long[] {newVariable.getMemoryAddress()});
+        openVariableAddresses =
+            Longs.concat(openVariableAddresses, new long[] {newVariable.getMemoryAddress()});
+        maxVariableAddresses =
+            Longs.concat(maxVariableAddresses, new long[] {newVariable.getMaxMemoryAddress()});
       }
       rollbackable.commit();
     } catch (Exception e) {
@@ -313,8 +365,9 @@ public final class QBlockHashTable implements AutoCloseable {
     final ControlBlock[] oldControlBlocks = this.controlBlocks;
     final long[] oldControlAddrs = this.tableControlAddresses;
 
-    try(RollbackCloseable closer = new RollbackCloseable()){ // Close old control blocks when done rehashing.
-      for(ControlBlock cb : oldControlBlocks){
+    try (RollbackCloseable closer =
+        new RollbackCloseable()) { // Close old control blocks when done rehashing.
+      for (ControlBlock cb : oldControlBlocks) {
         closer.add(cb);
       }
 
@@ -325,17 +378,19 @@ public final class QBlockHashTable implements AutoCloseable {
 
       // loop through backwards.
 
-      for(int batch =0; batch < oldControlAddrs.length; batch++){
+      for (int batch = 0; batch < oldControlAddrs.length; batch++) {
         long addr = oldControlAddrs[batch];
         final long max = addr + MAX_VALUES_PER_BATCH * CONTROL_WIDTH;
-        for(long oldControlAddr = addr; oldControlAddr < max; oldControlAddr += CONTROL_WIDTH){
+        for (long oldControlAddr = addr; oldControlAddr < max; oldControlAddr += CONTROL_WIDTH) {
           long oldControl = PlatformDependent.getLong(oldControlAddr);
 
-          if(oldControl != LFREE){
+          if (oldControl != LFREE) {
 
-            int index = ((int) (oldControl >>> 32)) % capacity; // get previously computed hash and mod it.
+            int index =
+                ((int) (oldControl >>> 32)) % capacity; // get previously computed hash and mod it.
             int newChunkIndex = index >>> BITS_IN_CHUNK;
-            long controlAddr = controlAddrs[newChunkIndex] + ((index & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
+            long controlAddr =
+                controlAddrs[newChunkIndex] + ((index & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
 
             if (PlatformDependent.getInt(controlAddr) != FREE) {
               int backIndex = index, forwardIndex = index, step = 1;
@@ -345,7 +400,8 @@ public final class QBlockHashTable implements AutoCloseable {
                 }
 
                 newChunkIndex = backIndex >>> BITS_IN_CHUNK;
-                controlAddr = controlAddrs[newChunkIndex] + ((backIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
+                controlAddr =
+                    controlAddrs[newChunkIndex] + ((backIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
 
                 if (PlatformDependent.getInt(controlAddr) == FREE) {
                   break;
@@ -356,13 +412,14 @@ public final class QBlockHashTable implements AutoCloseable {
                 }
 
                 newChunkIndex = forwardIndex >>> BITS_IN_CHUNK;
-                controlAddr = controlAddrs[newChunkIndex] + ((forwardIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
+                controlAddr =
+                    controlAddrs[newChunkIndex]
+                        + ((forwardIndex & CHUNK_OFFSET_MASK) * CONTROL_WIDTH);
 
                 if (PlatformDependent.getInt(controlAddr) == FREE) {
                   break;
                 }
                 step += 2;
-
               }
             }
             PlatformDependent.putLong(controlAddr, oldControl);
@@ -370,43 +427,38 @@ public final class QBlockHashTable implements AutoCloseable {
         }
       }
 
-
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }
   }
 
   private static final boolean fixedKeyEquals(
-      final long keyDataAddr,
-      final long tableDataAddr,
-      final int dataWidth
-      ) {
+      final long keyDataAddr, final long tableDataAddr, final int dataWidth) {
     return memEqual(keyDataAddr, tableDataAddr, dataWidth);
   }
 
   private static final boolean variableKeyEquals(
-      final long keyVarAddr,
-      final long tableVarAddr,
-      final int keyVarLength
-      ) {
+      final long keyVarAddr, final long tableVarAddr, final int keyVarLength) {
     final int tableVarLength = PlatformDependent.getInt(tableVarAddr);
-    return keyVarLength == tableVarLength && memEqual(keyVarAddr + VAR_LENGTH_SIZE, tableVarAddr + VAR_LENGTH_SIZE, keyVarLength);
+    return keyVarLength == tableVarLength
+        && memEqual(keyVarAddr + VAR_LENGTH_SIZE, tableVarAddr + VAR_LENGTH_SIZE, keyVarLength);
   }
 
-  private static final int fixedKeyHashCode(long keyDataAddr, int dataWidth){
+  private static final int fixedKeyHashCode(long keyDataAddr, int dataWidth) {
     return mix(XXH64.xxHash6432(keyDataAddr, dataWidth, 0));
-    //return mix(XXHashByteBuf.hashAddr(keyDataAddr, dataWidth, 0));
+    // return mix(XXHashByteBuf.hashAddr(keyDataAddr, dataWidth, 0));
   }
 
-  private static final int keyHashCode(long keyDataAddr, int dataWidth, final long keyVarAddr, int varDataLen){
+  private static final int keyHashCode(
+      long keyDataAddr, int dataWidth, final long keyVarAddr, int varDataLen) {
     final long fixedValue = XXH64.xxHash64(keyDataAddr, dataWidth, 0);
     return mix(XXH64.xxHash6432(keyVarAddr + 4, varDataLen, fixedValue));
 
-//    final int fixedValue = XXHashByteBuf.hashAddr(keyDataAddr, dataWidth, 0);
-//    if(varDataLen == 0){
-//      return fixedValue;
-//    }
-//    return mix(XXHashByteBuf.hashAddr(keyVarAddr + 4, varDataLen, fixedValue));
+    //    final int fixedValue = XXHashByteBuf.hashAddr(keyDataAddr, dataWidth, 0);
+    //    if(varDataLen == 0){
+    //      return fixedValue;
+    //    }
+    //    return mix(XXHashByteBuf.hashAddr(keyVarAddr + 4, varDataLen, fixedValue));
   }
 
   private static final boolean memEqual(final long laddr, final long raddr, int len) {
@@ -461,21 +513,19 @@ public final class QBlockHashTable implements AutoCloseable {
     return this == obj;
   }
 
-  public int size(){
+  public int size() {
     return currentOrdinal;
   }
 
-  public int blocks(){
-    return (int) Math.ceil( currentOrdinal / (MAX_VALUES_PER_BATCH * 1.0d) );
+  public int blocks() {
+    return (int) Math.ceil(currentOrdinal / (MAX_VALUES_PER_BATCH * 1.0d));
   }
 
   public int capacity() {
     return capacity;
   }
 
-  /**
-   * Taken directly from koloboke
-   */
+  /** Taken directly from koloboke */
   private static int mix(int hash) {
     return (hash & 0x7FFFFFFF);
   }
@@ -483,12 +533,11 @@ public final class QBlockHashTable implements AutoCloseable {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(
-      Streams.concat(
-        Arrays.stream(controlBlocks),
-        Arrays.stream(fixedBlocks),
-        Arrays.stream(variableBlocks)
-      ).collect(ImmutableList.toImmutableList())
-    );
+        Streams.concat(
+                Arrays.stream(controlBlocks),
+                Arrays.stream(fixedBlocks),
+                Arrays.stream(variableBlocks))
+            .collect(ImmutableList.toImmutableList()));
   }
 
   private boolean tryRehashForExpansion() {
@@ -504,32 +553,33 @@ public final class QBlockHashTable implements AutoCloseable {
     }
   }
 
-  public long getRehashTime(TimeUnit unit){
+  public long getRehashTime(TimeUnit unit) {
     return rehashTimer.elapsed(unit);
   }
 
-  public int getRehashCount(){
+  public int getRehashCount() {
     return rehashCount;
   }
 
   private void internalInit(final int capacity) {
     initTimer.start();
     this.capacity = capacity;
-    this.maxSize = !QHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
-    this.batches = (int) Math.ceil( capacity / (MAX_VALUES_PER_BATCH * 1.0d) );
+    this.maxSize =
+        !QHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
+    this.batches = (int) Math.ceil(capacity / (MAX_VALUES_PER_BATCH * 1.0d));
     final ControlBlock[] newControlBlocks = new ControlBlock[batches];
     tableControlAddresses = new long[batches];
 
-    try(RollbackCloseable rollbackable = new RollbackCloseable()) {
+    try (RollbackCloseable rollbackable = new RollbackCloseable()) {
 
-      for(int i =0; i < batches; i++){
+      for (int i = 0; i < batches; i++) {
         newControlBlocks[i] = new ControlBlock(allocator, MAX_VALUES_PER_BATCH);
         rollbackable.add(newControlBlocks[i]);
         tableControlAddresses[i] = newControlBlocks[i].getMemoryAddress();
 
         final long addr = newControlBlocks[i].getMemoryAddress();
         final long max = addr + MAX_VALUES_PER_BATCH * CONTROL_WIDTH;
-        for(long l = addr; l < max; l+= QBlockHashTable.CONTROL_WIDTH){
+        for (long l = addr; l < max; l += QBlockHashTable.CONTROL_WIDTH) {
           PlatformDependent.putLong(l, QBlockHashTable.LFREE);
         }
       }

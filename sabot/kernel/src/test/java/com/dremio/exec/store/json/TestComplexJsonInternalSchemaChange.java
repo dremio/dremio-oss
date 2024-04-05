@@ -28,10 +28,9 @@ import static com.dremio.ArrowDsUtil.wrapTextListInList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
+import com.dremio.common.exceptions.UserRemoteException;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.junit.Test;
-
-import com.dremio.common.exceptions.UserRemoteException;
 
 public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase {
 
@@ -134,7 +133,9 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
       alterTableChangeColumn(dirName, "col1", "ROW(f1 BIGINT)");
       fail("Complex type cannot be changed to prim");
     } catch (UserRemoteException e) {
-      assertThat(e.getMessage()).contains("INVALID_DATASET_METADATA ERROR: Field f1: Struct<f1: FloatingPoint(DOUBLE)> and Int(64, true) are incompatible types, for type changes please ensure both columns are either of primitive types or complex but not mixed.");
+      assertThat(e.getMessage())
+          .contains(
+              "INVALID_DATASET_METADATA ERROR: Field f1: Struct<f1: FloatingPoint(DOUBLE)> and Int(64, true) are incompatible types, for type changes please ensure both columns are either of primitive types or complex but not mixed.");
     }
     alterTableForgetMetadata(dirName);
   }
@@ -154,15 +155,19 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
     String dirName = "struct_struct_double_bigint";
     copyFilesFromNoMixedTypesComplex(dirName);
     triggerSchemaLearning(dirName);
-    verifyRecords(dirName, "col1",
-      wrapStructInStruct("f1", doubleStruct("f1", 2.3)),
-      wrapStructInStruct("f1", doubleStruct("f1", 2.0)));
+    verifyRecords(
+        dirName,
+        "col1",
+        wrapStructInStruct("f1", doubleStruct("f1", 2.3)),
+        wrapStructInStruct("f1", doubleStruct("f1", 2.0)));
     verifyCountStar(dirName, 2);
 
     alterTableChangeColumn(dirName, "col1", "ROW(f1 ROW(f1 BIGINT))");
-    verifyRecords(dirName, "col1",
-      wrapStructInStruct("f1", longStruct("f1", 2L)),
-      wrapStructInStruct("f1", longStruct("f1", 2L)));
+    verifyRecords(
+        dirName,
+        "col1",
+        wrapStructInStruct("f1", longStruct("f1", 2L)),
+        wrapStructInStruct("f1", longStruct("f1", 2L)));
     verifyCountStar(dirName, 2);
     alterTableChangeColumn(dirName, "col1", "ROW(f1 ROW(f1 DOUBLE))");
   }
@@ -175,13 +180,13 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
     JsonStringHashMap<String, Object> innerStruct = longStruct("id", 2L);
     innerStruct.putAll(doubleStruct("data", 2.3));
 
-    JsonStringHashMap<String, JsonStringHashMap<String, Object>> outerStruct = wrapStructInStruct("f1", innerStruct);
+    JsonStringHashMap<String, JsonStringHashMap<String, Object>> outerStruct =
+        wrapStructInStruct("f1", innerStruct);
 
     verifyRecords(dirName, "col1", outerStruct);
     alterTableChangeColumn(dirName, "col1", "ROW(f1 ROW(id DOUBLE))");
 
-    verifyRecords(dirName, "col1",
-      wrapStructInStruct("f1", doubleStruct("id", 2.0)));
+    verifyRecords(dirName, "col1", wrapStructInStruct("f1", doubleStruct("id", 2.0)));
   }
 
   @Test
@@ -190,9 +195,11 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
     copyFilesFromNoMixedTypesComplex(dirName);
     alterTableChangeColumn(dirName, "col1", "ROW(f1 ROW(f1 BIGINT))");
     triggerOptionalSchemaLearning(dirName);
-    verifyRecords(dirName, "col1",
-      wrapStructInStruct("f1", longStruct("f1", 2L)),
-      wrapStructInStruct("f1", longStruct("f1", 2L)));
+    verifyRecords(
+        dirName,
+        "col1",
+        wrapStructInStruct("f1", longStruct("f1", 2L)),
+        wrapStructInStruct("f1", longStruct("f1", 2L)));
     verifyCountStar(dirName, 2);
     alterTableChangeColumn(dirName, "col1", "ROW(f1 ROW(f1 DOUBLE))");
   }
@@ -202,11 +209,19 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
     String dirName = "struct_array_bigint_double";
     copyFilesFromNoMixedTypesComplex(dirName);
     triggerSchemaLearning(dirName);
-    verifyRecords(dirName, "col1", wrapListInStruct("f1", doubleList(2.0)), wrapListInStruct("f1", doubleList(2.3)));
+    verifyRecords(
+        dirName,
+        "col1",
+        wrapListInStruct("f1", doubleList(2.0)),
+        wrapListInStruct("f1", doubleList(2.3)));
     verifyCountStar(dirName, 2L);
     alterTableChangeColumn(dirName, "col1", "ROW(f2 ROW(f1 DOUBLE))");
     try {
-      verifyRecords(dirName, "col1", wrapListInStruct("f1", doubleList(2.0)), wrapListInStruct("f1", doubleList(2.3)));
+      verifyRecords(
+          dirName,
+          "col1",
+          wrapListInStruct("f1", doubleList(2.0)),
+          wrapListInStruct("f1", doubleList(2.3)));
       fail("dropped field should not be read.");
     } catch (Exception e) {
       assertThat(e.getMessage()).contains("did not find expected record in result set");

@@ -16,12 +16,9 @@
 package com.dremio.service.flight;
 
 import java.util.Iterator;
-
 import org.apache.arrow.flight.CallHeaders;
 
-/**
- * Utilities for parsing cookies
- */
+/** Utilities for parsing cookies */
 public class CookieUtils {
   public static final String COOKIE_HEADER = "Cookie";
 
@@ -38,7 +35,8 @@ public class CookieUtils {
       return null;
     }
 
-    for (Iterator<String> headerIterator = cookieHeaderValues.iterator(); headerIterator.hasNext();) {
+    for (Iterator<String> headerIterator = cookieHeaderValues.iterator();
+        headerIterator.hasNext(); ) {
       final String headerValue = headerIterator.next();
 
       final String[] cookies = headerValue.split(";");

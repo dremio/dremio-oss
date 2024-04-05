@@ -20,6 +20,7 @@
   overflow: hidden;
   color: var(--dremio--dialog-content--color);
   font-weight: var(--dremio--dialog-content--font-weight);
+  border-radius: var(--dremio--dialog-content--border-radius);
 
   &__header,
   &__footer {

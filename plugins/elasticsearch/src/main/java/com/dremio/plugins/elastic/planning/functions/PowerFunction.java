@@ -17,10 +17,9 @@ package com.dremio.plugins.elastic.planning.functions;
 
 import org.apache.calcite.rex.RexCall;
 
-
 class PowerFunction extends ElasticFunction {
 
-  public PowerFunction(){
+  public PowerFunction() {
     super("power", "power");
   }
 
@@ -29,7 +28,7 @@ class PowerFunction extends ElasticFunction {
     checkArity(call, 2);
     FunctionRender op1 = call.getOperands().get(0).accept(renderer.getVisitor());
     FunctionRender op2 = call.getOperands().get(1).accept(renderer.getVisitor());
-    return new FunctionRender(String.format("Math.pow(%s, %s)", op1.getScript(), op2.getScript()), nulls(op1, op2));
+    return new FunctionRender(
+        String.format("Math.pow(%s, %s)", op1.getScript(), op2.getScript()), nulls(op1, op2));
   }
-
 }

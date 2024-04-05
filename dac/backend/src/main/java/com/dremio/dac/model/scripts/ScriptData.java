@@ -16,11 +16,6 @@
 
 package com.dremio.dac.model.scripts;
 
-import java.util.List;
-
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
-
 import com.dremio.dac.api.User;
 import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.service.script.SourceVersionReferenceUtils;
@@ -28,41 +23,45 @@ import com.dremio.service.script.proto.ScriptProto;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.ArrayList;
+import java.util.List;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 
-/**
- * ScriptData to format json response
- */
+/** ScriptData to format json response */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ScriptData {
 
   private final String scriptId;
 
-  @NotEmpty
-  private final String name;
+  @NotEmpty private final String name;
   private final Long createdAt;
   private final User createdBy;
   private final String description;
   private final Long modifiedAt;
   private final User modifiedBy;
 
-  @NotNull
-  private final List<@NotEmpty String> context;
+  @NotNull private final List<@NotEmpty String> context;
   private final List<SourceVersionReference> referencesList;
+  private final List<String> jobIds;
+  private final List<String> jobResultUrls;
   private final String content;
 
   @JsonCreator
   public ScriptData(
-    @JsonProperty("scriptId") String scriptId,
-    @JsonProperty("id") String id,
-    @JsonProperty("name") String name,
-    @JsonProperty("createdAt") Long createdAt,
-    @JsonProperty("createdBy") User createdBy,
-    @JsonProperty("description") String description,
-    @JsonProperty("modifiedAt") Long modifiedAt,
-    @JsonProperty("modifiedBy") User modifiedBy,
-    @JsonProperty("context") List<String> context,
-    @JsonProperty("referencesList") List<SourceVersionReference> referencesList,
-    @JsonProperty("content") String content) {
+      @JsonProperty("scriptId") String scriptId,
+      @JsonProperty("id") String id,
+      @JsonProperty("name") String name,
+      @JsonProperty("createdAt") Long createdAt,
+      @JsonProperty("createdBy") User createdBy,
+      @JsonProperty("description") String description,
+      @JsonProperty("modifiedAt") Long modifiedAt,
+      @JsonProperty("modifiedBy") User modifiedBy,
+      @JsonProperty("context") List<String> context,
+      @JsonProperty("referencesList") List<SourceVersionReference> referencesList,
+      @JsonProperty("content") String content,
+      @JsonProperty("jobIds") List<String> jobIds,
+      @JsonProperty("jobResultUrls") List<String> jobResultUrls) {
 
     this.scriptId = scriptId != null ? scriptId : id;
     this.name = name;
@@ -74,16 +73,21 @@ public class ScriptData {
     this.context = context;
     this.referencesList = referencesList;
     this.content = content;
+    this.jobIds = jobIds;
+    this.jobResultUrls = jobResultUrls;
   }
 
   public static ScriptProto.ScriptRequest toScriptRequest(ScriptData script) {
     return ScriptProto.ScriptRequest.newBuilder()
-      .setName(script.getName())
-      .setDescription(script.getDescription())
-      .addAllContext(script.getContext())
-      .addAllReferences(SourceVersionReferenceUtils.createSourceVersionReferenceProtoList(script.getReferencesList()))
-      .setContent(script.getContent())
-      .build();
+        .setName(script.getName())
+        .setDescription(script.getDescription())
+        .addAllContext(script.getContext())
+        .addAllReferences(
+            SourceVersionReferenceUtils.createSourceVersionReferenceProtoList(
+                script.getReferencesList()))
+        .setContent(script.getContent())
+        .addAllJobIds(script.getJobIds() == null ? new ArrayList<>() : script.getJobIds())
+        .build();
   }
 
   public String getName() {
@@ -129,20 +133,29 @@ public class ScriptData {
     return referencesList;
   }
 
-  public static ScriptData fromScriptWithUserInfo(ScriptProto.Script script,
-                                                  User createdBy,
-                                                  User modifiedBy) {
-    return new ScriptData(script.getScriptId(),
-                          script.getScriptId(),
-                          script.getName(),
-                          script.getCreatedAt(),
-                          createdBy,
-                          script.getDescription(),
-                          script.getModifiedAt(),
-                          modifiedBy,
-                          script.getContextList(),
-                          SourceVersionReferenceUtils.createSourceVersionReferenceList(script.getReferencesList()),
-                          script.getContent());
+  public List<String> getJobIds() {
+    return jobIds;
   }
 
+  public List<String> getJobResultUrls() {
+    return jobResultUrls;
+  }
+
+  public static ScriptData fromScriptWithUserInfo(
+      ScriptProto.Script script, List<String> jobResultUrls, User createdBy, User modifiedBy) {
+    return new ScriptData(
+        script.getScriptId(),
+        script.getScriptId(),
+        script.getName(),
+        script.getCreatedAt(),
+        createdBy,
+        script.getDescription(),
+        script.getModifiedAt(),
+        modifiedBy,
+        script.getContextList(),
+        SourceVersionReferenceUtils.createSourceVersionReferenceList(script.getReferencesList()),
+        script.getContent(),
+        script.getJobIdsList(),
+        jobResultUrls);
+  }
 }

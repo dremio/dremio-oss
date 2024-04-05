@@ -19,17 +19,14 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.junit.Test;
-
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobCancellationInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
+import org.junit.Test;
 
-/**
- * Tests {@link JobResultToLogEntryConverter}
- */
+/** Tests {@link JobResultToLogEntryConverter} */
 public class TestJobResultToLogEntryConverter {
 
   @Test

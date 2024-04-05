@@ -18,34 +18,33 @@ package com.dremio.exec.client;
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 import java.util.Properties;
-
 import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.config.DremioConfig;
-import com.dremio.test.TemporarySystemProperties;
-
 /**
- * Tests that pass custom properties to server to modify the behavior of how the queries are treated.
+ * Tests that pass custom properties to server to modify the behavior of how the queries are
+ * treated.
  */
 public class TestDremioClientWithOptions extends BaseTestQuery {
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test // DX-5338
   public void supportFullyQualifiedProjects() throws Exception {
     updateClientToSupportFullyQualifiedProject();
 
-    final String query = "SELECT " +
-        "cp.\"tpch/lineitem.parquet\".l_orderkey, " +
-        "cp.\"tpch/lineitem.parquet\".l_extendedprice " +
-        "FROM cp.\"tpch/lineitem.parquet\" " +
-        "ORDER BY cp.\"tpch/lineitem.parquet\".l_orderkey " +
-        "LIMIT 2";
+    final String query =
+        "SELECT "
+            + "cp.\"tpch/lineitem.parquet\".l_orderkey, "
+            + "cp.\"tpch/lineitem.parquet\".l_extendedprice "
+            + "FROM cp.\"tpch/lineitem.parquet\" "
+            + "ORDER BY cp.\"tpch/lineitem.parquet\".l_orderkey "
+            + "LIMIT 2";
 
     testBuilder()
         .sqlQuery(query)
@@ -61,25 +60,27 @@ public class TestDremioClientWithOptions extends BaseTestQuery {
   public void supportFullyQualifiedProjectsQueryView() throws Exception {
     try {
       properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
-      // View here contains a projecting components of complex data type columns. Simulating a scenario where you can
-      // create a dataset with complex field component projections and querying the dataset from clients such as tableau.
-      test("CREATE VIEW dfs_test.complexView AS " +
-        "SELECT t.a.arrayval as c1, t.a.arrayval[0].val1[0] as c2 " +
-        "FROM cp.\"nested/nested_3.json\" as t LIMIT 1");
+      // View here contains a projecting components of complex data type columns. Simulating a
+      // scenario where you can
+      // create a dataset with complex field component projections and querying the dataset from
+      // clients such as tableau.
+      test(
+          "CREATE VIEW dfs_test.complexView AS "
+              + "SELECT t.a.arrayval as c1, t.a.arrayval[0].val1[0] as c2 "
+              + "FROM cp.\"nested/nested_3.json\" as t LIMIT 1");
 
       updateClientToSupportFullyQualifiedProject();
-      final String query = "SELECT dfs_test.complexView.c1, dfs_test.complexView.c2 FROM dfs_test.complexView";
+      final String query =
+          "SELECT dfs_test.complexView.c1, dfs_test.complexView.c2 FROM dfs_test.complexView";
 
       testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("c1", "c2")
-        .baselineValues(listOf(
-          mapOf("val1", listOf("a1")),
-          mapOf("val2", "[a2]"),
-          mapOf("val3", "[a3]")
-        ), "a1")
-        .go();
+          .sqlQuery(query)
+          .unOrdered()
+          .baselineColumns("c1", "c2")
+          .baselineValues(
+              listOf(mapOf("val1", listOf("a1")), mapOf("val2", "[a2]"), mapOf("val3", "[a3]")),
+              "a1")
+          .go();
     } finally {
       properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
     }
@@ -93,6 +94,6 @@ public class TestDremioClientWithOptions extends BaseTestQuery {
 
   @After
   public void resetClient() throws Exception {
-    updateClient((Properties)null);
+    updateClient((Properties) null);
   }
 }

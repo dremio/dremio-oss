@@ -15,13 +15,9 @@
  */
 package com.dremio.service.reflection.refresh;
 
-
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.service.reflection.proto.Materialization;
@@ -29,6 +25,8 @@ import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshDecision;
 import com.google.common.collect.ImmutableList;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class TestRefreshHandler {
 
@@ -47,30 +45,33 @@ public class TestRefreshHandler {
     final AttemptId attemptId = mock(AttemptId.class);
     when(attemptId.getAttemptNum()).thenReturn(attemptIdInt);
 
-    //test with IcebergDataset, not initial refresh
+    // test with IcebergDataset, not initial refresh
     materialization.setIsIcebergDataset(true);
     decision.setInitialRefresh(false);
     final String materilizatonBasePathstr = "materilizatonBasePathstr";
     materialization.setBasePath(materilizatonBasePathstr);
-    //notice that in this case there is no + attemptIdInt
-    Assert.assertEquals(ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME,
-        reflectionIdStr,
-        materilizatonBasePathstr),
-        RefreshHandler.getRefreshPath(reflectionId,materialization,decision,attemptId));
+    // notice that in this case there is no + attemptIdInt
+    Assert.assertEquals(
+        ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME, reflectionIdStr, materilizatonBasePathstr),
+        RefreshHandler.getRefreshPath(reflectionId, materialization, decision, attemptId));
 
-    //test with IcebergDataset, initial refresh
+    // test with IcebergDataset, initial refresh
     decision.setInitialRefresh(true);
-    Assert.assertEquals(ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME,
-        reflectionIdStr,
-        materilizatonIdStr + "_" + attemptIdInt),
-        RefreshHandler.getRefreshPath(reflectionId,materialization,decision,attemptId));
+    Assert.assertEquals(
+        ImmutableList.of(
+            ACCELERATOR_STORAGEPLUGIN_NAME,
+            reflectionIdStr,
+            materilizatonIdStr + "_" + attemptIdInt),
+        RefreshHandler.getRefreshPath(reflectionId, materialization, decision, attemptId));
 
-    //test with non-Iceberg dataset
+    // test with non-Iceberg dataset
     materialization.setIsIcebergDataset(false);
     decision.setInitialRefresh(false);
-    Assert.assertEquals(ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME,
-        reflectionIdStr,
-        materilizatonIdStr + "_" + attemptIdInt),
-        RefreshHandler.getRefreshPath(reflectionId,materialization,decision,attemptId));
+    Assert.assertEquals(
+        ImmutableList.of(
+            ACCELERATOR_STORAGEPLUGIN_NAME,
+            reflectionIdStr,
+            materilizatonIdStr + "_" + attemptIdInt),
+        RefreshHandler.getRefreshPath(reflectionId, materialization, decision, attemptId));
   }
 }

@@ -15,14 +15,7 @@
  */
 package com.dremio.dac.model.sources;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import javax.validation.Valid;
-import javax.validation.constraints.Pattern;
-
+import com.dremio.dac.explore.DatasetResourceUtils;
 import com.dremio.dac.model.common.AddressableResource;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.model.namespace.DatasetContainer;
@@ -33,6 +26,7 @@ import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -45,22 +39,31 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import javax.validation.Valid;
+import javax.validation.constraints.Pattern;
 
-/**
- * Source model
- */
+/** Source model */
 // Ignoring the type hierarchy/Overriding DatasetContainer annotation
 @JsonInclude(Include.NON_NULL)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, defaultImpl = SourceUI.class)
-@JsonIgnoreProperties(value={ "links", "fullPathList", "resourcePath" }, allowGetters=true, ignoreUnknown=true)
+@JsonIgnoreProperties(
+    value = {"links", "fullPathList", "resourcePath"},
+    allowGetters = true,
+    ignoreUnknown = true)
 public class SourceUI implements AddressableResource, DatasetContainer {
 
   @Valid
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
+  @JsonTypeInfo(
+      use = JsonTypeInfo.Id.NAME,
+      include = JsonTypeInfo.As.EXTERNAL_PROPERTY,
+      property = "type")
   private ConnectionConf<?, ?> config;
 
-  @JsonProperty
-  private NamespaceTree contents;
+  @JsonProperty private NamespaceTree contents;
 
   private String name;
   private long ctime;
@@ -77,6 +80,8 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   // acceleration grace and refresh periods
   private Long accelerationGracePeriod;
   private Long accelerationRefreshPeriod;
+  private RefreshPolicyType accelerationActivePolicyType;
+  private String accelerationRefreshSchedule;
   private Boolean accelerationNeverExpire;
   private Boolean accelerationNeverRefresh;
   private Boolean allowCrossSourceSelection;
@@ -100,8 +105,8 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   }
 
   /**
-   * For debugging purposes, the serialization for the REST API is also
-   * being done with Jackson, but that is managed in the setup of the rest server.
+   * For debugging purposes, the serialization for the REST API is also being done with Jackson, but
+   * that is managed in the setup of the rest server.
    */
   @Override
   public String toString() {
@@ -135,7 +140,9 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     return numberOfDatasets;
   }
 
-  @Pattern(regexp = "^[^.\"@]+$", message = "Source name can not contain periods, double quotes or @.")
+  @Pattern(
+      regexp = "^[^.\"@]+$",
+      message = "Source name can not contain periods, double quotes or @.")
   @Override
   public String getName() {
     return name;
@@ -156,6 +163,26 @@ public class SourceUI implements AddressableResource, DatasetContainer {
 
   public void setAccelerationRefreshPeriod(Long accelerationRefreshPeriod) {
     this.accelerationRefreshPeriod = accelerationRefreshPeriod;
+  }
+
+  public RefreshPolicyType getAccelerationActivePolicyType() {
+    return accelerationActivePolicyType;
+  }
+
+  public void setAccelerationActivePolicyType(RefreshPolicyType policyType) {
+    this.accelerationActivePolicyType = policyType;
+  }
+
+  public String getAccelerationRefreshSchedule() {
+    return accelerationRefreshSchedule;
+  }
+
+  public void setAccelerationRefreshSchedule(String refreshSchedule) {
+    if (refreshSchedule != null && !DatasetResourceUtils.validateInputSchedule(refreshSchedule)) {
+      throw new IllegalArgumentException(
+          "refreshSchedule must be a cron expression only specifying one time and days of week");
+    }
+    this.accelerationRefreshSchedule = refreshSchedule;
   }
 
   public Long getAccelerationGracePeriod() {
@@ -183,7 +210,8 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   }
 
   public void setMetadataPolicy(UIMetadataPolicy metadataPolicy) {
-    this.metadataPolicy = MoreObjects.firstNonNull(metadataPolicy, UIMetadataPolicy.DEFAULT_UIMETADATA_POLICY);
+    this.metadataPolicy =
+        MoreObjects.firstNonNull(metadataPolicy, UIMetadataPolicy.DEFAULT_UIMETADATA_POLICY);
   }
 
   public String getImg() {
@@ -268,9 +296,10 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     String resourcePath = new SourcePath(new SourceName(name)).toUrlPath();
     links.put("self", resourcePath);
     links.put("rename", resourcePath + "/rename");
-    final JobFilters jobFilters = new JobFilters()
-      .addContainsFilter(name)
-      .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
+    final JobFilters jobFilters =
+        new JobFilters()
+            .addContainsFilter(name)
+            .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     links.put("jobs", jobFilters.toUrl());
     links.put("format", resourcePath + "/folder_format");
     links.put("file_format", resourcePath + "/file_format");
@@ -290,6 +319,10 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     c.setTag(tag);
     c.setAccelerationRefreshPeriod(accelerationRefreshPeriod);
     c.setAccelerationGracePeriod(accelerationGracePeriod);
+    c.setAccelerationRefreshSchedule(accelerationRefreshSchedule);
+    if (accelerationActivePolicyType != null) {
+      c.setAccelerationActivePolicyType(accelerationActivePolicyType);
+    }
     c.setAccelerationNeverExpire(Boolean.TRUE.equals(accelerationNeverExpire));
     c.setAccelerationNeverRefresh(Boolean.TRUE.equals(accelerationNeverRefresh));
     c.setMetadataPolicy(metadataPolicy.asMetadataPolicy());
@@ -342,12 +375,13 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     source.setAccelerationGracePeriod(sourceConfig.getAccelerationGracePeriod());
     source.setAccelerationNeverExpire(sourceConfig.getAccelerationNeverExpire());
     source.setAccelerationNeverRefresh(sourceConfig.getAccelerationNeverRefresh());
+    source.setAccelerationActivePolicyType(sourceConfig.getAccelerationActivePolicyType());
+    source.setAccelerationRefreshSchedule(sourceConfig.getAccelerationRefreshSchedule());
     source.setId(sourceConfig.getId().getId());
     source.setAllowCrossSourceSelection(sourceConfig.getAllowCrossSourceSelection());
     source.setDisableMetadataValidityCheck(sourceConfig.getDisableMetadataValidityCheck());
     return source;
   }
-
 
   public static boolean isInternal(SourceConfig sourceConfig, ConnectionReader reader) {
     ConnectionConf<?, ?> config = reader.getConnectionConf(sourceConfig);

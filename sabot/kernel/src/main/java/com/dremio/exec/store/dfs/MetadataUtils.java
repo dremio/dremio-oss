@@ -17,21 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.util.GregorianCalendar;
-import java.util.List;
-
-import javax.annotation.Nullable;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.util.NlsString;
-import org.apache.parquet.io.api.Binary;
-import org.joda.time.DateTimeConstants;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -48,30 +33,53 @@ import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
+import java.nio.ByteBuffer;
+import java.util.GregorianCalendar;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.util.NlsString;
+import org.apache.parquet.io.api.Binary;
+import org.joda.time.DateTimeConstants;
 
-/**
- * Utils to serialize storage plugin specific structures to/from namespace.
- */
+/** Utils to serialize storage plugin specific structures to/from namespace. */
 public class MetadataUtils {
-  private static final Function<SchemaPath, String> schemaPathStringFunction = new Function<SchemaPath, String>() {
-    @Nullable
-    @Override
-    public String apply(@Nullable SchemaPath input) {
-      return input.getAsUnescapedPath();
-    }
-  };
+  private static final Function<SchemaPath, String> schemaPathStringFunction =
+      new Function<SchemaPath, String>() {
+        @Nullable
+        @Override
+        public String apply(@Nullable SchemaPath input) {
+          return input.getAsUnescapedPath();
+        }
+      };
 
-  public static ScanStats toPojoScanStats(com.dremio.service.namespace.dataset.proto.ScanStats cachedScanStats) {
+  public static ScanStats toPojoScanStats(
+      com.dremio.service.namespace.dataset.proto.ScanStats cachedScanStats) {
     if (cachedScanStats.getType() == ScanStatsType.NO_EXACT_ROW_COUNT) {
-      return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, cachedScanStats.getRecordCount(), cachedScanStats.getCpuCost(), cachedScanStats.getDiskCost());
+      return new ScanStats(
+          ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT,
+          cachedScanStats.getRecordCount(),
+          cachedScanStats.getCpuCost(),
+          cachedScanStats.getDiskCost());
     } else if (cachedScanStats.getType() == ScanStatsType.EXACT_ROW_COUNT) {
-      return new ScanStats(ScanStats.GroupScanProperty.EXACT_ROW_COUNT, cachedScanStats.getRecordCount(), cachedScanStats.getCpuCost(), cachedScanStats.getDiskCost());
+      return new ScanStats(
+          ScanStats.GroupScanProperty.EXACT_ROW_COUNT,
+          cachedScanStats.getRecordCount(),
+          cachedScanStats.getCpuCost(),
+          cachedScanStats.getDiskCost());
     }
     throw new IllegalArgumentException("Invalid scan stats type " + cachedScanStats.getType());
   }
 
-  public static com.dremio.service.namespace.dataset.proto.ScanStats fromPojoScanStats(ScanStats scanStats) {
-    final com.dremio.service.namespace.dataset.proto.ScanStats cachedScanStats = new com.dremio.service.namespace.dataset.proto.ScanStats();
+  public static com.dremio.service.namespace.dataset.proto.ScanStats fromPojoScanStats(
+      ScanStats scanStats) {
+    final com.dremio.service.namespace.dataset.proto.ScanStats cachedScanStats =
+        new com.dremio.service.namespace.dataset.proto.ScanStats();
 
     cachedScanStats.setCpuCost(scanStats.getCpuCost());
     cachedScanStats.setDiskCost(scanStats.getDiskCost());
@@ -79,10 +87,13 @@ public class MetadataUtils {
 
     if (scanStats.getGroupScanProperty().equals(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT)) {
       cachedScanStats.setType(ScanStatsType.NO_EXACT_ROW_COUNT);
-    } else if (scanStats.getGroupScanProperty().equals(ScanStats.GroupScanProperty.EXACT_ROW_COUNT)) {
+    } else if (scanStats
+        .getGroupScanProperty()
+        .equals(ScanStats.GroupScanProperty.EXACT_ROW_COUNT)) {
       cachedScanStats.setType(ScanStatsType.EXACT_ROW_COUNT);
     } else {
-      throw new IllegalArgumentException("Invalid scan stats type " + scanStats.getGroupScanProperty());
+      throw new IllegalArgumentException(
+          "Invalid scan stats type " + scanStats.getGroupScanProperty());
     }
     return cachedScanStats;
   }
@@ -91,9 +102,12 @@ public class MetadataUtils {
     return Lists.transform(columns, schemaPathStringFunction);
   }
 
-  public static PartitionValue toPartitionValue(final SchemaPath column, final Object value, final MinorType type,
+  public static PartitionValue toPartitionValue(
+      final SchemaPath column,
+      final Object value,
+      final MinorType type,
       final PartitionValueType partitionType) {
-      final String name = column.getAsUnescapedPath();
+    final String name = column.getAsUnescapedPath();
     if (value == null) {
       return PartitionValue.of(name, partitionType);
     }
@@ -102,28 +116,35 @@ public class MetadataUtils {
       case INT:
       case TIME:
       case INTERVALYEAR:
-        return PartitionValue.of(name, ((Number)value).intValue(), partitionType);
+        return PartitionValue.of(name, ((Number) value).intValue(), partitionType);
 
       case TIMESTAMP:
-        if(value instanceof Binary){
+        if (value instanceof Binary) {
           // int96.
-          return PartitionValue.of(name, NanoTimeUtils.getDateTimeValueFromBinary((Binary) value), partitionType);
+          return PartitionValue.of(
+              name, NanoTimeUtils.getDateTimeValueFromBinary((Binary) value), partitionType);
         }
 
-        return PartitionValue.of(name, ((Number)value).longValue(), partitionType);
+        return PartitionValue.of(name, ((Number) value).longValue(), partitionType);
 
       case DATE:
-        return PartitionValue.of(name, ((Number)value).longValue() * (long) DateTimeConstants.MILLIS_PER_DAY, partitionType);
+        return PartitionValue.of(
+            name,
+            ((Number) value).longValue() * (long) DateTimeConstants.MILLIS_PER_DAY,
+            partitionType);
 
       case BIGINT:
       case INTERVALDAY:
-        return PartitionValue.of(name, ((Number)value).longValue(), partitionType);
+        return PartitionValue.of(name, ((Number) value).longValue(), partitionType);
 
       case VARCHAR:
-        if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
+        if (value
+            instanceof
+            String) { // if the metadata was read from a JSON cache file it maybe a string type
           return PartitionValue.of(name, (String) value, partitionType);
         } else if (value instanceof Binary) {
-          return PartitionValue.of(name, new String(((Binary) value).getBytes(), UTF_8), partitionType);
+          return PartitionValue.of(
+              name, new String(((Binary) value).getBytes(), UTF_8), partitionType);
         } else if (value instanceof byte[]) {
           return PartitionValue.of(name, new String((byte[]) value, UTF_8), partitionType);
         } else {
@@ -131,10 +152,14 @@ public class MetadataUtils {
         }
 
       case VARBINARY:
-        if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
-          return PartitionValue.of(name, ByteBuffer.wrap(((String) value).getBytes(UTF_8)), partitionType);
+        if (value
+            instanceof
+            String) { // if the metadata was read from a JSON cache file it maybe a string type
+          return PartitionValue.of(
+              name, ByteBuffer.wrap(((String) value).getBytes(UTF_8)), partitionType);
         } else if (value instanceof Binary) {
-          return PartitionValue.of(name, ByteBuffer.wrap(((Binary) value).getBytes()), partitionType);
+          return PartitionValue.of(
+              name, ByteBuffer.wrap(((Binary) value).getBytes()), partitionType);
         } else if (value instanceof byte[]) {
           return PartitionValue.of(name, ByteBuffer.wrap((byte[]) value), partitionType);
         } else {
@@ -142,17 +167,18 @@ public class MetadataUtils {
         }
 
       case FLOAT4:
-        return PartitionValue.of(name, ((Number)value).floatValue(), partitionType);
+        return PartitionValue.of(name, ((Number) value).floatValue(), partitionType);
 
       case FLOAT8:
-        return PartitionValue.of(name, ((Number)value).doubleValue(), partitionType);
+        return PartitionValue.of(name, ((Number) value).doubleValue(), partitionType);
 
       case BIT:
         return PartitionValue.of(name, (Boolean) value, partitionType);
 
       case DECIMAL:
         if (value instanceof Binary) {
-          return PartitionValue.of(name, ByteBuffer.wrap(((Binary) value).getBytes()), partitionType);
+          return PartitionValue.of(
+              name, ByteBuffer.wrap(((Binary) value).getBytes()), partitionType);
         } else if (value instanceof byte[]) {
           return PartitionValue.of(name, ByteBuffer.wrap((byte[]) value), partitionType);
         } else if (value instanceof Integer) {
@@ -209,22 +235,22 @@ public class MetadataUtils {
     }
   }
 
-  public static FieldType getFieldType(CompleteType type){
-    switch(type.toMinorType()){
-    case BIGINT:
-    case TIMESTAMP:
-    case DATE:
-      return FieldType.LONG;
+  public static FieldType getFieldType(CompleteType type) {
+    switch (type.toMinorType()) {
+      case BIGINT:
+      case TIMESTAMP:
+      case DATE:
+        return FieldType.LONG;
 
-    case INT:
-    case TIME:
-      return FieldType.INTEGER;
+      case INT:
+      case TIME:
+        return FieldType.INTEGER;
 
-    case FLOAT4:
-    case FLOAT8:
-      return FieldType.DOUBLE;
-    case VARCHAR:
-      return FieldType.STRING;
+      case FLOAT4:
+      case FLOAT8:
+        return FieldType.DOUBLE;
+      case VARCHAR:
+        return FieldType.STRING;
     }
 
     throw new UnsupportedOperationException(type.toString());
@@ -239,50 +265,106 @@ public class MetadataUtils {
     final String columnKey = PartitionChunkConverter.buildColumnKey(fieldType, field.getName());
     final List<SearchQuery> filterQueries = Lists.newArrayList();
 
-    for (FilterProperties filter: filters) {
+    for (FilterProperties filter : filters) {
       final RexLiteral literal = filter.getLiteral();
       SearchQuery matchingSplitsQuery = null;
       final RangeQueryInput rangeQueryInput;
       switch (ct.toMinorType()) {
         case BIGINT:
-
-          rangeQueryInput = new RangeQueryInput(
-            ((BigDecimal) literal.getValue()).setScale(0, BigDecimal.ROUND_HALF_UP).longValue(), filter.getKind());
-          matchingSplitsQuery = SearchQueryUtils.newRangeLong(columnKey, (Long) rangeQueryInput.min, (Long) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
+          rangeQueryInput =
+              new RangeQueryInput(
+                  ((BigDecimal) literal.getValue()).setScale(0, RoundingMode.HALF_UP).longValue(),
+                  filter.getKind());
+          matchingSplitsQuery =
+              SearchQueryUtils.newRangeLong(
+                  columnKey,
+                  (Long) rangeQueryInput.min,
+                  (Long) rangeQueryInput.max,
+                  rangeQueryInput.includeMin,
+                  rangeQueryInput.includeMax);
           break;
 
         case TIME:
-          rangeQueryInput = new RangeQueryInput((int) ((GregorianCalendar) literal.getValue()).getTimeInMillis(), filter.getKind());
-          matchingSplitsQuery = SearchQueryUtils.newRangeInt(columnKey, (Integer) rangeQueryInput.min, (Integer) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
+          rangeQueryInput =
+              new RangeQueryInput(
+                  (int) ((GregorianCalendar) literal.getValue()).getTimeInMillis(),
+                  filter.getKind());
+          matchingSplitsQuery =
+              SearchQueryUtils.newRangeInt(
+                  columnKey,
+                  (Integer) rangeQueryInput.min,
+                  (Integer) rangeQueryInput.max,
+                  rangeQueryInput.includeMin,
+                  rangeQueryInput.includeMax);
           break;
 
         case VARCHAR:
-          if (literal.getValue() instanceof  NlsString) {
-            rangeQueryInput = new RangeQueryInput(((NlsString) literal.getValue()).getValue(), filter.getKind());
+          if (literal.getValue() instanceof NlsString) {
+            rangeQueryInput =
+                new RangeQueryInput(((NlsString) literal.getValue()).getValue(), filter.getKind());
           } else {
-            rangeQueryInput = new RangeQueryInput((literal.getValue3().toString()), filter.getKind());
+            rangeQueryInput =
+                new RangeQueryInput((literal.getValue3().toString()), filter.getKind());
           }
-          matchingSplitsQuery = SearchQueryUtils.newRangeTerm(columnKey, (String) rangeQueryInput.min, (String) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
+          matchingSplitsQuery =
+              SearchQueryUtils.newRangeTerm(
+                  columnKey,
+                  (String) rangeQueryInput.min,
+                  (String) rangeQueryInput.max,
+                  rangeQueryInput.includeMin,
+                  rangeQueryInput.includeMax);
           break;
 
         case FLOAT4:
-          rangeQueryInput = new RangeQueryInput(((BigDecimal) literal.getValue()).floatValue(), filter.getKind());
-          matchingSplitsQuery = SearchQueryUtils.newRangeFloat(columnKey, (Float) rangeQueryInput.min, (Float) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
+          rangeQueryInput =
+              new RangeQueryInput(((BigDecimal) literal.getValue()).floatValue(), filter.getKind());
+          matchingSplitsQuery =
+              SearchQueryUtils.newRangeFloat(
+                  columnKey,
+                  (Float) rangeQueryInput.min,
+                  (Float) rangeQueryInput.max,
+                  rangeQueryInput.includeMin,
+                  rangeQueryInput.includeMax);
           break;
 
         case FLOAT8:
-          rangeQueryInput = new RangeQueryInput(((BigDecimal) literal.getValue()).doubleValue(), filter.getKind());
-          matchingSplitsQuery = SearchQueryUtils.newRangeDouble(columnKey, (Double) rangeQueryInput.min, (Double) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
+          rangeQueryInput =
+              new RangeQueryInput(
+                  ((BigDecimal) literal.getValue()).doubleValue(), filter.getKind());
+          matchingSplitsQuery =
+              SearchQueryUtils.newRangeDouble(
+                  columnKey,
+                  (Double) rangeQueryInput.min,
+                  (Double) rangeQueryInput.max,
+                  rangeQueryInput.includeMin,
+                  rangeQueryInput.includeMax);
           break;
 
         case INT:
-          rangeQueryInput = new RangeQueryInput(((BigDecimal) literal.getValue()).setScale(0, BigDecimal.ROUND_HALF_UP).intValue(), filter.getKind());
-          matchingSplitsQuery = SearchQueryUtils.newRangeInt(columnKey, (Integer) rangeQueryInput.min, (Integer) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
+          rangeQueryInput =
+              new RangeQueryInput(
+                  ((BigDecimal) literal.getValue()).setScale(0, RoundingMode.HALF_UP).intValue(),
+                  filter.getKind());
+          matchingSplitsQuery =
+              SearchQueryUtils.newRangeInt(
+                  columnKey,
+                  (Integer) rangeQueryInput.min,
+                  (Integer) rangeQueryInput.max,
+                  rangeQueryInput.includeMin,
+                  rangeQueryInput.includeMax);
           break;
         case DATE:
         case TIMESTAMP:
-          rangeQueryInput = new RangeQueryInput(((GregorianCalendar) literal.getValue()).getTimeInMillis(), filter.getKind());
-          matchingSplitsQuery = SearchQueryUtils.newRangeLong(columnKey, (Long) rangeQueryInput.min, (Long) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
+          rangeQueryInput =
+              new RangeQueryInput(
+                  ((GregorianCalendar) literal.getValue()).getTimeInMillis(), filter.getKind());
+          matchingSplitsQuery =
+              SearchQueryUtils.newRangeLong(
+                  columnKey,
+                  (Long) rangeQueryInput.min,
+                  (Long) rangeQueryInput.max,
+                  rangeQueryInput.includeMin,
+                  rangeQueryInput.includeMax);
           break;
 
         default:

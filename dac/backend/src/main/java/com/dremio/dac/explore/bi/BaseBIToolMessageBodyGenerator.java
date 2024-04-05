@@ -18,14 +18,6 @@ package com.dremio.dac.explore.bi;
 import static com.dremio.dac.explore.bi.BIToolsConstants.EXPORT_HOSTNAME;
 import static java.lang.String.format;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
-
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.ext.MessageBodyWriter;
-
 import com.dremio.dac.server.WebServer;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.options.OptionManager;
@@ -33,28 +25,39 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.ext.MessageBodyWriter;
 
-/**
- * A base class for generating responses to load datasets in BI tools.
- */
+/** A base class for generating responses to load datasets in BI tools. */
 abstract class BaseBIToolMessageBodyGenerator implements MessageBodyWriter<DatasetConfig> {
   private final CoordinationProtos.NodeEndpoint endpoint;
   private final String masterNode;
   private final OptionManager optionManager;
 
-  protected BaseBIToolMessageBodyGenerator(CoordinationProtos.NodeEndpoint endpoint, OptionManager optionManager) {
+  protected BaseBIToolMessageBodyGenerator(
+      CoordinationProtos.NodeEndpoint endpoint, OptionManager optionManager) {
     this.endpoint = endpoint;
     this.masterNode = MoreObjects.firstNonNull(endpoint.getAddress(), "localhost");
     this.optionManager = optionManager;
   }
 
   @Override
-  public boolean isWriteable(Class<?> aClass, Type type, Annotation[] annotations, MediaType mediaType) {
+  public boolean isWriteable(
+      Class<?> aClass, Type type, Annotation[] annotations, MediaType mediaType) {
     return type == DatasetConfig.class;
   }
 
   @Override
-  public long getSize(DatasetConfig datasetConfig, Class<?> aClass, Type type, Annotation[] annotations, MediaType mediaType) {
+  public long getSize(
+      DatasetConfig datasetConfig,
+      Class<?> aClass,
+      Type type,
+      Annotation[] annotations,
+      MediaType mediaType) {
     return -1;
   }
 
@@ -64,6 +67,7 @@ abstract class BaseBIToolMessageBodyGenerator implements MessageBodyWriter<Datas
 
   /**
    * Return an appropriate hostname based on the given headers.
+   *
    * @param httpHeaders The HTTP headers to use to help generate a host name.
    * @return The hostname.
    */
@@ -85,6 +89,7 @@ abstract class BaseBIToolMessageBodyGenerator implements MessageBodyWriter<Datas
 
   /**
    * Getter method to retrieve OptionManager.
+   *
    * @return the OptionManager of this instance.
    */
   protected OptionManager getOptionManager() {
@@ -93,16 +98,17 @@ abstract class BaseBIToolMessageBodyGenerator implements MessageBodyWriter<Datas
 
   /**
    * Add an HTTP header to specify the name of the output file for the response.
+   *
    * @param datasetConfig The dataset.
    * @param extension The file extension, not including the period.
    * @param httpHeaders The output headers.
    */
-  protected static void addTargetOutputFileHeader(DatasetConfig datasetConfig,
-                                                  String extension,
-                                                  MultivaluedMap<String, Object> httpHeaders) {
+  protected static void addTargetOutputFileHeader(
+      DatasetConfig datasetConfig, String extension, MultivaluedMap<String, Object> httpHeaders) {
     // Change headers to force download and suggest a filename.
     final String fullPath = Joiner.on(".").join(datasetConfig.getFullPathList());
-    httpHeaders.putSingle(HttpHeaders.CONTENT_DISPOSITION,
-      format("attachment; filename=\"%s.%s\"", fullPath, extension));
+    httpHeaders.putSingle(
+        HttpHeaders.CONTENT_DISPOSITION,
+        format("attachment; filename=\"%s.%s\"", fullPath, extension));
   }
 }

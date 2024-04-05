@@ -22,13 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskRun;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
@@ -36,10 +29,13 @@ import com.dremio.dac.support.UpgradeStore;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.test.DremioTest;
+import java.util.List;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * To test KVStore for Upgrade
- */
+/** To test KVStore for Upgrade */
 public class TestUpgradeStore {
 
   private static final LegacyKVStoreProvider kvstore =
@@ -71,11 +67,10 @@ public class TestUpgradeStore {
     String upgradeTaskName = "UpgradeTask1";
     String upgradeTaskID = "UpgradeTask1_ID";
     long startTime = System.currentTimeMillis();
-    UpgradeTaskRun upgradeTaskRun = new UpgradeTaskRun()
-      .setStatus(UpgradeStatus.RUNNING)
-      .setStartTime(startTime);
+    UpgradeTaskRun upgradeTaskRun =
+        new UpgradeTaskRun().setStatus(UpgradeStatus.RUNNING).setStartTime(startTime);
     UpgradeTaskStore upgradeTaskStore =
-      upgradeStore.createUpgradeTaskStoreEntry(upgradeTaskID, upgradeTaskName, upgradeTaskRun);
+        upgradeStore.createUpgradeTaskStoreEntry(upgradeTaskID, upgradeTaskName, upgradeTaskRun);
 
     assertNotNull(upgradeTaskStore);
     assertEquals(upgradeTaskID, upgradeTaskStore.getId().getId());
@@ -94,7 +89,7 @@ public class TestUpgradeStore {
     createdUgradeTaskRun.setStatus(UpgradeStatus.COMPLETED);
 
     UpgradeTaskStore upgradeTaskStoreCompleted =
-      upgradeStore.updateLastUpgradeRun(upgradeTaskID, upgradeTaskName, createdUgradeTaskRun);
+        upgradeStore.updateLastUpgradeRun(upgradeTaskID, upgradeTaskName, createdUgradeTaskRun);
 
     assertEquals(1, upgradeTaskStoreCompleted.getRunsList().size());
 
@@ -111,19 +106,19 @@ public class TestUpgradeStore {
     String upgradeTaskName = "UpgradeTask1";
     String upgradeTaskID = "UpgradeTask1_ID";
     long startTime = System.currentTimeMillis();
-    UpgradeTaskRun upgradeTaskRun = new UpgradeTaskRun()
-      .setStatus(UpgradeStatus.RUNNING)
-      .setStartTime(startTime);
+    UpgradeTaskRun upgradeTaskRun =
+        new UpgradeTaskRun().setStatus(UpgradeStatus.RUNNING).setStartTime(startTime);
 
     upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun);
 
-    UpgradeTaskRun upgradeTaskRun2 = new UpgradeTaskRun()
-      .setStatus(UpgradeStatus.COMPLETED)
-      .setStartTime(startTime)
-      .setEndTime(startTime);
+    UpgradeTaskRun upgradeTaskRun2 =
+        new UpgradeTaskRun()
+            .setStatus(UpgradeStatus.COMPLETED)
+            .setStartTime(startTime)
+            .setEndTime(startTime);
 
     UpgradeTaskStore upgradeTaskStore =
-      upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun2);
+        upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun2);
 
     assertEquals(2, upgradeTaskStore.getRunsList().size());
 
@@ -145,25 +140,24 @@ public class TestUpgradeStore {
     String upgradeTaskName = "UpgradeTask1";
     String upgradeTaskID = "UpgradeTask1_ID";
     long startTime = System.currentTimeMillis();
-    UpgradeTaskRun upgradeTaskRun = new UpgradeTaskRun()
-      .setStatus(UpgradeStatus.RUNNING)
-      .setStartTime(startTime);
+    UpgradeTaskRun upgradeTaskRun =
+        new UpgradeTaskRun().setStatus(UpgradeStatus.RUNNING).setStartTime(startTime);
 
     upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun);
 
-    final UpgradeTaskRun upgradeTaskRun2 = new UpgradeTaskRun()
-      .setStatus(UpgradeStatus.COMPLETED)
-      .setEndTime(startTime);
+    final UpgradeTaskRun upgradeTaskRun2 =
+        new UpgradeTaskRun().setStatus(UpgradeStatus.COMPLETED).setEndTime(startTime);
 
-    assertThatThrownBy(() -> upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun2))
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(
+            () -> upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun2))
+        .isInstanceOf(IllegalStateException.class);
 
-    final UpgradeTaskRun upgradeTaskRun3 = new UpgradeTaskRun()
-      .setStatus(UpgradeStatus.COMPLETED)
-      .setStartTime(startTime);
+    final UpgradeTaskRun upgradeTaskRun3 =
+        new UpgradeTaskRun().setStatus(UpgradeStatus.COMPLETED).setStartTime(startTime);
 
-    assertThatThrownBy(() -> upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun3))
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(
+            () -> upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun3))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -171,18 +165,22 @@ public class TestUpgradeStore {
     String upgradeTaskName = "UpgradeTask1";
     String upgradeTaskID = "UpgradeTask1_ID";
     long startTime = System.currentTimeMillis();
-    UpgradeTaskRun upgradeTaskRun = new UpgradeTaskRun()
-      .setStatus(UpgradeStatus.FAILED)
-      .setStartTime(startTime)
-      .setEndTime(startTime);
+    UpgradeTaskRun upgradeTaskRun =
+        new UpgradeTaskRun()
+            .setStatus(UpgradeStatus.FAILED)
+            .setStartTime(startTime)
+            .setEndTime(startTime);
 
-    UpgradeTaskStore upgradeTaskStore = upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun);
+    UpgradeTaskStore upgradeTaskStore =
+        upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun);
     UpgradeTaskRun upgradeTaskRun1 = upgradeTaskStore.getRunsList().get(0);
 
     upgradeTaskRun1.setStatus(UpgradeStatus.COMPLETED);
 
-    assertThatThrownBy(() -> upgradeStore.updateLastUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun1))
-      .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(
+            () ->
+                upgradeStore.updateLastUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun1))
+        .isInstanceOf(IllegalStateException.class);
     upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun1);
   }
 }

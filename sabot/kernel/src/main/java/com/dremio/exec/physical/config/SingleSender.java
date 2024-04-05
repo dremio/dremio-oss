@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.Collections;
-import java.util.List;
-
 import com.dremio.exec.physical.base.AbstractSender;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
@@ -33,10 +30,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * Sender that pushes all data to a single destination node.
- */
+/** Sender that pushes all data to a single destination node. */
 @Options
 @JsonTypeName("single-sender")
 public class SingleSender extends AbstractSender implements OpWithMinorSpecificAttrs {
@@ -49,19 +46,17 @@ public class SingleSender extends AbstractSender implements OpWithMinorSpecificA
       BatchSchema schema,
       PhysicalOperator child,
       int receiverMajorFragmentId,
-      MinorFragmentIndexEndpoint destination
-      ) {
+      MinorFragmentIndexEndpoint destination) {
     super(props, schema, child, receiverMajorFragmentId);
     this.destination = destination;
   }
 
   @JsonCreator
   public SingleSender(
-    @JsonProperty("props") OpProps props,
-    @JsonProperty("schema") BatchSchema schema,
-    @JsonProperty("child") PhysicalOperator child,
-    @JsonProperty("receiverMajorFragmentId") int receiverMajorFragmentId
-    )  {
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("schema") BatchSchema schema,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("receiverMajorFragmentId") int receiverMajorFragmentId) {
     super(props, schema, child, receiverMajorFragmentId);
   }
 
@@ -77,7 +72,8 @@ public class SingleSender extends AbstractSender implements OpWithMinorSpecificA
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitSingleSender(this, value);
   }
 

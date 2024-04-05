@@ -17,11 +17,12 @@ package com.dremio.exec.store.cache;
 
 import static java.util.stream.Collectors.toList;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
@@ -33,27 +34,28 @@ import org.rocksdb.TtlDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-
 /**
- * Manages Rocks DB specific things (creation of instances, column families etc.)
- * and presents a simpler interface to perform writes to and reads from Rocks DB.
+ * Manages Rocks DB specific things (creation of instances, column families etc.) and presents a
+ * simpler interface to perform writes to and reads from Rocks DB.
  */
 class RocksDbBroker {
   private static final Logger logger = LoggerFactory.getLogger(RocksDbBroker.class);
   private static final String COLUMN_FAMILY_NAME = "block-locations";
   private static final int TTL_TIME_IN_SEC = (int) TimeUnit.DAYS.toSeconds(30);
-  private static final ColumnFamilyOptions CF_OPTIONS = new ColumnFamilyOptions().optimizeForSmallDb();
-  private static final List<ColumnFamilyDescriptor> DESCRIPTORS = Arrays.asList(
-    new ColumnFamilyDescriptor(COLUMN_FAMILY_NAME.getBytes(), CF_OPTIONS),
-    new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY));
-  private static final List<byte[]> DEFINED_COLUMN_FAMILIES = DESCRIPTORS.stream().map(ColumnFamilyDescriptor::getName).collect(toList());
+  private static final ColumnFamilyOptions CF_OPTIONS =
+      new ColumnFamilyOptions().optimizeForSmallDb();
+  private static final List<ColumnFamilyDescriptor> DESCRIPTORS =
+      Arrays.asList(
+          new ColumnFamilyDescriptor(COLUMN_FAMILY_NAME.getBytes(), CF_OPTIONS),
+          new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY));
+  private static final List<byte[]> DEFINED_COLUMN_FAMILIES =
+      DESCRIPTORS.stream().map(ColumnFamilyDescriptor::getName).collect(toList());
 
   private static RocksDbBroker instance;
 
   enum RocksDBState {
-    OK, ERROR
+    OK,
+    ERROR
   }
 
   private final String dbDirectory;
@@ -65,7 +67,8 @@ class RocksDbBroker {
 
   static RocksDbBroker getInstance(String dbDirectory) throws RocksDBException {
     if (instance != null) {
-      Preconditions.checkArgument(dbDirectory.equals(instance.dbDirectory), "getInstance should be called on the same dir");
+      Preconditions.checkArgument(
+          dbDirectory.equals(instance.dbDirectory), "getInstance should be called on the same dir");
       return instance;
     }
 
@@ -166,9 +169,13 @@ class RocksDbBroker {
     }
   }
 
-  private static RocksDB openDb(String dbDirectory, DBOptions dbOptions, List<ColumnFamilyHandle> columnFamilyHandles) throws RocksDBException {
-    List<Integer> ttlValues = Arrays.asList(TTL_TIME_IN_SEC, 0); // 0 TTL (no expiration) for the default column family
-    RocksDB db = TtlDB.open(dbOptions, dbDirectory, DESCRIPTORS, columnFamilyHandles, ttlValues, false);
+  private static RocksDB openDb(
+      String dbDirectory, DBOptions dbOptions, List<ColumnFamilyHandle> columnFamilyHandles)
+      throws RocksDBException {
+    List<Integer> ttlValues =
+        Arrays.asList(TTL_TIME_IN_SEC, 0); // 0 TTL (no expiration) for the default column family
+    RocksDB db =
+        TtlDB.open(dbOptions, dbDirectory, DESCRIPTORS, columnFamilyHandles, ttlValues, false);
     validateColumnFamilyHandles(columnFamilyHandles);
     return db;
   }
@@ -189,7 +196,8 @@ class RocksDbBroker {
     }
   }
 
-  private static void validateColumnFamilyHandles(List<ColumnFamilyHandle> columnFamilyHandles) throws RocksDBException {
+  private static void validateColumnFamilyHandles(List<ColumnFamilyHandle> columnFamilyHandles)
+      throws RocksDBException {
     List<byte[]> list = new ArrayList<>();
     for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
       list.add(columnFamilyHandle.getName());
@@ -201,8 +209,12 @@ class RocksDbBroker {
   static void validateColumnFamilies(List<byte[]> loadedColumnFamilies) throws RocksDBException {
     int loadedSize = loadedColumnFamilies.size();
     if (DEFINED_COLUMN_FAMILIES.size() != loadedSize) {
-      throw new RocksDBException("Did not load the expected number of column families. " +
-        "Expected: " + DEFINED_COLUMN_FAMILIES.size() + ", but found: " + loadedSize);
+      throw new RocksDBException(
+          "Did not load the expected number of column families. "
+              + "Expected: "
+              + DEFINED_COLUMN_FAMILIES.size()
+              + ", but found: "
+              + loadedSize);
     }
 
     for (byte[] loaded : loadedColumnFamilies) {

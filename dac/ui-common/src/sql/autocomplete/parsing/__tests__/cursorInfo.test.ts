@@ -24,7 +24,7 @@ import { LiveEditParser } from "../../../../../target/generated-sources/antlr/Li
 describe("cursorInfo", () => {
   type At<T> = T extends { kind: "at" } ? T : never;
   const expectKindAt: <T extends CursorInfo>(
-    cursorInfo: T
+    cursorInfo: T,
   ) => asserts cursorInfo is At<T> = (cursorInfo) => {
     expect(cursorInfo.kind).toEqual("at");
   };
@@ -146,7 +146,7 @@ describe("cursorInfo", () => {
 
     it("SELECT    col   \n  FROM tbl   \n  WHERE ^", () => {
       const [query, caretPosition] = prepareQuery(
-        "SELECT    col   \n  FROM tbl   \n  WHERE ^"
+        "SELECT    col   \n  FROM tbl   \n  WHERE ^",
       );
       const { parseTree } = getAutocompleteParseTree(query);
       const actual = computeCursorInfo(parseTree, caretPosition)!;
@@ -176,7 +176,7 @@ describe("cursorInfo", () => {
     // Validates handling of missing inserted token ("JOIN")
     it("SELECT * FROM tbl LEFT OUTER tbl2 ^", () => {
       const [query, cursorQueryPosition] = prepareQuery(
-        "SELECT * FROM tbl LEFT OUTER tbl2 ^"
+        "SELECT * FROM tbl LEFT OUTER tbl2 ^",
       );
       const { parseTree } = getAutocompleteParseTree(query);
       const actual = computeCursorInfo(parseTree, cursorQueryPosition)!;
@@ -193,7 +193,7 @@ describe("cursorInfo", () => {
       expect(actual.tokenIndex).toBe(3);
       expect(actual.priorTerminals.length).toBe(3);
       expect(actual.terminal.symbol.type).toBe(
-        LiveEditParser.QUOTED_IDENTIFIER
+        LiveEditParser.QUOTED_IDENTIFIER,
       );
       expect(actual.prefix).toEqual("");
       expect(actual.isQuoted).toBe(true);
@@ -207,7 +207,7 @@ describe("cursorInfo", () => {
       expect(actual.tokenIndex).toBe(3);
       expect(actual.priorTerminals.length).toBe(3);
       expect(actual.terminal.symbol.type).toBe(
-        LiveEditParser.QUOTED_IDENTIFIER
+        LiveEditParser.QUOTED_IDENTIFIER,
       );
       expect(actual.prefix).toEqual("S");
       expect(actual.isQuoted).toBe(true);
@@ -215,7 +215,7 @@ describe("cursorInfo", () => {
 
     it('UPDATE tbl AS aliased S^"', () => {
       const [query, cursorQueryPosition] = prepareQuery(
-        "UPDATE tbl AS aliased S^"
+        "UPDATE tbl AS aliased S^",
       );
       const { parseTree } = getAutocompleteParseTree(query);
       const actual = computeCursorInfo(parseTree, cursorQueryPosition)!;

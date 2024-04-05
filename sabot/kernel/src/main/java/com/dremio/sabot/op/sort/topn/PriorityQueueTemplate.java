@@ -15,14 +15,6 @@
  */
 package com.dremio.sabot.op.sort.topn;
 
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Named;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Schema;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.RecordBatchData;
@@ -34,12 +26,18 @@ import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Named;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 public abstract class PriorityQueueTemplate implements PriorityQueue {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PriorityQueueTemplate.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PriorityQueueTemplate.class);
 
-  private SelectionVector4 heapSv4; //This holds the heap
-  private SelectionVector4 finalSv4; //This is for final sorted output
+  private SelectionVector4 heapSv4; // This holds the heap
+  private SelectionVector4 finalSv4; // This is for final sorted output
   private Sv4HyperContainer hyperBatch;
   private FunctionContext context;
   private BufferAllocator allocator;
@@ -50,7 +48,13 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
   private int maxSize;
 
   @Override
-  public void init(Sv4HyperContainer hyperBatch, int limit, FunctionContext context, BufferAllocator allocator,  boolean hasSv2, int maxSize) {
+  public void init(
+      Sv4HyperContainer hyperBatch,
+      int limit,
+      FunctionContext context,
+      BufferAllocator allocator,
+      boolean hasSv2,
+      int maxSize) {
     this.limit = limit;
     this.context = context;
     this.allocator = allocator;
@@ -86,10 +90,10 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
   }
 
   @Override
-  public void add(RecordBatchData batch) throws SchemaChangeException{
+  public void add(RecordBatchData batch) throws SchemaChangeException {
     Stopwatch watch = Stopwatch.createStarted();
 
-    hyperBatch.addBatch(batch.getContainer());
+    hyperBatch.addBatch(batch.getVectorAccessible());
 
     doSetup(context, hyperBatch, null);
 
@@ -98,7 +102,7 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
     if (hasSv2) {
       sv2 = batch.getSv2();
     }
-    for (; queueSize < limit && count < batch.getRecordCount();  count++) {
+    for (; queueSize < limit && count < batch.getRecordCount(); count++) {
       heapSv4.set(queueSize, batchCount, hasSv2 ? sv2.getIndex(count) : count);
       queueSize++;
       siftUp();
@@ -125,7 +129,10 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
     for (int i = queueSize - 1; i >= 0; i--) {
       finalSv4.set(i, pop());
     }
-    logger.debug("Took {} us to generate output of {}", watch.elapsed(TimeUnit.MICROSECONDS), finalSv4.getTotalCount());
+    logger.debug(
+        "Took {} us to generate output of {}",
+        watch.elapsed(TimeUnit.MICROSECONDS),
+        finalSv4.getTotalCount());
   }
 
   @Override
@@ -145,9 +152,9 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
 
   @Override
   public void close() {
-    try{
+    try {
       AutoCloseables.close(heapSv4, hyperBatch, finalSv4);
-    }catch(Exception ex){
+    } catch (Exception ex) {
       throw Throwables.propagate(ex);
     }
   }
@@ -206,7 +213,11 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
     return doEval(sv1, sv2);
   }
 
-  public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
-  public abstract int doEval(@Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("incoming") VectorAccessible incoming,
+      @Named("outgoing") VectorAccessible outgoing);
 
+  public abstract int doEval(
+      @Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
 }

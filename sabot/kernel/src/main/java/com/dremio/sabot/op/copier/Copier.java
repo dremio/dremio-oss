@@ -21,10 +21,15 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 
 public interface Copier extends AutoCloseable {
-  public static TemplateClassDefinition<Copier> TEMPLATE_DEFINITION2 = new TemplateClassDefinition<Copier>(Copier.class, CopierTemplate2.class);
-  public static TemplateClassDefinition<Copier> TEMPLATE_DEFINITION4 = new TemplateClassDefinition<Copier>(Copier.class, CopierTemplate4.class);
+  public static TemplateClassDefinition<Copier> TEMPLATE_DEFINITION2 =
+      new TemplateClassDefinition<Copier>(Copier.class, CopierTemplate2.class);
+  public static TemplateClassDefinition<Copier> TEMPLATE_DEFINITION4 =
+      new TemplateClassDefinition<Copier>(Copier.class, CopierTemplate4.class);
 
-  public void setupRemover(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing) throws SchemaChangeException;
+  public void setupRemover(
+      FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing)
+      throws SchemaChangeException;
+
   public abstract int copyRecords(int index, int recordCount);
 
   default long getOOMCountDuringAllocation() {
@@ -32,6 +37,7 @@ public interface Copier extends AutoCloseable {
   }
 
   default void setAllocationDensity(double density) {}
+
   default long getOOMCountDuringCopy() {
     return 0;
   }

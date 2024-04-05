@@ -28,13 +28,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-import java.util.Collections;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -44,10 +37,13 @@ import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValueProtoList;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Arrays;
+import java.util.Collections;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
-/**
- * Tests for {@link SystemOptionManager}
- */
+/** Tests for {@link SystemOptionManager} */
 public class TestSystemOptionManager extends DremioTest {
   private SystemOptionManager som;
   private LegacyKVStore<String, OptionValueProtoList> kvStore;
@@ -62,24 +58,24 @@ public class TestSystemOptionManager extends DremioTest {
 
     kvStore = mock(LegacyKVStore.class);
     LegacyKVStoreProvider storeProvider = mock(LegacyKVStoreProvider.class);
-    when(storeProvider.getStore(SystemOptionManager.OptionStoreCreator.class))
-      .thenReturn(kvStore);
+    when(storeProvider.getStore(SystemOptionManager.OptionStoreCreator.class)).thenReturn(kvStore);
 
     LegacyKVStore mockedEmptyKVStore = mock(LegacyKVStore.class);
 
     when(mockedEmptyKVStore.find()).thenReturn(Collections.emptyList());
     when(storeProvider.getStore(SystemOptionManager.LegacyProtoOptionStoreCreator.class))
-      .thenReturn(mockedEmptyKVStore);
+        .thenReturn(mockedEmptyKVStore);
     when(storeProvider.getStore(SystemOptionManager.LegacyJacksonOptionStoreCreator.class))
-      .thenReturn(mockedEmptyKVStore);
+        .thenReturn(mockedEmptyKVStore);
 
     som = spy(new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, false));
     som.start();
-    reset(kvStore); //clearInvocations
+    reset(kvStore); // clearInvocations
   }
 
   private OptionValue registerTestOption(OptionValue.Kind kind, String name, String defaultValue) {
-    OptionValue defaultOptionValue = OptionValue.createOption(kind, OptionValue.OptionType.SYSTEM, name, defaultValue);
+    OptionValue defaultOptionValue =
+        OptionValue.createOption(kind, OptionValue.OptionType.SYSTEM, name, defaultValue);
     OptionValidator optionValidator = mock(OptionValidator.class);
     when(optionValidator.getDefault()).thenReturn(defaultOptionValue);
     doReturn(optionValidator).when(optionValidatorListing).getValidator(name);
@@ -91,10 +87,13 @@ public class TestSystemOptionManager extends DremioTest {
   public void testGet() {
     registerTestOption(OptionValue.Kind.LONG, "test-option", "0");
 
-    OptionValue optionValue = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option", 123);
-    OptionValueProtoList optionList = OptionValueProtoList.newBuilder()
-      .addAllOptions(Collections.singletonList(OptionValueProtoUtils.toOptionValueProto(optionValue)))
-      .build();
+    OptionValue optionValue =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option", 123);
+    OptionValueProtoList optionList =
+        OptionValueProtoList.newBuilder()
+            .addAllOptions(
+                Collections.singletonList(OptionValueProtoUtils.toOptionValueProto(optionValue)))
+            .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
     assertEquals(optionValue, som.getOption(optionValue.getName()));
@@ -105,15 +104,21 @@ public class TestSystemOptionManager extends DremioTest {
 
   @Test
   public void testSet() {
-    registerTestOption(OptionValue.Kind.LONG, "already-added-option",  "0");
-    OptionValue toAddOptionDefault = registerTestOption(OptionValue.Kind.STRING, "to-add-option",  "default-value");
+    registerTestOption(OptionValue.Kind.LONG, "already-added-option", "0");
+    OptionValue toAddOptionDefault =
+        registerTestOption(OptionValue.Kind.STRING, "to-add-option", "default-value");
 
-    OptionValue alreadyAddedOption = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "already-added-option", 123);
-    OptionValue toAddOption = OptionValue.createString(OptionValue.OptionType.SYSTEM, "to-add-option", "some-value");
+    OptionValue alreadyAddedOption =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "already-added-option", 123);
+    OptionValue toAddOption =
+        OptionValue.createString(OptionValue.OptionType.SYSTEM, "to-add-option", "some-value");
 
-    OptionValueProtoList optionList = OptionValueProtoList.newBuilder()
-      .addAllOptions(Collections.singletonList(OptionValueProtoUtils.toOptionValueProto(alreadyAddedOption)))
-      .build();
+    OptionValueProtoList optionList =
+        OptionValueProtoList.newBuilder()
+            .addAllOptions(
+                Collections.singletonList(
+                    OptionValueProtoUtils.toOptionValueProto(alreadyAddedOption)))
+            .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
     // Re-adding same option should exit early
@@ -126,35 +131,45 @@ public class TestSystemOptionManager extends DremioTest {
 
     // regular add option
     som.setOption(toAddOption);
-    ArgumentCaptor<OptionValueProtoList> argument = ArgumentCaptor.forClass(OptionValueProtoList.class);
+    ArgumentCaptor<OptionValueProtoList> argument =
+        ArgumentCaptor.forClass(OptionValueProtoList.class);
     verify(kvStore, times(1)).put(eq(OPTIONS_KEY), argument.capture());
     assertThat(argument.getValue().getOptionsList())
-      .contains(OptionValueProtoUtils.toOptionValueProto(toAddOption),
-        OptionValueProtoUtils.toOptionValueProto(alreadyAddedOption));
+        .contains(
+            OptionValueProtoUtils.toOptionValueProto(toAddOption),
+            OptionValueProtoUtils.toOptionValueProto(alreadyAddedOption));
 
     // Overriding an option
-    OptionValue overridingOption = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "already-added-option", 999);
+    OptionValue overridingOption =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "already-added-option", 999);
     som.setOption(overridingOption);
-    verify(kvStore, times(1)).put(OPTIONS_KEY,
-      OptionValueProtoList.newBuilder()
-        .addAllOptions(Collections.singletonList(OptionValueProtoUtils.toOptionValueProto(overridingOption)))
-        .build()
-    );
+    verify(kvStore, times(1))
+        .put(
+            OPTIONS_KEY,
+            OptionValueProtoList.newBuilder()
+                .addAllOptions(
+                    Collections.singletonList(
+                        OptionValueProtoUtils.toOptionValueProto(overridingOption)))
+                .build());
   }
 
   @Test
   public void testDelete() {
-    registerTestOption(OptionValue.Kind.LONG, "added-option-0",  "0");
-    registerTestOption(OptionValue.Kind.LONG, "added-option-1",  "1");
-    registerTestOption(OptionValue.Kind.STRING, "not-added-option",  "default-value");
+    registerTestOption(OptionValue.Kind.LONG, "added-option-0", "0");
+    registerTestOption(OptionValue.Kind.LONG, "added-option-1", "1");
+    registerTestOption(OptionValue.Kind.STRING, "not-added-option", "default-value");
 
-    OptionValue optionValue0 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "added-option-0", 100);
-    OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "added-option-1", 111);
-    OptionValueProtoList optionList = OptionValueProtoList.newBuilder()
-      .addAllOptions(Arrays.asList(
-        OptionValueProtoUtils.toOptionValueProto(optionValue0),
-        OptionValueProtoUtils.toOptionValueProto(optionValue1)))
-      .build();
+    OptionValue optionValue0 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "added-option-0", 100);
+    OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "added-option-1", 111);
+    OptionValueProtoList optionList =
+        OptionValueProtoList.newBuilder()
+            .addAllOptions(
+                Arrays.asList(
+                    OptionValueProtoUtils.toOptionValueProto(optionValue0),
+                    OptionValueProtoUtils.toOptionValueProto(optionValue1)))
+            .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
     // Attempt to option that is not in som should exit early
@@ -163,11 +178,14 @@ public class TestSystemOptionManager extends DremioTest {
 
     // regular delete option
     som.deleteOption("added-option-0", OptionValue.OptionType.SYSTEM);
-    verify(kvStore, times(1)).put(OPTIONS_KEY,
-      OptionValueProtoList.newBuilder()
-      .addAllOptions(Collections.singletonList(OptionValueProtoUtils.toOptionValueProto(optionValue1)))
-      .build()
-    );
+    verify(kvStore, times(1))
+        .put(
+            OPTIONS_KEY,
+            OptionValueProtoList.newBuilder()
+                .addAllOptions(
+                    Collections.singletonList(
+                        OptionValueProtoUtils.toOptionValueProto(optionValue1)))
+                .build());
   }
 
   @Test
@@ -175,21 +193,24 @@ public class TestSystemOptionManager extends DremioTest {
     registerTestOption(OptionValue.Kind.LONG, "test-option-0", "0");
     registerTestOption(OptionValue.Kind.LONG, "test-option-1", "1");
 
-    OptionValue optionValue0 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-0", 100);
-    OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-1", 111);
-    OptionValueProtoList optionList = OptionValueProtoList.newBuilder()
-      .addAllOptions(Arrays.asList(
-        OptionValueProtoUtils.toOptionValueProto(optionValue0),
-        OptionValueProtoUtils.toOptionValueProto(optionValue1)))
-      .build();
+    OptionValue optionValue0 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-0", 100);
+    OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-1", 111);
+    OptionValueProtoList optionList =
+        OptionValueProtoList.newBuilder()
+            .addAllOptions(
+                Arrays.asList(
+                    OptionValueProtoUtils.toOptionValueProto(optionValue0),
+                    OptionValueProtoUtils.toOptionValueProto(optionValue1)))
+            .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
     som.deleteAllOptions(OptionValue.OptionType.SYSTEM);
-    verify(kvStore, times(1)).put(OPTIONS_KEY,
-      OptionValueProtoList.newBuilder()
-        .addAllOptions(Collections.emptyList())
-        .build()
-    );
+    verify(kvStore, times(1))
+        .put(
+            OPTIONS_KEY,
+            OptionValueProtoList.newBuilder().addAllOptions(Collections.emptyList()).build());
   }
 
   @Test
@@ -197,14 +218,18 @@ public class TestSystemOptionManager extends DremioTest {
     registerTestOption(OptionValue.Kind.LONG, "test-option-0", "0");
     registerTestOption(OptionValue.Kind.LONG, "test-option-1", "1");
 
-    OptionValue optionValue0 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-0", 100);
-    OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-1", 111);
+    OptionValue optionValue0 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-0", 100);
+    OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-1", 111);
 
-    OptionValueProtoList optionList = OptionValueProtoList.newBuilder()
-      .addAllOptions(Arrays.asList(
-        OptionValueProtoUtils.toOptionValueProto(optionValue0),
-        OptionValueProtoUtils.toOptionValueProto(optionValue1)))
-      .build();
+    OptionValueProtoList optionList =
+        OptionValueProtoList.newBuilder()
+            .addAllOptions(
+                Arrays.asList(
+                    OptionValueProtoUtils.toOptionValueProto(optionValue0),
+                    OptionValueProtoUtils.toOptionValueProto(optionValue1)))
+            .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
     assertThat(som.getNonDefaultOptions()).contains(optionValue0, optionValue1);
@@ -215,14 +240,18 @@ public class TestSystemOptionManager extends DremioTest {
     registerTestOption(OptionValue.Kind.LONG, "test-option-0", "0");
     registerTestOption(OptionValue.Kind.LONG, "test-option-1", "1");
 
-    OptionValue optionValue0 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-0", 100);
-    OptionValue optionValue1 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-1", 111);
+    OptionValue optionValue0 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-0", 100);
+    OptionValue optionValue1 =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "test-option-1", 111);
 
-    OptionValueProtoList optionList = OptionValueProtoList.newBuilder()
-      .addAllOptions(Arrays.asList(
-        OptionValueProtoUtils.toOptionValueProto(optionValue0),
-        OptionValueProtoUtils.toOptionValueProto(optionValue1)))
-      .build();
+    OptionValueProtoList optionList =
+        OptionValueProtoList.newBuilder()
+            .addAllOptions(
+                Arrays.asList(
+                    OptionValueProtoUtils.toOptionValueProto(optionValue0),
+                    OptionValueProtoUtils.toOptionValueProto(optionValue1)))
+            .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
     assertThat(som.iterator()).toIterable().contains(optionValue0, optionValue1);
@@ -233,10 +262,13 @@ public class TestSystemOptionManager extends DremioTest {
     registerTestOption(OptionValue.Kind.LONG, "set-option", "0");
     registerTestOption(OptionValue.Kind.LONG, "not-set-option", "1");
 
-    OptionValue optionValue = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "set-option", 123);
-    OptionValueProtoList optionList = OptionValueProtoList.newBuilder()
-      .addAllOptions(Collections.singletonList(OptionValueProtoUtils.toOptionValueProto(optionValue)))
-      .build();
+    OptionValue optionValue =
+        OptionValue.createLong(OptionValue.OptionType.SYSTEM, "set-option", 123);
+    OptionValueProtoList optionList =
+        OptionValueProtoList.newBuilder()
+            .addAllOptions(
+                Collections.singletonList(OptionValueProtoUtils.toOptionValueProto(optionValue)))
+            .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
     assertThat(som.isSet("set-option")).isTrue();

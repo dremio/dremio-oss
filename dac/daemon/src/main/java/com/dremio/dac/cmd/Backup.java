@@ -15,21 +15,6 @@
  */
 package com.dremio.dac.cmd;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.security.GeneralSecurityException;
-import java.util.Optional;
-
-import javax.inject.Provider;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.immutables.value.Value;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -50,115 +35,162 @@ import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.CredentialsServiceImpl;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.security.GeneralSecurityException;
+import java.util.Optional;
+import javax.inject.Provider;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Backup command line.
- */
+/** Backup command line. */
 @AdminCommand(value = "backup", description = "Backs up Dremio metadata and user-uploaded files")
 public class Backup {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Backup.class);
 
-  /**
-   * Command line options for backup
-   */
+  /** Command line options for backup */
   @Parameters(separators = "=")
   static final class BackupManagerOptions {
-    @Parameter(names = { "-h", "--help" }, description = "show usage", help = true)
+    @Parameter(
+        names = {"-h", "--help"},
+        description = "show usage",
+        help = true)
     private boolean help = false;
 
-    @Parameter(names = { "-d", "--backupdir" }, description = "backup directory path. for example, " +
-      "/mnt/dremio/backups or hdfs://$namenode:8020/dremio/backups", required = true)
+    @Parameter(
+        names = {"-d", "--backupdir"},
+        description =
+            "backup directory path. for example, "
+                + "/mnt/dremio/backups or hdfs://$namenode:8020/dremio/backups",
+        required = true)
     private String backupDir = null;
 
-    @Parameter(names = { "-l", "--local-attach" }, description = "Attach locally to Dremio JVM to authenticate user. " +
-      "Not compatible with user/password options")
+    @Parameter(
+        names = {"-l", "--local-attach"},
+        description =
+            "Attach locally to Dremio JVM to authenticate user. "
+                + "Not compatible with user/password options")
     private boolean localAttach = false;
 
-    @Parameter(names = { "-u", "--user" }, description = "username (admin)")
+    @Parameter(
+        names = {"-u", "--user"},
+        description = "username (admin)")
     private String userName = null;
 
-    @Parameter(names = { "-p", "--password" }, description = "password", password = true)
+    @Parameter(
+        names = {"-p", "--password"},
+        description = "password",
+        password = true)
     private String password = null;
 
-    @Parameter(names = { "-a", "--accept-all" }, description = "accept all ssl certificates")
+    @Parameter(
+        names = {"-a", "--accept-all"},
+        description = "accept all ssl certificates")
     private boolean acceptAll = false;
 
-    @Parameter(names = { "-j", "--json" }, description = "do json backup (defaults to binary)")
+    @Parameter(
+        names = {"-j", "--json"},
+        description = "do json backup (defaults to binary)")
     private boolean json = false;
 
-    @Parameter(names = { "-i", "--include-profiles" }, description = "include profiles in backup")
+    @Parameter(
+        names = {"-i", "--include-profiles"},
+        description = "include profiles in backup")
     private boolean profiles = false;
 
-    @Parameter(names = { "-s", "--same-process" }, description = "execute backup using the same process as " +
-      "dremio-admin and not Dremio Server process. This option should only be used with user/password options",
-      hidden = true)
+    @Parameter(
+        names = {"-s", "--same-process"},
+        description =
+            "execute backup using the same process as "
+                + "dremio-admin and not Dremio Server process. This option should only be used with user/password options",
+        hidden = true)
     private boolean sameProcess = false;
 
-    @Parameter(names = {"-c", "--compression"}, description = "choose backup compression method. Available options : " +
-      "snappy,lz4.", hidden = true)
+    @Parameter(
+        names = {"-c", "--compression"},
+        description = "choose backup compression method. Available options : " + "snappy,lz4.",
+        hidden = true)
     private String compression = "";
 
-    @Parameter(names = {"-t", "--table"}, description = "backup only the table provided. Only works for \"json\" "
-      + "backup (this backup cannot be restored)", hidden = true)
+    @Parameter(
+        names = {"-t", "--table"},
+        description =
+            "backup only the table provided. Only works for \"json\" "
+                + "backup (this backup cannot be restored)",
+        hidden = true)
     private String table = "";
 
-    @Parameter(names = {"-k", "--key"}, description = "backup only the specified key. The table parameter is "
-      + "required when using this parameter. (this backup cannot be restored)", hidden = true)
+    @Parameter(
+        names = {"-k", "--key"},
+        description =
+            "backup only the specified key. The table parameter is "
+                + "required when using this parameter. (this backup cannot be restored)",
+        hidden = true)
     private String key = "";
-
   }
 
   public static BackupStats createBackup(
-    DACConfig dacConfig,
-    Provider<CredentialsService> credentialsServiceProvider,
-    String userName,
-    String password,
-    boolean checkSSLCertificates,
-    URI uri,
-    boolean binary,
-    boolean includeProfiles,
-    String compression,
-    String tableToBackup,
-    String key
-  ) throws IOException, GeneralSecurityException {
-    final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password,
-      checkSSLCertificates);
-    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, compression, tableToBackup, key);
+      DACConfig dacConfig,
+      Provider<CredentialsService> credentialsServiceProvider,
+      String userName,
+      String password,
+      boolean checkSSLCertificates,
+      URI uri,
+      boolean binary,
+      boolean includeProfiles,
+      String compression,
+      String tableToBackup,
+      String key)
+      throws IOException, GeneralSecurityException {
+    final WebClient client =
+        new WebClient(
+            dacConfig, credentialsServiceProvider, userName, password, checkSSLCertificates);
+    BackupOptions options =
+        new BackupOptions(uri.toString(), binary, includeProfiles, compression, tableToBackup, key);
     return client.buildPost(BackupStats.class, "/backup", options);
   }
 
   static CheckpointInfo createCheckpoint(
-    DACConfig dacConfig,
-    Provider<CredentialsService> credentialsServiceProvider,
-    String userName,
-    String password,
-    boolean checkSSLCertificates,
-    URI uri,
-    boolean binary,
-    boolean includeProfiles
-  ) throws IOException, GeneralSecurityException {
-    final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password,
-      checkSSLCertificates);
+      DACConfig dacConfig,
+      Provider<CredentialsService> credentialsServiceProvider,
+      String userName,
+      String password,
+      boolean checkSSLCertificates,
+      URI uri,
+      boolean binary,
+      boolean includeProfiles)
+      throws IOException, GeneralSecurityException {
+    final WebClient client =
+        new WebClient(
+            dacConfig, credentialsServiceProvider, userName, password, checkSSLCertificates);
     BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, "", "", "");
     return client.buildPost(CheckpointInfo.class, "/backup/checkpoint", options);
   }
 
   static BackupStats uploadsBackup(
-    DACConfig dacConfig,
-    Provider<CredentialsService> credentialsServiceProvider,
-    String userName,
-    String password,
-    boolean checkSSLCertificates,
-    URI uri,
-    boolean includeProfiles
-  ) throws IOException, GeneralSecurityException {
-    final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password,
-      checkSSLCertificates);
-    BackupResource.UploadsBackupOptions options = new ImmutableUploadsBackupOptions.Builder()
-      .setBackupDestinationDirectory(uri.toString())
-      .setIsIncludeProfiles(includeProfiles)
-      .build();
+      DACConfig dacConfig,
+      Provider<CredentialsService> credentialsServiceProvider,
+      String userName,
+      String password,
+      boolean checkSSLCertificates,
+      URI uri,
+      boolean includeProfiles)
+      throws IOException, GeneralSecurityException {
+    final WebClient client =
+        new WebClient(
+            dacConfig, credentialsServiceProvider, userName, password, checkSSLCertificates);
+    BackupResource.UploadsBackupOptions options =
+        new ImmutableUploadsBackupOptions.Builder()
+            .setBackupDestinationDirectory(uri.toString())
+            .setIsIncludeProfiles(includeProfiles)
+            .build();
     return client.buildPost(BackupStats.class, "/backup/uploads", options);
   }
 
@@ -194,7 +226,7 @@ public class Backup {
       return result.setExitStatus(1).build();
     }
 
-    if(options.help) {
+    if (options.help) {
       jc.usage();
       return result.setExitStatus(0).build();
     }
@@ -207,7 +239,8 @@ public class Backup {
 
     final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
     final ScanResult scanResult = ClassPathScanner.fromPrescan(sabotConfig);
-    try (CredentialsService credentialsService = CredentialsService.newInstance(dacConfig.getConfig(), scanResult)) {
+    try (CredentialsService credentialsService =
+        CredentialsServiceImpl.newInstance(dacConfig.getConfig(), scanResult)) {
       if (!dacConfig.isMaster) {
         throw new UnsupportedOperationException("Backup should be ran on master node. ");
       }
@@ -224,12 +257,17 @@ public class Backup {
 
       if (options.localAttach) {
         LOGGER.info("Running backup attaching to existing Dremio Server processes");
-        String[] backupArgs = {"backup",options.backupDir, Boolean.toString(!options.json), Boolean.toString(options.profiles)};
+        String[] backupArgs = {
+          "backup",
+          options.backupDir,
+          Boolean.toString(!options.json),
+          Boolean.toString(options.profiles)
+        };
         try {
           DremioAttach.main(backupArgs);
         } catch (NoClassDefFoundError error) {
           AdminLogger.log(
-            "A JDK is required to use local-attach mode. Please make sure JAVA_HOME is correctly configured");
+              "A JDK is required to use local-attach mode. Please make sure JAVA_HOME is correctly configured");
         }
       } else {
         if (options.userName == null) {
@@ -254,16 +292,30 @@ public class Backup {
 
         if (!options.sameProcess) {
           LOGGER.info("Running backup using REST API");
-          BackupStats backupStats = createBackup(dacConfig, () -> credService, options.userName, options.password,
-            checkSSLCertificates, target, !options.json, options.profiles, options.compression,
-            options.table, options.key);
-          AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
-            backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
+          BackupStats backupStats =
+              createBackup(
+                  dacConfig,
+                  () -> credService,
+                  options.userName,
+                  options.password,
+                  checkSSLCertificates,
+                  target,
+                  !options.json,
+                  options.profiles,
+                  options.compression,
+                  options.table,
+                  options.key);
+          AdminLogger.log(
+              "Backup created at {}, dremio tables {}, uploaded files {}",
+              backupStats.getBackupPath(),
+              backupStats.getTables(),
+              backupStats.getFiles());
           result.setBackupStats(backupStats);
         } else {
           LOGGER.info("Running backup using Admin CLI process");
-          result.setBackupStats(backupUsingCliProcess(dacConfig, options, credentialsService, target,
-            checkSSLCertificates));
+          result.setBackupStats(
+              backupUsingCliProcess(
+                  dacConfig, options, credentialsService, target, checkSSLCertificates));
         }
       }
       return result.setExitStatus(0).build();
@@ -273,40 +325,70 @@ public class Backup {
     }
   }
 
-  private static BackupStats backupUsingCliProcess(DACConfig dacConfig, BackupManagerOptions options,
-    CredentialsService credentialsService, URI target, boolean checkSSLCertificates) throws Exception {
+  private static BackupStats backupUsingCliProcess(
+      DACConfig dacConfig,
+      BackupManagerOptions options,
+      CredentialsService credentialsService,
+      URI target,
+      boolean checkSSLCertificates)
+      throws Exception {
 
     CheckpointInfo checkpoint = null;
     try {
-      //backup using same process is a 3 steps process: create DB checkpoint, backup uploads and backup DB
-      checkpoint = createCheckpoint(dacConfig, () -> credentialsService, options.userName,
-        options.password,
-        checkSSLCertificates, target, !options.json, !options.profiles);
+      // backup using same process is a 3 steps process: create DB checkpoint, backup uploads and
+      // backup DB
+      checkpoint =
+          createCheckpoint(
+              dacConfig,
+              () -> credentialsService,
+              options.userName,
+              options.password,
+              checkSSLCertificates,
+              target,
+              !options.json,
+              !options.profiles);
       AdminLogger.log("Checkpoint created");
 
-
       final Path backupDestinationDirPath = Path.of(checkpoint.getBackupDestinationDir());
-      final FileSystem fs = HadoopFileSystem.get(backupDestinationDirPath,
-        new Configuration());
-      final BackupOptions backupOptions = new BackupOptions(checkpoint.getBackupDestinationDir(), !options.json,
-        options.profiles, options.compression, options.table, options.key);
+      final FileSystem fs = HadoopFileSystem.get(backupDestinationDirPath, new Configuration());
+      final BackupOptions backupOptions =
+          new BackupOptions(
+              checkpoint.getBackupDestinationDir(),
+              !options.json,
+              options.profiles,
+              options.compression,
+              options.table,
+              options.key);
 
       final Optional<LocalKVStoreProvider> optionalKvStoreProvider =
-        CmdUtils.getReadOnlyKVStoreProvider(dacConfig.getConfig().withValue(DremioConfig.DB_PATH_STRING,
-          checkpoint.getCheckpointPath()));
+          CmdUtils.getReadOnlyKVStoreProvider(
+              dacConfig
+                  .getConfig()
+                  .withValue(DremioConfig.DB_PATH_STRING, checkpoint.getCheckpointPath()));
       if (!optionalKvStoreProvider.isPresent()) {
         throw new IllegalStateException("No KVStore detected");
       }
 
       try (final LocalKVStoreProvider localKVStoreProvider = optionalKvStoreProvider.get()) {
         localKVStoreProvider.start();
-        final BackupStats tablesBackupStats = BackupRestoreUtil.createBackup(fs, backupOptions,
-          localKVStoreProvider, null, checkpoint);
-        final BackupStats uploadsBackupStats = uploadsBackup(dacConfig, () -> credentialsService, options.userName,
-          options.password, checkSSLCertificates, backupDestinationDirPath.toURI(), options.profiles);
+        final BackupStats tablesBackupStats =
+            BackupRestoreUtil.createBackup(
+                fs, backupOptions, localKVStoreProvider, null, checkpoint);
+        final BackupStats uploadsBackupStats =
+            uploadsBackup(
+                dacConfig,
+                () -> credentialsService,
+                options.userName,
+                options.password,
+                checkSSLCertificates,
+                backupDestinationDirPath.toURI(),
+                options.profiles);
         final BackupStats backupStats = merge(uploadsBackupStats, tablesBackupStats);
-        AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
-          backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
+        AdminLogger.log(
+            "Backup created at {}, dremio tables {}, uploaded files {}",
+            backupStats.getBackupPath(),
+            backupStats.getTables(),
+            backupStats.getFiles());
         return backupStats;
       }
     } finally {
@@ -317,7 +399,8 @@ public class Backup {
   }
 
   private static BackupStats merge(BackupStats uploadStats, BackupStats tablesStats) {
-    return new BackupStats(uploadStats.getBackupPath(), tablesStats.getTables(), uploadStats.getFiles());
+    return new BackupStats(
+        uploadStats.getBackupPath(), tablesStats.getTables(), uploadStats.getFiles());
   }
 
   @Value.Immutable
@@ -326,7 +409,5 @@ public class Backup {
     int getExitStatus();
 
     Optional<BackupStats> getBackupStats();
-
   }
-
 }

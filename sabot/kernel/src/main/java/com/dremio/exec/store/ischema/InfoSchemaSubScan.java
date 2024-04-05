@@ -15,10 +15,6 @@
  */
 package com.dremio.exec.store.ischema;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractSubScan;
@@ -30,6 +26,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 @JsonTypeName("ischema")
 public class InfoSchemaSubScan extends AbstractSubScan {
@@ -46,10 +45,11 @@ public class InfoSchemaSubScan extends AbstractSubScan {
       @JsonProperty("table") InformationSchemaTable table,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("query") SearchQuery query,
-      @JsonProperty("pluginId") StoragePluginId pluginId
-      ) {
-    super (props, InformationSchemaTable.valueOf(table.name()).getRecordSchema(),
-      Arrays.asList("INFORMATION_SCHEMA", table.name()));
+      @JsonProperty("pluginId") StoragePluginId pluginId) {
+    super(
+        props,
+        InformationSchemaTable.valueOf(table.name()).getRecordSchema(),
+        Arrays.asList("INFORMATION_SCHEMA", table.name()));
     this.table = table;
     this.columns = columns;
     this.query = query;

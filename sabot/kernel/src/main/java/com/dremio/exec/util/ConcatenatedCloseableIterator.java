@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.util;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.CloseableIterator;
+import com.google.common.collect.Iterators;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.util.CloseableIterator;
-import com.google.common.collect.Iterators;
 
 /**
  * A {@link CloseableIterator} which concats multiple iterators and closes Autocloseables among them
@@ -31,33 +30,34 @@ import com.google.common.collect.Iterators;
  */
 public class ConcatenatedCloseableIterator<T> implements CloseableIterator<T> {
 
-    private final Iterator<T> delegate;
-    private final List<AutoCloseable> closeables;
+  private final Iterator<T> delegate;
+  private final List<AutoCloseable> closeables;
 
-    public static <K> CloseableIterator<K> of(Iterator<K>... inputs) {
-        return new ConcatenatedCloseableIterator<>(inputs);
-    }
+  public static <K> CloseableIterator<K> of(Iterator<K>... inputs) {
+    return new ConcatenatedCloseableIterator<>(inputs);
+  }
 
-    private ConcatenatedCloseableIterator(Iterator<T>... inputs) {
-        closeables = Arrays.stream(inputs)
-                .filter(AutoCloseable.class::isInstance)
-                .map(AutoCloseable.class::cast)
-                .collect(Collectors.toList());
-        delegate = Iterators.concat(inputs);
-    }
+  private ConcatenatedCloseableIterator(Iterator<T>... inputs) {
+    closeables =
+        Arrays.stream(inputs)
+            .filter(AutoCloseable.class::isInstance)
+            .map(AutoCloseable.class::cast)
+            .collect(Collectors.toList());
+    delegate = Iterators.concat(inputs);
+  }
 
-    @Override
-    public boolean hasNext() {
-        return delegate.hasNext();
-    }
+  @Override
+  public boolean hasNext() {
+    return delegate.hasNext();
+  }
 
-    @Override
-    public T next() {
-        return delegate.next();
-    }
+  @Override
+  public T next() {
+    return delegate.next();
+  }
 
-    @Override
-    public void close() throws Exception {
-        AutoCloseables.close(closeables);
-    }
+  @Override
+  public void close() throws Exception {
+    AutoCloseables.close(closeables);
+  }
 }

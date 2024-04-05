@@ -16,27 +16,26 @@
 
 package com.dremio.exec.catalog;
 
-import java.util.Iterator;
-
 import com.dremio.service.catalog.Catalog;
 import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.catalog.View;
+import java.util.Iterator;
 
 /**
  * Facet of the catalog service that provides metadata with an information_schema like API.
- * <p>
- * The metadata provided may not satisfy the configured metadata policy requirement of various sources; the reads
- * are directly from the KVStore without an inline refresh of the metadata.
+ *
+ * <p>The metadata provided may not satisfy the configured metadata policy requirement of various
+ * sources; the reads are directly from the KVStore without an inline refresh of the metadata.
  */
 interface InformationSchemaCatalog {
 
   /**
    * List catalogs that satisfy the given search query.
    *
-   * @param searchQuery        search query, may be null
+   * @param searchQuery search query, may be null
    * @return iterator of catalogs
    */
   Iterator<Catalog> listCatalogs(SearchQuery searchQuery);
@@ -44,7 +43,7 @@ interface InformationSchemaCatalog {
   /**
    * List schemata that satisfy the given search query.
    *
-   * @param searchQuery        search query, may be null
+   * @param searchQuery search query, may be null
    * @return iterator of schemata
    */
   Iterator<Schema> listSchemata(SearchQuery searchQuery);
@@ -52,7 +51,7 @@ interface InformationSchemaCatalog {
   /**
    * List tables (datasets) that satisfy the given search query.
    *
-   * @param searchQuery        search query, may be null
+   * @param searchQuery search query, may be null
    * @return iterator of tables
    */
   Iterator<Table> listTables(SearchQuery searchQuery);
@@ -60,7 +59,7 @@ interface InformationSchemaCatalog {
   /**
    * List views that satisfy the given search query.
    *
-   * @param searchQuery        search query, may be null
+   * @param searchQuery search query, may be null
    * @return iterator of views
    */
   Iterator<View> listViews(SearchQuery searchQuery);
@@ -68,9 +67,8 @@ interface InformationSchemaCatalog {
   /**
    * List columns of all datasets that satisfy the given search query.
    *
-   * @param searchQuery        search query, may be null
+   * @param searchQuery search query, may be null
    * @return iterator of columns
    */
   Iterator<TableSchema> listTableSchemata(SearchQuery searchQuery);
-
 }

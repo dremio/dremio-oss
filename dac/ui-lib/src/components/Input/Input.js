@@ -77,7 +77,7 @@ const Input = (props) => {
     { [classes.container]: classes.container },
     { "--disabled": disabled },
     { "--error": hasError },
-    { "--focused": focused }
+    { "--focused": focused },
   );
   const inputClass = clsx({
     "--prefixed": prefix,
@@ -87,7 +87,7 @@ const Input = (props) => {
     "input__numberButtons",
     { "--disabled": disabled },
     { "--error": hasError },
-    { "--focused": focused }
+    { "--focused": focused },
   );
   const subtitleClass = clsx("subtitle", {
     [classes.subtitle]: classes.subtitle,
@@ -104,7 +104,7 @@ const Input = (props) => {
     setFocused(false);
     if (type === "number") {
       const commaSeparatedValue = Number(
-        values[name].replaceAll(",", "")
+        values[name].replaceAll(",", ""),
       ).toLocaleString();
       setFieldValue(name, commaSeparatedValue);
     }
@@ -115,7 +115,7 @@ const Input = (props) => {
 
   const handleChange = (event) => {
     const commaSeparatedValue = Number(
-      event.target.value.replaceAll(/\D/g, "")
+      event.target.value.replaceAll(/\D/g, ""),
     ).toLocaleString();
     event.target.value = commaSeparatedValue;
     formikHandleChange &&

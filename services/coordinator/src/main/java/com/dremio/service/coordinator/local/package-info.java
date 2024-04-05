@@ -13,7 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * A single-node "cluster coordinator" used when running Dremio locally.
- */
+/** A single-node "cluster coordinator" used when running Dremio locally. */
 package com.dremio.service.coordinator.local;

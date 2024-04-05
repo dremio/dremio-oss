@@ -15,10 +15,6 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.util.Locale;
-import java.util.Optional;
-import java.util.function.Supplier;
-
 import com.dremio.common.Version;
 import com.dremio.dac.explore.bi.TableauMessageBodyGenerator;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
@@ -30,10 +26,11 @@ import com.dremio.service.DirectProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.function.Supplier;
 
-/**
- * Task to set a valid default for Tableau export that retains values set on upgrade.
- */
+/** Task to set a valid default for Tableau export that retains values set on upgrade. */
 public class SetExportType extends UpgradeTask {
   // DO NOT MODIFY
   static final String taskUUID = "17bbcdda-68a1-40ee-8451-4db5958f5317";
@@ -52,15 +49,18 @@ public class SetExportType extends UpgradeTask {
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final Optional<ClusterIdentity> identity =
-      BasicSupportService.getClusterIdentity(context.getLegacyKVStoreProvider());
+        BasicSupportService.getClusterIdentity(context.getLegacyKVStoreProvider());
 
     final Version previousVersion = Upgrade.retrieveStoreVersion(identity.get());
 
-    final Supplier<SystemOptionManager> optionManagerSupplier = Suppliers.memoize(() ->
-      new SystemOptionManager(new OptionValidatorListingImpl(context.getScanResult()),
-        context.getLpPersistence(),
-        DirectProvider.wrap(context.getLegacyKVStoreProvider()),
-        false));
+    final Supplier<SystemOptionManager> optionManagerSupplier =
+        Suppliers.memoize(
+            () ->
+                new SystemOptionManager(
+                    new OptionValidatorListingImpl(context.getScanResult()),
+                    context.getLpPersistence(),
+                    DirectProvider.wrap(context.getLegacyKVStoreProvider()),
+                    false));
 
     updateOptionsIfNeeded(previousVersion, optionManagerSupplier, false);
   }
@@ -69,14 +69,18 @@ public class SetExportType extends UpgradeTask {
    * Add the Tableau export option to the given OptionManager. Note that if the option manager is
    * not already opened, it will lazily be initialized, opened, and closed.
    *
-   * @param previousVersion         The version of the KV store to check.
-   * @param optionManagerSupplier   The OptionManager to update. This is assumed to not be started and will be closed.
-   * @param isOptionManagerOpen     Indicates if the supplied option manager is already opened.
+   * @param previousVersion The version of the KV store to check.
+   * @param optionManagerSupplier The OptionManager to update. This is assumed to not be started and
+   *     will be closed.
+   * @param isOptionManagerOpen Indicates if the supplied option manager is already opened.
    * @return true if the Tableau export option was overridden.
    */
   @VisibleForTesting
-  static boolean updateOptionsIfNeeded(Version previousVersion, Supplier<SystemOptionManager> optionManagerSupplier,
-                                       boolean isOptionManagerOpen) throws Exception {
+  static boolean updateOptionsIfNeeded(
+      Version previousVersion,
+      Supplier<SystemOptionManager> optionManagerSupplier,
+      boolean isOptionManagerOpen)
+      throws Exception {
     // We write a default only when upgrading from versions older than 16.0.0.
     // The default is to keep the current setting for Tableau export for these older versions.
     // For versions newer, use the normal default for the option.
@@ -91,11 +95,15 @@ public class SetExportType extends UpgradeTask {
       }
 
       if (!optionManager.isSet(TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE.getOptionName())) {
-        final OptionValue regularTableauDefault = TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE.getDefault();
-        final OptionValue tableauExport = OptionValue.createString(
-          regularTableauDefault.getType(),
-          regularTableauDefault.getName(),
-          TableauMessageBodyGenerator.TableauExportType.ODBC.toString().toLowerCase(Locale.ROOT));
+        final OptionValue regularTableauDefault =
+            TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE.getDefault();
+        final OptionValue tableauExport =
+            OptionValue.createString(
+                regularTableauDefault.getType(),
+                regularTableauDefault.getName(),
+                TableauMessageBodyGenerator.TableauExportType.ODBC
+                    .toString()
+                    .toLowerCase(Locale.ROOT));
         optionManager.setOption(tableauExport);
         return true;
       }

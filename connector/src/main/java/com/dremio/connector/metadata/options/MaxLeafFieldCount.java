@@ -15,15 +15,15 @@
  */
 package com.dremio.connector.metadata.options;
 
-import java.util.stream.Stream;
-
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
+import java.util.stream.Stream;
 
 /**
- * Max leaf fields in the dataset. The connector may throw if a dataset exceeds this limit. TODO add exception
+ * Max leaf fields in the dataset. The connector may throw if a dataset exceeds this limit. TODO add
+ * exception
  */
 public class MaxLeafFieldCount extends IntMetadataOption
     implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {

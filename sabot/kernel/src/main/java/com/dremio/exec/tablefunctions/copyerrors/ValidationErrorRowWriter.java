@@ -16,11 +16,9 @@
 
 package com.dremio.exec.tablefunctions.copyerrors;
 
-
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
 import java.util.function.IntSupplier;
-
 import org.apache.arrow.vector.ValueVector;
 
 /**
@@ -30,22 +28,21 @@ import org.apache.arrow.vector.ValueVector;
 @FunctionalInterface
 public interface ValidationErrorRowWriter {
 
-    static ValidationErrorRowWriter newVectorWriter(
+  static ValidationErrorRowWriter newVectorWriter(
       ValueVector[] validationResult,
       String filePath,
       String originalJobId,
       IntSupplier batchPositionSupplier) {
-      return (fieldName, recordNumber, linePosition, error) -> {
-        int batchPosition = batchPositionSupplier.getAsInt();
-        writeToVector(validationResult[0], batchPosition, originalJobId);
-        writeToVector(validationResult[1], batchPosition, filePath);
-        writeToVector(validationResult[2], batchPosition, linePosition);
-        writeToVector(validationResult[3], batchPosition, recordNumber);
-        writeToVector(validationResult[4], batchPosition, fieldName);
-        writeToVector(validationResult[5], batchPosition, error);
-      };
-    }
+    return (fieldName, recordNumber, linePosition, error) -> {
+      int batchPosition = batchPositionSupplier.getAsInt();
+      writeToVector(validationResult[0], batchPosition, originalJobId);
+      writeToVector(validationResult[1], batchPosition, filePath);
+      writeToVector(validationResult[2], batchPosition, linePosition);
+      writeToVector(validationResult[3], batchPosition, recordNumber);
+      writeToVector(validationResult[4], batchPosition, fieldName);
+      writeToVector(validationResult[5], batchPosition, error);
+    };
+  }
 
-    void write(String fieldName, long recordNumber, long linePosition, String error);
-
+  void write(String fieldName, Long recordNumber, Long linePosition, String error);
 }

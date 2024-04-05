@@ -16,8 +16,6 @@
 
 package com.dremio.exec.planner.logical;
 
-import java.io.IOException;
-
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -30,15 +28,16 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.io.IOException;
 
 /**
- * Interface that provides the info needed to create a new table. A storage engine
- * which supports creating new tables, should implement this interface.
+ * Interface that provides the info needed to create a new table. A storage engine which supports
+ * creating new tables, should implement this interface.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property="type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({ // TODO: hack until we merge "common" and "java-exec" modules (DRILL-507).
-    @Type(name = "filesystem", value = EasyFileSystemCreateTableEntry.class),
-    @Type(name = "createParquetTableEntry", value = CreateParquetTableEntry.class),
+  @Type(name = "filesystem", value = EasyFileSystemCreateTableEntry.class),
+  @Type(name = "createParquetTableEntry", value = CreateParquetTableEntry.class),
 })
 public interface CreateTableEntry {
 
@@ -47,47 +46,39 @@ public interface CreateTableEntry {
   WriterOptions getOptions();
 
   /**
-   *
    * @param writerOptions for creating the clone of CreateTableEntry
    * @return clone of the CreateTableEntry
    */
   CreateTableEntry cloneWithFields(WriterOptions writerOptions);
 
   /**
-   *
    * @return IcebergTableProps for the operations related to IcebergTables
    */
   IcebergTableProps getIcebergTableProps();
 
   /**
-   *
    * @param newLocation
    * @return
    */
   CreateTableEntry cloneWithNewLocation(String newLocation);
 
   /**
-   *
    * @return Output path for the table
    */
   String getLocation();
 
   /**
-   *
    * @return The username
    */
   String getUserName();
 
   /**
-   *
    * @return The plugin
    */
   MutablePlugin getPlugin();
 
   /**
-   *
    * @return the data set path for table
    */
   NamespaceKey getDatasetPath();
-
 }

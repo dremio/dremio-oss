@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.RecordReader;
@@ -30,13 +25,19 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.google.common.base.Preconditions;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
 
 /**
- * Abstract class whose implementations are used in {@link PrefetchingIterator} to create a parquet split's reader
+ * Abstract class whose implementations are used in {@link PrefetchingIterator} to create a parquet
+ * split's reader
  */
 public abstract class SplitReaderCreator implements AutoCloseable {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitReaderCreator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SplitReaderCreator.class);
 
   protected Path path;
   protected SplitReaderCreator next;
@@ -44,9 +45,7 @@ public abstract class SplitReaderCreator implements AutoCloseable {
   protected InputStreamProvider inputStreamProvider;
   protected ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr;
 
-
-  public SplitReaderCreator() {
-  }
+  public SplitReaderCreator() {}
 
   public SplitReaderCreator(InputStreamProvider inputStreamProvider) {
     this.inputStreamProvider = inputStreamProvider;
@@ -54,25 +53,27 @@ public abstract class SplitReaderCreator implements AutoCloseable {
 
   /**
    * Creates reader to read current parquet split
+   *
    * @return
    */
   public abstract RecordReader createRecordReader(MutableParquetMetadata footer);
 
   /**
    * Initializes InputStreamProvider to be used by split reader
+   *
    * @param lastInputStreamProvider
    */
-  public abstract void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter);
+  public abstract void createInputStreamProvider(
+      InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter);
 
-  /**
-   * Sets InputStreamProvider to be used by split reader
-   */
+  /** Sets InputStreamProvider to be used by split reader */
   public void setInputStreamProvider(InputStreamProvider inputStreamProvider) {
     this.inputStreamProvider = inputStreamProvider;
   }
 
   /**
-   * Strictly abstract - all extending classes should close all closeables including inputStreamProvider
+   * Strictly abstract - all extending classes should close all closeables including
+   * inputStreamProvider
    *
    * @throws Exception
    */
@@ -81,6 +82,7 @@ public abstract class SplitReaderCreator implements AutoCloseable {
 
   /**
    * Get current split's parquet footer
+   *
    * @return
    */
   public MutableParquetMetadata getFooter() {
@@ -95,6 +97,7 @@ public abstract class SplitReaderCreator implements AutoCloseable {
 
   /**
    * Get current split's parquet file location
+   *
    * @return
    */
   public Path getPath() {
@@ -102,13 +105,12 @@ public abstract class SplitReaderCreator implements AutoCloseable {
     return path;
   }
 
-  /**
-   * Adds the row groups that will be read by this split
-   */
+  /** Adds the row groups that will be read by this split */
   public abstract void addRowGroupsToRead(Set<Integer> rowGroupList);
 
   /**
    * Sets next SplitReaderCreator
+   *
    * @param next
    */
   public void setNext(SplitReaderCreator next) {
@@ -117,6 +119,7 @@ public abstract class SplitReaderCreator implements AutoCloseable {
 
   /**
    * Gets next SplitReaderCreator
+   *
    * @return next splitReaderCreator
    */
   public SplitReaderCreator getNext() {
@@ -129,15 +132,14 @@ public abstract class SplitReaderCreator implements AutoCloseable {
 
   /**
    * Gets current splitXAttr
+   *
    * @return
    */
   public ParquetProtobuf.ParquetDatasetSplitScanXAttr getSplitXAttr() {
     return splitXAttr;
   }
 
-  /**
-   * Clears the local fields
-   */
+  /** Clears the local fields */
   public void clearLocalFields() {
     this.splitXAttr = null;
     this.inputStreamProvider = null;
@@ -145,14 +147,13 @@ public abstract class SplitReaderCreator implements AutoCloseable {
 
   /**
    * Sets the iceberg schema field col Ids
+   *
    * @param icebergSchemaFields
    */
-  public void setIcebergSchemaFields(List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields) {
-  }
+  public void setIcebergSchemaFields(
+      List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields) {}
 
-  /**
-   * Interface to allow a runnable that throws IOException.
-   */
+  /** Interface to allow a runnable that throws IOException. */
   public interface RunnableIO<T> {
     T run() throws IOException;
   }
@@ -175,5 +176,4 @@ public abstract class SplitReaderCreator implements AutoCloseable {
           .build(logger);
     }
   }
-
 }

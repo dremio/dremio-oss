@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.Collection;
-
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import java.util.Collection;
 
-/**
- * Generic interface to provide different parallelization strategies for MajorFragments.
- */
+/** Generic interface to provide different parallelization strategies for MajorFragments. */
 public interface FragmentParallelizer {
   /**
    * Parallelize the given fragment.
@@ -32,13 +29,18 @@ public interface FragmentParallelizer {
    * @param activeEndpoints
    * @throws PhysicalOperatorSetupException
    */
-  void parallelizeFragment(final Wrapper fragment, final ParallelizationParameters parameters,
-      final Collection<NodeEndpoint> activeEndpoints) throws PhysicalOperatorSetupException;
+  void parallelizeFragment(
+      final Wrapper fragment,
+      final ParallelizationParameters parameters,
+      final Collection<NodeEndpoint> activeEndpoints)
+      throws PhysicalOperatorSetupException;
 
   /**
-   * Figure out what is the ideal number of minor fragments that this major fragment should be run on. Assumes
-   * an infinite number of endpoints
-   * @param fragment    The major fragment being parallelized. Its stats must have already been computed
+   * Figure out what is the ideal number of minor fragments that this major fragment should be run
+   * on. Assumes an infinite number of endpoints
+   *
+   * @param fragment The major fragment being parallelized. Its stats must have already been
+   *     computed
    * @param parameters
    * @return
    */

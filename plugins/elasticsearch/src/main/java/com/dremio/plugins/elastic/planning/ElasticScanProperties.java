@@ -46,5 +46,4 @@ public class ElasticScanProperties {
   public boolean isUseElasticProject() {
     return useElasticProject;
   }
-
 }

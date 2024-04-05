@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.store.dfs.copyinto;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.types.Types;
 
-import com.google.common.collect.ImmutableList;
-
 /**
- * This class provides the schema definition for the copy_file_history table used in copy-into operation.
- * It defines the schema for different versions of the table.
+ * This class provides the schema definition for the copy_file_history table used in copy-into
+ * operation. It defines the schema for different versions of the table.
  */
 public final class CopyFileHistoryTableSchemaProvider {
 
@@ -32,19 +31,26 @@ public final class CopyFileHistoryTableSchemaProvider {
   private static final int FILE_STATE_ID_V1_SCHEMA = 4;
   private static final int RECORDS_LOADED_COUNT_ID_V1_SCHEMA = 5;
   private static final int RECORDS_REJECTED_COUNT_ID_V1_SCHEMA = 6;
-  private static final Schema ICEBERG_V1_TABLE_SCHEMA = new Schema(
-    ImmutableList.of(
-      Types.NestedField.required(EVENT_TIMESTAMP_COL_ID_V1_SCHEMA, "event_timestamp", Types.TimestampType.withZone()),
-      Types.NestedField.required(JOB_ID_COL_ID_V1_SCHEMA, "job_id", new Types.StringType()),
-      Types.NestedField.required(FILE_PATH_ID_V1_SCHEMA, "file_path", new Types.StringType()),
-      Types.NestedField.required(FILE_STATE_ID_V1_SCHEMA, "file_state", new Types.StringType()),
-      Types.NestedField.required(RECORDS_LOADED_COUNT_ID_V1_SCHEMA, "records_loaded_count", new Types.LongType()),
-      Types.NestedField.required(RECORDS_REJECTED_COUNT_ID_V1_SCHEMA, "records_rejected_count", new Types.LongType())
-    )
-  );
+  private static final Schema ICEBERG_V1_TABLE_SCHEMA =
+      new Schema(
+          ImmutableList.of(
+              Types.NestedField.required(
+                  EVENT_TIMESTAMP_COL_ID_V1_SCHEMA,
+                  "event_timestamp",
+                  Types.TimestampType.withZone()),
+              Types.NestedField.required(JOB_ID_COL_ID_V1_SCHEMA, "job_id", new Types.StringType()),
+              Types.NestedField.required(
+                  FILE_PATH_ID_V1_SCHEMA, "file_path", new Types.StringType()),
+              Types.NestedField.required(
+                  FILE_STATE_ID_V1_SCHEMA, "file_state", new Types.StringType()),
+              Types.NestedField.required(
+                  RECORDS_LOADED_COUNT_ID_V1_SCHEMA, "records_loaded_count", new Types.LongType()),
+              Types.NestedField.required(
+                  RECORDS_REJECTED_COUNT_ID_V1_SCHEMA,
+                  "records_rejected_count",
+                  new Types.LongType())));
 
-  private CopyFileHistoryTableSchemaProvider() {
-  }
+  private CopyFileHistoryTableSchemaProvider() {}
 
   public static Schema getSchema(long schemaVersion) {
     if (schemaVersion == 1) {
@@ -95,8 +101,11 @@ public final class CopyFileHistoryTableSchemaProvider {
     throw newUnsupportedSchemaVersionException(schemaVersion);
   }
 
-  private static UnsupportedOperationException newUnsupportedSchemaVersionException(long schemaVersion) {
-    return new UnsupportedOperationException("Unsupported copy_file_history table schema version: " + schemaVersion +
-      ". Currently supported schema versions are: 1");
+  private static UnsupportedOperationException newUnsupportedSchemaVersionException(
+      long schemaVersion) {
+    return new UnsupportedOperationException(
+        "Unsupported copy_file_history table schema version: "
+            + schemaVersion
+            + ". Currently supported schema versions are: 1");
   }
 }

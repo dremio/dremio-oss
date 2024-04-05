@@ -21,16 +21,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 
-import java.net.URI;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.ws.rs.client.Entity;
-
-import org.junit.Assert;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.sources.SourceName;
@@ -60,15 +50,21 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.base.Preconditions;
+import java.net.URI;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.ws.rs.client.Entity;
+import org.junit.Assert;
 
-/**
- * Util class for acceleration tests
- */
+/** Util class for acceleration tests */
 public abstract class AccelerationTestUtil extends BaseTestServer {
 
   private static AtomicInteger queryNumber = new AtomicInteger(0);
 
-  public static final String HOME_NAME = HomeName.getUserHomePath(SampleDataPopulator.DEFAULT_USER_NAME).getName();
+  public static final String HOME_NAME =
+      HomeName.getUserHomePath(SampleDataPopulator.DEFAULT_USER_NAME).getName();
   public static final String TEST_SOURCE = "src";
   public static final String TEST_SPACE = "accel_test";
   public static final String TEST_FOLDER = "test_folder";
@@ -81,14 +77,18 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   public static final String EMPLOYEES_WITH_NULL_VIRTUAL_DATASET_NAME = "ds_emp_null";
   public static final String RENAMED_EMPLOYEES_VIRTUAL_DATASET_NAME = "renamed_ds_emp";
 
-
   // Available Datasets
-  public static final DatasetPath EMPLOYEES = new DatasetPath(Arrays.asList(TEST_SOURCE, EMPLOYEES_FILE));
-  public static final DatasetPath EMPLOYEES_WITH_NULL = new DatasetPath(Arrays.asList(TEST_SOURCE, EMPLOYEES_WITH_NULL_FILE));
-  public static final DatasetPath EMPLOYEES_VIRTUAL = new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_VIRTUAL_DATASET_NAME));
+  public static final DatasetPath EMPLOYEES =
+      new DatasetPath(Arrays.asList(TEST_SOURCE, EMPLOYEES_FILE));
+  public static final DatasetPath EMPLOYEES_WITH_NULL =
+      new DatasetPath(Arrays.asList(TEST_SOURCE, EMPLOYEES_WITH_NULL_FILE));
+  public static final DatasetPath EMPLOYEES_VIRTUAL =
+      new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_VIRTUAL_DATASET_NAME));
 
-  public static final FolderPath TEST_FOLDER_PATH = new FolderPath(Arrays.asList(TEST_SPACE, TEST_FOLDER));
-  public static final DatasetPath EMPLOYEES_UNDER_FOLDER = new DatasetPath(Arrays.asList(TEST_SPACE, TEST_FOLDER, EMPLOYEES_VIRTUAL_DATASET_NAME));
+  public static final FolderPath TEST_FOLDER_PATH =
+      new FolderPath(Arrays.asList(TEST_SPACE, TEST_FOLDER));
+  public static final DatasetPath EMPLOYEES_UNDER_FOLDER =
+      new DatasetPath(Arrays.asList(TEST_SPACE, TEST_FOLDER, EMPLOYEES_VIRTUAL_DATASET_NAME));
 
   public void addCPSource() throws Exception {
     addCPSource(false);
@@ -97,12 +97,19 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   public void addCPSource(boolean createFolder) throws Exception {
     SourceService sourceService = spy(getSourceService());
     doNothing().when(sourceService).validateConnectionConf(any());
-    sourceService.registerSourceWithRuntime(InternalFileConf.create(TEST_SOURCE, new URI("classpath:///acceleration/"), SchemaMutability.ALL, CatalogService.DEFAULT_METADATA_POLICY, true, null));
+    sourceService.registerSourceWithRuntime(
+        InternalFileConf.create(
+            TEST_SOURCE,
+            new URI("classpath:///acceleration/"),
+            SchemaMutability.ALL,
+            CatalogService.DEFAULT_METADATA_POLICY,
+            true,
+            null));
 
     final NamespaceService nsService = getNamespaceService();
     final SpaceConfig config = new SpaceConfig().setName(TEST_SPACE);
 
-    if(!nsService.exists(new SpacePath(config.getName()).toNamespaceKey())) {
+    if (!nsService.exists(new SpacePath(config.getName()).toNamespaceKey())) {
       nsService.addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
     }
 
@@ -140,7 +147,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
       if (config != null) {
         getNamespaceService().deleteSpace(key, config.getTag());
       }
-    }catch (NamespaceException e) {
+    } catch (NamespaceException e) {
     }
   }
 
@@ -152,7 +159,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
       if (config != null) {
         getNamespaceService().deleteFolder(key, config.getTag());
       }
-    }catch (NamespaceException e) {
+    } catch (NamespaceException e) {
     }
   }
 
@@ -165,12 +172,14 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   }
 
   public void addEmployeesWithNullJson() throws Exception {
-    addJson(EMPLOYEES_WITH_NULL, new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_WITH_NULL_VIRTUAL_DATASET_NAME)));
+    addJson(
+        EMPLOYEES_WITH_NULL,
+        new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_WITH_NULL_VIRTUAL_DATASET_NAME)));
   }
 
   public void removeEmployeesWithNullJson() {
-    deleteDataset(new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_WITH_NULL_VIRTUAL_DATASET_NAME)));
-
+    deleteDataset(
+        new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_WITH_NULL_VIRTUAL_DATASET_NAME)));
   }
 
   public void renameDataset(DatasetPath ds, DatasetPath dsNew) {
@@ -181,7 +190,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
       if (config != null) {
         getNamespaceService().renameDataset(key, dsNew.toNamespaceKey());
       }
-    }catch (NamespaceException e) {
+    } catch (NamespaceException e) {
     }
   }
 
@@ -193,21 +202,21 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
       if (config != null) {
         getNamespaceService().deleteDataset(key, config.getTag());
       }
-    }catch (NamespaceException e) {
+    } catch (NamespaceException e) {
     }
   }
 
   public void addJson(DatasetPath path, DatasetPath vdsPath) throws Exception {
-    final DatasetConfig dataset = new DatasetConfig()
-        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
-        .setFullPathList(path.toPathList())
-        .setName(path.getLeaf().getName())
-        .setCreatedAt(System.currentTimeMillis())
-        .setTag(null)
-        .setOwner(DEFAULT_USERNAME)
-        .setPhysicalDataset(new PhysicalDataset()
-            .setFormatSettings(new FileConfig().setType(FileType.JSON))
-            );
+    final DatasetConfig dataset =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
+            .setFullPathList(path.toPathList())
+            .setName(path.getLeaf().getName())
+            .setCreatedAt(System.currentTimeMillis())
+            .setTag(null)
+            .setOwner(DEFAULT_USERNAME)
+            .setPhysicalDataset(
+                new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
     final NamespaceService nsService = getNamespaceService();
     nsService.addOrUpdateDataset(path.toNamespaceKey(), dataset);
     createDatasetFromParentAndSave(vdsPath, path.toPathString());
@@ -230,20 +239,26 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
 
   protected AccelerationApiDescriptor createNewAcceleration(DatasetPath path) {
     return expectSuccess(
-        getBuilder(getAPIv2().path("/accelerations")).buildPost(Entity.entity(path.toPathList(), JSON)),
-        AccelerationApiDescriptor.class
-        );
+        getBuilder(getAPIv2().path("/accelerations"))
+            .buildPost(Entity.entity(path.toPathList(), JSON)),
+        AccelerationApiDescriptor.class);
   }
 
   protected AccelerationApiDescriptor pollAcceleration(AccelerationId id) {
-    return expectSuccess(getBuilder(getAPIv2().path(String.format("/accelerations/%s", id.getId()))).buildGet(), AccelerationApiDescriptor.class);
+    return expectSuccess(
+        getBuilder(getAPIv2().path(String.format("/accelerations/%s", id.getId()))).buildGet(),
+        AccelerationApiDescriptor.class);
   }
 
-  protected AccelerationApiDescriptor waitForLayoutGeneration(final AccelerationId id) throws Exception {
-    for (int i=0; i< 100; i++) {
+  protected AccelerationApiDescriptor waitForLayoutGeneration(final AccelerationId id)
+      throws Exception {
+    for (int i = 0; i < 100; i++) {
       final AccelerationApiDescriptor descriptor = pollAcceleration(id);
-      final LayoutContainerApiDescriptor container = Optional.ofNullable(descriptor.getRawLayouts()).orElseGet(LayoutContainerApiDescriptor::new);
-      if (descriptor.getState() != AccelerationStateApiDescriptor.NEW && !AccelerationUtils.selfOrEmpty(container.getLayoutList()).isEmpty()) {
+      final LayoutContainerApiDescriptor container =
+          Optional.ofNullable(descriptor.getRawLayouts())
+              .orElseGet(LayoutContainerApiDescriptor::new);
+      if (descriptor.getState() != AccelerationStateApiDescriptor.NEW
+          && !AccelerationUtils.selfOrEmpty(container.getLayoutList()).isEmpty()) {
         return descriptor;
       }
       Thread.sleep(500);
@@ -254,17 +269,25 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
 
   protected AccelerationApiDescriptor createAcceleration(DatasetPath dataset) throws Exception {
     final AccelerationApiDescriptor newApiDescriptor = createNewAcceleration(dataset);
-    final AccelerationApiDescriptor existingApiDescriptor = pollAcceleration(newApiDescriptor.getId());
+    final AccelerationApiDescriptor existingApiDescriptor =
+        pollAcceleration(newApiDescriptor.getId());
 
     assertEquals(newApiDescriptor.getId(), existingApiDescriptor.getId());
     assertEquals(newApiDescriptor.getType(), existingApiDescriptor.getType());
 
-    final AccelerationApiDescriptor finalApiDescriptor = waitForLayoutGeneration(newApiDescriptor.getId());
+    final AccelerationApiDescriptor finalApiDescriptor =
+        waitForLayoutGeneration(newApiDescriptor.getId());
     assertEquals(newApiDescriptor.getId(), finalApiDescriptor.getId());
     assertEquals(AccelerationStateApiDescriptor.DISABLED, finalApiDescriptor.getState());
-    assertFalse("aggregation layout generation failed", finalApiDescriptor.getAggregationLayouts().getLayoutList().isEmpty());
-    assertFalse("raw layout generation failed", finalApiDescriptor.getRawLayouts().getLayoutList().isEmpty());
-    assertFalse("dataset schema is required", finalApiDescriptor.getContext().getDatasetSchema().getFieldList().isEmpty());
+    assertFalse(
+        "aggregation layout generation failed",
+        finalApiDescriptor.getAggregationLayouts().getLayoutList().isEmpty());
+    assertFalse(
+        "raw layout generation failed",
+        finalApiDescriptor.getRawLayouts().getLayoutList().isEmpty());
+    assertFalse(
+        "dataset schema is required",
+        finalApiDescriptor.getContext().getDatasetSchema().getFieldList().isEmpty());
     return newApiDescriptor;
   }
 }

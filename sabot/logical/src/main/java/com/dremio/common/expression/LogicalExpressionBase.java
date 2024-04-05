@@ -18,7 +18,7 @@ package com.dremio.common.expression;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
-@JsonPropertyOrder({ "type" })
+@JsonPropertyOrder({"type"})
 public abstract class LogicalExpressionBase implements LogicalExpression {
 
   // was pushed in 3.0 have to retain this so that serde does not break.
@@ -38,7 +38,10 @@ public abstract class LogicalExpressionBase implements LogicalExpression {
 
   @Override
   public CompleteType getCompleteType() {
-    throw new UnsupportedOperationException(String.format("The type of %s doesn't currently support LogicalExpression.getCompleteType().", this.getClass().getName()));
+    throw new UnsupportedOperationException(
+        String.format(
+            "The type of %s doesn't currently support LogicalExpression.getCompleteType().",
+            this.getClass().getName()));
   }
 
   @Override

@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <groupId>com.dremio</groupId>
@@ -45,7 +45,6 @@
     </dependency>
   </dependencies>
 
-
   <build>
     <plugins>
       <plugin>
@@ -56,7 +55,7 @@
             <protoModule>
               <source>${basedir}/src/main/protobuf</source>
               <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
-              <output>java_bean</output>
+              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
               <encoding>UTF-8</encoding>
               <options>
                 <property>
@@ -79,10 +78,10 @@
         <executions>
           <execution>
             <id>generate-sources</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
           </execution>
         </executions>
       </plugin>
@@ -92,21 +91,21 @@
         <executions>
           <execution>
             <id>generate-proto</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <protoSourceRoot>${basedir}/src/main/protobuf</protoSourceRoot>
             </configuration>
           </execution>
           <execution>
             <id>generate-protobuf</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>compile-custom</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <protoSourceRoot>${project.basedir}/src/main/proto3</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
@@ -121,10 +120,10 @@
         <executions>
           <execution>
             <id>proto-jar-resources</id>
-            <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <classesDirectory>${project.basedir}/src/main/protobuf</classesDirectory>
               <classifier>proto</classifier>

@@ -20,7 +20,7 @@ import com.google.common.io.Resources;
 /**
  * Wildcard cert test.
  *
- * wildcard.jks has a single cert with owner set to *.dremio.test
+ * <p>wildcard.jks has a single cert with owner set to *.dremio.test
  */
 public class TestWildcardCert extends BaseHttpsTestServer {
   @Override

@@ -16,24 +16,24 @@
 
 package org.apache.arrow.vector;
 
+import io.netty.buffer.ByteBuf;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-
+import java.math.RoundingMode;
 import org.apache.arrow.memory.ArrowBuf;
-
-import io.netty.buffer.ByteBuf;
 
 public final class DecimalHelper {
 
   public static final int MAX_DIGITS = 9;
   public static final int DIGITS_BASE = 1_000_000_000;
-  public static final int INTEGER_SIZE = (Integer.SIZE/Byte.SIZE);
+  public static final int INTEGER_SIZE = (Integer.SIZE / Byte.SIZE);
   // we use base 1 billion integer digits for our internal representation
   public static final BigDecimal BASE_BIGDECIMAL = new BigDecimal(DIGITS_BASE);
   public static final BigInteger BASE_BIGINT = BigInteger.valueOf(DIGITS_BASE);
 
   /**
    * Given an array of bytes, swap the bytes to change the byte order
+   *
    * @param bytes array of bytes.
    */
   public static void swapBytes(byte[] bytes) {
@@ -45,8 +45,9 @@ public final class DecimalHelper {
   }
 
   /**
-   * Given an ArrowBuf containing decimal data in BE byte order, construct a BigDecimal
-   * from particular position in the source buffer. No need
+   * Given an ArrowBuf containing decimal data in BE byte order, construct a BigDecimal from
+   * particular position in the source buffer. No need
+   *
    * @param buffer source ArrowBuf containing decimal data
    * @param index position of the element (0, 1, 2, 3 ...)
    * @param scale scale of decimal element
@@ -61,8 +62,8 @@ public final class DecimalHelper {
     return new BigDecimal(unscaledValue, scale);
   }
 
-  public static void getSparseFromBigDecimal(BigDecimal input, ByteBuf data, int startIndex,
-                                             int scale, int nDecimalDigits) {
+  public static void getSparseFromBigDecimal(
+      BigDecimal input, ByteBuf data, int startIndex, int scale, int nDecimalDigits) {
 
     // Initialize the buffer
     for (int i = 0; i < nDecimalDigits; i++) {
@@ -78,19 +79,21 @@ public final class DecimalHelper {
     }
 
     // Truncate the input as per the scale provided
-    input = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
+    input = input.setScale(scale, RoundingMode.HALF_UP);
 
     // Separate out the integer part
-    BigDecimal integerPart = input.setScale(0, BigDecimal.ROUND_DOWN);
+    BigDecimal integerPart = input.setScale(0, RoundingMode.DOWN);
 
     int destIndex = nDecimalDigits - roundUp(scale) - 1;
 
     while (integerPart.compareTo(BigDecimal.ZERO) > 0) {
       // store the modulo as the integer value
-      data.setInt(startIndex + (destIndex * INTEGER_SIZE), (integerPart.remainder(BASE_BIGDECIMAL)).intValue());
+      data.setInt(
+          startIndex + (destIndex * INTEGER_SIZE),
+          (integerPart.remainder(BASE_BIGDECIMAL)).intValue());
       destIndex--;
       // Divide by base 1 billion
-      integerPart = (integerPart.divide(BASE_BIGDECIMAL)).setScale(0, BigDecimal.ROUND_DOWN);
+      integerPart = (integerPart.divide(BASE_BIGDECIMAL)).setScale(0, RoundingMode.DOWN);
     }
 
     /* Sparse representation contains padding of additional zeroes
@@ -100,10 +103,10 @@ public final class DecimalHelper {
     if (actualDigits != 0) {
       // Pad additional zeroes
       scale = scale + (MAX_DIGITS - actualDigits);
-      input = input.setScale(scale, BigDecimal.ROUND_DOWN);
+      input = input.setScale(scale, RoundingMode.DOWN);
     }
 
-    //separate out the fractional part
+    // separate out the fractional part
     BigDecimal fractionalPart = input.remainder(BigDecimal.ONE).movePointRight(scale);
 
     destIndex = nDecimalDigits - 1;
@@ -116,7 +119,7 @@ public final class DecimalHelper {
       data.setInt(startIndex + (destIndex * INTEGER_SIZE), (temp.unscaledValue().intValue()));
       destIndex--;
 
-      fractionalPart = fractionalPart.setScale(0, BigDecimal.ROUND_DOWN);
+      fractionalPart = fractionalPart.setScale(0, RoundingMode.DOWN);
       scale -= MAX_DIGITS;
     }
 
@@ -127,9 +130,11 @@ public final class DecimalHelper {
   }
 
   @SuppressWarnings("checkstyle:InnerAssignment")
-  public static BigDecimal getBigDecimalFromSparse(ByteBuf data, int startIndex, int nDecimalDigits, int scale) {
+  public static BigDecimal getBigDecimalFromSparse(
+      ByteBuf data, int startIndex, int nDecimalDigits, int scale) {
 
-    // For sparse decimal type we have padded zeroes at the end, strip them while converting to BigDecimal.
+    // For sparse decimal type we have padded zeroes at the end, strip them while converting to
+    // BigDecimal.
     int actualDigits;
 
     // Initialize the BigDecimal, first digit in the DrillBuf has the sign so mask it out
@@ -144,7 +149,7 @@ public final class DecimalHelper {
 
     // Truncate any additional padding we might have added
     if (scale > 0 && (actualDigits = scale % MAX_DIGITS) != 0) {
-      BigInteger truncate = BigInteger.valueOf((int)Math.pow(10, (MAX_DIGITS - actualDigits)));
+      BigInteger truncate = BigInteger.valueOf((int) Math.pow(10, (MAX_DIGITS - actualDigits)));
       decimalDigits = decimalDigits.divide(truncate);
     }
 
@@ -163,7 +168,7 @@ public final class DecimalHelper {
    * which are stored in base 1 billion
    */
   public static int roundUp(int ndigits) {
-    return (ndigits + MAX_DIGITS - 1)/MAX_DIGITS;
+    return (ndigits + MAX_DIGITS - 1) / MAX_DIGITS;
   }
 
   private DecimalHelper() {

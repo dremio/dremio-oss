@@ -15,9 +15,7 @@
  */
 package com.dremio.service.nessie;
 
-/**
- * Creates the GlobalLogStore KV store for Nessie.
- */
+/** Creates the GlobalLogStore KV store for Nessie. */
 public class NessieGlobalLogStoreBuilder extends AbstractNessieStoreBuilder {
   public NessieGlobalLogStoreBuilder() {
     super("global_log");

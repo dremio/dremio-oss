@@ -17,29 +17,25 @@ package com.dremio.exec.store.iceberg.nessie;
 
 import static java.util.Objects.requireNonNull;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.exec.catalog.VersionedPlugin.EntityType;
+import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
+import com.dremio.exec.store.iceberg.viewdepoc.BaseMetastoreViewOperations;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
+import com.dremio.plugins.NessieClient;
+import com.dremio.plugins.NessieContent;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
 import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.viewdepoc.BaseMetastoreViewOperations;
-import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
 import org.projectnessie.model.IcebergView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.catalog.model.ResolvedVersionContext;
-import com.dremio.catalog.model.VersionContext;
-import com.dremio.exec.catalog.VersionedPlugin.EntityType;
-import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
-import com.dremio.plugins.NessieClient;
-import com.dremio.plugins.NessieContent;
-
-/**
- * Versioned iceberg view operations.
- */
+/** Versioned iceberg view operations. */
 public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOperations {
   private static final Logger logger =
       LoggerFactory.getLogger(IcebergNessieVersionedViewOperations.class);
@@ -89,8 +85,13 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
     if (maybeNessieContent.isPresent()) {
       NessieContent nessieContent = maybeNessieContent.get();
       baseContentId = nessieContent.getContentId();
-      metadataLocation = nessieContent.getMetadataLocation().orElseThrow(
-        () -> new IllegalStateException("No metadataLocation for iceberg view: " + viewKey + " ref: " + version));
+      metadataLocation =
+          nessieContent
+              .getMetadataLocation()
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          "No metadataLocation for iceberg view: " + viewKey + " ref: " + version));
     }
     refreshFromMetadataLocation(metadataLocation, RETRY_IF, MAX_RETRIES, this.metadataLoader);
     return current();
@@ -104,24 +105,21 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
 
   @Override
   public void commit(
-      ViewVersionMetadata base,
-      ViewVersionMetadata target,
-      Map<String, String> properties) {
+      ViewVersionMetadata base, ViewVersionMetadata target, Map<String, String> properties) {
     final String newMetadataLocation = writeNewMetadata(target, currentVersion() + 1);
 
     boolean isFailedOperation = true;
     try {
       nessieClient.commitView(
-        viewKey,
-        newMetadataLocation,
-        icebergView,
-        target,
-        dialect,
-        version,
-        baseContentId,
-        commitOrigin,
-        userName
-      );
+          viewKey,
+          newMetadataLocation,
+          icebergView,
+          target,
+          dialect,
+          version,
+          baseContentId,
+          commitOrigin,
+          userName);
       isFailedOperation = false;
     } finally {
       if (isFailedOperation) {

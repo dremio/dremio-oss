@@ -15,22 +15,22 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 
 public class IsListFunction {
-  @FunctionTemplate(name = "IS_LIST", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls= FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "IS_LIST",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class IsList implements SimpleFunction {
 
-    @Param
-    private FieldReader in;
-    @Output
-    private NullableBitHolder out;
+    @Param private FieldReader in;
+    @Output private NullableBitHolder out;
 
     @Override
     public void setup() {}

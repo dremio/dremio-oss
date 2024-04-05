@@ -17,16 +17,13 @@ package com.dremio.dac.server;
 
 import static com.dremio.dac.server.FamilyExpectation.SUCCESS;
 
+import com.dremio.common.perf.Timer;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
-import com.dremio.common.perf.Timer;
-
-/**
- * Utils for web client.
- */
+/** Utils for web client. */
 public class BaseClientUtils {
 
   protected Response expectStatus(Response.StatusType status, Invocation i) {
@@ -78,7 +75,8 @@ public class BaseClientUtils {
         // if an error occurred it will show the server side error.
         // response.toString() does not show the content
         String body = response.readEntity(String.class);
-        throw new AssertionError(String.format("%s\n%s\n%s", e.getMessage(), response.toString(), body), e);
+        throw new AssertionError(
+            String.format("%s\n%s\n%s", e.getMessage(), response.toString(), body), e);
       }
       return response;
     }

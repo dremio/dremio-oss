@@ -15,55 +15,52 @@
  */
 package com.dremio.exec.planner.serializer.core;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Collect;
-
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.exec.planner.serializer.RelTraitSetSerde;
 import com.dremio.plan.serialization.PAbstractRelNode;
 import com.dremio.plan.serialization.PCollect;
 import com.dremio.plan.serialization.PSingleRel;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Collect;
 
-/**
- * Serde for Collect.
- */
+/** Serde for Collect. */
 public final class CollectSerde implements RelNodeSerde<Collect, PCollect> {
   /**
    * How to serialize this RelNode
    *
    * @param node The node to serialize
-   * @param s    Contextual utility to help with serialization.
+   * @param s Contextual utility to help with serialization.
    * @return The serialized Protobuf message
    */
   @Override
   public PCollect serialize(Collect node, RelToProto s) {
     return PCollect.newBuilder()
-      .setSingleRel(
-        PSingleRel.newBuilder()
-          .setAbstractRelNode(
-            PAbstractRelNode.newBuilder()
-              .setTraitSet(RelTraitSetSerde.toProto(node.getTraitSet()))
-              .build())
-          .setInput(s.toProto(node.getInput()))
-          .build())
-      .setFieldName(node.getFieldName())
-      .build();
+        .setSingleRel(
+            PSingleRel.newBuilder()
+                .setAbstractRelNode(
+                    PAbstractRelNode.newBuilder()
+                        .setTraitSet(RelTraitSetSerde.toProto(node.getTraitSet()))
+                        .build())
+                .setInput(s.toProto(node.getInput()))
+                .build())
+        .setFieldName(node.getFieldName())
+        .build();
   }
 
   /**
    * How to deserialize a RelNode from the corresponding Protobuf Message.
    *
    * @param pCollect The Protobuf Message to deserialize
-   * @param s        Contextual utility used to help with deserialization.
+   * @param s Contextual utility used to help with deserialization.
    * @return
    */
   @Override
   public Collect deserialize(PCollect pCollect, RelFromProto s) {
     RelNode input = s.toRel(pCollect.getSingleRel().getInput());
     return new Collect(
-      input.getCluster(),
-      RelTraitSetSerde.fromProto(pCollect.getSingleRel().getAbstractRelNode().getTraitSet()),
-      input,
-      pCollect.getFieldName());
+        input.getCluster(),
+        RelTraitSetSerde.fromProto(pCollect.getSingleRel().getAbstractRelNode().getTraitSet()),
+        input,
+        pCollect.getFieldName());
   }
 }

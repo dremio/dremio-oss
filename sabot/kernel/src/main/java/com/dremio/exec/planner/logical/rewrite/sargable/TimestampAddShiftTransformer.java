@@ -22,15 +22,16 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for
  * - TIMESTAMPADD(unit symbol, count integer, givenTime date or timestamp) = rhsNode
  * </pre>
  */
 public class TimestampAddShiftTransformer extends ShiftTransformer {
-  public TimestampAddShiftTransformer(RelOptCluster relOptCluster,
-                                      StandardForm stdForm,
-                                      SqlOperator sqlOperator) {
+  public TimestampAddShiftTransformer(
+      RelOptCluster relOptCluster, StandardForm stdForm, SqlOperator sqlOperator) {
     super(relOptCluster, stdForm, sqlOperator);
   }
 
@@ -40,9 +41,7 @@ public class TimestampAddShiftTransformer extends ShiftTransformer {
     // Cast string date/time literal to date/time type
     if (SqlTypeName.CHAR_TYPES.contains(rhs.getType().getSqlTypeName())) {
       return rexBuilder.makeCast(
-        rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false),
-        rhs
-      );
+          rexBuilder.getTypeFactory().createTypeWithNullability(getColumn().getType(), false), rhs);
     }
     return rhs;
   }

@@ -15,10 +15,17 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.calcite.logical.VacuumCatalogCrel;
+import com.dremio.exec.planner.VacuumOutputSchema;
+import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSqlToRelConversion;
+import com.dremio.exec.planner.sql.handlers.query.VacuumCatalogHandler;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -39,44 +46,37 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-import com.dremio.exec.calcite.logical.VacuumCatalogCrel;
-import com.dremio.exec.planner.VacuumOutputSchema;
-import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
-import com.dremio.exec.planner.sql.handlers.query.SupportsSqlToRelConversion;
-import com.dremio.exec.planner.sql.handlers.query.VacuumCatalogHandler;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+public class SqlVacuumCatalog extends SqlVacuum
+    implements SqlToPlanHandler.Creator, SupportsSqlToRelConversion {
 
-public class SqlVacuumCatalog extends SqlVacuum implements SqlToPlanHandler.Creator, SupportsSqlToRelConversion {
+  public static final SqlSpecialOperator VACUUM_CATALOG_OPERATOR =
+      new SqlSpecialOperator("VACUUM_CATALOG_OPERATOR", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 1, "SqlVacuumCatalog.createCall() " + "has 1 operand!");
+          return new SqlVacuumCatalog(pos, (SqlIdentifier) operands[0]);
+        }
 
-  public static final SqlSpecialOperator VACUUM_CATALOG_OPERATOR = new SqlSpecialOperator("VACUUM_CATALOG_OPERATOR", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 1, "SqlVacuumCatalog.createCall() " +
-        "has 1 operand!");
-      return new SqlVacuumCatalog(
-        pos,
-        (SqlIdentifier) operands[0]);
-    }
-
-    @Override
-    public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
-      final RelDataTypeFactory typeFactory = validator.getTypeFactory();
-      return VacuumOutputSchema.getCatalogOutputRelDataType(typeFactory);
-    }
-  };
+        @Override
+        public RelDataType deriveType(
+            SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+          final RelDataTypeFactory typeFactory = validator.getTypeFactory();
+          return VacuumOutputSchema.getCatalogOutputRelDataType(typeFactory);
+        }
+      };
 
   private final SqlIdentifier catalogSource;
 
-  /**
-   * Creates a SqlVacuum.
-   */
-  public SqlVacuumCatalog(
-    SqlParserPos pos,
-    SqlIdentifier catalogSource) {
-    super(pos, SqlLiteral.createBoolean(true, pos), SqlLiteral.createBoolean(true, pos),
-        SqlNodeList.EMPTY, SqlNodeList.EMPTY);
+  /** Creates a SqlVacuum. */
+  public SqlVacuumCatalog(SqlParserPos pos, SqlIdentifier catalogSource) {
+    super(
+        pos,
+        SqlLiteral.createBoolean(true, pos),
+        SqlLiteral.createBoolean(true, pos),
+        SqlNodeList.EMPTY,
+        SqlNodeList.EMPTY);
     this.catalogSource = catalogSource;
   }
 
@@ -122,8 +122,18 @@ public class SqlVacuumCatalog extends SqlVacuum implements SqlToPlanHandler.Crea
   }
 
   @Override
-  public RelNode convertToRel(RelOptCluster cluster, Prepare.CatalogReader catalogReader, RelNode inputRel,
-                              RelOptTable.ToRelContext relContext) {
-      return new VacuumCatalogCrel(cluster, cluster.traitSetOf(Convention.NONE), null, null, getCatalogSource().getSimple(), null,null);
+  public RelNode convertToRel(
+      RelOptCluster cluster,
+      Prepare.CatalogReader catalogReader,
+      RelNode inputRel,
+      RelOptTable.ToRelContext relContext) {
+    return new VacuumCatalogCrel(
+        cluster,
+        cluster.traitSetOf(Convention.NONE),
+        null,
+        null,
+        getCatalogSource().getSimple(),
+        null,
+        null);
   }
 }

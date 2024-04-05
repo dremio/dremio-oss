@@ -27,7 +27,7 @@ class SchemaUtils {
     key,
     value,
     transform,
-    schemaKey
+    schemaKey,
   ) {
     return {
       type,
@@ -54,14 +54,14 @@ class SchemaUtils {
               normalize(
                 (hash[schema._key] && hash[schema._key](finalJson, key)) ||
                   finalJson,
-                schema
-              )
+                schema,
+              ),
             );
             let newPayLoad = payload.set(
               "entities",
               payload.get("entities").size === 0 && schemaKey
                 ? Immutable.fromJS({ [schemaKey]: {} })
-                : applyDecorators(payload.get("entities"))
+                : applyDecorators(payload.get("entities")),
             );
 
             if (
@@ -75,7 +75,21 @@ class SchemaUtils {
             ) {
               newPayLoad = newPayLoad.setIn(
                 ["entities", "accessControlList", finalJson.id],
-                Immutable.fromJS(finalJson)
+                Immutable.fromJS(finalJson),
+              );
+            }
+
+            if (meta?.inMultiTabs) {
+              newPayLoad = newPayLoad.setIn(
+                ["entities", "datasetUI", newPayLoad.get("result")],
+                new Immutable.Map({
+                  links: newPayLoad.getIn([
+                    "entities",
+                    "datasetUI",
+                    newPayLoad.get("result"),
+                    "links",
+                  ]),
+                }),
               );
             }
             return newPayLoad;
@@ -92,7 +106,7 @@ class SchemaUtils {
     meta,
     datasetVersion,
     jobId,
-    paginationUrl
+    paginationUrl,
   ) {
     return {
       type,
@@ -112,12 +126,12 @@ class SchemaUtils {
                 (hash[schema._key] &&
                   hash[schema._key](finalJson, undefined)) ||
                   finalJson,
-                schema
-              )
+                schema,
+              ),
             );
             let newPayLoad = payload.set(
               "entities",
-              applyDecorators(payload.get("entities"))
+              applyDecorators(payload.get("entities")),
             );
 
             if (
@@ -131,17 +145,17 @@ class SchemaUtils {
             ) {
               newPayLoad = newPayLoad.setIn(
                 ["entities", "accessControlList", finalJson.id],
-                Immutable.fromJS(finalJson)
+                Immutable.fromJS(finalJson),
               );
             }
             return newPayLoad
               .setIn(
                 ["entities", "fullDataset", datasetVersion, "jobId", "id"],
-                jobId
+                jobId,
               )
               .setIn(
                 ["entities", "fullDataset", datasetVersion, "paginationUrl"],
-                paginationUrl
+                paginationUrl,
               );
           });
         }

@@ -15,31 +15,28 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.Numbers;
 import com.dremio.sabot.op.common.ht2.ResizeListener;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
 
 /**
- * Represents the set of accumulators of type {@link BaseSingleAccumulator}.
- * {@link VectorizedHashAggOperator} contains an AccumulatorSet that has a 1:1
- * mapping between an agg operation (SUM, MIN, MAX) and {@link BaseSingleAccumulator}.
- * Every operation done by {@link VectorizedHashAggOperator} and a
- * {@link com.dremio.sabot.op.common.ht2.LBlockHashTable}
- * on accumulator(s) go through the interfaces provided by AccumulatorSet
+ * Represents the set of accumulators of type {@link BaseSingleAccumulator}. {@link
+ * VectorizedHashAggOperator} contains an AccumulatorSet that has a 1:1 mapping between an agg
+ * operation (SUM, MIN, MAX) and {@link BaseSingleAccumulator}. Every operation done by {@link
+ * VectorizedHashAggOperator} and a {@link com.dremio.sabot.op.common.ht2.LBlockHashTable} on
+ * accumulator(s) go through the interfaces provided by AccumulatorSet
  */
 public class AccumulatorSet implements ResizeListener, AutoCloseable {
 
@@ -53,11 +50,14 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   private boolean hasVarLenMinMax = false;
   private List<Accumulator> fixedLenAccums;
 
-  public AccumulatorSet(final long jointAllocationMin, final long jointAllocationLimit,
-                        final BufferAllocator allocator, final Accumulator... children) {
+  public AccumulatorSet(
+      final long jointAllocationMin,
+      final long jointAllocationLimit,
+      final BufferAllocator allocator,
+      final Accumulator... children) {
     super();
-    this.jointAllocationMin = (int)jointAllocationMin;
-    this.jointAllocationLimit = (int)jointAllocationLimit;
+    this.jointAllocationMin = (int) jointAllocationMin;
+    this.jointAllocationLimit = (int) jointAllocationLimit;
     this.allocator = allocator;
     this.children = children;
     updateVarlenAndFixedAccumusLst();
@@ -65,7 +65,9 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   }
 
   private void updateCombinedAndSingleAccumulators() {
-    final int numAllocationBuckets = Long.numberOfTrailingZeros(jointAllocationLimit) - Long.numberOfTrailingZeros(jointAllocationMin);
+    final int numAllocationBuckets =
+        Long.numberOfTrailingZeros(jointAllocationLimit)
+            - Long.numberOfTrailingZeros(jointAllocationMin);
     this.combinedAccumulators = new HashMap<>(numAllocationBuckets);
     this.singleAccumulators = new ArrayList<>();
 
@@ -86,10 +88,12 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     for (Accumulator a : children) {
       FieldVector output = a.getOutput();
       final TypeProtos.MinorType type = CompleteType.fromField(output.getField()).toMinorType();
-      if (type == TypeProtos.MinorType.VARCHAR || type == TypeProtos.MinorType.VARBINARY || type == TypeProtos.MinorType.LIST) {
+      if (type == TypeProtos.MinorType.VARCHAR
+          || type == TypeProtos.MinorType.VARBINARY
+          || type == TypeProtos.MinorType.LIST) {
         varLenAccums.add(a);
-        if (a.getType() == AccumulatorBuilder.AccumulatorType.MAX ||
-            a.getType() == AccumulatorBuilder.AccumulatorType.MIN) {
+        if (a.getType() == AccumulatorBuilder.AccumulatorType.MAX
+            || a.getType() == AccumulatorBuilder.AccumulatorType.MIN) {
           hasVarLenMinMax = true;
         }
       } else {
@@ -117,17 +121,16 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
 
   private int computeAccumulatorSize(int index) {
     final Accumulator accumulator = children[index];
-    return Numbers.nextMultipleOfEight(accumulator.getDataBufferSize()) +
-      Numbers.nextMultipleOfEight(accumulator.getValidityBufferSize());
+    return Numbers.nextMultipleOfEight(accumulator.getDataBufferSize())
+        + Numbers.nextMultipleOfEight(accumulator.getValidityBufferSize());
   }
 
   /**
    * Memory Allocation - Algorithm 3 (currently in use)
    *
-   * We do this computation exactly once. For a given
-   * set of accumulators and their buffer sizes,
-   * we try to group accumulators into different allocation
-   * buckets (size equal to some power of 2).
+   * <p>We do this computation exactly once. For a given set of accumulators and their buffer sizes,
+   * we try to group accumulators into different allocation buckets (size equal to some power of 2).
+   *
    * @param start starting accumulator index
    */
   private void computeAllocationBoundaries(List<Integer> accumulatorIndices, int start) {
@@ -199,10 +202,9 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   /**
    * Memory Allocation - Algorithm 3 (currently in use)
    *
-   * This algorithm is mainly aimed for using direct memory optimally
-   * with minimizing wastage (due to power of 2 rounding) as much as
-   * possible. We still do joint allocations, but the reduction in
-   * heap overhead is least compared to other two algorithms.
+   * <p>This algorithm is mainly aimed for using direct memory optimally with minimizing wastage
+   * (due to power of 2 rounding) as much as possible. We still do joint allocations, but the
+   * reduction in heap overhead is least compared to other two algorithms.
    */
   private void addBatchWithLimitOptimizedForDirect() throws Exception {
     for (Map.Entry<Integer, List<List<Integer>>> mapping : combinedAccumulators.entrySet()) {
@@ -218,7 +220,8 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     }
   }
 
-  private void allocatePowerOfTwoOrLessAndSlice(final int totalSize, List<Integer> childIndices) throws Exception {
+  private void allocatePowerOfTwoOrLessAndSlice(final int totalSize, List<Integer> childIndices)
+      throws Exception {
     try (AutoCloseables.RollbackCloseable rollbackable = new AutoCloseables.RollbackCloseable()) {
       final ArrowBuf bufferForAllAccumulators = allocator.buffer(totalSize);
       rollbackable.add(bufferForAllAccumulators);
@@ -226,7 +229,8 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
       for (final Integer index : childIndices) {
         Accumulator accumulator = children[index];
         // slice validity buffer from the combined buffer.
-        final ArrowBuf validityBuffer = bufferForAllAccumulators.slice(offset, accumulator.getValidityBufferSize());
+        final ArrowBuf validityBuffer =
+            bufferForAllAccumulators.slice(offset, accumulator.getValidityBufferSize());
         offset += Numbers.nextMultipleOfEight(accumulator.getValidityBufferSize());
 
         // slice data buffer from the combined buffer.
@@ -242,8 +246,8 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   }
 
   @Override
-  public void accumulate(final long memoryAddr, final int count,
-                         final int bitsInChunk, final int chunkOffsetMask) {
+  public void accumulate(
+      final long memoryAddr, final int count, final int bitsInChunk, final int chunkOffsetMask) {
     for (Accumulator a : children) {
       a.accumulate(memoryAddr, count, bitsInChunk, chunkOffsetMask);
     }
@@ -275,24 +279,22 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   public List<FieldVector> getFixedlenAccumulators(final int batchIndex) {
     final List<FieldVector> fixedLenAccumulator = new ArrayList<FieldVector>();
     for (Accumulator a : fixedLenAccums) {
-      fixedLenAccumulator.add(((BaseSingleAccumulator)a).getAccumulatorVector(batchIndex));
+      fixedLenAccumulator.add(((BaseSingleAccumulator) a).getAccumulatorVector(batchIndex));
     }
     return fixedLenAccumulator;
   }
 
   /**
-   * Get accumulator vector size (in bytes).
-   * {@link VectorizedHashAggOperator} works with a NestedAccumulator
-   * in each {@link VectorizedHashAggPartition} and there is a need
-   * to compute size of partition's data structures. We use this
-   * method to get total size across all the accumulators the operator
-   * is working with.
+   * Get accumulator vector size (in bytes). {@link VectorizedHashAggOperator} works with a
+   * NestedAccumulator in each {@link VectorizedHashAggPartition} and there is a need to compute
+   * size of partition's data structures. We use this method to get total size across all the
+   * accumulators the operator is working with.
    *
    * @return total size (in bytes) of all accumulator vectors.
    */
   public long getSizeInBytes() {
     long size = 0;
-    for(Accumulator a : children){
+    for (Accumulator a : children) {
       size += a.getSizeInBytes();
     }
     return size;
@@ -305,7 +307,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
 
   @Override
   public void revertResize() {
-    for(Accumulator a : children){
+    for (Accumulator a : children) {
       a.revertResize();
     }
   }
@@ -337,27 +339,28 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
 
   @Override
   public void commitResize() {
-    for(Accumulator a : children){
+    for (Accumulator a : children) {
       a.commitResize();
     }
   }
 
   @Override
   public void resetToMinimumSize() throws Exception {
-    for(Accumulator a : children){
+    for (Accumulator a : children) {
       a.resetToMinimumSize();
     }
   }
 
   @Override
   public void releaseBatch(final int batchIdx) {
-    for(Accumulator a : children){
+    for (Accumulator a : children) {
       a.releaseBatch(batchIdx);
     }
   }
 
   @Override
-  public boolean hasSpace(final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
+  public boolean hasSpace(
+      final int space, final int numOfRecords, final int batchIndex, final int offsetInBatch) {
     for (Accumulator a : children) {
       if (!a.hasSpace(space, numOfRecords, batchIndex, offsetInBatch)) {
         return false;

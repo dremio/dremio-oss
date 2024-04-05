@@ -19,8 +19,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Disable auto promotion from system env config and keep the source
- * to not auto promote, create table should work fine.
+ * Disable auto promotion from system env config and keep the source to not auto promote, create
+ * table should work fine.
  */
 public class TestSystemAutoPromoteDisabled extends TestSystemAutoPromotionBase {
 

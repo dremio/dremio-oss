@@ -24,5 +24,4 @@ public interface UserResponseHandler {
   void sendData(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result);
 
   void completed(UserResult result);
-
 }

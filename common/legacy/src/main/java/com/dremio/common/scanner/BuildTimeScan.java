@@ -19,6 +19,11 @@ import static com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.scanner.persistence.ScanResult;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,18 +31,14 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
-
 /**
  * main class to integrate classpath scanning in the build.
+ *
  * @see BuildTimeScan#main(String[])
  */
 public class BuildTimeScan {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BuildTimeScan.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(BuildTimeScan.class);
   private static final String REGISTRY_FILE = "META-INF/dremio-module-scan/registry.json";
 
   private static final ObjectMapper mapper = new ObjectMapper().enable(INDENT_OUTPUT);
@@ -53,6 +54,7 @@ public class BuildTimeScan {
 
   /**
    * loads all the prescanned resources from classpath
+   *
    * @return the result of the previous scan
    */
   static ScanResult load() {
@@ -60,15 +62,16 @@ public class BuildTimeScan {
   }
 
   /**
-   * loads all the prescanned resources from classpath
-   * (except for the target location in case it already exists)
+   * loads all the prescanned resources from classpath (except for the target location in case it
+   * already exists)
+   *
    * @return the result of the previous scan
    */
   private static ScanResult loadExcept(URL ignored) {
     Collection<URL> preScanned = ClassPathScanner.forResource(REGISTRY_FILE, false);
     ScanResult result = null;
     for (URL u : preScanned) {
-      if (ignored!= null && u.toString().startsWith(ignored.toString())) {
+      if (ignored != null && u.toString().startsWith(ignored.toString())) {
         continue;
       }
       try (InputStream reflections = u.openStream()) {
@@ -90,7 +93,10 @@ public class BuildTimeScan {
           sb.append(u.toExternalForm());
           sb.append('\n');
         }
-        logger.info(format("Loaded prescanned packages %s from locations:\n%s", result.getScannedPackages(), sb));
+        logger.info(
+            format(
+                "Loaded prescanned packages %s from locations:\n%s",
+                result.getScannedPackages(), sb));
       }
       return result;
     } else {
@@ -108,12 +114,15 @@ public class BuildTimeScan {
 
   /**
    * to generate the prescan file during build
-   * @param args the root path for the classes where {@link BuildTimeScan#REGISTRY_FILE} is generated
+   *
+   * @param args the root path for the classes where {@link BuildTimeScan#REGISTRY_FILE} is
+   *     generated
    * @throws Exception
    */
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
-      throw new IllegalArgumentException("Usage: java {cp} " + ClassPathScanner.class.getName() + " path/to/scan");
+      throw new IllegalArgumentException(
+          "Usage: java {cp} " + ClassPathScanner.class.getName() + " path/to/scan");
     }
     String basePath = args[0];
     System.out.println("Scanning: " + basePath);
@@ -139,12 +148,9 @@ public class BuildTimeScan {
     List<String> baseClasses = ClassPathScanner.getScannedBaseClasses(config);
     List<String> scannedAnnotations = ClassPathScanner.getScannedAnnotations(config);
     ScanResult preScanned = loadExcept(url);
-    ScanResult scan = ClassPathScanner.scan(
-        asList(url),
-        packagePrefixes,
-        baseClasses,
-        scannedAnnotations,
-        preScanned);
+    ScanResult scan =
+        ClassPathScanner.scan(
+            asList(url), packagePrefixes, baseClasses, scannedAnnotations, preScanned);
     save(scan, registryFile);
   }
 }

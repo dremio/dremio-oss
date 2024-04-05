@@ -22,7 +22,8 @@ public class SetupException extends Exception {
     super();
   }
 
-  public SetupException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public SetupException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
 
@@ -37,6 +38,4 @@ public class SetupException extends Exception {
   public SetupException(Throwable cause) {
     super(cause);
   }
-
-
 }

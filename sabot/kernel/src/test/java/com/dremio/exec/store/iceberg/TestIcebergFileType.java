@@ -24,12 +24,18 @@ public class TestIcebergFileType {
 
   @Test
   public void testFileContentMappings() {
-    // Currently, Iceberg's FileContent enum declares three types: DATA, POSITION_DELETES and EQUALITY_DELETES.
-    // We need to check that every file content type Iceberg declares, we have a mapping entry as well.
+    // Currently, Iceberg's FileContent enum declares three types: DATA, POSITION_DELETES and
+    // EQUALITY_DELETES.
+    // We need to check that every file content type Iceberg declares, we have a mapping entry as
+    // well.
 
     assertEquals(IcebergFileType.DATA, IcebergFileType.valueByName(FileContent.DATA.name()));
-    assertEquals(IcebergFileType.EQUALITY_DELETES, IcebergFileType.valueByName(FileContent.EQUALITY_DELETES.name()));
-    assertEquals(IcebergFileType.POSITION_DELETES, IcebergFileType.valueByName(FileContent.POSITION_DELETES.name()));
+    assertEquals(
+        IcebergFileType.EQUALITY_DELETES,
+        IcebergFileType.valueByName(FileContent.EQUALITY_DELETES.name()));
+    assertEquals(
+        IcebergFileType.POSITION_DELETES,
+        IcebergFileType.valueByName(FileContent.POSITION_DELETES.name()));
   }
 
   @Test

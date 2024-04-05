@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.common;
 
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
+import com.google.common.base.Preconditions;
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -26,24 +28,19 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
-import com.google.common.base.Preconditions;
-
-/**
- * Base class for 'COPY INTO'
- */
+/** Base class for 'COPY INTO' */
 public abstract class CopyIntoTableRelBase extends AbstractRelNode implements Rel {
 
   private final RelOptTable table;
   private final CopyIntoTableContext context;
 
-  protected CopyIntoTableRelBase(Convention convention,
-                                 RelOptCluster cluster,
-                                 RelTraitSet traitSet,
-                                 RelOptTable table,
-                                 RelDataType rowType,
-                                 CopyIntoTableContext config) {
+  protected CopyIntoTableRelBase(
+      Convention convention,
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      RelDataType rowType,
+      CopyIntoTableContext config) {
     super(cluster, traitSet);
     assert getConvention() == convention;
     this.table = table;
@@ -85,9 +82,9 @@ public abstract class CopyIntoTableRelBase extends AbstractRelNode implements Re
   }
 
   /**
-   * Subclasses must override copy to avoid problems where duplicate scan operators are
-   * created due to the same (reference-equality) Prel being used multiple times in the plan.
-   * The copy implementation in AbstractRelNode just returns a reference to "this".
+   * Subclasses must override copy to avoid problems where duplicate scan operators are created due
+   * to the same (reference-equality) Prel being used multiple times in the plan. The copy
+   * implementation in AbstractRelNode just returns a reference to "this".
    */
   @Override
   public abstract RelNode copy(RelTraitSet traitSet, List<RelNode> inputs);

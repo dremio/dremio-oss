@@ -16,31 +16,24 @@
 package com.dremio.exec.planner.cost.janio;
 
 import java.lang.reflect.Method;
-
 import org.apache.calcite.linq4j.Ord;
 
-/**
- * Common functions for code generation.
- */
+/** Common functions for code generation. */
 public class CodeGeneratorUtil {
 
-  /**
-   * Returns e.g. ",\n boolean ignoreNulls".
-   */
+  /** Returns e.g. ",\n boolean ignoreNulls". */
   static StringBuilder paramList(StringBuilder buff, Method method, int startIndex) {
-    for (Ord<Class<?>> t : Ord.zip(method.getParameterTypes())
-        .subList(startIndex, method.getParameterCount())) {
+    for (Ord<Class<?>> t :
+        Ord.zip(method.getParameterTypes()).subList(startIndex, method.getParameterCount())) {
       buff.append(",\n      ").append(t.e.getName()).append(" a").append(t.i);
     }
     return buff;
   }
 
-  /**
-   * Returns e.g. ", ignoreNulls".
-   */
+  /** Returns e.g. ", ignoreNulls". */
   static StringBuilder argList(StringBuilder buff, Method method, int startIndex) {
-    for (Ord<Class<?>> t : Ord.zip(method.getParameterTypes())
-        .subList(startIndex, method.getParameterCount())) {
+    for (Ord<Class<?>> t :
+        Ord.zip(method.getParameterTypes()).subList(startIndex, method.getParameterCount())) {
       buff.append(", a").append(t.i);
     }
     return buff;

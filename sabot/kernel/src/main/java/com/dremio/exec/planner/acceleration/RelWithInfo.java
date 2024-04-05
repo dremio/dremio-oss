@@ -16,26 +16,28 @@
 package com.dremio.exec.planner.acceleration;
 
 import java.time.Duration;
-
 import org.apache.calcite.rel.RelNode;
 
 /**
- * RelWithInfo wraps a normalized user query plan, normalized target materialization plan or replacement plan.
- * It includes additional information about the source of this plan such as the matching phase and time to
- * generate the plan such as normalization times.
+ * RelWithInfo wraps a normalized user query plan, normalized target materialization plan or
+ * replacement plan. It includes additional information about the source of this plan such as the
+ * matching phase and time to generate the plan such as normalization times.
  */
 public final class RelWithInfo {
   private final RelNode rel;
   private final String info;
   private final Duration elapsed;
+
   private RelWithInfo(RelNode node, String info, Duration elapsed) {
     this.rel = node;
     this.info = info;
     this.elapsed = elapsed;
   }
+
   public static RelWithInfo create(RelNode node, String info, Duration elapsed) {
     return new RelWithInfo(node, info, elapsed);
   }
+
   public RelWithInfo cloneWithRelNode(RelNode node) {
     return new RelWithInfo(node, this.getInfo(), this.getElapsed());
   }

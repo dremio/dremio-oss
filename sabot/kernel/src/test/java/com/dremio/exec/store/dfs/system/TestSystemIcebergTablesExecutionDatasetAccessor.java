@@ -19,15 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.function.Supplier;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.Table;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -36,31 +27,38 @@ import com.dremio.exec.store.iceberg.TableSchemaProvider;
 import com.dremio.exec.store.iceberg.TableSnapshotProvider;
 import com.dremio.options.OptionResolver;
 import com.dremio.service.namespace.file.proto.FileConfig;
+import java.util.function.Supplier;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.Table;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 public class TestSystemIcebergTablesExecutionDatasetAccessor {
 
-  @Mock
-  private EntityPath entityPath;
-  @Mock
-  private Supplier<Table> tableSupplier;
-  @Mock
-  private Configuration configuration;
-  @Mock
-  private TableSnapshotProvider tableSnapshotProvider;
-  @Mock
-  private SystemIcebergTablesStoragePlugin plugin;
-  @Mock
-  private TableSchemaProvider tableSchemaProvider;
-  @Mock
-  private OptionResolver optionResolver;
+  @Mock private EntityPath entityPath;
+  @Mock private Supplier<Table> tableSupplier;
+  @Mock private Configuration configuration;
+  @Mock private TableSnapshotProvider tableSnapshotProvider;
+  @Mock private SystemIcebergTablesStoragePlugin plugin;
+  @Mock private TableSchemaProvider tableSchemaProvider;
+  @Mock private OptionResolver optionResolver;
 
   private SystemIcebergTablesExecutionDatasetAccessor datasetHandle;
 
   @Before
   public void setUp() {
     MockitoAnnotations.openMocks(this);
-    datasetHandle = new SystemIcebergTablesExecutionDatasetAccessor(entityPath, tableSupplier, configuration,
-      tableSnapshotProvider, plugin, tableSchemaProvider, optionResolver);
+    datasetHandle =
+        new SystemIcebergTablesExecutionDatasetAccessor(
+            entityPath,
+            tableSupplier,
+            configuration,
+            tableSnapshotProvider,
+            plugin,
+            tableSchemaProvider,
+            optionResolver);
   }
 
   @Test
@@ -76,5 +74,4 @@ public class TestSystemIcebergTablesExecutionDatasetAccessor {
     FileConfig fileConfig = datasetHandle.getFileConfig();
     assertThat(fileConfig.getLocation()).isEqualTo(mockTable.location());
   }
-
 }

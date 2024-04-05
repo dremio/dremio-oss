@@ -1,0 +1,172 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.catalog-listing-view {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  flex-direction: column;
+  min-width: 250px;
+
+  &__header {
+    border-bottom: 1px solid var(--color--neutral--50);
+    padding: 7.5px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    &:hover {
+      :global {
+        .copy-button {
+          opacity: 1 !important;
+        }
+      }
+    }
+    :global {
+      .copy-button:focus {
+        opacity: 1 !important;
+      }
+    }
+
+    &-left {
+      flex: 1;
+      overflow: hidden;
+      min-width: 80px;
+    }
+
+    &-right {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--scale-1);
+    }
+  }
+
+  &__table {
+    width: 100%;
+    padding: 0 10px;
+    overflow: auto;
+    height: 100%;
+  }
+
+  &__search-field {
+    input {
+      &:hover {
+        border-color: var(--color--neutral--200);
+      }
+
+      &:focus {
+        border-color: var(--color--brand--300);
+        background-color: white;
+      }
+    }
+  }
+
+  &__search-field-divider {
+    height: 32px;
+    min-width: 180px !important;
+    width: auto !important;
+    margin-right: 0 !important;
+    padding-right: 16px;
+    border-right: 1px solid var(--color--neutral--50);
+  }
+
+  &__empty {
+    dremio-icon {
+      width: 40vh;
+      height: 40vh;
+
+      & + span {
+        font-weight: bold;
+        font-size: 16px;
+      }
+    }
+  }
+
+  :global {
+    .pin,
+    .copy-button {
+      opacity: 0;
+    }
+
+    .leantable__body-row:hover {
+      .pin,
+      .copy-button {
+        opacity: 1;
+      }
+    }
+    .leantable__body-row {
+      .pin:focus,
+      .copy-button:focus {
+        opacity: 1;
+      }
+    }
+
+    .name-column {
+      max-width: 45ch;
+    }
+
+    .jobs-column {
+      width: 70px;
+    }
+
+    .actions-column {
+      width: 140px;
+      .settings-button {
+        background-color: initial;
+        color: var(--dremio--color--text--faded);
+        &:hover,
+        &:focus-visible {
+          color: var(--dremio--color--link);
+        }
+      }
+
+      .leantable__body-cell__content {
+        justify-content: flex-end;
+      }
+    }
+
+    .main-settings-btn.min-btn.catalog-btn {
+      height: 32px;
+      width: 32px;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      color: var(--dremio--color--text--faded);
+      padding: var(--dremio--spacing--05);
+      transition: color 125ms ease-in-out;
+      background-color: transparent;
+
+      dremio-icon {
+        height: 24px;
+        width: 24px;
+      }
+
+      &:hover,
+      &:focus-visible {
+        color: var(--dremio--color--link);
+      }
+    }
+
+    .TextHighlight {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}

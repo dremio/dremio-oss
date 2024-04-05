@@ -18,9 +18,7 @@ package com.dremio.exec.physical.config;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.protobuf.TextFormat;
 
-/**
- * A minor fragment endpoint, including the minor fragment id and the endpoint.
- */
+/** A minor fragment endpoint, including the minor fragment id and the endpoint. */
 public class MinorFragmentEndpoint {
   private final int minorFragmentId;
   private final NodeEndpoint endpoint;
@@ -33,6 +31,7 @@ public class MinorFragmentEndpoint {
   public int getMinorFragmentId() {
     return minorFragmentId;
   }
+
   public NodeEndpoint getEndpoint() {
     return endpoint;
   }
@@ -72,9 +71,11 @@ public class MinorFragmentEndpoint {
 
   @Override
   public String toString() {
-    return "MinorFragmentEndpoint " +
-      " [endpoint=" + TextFormat.shortDebugString(endpoint) +
-      ", minorFragmentId=" + minorFragmentId +
-      "]";
+    return "MinorFragmentEndpoint "
+        + " [endpoint="
+        + TextFormat.shortDebugString(endpoint)
+        + ", minorFragmentId="
+        + minorFragmentId
+        + "]";
   }
 }

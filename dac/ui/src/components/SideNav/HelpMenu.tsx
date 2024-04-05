@@ -28,6 +28,7 @@ import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
 import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
 import { PRODUCT_TUTORIALS } from "@inject/featureFlags/flags/PRODUCT_TUTORIALS";
 import { useTutorialController } from "dremio-ui-common/walkthrough/TutorialController";
+import { useIsOrgCreator } from "@inject/utils/orgUtils";
 
 type HelpMenuProps = {
   closeMenu: () => void;
@@ -45,6 +46,7 @@ const HelpMenu = ({
     <span className={"externalLinkIcon dremioIcon-External-link"}></span>
   );
   const { isTutorialHidden, hideTutorial } = useTutorialController();
+  const isOrgCreator = useIsOrgCreator?.();
 
   return (
     <Menu style={menuListStyle}>
@@ -76,7 +78,7 @@ const HelpMenu = ({
       />
       {/* @ts-ignore */}
       {SideNavHelpExtra && <SideNavHelpExtra closeMenu={closeMenu} />}
-      {organizationLanding && isTutorialHidden && (
+      {organizationLanding && isOrgCreator && isTutorialHidden && (
         <FeatureSwitch
           flag={PRODUCT_TUTORIALS}
           renderEnabled={() => (

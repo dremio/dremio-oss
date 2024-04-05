@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.daemon;
 
-/**
- * Basic setup for creating a first user experience.
- */
+/** Basic setup for creating a first user experience. */
 public class OSSFirstLoginSetupService implements FirstLoginSetupService {
   public static final FirstLoginSetupService NOOP_INSTANCE = new OSSFirstLoginSetupService();
 

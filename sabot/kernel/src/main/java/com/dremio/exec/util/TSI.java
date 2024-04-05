@@ -16,8 +16,9 @@
 
 package com.dremio.exec.util;
 
+import com.dremio.common.exceptions.UserException;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.joda.time.Days;
 import org.joda.time.Hours;
 import org.joda.time.Interval;
@@ -28,16 +29,14 @@ import org.joda.time.Seconds;
 import org.joda.time.Weeks;
 import org.joda.time.Years;
 
-import com.dremio.common.exceptions.UserException;
-import com.google.common.collect.ImmutableList;
-
 public enum TSI {
-  MICROSECOND(ImmutableList.<String>builder()
-      .add("FRAC_SECOND")
-      .add("MICROSECOND")
-      .add("SQL_TSI_FRAC_SECOND")
-      .add("SQL_TSI_MICROSECOND")
-      .build()) {
+  MICROSECOND(
+      ImmutableList.<String>builder()
+          .add("FRAC_SECOND")
+          .add("MICROSECOND")
+          .add("SQL_TSI_FRAC_SECOND")
+          .add("SQL_TSI_MICROSECOND")
+          .build()) {
     @Override
     public void addCount(MutableDateTime dateTime, int count) {
       // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
@@ -173,12 +172,18 @@ public enum TSI {
   public void addCount(MutableDateTime dateTime, long count) {
     if (count > Integer.MAX_VALUE || count < Integer.MIN_VALUE) {
       throw UserException.unsupportedError()
-        .message("Do not support adding " + count + " " + this.getNames() + " to dateTime. [" + count + "] too large/small for integer.")
-        .build(logger);
+          .message(
+              "Do not support adding "
+                  + count
+                  + " "
+                  + this.getNames()
+                  + " to dateTime. ["
+                  + count
+                  + "] too large/small for integer.")
+          .build(logger);
     }
     addCount(dateTime, (int) count);
   }
 
   public abstract long getDiff(Interval interval);
-
 }

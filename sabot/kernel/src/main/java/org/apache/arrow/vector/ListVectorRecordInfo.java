@@ -15,9 +15,7 @@
  */
 package org.apache.arrow.vector;
 
-/**
- * Class holds information about a single record (list) in a list vector
- */
+/** Class holds information about a single record (list) in a list vector */
 public class ListVectorRecordInfo {
 
   public ListVectorRecordInfo(final int size, final int numOfElements) {

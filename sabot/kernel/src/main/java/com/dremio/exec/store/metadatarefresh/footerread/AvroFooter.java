@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.store.metadatarefresh.footerread;
 
+import com.dremio.exec.record.BatchSchema;
 import org.apache.iceberg.FileFormat;
 
-import com.dremio.exec.record.BatchSchema;
-
-/**
- * Avro footer used during metadata refresh
- */
+/** Avro footer used during metadata refresh */
 public class AvroFooter extends Footer {
-    public AvroFooter(BatchSchema schema, long rowCount) {
-        super(schema, rowCount, FileFormat.AVRO);
-    }
+  public AvroFooter(BatchSchema schema, long rowCount) {
+    super(schema, rowCount, FileFormat.AVRO);
+  }
 }

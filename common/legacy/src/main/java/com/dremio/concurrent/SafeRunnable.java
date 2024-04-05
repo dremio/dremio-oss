@@ -15,12 +15,11 @@
  */
 package com.dremio.concurrent;
 
-/**
- * Runnable that logs any unexpected termination.
- */
+/** Runnable that logs any unexpected termination. */
 public class SafeRunnable implements Runnable {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SafeRunnable.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SafeRunnable.class);
 
   private final Runnable delegate;
 
@@ -38,9 +37,8 @@ public class SafeRunnable implements Runnable {
   public void run() {
     try {
       delegate.run();
-    } catch(Throwable t) {
+    } catch (Throwable t) {
       logger.error("Uncaught exception while running runnable {}.", toString(), t);
     }
   }
-
 }

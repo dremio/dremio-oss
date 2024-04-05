@@ -57,7 +57,7 @@ const FlexTable = (props) => {
     return (
       <div className={className}>
         {header.map((headerCell, index) =>
-          renderCell(headerCell, classes.headerCell, `header_cell_${index}`)
+          renderCell(headerCell, classes.headerCell, `header_cell_${index}`),
         )}
       </div>
     );
@@ -81,7 +81,7 @@ const FlexTable = (props) => {
           return renderCell(
             dataCellWithBreakPoints,
             classes.dataCell,
-            `data_cell_${rowIndex}_${index}`
+            `data_cell_${rowIndex}_${index}`,
           );
         })}
       </div>
@@ -117,20 +117,20 @@ FlexTable.propTypes = {
   header: PropTypes.arrayOf(headerCellPropType).isRequired,
   data: (...args) => {
     const arrayValidationError = PropTypes.arrayOf(
-      PropTypes.arrayOf(dataCellPropType)
+      PropTypes.arrayOf(dataCellPropType),
     ).isRequired(...args);
     if (arrayValidationError) {
       return arrayValidationError;
     }
     const [props, propName, componentName] = args;
     const invalidLengthCellIndex = props[propName].findIndex(
-      (row) => row.length !== props.header.length
+      (row) => row.length !== props.header.length,
     );
     if (invalidLengthCellIndex !== -1) {
       return new Error(
         `Invalid prop '${propName}' supplied to '${componentName}'. Please check the length of row ${
           invalidLengthCellIndex + 1
-        }`
+        }`,
       );
     }
   },

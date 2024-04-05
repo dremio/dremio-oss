@@ -15,33 +15,46 @@
  */
 package com.dremio.service.namespace;
 
+import com.dremio.service.namespace.dataset.DatasetMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Preconditions;
-
 import io.protostuff.ByteString;
 
-/**
- * Dataset definition helper.
- */
+/** Dataset definition helper. */
 public final class DatasetHelper {
   public static final int NO_VERSION = 0;
   public static final int CURRENT_VERSION = 1;
 
-  private DatasetHelper(){}
+  private DatasetHelper() {}
 
   /**
    * Retrieve the schema bytes for a config. Manages different locations due to legacy storage.
+   *
    * @param config DatasetConfig to view.
    * @return ByteString for schema if property found. Otherwise null.
    */
-  public static ByteString getSchemaBytes(DatasetConfig config){
+  public static ByteString getSchemaBytes(DatasetConfig config) {
     ByteString recordSchema = config.getRecordSchema();
-    if(recordSchema == null && config.getPhysicalDataset() != null){
+    if (recordSchema == null && config.getPhysicalDataset() != null) {
       recordSchema = config.getPhysicalDataset().getDeprecatedDatasetSchema();
+    }
+    return recordSchema;
+  }
+
+  /**
+   * Retrieve the schema bytes for a metadata. Manages different locations due to legacy storage.
+   *
+   * @param metadata DatasetMetadata to view.
+   * @return ByteString for schema if property found. Otherwise null.
+   */
+  public static ByteString getSchemaBytes(DatasetMetadata metadata) {
+    ByteString recordSchema = metadata.getRecordSchema();
+    if (recordSchema == null && metadata.getPhysicalDataset() != null) {
+      recordSchema = metadata.getPhysicalDataset().getDeprecatedDatasetSchema();
     }
     return recordSchema;
   }
@@ -50,11 +63,11 @@ public final class DatasetHelper {
    * @return true if the dataset type is PHYSICAL_*
    */
   public static boolean isPhysicalDataset(DatasetType t) {
-    return t == DatasetType.PHYSICAL_DATASET ||
-      t == DatasetType.PHYSICAL_DATASET_SOURCE_FILE ||
-      t == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER ||
-      t == DatasetType.PHYSICAL_DATASET_HOME_FILE ||
-      t == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
+    return t == DatasetType.PHYSICAL_DATASET
+        || t == DatasetType.PHYSICAL_DATASET_SOURCE_FILE
+        || t == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER
+        || t == DatasetType.PHYSICAL_DATASET_HOME_FILE
+        || t == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
   }
 
   /**
@@ -97,8 +110,9 @@ public final class DatasetHelper {
     }
 
     IcebergMetadata icebergMetadata = dataset.getPhysicalDataset().getIcebergMetadata();
-    if (icebergMetadata != null && icebergMetadata.getFileType() != null &&
-            icebergMetadata.getFileType() == FileType.ICEBERG) {
+    if (icebergMetadata != null
+        && icebergMetadata.getFileType() != null
+        && icebergMetadata.getFileType() == FileType.ICEBERG) {
       return true;
     }
 
@@ -123,7 +137,7 @@ public final class DatasetHelper {
     }
 
     return (dataset.getPhysicalDataset().getIcebergMetadataEnabled() != null
-      && dataset.getPhysicalDataset().getIcebergMetadataEnabled());
+        && dataset.getPhysicalDataset().getIcebergMetadataEnabled());
   }
 
   /**
@@ -161,7 +175,9 @@ public final class DatasetHelper {
    * @return true if dataset supports prune filter push down
    */
   public static boolean supportsPruneFilter(DatasetConfig dataset) {
-    return isIcebergDataset(dataset) || isDeltaLakeDataset(dataset) || isConvertedIcebergDataset(dataset);
+    return isIcebergDataset(dataset)
+        || isDeltaLakeDataset(dataset)
+        || isConvertedIcebergDataset(dataset);
   }
 
   /**
@@ -184,5 +200,4 @@ public final class DatasetHelper {
     Preconditions.checkNotNull(fileConfig);
     return fileConfig.getType() == FileType.DELTA;
   }
-
 }

@@ -20,9 +20,6 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import org.apache.calcite.sql.SqlNode;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
@@ -39,52 +36,64 @@ import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.sabot.rpc.user.UserSession;
+import org.apache.calcite.sql.SqlNode;
+import org.junit.Test;
 
 public class TestQueryExceptionHandling extends PlanTestBase {
 
   private static UserSession session() {
     return UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.ANONYMOUS).build())
-      .setSupportComplexTypes(true)
-      .build();
+        .withSessionOptionManager(
+            new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+            getSabotContext().getOptionManager())
+        .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+        .withCredentials(
+            UserBitShared.UserCredentials.newBuilder()
+                .setUserName(UserServiceTestImpl.ANONYMOUS)
+                .build())
+        .setSupportComplexTypes(true)
+        .build();
   }
 
   /**
-   * Verifies StackOverflowError thrown during planning is caught and re-thrown as PLAN ERROR UserException.
+   * Verifies StackOverflowError thrown during planning is caught and re-thrown as PLAN ERROR
+   * UserException.
    */
   @Test
   public void testStackOverflowErrorDuringPlanning() {
     final String sql = "select 1";
 
     final SabotContext context = getSabotContext();
-    final QueryContext queryContext = new QueryContext(session(), context, UserBitShared.QueryId.getDefaultInstance());
-    final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
-    final SqlConverter converter = spy(new SqlConverter(
-      queryContext.getPlannerSettings(),
-      queryContext.getOperatorTable(),
-      queryContext,
-      queryContext.getMaterializationProvider(),
-      queryContext.getFunctionRegistry(),
-      queryContext.getSession(),
-      observer,
-      queryContext.getSubstitutionProviderFactory(),
-      queryContext.getConfig(),
-      queryContext.getScanResult(),
-      queryContext.getRelMetadataQuerySupplier()));
+    final QueryContext queryContext =
+        new QueryContext(session(), context, UserBitShared.QueryId.getDefaultInstance());
+    final AttemptObserver observer =
+        new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
+    final SqlConverter converter =
+        spy(
+            new SqlConverter(
+                queryContext.getPlannerSettings(),
+                queryContext.getOperatorTable(),
+                queryContext,
+                queryContext.getMaterializationProvider(),
+                queryContext.getFunctionRegistry(),
+                queryContext.getSession(),
+                observer,
+                queryContext.getSubstitutionProviderFactory(),
+                queryContext.getConfig(),
+                queryContext.getScanResult(),
+                queryContext.getRelMetadataQuerySupplier()));
     final SqlNode node = converter.parse(sql);
     final SqlHandlerConfig config = new SqlHandlerConfig(queryContext, converter, observer, null);
     final SqlToPlanHandler handler = new NormalHandler();
 
     // Simulates unexpected StackOverflowError is thrown during planning.
-    when(converter.getConvertletTableNotes()).thenThrow(new StackOverflowError());
+    when(converter.getSettings()).thenThrow(new StackOverflowError());
 
-    // Verifies when unexpected StackOverflowError is thrown during planning, it is caught and re-thrown as PLAN ERROR
+    // Verifies when unexpected StackOverflowError is thrown during planning, it is caught and
+    // re-thrown as PLAN ERROR
     // UserException with the error message of SqlExceptionHelper.PLANNING_STACK_OVERFLOW_ERROR.
-    UserException exception = assertThrows(UserException.class, () -> handler.getPlan(config, sql, node));
+    UserException exception =
+        assertThrows(UserException.class, () -> handler.getPlan(config, sql, node));
     assertThat(exception.getErrorType().name()).isEqualTo("PLAN");
     assertThat(exception.getMessage()).isEqualTo(SqlExceptionHelper.PLANNING_STACK_OVERFLOW_ERROR);
   }

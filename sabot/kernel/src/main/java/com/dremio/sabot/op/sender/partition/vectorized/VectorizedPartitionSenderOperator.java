@@ -18,16 +18,6 @@ package com.dremio.sabot.op.sender.partition.vectorized;
 import static com.dremio.sabot.op.sender.partition.PartitionSenderOperator.Metric.N_RECEIVERS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicIntegerArray;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.carrotsearch.hppc.IntArrayList;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
@@ -53,22 +43,32 @@ import com.dremio.sabot.op.sender.partition.vectorized.MultiDestCopier.CopyWatch
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-
 import io.netty.util.internal.PlatformDependent;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
+import org.apache.arrow.vector.types.pojo.Field;
 
 /**
  * Implementation of hash partition sender that relies on vectorized copy of the data.<br>
- * Each incoming batch may be processed in multiple passes, each time copying up to numRecordsBeforeFlush rows.
+ * Each incoming batch may be processed in multiple passes, each time copying up to
+ * numRecordsBeforeFlush rows.
  */
 @Options
 public class VectorizedPartitionSenderOperator extends BaseSender {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedPartitionSenderOperator.class);
-  @VisibleForTesting
-  public static final int PARTITION_MULTIPLE = 8;
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(VectorizedPartitionSenderOperator.class);
+  @VisibleForTesting public static final int PARTITION_MULTIPLE = 8;
 
-  // If set, delay allocation of buffers till the first send (instead of at operator setup). Also, free the buffers once
+  // If set, delay allocation of buffers till the first send (instead of at operator setup). Also,
+  // free the buffers once
   // there is no more data to send (instead of at operator close).
-  public static final TypeValidators.BooleanValidator DELAY_ALLOC_SEND_BATCHES = new TypeValidators.BooleanValidator("exec.op.partitioner.delay_alloc_send_batches", true);
+  public static final TypeValidators.BooleanValidator DELAY_ALLOC_SEND_BATCHES =
+      new TypeValidators.BooleanValidator("exec.op.partitioner.delay_alloc_send_batches", true);
 
   /** used to ensure outgoing batches creation and */
   private final Object batchCreationLock = new Object();
@@ -92,37 +92,29 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
   /**
    * number of records before we flush any outgoing batch.<br>
-   * used to be potentially different for each destination, but not anymore as we use this value to decide
-   * how many rows we should copy in a single pass
-   * */
+   * used to be potentially different for each destination, but not anymore as we use this value to
+   * decide how many rows we should copy in a single pass
+   */
   private int numRecordsBeforeFlush;
 
   private List<MultiDestCopier> copiers;
 
   /**
-   * two outgoing batches per receiver, so we can delay flushing the batches after we copy the incoming
-   * batch.
+   * two outgoing batches per receiver, so we can delay flushing the batches after we copy the
+   * incoming batch.
    */
   private final OutgoingBatch[] batches;
 
   /**
    * modLookup[p] = outgoing batch that should receive the next row for partition p.<br>
    * Sized to a power-of-two to ensure we can use bitwise operation instead of mod when computing
-   * the target partition for a given hash
-   * Batches are assigned round-robin to the partition lookup:
-   *   modLookup[0] = batches[0]
-   *   modLookup[1] = batches[1]
-   *   ...
-   *   modLookup[#receivers-1] = batches[#receivers-1]
-   *   modLookup[#receivers] = batches[0]
-   *   modLookup[#receivers+1] = batches[1]
-   *   ...
-   *   modLookup(2*#receivers-1] = batches[#receivers-1]
-   *   ...
-   *   # Pattern repeats PARTITION_MULTIPLE times
-   * The relationship between a partition# and a batch# is always:
-   *   batchNum % numReceivers = partitionNum % numReceivers
-   * Please note that this relationship holds even though there are twice as many batches as there are receivers
+   * the target partition for a given hash Batches are assigned round-robin to the partition lookup:
+   * modLookup[0] = batches[0] modLookup[1] = batches[1] ... modLookup[#receivers-1] =
+   * batches[#receivers-1] modLookup[#receivers] = batches[0] modLookup[#receivers+1] = batches[1]
+   * ... modLookup(2*#receivers-1] = batches[#receivers-1] ... # Pattern repeats PARTITION_MULTIPLE
+   * times The relationship between a partition# and a batch# is always: batchNum % numReceivers =
+   * partitionNum % numReceivers Please note that this relationship holds even though there are
+   * twice as many batches as there are receivers
    */
   private final OutgoingBatch[] modLookup;
 
@@ -130,21 +122,21 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   private final int modSize;
 
   /**
-   * holds the (batchIdx, rowIdx) as a compound value for each row that will be copied in the current pass
+   * holds the (batchIdx, rowIdx) as a compound value for each row that will be copied in the
+   * current pass
    */
   private IntVector copyIndices;
 
   // if true, delay allocating send batches till the first batch arrives.
   private final boolean delayAllocSendBatches;
 
-  /**
-   * true if all receivers finished.
-   */
+  /** true if all receivers finished. */
   private volatile boolean nobodyListening = false;
 
-  public VectorizedPartitionSenderOperator(final OperatorContext context,
-                                           final TunnelProvider tunnelProvider,
-                                           final HashPartitionSender config) {
+  public VectorizedPartitionSenderOperator(
+      final OperatorContext context,
+      final TunnelProvider tunnelProvider,
+      final HashPartitionSender config) {
     super(config);
     this.context = context;
     this.config = config;
@@ -171,8 +163,10 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   @Override
   public void setup(VectorAccessible incoming) throws Exception {
     state.is(State.NEEDS_SETUP);
-    Preconditions.checkState(incoming.getSchema().getSelectionVectorMode() == BatchSchema.SelectionVectorMode.NONE,
-      "Vectorized Partition Sender doesn't support SV " + incoming.getSchema().getSelectionVectorMode());
+    Preconditions.checkState(
+        incoming.getSchema().getSelectionVectorMode() == BatchSchema.SelectionVectorMode.NONE,
+        "Vectorized Partition Sender doesn't support SV "
+            + incoming.getSchema().getSelectionVectorMode());
 
     checkSchema(incoming.getSchema());
 
@@ -184,7 +178,8 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     synchronized (batchCreationLock) {
       initBatchesAndLookup(incoming);
 
-      // some receivers may have finished already, make sure to terminate corresponding outgoing batches
+      // some receivers may have finished already, make sure to terminate corresponding outgoing
+      // batches
       for (int index = 0; index < terminations.size(); index++) {
         final int p = terminations.buffer[index];
         batches[p].terminate();
@@ -193,7 +188,8 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
       terminations.clear();
     }
 
-    copiers = MultiDestCopier.getCopiers(VectorContainer.getFieldVectors(incoming), batches, copyWatches);
+    copiers =
+        MultiDestCopier.getCopiers(VectorContainer.getFieldVectors(incoming), batches, copyWatches);
 
     final BufferAllocator allocator = context.getAllocator();
     copyIndices = new IntVector("copy-compound-indices", allocator);
@@ -205,30 +201,58 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   }
 
   private void initHashVector(VectorAccessible incoming) {
-    Preconditions.checkArgument(config.getExpr() instanceof SchemaPath,
-      "hash expression expected to be a SchemaPath but was : " + config.getExpr().getClass().getName());
+    Preconditions.checkArgument(
+        config.getExpr() instanceof SchemaPath,
+        "hash expression expected to be a SchemaPath but was : "
+            + config.getExpr().getClass().getName());
 
     final SchemaPath expr = (SchemaPath) config.getExpr();
     final TypedFieldId typedFieldId = incoming.getSchema().getFieldId(expr);
     final Field field = incoming.getSchema().getColumn(typedFieldId.getFieldIds()[0]);
     Preconditions.checkArgument(field.getType().getTypeID() == ArrowTypeID.Int);
-    partitionIndices = incoming.getValueAccessorById(IntVector.class, typedFieldId.getFieldIds()[0]).getValueVector();
+    partitionIndices =
+        incoming
+            .getValueAccessorById(IntVector.class, typedFieldId.getFieldIds()[0])
+            .getValueVector();
   }
 
-  /**
-   * setup all outgoing batches and modLookup
-   */
+  /** setup all outgoing batches and modLookup */
   private void initBatchesAndLookup(VectorAccessible incoming) {
     final BufferAllocator allocator = context.getAllocator();
-    final List<MinorFragmentEndpoint> destinations = config.getDestinations(context.getEndpointsIndex());
+    final List<MinorFragmentEndpoint> destinations =
+        config.getDestinations(context.getEndpointsIndex());
     for (int p = 0; p < numReceivers; p++) {
       final int batchB = numReceivers + p;
 
       final MinorFragmentEndpoint destination = destinations.get(p);
       final AccountingExecTunnel tunnel = tunnelProvider.getExecTunnel(destination.getEndpoint());
 
-      batches[p] = new OutgoingBatch(p, batchB, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats, latencyTracker);
-      batches[batchB] = new OutgoingBatch(batchB, p, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats, latencyTracker);
+      batches[p] =
+          new OutgoingBatch(
+              p,
+              batchB,
+              numRecordsBeforeFlush,
+              incoming,
+              allocator,
+              tunnel,
+              config,
+              context,
+              destination.getMinorFragmentId(),
+              stats,
+              latencyTracker);
+      batches[batchB] =
+          new OutgoingBatch(
+              batchB,
+              p,
+              numRecordsBeforeFlush,
+              incoming,
+              allocator,
+              tunnel,
+              config,
+              context,
+              destination.getMinorFragmentId(),
+              stats,
+              latencyTracker);
 
       if (!delayAllocSendBatches) {
         // Only allocate the primary batch. Backup batch is allocated when it is needed.
@@ -338,13 +362,14 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     for (MinorFragmentEndpoint destination : config.getDestinations(context.getEndpointsIndex())) {
       // don't send termination message if the receiver fragment is already terminated.
       if (remainingReceivers.get(destination.getMinorFragmentId()) == 0) {
-        ExecRPC.FragmentStreamComplete completion = ExecRPC.FragmentStreamComplete.newBuilder()
-            .setQueryId(handle.getQueryId())
-            .setSendingMajorFragmentId(handle.getMajorFragmentId())
-            .setSendingMinorFragmentId(handle.getMinorFragmentId())
-            .setReceivingMajorFragmentId(config.getReceiverMajorFragmentId())
-            .addReceivingMinorFragmentId(destination.getMinorFragmentId())
-            .build();
+        ExecRPC.FragmentStreamComplete completion =
+            ExecRPC.FragmentStreamComplete.newBuilder()
+                .setQueryId(handle.getQueryId())
+                .setSendingMajorFragmentId(handle.getMajorFragmentId())
+                .setSendingMinorFragmentId(handle.getMinorFragmentId())
+                .setReceivingMajorFragmentId(config.getReceiverMajorFragmentId())
+                .addReceivingMinorFragmentId(destination.getMinorFragmentId())
+                .build();
         tunnelProvider.getExecTunnel(destination.getEndpoint()).sendStreamComplete(completion);
       }
     }
@@ -356,17 +381,18 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   }
 
   private void generateCopyIndices(final int start, final int numRowsToCopy) {
-    long srcAddr = partitionIndices.getDataBufferAddress() + start*4;
+    long srcAddr = partitionIndices.getDataBufferAddress() + start * 4;
     long dstAddr = copyIndices.getDataBufferAddress();
 
     final int mod = modSize - 1;
     final OutgoingBatch[] modLookup = this.modLookup;
     final OutgoingBatch[] batches = this.batches;
 
-    //populate using the destination (batchIdx, rowIdx) for each incoming row
-    final long max = srcAddr + numRowsToCopy*4;
-    for (; srcAddr < max; srcAddr+=4, dstAddr+=4) {
-      final int partition = (PlatformDependent.getInt(srcAddr) & 0x7FFFFFFF) & mod; // abs(hash) % modSize
+    // populate using the destination (batchIdx, rowIdx) for each incoming row
+    final long max = srcAddr + numRowsToCopy * 4;
+    for (; srcAddr < max; srcAddr += 4, dstAddr += 4) {
+      final int partition =
+          (PlatformDependent.getInt(srcAddr) & 0x7FFFFFFF) & mod; // abs(hash) % modSize
       OutgoingBatch batch = getBatch(partition, modLookup);
 
       final int compound = batch.preCopyRow();
@@ -385,11 +411,13 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
         for (MultiDestCopier copier : copiers) {
           copier.updateTargets(nextBatchIdx, nextBatch.getFieldVector(copier.getFieldId()));
         }
-        // Paired batches must be located at very specific places within modLookup. In particular, the batch pair
+        // Paired batches must be located at very specific places within modLookup. In particular,
+        // the batch pair
         // repeats every #receivers (see the comment above the modLookup definition).
-        assert (batch.getBatchIdx() % numReceivers) == (nextBatchIdx % numReceivers) :
-          String.format("Batch pairs must be aligned to #receivers. Instead: curr batch: %d, next batch: %d, #receivers: %d",
-            batch.getBatchIdx(), nextBatchIdx, numReceivers);
+        assert (batch.getBatchIdx() % numReceivers) == (nextBatchIdx % numReceivers)
+            : String.format(
+                "Batch pairs must be aligned to #receivers. Instead: curr batch: %d, next batch: %d, #receivers: %d",
+                batch.getBatchIdx(), nextBatchIdx, numReceivers);
         for (int b = (nextBatchIdx % numReceivers); b < modSize; b += numReceivers) {
           modLookup[b] = nextBatch;
         }
@@ -413,7 +441,8 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitTerminalOperator(this, value);
   }
 

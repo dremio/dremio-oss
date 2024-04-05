@@ -15,15 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import javax.annotation.concurrent.NotThreadSafe;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.exec.dfs.proto.DFS.RpcType;
 import com.dremio.exec.dfs.proto.DFS.WriteDataRequest;
@@ -34,16 +25,21 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.google.common.base.Preconditions;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
- * An OutputStream that buffers the stream locally, flushing to the remote node
- * on occasion. The remote stream is stateful and expects the local stream to
- * maintain the remote offset and last update to continue writing.
+ * An OutputStream that buffers the stream locally, flushing to the remote node on occasion. The
+ * remote stream is stateful and expects the local stream to maintain the remote offset and last
+ * update to continue writing.
  *
- * Pieces pulled from harmony.
+ * <p>Pieces pulled from harmony.
  */
 @NotThreadSafe
 class LocalStatefulOutputStream extends OutputStream {
@@ -58,7 +54,8 @@ class LocalStatefulOutputStream extends OutputStream {
   private long remoteOffset;
   private long lastUpdate;
 
-  public LocalStatefulOutputStream(String path, FabricCommandRunner runner, BufferAllocator alloc, int size) {
+  public LocalStatefulOutputStream(
+      String path, FabricCommandRunner runner, BufferAllocator alloc, int size) {
     this.buf = NettyArrowBuf.unwrapBuffer(alloc.buffer(size));
     this.runner = runner;
     this.path = path;
@@ -69,27 +66,28 @@ class LocalStatefulOutputStream extends OutputStream {
     flush(false);
   }
 
-  private void flush(boolean evenIfEmpty) throws IOException{
-    if(!buf.isReadable() && !evenIfEmpty){
+  private void flush(boolean evenIfEmpty) throws IOException {
+    if (!buf.isReadable() && !evenIfEmpty) {
       return;
     }
 
-    final WriteDataRequest req = WriteDataRequest.newBuilder()
-      .setPath(path)
-      .setLastOffset(remoteOffset)
-      .setLastUpdate(lastUpdate)
-      .build();
+    final WriteDataRequest req =
+        WriteDataRequest.newBuilder()
+            .setPath(path)
+            .setLastOffset(remoteOffset)
+            .setLastUpdate(lastUpdate)
+            .build();
 
     WriteDataCommand command = new WriteDataCommand(req, buf);
     runner.runCommand(command);
-    try{
-      WriteDataResponse response = DremioFutures.getChecked(
-        command.getFuture(),
-        RpcException.class,
-        WRITE_RESPONSE_IN_SECONDS,
-        TimeUnit.SECONDS,
-        RpcException::mapException
-      );
+    try {
+      WriteDataResponse response =
+          DremioFutures.getChecked(
+              command.getFuture(),
+              RpcException.class,
+              WRITE_RESPONSE_IN_SECONDS,
+              TimeUnit.SECONDS,
+              RpcException::mapException);
       remoteOffset += buf.readableBytes();
       lastUpdate = response.getUpdateTime();
       buf.clear();
@@ -113,7 +111,6 @@ class LocalStatefulOutputStream extends OutputStream {
       buf.writeBytes(buffer, offset, copyAmount);
       length -= copyAmount;
       offset += copyAmount;
-
     }
   }
 
@@ -127,7 +124,7 @@ class LocalStatefulOutputStream extends OutputStream {
 
   @Override
   public void close() throws IOException {
-    if(closed){
+    if (closed) {
       return;
     }
     try {
@@ -138,7 +135,8 @@ class LocalStatefulOutputStream extends OutputStream {
     }
   }
 
-  private static class WriteDataCommand extends FutureBitCommand<WriteDataResponse, ProxyConnection> {
+  private static class WriteDataCommand
+      extends FutureBitCommand<WriteDataResponse, ProxyConnection> {
     private final ByteBuf buf;
     private final WriteDataRequest request;
 
@@ -149,8 +147,10 @@ class LocalStatefulOutputStream extends OutputStream {
     }
 
     @Override
-    public void doRpcCall(RpcOutcomeListener<WriteDataResponse> outcomeListener, ProxyConnection connection) {
-      connection.send(outcomeListener, RpcType.WRITE_DATA_REQUEST, request, WriteDataResponse.class, buf);
+    public void doRpcCall(
+        RpcOutcomeListener<WriteDataResponse> outcomeListener, ProxyConnection connection) {
+      connection.send(
+          outcomeListener, RpcType.WRITE_DATA_REQUEST, request, WriteDataResponse.class, buf);
     }
   }
 }

@@ -18,5 +18,4 @@ package com.dremio.service.nessie.upgrade.version040.model;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 @JsonTypeName("DELETE")
-public class DeleteOperation extends Operation {
-}
+public class DeleteOperation extends Operation {}

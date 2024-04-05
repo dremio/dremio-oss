@@ -15,43 +15,68 @@
  */
 package com.dremio.exec.calcite.logical;
 
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.VacuumOptions;
+import com.dremio.exec.planner.common.VacuumCatalogRelBase;
+import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.catalog.VacuumOptions;
-import com.dremio.exec.planner.common.VacuumCatalogRelBase;
-import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
-
-/**
- * Calcite rel for 'VACUUM CATALOG' query.
- */
+/** Calcite rel for 'VACUUM CATALOG' query. */
 public class VacuumCatalogCrel extends VacuumCatalogRelBase {
 
   private boolean isDefaultRetentionUsed = false;
 
-  public VacuumCatalogCrel(RelOptCluster cluster,
-                           RelTraitSet traitSet,
-                           StoragePluginId storagePluginId,
-                           String user,
-                           String sourceName,
-                           IcebergCostEstimates icebergCostEstimates,
-                           VacuumOptions vacuumOptions) {
-    super(Convention.NONE, cluster, traitSet, storagePluginId, user, sourceName, icebergCostEstimates, vacuumOptions);
+  public VacuumCatalogCrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      StoragePluginId storagePluginId,
+      String user,
+      String sourceName,
+      IcebergCostEstimates icebergCostEstimates,
+      VacuumOptions vacuumOptions) {
+    super(
+        Convention.NONE,
+        cluster,
+        traitSet,
+        storagePluginId,
+        user,
+        sourceName,
+        icebergCostEstimates,
+        vacuumOptions);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new VacuumCatalogCrel(getCluster(), traitSet, getStoragePluginId(), getUser(), getSourceName(), getCostEstimates(), getVacuumOptions());
+    return new VacuumCatalogCrel(
+        getCluster(),
+        traitSet,
+        getStoragePluginId(),
+        getUser(),
+        getSourceName(),
+        getCostEstimates(),
+        getVacuumOptions());
   }
 
-  public RelNode createWith(StoragePluginId storagePluginId, VacuumOptions vacuumOptions, IcebergCostEstimates costEstimates, String user, boolean isDefaultRetentionUsed) {
-    VacuumCatalogCrel newCrel = new VacuumCatalogCrel(getCluster(), traitSet, storagePluginId, user, getSourceName(), costEstimates, vacuumOptions);
+  public RelNode createWith(
+      StoragePluginId storagePluginId,
+      VacuumOptions vacuumOptions,
+      IcebergCostEstimates costEstimates,
+      String user,
+      boolean isDefaultRetentionUsed) {
+    VacuumCatalogCrel newCrel =
+        new VacuumCatalogCrel(
+            getCluster(),
+            traitSet,
+            storagePluginId,
+            user,
+            getSourceName(),
+            costEstimates,
+            vacuumOptions);
     newCrel.setDefaultRetentionUsed(isDefaultRetentionUsed);
     return newCrel;
   }

@@ -15,6 +15,8 @@
  */
 package com.dremio.common;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -23,16 +25,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
-/**
- * Utilities for AutoCloseable classes.
- */
+/** Utilities for AutoCloseable classes. */
 public final class AutoCloseables {
   // Utility class. Should not be instantiated
-  private AutoCloseables() {
-  }
+  private AutoCloseables() {}
 
   public static AutoCloseable all(final Collection<? extends AutoCloseable> autoCloseables) {
     return new AutoCloseable() {
@@ -46,7 +42,7 @@ public final class AutoCloseables {
   /**
    * Closes all autoCloseables if not null and suppresses exceptions by adding them to t
    *
-   * @param t              the throwable to add suppressed exception to
+   * @param t the throwable to add suppressed exception to
    * @param autoCloseables the closeables to close
    */
   public static void close(Throwable t, AutoCloseable... autoCloseables) {
@@ -56,7 +52,7 @@ public final class AutoCloseables {
   /**
    * Closes all autoCloseables if not null and suppresses exceptions by adding them to t
    *
-   * @param t              the throwable to add suppressed exception to
+   * @param t the throwable to add suppressed exception to
    * @param autoCloseables the closeables to close
    */
   public static void close(Throwable t, Iterable<? extends AutoCloseable> autoCloseables) {
@@ -77,28 +73,30 @@ public final class AutoCloseables {
   }
 
   /**
-   * Close with an expected exception class. This method wraps any checked exception to an expected type.
-   * The exception class should have a constructor that takes Exception object as a parameter.
+   * Close with an expected exception class. This method wraps any checked exception to an expected
+   * type. The exception class should have a constructor that takes Exception object as a parameter.
    *
    * @param exceptionClazz
    * @param autoCloseables
    * @param <E>
    * @throws E
    */
-  public static <E extends Throwable> void close(Class<E> exceptionClazz, AutoCloseable... autoCloseables) throws E {
+  public static <E extends Throwable> void close(
+      Class<E> exceptionClazz, AutoCloseable... autoCloseables) throws E {
     close(exceptionClazz, Arrays.asList(autoCloseables));
   }
 
   /**
-   * Close with an expected exception class. This method wraps any checked exception to an expected type.
-   * The exception class should have a constructor that takes Exception object as a parameter.
+   * Close with an expected exception class. This method wraps any checked exception to an expected
+   * type. The exception class should have a constructor that takes Exception object as a parameter.
    *
    * @param exceptionClazz
    * @param autoCloseables
    * @param <E>
    * @throws E
    */
-  public static <E extends Throwable> void close(Class<E> exceptionClazz, Iterable<? extends AutoCloseable> autoCloseables) throws E {
+  public static <E extends Throwable> void close(
+      Class<E> exceptionClazz, Iterable<? extends AutoCloseable> autoCloseables) throws E {
     try {
       close(autoCloseables);
     } catch (RuntimeException e) {
@@ -109,9 +107,13 @@ public final class AutoCloseables {
       }
 
       try {
-        Constructor<E> constructor = exceptionClazz.getDeclaredConstructor(new Class[]{Throwable.class});
-        throw constructor.newInstance(new Object[]{e});
-      } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException ex) {
+        Constructor<E> constructor =
+            exceptionClazz.getDeclaredConstructor(new Class[] {Throwable.class});
+        throw constructor.newInstance(new Object[] {e});
+      } catch (NoSuchMethodException
+          | InstantiationException
+          | IllegalAccessException
+          | InvocationTargetException ex) {
         throw new RuntimeException(e);
       }
     }
@@ -123,7 +125,8 @@ public final class AutoCloseables {
    * @param ac the closeables to close
    */
   public static void close(Iterable<? extends AutoCloseable> ac) throws Exception {
-    // this method can be called on a single object if it implements Iterable<AutoCloseable> like for example VectorContainer
+    // this method can be called on a single object if it implements Iterable<AutoCloseable> like
+    // for example VectorContainer
     // make sure we handle that properly
     if (ac == null) {
       return;
@@ -170,9 +173,7 @@ public final class AutoCloseables {
     }
   }
 
-  /**
-   * A closeable wrapper that will close the underlying closeables if a commit does not occur.
-   */
+  /** A closeable wrapper that will close the underlying closeables if a commit does not occur. */
   public static class RollbackCloseable implements AutoCloseable {
 
     private boolean commit = false;
@@ -187,7 +188,6 @@ public final class AutoCloseables {
     public RollbackCloseable(AutoCloseable... closeables) {
       this(false, closeables);
     }
-
 
     public <T extends AutoCloseable> T add(T t) {
       closeables.add(t);
@@ -221,7 +221,6 @@ public final class AutoCloseables {
         AutoCloseables.close(closeables);
       }
     }
-
   }
 
   public static RollbackCloseable rollbackable(AutoCloseable... closeables) {
@@ -229,15 +228,14 @@ public final class AutoCloseables {
   }
 
   /**
-   * close() an {@see java.lang.AutoCloseable} without throwing a (checked)
-   * {@see java.lang.Exception}. This wraps the close() call with a
-   * try-catch that will rethrow an Exception wrapped with a
-   * {@see java.lang.RuntimeException}, providing a way to call close()
+   * close() an {@see java.lang.AutoCloseable} without throwing a (checked) {@see
+   * java.lang.Exception}. This wraps the close() call with a try-catch that will rethrow an
+   * Exception wrapped with a {@see java.lang.RuntimeException}, providing a way to call close()
    * without having to do the try-catch everywhere or propagate the Exception.
    *
    * @param autoCloseable the AutoCloseable to close; may be null
-   * @throws RuntimeException if an Exception occurs; the Exception is
-   *                          wrapped by the RuntimeException
+   * @throws RuntimeException if an Exception occurs; the Exception is wrapped by the
+   *     RuntimeException
    */
   public static void closeNoChecked(final AutoCloseable autoCloseable) {
     if (autoCloseable != null) {
@@ -249,11 +247,11 @@ public final class AutoCloseables {
     }
   }
 
-  private static final AutoCloseable noOpAutocloseable = new AutoCloseable() {
-    @Override
-    public void close() {
-    }
-  };
+  private static final AutoCloseable noOpAutocloseable =
+      new AutoCloseable() {
+        @Override
+        public void close() {}
+      };
 
   /**
    * @return A do-nothing autocloseable

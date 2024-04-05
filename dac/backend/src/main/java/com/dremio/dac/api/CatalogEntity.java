@@ -19,11 +19,13 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-/**
- * Represents an entity in the Dremio catalog
- */
+/** Represents an entity in the Dremio catalog */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "entityType", visible = true)
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXTERNAL_PROPERTY,
+    property = "entityType",
+    visible = true)
 @JsonSubTypes({
   @JsonSubTypes.Type(value = Dataset.class, name = "dataset"),
   @JsonSubTypes.Type(value = Space.class, name = "space"),

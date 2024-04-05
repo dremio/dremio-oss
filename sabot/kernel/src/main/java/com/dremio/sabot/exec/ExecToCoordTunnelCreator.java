@@ -15,14 +15,13 @@
  */
 package com.dremio.sabot.exec;
 
-import javax.inject.Provider;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 import com.dremio.sabot.rpc.Protocols;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.base.Preconditions;
+import javax.inject.Provider;
 
 public class ExecToCoordTunnelCreator {
 
@@ -33,8 +32,17 @@ public class ExecToCoordTunnelCreator {
     this.factory = factory;
   }
 
-  public ExecToCoordTunnel getTunnel(NodeEndpoint identity){
-    Preconditions.checkArgument(ClusterCoordinator.Role.fromEndpointRoles(identity.getRoles()).contains(ClusterCoordinator.Role.COORDINATOR), "SabotNode %s is not a coordinator node.", identity);
-    return new ExecToCoordTunnel(identity, factory.get().getProtocol(Protocols.COORD_TO_EXEC).getCommandRunner(identity.getAddress(), identity.getFabricPort()));
+  public ExecToCoordTunnel getTunnel(NodeEndpoint identity) {
+    Preconditions.checkArgument(
+        ClusterCoordinator.Role.fromEndpointRoles(identity.getRoles())
+            .contains(ClusterCoordinator.Role.COORDINATOR),
+        "SabotNode %s is not a coordinator node.",
+        identity);
+    return new ExecToCoordTunnel(
+        identity,
+        factory
+            .get()
+            .getProtocol(Protocols.COORD_TO_EXEC)
+            .getCommandRunner(identity.getAddress(), identity.getFabricPort()));
   }
 }

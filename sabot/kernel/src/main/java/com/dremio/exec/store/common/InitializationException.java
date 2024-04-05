@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store.common;
 
-/**
- * Exception which can be thrown for errors during initialization
- */
+/** Exception which can be thrown for errors during initialization */
 public class InitializationException extends Exception {
   public InitializationException() {
     super();

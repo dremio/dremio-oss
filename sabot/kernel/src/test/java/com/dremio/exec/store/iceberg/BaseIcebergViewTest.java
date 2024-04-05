@@ -15,21 +15,28 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.plugins.NessieClientOptions.BYPASS_CONTENT_CACHE;
 import static com.dremio.plugins.NessieClientOptions.NESSIE_CONTENT_CACHE_SIZE_ITEMS;
 import static com.dremio.plugins.NessieClientOptions.NESSIE_CONTENT_CACHE_TTL_MINUTES;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.nessie.IcebergNessieVersionedViews;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadataParser;
+import com.dremio.options.OptionManager;
+import com.dremio.plugins.NessieClient;
+import com.dremio.plugins.NessieClientImpl;
 import java.net.URI;
 import java.nio.file.Path;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.nessie.NessieExtCatalog;
-import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
-import org.apache.iceberg.viewdepoc.ViewVersionMetadataParser;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,28 +48,15 @@ import org.projectnessie.tools.compatibility.api.NessieBaseUri;
 import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.catalog.model.ResolvedVersionContext;
-import com.dremio.catalog.model.VersionContext;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.iceberg.nessie.IcebergNessieVersionedViews;
-import com.dremio.options.OptionManager;
-import com.dremio.plugins.NessieClient;
-import com.dremio.plugins.NessieClientImpl;
-import com.google.common.collect.ImmutableMap;
-
 @ExtendWith(OlderNessieServersExtension.class)
-@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")  //PERSIST is the new model in Nessie Server
+@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")
 public class BaseIcebergViewTest {
 
   @TempDir protected static Path temp;
 
   protected static String warehouseLocation;
-  @NessieBaseUri
-  protected static URI nessieBaseUri;
-  @NessieAPI
-  protected static NessieApiV2 nessieApi;
+  @NessieBaseUri protected static URI nessieBaseUri;
+  @NessieAPI protected static NessieApiV2 nessieApi;
   protected static NessieClient nessieClient;
   protected static Configuration fileSystemConfig;
   protected static FileSystemPlugin fsPlugin;
@@ -70,30 +64,26 @@ public class BaseIcebergViewTest {
   protected static final String userName = "test-user";
   protected static IcebergNessieVersionedViews icebergNessieVersionedViews;
 
-  protected static NessieExtCatalog nessieExtCatalog;
-
   @BeforeAll
   public static void setup() throws Exception {
     warehouseLocation = temp.toUri().toString();
     fileSystemConfig = new Configuration();
     fsPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    fileIO = fsPlugin.createIcebergFileIO(
-      fsPlugin.getSystemUserFS(),
-      null,
-      null,
-      null,
-      null);
+    fileIO = fsPlugin.createIcebergFileIO(fsPlugin.getSystemUserFS(), null, null, null, null);
 
     SabotContext sabotContext = mock(SabotContext.class);
     when(fsPlugin.getContext()).thenReturn(sabotContext);
 
     OptionManager optionManager = mock(OptionManager.class);
     doReturn(NESSIE_CONTENT_CACHE_SIZE_ITEMS.getDefault().getNumVal())
-      .when(optionManager)
-      .getOption(NESSIE_CONTENT_CACHE_SIZE_ITEMS);
+        .when(optionManager)
+        .getOption(NESSIE_CONTENT_CACHE_SIZE_ITEMS);
     doReturn(NESSIE_CONTENT_CACHE_TTL_MINUTES.getDefault().getNumVal())
-      .when(optionManager)
-      .getOption(NESSIE_CONTENT_CACHE_TTL_MINUTES);
+        .when(optionManager)
+        .getOption(NESSIE_CONTENT_CACHE_TTL_MINUTES);
+    doReturn(BYPASS_CONTENT_CACHE.getDefault().getBoolVal())
+        .when(optionManager)
+        .getOption(BYPASS_CONTENT_CACHE);
     when(sabotContext.getOptionManager()).thenReturn(optionManager);
 
     nessieClient = new NessieClientImpl(nessieApi, fsPlugin.getContext().getOptionManager());
@@ -106,24 +96,6 @@ public class BaseIcebergViewTest {
             fsPlugin,
             userName,
             BaseIcebergViewTest::viewMetadataLoader);
-
-    initCatalog(nessieBaseUri.resolve("v1"), "main");
-  }
-
-  private static void initCatalog(URI x, String ref) {
-    nessieExtCatalog = new NessieExtCatalog();
-    nessieExtCatalog.setConf(fileSystemConfig);
-    nessieExtCatalog.initialize(
-        "nessie",
-        ImmutableMap.of(
-            CatalogProperties.URI,
-            x.toString(),
-            "ref",
-            ref,
-            "auth-type",
-            "NONE",
-            CatalogProperties.WAREHOUSE_LOCATION,
-            warehouseLocation));
   }
 
   protected ResolvedVersionContext getVersion(String branchName) {
@@ -160,7 +132,7 @@ public class BaseIcebergViewTest {
     }
   }
 
-  private static ViewVersionMetadata viewMetadataLoader(String metadataLocation){
+  private static ViewVersionMetadata viewMetadataLoader(String metadataLocation) {
     return ViewVersionMetadataParser.read(fileIO.newInputFile(metadataLocation));
   }
 }

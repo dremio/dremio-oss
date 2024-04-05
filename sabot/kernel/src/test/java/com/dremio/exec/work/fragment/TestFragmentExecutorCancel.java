@@ -17,23 +17,22 @@ package com.dremio.exec.work.fragment;
 
 import static org.junit.Assert.fail;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.testing.ControlsInjectionUtil;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.exec.testing.ControlsInjectionUtil;
-
 /**
- * Run several tpch queries and inject an OutOfMemoryException in ScanBatch that will cause an OUT_OF_MEMORY outcome to
- * be propagated downstream. Make sure the proper "memory error" message is sent to the client.
+ * Run several tpch queries and inject an OutOfMemoryException in ScanBatch that will cause an
+ * OUT_OF_MEMORY outcome to be propagated downstream. Make sure the proper "memory error" message is
+ * sent to the client.
  */
 @Ignore("times out on gce")
 public class TestFragmentExecutorCancel extends BaseTestQuery {
@@ -42,21 +41,32 @@ public class TestFragmentExecutorCancel extends BaseTestQuery {
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
-  public void testCancelNonRunningFragments() throws Exception{
+  public void testCancelNonRunningFragments() throws Exception {
     test("alter session set \"planner.slice_target\" = 10");
 
     // Inject an out of memory exception in the ScanBatch
     CoordinationProtos.NodeEndpoint endpoint = nodes[0].getContext().getEndpoint();
-    String controlsString = "{\"injections\":[{"
-      + "\"address\":\"" + endpoint.getAddress() + "\","
-      + "\"port\":\"" + endpoint.getUserPort() + "\","
-      + "\"type\":\"exception\","
-      + "\"siteClass\":\"" + "com.dremio.exec.physical.impl.ScanBatch" + "\","
-      + "\"desc\":\"" + "next-allocate" + "\","
-      + "\"nSkip\":0,"
-      + "\"nFire\":1,"
-        + "\"exceptionClass\":\"" + OutOfMemoryException.class.getName() + "\""
-      + "}]}";
+    String controlsString =
+        "{\"injections\":[{"
+            + "\"address\":\""
+            + endpoint.getAddress()
+            + "\","
+            + "\"port\":\""
+            + endpoint.getUserPort()
+            + "\","
+            + "\"type\":\"exception\","
+            + "\"siteClass\":\""
+            + "com.dremio.exec.physical.impl.ScanBatch"
+            + "\","
+            + "\"desc\":\""
+            + "next-allocate"
+            + "\","
+            + "\"nSkip\":0,"
+            + "\"nFire\":1,"
+            + "\"exceptionClass\":\""
+            + OutOfMemoryException.class.getName()
+            + "\""
+            + "}]}";
     ControlsInjectionUtil.setControls(client, controlsString);
 
     String query = getFile("queries/tpch/04.sql");
@@ -64,7 +74,7 @@ public class TestFragmentExecutorCancel extends BaseTestQuery {
     try {
       test(query);
       fail("The query should have failed!!!");
-    } catch(UserException uex) {
+    } catch (UserException uex) {
       // The query should fail
     }
   }

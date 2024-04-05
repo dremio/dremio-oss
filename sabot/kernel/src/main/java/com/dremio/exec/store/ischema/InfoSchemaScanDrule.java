@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.store.ischema;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.common.SourceLogicalConverter;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 
 public class InfoSchemaScanDrule extends SourceLogicalConverter {
 
@@ -33,14 +32,19 @@ public class InfoSchemaScanDrule extends SourceLogicalConverter {
 
   @Override
   public Rel convertScan(ScanCrel scan) {
-    return new InfoSchemaScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(),
-                                  scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(),
-                                  scan.getObservedRowcountAdjustment(), scan.getHints());
+    return new InfoSchemaScanDrel(
+        scan.getCluster(),
+        scan.getTraitSet().plus(Rel.LOGICAL),
+        scan.getTable(),
+        scan.getPluginId(),
+        scan.getTableMetadata(),
+        scan.getProjectedColumns(),
+        scan.getObservedRowcountAdjustment(),
+        scan.getHints());
   }
 
   @Override
   public boolean matches(RelOptRuleCall call) {
     return super.matches(call);
   }
-
 }

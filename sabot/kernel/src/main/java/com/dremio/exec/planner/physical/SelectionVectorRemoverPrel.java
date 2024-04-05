@@ -15,27 +15,28 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.SelectionVectorRemover;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 
 @Options
 public class SelectionVectorRemoverPrel extends SinglePrel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.svremover.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.svremover.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator(
+          "planner.op.svremover.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator("planner.op.svremover.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  public SelectionVectorRemoverPrel(Prel child){
+  public SelectionVectorRemoverPrel(Prel child) {
     super(child.getCluster(), child.getTraitSet(), child);
   }
 
@@ -50,17 +51,20 @@ public class SelectionVectorRemoverPrel extends SinglePrel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    final PhysicalOperator childPOP = ((Prel)getInput()).getPhysicalOperator(creator);
+    final PhysicalOperator childPOP = ((Prel) getInput()).getPhysicalOperator(creator);
 
     return new SelectionVectorRemover(
-        creator.props(this, null, childPOP.getProps().getSchema().clone(SelectionVectorMode.NONE), RESERVE, LIMIT),
-        childPOP
-        );
+        creator.props(
+            this,
+            null,
+            childPOP.getProps().getSchema().clone(SelectionVectorMode.NONE),
+            RESERVE,
+            LIMIT),
+        childPOP);
   }
 
   @Override
   public SelectionVectorMode getEncoding() {
     return SelectionVectorMode.NONE;
   }
-
 }

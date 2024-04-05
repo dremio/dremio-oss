@@ -15,13 +15,13 @@
  */
 package com.dremio.datastore;
 
-import java.io.IOException;
-
 import io.protostuff.Message;
 import io.protostuff.Schema;
+import java.io.IOException;
 
 /**
  * An abstract serializer is capable of ser/de as well as backing up/restoring data to/from json.
+ *
  * @param <IN> Input type. User's type.
  * @param <OUT> Format used for storage.
  */
@@ -37,12 +37,14 @@ public abstract class Serializer<IN, OUT> extends Converter<IN, OUT> {
 
   /**
    * Convert value in bytes to json string.
+   *
    * @return json sting
    */
   public abstract String toJson(IN v) throws IOException;
 
   /**
    * Convert json string to value
+   *
    * @return json string
    */
   public abstract IN fromJson(String v) throws IOException;
@@ -53,6 +55,7 @@ public abstract class Serializer<IN, OUT> extends Converter<IN, OUT> {
 
   /**
    * A serializer that converts an IN type to a MID that is serialized to an OUT.
+   *
    * @param <IN> Input type.
    * @param <MID> Actually serializable type.
    * @param <OUT> Serialized data.
@@ -61,7 +64,6 @@ public abstract class Serializer<IN, OUT> extends Converter<IN, OUT> {
 
     private final Serializer<MID, OUT> midoutSerializer;
     private final Converter<IN, MID> in2mid;
-
 
     @Override
     public OUT convert(IN v) {
@@ -83,7 +85,6 @@ public abstract class Serializer<IN, OUT> extends Converter<IN, OUT> {
       return midoutSerializer.toJson(in2mid.convert(v));
     }
 
-
     @Override
     public IN fromJson(String v) throws IOException {
       return in2mid.revert(midoutSerializer.fromJson(v));
@@ -91,7 +92,7 @@ public abstract class Serializer<IN, OUT> extends Converter<IN, OUT> {
   }
 
   public static <IN, MID, OUT> Serializer<IN, OUT> wrap(
-    Converter<IN, MID> in2mid, Serializer<MID, OUT> mid2out) {
+      Converter<IN, MID> in2mid, Serializer<MID, OUT> mid2out) {
     return new WrappedSerializer<>(in2mid, mid2out);
   }
 }

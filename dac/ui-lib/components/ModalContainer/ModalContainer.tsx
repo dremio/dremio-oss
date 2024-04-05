@@ -83,7 +83,7 @@ export const ModalContainer = forwardRef<
           }}
           {...rest}
         />,
-        window.document.body
+        window.document.body,
       )
     : null;
 });

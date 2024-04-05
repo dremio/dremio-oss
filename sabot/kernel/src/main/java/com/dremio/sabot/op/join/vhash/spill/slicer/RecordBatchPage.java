@@ -15,17 +15,14 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.slicer;
 
-import java.util.List;
-
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.op.join.vhash.spill.pool.Page;
+import java.util.List;
+import org.apache.arrow.vector.FieldVector;
 
-/**
- * A record batch where all buffers are within a single page.
- */
+/** A record batch where all buffers are within a single page. */
 public class RecordBatchPage extends RecordBatchData {
   private final Page page;
 
@@ -39,12 +36,14 @@ public class RecordBatchPage extends RecordBatchData {
     return page;
   }
 
+  public VectorContainer getContainer() {
+    return (VectorContainer) getVectorAccessible();
+  }
+
   @Override
   public void close() {
     try {
-      AutoCloseables.close(
-        super::close,
-        page::release);
+      AutoCloseables.close(super::close, page::release);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {

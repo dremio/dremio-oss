@@ -15,19 +15,16 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
-
 import io.grpc.stub.StreamObserver;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Manages status listeners for a particular job. Is thread safe, ensuring that
- * any register listener is informed of a completion event, whether or not there
- * is a race.
+ * Manages status listeners for a particular job. Is thread safe, ensuring that any register
+ * listener is informed of a completion event, whether or not there is a race.
  */
 class ExternalListenerManager {
   private final List<StreamObserver<JobEvent>> statusObservers = new CopyOnWriteArrayList<>();
@@ -41,9 +38,7 @@ class ExternalListenerManager {
       sendQueryCompletedEvent(this.jobSummary, observer);
     } else {
       if (queryMetadata != null) {
-        observer.onNext(JobEvent.newBuilder()
-          .setQueryMetadata(queryMetadata)
-          .build());
+        observer.onNext(JobEvent.newBuilder().setQueryMetadata(queryMetadata).build());
       }
       statusObservers.add(observer);
       sendQueryProgressedEvent(jobSummary, observer);
@@ -51,15 +46,11 @@ class ExternalListenerManager {
   }
 
   private void sendQueryProgressedEvent(JobSummary jobSummary, StreamObserver<JobEvent> observer) {
-    observer.onNext(JobEvent.newBuilder()
-      .setProgressJobSummary(jobSummary)
-      .build());
+    observer.onNext(JobEvent.newBuilder().setProgressJobSummary(jobSummary).build());
   }
 
   private void sendQueryCompletedEvent(JobSummary jobSummary, StreamObserver<JobEvent> observer) {
-    observer.onNext(JobEvent.newBuilder()
-      .setFinalJobSummary(jobSummary)
-      .build());
+    observer.onNext(JobEvent.newBuilder().setFinalJobSummary(jobSummary).build());
     observer.onCompleted();
   }
 
@@ -73,10 +64,8 @@ class ExternalListenerManager {
 
   public synchronized void metadataAvailable(QueryMetadata metadata) {
     if (active) {
-      for (StreamObserver<JobEvent> observer: statusObservers) {
-        observer.onNext(JobEvent.newBuilder()
-          .setQueryMetadata(metadata)
-          .build());
+      for (StreamObserver<JobEvent> observer : statusObservers) {
+        observer.onNext(JobEvent.newBuilder().setQueryMetadata(metadata).build());
       }
       queryMetadata = metadata;
     }

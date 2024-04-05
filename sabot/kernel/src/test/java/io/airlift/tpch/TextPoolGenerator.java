@@ -30,10 +30,9 @@ package io.airlift.tpch;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.List;
-
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
+import java.util.List;
 
 public class TextPoolGenerator {
   private static final int MAX_SENTENCE_LENGTH = 256;
@@ -54,14 +53,17 @@ public class TextPoolGenerator {
   private final IndexedDistribution nouns;
 
   public TextPoolGenerator(int size, Distributions distributions) {
-    this(size, distributions, new TextGenerationProgressMonitor() {
-      @Override
-      public void updateProgress(double progress) {
-      }
-    });
+    this(
+        size,
+        distributions,
+        new TextGenerationProgressMonitor() {
+          @Override
+          public void updateProgress(double progress) {}
+        });
   }
 
-  public TextPoolGenerator(int size, Distributions distributions, TextGenerationProgressMonitor monitor) {
+  public TextPoolGenerator(
+      int size, Distributions distributions, TextGenerationProgressMonitor monitor) {
     this.size = size;
     checkNotNull(distributions, "distributions is null");
     this.monitor = checkNotNull(monitor, "monitor is null");
@@ -97,27 +99,27 @@ public class TextPoolGenerator {
     int index = grammars.getRandomIndex(random);
     for (char token : grammars.getTokens(index)) {
       switch (token) {
-      case 'V':
-        generateVerbPhrase(builder, random);
-        break;
-      case 'N':
-        generateNounPhrase(builder, random);
-        break;
-      case 'P':
-        String preposition = prepositions.randomValue(random);
-        builder.append(preposition);
-        builder.append(" the ");
-        generateNounPhrase(builder, random);
-        break;
-      case 'T':
-        // trim trailing space
-        // terminators should abut previous word
-        builder.setLength(builder.length() - 1);
-        String terminator = terminators.randomValue(random);
-        builder.append(terminator);
-        break;
-      default:
-        throw new IllegalStateException("Unknown token '" + token + "'");
+        case 'V':
+          generateVerbPhrase(builder, random);
+          break;
+        case 'N':
+          generateNounPhrase(builder, random);
+          break;
+        case 'P':
+          String preposition = prepositions.randomValue(random);
+          builder.append(preposition);
+          builder.append(" the ");
+          generateNounPhrase(builder, random);
+          break;
+        case 'T':
+          // trim trailing space
+          // terminators should abut previous word
+          builder.setLength(builder.length() - 1);
+          String terminator = terminators.randomValue(random);
+          builder.append(terminator);
+          break;
+        default:
+          throw new IllegalStateException("Unknown token '" + token + "'");
       }
       if (builder.charAt(builder.length() - 1) != ' ') {
         builder.append(' ');
@@ -130,17 +132,17 @@ public class TextPoolGenerator {
     for (char token : verbPhrases.getTokens(index)) {
       // pick a random word
       switch (token) {
-      case 'D':
-        builder.append(adverbs.randomValue(random));
-        break;
-      case 'V':
-        builder.append(verbs.randomValue(random));
-        break;
-      case 'X':
-        builder.append(auxiliaries.randomValue(random));
-        break;
-      default:
-        throw new IllegalStateException("Unknown token '" + token + "'");
+        case 'D':
+          builder.append(adverbs.randomValue(random));
+          break;
+        case 'V':
+          builder.append(verbs.randomValue(random));
+          break;
+        case 'X':
+          builder.append(auxiliaries.randomValue(random));
+          break;
+        default:
+          throw new IllegalStateException("Unknown token '" + token + "'");
       }
 
       // string may end with a comma or such
@@ -156,20 +158,20 @@ public class TextPoolGenerator {
     for (char token : nounPhrases.getTokens(index)) {
       // pick a random word
       switch (token) {
-      case 'A':
-        builder.append(articles.randomValue(random));
-        break;
-      case 'J':
-        builder.append(adjectives.randomValue(random));
-        break;
-      case 'D':
-        builder.append(adverbs.randomValue(random));
-        break;
-      case 'N':
-        builder.append(nouns.randomValue(random));
-        break;
-      default:
-        throw new IllegalStateException("Unknown token '" + token + "'");
+        case 'A':
+          builder.append(articles.randomValue(random));
+          break;
+        case 'J':
+          builder.append(adjectives.randomValue(random));
+          break;
+        case 'D':
+          builder.append(adverbs.randomValue(random));
+          break;
+        case 'N':
+          builder.append(nouns.randomValue(random));
+          break;
+        default:
+          throw new IllegalStateException("Unknown token '" + token + "'");
       }
 
       // string may end with a comma or such
@@ -215,7 +217,8 @@ public class TextPoolGenerator {
       bonusText = new String[distribution.size()];
       for (int i = 0; i < distribution.size(); i++) {
 
-        List<String> tokens = Splitter.on(CharMatcher.whitespace()).splitToList(distribution.getValue(i));
+        List<String> tokens =
+            Splitter.on(CharMatcher.whitespace()).splitToList(distribution.getValue(i));
 
         parsedDistribution[i] = new char[tokens.size()];
         for (int j = 0; j < parsedDistribution[i].length; j++) {
@@ -233,7 +236,6 @@ public class TextPoolGenerator {
         }
         randomTable[i] = valueIndex;
       }
-
     }
 
     public int getRandomIndex(RandomInt random) {

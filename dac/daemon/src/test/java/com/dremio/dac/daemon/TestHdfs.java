@@ -20,24 +20,6 @@ import static com.dremio.common.TestProfileHelper.isMaprProfile;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static org.junit.Assert.assertEquals;
 
-import java.util.concurrent.TimeUnit;
-
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestRule;
-
 import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
@@ -70,10 +52,23 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import java.util.concurrent.TimeUnit;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
 
-/**
- * HDFS tests.
- */
+/** HDFS tests. */
 public class TestHdfs extends BaseTestMiniDFS {
 
   private static DACDaemon dremioDaemon;
@@ -86,10 +81,8 @@ public class TestHdfs extends BaseTestMiniDFS {
   private static final String SOURCE_DESC = "description";
   private static BufferAllocator allocator;
 
-  @ClassRule
-  public static final TemporaryFolder folder = new TemporaryFolder();
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
+  @ClassRule public static final TemporaryFolder folder = new TemporaryFolder();
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void init() throws Exception {
@@ -101,35 +94,44 @@ public class TestHdfs extends BaseTestMiniDFS {
     fs.mkdirs(new Path("/dir1/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     fs.mkdirs(new Path("/dir1/json"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     fs.mkdirs(new Path("/dir1/text"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.mkdirs(new Path("/dir1/parquet"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.mkdirs(
+        new Path("/dir1/parquet"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     fs.mkdirs(new Path("/dir2"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/datasets/users.json").getAbsolutePath()),
-      new Path("/dir1/json/users.json"));
-    fs.setPermission(new Path("/dir1/json/users.json"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(
+        false,
+        true,
+        new Path(FileUtils.getResourceAsFile("/datasets/users.json").getAbsolutePath()),
+        new Path("/dir1/json/users.json"));
+    fs.setPermission(
+        new Path("/dir1/json/users.json"),
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     try (Timer.TimedBlock b = Timer.time("TestHdfs.@BeforeClass")) {
-      dremioDaemon = DACDaemon.newDremioDaemon(
-        DACConfig
-          .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-          .autoPort(true)
-          .allowTestApis(true)
-          .writePath(folder.getRoot().getAbsolutePath())
-          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-          .clusterMode(ClusterMode.LOCAL)
-          .serveUI(true),
-        DremioTest.CLASSPATH_SCAN_RESULT,
-        new DACDaemonModule());
+      dremioDaemon =
+          DACDaemon.newDremioDaemon(
+              DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+                  .autoPort(true)
+                  .allowTestApis(true)
+                  .writePath(folder.getRoot().getAbsolutePath())
+                  .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+                  .clusterMode(ClusterMode.LOCAL)
+                  .serveUI(true),
+              DremioTest.CLASSPATH_SCAN_RESULT,
+              new DACDaemonModule());
       dremioDaemon.init();
       dremioBinder = BaseTestServer.createBinder(dremioDaemon.getBindingProvider());
       JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
       provider.setMapper(JSONUtil.prettyMapper());
-      client = ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
+      client =
+          ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
     }
 
     setupDeltaDatabase("testDataset");
     setupDeltaDatabase("JsonDataset");
     setupDeltaDatabase("multiPartCheckpoint");
 
-    SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class), new CatalogStatusEventsImpl()));
+    SampleDataPopulator.addDefaultFirstUser(
+        l(UserService.class),
+        new NamespaceServiceImpl(l(LegacyKVStoreProvider.class), new CatalogStatusEventsImpl()));
     final HDFSConf hdfsConfig = new HDFSConf();
     hdfsConfig.hostname = host;
     hdfsConfig.port = port;
@@ -139,25 +141,33 @@ public class TestHdfs extends BaseTestMiniDFS {
     source.setConnectionConf(hdfsConfig);
     source.setId(new EntityId(SOURCE_ID));
     source.setDescription(SOURCE_DESC);
-    allocator = l(BootStrapContext.class).getAllocator().newChildAllocator("child-allocator", 0, Long.MAX_VALUE);
-    ((CatalogServiceImpl)l(CatalogService.class)).getSystemUserCatalog().createSource(source);
+    allocator =
+        l(BootStrapContext.class)
+            .getAllocator()
+            .newChildAllocator("child-allocator", 0, Long.MAX_VALUE);
+    ((CatalogServiceImpl) l(CatalogService.class)).getSystemUserCatalog().createSource(source);
   }
 
   private static void setupDeltaDatabase(String tableName) throws Exception {
     fs.mkdirs(new Path("/delta/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/deltalake/" + tableName).getAbsolutePath()),
-      new Path("/delta/"));
-    fs.setPermission(new Path("/delta/" + tableName), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(
+        false,
+        true,
+        new Path(FileUtils.getResourceAsFile("/deltalake/" + tableName).getAbsolutePath()),
+        new Path("/delta/"));
+    fs.setPermission(
+        new Path("/delta/" + tableName),
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
   }
 
   @AfterClass
   public static void close() throws Exception {
     /*
-     JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
-     the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
-     call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
-     We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
-     */
+    JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
+    the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
+    call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
+    We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
+    */
     if (isMaprProfile()) {
       return;
     }
@@ -181,7 +191,9 @@ public class TestHdfs extends BaseTestMiniDFS {
 
   @Test
   public void listSource() throws Exception {
-    NamespaceTree ns = l(SourceService.class).listSource(new SourceName(SOURCE_NAME), null, SampleDataPopulator.DEFAULT_USER_NAME);
+    NamespaceTree ns =
+        l(SourceService.class)
+            .listSource(new SourceName(SOURCE_NAME), null, SampleDataPopulator.DEFAULT_USER_NAME);
     assertEquals(3, ns.getFolders().size());
     assertEquals(0, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
@@ -189,7 +201,12 @@ public class TestHdfs extends BaseTestMiniDFS {
 
   @Test
   public void listFolder() throws Exception {
-    NamespaceTree ns = l(SourceService.class).listFolder(new SourceName(SOURCE_NAME), new SourceFolderPath("dachdfs_test.dir1.json"), SampleDataPopulator.DEFAULT_USER_NAME);
+    NamespaceTree ns =
+        l(SourceService.class)
+            .listFolder(
+                new SourceName(SOURCE_NAME),
+                new SourceFolderPath("dachdfs_test.dir1.json"),
+                SampleDataPopulator.DEFAULT_USER_NAME);
     assertEquals(0, ns.getFolders().size());
     assertEquals(1, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
@@ -197,10 +214,18 @@ public class TestHdfs extends BaseTestMiniDFS {
 
   @Test
   public void testQueryOnFile() throws Exception {
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("SELECT * FROM dachdfs_test.dir1.json.\"users.json\"", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT * FROM dachdfs_test.dir1.json.\"users.json\"",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(3, jobData.getReturnedRowCount());
       assertEquals(2, jobData.getColumns().size());
     }
@@ -208,11 +233,18 @@ public class TestHdfs extends BaseTestMiniDFS {
 
   @Test
   public void testDeltaDatasetScan() throws Exception {
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(
-          "SELECT * FROM " + SOURCE_NAME + ".delta.testDataset", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT * FROM " + SOURCE_NAME + ".delta.testDataset",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(499, jobData.getReturnedRowCount());
       assertEquals(10, jobData.getColumns().size());
     }
@@ -220,11 +252,18 @@ public class TestHdfs extends BaseTestMiniDFS {
 
   @Test
   public void testDeltaJsonDatasetCase() throws Exception {
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(
-          "SELECT * FROM " + SOURCE_NAME + ".delta.JsonDataset", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT * FROM " + SOURCE_NAME + ".delta.JsonDataset",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(89, jobData.getReturnedRowCount());
       assertEquals(9, jobData.getColumns().size());
     }
@@ -232,11 +271,18 @@ public class TestHdfs extends BaseTestMiniDFS {
 
   @Test
   public void testDeltaMultiPartCheckpointCase() throws Exception {
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(
-          "SELECT * FROM " + SOURCE_NAME + ".delta.multiPartCheckpoint", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), 0, 500, allocator)) {
+    try (final JobDataFragment jobData =
+        submitJobAndGetData(
+            l(JobsService.class),
+            JobRequest.newBuilder()
+                .setSqlQuery(
+                    new SqlQuery(
+                        "SELECT * FROM " + SOURCE_NAME + ".delta.multiPartCheckpoint",
+                        SampleDataPopulator.DEFAULT_USER_NAME))
+                .build(),
+            0,
+            500,
+            allocator)) {
       assertEquals(5, jobData.getReturnedRowCount());
       assertEquals(3, jobData.getColumns().size());
     }

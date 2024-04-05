@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Arrays;
-
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -27,13 +25,11 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtostuffIOUtil;
+import java.util.Arrays;
 
-/**
- * Describes a particular storage plugin instance.
- */
+/** Describes a particular storage plugin instance. */
 public class StoragePluginId {
   public static final int CAPABILITIES_INDEX_0 = 0;
   public static final int CONFIG_INDEX_1 = 1;
@@ -41,7 +37,8 @@ public class StoragePluginId {
   public static final int HASH_CODE_INDEX_3 = 3;
 
   // The only changes permitted to these fields without breaking backward compatibility are adding
-  // new fields that start after the last field _alphabetically_ (eg after 'h'). Kryo serializes fields in
+  // new fields that start after the last field _alphabetically_ (eg after 'h'). Kryo serializes
+  // fields in
   // alphabetical order.
   private final ConnectionConf<?, ?> connection;
   private final SourceConfig config;
@@ -52,8 +49,7 @@ public class StoragePluginId {
   public StoragePluginId(
       @JsonProperty("config") SourceConfig config,
       @JsonProperty("capabilities") SourceCapabilities capabilities,
-      @JacksonInject ConnectionReader confReader
-      ) {
+      @JacksonInject ConnectionReader confReader) {
     super();
     this.config = Preconditions.checkNotNull(config);
     this.connection = confReader.getConnectionConf(config);
@@ -62,10 +58,7 @@ public class StoragePluginId {
   }
 
   public StoragePluginId(
-      SourceConfig config,
-      ConnectionConf<?, ?> connection,
-      SourceCapabilities capabilities
-      ) {
+      SourceConfig config, ConnectionConf<?, ?> connection, SourceCapabilities capabilities) {
     this.config = Preconditions.checkNotNull(config);
     this.connection = connection;
     this.capabilities = capabilities;
@@ -95,13 +88,14 @@ public class StoragePluginId {
 
   @JsonIgnore
   public SourceConfig getClonedConfig() {
-    byte[] bytes = ProtostuffIOUtil.toByteArray(config, SourceConfig.getSchema(), LinkedBuffer.allocate());
+    byte[] bytes =
+        ProtostuffIOUtil.toByteArray(config, SourceConfig.getSchema(), LinkedBuffer.allocate());
     SourceConfig newConfig = new SourceConfig();
     ProtostuffIOUtil.mergeFrom(bytes, newConfig, SourceConfig.getSchema());
     return newConfig;
-
   }
-  public SourceCapabilities getCapabilities(){
+
+  public SourceCapabilities getCapabilities() {
     return capabilities;
   }
 
@@ -110,7 +104,7 @@ public class StoragePluginId {
     return String.format("%s (%s)", config.getName(), config.getType());
   }
 
-  public String generateRuleName(String description){
+  public String generateRuleName(String description) {
     return description + ":" + config.getName();
   }
 
@@ -120,8 +114,7 @@ public class StoragePluginId {
       return false;
     }
     StoragePluginId castOther = (StoragePluginId) other;
-    return
-        Objects.equal(config, castOther.config)
+    return Objects.equal(config, castOther.config)
         && Objects.equal(capabilities, castOther.capabilities);
   }
 
@@ -129,5 +122,4 @@ public class StoragePluginId {
   public int hashCode() {
     return hashCode;
   }
-
 }

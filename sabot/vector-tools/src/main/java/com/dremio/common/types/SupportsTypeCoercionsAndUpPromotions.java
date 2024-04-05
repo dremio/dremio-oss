@@ -16,15 +16,18 @@
 package com.dremio.common.types;
 
 /**
- * Marker interface to determine entities which support standard coercion and up promotion rules of dremio data types.
- * To understand what comes under standard rules please refer to Table 1 of https://docs.dremio.com/software/sql-reference/data-types/
+ * Marker interface to determine entities which support standard coercion and up promotion rules of
+ * dremio data types. To understand what comes under standard rules please refer to Table 1 of
+ * https://docs.dremio.com/software/sql-reference/data-types/
  */
 public interface SupportsTypeCoercionsAndUpPromotions {
 
   TypeCoercionRules STANDARD_TYPE_COERCION_RULES = new TypeCoercionRules();
   SchemaUpPromotionRules STANDARD_TYPE_UP_PROMOTION_RULES = new SchemaUpPromotionRules();
-  SchemaUpPromotionRules COMPLEX_INCOMPATIBLE_TO_VARCHAR_PROMOTION = new SchemaUpPromotionRulesComplexAndIncompatibleToVarchar();
-  TypeCoercionRules COMPLEX_INCOMPATIBLE_TO_VARCHAR_COERCION = new TypeCoercionRulesComplexAndIncompatibleToVarchar();
+  SchemaUpPromotionRules COMPLEX_INCOMPATIBLE_TO_VARCHAR_PROMOTION =
+      new SchemaUpPromotionRulesComplexAndIncompatibleToVarchar();
+  TypeCoercionRules COMPLEX_INCOMPATIBLE_TO_VARCHAR_COERCION =
+      new TypeCoercionRulesComplexAndIncompatibleToVarchar();
 
   default TypeCoercionRules getTypeCoercionRules() {
     return STANDARD_TYPE_COERCION_RULES;

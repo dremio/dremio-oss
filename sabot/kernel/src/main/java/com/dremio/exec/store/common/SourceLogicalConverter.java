@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.store.common;
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
-
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.Rel;
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.convert.ConverterRule;
 
 public abstract class SourceLogicalConverter extends ConverterRule {
 
@@ -34,7 +33,8 @@ public abstract class SourceLogicalConverter extends ConverterRule {
   }
 
   public SourceLogicalConverter(SourceType pluginType) {
-    super(ScanCrel.class, Convention.NONE, Rel.LOGICAL, pluginType.value() + "LogicalScanConverter");
+    super(
+        ScanCrel.class, Convention.NONE, Rel.LOGICAL, pluginType.value() + "LogicalScanConverter");
     this.pluginType = pluginType;
   }
 
@@ -45,10 +45,9 @@ public abstract class SourceLogicalConverter extends ConverterRule {
   }
 
   @Override
-  public final Rel convert(RelNode rel){
+  public final Rel convert(RelNode rel) {
     return convertScan((ScanCrel) rel);
   }
 
   public abstract Rel convertScan(ScanCrel scan);
-
 }

@@ -18,10 +18,6 @@ package io.netty.handler.proxy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.Closeable;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -42,10 +38,11 @@ import io.netty.handler.codec.socksx.v5.Socks5PasswordAuthRequestDecoder;
 import io.netty.handler.codec.socksx.v5.Socks5PasswordAuthStatus;
 import io.netty.handler.codec.socksx.v5.Socks5ServerEncoder;
 import io.netty.util.internal.SocketUtils;
+import java.io.Closeable;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
-/**
-* A Socks5 proxy server used for testing client connections routed through proxy
- */
+/** A Socks5 proxy server used for testing client connections routed through proxy */
 public final class DremioSocks5ProxyServer extends ProxyServer implements Closeable {
 
   private static final String ENCODER = "encoder";
@@ -110,7 +107,7 @@ public final class DremioSocks5ProxyServer extends ProxyServer implements Closea
       assertThat(req.type()).isEqualTo(Socks5CommandType.CONNECT);
 
       Socks5CommandResponse res =
-        new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4);
+          new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4);
       intermediaryDestination = SocketUtils.socketAddress(req.dstAddr(), req.dstPort());
 
       ctx.write(res);
@@ -135,5 +132,4 @@ public final class DremioSocks5ProxyServer extends ProxyServer implements Closea
   public boolean interceptedConnection() {
     return configureCalled;
   }
-
 }

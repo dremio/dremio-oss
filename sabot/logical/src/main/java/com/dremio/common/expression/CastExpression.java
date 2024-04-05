@@ -17,13 +17,12 @@ package com.dremio.common.expression;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.Iterator;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.google.common.collect.Iterators;
+import java.util.Iterator;
 
-public class CastExpression extends LogicalExpressionBase implements Iterable<LogicalExpression>{
+public class CastExpression extends LogicalExpressionBase implements Iterable<LogicalExpression> {
 
   private final LogicalExpression input;
   private final MajorType type;
@@ -52,7 +51,7 @@ public class CastExpression extends LogicalExpressionBase implements Iterable<Lo
     return input;
   }
 
-  public MajorType retrieveMajorType(){
+  public MajorType retrieveMajorType() {
     return type;
   }
 
@@ -65,7 +64,4 @@ public class CastExpression extends LogicalExpressionBase implements Iterable<Lo
   public String toString() {
     return "CastExpression [input=" + input + ", type=" + type + "]";
   }
-
-
-
 }

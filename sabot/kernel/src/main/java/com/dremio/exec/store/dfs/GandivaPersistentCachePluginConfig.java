@@ -17,12 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.common.UserConstants;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
@@ -34,12 +28,18 @@ import com.dremio.sabot.op.llvm.GandivaSecondaryCache;
 import com.dremio.service.coordinator.proto.DataCredentials;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.Tag;
+import java.io.IOException;
+import java.net.URI;
+import java.util.List;
+import javax.inject.Provider;
 
 @SourceType(value = "GANDIVA_CACHE", configurable = false)
-public class GandivaPersistentCachePluginConfig extends MayBeDistFileSystemConf<GandivaPersistentCachePluginConfig, GandivaPersistentCachePlugin> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GandivaPersistentCachePluginConfig.class);
+public class GandivaPersistentCachePluginConfig
+    extends MayBeDistFileSystemConf<
+        GandivaPersistentCachePluginConfig, GandivaPersistentCachePlugin> {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(GandivaPersistentCachePluginConfig.class);
 
   public static final String GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME = "__gandiva_persistent_cache";
 
@@ -87,13 +87,17 @@ public class GandivaPersistentCachePluginConfig extends MayBeDistFileSystemConf<
 
   @Tag(15)
   public String sharedAccessKey = null;
-  //Tag has been deprecated please do not use.
 
-  public GandivaPersistentCachePluginConfig() {
-  }
+  // Tag has been deprecated please do not use.
 
-  public GandivaPersistentCachePluginConfig(URI path, boolean enableAsync, boolean enableS3FileStatusCheck, DataCredentials dataCredentials) {
-    if(path.getAuthority() != null) {
+  public GandivaPersistentCachePluginConfig() {}
+
+  public GandivaPersistentCachePluginConfig(
+      URI path,
+      boolean enableAsync,
+      boolean enableS3FileStatusCheck,
+      DataCredentials dataCredentials) {
+    if (path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
       connection = path.getScheme() + ":///";
@@ -216,20 +220,29 @@ public class GandivaPersistentCachePluginConfig extends MayBeDistFileSystemConf<
   }
 
   @Override
-  public GandivaPersistentCachePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    GandivaPersistentCachePlugin plugin = new GandivaPersistentCachePlugin(this, context, name, pluginIdProvider);
+  public GandivaPersistentCachePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    GandivaPersistentCachePlugin plugin =
+        new GandivaPersistentCachePlugin(this, context, name, pluginIdProvider);
     try {
       // instantiate the singleton secondary cache with filesystem and path
-      GandivaSecondaryCache.createInstance(plugin.newFileSystem(UserConstants.SYSTEM_USERNAME, null), getPath());
+      GandivaSecondaryCache.createInstance(
+          plugin.newFileSystem(UserConstants.SYSTEM_USERNAME, null), getPath());
     } catch (IOException e) {
       logger.warn("Failed to create the secondary cache singleton instance", e);
     }
     return plugin;
   }
 
-  public static SourceConfig create(URI path, boolean enableAsync, boolean enableS3FileStatusCheck, DataCredentials dataCredentials) {
+  public static SourceConfig create(
+      URI path,
+      boolean enableAsync,
+      boolean enableS3FileStatusCheck,
+      DataCredentials dataCredentials) {
     SourceConfig conf = new SourceConfig();
-    GandivaPersistentCachePluginConfig connection = new GandivaPersistentCachePluginConfig(path, enableAsync, enableS3FileStatusCheck, dataCredentials);
+    GandivaPersistentCachePluginConfig connection =
+        new GandivaPersistentCachePluginConfig(
+            path, enableAsync, enableS3FileStatusCheck, dataCredentials);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME);

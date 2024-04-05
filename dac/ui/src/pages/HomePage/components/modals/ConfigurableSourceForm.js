@@ -101,7 +101,6 @@ class ConfigurableSourceForm extends Component {
         submitting={submitting || isSubmitting}
         onSubmit={handleSubmit(onFormSubmit)}
         footerChildren={footerChildren}
-        showSpinnerAndText={this.props.showSpinnerAndText}
         confirmButtonStyle={confirmButtonStyle}
       >
         <div className={sourceFormWrapper} data-qa="configurable-source-form">

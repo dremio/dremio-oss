@@ -15,9 +15,6 @@
  */
 package com.dremio.dac.api;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -31,25 +28,33 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Optional;
 
-/**
- * Catalog Item
- */
+/** Catalog Item */
 public class CatalogItem {
-  /**
-   * Catalog Item Type
-   */
-  public enum CatalogItemType { DATASET, CONTAINER, FILE }
+  /** Catalog Item Type */
+  public enum CatalogItemType {
+    DATASET,
+    CONTAINER,
+    FILE
+  }
 
-  /**
-   * Catalog Container Sub Type
-   */
-  public enum ContainerSubType { SPACE, SOURCE, FOLDER, HOME, FUNCTION }
+  /** Catalog Container Sub Type */
+  public enum ContainerSubType {
+    SPACE,
+    SOURCE,
+    FOLDER,
+    HOME,
+    FUNCTION
+  }
 
-  /**
-   * Catalog Dataset Sub Type
-   */
-  public enum DatasetSubType { VIRTUAL, PROMOTED, DIRECT }
+  /** Catalog Dataset Sub Type */
+  public enum DatasetSubType {
+    VIRTUAL,
+    PROMOTED,
+    DIRECT
+  }
 
   private final String id;
   private final List<String> path;
@@ -59,20 +64,19 @@ public class CatalogItem {
   private final ContainerSubType containerType;
   private final CollaborationTag tags;
   private final CatalogItemStats stats;
-  @JsonISODateTime
-  private final Long createdAt;
+  @JsonISODateTime private final Long createdAt;
 
   @JsonCreator
   protected CatalogItem(
-    @JsonProperty("id") String id,
-    @JsonProperty("path") List<String> path,
-    @JsonProperty("tag") String tag,
-    @JsonProperty("type") CatalogItemType type,
-    @JsonProperty("datasetType") DatasetSubType datasetType,
-    @JsonProperty("containerType") ContainerSubType containerType,
-    @JsonProperty("tags") CollaborationTag tags,
-    @JsonProperty("stats") CatalogItemStats stats,
-    @JsonProperty("createdAt") Long createdAt) {
+      @JsonProperty("id") String id,
+      @JsonProperty("path") List<String> path,
+      @JsonProperty("tag") String tag,
+      @JsonProperty("type") CatalogItemType type,
+      @JsonProperty("datasetType") DatasetSubType datasetType,
+      @JsonProperty("containerType") ContainerSubType containerType,
+      @JsonProperty("tags") CollaborationTag tags,
+      @JsonProperty("stats") CatalogItemStats stats,
+      @JsonProperty("createdAt") Long createdAt) {
     this.id = id;
     this.path = path;
     this.type = type;
@@ -86,14 +90,14 @@ public class CatalogItem {
 
   private static CatalogItem fromSourceConfig(SourceConfig sourceConfig, CollaborationTag tags) {
     return new Builder()
-      .setId(sourceConfig.getId().getId())
-      .setPath(Lists.newArrayList(sourceConfig.getName()))
-      .setTag(String.valueOf(sourceConfig.getTag()))
-      .setType(CatalogItemType.CONTAINER)
-      .setContainerType(ContainerSubType.SOURCE)
-      .setTags(tags)
-      .setCreatedAt(sourceConfig.getCtime())
-      .build();
+        .setId(sourceConfig.getId().getId())
+        .setPath(Lists.newArrayList(sourceConfig.getName()))
+        .setTag(String.valueOf(sourceConfig.getTag()))
+        .setType(CatalogItemType.CONTAINER)
+        .setContainerType(ContainerSubType.SOURCE)
+        .setTags(tags)
+        .setCreatedAt(sourceConfig.getCtime())
+        .build();
   }
 
   public static CatalogItem fromSourceConfig(SourceConfig sourceConfig) {
@@ -106,37 +110,38 @@ public class CatalogItem {
 
   public static CatalogItem fromHomeConfig(HomeConfig homeConfig) {
     return new Builder()
-      .setId(homeConfig.getId().getId())
-      .setPath(Lists.newArrayList(HomeName.getUserHomePath(homeConfig.getOwner()).toString()))
-      .setTag(String.valueOf(homeConfig.getTag()))
-      .setType(CatalogItemType.CONTAINER)
-      .setContainerType(ContainerSubType.HOME)
-      .setCreatedAt(homeConfig.getCtime())
-      .build();
+        .setId(homeConfig.getId().getId())
+        .setPath(Lists.newArrayList(HomeName.getUserHomePath(homeConfig.getOwner()).toString()))
+        .setTag(String.valueOf(homeConfig.getTag()))
+        .setType(CatalogItemType.CONTAINER)
+        .setContainerType(ContainerSubType.HOME)
+        .setCreatedAt(homeConfig.getCtime())
+        .build();
   }
 
   private static CatalogItem fromSpaceConfig(SpaceConfig spaceConfig, CollaborationTag tags) {
     return new Builder()
-      .setId(spaceConfig.getId().getId())
-      .setPath(Lists.newArrayList(spaceConfig.getName()))
-      .setTag(String.valueOf(spaceConfig.getTag()))
-      .setType(CatalogItemType.CONTAINER)
-      .setContainerType(ContainerSubType.SPACE)
-      .setTags(tags)
-      .setCreatedAt(spaceConfig.getCtime())
-      .build();
+        .setId(spaceConfig.getId().getId())
+        .setPath(Lists.newArrayList(spaceConfig.getName()))
+        .setTag(String.valueOf(spaceConfig.getTag()))
+        .setType(CatalogItemType.CONTAINER)
+        .setContainerType(ContainerSubType.SPACE)
+        .setTags(tags)
+        .setCreatedAt(spaceConfig.getCtime())
+        .build();
   }
 
-  private static CatalogItem fromFunctionConfig(FunctionConfig functionConfig, CollaborationTag tags) {
+  private static CatalogItem fromFunctionConfig(
+      FunctionConfig functionConfig, CollaborationTag tags) {
     return new Builder()
-      .setId(functionConfig.getId().getId())
-      .setPath(Lists.newArrayList(functionConfig.getFullPathList()))
-      .setTag(String.valueOf(functionConfig.getTag()))
-      .setType(CatalogItemType.CONTAINER)
-      .setContainerType(ContainerSubType.FUNCTION)
-      .setTags(tags)
-      .setCreatedAt(functionConfig.getCreatedAt())
-      .build();
+        .setId(functionConfig.getId().getId())
+        .setPath(Lists.newArrayList(functionConfig.getFullPathList()))
+        .setTag(String.valueOf(functionConfig.getTag()))
+        .setType(CatalogItemType.CONTAINER)
+        .setContainerType(ContainerSubType.FUNCTION)
+        .setTags(tags)
+        .setCreatedAt(functionConfig.getCreatedAt())
+        .build();
   }
 
   public static CatalogItem fromSpaceConfig(SpaceConfig spaceConfig) {
@@ -153,24 +158,24 @@ public class CatalogItem {
     }
 
     return new Builder()
-      .setId(datasetConfig.getId().getId())
-      .setPath(Lists.newArrayList(datasetConfig.getFullPathList()))
-      .setTag(String.valueOf(datasetConfig.getTag()))
-      .setType(CatalogItemType.DATASET)
-      .setDatasetType(datasetType)
-      .setTags(tags)
-      .setCreatedAt(datasetConfig.getCreatedAt())
-      .build();
+        .setId(datasetConfig.getId().getId())
+        .setPath(Lists.newArrayList(datasetConfig.getFullPathList()))
+        .setTag(String.valueOf(datasetConfig.getTag()))
+        .setType(CatalogItemType.DATASET)
+        .setDatasetType(datasetType)
+        .setTags(tags)
+        .setCreatedAt(datasetConfig.getCreatedAt())
+        .build();
   }
 
   public static CatalogItem fromFolderConfig(FolderConfig folderConfig) {
     return new Builder()
-      .setId(folderConfig.getId().getId())
-      .setPath(Lists.newArrayList(folderConfig.getFullPathList()))
-      .setTag(String.valueOf(folderConfig.getTag()))
-      .setType(CatalogItemType.CONTAINER)
-      .setContainerType(ContainerSubType.FOLDER)
-      .build();
+        .setId(folderConfig.getId().getId())
+        .setPath(Lists.newArrayList(folderConfig.getFullPathList()))
+        .setTag(String.valueOf(folderConfig.getTag()))
+        .setType(CatalogItemType.CONTAINER)
+        .setContainerType(ContainerSubType.FOLDER)
+        .build();
   }
 
   public String getId() {
@@ -205,48 +210,58 @@ public class CatalogItem {
     return stats;
   }
 
-  public Long getCreatedAt() { return createdAt; }
+  public Long getCreatedAt() {
+    return createdAt;
+  }
 
   public static Optional<CatalogItem> fromNamespaceContainer(NameSpaceContainer container) {
     return fromNamespaceContainer(container, null);
   }
 
-  public static Optional<CatalogItem> fromNamespaceContainer(NameSpaceContainer container, CollaborationTag tags) {
+  public static Optional<CatalogItem> fromNamespaceContainer(
+      NameSpaceContainer container, CollaborationTag tags) {
     Optional<CatalogItem> item = Optional.empty();
 
     switch (container.getType()) {
-      case SOURCE: {
-        item = Optional.of(CatalogItem.fromSourceConfig(container.getSource(), tags));
-        break;
-      }
+      case SOURCE:
+        {
+          item = Optional.of(CatalogItem.fromSourceConfig(container.getSource(), tags));
+          break;
+        }
 
-      case SPACE: {
-        item = Optional.of(CatalogItem.fromSpaceConfig(container.getSpace(), tags));
-        break;
-      }
+      case SPACE:
+        {
+          item = Optional.of(CatalogItem.fromSpaceConfig(container.getSpace(), tags));
+          break;
+        }
 
-      case DATASET: {
-        item = Optional.of(CatalogItem.fromDatasetConfig(container.getDataset(), tags));
-        break;
-      }
+      case DATASET:
+        {
+          item = Optional.of(CatalogItem.fromDatasetConfig(container.getDataset(), tags));
+          break;
+        }
 
-      case HOME: {
-        item = Optional.of(CatalogItem.fromHomeConfig(container.getHome()));
-        break;
-      }
+      case HOME:
+        {
+          item = Optional.of(CatalogItem.fromHomeConfig(container.getHome()));
+          break;
+        }
 
-      case FOLDER: {
-        item = Optional.of(CatalogItem.fromFolderConfig(container.getFolder()));
-        break;
-      }
+      case FOLDER:
+        {
+          item = Optional.of(CatalogItem.fromFolderConfig(container.getFolder()));
+          break;
+        }
 
-      case FUNCTION:{
-         item = Optional.of(CatalogItem.fromFunctionConfig(container.getFunction(), tags));
-         break;
-      }
+      case FUNCTION:
+        {
+          item = Optional.of(CatalogItem.fromFunctionConfig(container.getFunction(), tags));
+          break;
+        }
 
       default:
-        throw new UnsupportedOperationException(String.format("Catalog item of type [%s] can not be created", container.getType()));
+        throw new UnsupportedOperationException(
+            String.format("Catalog item of type [%s] can not be created", container.getType()));
     }
 
     return item;
@@ -254,20 +269,27 @@ public class CatalogItem {
 
   @Override
   public String toString() {
-    return "CatalogItem{" +
-      "id='" + id + '\'' +
-      ", path=" + path +
-      ", type=" + type +
-      ", tag='" + tag + '\'' +
-      ", datasetType=" + datasetType +
-      ", containerType=" + containerType +
-      ", createdAt=" + createdAt +
-      '}';
+    return "CatalogItem{"
+        + "id='"
+        + id
+        + '\''
+        + ", path="
+        + path
+        + ", type="
+        + type
+        + ", tag='"
+        + tag
+        + '\''
+        + ", datasetType="
+        + datasetType
+        + ", containerType="
+        + containerType
+        + ", createdAt="
+        + createdAt
+        + '}';
   }
 
-  /**
-   * CatalogItem builder
-   */
+  /** CatalogItem builder */
   public static class Builder {
     private String id;
     private List<String> path;
@@ -280,26 +302,22 @@ public class CatalogItem {
     private boolean datasetCountBounded;
     private Long createdAt;
 
-    public Builder() {
-
-    }
+    public Builder() {}
 
     public Builder(final CatalogItem item) {
       final CatalogItemStats stats = item.getStats();
-      this
-        .setId(item.getId())
-        .setPath(item.getPath())
-        .setTag(item.getTag())
-        .setType(item.getType())
-        .setDatasetType(item.getDatasetType())
-        .setContainerType(item.getContainerType())
-        .setTags(item.getTags())
-        .setCreatedAt(item.getCreatedAt());
+      this.setId(item.getId())
+          .setPath(item.getPath())
+          .setTag(item.getTag())
+          .setType(item.getType())
+          .setDatasetType(item.getDatasetType())
+          .setContainerType(item.getContainerType())
+          .setTags(item.getTags())
+          .setCreatedAt(item.getCreatedAt());
 
       if (stats != null) {
-        this
-          .setDatasetCount(stats.getDatasetCount())
-          .setDatasetCountBounded(stats.isDatasetCountBounded());
+        this.setDatasetCount(stats.getDatasetCount())
+            .setDatasetCountBounded(stats.isDatasetCountBounded());
       }
     }
 
@@ -353,10 +371,9 @@ public class CatalogItem {
       return this;
     }
 
-
     public CatalogItem build() {
-      return new CatalogItem(id, path, tag, type, datasetType, containerType, tags,
-        getStats(), createdAt);
+      return new CatalogItem(
+          id, path, tag, type, datasetType, containerType, tags, getStats(), createdAt);
     }
 
     public String getId() {
@@ -393,6 +410,9 @@ public class CatalogItem {
       }
       return new CatalogItemStats(datasetCount, datasetCountBounded);
     }
-    public Long getCreatedAt() { return createdAt; }
+
+    public Long getCreatedAt() {
+      return createdAt;
+    }
   }
 }

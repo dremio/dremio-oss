@@ -15,18 +15,13 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.concurrent.ExecutorService;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
+import java.util.concurrent.ExecutorService;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Class used to pass configuration to file system instances.
- */
+/** Class used to pass configuration to file system instances. */
 class PDFSConfig {
 
   private final ExecutorService executor;
@@ -36,8 +31,13 @@ class PDFSConfig {
   private final NodeEndpoint localIdentity;
   private final boolean localAccessAllowed;
 
-  public PDFSConfig(ExecutorService executor, FabricRunnerFactory runnerFactory, BufferAllocator allocator,
-      Provider<Iterable<NodeEndpoint>> endpointProvider, NodeEndpoint localIdentity, boolean localAccessAllowed) {
+  public PDFSConfig(
+      ExecutorService executor,
+      FabricRunnerFactory runnerFactory,
+      BufferAllocator allocator,
+      Provider<Iterable<NodeEndpoint>> endpointProvider,
+      NodeEndpoint localIdentity,
+      boolean localAccessAllowed) {
     super();
     this.executor = executor;
     this.runnerFactory = runnerFactory;
@@ -70,7 +70,4 @@ class PDFSConfig {
   public boolean isLocalAccessAllowed() {
     return localAccessAllowed;
   }
-
-
-
 }

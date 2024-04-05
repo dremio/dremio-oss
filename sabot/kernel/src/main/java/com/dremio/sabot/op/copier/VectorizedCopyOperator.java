@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.op.copier;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.config.SelectionVectorRemover;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
@@ -34,6 +27,11 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.copier.FieldBufferCopier.Cursor;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.util.TransferPair;
 
 public class VectorizedCopyOperator implements SingleInputOperator {
 
@@ -61,7 +59,8 @@ public class VectorizedCopyOperator implements SingleInputOperator {
   // could be null if no columns are projected from incoming.
   private ValueVector randomVector;
 
-  public VectorizedCopyOperator(OperatorContext context, SelectionVectorRemover popConfig) throws OutOfMemoryException {
+  public VectorizedCopyOperator(OperatorContext context, SelectionVectorRemover popConfig)
+      throws OutOfMemoryException {
     this.context = context;
     this.incomingIndex = 0;
     this.bufferedIndex = 0;
@@ -73,8 +72,11 @@ public class VectorizedCopyOperator implements SingleInputOperator {
   public VectorAccessible setup(VectorAccessible incoming) {
     state.is(State.NEEDS_SETUP);
 
-    Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() != SelectionVectorMode.FOUR_BYTE);
-    this.straightCopy = incoming.getSchema() == null || incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE;
+    Preconditions.checkArgument(
+        incoming.getSchema().getSelectionVectorMode() != SelectionVectorMode.FOUR_BYTE);
+    this.straightCopy =
+        incoming.getSchema() == null
+            || incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE;
     this.incoming = incoming;
     this.output = context.createOutputVectorContainer(incoming.getSchema());
     this.output.buildSchema(SelectionVectorMode.NONE);
@@ -97,8 +99,11 @@ public class VectorizedCopyOperator implements SingleInputOperator {
     }
 
     // setup copiers from incoming to buffered.
-    copiers = CopierFactory.getInstance(context.getConfig(), context.getOptions())
-              .getTwoByteCopiers(VectorContainer.getFieldVectors(incoming), VectorContainer.getFieldVectors(buffered));
+    copiers =
+        CopierFactory.getInstance(context.getConfig(), context.getOptions())
+            .getTwoByteCopiers(
+                VectorContainer.getFieldVectors(incoming),
+                VectorContainer.getFieldVectors(buffered));
     if (straightCopy || randomVector == null) {
       shouldBufferOutput = false;
     }
@@ -178,7 +183,8 @@ public class VectorizedCopyOperator implements SingleInputOperator {
 
     // copy from incoming to buffered.
     final long addr = sv2.memoryAddress() + incomingIndex * 2;
-    int appendCount = Integer.min(count - incomingIndex, context.getTargetBatchSize() - bufferedIndex);
+    int appendCount =
+        Integer.min(count - incomingIndex, context.getTargetBatchSize() - bufferedIndex);
     if (appendCount > 0) {
       int idx = 0;
       for (FieldBufferCopier copier : copiers) {
@@ -229,13 +235,13 @@ public class VectorizedCopyOperator implements SingleInputOperator {
   }
 
   @Override
-  public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
+  public <OUT, IN, EXCEP extends Throwable> OUT accept(
+      OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
   }
 
   public enum Metric implements MetricDef {
-    OUTPUT_BATCH_COUNT
-    ;
+    OUTPUT_BATCH_COUNT;
 
     @Override
     public int metricId() {

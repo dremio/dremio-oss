@@ -16,8 +16,8 @@
 package com.dremio.exec.store;
 
 /**
- * Hive source and AWS Glue source implement this interface
- * Interface helps to get PF4J plugin from source plugin
+ * Hive source and AWS Glue source implement this interface Interface helps to get PF4J plugin from
+ * source plugin
  */
 public interface SupportsPF4JStoragePlugin extends StoragePlugin {
   <T> T getPF4JStoragePlugin();

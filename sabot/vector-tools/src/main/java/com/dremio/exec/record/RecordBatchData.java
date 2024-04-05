@@ -15,24 +15,22 @@
  */
 package com.dremio.exec.record;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
 
 /**
  * Holds the data for a particular record batch for later manipulation.
+ *
+ * <p>This represents a read-only interface to a record batch
  */
 public class RecordBatchData implements AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RecordBatchData.class);
 
-  private int recordCount;
   private SelectionVector2 sv2;
   private VectorContainer container = new VectorContainer();
 
@@ -40,19 +38,10 @@ public class RecordBatchData implements AutoCloseable {
     this.container.addCollection(new ArrayList<>(vectors));
     this.container.setAllCount(recordCount);
     this.container.buildSchema();
-    this.recordCount = container.getRecordCount();
   }
 
   public RecordBatchData(VectorAccessible batch, BufferAllocator allocator) {
-    this(batch, allocator, true);
-  }
-
-  public RecordBatchData(VectorAccessible batch, BufferAllocator allocator, boolean applySVMode) {
-    this.recordCount = batch.getRecordCount();
-
-    final List<ValueVector> vectors = Lists.newArrayList();
-
-    if (applySVMode && batch.getSchema().getSelectionVectorMode() == SelectionVectorMode.TWO_BYTE) {
+    if (batch.getSchema().getSelectionVectorMode() == SelectionVectorMode.TWO_BYTE) {
       this.sv2 = batch.getSelectionVector2().clone();
     } else {
       this.sv2 = null;
@@ -60,20 +49,16 @@ public class RecordBatchData implements AutoCloseable {
 
     for (VectorWrapper<?> v : batch) {
       if (v.isHyper()) {
-        throw new UnsupportedOperationException("Record batch data can't be created based on a hyper batch.");
+        throw new UnsupportedOperationException(
+            "Record batch data can't be created based on a hyper batch.");
       }
-      TransferPair tp = v.getValueVector().getTransferPair(allocator);
-      tp.transfer();
-      vectors.add(tp.getTo());
     }
 
-    container.addCollection(vectors);
-    container.setRecordCount(recordCount);
-    container.buildSchema(applySVMode ? batch.getSchema().getSelectionVectorMode() : SelectionVectorMode.NONE);
+    container.transferFrom(batch, allocator);
   }
 
   public int getRecordCount() {
-    return recordCount;
+    return container.getRecordCount();
   }
 
   public List<ValueVector> getVectors() {
@@ -84,17 +69,11 @@ public class RecordBatchData implements AutoCloseable {
     return vectors;
   }
 
-  public void setSv2(SelectionVector2 sv2) {
-    this.sv2 = sv2;
-    this.recordCount = sv2.getCount();
-    this.container.buildSchema(SelectionVectorMode.TWO_BYTE);
-  }
-
   public SelectionVector2 getSv2() {
     return sv2;
   }
 
-  public VectorContainer getContainer() {
+  public VectorAccessible getVectorAccessible() {
     return container;
   }
 
@@ -104,14 +83,14 @@ public class RecordBatchData implements AutoCloseable {
   }
 
   @Override
-  public void close(){
+  public void close() {
     if (sv2 != null) {
       sv2.clear();
     }
     container.clear();
   }
 
-  public BatchSchema getSchema(){
+  public BatchSchema getSchema() {
     return this.container.getSchema();
   }
 }

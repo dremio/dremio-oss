@@ -15,12 +15,7 @@
  */
 package com.dremio.exec.rpc;
 
-import java.lang.Thread.UncaughtExceptionHandler;
-import java.util.Locale;
-import java.util.concurrent.ThreadFactory;
-
 import com.dremio.common.concurrent.NamedThreadFactory;
-
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
@@ -31,10 +26,11 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.internal.SystemPropertyUtil;
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.Locale;
+import java.util.concurrent.ThreadFactory;
 
-/**
- * TransportCheck decides whether or not to use the native EPOLL mechanism for communication.
- */
+/** TransportCheck decides whether or not to use the native EPOLL mechanism for communication. */
 public final class TransportCheck {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TransportCheck.class);
 
@@ -42,8 +38,7 @@ public final class TransportCheck {
 
   public static final boolean SUPPORTS_EPOLL;
 
-  static{
-
+  static {
     String name = SystemPropertyUtil.get("os.name").toLowerCase(Locale.US).trim();
 
     if (name.startsWith("linux") && SystemPropertyUtil.getBoolean(USE_LINUX_EPOLL, false)) {
@@ -55,31 +50,33 @@ public final class TransportCheck {
 
   private TransportCheck() {}
 
-  public static Class<? extends ServerSocketChannel> getServerSocketChannel(){
-    if(SUPPORTS_EPOLL){
+  public static Class<? extends ServerSocketChannel> getServerSocketChannel() {
+    if (SUPPORTS_EPOLL) {
       return EpollServerSocketChannel.class;
-    }else{
+    } else {
       return NioServerSocketChannel.class;
     }
   }
 
-  public static Class<? extends SocketChannel> getClientSocketChannel(){
-    if(SUPPORTS_EPOLL){
+  public static Class<? extends SocketChannel> getClientSocketChannel() {
+    if (SUPPORTS_EPOLL) {
       return EpollSocketChannel.class;
-    }else{
+    } else {
       return NioSocketChannel.class;
     }
   }
 
   public static EventLoopGroup createEventLoopGroup(int nThreads, String prefix) {
-     if(SUPPORTS_EPOLL){
-       return new EpollEventLoopGroup(nThreads, newThreadFactory(prefix));
-     }else{
-       return new NioEventLoopGroup(nThreads, newThreadFactory(prefix));
-     }
+    if (SUPPORTS_EPOLL) {
+      return new EpollEventLoopGroup(nThreads, newThreadFactory(prefix));
+    } else {
+      return new NioEventLoopGroup(nThreads, newThreadFactory(prefix));
+    }
   }
 
-  private static final UncaughtExceptionHandler UNCAUGHT_EXCEPTION_HANDLER = (thread, t) -> logger.error("Uncaught exception in thread {}", thread.getName(), t);
+  private static final UncaughtExceptionHandler UNCAUGHT_EXCEPTION_HANDLER =
+      (thread, t) -> logger.error("Uncaught exception in thread {}", thread.getName(), t);
+
   public static ThreadFactory newThreadFactory(String prefix) {
     final ThreadFactory namedThreadFactory = new NamedThreadFactory(prefix);
 

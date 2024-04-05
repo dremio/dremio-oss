@@ -15,17 +15,13 @@
  */
 package com.dremio.service.flight.error.mapping;
 
+import com.dremio.common.exceptions.UserException;
 import java.util.LinkedHashSet;
 import java.util.List;
-
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightRuntimeException;
 
-import com.dremio.common.exceptions.UserException;
-
-/**
- * Error mapper to map Dremio Rpc ErrorType to Arrow Flight CallStatus.
- */
+/** Error mapper to map Dremio Rpc ErrorType to Arrow Flight CallStatus. */
 public final class DremioFlightErrorMapper {
   private DremioFlightErrorMapper() {}
 
@@ -35,12 +31,12 @@ public final class DremioFlightErrorMapper {
    *
    * @param userException the UserException from Dremio.
    * @return a FlightRuntimeException with a corresponding CallStatus, the original UserException
-   *         and the message from the UserException.
+   *     and the message from the UserException.
    */
   public static FlightRuntimeException toFlightRuntimeException(UserException userException) {
     CallStatus status;
 
-    switch(userException.getErrorType()) {
+    switch (userException.getErrorType()) {
       case PARSE:
       case VALIDATION:
         status = CallStatus.INVALID_ARGUMENT;
@@ -61,19 +57,28 @@ public final class DremioFlightErrorMapper {
         status = CallStatus.INTERNAL;
     }
 
-    // We add the context inside #withDescription to provide the additional information that exists in certain scenarios
-    // like the start/end of a line/column in an invalid query when a validation/parse error happens.
+    // We add the context inside #withDescription to provide the additional information that exists
+    // in certain scenarios
+    // like the start/end of a line/column in an invalid query when a validation/parse error
+    // happens.
     final List<String> userExceptionContext = userException.getContextStrings();
     if (userExceptionContext != null && !userExceptionContext.isEmpty()) {
-      return status.withCause(userException)
-        .withDescription(userException.getMessage() +
-          "\n" +  // better readability
-          String.join("\n", new LinkedHashSet<>(userException.getContextStrings())))  // avoid repeated K=Vs
-        .toRuntimeException();
+      return status
+          .withCause(userException)
+          .withDescription(
+              userException.getMessage()
+                  + "\n"
+                  + // better readability
+                  String.join(
+                      "\n",
+                      new LinkedHashSet<>(
+                          userException.getContextStrings()))) // avoid repeated K=Vs
+          .toRuntimeException();
     } else {
-      return status.withCause(userException)
-        .withDescription(userException.getMessage())
-        .toRuntimeException();
+      return status
+          .withCause(userException)
+          .withDescription(userException.getMessage())
+          .toRuntimeException();
     }
   }
 }

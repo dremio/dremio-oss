@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import org.apache.calcite.avatica.util.Quoting;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.proto.UserBitShared;
@@ -30,10 +24,14 @@ import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Strings;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import org.apache.calcite.avatica.util.Quoting;
 
 /**
- * Tracks if an underlying UserSession was updated so that it can
- * be saved to the user session cache.
+ * Tracks if an underlying UserSession was updated so that it can be saved to the user session
+ * cache.
  */
 public class ChangeTrackingUserSession extends UserSession {
   private UserSession delegate;
@@ -44,6 +42,7 @@ public class ChangeTrackingUserSession extends UserSession {
 
     /**
      * Create a Builder instance with no values set.
+     *
      * @return the Builder object
      */
     public static ChangeTrackingUserSession.Builder newBuilder() {
@@ -51,8 +50,9 @@ public class ChangeTrackingUserSession extends UserSession {
     }
 
     /**
-     * This newBuilder will assign the caller's session without making a copy
-     * !!Note!! that  this newBuilder could make modifications to the caller's session settings.
+     * This newBuilder will assign the caller's session without making a copy !!Note!! that this
+     * newBuilder could make modifications to the caller's session settings.
+     *
      * @param session the session that could be modified by this Builder.
      */
     public static ChangeTrackingUserSession.Builder newBuilder(ChangeTrackingUserSession session) {
@@ -60,24 +60,28 @@ public class ChangeTrackingUserSession extends UserSession {
     }
 
     /**
-     * This newBuilderWithCopy will make a fresh copy of the session delegate attribute using the copy constructor
-     * so the caller's session remains unmodified.
+     * This newBuilderWithCopy will make a fresh copy of the session delegate attribute using the
+     * copy constructor so the caller's session remains unmodified.
+     *
      * @param session the session whose attributes will be copied into the new instance
      * @return the Builder object
      */
-    public static ChangeTrackingUserSession.Builder newBuilderWithCopy(ChangeTrackingUserSession session) {
+    public static ChangeTrackingUserSession.Builder newBuilderWithCopy(
+        ChangeTrackingUserSession session) {
       return new ChangeTrackingUserSession.Builder(session, true);
     }
 
-    public ChangeTrackingUserSession.Builder withSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
+    public ChangeTrackingUserSession.Builder withSessionOptionManager(
+        SessionOptionManager sessionOptionManager, OptionManager fallback) {
       userSession.delegate.setSessionOptionManager(sessionOptionManager, fallback);
       return this;
     }
 
-    public ChangeTrackingUserSession.Builder withSourceVersionMapping(Map<String, VersionContext> sourceVersionMapping) {
+    public ChangeTrackingUserSession.Builder withSourceVersionMapping(
+        Map<String, VersionContext> sourceVersionMapping) {
       if (sourceVersionMapping != null) {
-        sourceVersionMapping.forEach((key, value) ->
-          userSession.delegate.setSessionVersionForSource(key, value));
+        sourceVersionMapping.forEach(
+            (key, value) -> userSession.delegate.setSessionVersionForSource(key, value));
       }
       return this;
     }
@@ -102,6 +106,7 @@ public class ChangeTrackingUserSession extends UserSession {
 
     /**
      * Copies the userSession object to the delegate.
+     *
      * @param userSession UserSession whose reference will be copied
      * @return the Builder with delegate referencing original userSession
      */
@@ -124,7 +129,8 @@ public class ChangeTrackingUserSession extends UserSession {
       if (newInstance) {
         userSession = new ChangeTrackingUserSession(session);
       } else {
-        //Note : This could potentially modify the passed in session since it does not make a new copy.
+        // Note : This could potentially modify the passed in session since it does not make a new
+        // copy.
         userSession = session;
       }
     }
@@ -149,7 +155,8 @@ public class ChangeTrackingUserSession extends UserSession {
   }
 
   @Override
-  public void setSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
+  public void setSessionOptionManager(
+      SessionOptionManager sessionOptionManager, OptionManager fallback) {
     delegate.setSessionOptionManager(sessionOptionManager, fallback);
   }
 
@@ -265,7 +272,9 @@ public class ChangeTrackingUserSession extends UserSession {
   }
 
   @Override
-  public void replaceUserCredentials(InboundImpersonationManager impersonationManager, UserBitShared.UserCredentials newCredentials) {
+  public void replaceUserCredentials(
+      InboundImpersonationManager impersonationManager,
+      UserBitShared.UserCredentials newCredentials) {
     delegate.replaceUserCredentials(impersonationManager, newCredentials);
     updated = true;
   }

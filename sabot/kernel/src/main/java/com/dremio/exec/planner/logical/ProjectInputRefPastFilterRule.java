@@ -17,15 +17,14 @@ package com.dremio.exec.planner.logical;
 
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 
-/**
- * This version of ProjectFilterTranspose rule only pushes down column references
- */
+/** This version of ProjectFilterTranspose rule only pushes down column references */
 public class ProjectInputRefPastFilterRule extends ProjectFilterTransposeRule {
   public ProjectInputRefPastFilterRule() {
-    super(Config.DEFAULT.withRelBuilderFactory(DremioRelFactories.LOGICAL_BUILDER)
-      .as(Config.class)
-      .withOperandFor(ProjectRel.class, FilterRel.class, JoinRel.class)
-      .withPreserveExprCondition(Conditions.PUSH_REX_INPUT_REF));
-
+    super(
+        Config.DEFAULT
+            .withRelBuilderFactory(DremioRelFactories.LOGICAL_BUILDER)
+            .as(Config.class)
+            .withOperandFor(ProjectRel.class, FilterRel.class, JoinRel.class)
+            .withPreserveExprCondition(Conditions.PUSH_REX_INPUT_REF));
   }
 }

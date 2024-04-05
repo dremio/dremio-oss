@@ -19,32 +19,33 @@ import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 
 public class PartitionSpecAlterOption implements AlterTableOption {
-    PartitionTransform partitionTransform;
-    SqlAlterTablePartitionColumns.Mode mode;
+  PartitionTransform partitionTransform;
+  SqlAlterTablePartitionColumns.Mode mode;
 
-    public PartitionSpecAlterOption(PartitionTransform partitionTransform, SqlAlterTablePartitionColumns.Mode mode) {
-        this.partitionTransform = partitionTransform;
-        this.mode = mode;
-    }
+  public PartitionSpecAlterOption(
+      PartitionTransform partitionTransform, SqlAlterTablePartitionColumns.Mode mode) {
+    this.partitionTransform = partitionTransform;
+    this.mode = mode;
+  }
 
-    public PartitionTransform getPartitionTransform() {
-        return partitionTransform;
-    }
+  public PartitionTransform getPartitionTransform() {
+    return partitionTransform;
+  }
 
-    public void setPartitionTransform(PartitionTransform partitionTransform) {
-        this.partitionTransform = partitionTransform;
-    }
+  public void setPartitionTransform(PartitionTransform partitionTransform) {
+    this.partitionTransform = partitionTransform;
+  }
 
-    public SqlAlterTablePartitionColumns.Mode getMode() {
-        return mode;
-    }
+  public SqlAlterTablePartitionColumns.Mode getMode() {
+    return mode;
+  }
 
-    public void setMode(SqlAlterTablePartitionColumns.Mode mode) {
-        this.mode = mode;
-    }
+  public void setMode(SqlAlterTablePartitionColumns.Mode mode) {
+    this.mode = mode;
+  }
 
-    @Override
-    public Type getType() {
-        return Type.PARTITION_SPEC_UPDATE;
-    }
+  @Override
+  public Type getType() {
+    return Type.PARTITION_SPEC_UPDATE;
+  }
 }

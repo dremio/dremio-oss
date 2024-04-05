@@ -16,13 +16,11 @@
 package com.dremio.sabot.op.common.ht2;
 
 /**
- * This class represents the information required to do the hash computation
- * for vectorized hash agg and hash join operators when inserting the pivoted
- * data into the hash table. It encapsulates the information about pivot space,
- * target address for storing the hashvalues (since we compute hash for entire
- * batch at one go), seed for hash. Seed is needed here since with spilling
- * feature the operator controls the hashing (and partitioning) so it decides
- * the appropriate seed.
+ * This class represents the information required to do the hash computation for vectorized hash agg
+ * and hash join operators when inserting the pivoted data into the hash table. It encapsulates the
+ * information about pivot space, target address for storing the hashvalues (since we compute hash
+ * for entire batch at one go), seed for hash. Seed is needed here since with spilling feature the
+ * operator controls the hashing (and partitioning) so it decides the appropriate seed.
  */
 public final class BlockChunk {
   protected final long keyFixedVectorAddr;
@@ -34,9 +32,15 @@ public final class BlockChunk {
   protected final long hashValueVectorAddr;
   protected final long seed;
 
-
-  public BlockChunk(long keyFixedVectorAddr, long keyVarVectorAddr, long keyVarVectorSize, boolean fixedOnly,
-                    int blockWidth, int records, long hashValueVectorAddr, long seed) {
+  public BlockChunk(
+      long keyFixedVectorAddr,
+      long keyVarVectorAddr,
+      long keyVarVectorSize,
+      boolean fixedOnly,
+      int blockWidth,
+      int records,
+      long hashValueVectorAddr,
+      long seed) {
     this.keyFixedVectorAddr = keyFixedVectorAddr;
     this.keyVarVectorAddr = keyVarVectorAddr;
     this.keyVarVectorSize = keyVarVectorSize;

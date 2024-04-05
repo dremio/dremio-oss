@@ -26,24 +26,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.function.Function;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
@@ -55,15 +37,28 @@ import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.BlockLocationsList;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.Function;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
 
-/**
- * Test for {@link BlockLocationsCacheManager}
- */
+/** Test for {@link BlockLocationsCacheManager} */
 @RunWith(value = Enclosed.class)
 public class BlockLocationsCacheManagerTest {
   public static class SchemeTest {
-    @ClassRule
-    public static final TemporaryFolder tempDir = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
     private static final int FILE_SIZE = 100;
 
     private BlockLocationsCacheManager cacheManager;
@@ -72,36 +67,42 @@ public class BlockLocationsCacheManagerTest {
     private void setUp(String filePath) throws Exception {
       FileSystem fileSystem = mock(FileSystem.class);
       when(fileSystem.supportsBlockAffinity()).thenReturn(true);
-      when(fileSystem.getFileBlockLocations(Path.of(filePath), 0, FILE_SIZE)).thenReturn(Collections.singletonList(new FileBlockLocation() {
-        @Override
-        public long getOffset() {
-          return 0;
-        }
+      when(fileSystem.getFileBlockLocations(Path.of(filePath), 0, FILE_SIZE))
+          .thenReturn(
+              Collections.singletonList(
+                  new FileBlockLocation() {
+                    @Override
+                    public long getOffset() {
+                      return 0;
+                    }
 
-        @Override
-        public long getSize() {
-          return FILE_SIZE;
-        }
+                    @Override
+                    public long getSize() {
+                      return FILE_SIZE;
+                    }
 
-        @Override
-        public List<String> getHosts() {
-          return Collections.singletonList("host");
-        }
-      }));
+                    @Override
+                    public List<String> getHosts() {
+                      return Collections.singletonList("host");
+                    }
+                  }));
 
       OptionManager optionManager = mock(OptionManager.class);
       when(optionManager.getOption(ExecConstants.HADOOP_BLOCK_CACHE_ENABLED)).thenReturn(true);
       OperatorContext operatorContext = mock(OperatorContext.class);
       when(operatorContext.getOptions()).thenReturn(optionManager);
       DremioConfig dremioConfig = mock(DremioConfig.class);
-      when(dremioConfig.getString(DremioConfig.CACHE_DB_PATH)).thenReturn(tempDir.newFolder().toString());
+      when(dremioConfig.getString(DremioConfig.CACHE_DB_PATH))
+          .thenReturn(tempDir.newFolder().toString());
 
       operatorStats = new OperatorStats(new OpProfileDef(1, 1, 1, 1), null);
       when(operatorContext.getStats()).thenReturn(operatorStats);
       Function<RocksDbBroker, RecordingCacheReaderWriter> brokerFunction =
-        broker -> spy(new RecordingCacheReaderWriter(fileSystem, broker, operatorStats));
+          broker -> spy(new RecordingCacheReaderWriter(fileSystem, broker, operatorStats));
 
-      cacheManager = BlockLocationsCacheManager.newInstance(fileSystem, "plugin-id", operatorContext, dremioConfig, brokerFunction);
+      cacheManager =
+          BlockLocationsCacheManager.newInstance(
+              fileSystem, "plugin-id", operatorContext, dremioConfig, brokerFunction);
     }
 
     @After
@@ -124,7 +125,8 @@ public class BlockLocationsCacheManagerTest {
     }
 
     @Test
-    public void testCreateCacheWithUnsupportedSchemeContainingAuthorityAndWhitespaceInPath() throws Exception {
+    public void testCreateCacheWithUnsupportedSchemeContainingAuthorityAndWhitespaceInPath()
+        throws Exception {
       String filePath = "s3://some-host:12345/new path";
       setUp(filePath);
       assertNull(cacheManager.createIfAbsent(filePath, FILE_SIZE));
@@ -145,7 +147,8 @@ public class BlockLocationsCacheManagerTest {
     }
 
     @Test
-    public void testCreateCacheWithSupportedSchemeContainingAuthorityAndWhitespaceInPath() throws Exception {
+    public void testCreateCacheWithSupportedSchemeContainingAuthorityAndWhitespaceInPath()
+        throws Exception {
       String filePath = "hdfs://some-host:12345/new path";
       setUp(filePath);
       assertNotNull(cacheManager.createIfAbsent(filePath, FILE_SIZE));
@@ -181,8 +184,7 @@ public class BlockLocationsCacheManagerTest {
   }
 
   public static class ComplexTests {
-    @ClassRule
-    public static final TemporaryFolder tempDir = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
     private final int fileSizeBase = 256;
     private final int uniqueFileCount = 30;
@@ -200,22 +202,25 @@ public class BlockLocationsCacheManagerTest {
       for (int i = 0; i < uniqueFileCount; i++) {
         uniqueKeys.add(("hello" + i).getBytes());
         int finalI = i;
-        when(fileSystem.getFileBlockLocations(Path.of(filePathBase + i), 0, fileSizeBase + finalI)).thenReturn(Collections.singletonList(new FileBlockLocation() {
-          @Override
-          public long getOffset() {
-            return finalI;
-          }
+        when(fileSystem.getFileBlockLocations(Path.of(filePathBase + i), 0, fileSizeBase + finalI))
+            .thenReturn(
+                Collections.singletonList(
+                    new FileBlockLocation() {
+                      @Override
+                      public long getOffset() {
+                        return finalI;
+                      }
 
-          @Override
-          public long getSize() {
-            return finalI;
-          }
+                      @Override
+                      public long getSize() {
+                        return finalI;
+                      }
 
-          @Override
-          public List<String> getHosts() {
-            return Collections.singletonList("host" + finalI);
-          }
-        }));
+                      @Override
+                      public List<String> getHosts() {
+                        return Collections.singletonList("host" + finalI);
+                      }
+                    }));
       }
 
       OptionManager optionManager = mock(OptionManager.class);
@@ -223,14 +228,17 @@ public class BlockLocationsCacheManagerTest {
       OperatorContext operatorContext = mock(OperatorContext.class);
       when(operatorContext.getOptions()).thenReturn(optionManager);
       DremioConfig dremioConfig = mock(DremioConfig.class);
-      when(dremioConfig.getString(DremioConfig.CACHE_DB_PATH)).thenReturn(tempDir.newFolder().toString());
+      when(dremioConfig.getString(DremioConfig.CACHE_DB_PATH))
+          .thenReturn(tempDir.newFolder().toString());
 
       operatorStats = new OperatorStats(new OpProfileDef(1, 1, 1, 1), null);
       when(operatorContext.getStats()).thenReturn(operatorStats);
       Function<RocksDbBroker, RecordingCacheReaderWriter> brokerFunction =
-        broker -> spy(new RecordingCacheReaderWriter(fileSystem, broker, operatorStats));
+          broker -> spy(new RecordingCacheReaderWriter(fileSystem, broker, operatorStats));
 
-      cacheManager = BlockLocationsCacheManager.newInstance(fileSystem, "plugin-id", operatorContext, dremioConfig, brokerFunction);
+      cacheManager =
+          BlockLocationsCacheManager.newInstance(
+              fileSystem, "plugin-id", operatorContext, dremioConfig, brokerFunction);
       readerWriter = cacheManager.getReaderWriter();
     }
 
@@ -248,26 +256,37 @@ public class BlockLocationsCacheManagerTest {
       }
       cacheManager.close();
 
-      assertEquals(uniqueFileCount, operatorStats.getLongStat(BLOCK_AFFINITY_CACHE_MISSES)); // from first call
-      assertEquals(uniqueFileCount, operatorStats.getLongStat(BLOCK_AFFINITY_CACHE_HITS)); // from second call
+      assertEquals(
+          uniqueFileCount,
+          operatorStats.getLongStat(BLOCK_AFFINITY_CACHE_MISSES)); // from first call
+      assertEquals(
+          uniqueFileCount,
+          operatorStats.getLongStat(BLOCK_AFFINITY_CACHE_HITS)); // from second call
     }
 
     @Test
     public void testCreateReturnsTheSameOutput() {
-      BlockLocationsList blockLocations = cacheManager.createIfAbsent(filePathBase + '0', fileSizeBase);
-      BlockLocationsList blockLocations2 = cacheManager.createIfAbsent(filePathBase + '0', fileSizeBase);
+      BlockLocationsList blockLocations =
+          cacheManager.createIfAbsent(filePathBase + '0', fileSizeBase);
+      BlockLocationsList blockLocations2 =
+          cacheManager.createIfAbsent(filePathBase + '0', fileSizeBase);
       assertEquals(blockLocations, blockLocations2);
     }
 
     @Test
     public void testPutHappensOnceOnConcurrentCreate() {
       final int threadCount = 10;
-      ExecutorService executorService = Executors.newFixedThreadPool(threadCount, new NamedThreadFactory("thread-"));
+      ExecutorService executorService =
+          Executors.newFixedThreadPool(threadCount, new NamedThreadFactory("thread-"));
       List<Future<BlockLocationsList>> futures = new ArrayList<>();
       for (int j = 0; j < uniqueFileCount; j++) {
         for (int i = 0; i < threadCount; i++) {
           int finalJ = j;
-          Future<BlockLocationsList> future = executorService.submit(() -> cacheManager.putOnce(uniqueKeys.get(finalJ), filePathBase + finalJ, fileSizeBase + finalJ));
+          Future<BlockLocationsList> future =
+              executorService.submit(
+                  () ->
+                      cacheManager.putOnce(
+                          uniqueKeys.get(finalJ), filePathBase + finalJ, fileSizeBase + finalJ));
           futures.add(future);
         }
       }

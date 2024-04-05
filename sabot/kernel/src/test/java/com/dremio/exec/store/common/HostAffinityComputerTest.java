@@ -19,23 +19,20 @@ import static com.dremio.exec.store.common.HostAffinityComputer.computeSortedAff
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.BlockLocations;
+import com.google.common.net.HostAndPort;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import org.junit.Test;
 
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.BlockLocations;
-import com.google.common.net.HostAndPort;
-
-/**
- * Test for {@link HostAffinityComputer}
- */
+/** Test for {@link HostAffinityComputer} */
 public class HostAffinityComputerTest {
   @Test
   public void testEmptyBlockLocations() {
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(0, 0, Collections.emptyList());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(0, 0, Collections.emptyList());
     assertTrue(affinities.isEmpty());
   }
 
@@ -45,8 +42,10 @@ public class HostAffinityComputerTest {
     int splitSize = 200;
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(splitSize * 2).setSize(splitSize * 2).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder().setOffset(splitSize * 2).setSize(splitSize * 2).build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertTrue(affinities.isEmpty());
   }
 
@@ -57,7 +56,8 @@ public class HostAffinityComputerTest {
 
     List<BlockLocations> blockLocations = new ArrayList<>();
     blockLocations.add(BlockLocations.newBuilder().setOffset(0).setSize(400).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertTrue(affinities.isEmpty());
   }
 
@@ -68,7 +68,8 @@ public class HostAffinityComputerTest {
 
     List<BlockLocations> blockLocations = new ArrayList<>();
     blockLocations.add(BlockLocations.newBuilder().setOffset(400).setSize(200).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertTrue(affinities.isEmpty());
   }
 
@@ -79,7 +80,8 @@ public class HostAffinityComputerTest {
 
     List<BlockLocations> blockLocations = new ArrayList<>();
     blockLocations.add(BlockLocations.newBuilder().setOffset(0).setSize(200).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertTrue(affinities.isEmpty());
   }
 
@@ -91,8 +93,14 @@ public class HostAffinityComputerTest {
     String host2 = "host2:2345";
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(0).setSize(600).addAllHosts(Arrays.asList(host1, host2)).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(0)
+            .setSize(600)
+            .addAllHosts(Arrays.asList(host1, host2))
+            .build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertEquals(2, affinities.size());
     assertEquals(HostAndPort.fromString(host1), affinities.get(0).getHostAndPort());
     assertEquals(1.0, affinities.get(0).getAffinity(), 0.0001);
@@ -109,8 +117,14 @@ public class HostAffinityComputerTest {
     String host2 = "host2:2345";
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(splitStart).setSize(splitSize).addAllHosts(Arrays.asList(host1, host2)).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(splitStart)
+            .setSize(splitSize)
+            .addAllHosts(Arrays.asList(host1, host2))
+            .build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertEquals(2, affinities.size());
     assertEquals(HostAndPort.fromString(host1), affinities.get(0).getHostAndPort());
     assertEquals(1.0, affinities.get(0).getAffinity(), 0.0001);
@@ -127,8 +141,14 @@ public class HostAffinityComputerTest {
     String host2 = "host2:2345";
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(200).setSize(200).addAllHosts(Arrays.asList(host1, host2)).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(200)
+            .setSize(200)
+            .addAllHosts(Arrays.asList(host1, host2))
+            .build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertEquals(2, affinities.size());
     assertEquals(HostAndPort.fromString(host1), affinities.get(0).getHostAndPort());
     assertEquals(0.33, affinities.get(0).getAffinity(), 0.01);
@@ -145,8 +165,14 @@ public class HostAffinityComputerTest {
     String host2 = "host2:2345";
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(100).setSize(splitSize * 3).addAllHosts(Arrays.asList(host1, host2)).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(100)
+            .setSize(splitSize * 3)
+            .addAllHosts(Arrays.asList(host1, host2))
+            .build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertEquals(2, affinities.size());
     assertEquals(HostAndPort.fromString(host1), affinities.get(0).getHostAndPort());
     assertEquals(0.5, affinities.get(0).getAffinity(), 0.01);
@@ -163,8 +189,14 @@ public class HostAffinityComputerTest {
     String host2 = "host2:2345";
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(0).setSize(300).addAllHosts(Arrays.asList(host1, host2)).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(0)
+            .setSize(300)
+            .addAllHosts(Arrays.asList(host1, host2))
+            .build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertEquals(2, affinities.size());
     assertEquals(HostAndPort.fromString(host1), affinities.get(0).getHostAndPort());
     assertEquals(0.5, affinities.get(0).getAffinity(), 0.01);
@@ -181,8 +213,14 @@ public class HostAffinityComputerTest {
     String host2 = "host2:2345";
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(200).setSize(splitSize / 2).addAllHosts(Arrays.asList(host1, host2)).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(200)
+            .setSize(splitSize / 2)
+            .addAllHosts(Arrays.asList(host1, host2))
+            .build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertEquals(2, affinities.size());
     assertEquals(HostAndPort.fromString(host1), affinities.get(0).getHostAndPort());
     assertEquals(0.33, affinities.get(0).getAffinity(), 0.01);
@@ -199,8 +237,14 @@ public class HostAffinityComputerTest {
     String host2 = "host2:2345";
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(0).setSize(300).addAllHosts(Arrays.asList(host1, host2)).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(0)
+            .setSize(300)
+            .addAllHosts(Arrays.asList(host1, host2))
+            .build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     assertEquals(2, affinities.size());
     assertEquals(HostAndPort.fromString(host1), affinities.get(0).getHostAndPort());
     assertEquals(0.25, affinities.get(0).getAffinity(), 0.01);
@@ -218,9 +262,20 @@ public class HostAffinityComputerTest {
     String host3 = "host3:3456";
 
     List<BlockLocations> blockLocations = new ArrayList<>();
-    blockLocations.add(BlockLocations.newBuilder().setOffset(0).setSize(200).addAllHosts(Arrays.asList(host1, host2)).build());
-    blockLocations.add(BlockLocations.newBuilder().setOffset(400).setSize(400).addAllHosts(Arrays.asList(host2, host3)).build());
-    List<EndpointsAffinity> affinities = computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(0)
+            .setSize(200)
+            .addAllHosts(Arrays.asList(host1, host2))
+            .build());
+    blockLocations.add(
+        BlockLocations.newBuilder()
+            .setOffset(400)
+            .setSize(400)
+            .addAllHosts(Arrays.asList(host2, host3))
+            .build());
+    List<EndpointsAffinity> affinities =
+        computeSortedAffinitiesForSplit(splitStart, splitSize, blockLocations);
     System.out.println(affinities);
     assertEquals(3, affinities.size());
     assertEquals(HostAndPort.fromString(host2), affinities.get(0).getHostAndPort());

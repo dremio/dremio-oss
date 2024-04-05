@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.TreeMap;
-
 import org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -47,41 +46,36 @@ import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
 
 /**
- * Copied from AggregateProjectPullUpConstantsRule.
- * Added removeAll option.
+ * Copied from AggregateProjectPullUpConstantsRule. Added removeAll option.
  *
- * Planner rule that removes constant keys from an
- * {@link org.apache.calcite.rel.core.Aggregate}.
+ * <p>Planner rule that removes constant keys from an {@link org.apache.calcite.rel.core.Aggregate}.
  *
- * <p>Constant fields are deduced using
- * {@link RelMetadataQuery#getPulledUpPredicates(RelNode)}; the input does not
- * need to be a {@link org.apache.calcite.rel.core.Project}.
+ * <p>Constant fields are deduced using {@link RelMetadataQuery#getPulledUpPredicates(RelNode)}; the
+ * input does not need to be a {@link org.apache.calcite.rel.core.Project}.
  *
- * <p>By default, this rules never removes the last column, because {@code Aggregate([])}
- * returns 1 row even if its input is empty.
+ * <p>By default, this rules never removes the last column, because {@code Aggregate([])} returns 1
+ * row even if its input is empty.
  *
- * <p>When {@code this.removeAll} is set to true this rule will force removing the last column.
- * A filter will be added in this case to ensure {@code Aggregate([])} returns 0 row when
- * its input is empty.
+ * <p>When {@code this.removeAll} is set to true this rule will force removing the last column. A
+ * filter will be added in this case to ensure {@code Aggregate([])} returns 0 row when its input is
+ * empty.
  *
- * <p>Since the transformed relational expression has to match the original
- * relational expression, the constants are placed in a projection above the
- * reduced aggregate. If those constants are not used, another rule will remove
- * them from the project.
+ * <p>Since the transformed relational expression has to match the original relational expression,
+ * the constants are placed in a projection above the reduced aggregate. If those constants are not
+ * used, another rule will remove them from the project.
  */
 public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
-  //~ Static fields/initializers ---------------------------------------------
+  // ~ Static fields/initializers ---------------------------------------------
 
-  /**
-   * More general instance that matches any relational expression.
-   * Removes all constant keys.
-   */
+  /** More general instance that matches any relational expression. Removes all constant keys. */
   public static final DremioAggregateProjectPullUpConstantsRule INSTANCE2_REMOVE_ALL =
-          new DremioAggregateProjectPullUpConstantsRule(LogicalAggregate.class,
-                  RelNode.class, RelFactories.LOGICAL_BUILDER,
-                  "DremioAggregatePullUpAllConstantsRule");
+      new DremioAggregateProjectPullUpConstantsRule(
+          LogicalAggregate.class,
+          RelNode.class,
+          RelFactories.LOGICAL_BUILDER,
+          "DremioAggregatePullUpAllConstantsRule");
 
-  //~ Constructors -----------------------------------------------------------
+  // ~ Constructors -----------------------------------------------------------
 
   /**
    * Creates an AggregateProjectPullUpConstantsRule that removes all constant keys.
@@ -92,16 +86,17 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
    * @param description Description, or null to guess description
    */
   public DremioAggregateProjectPullUpConstantsRule(
-          Class<? extends Aggregate> aggregateClass,
-          Class<? extends RelNode> inputClass,
-          RelBuilderFactory relBuilderFactory, String description) {
+      Class<? extends Aggregate> aggregateClass,
+      Class<? extends RelNode> inputClass,
+      RelBuilderFactory relBuilderFactory,
+      String description) {
     super(
-            operand(aggregateClass, null, Aggregate.IS_SIMPLE,
-                    operand(inputClass, any())),
-            relBuilderFactory, description);
+        operand(aggregateClass, null, Aggregate.IS_SIMPLE, operand(inputClass, any())),
+        relBuilderFactory,
+        description);
   }
 
-  //~ Methods ----------------------------------------------------------------
+  // ~ Methods ----------------------------------------------------------------
 
   @Override
   public void onMatch(RelOptRuleCall call) {
@@ -110,15 +105,13 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
 
     final RexBuilder rexBuilder = aggregate.getCluster().getRexBuilder();
     final RelMetadataQuery mq = call.getMetadataQuery();
-    final RelOptPredicateList predicates =
-        mq.getPulledUpPredicates(aggregate.getInput());
+    final RelOptPredicateList predicates = mq.getPulledUpPredicates(aggregate.getInput());
     if (predicates == null) {
       return;
     }
     final NavigableMap<Integer, RexNode> map = new TreeMap<>();
     for (int key : aggregate.getGroupSet()) {
-      final RexInputRef ref =
-          rexBuilder.makeInputRef(aggregate.getInput(), key);
+      final RexInputRef ref = rexBuilder.makeInputRef(aggregate.getInput(), key);
       if (predicates.constantMap.containsKey(ref)) {
         map.put(key, predicates.constantMap.get(ref));
       }
@@ -146,8 +139,8 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
     final List<AggregateCall> newAggCalls = new ArrayList<>();
     for (AggregateCall aggCall : aggregate.getAggCallList()) {
       newAggCalls.add(
-          aggCall.adaptTo(input, aggCall.getArgList(), aggCall.filterArg,
-              groupCount, newGroupCount));
+          aggCall.adaptTo(
+              input, aggCall.getArgList(), aggCall.filterArg, groupCount, newGroupCount));
     }
 
     // If all GROUP BY keys have been removed, add "HAVING COUNT(*) > 0" to ensure
@@ -156,9 +149,15 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
       // Add "COUNT(*)" aggregate function
       final RelDataTypeFactory typeFactory = rexBuilder.getTypeFactory();
       newAggCalls.add(
-              AggregateCall.create(SqlStdOperatorTable.COUNT, false,
-                      false, ImmutableIntList.of(), -1, RelCollations.EMPTY,
-                      typeFactory.createSqlType(SqlTypeName.BIGINT), null));
+          AggregateCall.create(
+              SqlStdOperatorTable.COUNT,
+              false,
+              false,
+              ImmutableIntList.of(),
+              -1,
+              RelCollations.EMPTY,
+              typeFactory.createSqlType(SqlTypeName.BIGINT),
+              null));
     }
 
     relBuilder.aggregate(relBuilder.groupKey(newGroupSet, null), newAggCalls);
@@ -166,9 +165,10 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
     if (newGroupCount == 0) {
       // Add filter "> 0" on aggregate function "COUNT(*)"
       relBuilder.filter(
-              relBuilder.call(SqlStdOperatorTable.GREATER_THAN,
-                      relBuilder.field(newAggCalls.size() - 1),
-                      relBuilder.literal(0)));
+          relBuilder.call(
+              SqlStdOperatorTable.GREATER_THAN,
+              relBuilder.field(newAggCalls.size() - 1),
+              relBuilder.literal(0)));
     }
 
     // Create a projection back again.
@@ -186,16 +186,15 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
         if (!originalType.equals(expr.getType())) {
           expr = rexBuilder.makeCast(originalType, expr, true);
         }
-      }else{
+      } else {
         int pos = aggregate.getGroupSet().nth(i);
-        if(map.containsKey(pos)){
+        if (map.containsKey(pos)) {
           expr = map.get(pos);
-          RelDataType originalType =
-            field.getType();
+          RelDataType originalType = field.getType();
           if (!originalType.equals(expr.getType())) {
             expr = rexBuilder.makeCast(originalType, expr, true);
           }
-        }else{
+        } else {
           expr = relBuilder.field(source++);
         }
       }
@@ -204,7 +203,6 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
     relBuilder.project(Pair.left(projects), Pair.right(projects)); // inverse
     call.transformTo(relBuilder.build());
   }
-
 }
 
 // End DremioAggregateProjectPullUpConstantsRule.java

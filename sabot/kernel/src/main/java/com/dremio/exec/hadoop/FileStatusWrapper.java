@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.hadoop;
 
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.Path;
 import java.io.IOException;
 import java.nio.file.NotLinkException;
 import java.nio.file.attribute.FileTime;
@@ -23,29 +25,27 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
 import java.util.Set;
-
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.permission.FsPermission;
 
-import com.dremio.io.file.FileAttributes;
-import com.dremio.io.file.Path;
-
 final class FileStatusWrapper implements FileAttributes {
-  private final UserPrincipal owner = new UserPrincipal() {
+  private final UserPrincipal owner =
+      new UserPrincipal() {
 
-    @Override
-    public String getName() {
-      return status.getOwner();
-    }
-  };
+        @Override
+        public String getName() {
+          return status.getOwner();
+        }
+      };
 
-  private final GroupPrincipal group = new GroupPrincipal() {
+  private final GroupPrincipal group =
+      new GroupPrincipal() {
 
-    @Override
-    public String getName() {
-      return status.getGroup();
-    }
-  };
+        @Override
+        public String getName() {
+          return status.getGroup();
+        }
+      };
 
   private final FileStatus status;
   // lazily evaluated
@@ -70,7 +70,9 @@ final class FileStatusWrapper implements FileAttributes {
   public Set<PosixFilePermission> permissions() {
     final FsPermission permission = status.getPermission();
     return PosixFilePermissions.fromString(
-        permission.getUserAction().SYMBOL + permission.getGroupAction().SYMBOL + permission.getOtherAction().SYMBOL);
+        permission.getUserAction().SYMBOL
+            + permission.getGroupAction().SYMBOL
+            + permission.getOtherAction().SYMBOL);
   }
 
   @Override
@@ -140,5 +142,4 @@ final class FileStatusWrapper implements FileAttributes {
   public FileStatus getFileStatus() {
     return status;
   }
-
 }

@@ -18,15 +18,12 @@ package com.dremio.telemetry.impl.config.tracing.sampler;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 
-/**
- * Build for SpanAttributeBasedSampler
- */
+/** Build for SpanAttributeBasedSampler */
 public class SpanAttributeBasedSamplerBuilder {
   private AttributeKey<Boolean> attributeKey;
   private Sampler rootSampler = Sampler.parentBased(Sampler.alwaysOff());
 
-  SpanAttributeBasedSamplerBuilder() {
-  }
+  SpanAttributeBasedSamplerBuilder() {}
 
   public SpanAttributeBasedSamplerBuilder setAttributeKey(String attributeKey) {
     this.attributeKey = AttributeKey.booleanKey(attributeKey);

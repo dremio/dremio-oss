@@ -16,26 +16,23 @@
 package com.dremio.exec.store;
 
 /**
- * This  is a wrapper exception  for all Reference exceptions that can be thrown by Nessie
- * -ReferenceNotFoundException
- * -ReferenceTypeConflictException
- * -ReferenceNotFoundByTimestampException
- * -ReferenceAlreadyExistsException
+ * This is a wrapper exception for all Reference exceptions that can be thrown by Nessie
+ * -ReferenceNotFoundException -ReferenceTypeConflictException
+ * -ReferenceNotFoundByTimestampException -ReferenceAlreadyExistsException
  * -ReferenceConflictException
  */
-  public class NessieReferenceException extends RuntimeException {
-    private static final long serialVersionUID = 1L;
+public class NessieReferenceException extends RuntimeException {
+  private static final long serialVersionUID = 1L;
 
-    public NessieReferenceException() {
-      super();
-    }
+  public NessieReferenceException() {
+    super();
+  }
 
-    public NessieReferenceException(Throwable cause) {
-      super(cause);
-    }
+  public NessieReferenceException(Throwable cause) {
+    super(cause);
+  }
 
-    public NessieReferenceException(String message, Throwable cause) {
-      super(message, cause);
-    }
-
+  public NessieReferenceException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

@@ -17,6 +17,15 @@ package com.dremio.plugins.util;
 
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 
+import com.dremio.exec.hadoop.DremioHadoopUtils;
+import com.dremio.exec.util.RemoteIterators;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -27,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -43,18 +51,9 @@ import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.hadoop.DremioHadoopUtils;
-import com.dremio.exec.util.RemoteIterators;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
 /**
- * FileSystem implementation that treats multiple inner container filesystems as a unified toplevel filesystem.
+ * FileSystem implementation that treats multiple inner container filesystems as a unified toplevel
+ * filesystem.
  */
 public abstract class ContainerFileSystem extends FileSystem {
   private static final Logger logger = LoggerFactory.getLogger(ContainerFileSystem.class);
@@ -67,22 +66,29 @@ public abstract class ContainerFileSystem extends FileSystem {
   private volatile ImmutableMap<String, ContainerHolder> containerMap = ImmutableMap.of();
   private volatile List<ContainerFailure> failures = ImmutableList.of();
 
-  // Work around bug in s3a filesystem where the parent directory is included in list. Similar to HADOOP-12169
+  // Work around bug in s3a filesystem where the parent directory is included in list. Similar to
+  // HADOOP-12169
   public static final Predicate<CorrectableFileStatus> ELIMINATE_PARENT_DIRECTORY =
       (input -> {
         final FileStatus status = input.getStatus();
         if (!status.isDirectory()) {
           return true;
         }
-        return !Path.getPathWithoutSchemeAndAuthority(input.getPathWithoutContainerName()).equals(Path.getPathWithoutSchemeAndAuthority(status.getPath()));
+        return !Path.getPathWithoutSchemeAndAuthority(input.getPathWithoutContainerName())
+            .equals(Path.getPathWithoutSchemeAndAuthority(status.getPath()));
       });
 
   /**
    * Subclass Constructor.
+   *
    * @param scheme Scheme of filesystem.
-   * @param containerName The descriptive name of the container for this ContainerFileSystem (such as bucket).
+   * @param containerName The descriptive name of the container for this ContainerFileSystem (such
+   *     as bucket).
    */
-  protected ContainerFileSystem(String scheme, String containerName, Predicate<CorrectableFileStatus> listFileStatusPredicate) {
+  protected ContainerFileSystem(
+      String scheme,
+      String containerName,
+      Predicate<CorrectableFileStatus> listFileStatusPredicate) {
     this.scheme = scheme;
     this.containerName = containerName;
     this.listFileStatusPredicate = listFileStatusPredicate;
@@ -90,35 +96,42 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   /**
    * Refresh the list of subfilesystems.
+   *
    * @throws IOException
    */
   public void refreshFileSystems() throws IOException {
 
-    synchronized(refreshLock) {
+    synchronized (refreshLock) {
       final Map<String, ContainerHolder> oldMap = new HashMap<>(containerMap);
       final ImmutableList.Builder<ContainerFailure> failures = ImmutableList.builder();
       final ImmutableMap.Builder<String, ContainerHolder> newMap = ImmutableMap.builder();
-      getContainerCreators().forEach((creator) -> {
+      getContainerCreators()
+          .forEach(
+              (creator) -> {
 
-        // avoid recreating filesystem if it already exists.
-        final ContainerHolder fs = oldMap.remove(creator.getName());
-        if(fs != null) {
-          newMap.put(creator.getName(), fs);
-          return;
-        }
+                // avoid recreating filesystem if it already exists.
+                final ContainerHolder fs = oldMap.remove(creator.getName());
+                if (fs != null) {
+                  newMap.put(creator.getName(), fs);
+                  return;
+                }
 
-        // new file system.
-        try {
-          newMap.put(creator.getName(), creator.toContainerHolder());
-        } catch (Exception ex) {
-          logger.warn("Failure while attempting to connect to {} named [{}].", containerName, creator.getName(), ex);
-          failures.add(new ContainerFailure(creator.getName(), ex));
-        }
-      });
+                // new file system.
+                try {
+                  newMap.put(creator.getName(), creator.toContainerHolder());
+                } catch (Exception ex) {
+                  logger.warn(
+                      "Failure while attempting to connect to {} named [{}].",
+                      containerName,
+                      creator.getName(),
+                      ex);
+                  failures.add(new ContainerFailure(creator.getName(), ex));
+                }
+              });
 
       containerMap = newMap.build();
 
-      for(ContainerHolder old : oldMap.values()) {
+      for (ContainerHolder old : oldMap.values()) {
         try {
           if (getUnknownContainer(old.getName()) == null) {
             logger.debug("Closing filesystem for the container {}", old.getName());
@@ -134,15 +147,14 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   /**
    * Retrieve the most recent list of failures associated with trying to retrieve containers.
+   *
    * @return
    */
-  public List<ContainerFailure> getSubFailures(){
+  public List<ContainerFailure> getSubFailures() {
     return failures;
   }
 
-  /**
-   * Description of container creation failure.
-   */
+  /** Description of container creation failure. */
   public static class ContainerFailure {
     private final String name;
     private final Exception exception;
@@ -152,13 +164,14 @@ public abstract class ContainerFileSystem extends FileSystem {
       this.name = name;
       this.exception = exception;
     }
+
     public String getName() {
       return name;
     }
+
     public Exception getException() {
       return exception;
     }
-
   }
 
   @Override
@@ -169,17 +182,14 @@ public abstract class ContainerFileSystem extends FileSystem {
     refreshFileSystems();
   }
 
-  /**
-   * A class that is used to create inner filesystems if they don't already exist.
-   */
+  /** A class that is used to create inner filesystems if they don't already exist. */
   public abstract static class ContainerCreator {
     protected abstract String getName();
+
     protected abstract ContainerHolder toContainerHolder() throws IOException;
   }
 
-  /**
-   * Class used to holder a container filesystem and name.
-   */
+  /** Class used to holder a container filesystem and name. */
   protected static class ContainerHolder implements AutoCloseable {
     private final String name;
     private final FileSystemSupplier fs;
@@ -223,22 +233,20 @@ public abstract class ContainerFileSystem extends FileSystem {
     public void close() throws IOException {
       fs.close();
     }
-
   }
 
-  /**
-   * A custom memoizing supplier-like interface that also supports throwing an IOException.
-   */
+  /** A custom memoizing supplier-like interface that also supports throwing an IOException. */
   public abstract static class FileSystemSupplier implements AutoCloseable {
 
     private volatile FileSystem fs;
-    public final FileSystem get() throws IOException{
-      if(fs != null) {
+
+    public final FileSystem get() throws IOException {
+      if (fs != null) {
         return fs;
       }
 
-      synchronized(this) {
-        if(fs != null) {
+      synchronized (this) {
+        if (fs != null) {
           return fs;
         }
 
@@ -269,12 +277,14 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   /**
    * Do any initial file system setup before retrieving the containers for the first time.
+   *
    * @throws IOException
    */
   protected abstract void setup(Configuration conf) throws IOException;
 
   /**
    * Get a list of all containers.
+   *
    * @return A list of container creators that can be used for generating container filesystems.
    * @throws IOException
    */
@@ -284,13 +294,15 @@ public abstract class ContainerFileSystem extends FileSystem {
    * Attempt to retrieve a container FileSystem that wasn't previously known.
    *
    * @param name Container name.
-   * @return The container filesystem associated with this container name. Or null, if the container does not exist.
+   * @return The container filesystem associated with this container name. Or null, if the container
+   *     does not exist.
    * @throws IOException
    */
   protected abstract ContainerHolder getUnknownContainer(String name) throws IOException;
 
   private boolean isRoot(Path path) {
-    List<String> pathComponents = Arrays.asList(Path.getPathWithoutSchemeAndAuthority(path).toString().split(Path.SEPARATOR));
+    List<String> pathComponents =
+        Arrays.asList(Path.getPathWithoutSchemeAndAuthority(path).toString().split(Path.SEPARATOR));
     return pathComponents.size() == 0;
   }
 
@@ -313,7 +325,8 @@ public abstract class ContainerFileSystem extends FileSystem {
       } catch (IOException ex) {
         throw ex;
       } catch (Exception ex) {
-        throw new IOException(String.format("Unable to retrieve %s named %s.", containerName, name), ex);
+        throw new IOException(
+            String.format("Unable to retrieve %s named %s.", containerName, name), ex);
       }
     }
 
@@ -335,72 +348,109 @@ public abstract class ContainerFileSystem extends FileSystem {
   }
 
   @Override
-  public FSDataOutputStream create(Path f, FsPermission permission, boolean overwrite, int bufferSize, short replication, long blockSize, Progressable progress) throws IOException {
-    return getFileSystemForPath(f).fs().create(DremioHadoopUtils.pathWithoutContainer(f), permission, overwrite, bufferSize, replication, blockSize, progress);
+  public FSDataOutputStream create(
+      Path f,
+      FsPermission permission,
+      boolean overwrite,
+      int bufferSize,
+      short replication,
+      long blockSize,
+      Progressable progress)
+      throws IOException {
+    return getFileSystemForPath(f)
+        .fs()
+        .create(
+            DremioHadoopUtils.pathWithoutContainer(f),
+            permission,
+            overwrite,
+            bufferSize,
+            replication,
+            blockSize,
+            progress);
   }
 
   @Override
-  public FSDataOutputStream append(Path f, int bufferSize, Progressable progress) throws IOException {
-    return getFileSystemForPath(f).fs().append(DremioHadoopUtils.pathWithoutContainer(f), bufferSize, progress);
+  public FSDataOutputStream append(Path f, int bufferSize, Progressable progress)
+      throws IOException {
+    return getFileSystemForPath(f)
+        .fs()
+        .append(DremioHadoopUtils.pathWithoutContainer(f), bufferSize, progress);
   }
 
   @Override
   public boolean rename(Path src, Path dst) throws IOException {
-    Preconditions.checkArgument(DremioHadoopUtils.getContainerName(src).equals(DremioHadoopUtils.getContainerName(dst)), String.format("Cannot rename files across %ss.", containerName));
-    return getFileSystemForPath(src).fs().rename(DremioHadoopUtils.pathWithoutContainer(src), DremioHadoopUtils.pathWithoutContainer(dst));
+    Preconditions.checkArgument(
+        DremioHadoopUtils.getContainerName(src).equals(DremioHadoopUtils.getContainerName(dst)),
+        String.format("Cannot rename files across %ss.", containerName));
+    return getFileSystemForPath(src)
+        .fs()
+        .rename(
+            DremioHadoopUtils.pathWithoutContainer(src),
+            DremioHadoopUtils.pathWithoutContainer(dst));
   }
 
   @Override
   public boolean delete(Path f, boolean recursive) throws IOException {
-    return getFileSystemForPath(f).fs().delete(DremioHadoopUtils.pathWithoutContainer(f), recursive);
+    return getFileSystemForPath(f)
+        .fs()
+        .delete(DremioHadoopUtils.pathWithoutContainer(f), recursive);
   }
 
-
   @Override
-  public RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f) throws FileNotFoundException, IOException {
+  public RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f)
+      throws FileNotFoundException, IOException {
     return super.listLocatedStatus(f);
   }
 
   @Override
-  protected RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f, final PathFilter filter) throws FileNotFoundException, IOException {
+  protected RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f, final PathFilter filter)
+      throws FileNotFoundException, IOException {
     final String container = DremioHadoopUtils.getContainerName(f);
-    final PathFilter alteredFilter = (path) -> {
-      return filter.accept(transform(path, container));
-    };
+    final PathFilter alteredFilter =
+        (path) -> {
+          return filter.accept(transform(path, container));
+        };
 
     return RemoteIterators.transform(
-        ListAccessor.listLocatedFileStatus(getFileSystemForPath(f).fs(), DremioHadoopUtils.pathWithoutContainer(f), alteredFilter),
-        t -> new LocatedFileStatus(ContainerFileSystem.transform(t, container), t.getBlockLocations())
-        );
+        ListAccessor.listLocatedFileStatus(
+            getFileSystemForPath(f).fs(), DremioHadoopUtils.pathWithoutContainer(f), alteredFilter),
+        t ->
+            new LocatedFileStatus(
+                ContainerFileSystem.transform(t, container), t.getBlockLocations()));
   }
 
   @Override
-  public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
+  public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive)
+      throws FileNotFoundException, IOException {
     final String container = DremioHadoopUtils.getContainerName(f);
     return RemoteIterators.transform(
-        getFileSystemForPath(f).fs().listFiles(DremioHadoopUtils.pathWithoutContainer(f), recursive),
-        t -> new LocatedFileStatus(ContainerFileSystem.transform(t, container), t.getBlockLocations())
-        );
+        getFileSystemForPath(f)
+            .fs()
+            .listFiles(DremioHadoopUtils.pathWithoutContainer(f), recursive),
+        t ->
+            new LocatedFileStatus(
+                ContainerFileSystem.transform(t, container), t.getBlockLocations()));
   }
-
 
   @Override
   public FileStatus[] listStatus(final Path f) throws FileNotFoundException, IOException {
     if (isRoot(f)) {
       return containerMap.keySet().stream()
-        .map((Function<String, FileStatus>) containerName ->
-          new FileStatus(0, true, 0, 0, 0, new Path(containerName)))
-        .toArray(FileStatus[]::new);
+          .map(
+              (Function<String, FileStatus>)
+                  containerName -> new FileStatus(0, true, 0, 0, 0, new Path(containerName)))
+          .toArray(FileStatus[]::new);
     }
 
     final String containerName = DremioHadoopUtils.getContainerName(f);
     final Path pathWithoutContainerName = DremioHadoopUtils.pathWithoutContainer(f);
     return Arrays.stream(getFileSystemForPath(f).fs().listStatus(pathWithoutContainerName))
-      .map((Function<FileStatus, CorrectableFileStatus>) status ->
-        new CorrectableFileStatus(status, pathWithoutContainerName))
-      .filter(listFileStatusPredicate)
-      .map(input -> transform(input.getStatus(), containerName))
-      .toArray(FileStatus[]::new);
+        .map(
+            (Function<FileStatus, CorrectableFileStatus>)
+                status -> new CorrectableFileStatus(status, pathWithoutContainerName))
+        .filter(listFileStatusPredicate)
+        .map(input -> transform(input.getStatus(), containerName))
+        .toArray(FileStatus[]::new);
   }
 
   /**
@@ -412,10 +462,10 @@ public abstract class ContainerFileSystem extends FileSystem {
     private final Path pathWithoutContainerName;
 
     public CorrectableFileStatus(FileStatus status, Path pathWithoutContainerName) {
-        super();
-        this.status = status;
-        this.pathWithoutContainerName = pathWithoutContainerName;
-      }
+      super();
+      this.status = status;
+      this.pathWithoutContainerName = pathWithoutContainerName;
+    }
 
     public FileStatus getStatus() {
       return status;
@@ -424,41 +474,45 @@ public abstract class ContainerFileSystem extends FileSystem {
     public Path getPathWithoutContainerName() {
       return pathWithoutContainerName;
     }
-
   }
 
   /**
    * Transform remote path to local.
+   *
    * @param path
    * @param containerName
    * @return
    */
   @VisibleForTesting
   static Path transform(Path path, String containerName) {
-    final String relativePath = removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString());
-    final Path containerPath  = new Path(Path.SEPARATOR + containerName);
+    final String relativePath =
+        removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString());
+    final Path containerPath = new Path(Path.SEPARATOR + containerName);
 
     // If relativePath is not null or empty, ensure that it is treated as a real relative path by
-    // constructing a new {@link Path} object where the schema and the authority fields are set to null.
-    // If this is not done, and a relative path contains special characters (like a colon), this breaks the
+    // constructing a new {@link Path} object where the schema and the authority fields are set to
+    // null.
+    // If this is not done, and a relative path contains special characters (like a colon), this
+    // breaks the
     // URI#checkPath(String, String, String) method.
-    return Strings.isNullOrEmpty(relativePath) ? containerPath : new Path(containerPath, new Path(null, null, relativePath));
+    return Strings.isNullOrEmpty(relativePath)
+        ? containerPath
+        : new Path(containerPath, new Path(null, null, relativePath));
   }
 
-  /**
-   * Transform remote file status to local.
-   */
+  /** Transform remote file status to local. */
   private static FileStatus transform(FileStatus input, String containerName) {
-    return new FileStatus(input.getLen(),
-            input.isDirectory(),
-            input.getReplication(),
-            input.getBlockSize(),
-            input.getModificationTime(),
-            input.getAccessTime(),
-            input.getPermission(),
-            input.getOwner(),
-            input.getGroup(),
-            transform(input.getPath(), containerName));
+    return new FileStatus(
+        input.getLen(),
+        input.isDirectory(),
+        input.getReplication(),
+        input.getBlockSize(),
+        input.getModificationTime(),
+        input.getAccessTime(),
+        input.getPermission(),
+        input.getOwner(),
+        input.getGroup(),
+        transform(input.getPath(), containerName));
   }
 
   @Override
@@ -473,7 +527,9 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   @Override
   public boolean mkdirs(Path f, FsPermission permission) throws IOException {
-    return getFileSystemForPath(f).fs().mkdirs(DremioHadoopUtils.pathWithoutContainer(f), permission);
+    return getFileSystemForPath(f)
+        .fs()
+        .mkdirs(DremioHadoopUtils.pathWithoutContainer(f), permission);
   }
 
   @Override
@@ -490,7 +546,8 @@ public abstract class ContainerFileSystem extends FileSystem {
     if (isRoot(f)) {
       return new FileStatus(0, true, 0, 0, 0, f);
     }
-    FileStatus fileStatus = getFileSystemForPath(f).fs().getFileStatus(DremioHadoopUtils.pathWithoutContainer(f));
+    FileStatus fileStatus =
+        getFileSystemForPath(f).fs().getFileStatus(DremioHadoopUtils.pathWithoutContainer(f));
     return transform(fileStatus, DremioHadoopUtils.getContainerName(f));
   }
 

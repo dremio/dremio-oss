@@ -16,7 +16,7 @@
 import { Component, createRef } from "react";
 
 import PropTypes from "prop-types";
-
+import { intl } from "@app/utils/intl";
 import { ModalForm, FormBody, modalFormProps } from "components/Forms";
 import { FieldWithError, TextField } from "components/Fields";
 import { applyValidators, isRequired } from "utils/validation";
@@ -203,7 +203,7 @@ export class SaveAsDatasetForm extends Component {
                   this.setState({ addFolderDialogOpen: true });
                 }}
               >
-                Create Folder
+                {intl.formatMessage({ id: "Create.Folder" })}
               </Button>
             )
           }

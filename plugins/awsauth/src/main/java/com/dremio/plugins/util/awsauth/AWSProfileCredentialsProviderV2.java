@@ -16,14 +16,13 @@
 package com.dremio.plugins.util.awsauth;
 
 import org.apache.hadoop.conf.Configuration;
-
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 
 /**
- * Wrapper for ProfileCredentialsProvider from the AWS SDK v2.x.
- * Required so that we can have a constructor that takes a Configuration object.
+ * Wrapper for ProfileCredentialsProvider from the AWS SDK v2.x. Required so that we can have a
+ * constructor that takes a Configuration object.
  */
 public class AWSProfileCredentialsProviderV2 implements AwsCredentialsProvider, AutoCloseable {
   private final ProfileCredentialsProvider profileCredentialsProvider;

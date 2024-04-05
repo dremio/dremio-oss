@@ -20,18 +20,16 @@ import static java.sql.ResultSetMetaData.columnNullable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
+import com.dremio.jdbc.JdbcWithServerTestBase;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.jdbc.JdbcWithServerTestBase;
 
 // NOTE: TestInformationSchemaColumns and DatabaseMetaDataGetColumnsTest
 // have identical sections.  (Cross-maintain them for now; factor out later.)
@@ -41,20 +39,15 @@ import com.dremio.jdbc.JdbcWithServerTestBase;
 // 'NO' for some columns that contain only null (e.g., for
 // "CREATE VIEW x AS SELECT CAST(NULL AS ...) ..."
 
-
-/**
- * Test class for Dremio's INFORMATION_SCHEMA.COLUMNS implementation.
- */
+/** Test class for Dremio's INFORMATION_SCHEMA.COLUMNS implementation. */
 @Ignore("DX-2490")
 public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   private static final String VIEW_SCHEMA = "dfs_test";
   private static final String VIEW_NAME =
       TestInformationSchemaColumns.class.getSimpleName() + "_View";
 
-  /** Result set metadata.  For checking columns themselves (not cell
-   *  values or row order). */
+  /** Result set metadata. For checking columns themselves (not cell values or row order). */
   private static ResultSetMetaData rowsMetadata;
-
 
   ////////////////////
   // Results from INFORMATION_SCHEMA.COLUMN for test columns of various types.
@@ -121,35 +114,41 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   // uniontypetype column: OTHER (?), non=nullable(?):
   private static ResultSet mdrUnkUnion;
 
-
   /**
    * Gets SQL &lt;character string literal> representing given string value.
-   * <p>
-   *    (Encodes {@code '} as {@code ''} and every other character as itself.)
-   * </p>
+   *
+   * <p>(Encodes {@code '} as {@code ''} and every other character as itself.)
    */
-  private static String encodeAsSqlCharStrLiteral( String value ) {
-    return "'" + value.replaceAll( "'", "''" ) + "'";
+  private static String encodeAsSqlCharStrLiteral(String value) {
+    return "'" + value.replaceAll("'", "''") + "'";
   }
 
-
-  private static ResultSet setUpRow( final String schemaName,
-                                     final String tableOrViewName,
-                                     final String columnName ) throws SQLException
-  {
-    System.out.println( "(Setting up row for " + tableOrViewName + "." + columnName + ".)");
+  private static ResultSet setUpRow(
+      final String schemaName, final String tableOrViewName, final String columnName)
+      throws SQLException {
+    System.out.println("(Setting up row for " + tableOrViewName + "." + columnName + ".)");
     final Statement stmt = getConnection().createStatement();
     final ResultSet mdrUnk =
         stmt.executeQuery(
             "SELECT * FROM INFORMATION_SCHEMA.COLUMNS "
-            + "WHERE TABLE_CATALOG = " + encodeAsSqlCharStrLiteral( "DREMIO" )
-            + "  AND TABLE_SCHEMA  = " + encodeAsSqlCharStrLiteral( schemaName )
-            + "  AND TABLE_NAME    = " + encodeAsSqlCharStrLiteral( tableOrViewName )
-            + "  AND COLUMN_NAME   = " + encodeAsSqlCharStrLiteral( columnName )
-            );
-    assertThat(mdrUnk.next()).as(
-      "Test setup error:  No row for column DREMIO . \"" + schemaName + "\" . \""
-        + tableOrViewName + "\" . \"" + columnName + "\"").isTrue();
+                + "WHERE TABLE_CATALOG = "
+                + encodeAsSqlCharStrLiteral("DREMIO")
+                + "  AND TABLE_SCHEMA  = "
+                + encodeAsSqlCharStrLiteral(schemaName)
+                + "  AND TABLE_NAME    = "
+                + encodeAsSqlCharStrLiteral(tableOrViewName)
+                + "  AND COLUMN_NAME   = "
+                + encodeAsSqlCharStrLiteral(columnName));
+    assertThat(mdrUnk.next())
+        .as(
+            "Test setup error:  No row for column DREMIO . \""
+                + schemaName
+                + "\" . \""
+                + tableOrViewName
+                + "\" . \""
+                + columnName
+                + "\"")
+        .isTrue();
     return mdrUnk;
   }
 
@@ -193,111 +192,115 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
     TODO(DRILL-3253)(end) */
 
     // Create temporary test-columns view:
-    util = stmt.executeQuery( "USE dfs_test.tmp" );
+    util = stmt.executeQuery("USE dfs_test.tmp");
     assertThat(util.next()).isTrue();
-    assertThat(util.getBoolean(1)).as("Error setting schema for test: " + util.getString(2))
-      .isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error setting schema for test: " + util.getString(2))
+        .isTrue();
 
     // TODO(DRILL-2470): Adjust when TINYINT is implemented:
     // TODO(DRILL-2470): Adjust when SMALLINT is implemented:
     // TODO(DRILL-2683): Adjust when REAL is implemented:
-    util = stmt.executeQuery(
-        ""
-        +   "CREATE OR REPLACE VIEW " + VIEW_NAME + " AS SELECT "
-        + "\n  CAST( NULL    AS BOOLEAN            ) AS mdrOptBOOLEAN,        "
-        + "\n  "
-        + "\n  CAST(    1    AS INT            ) AS mdrReqTINYINT,        "
-        + "\n  CAST( NULL    AS INT           ) AS mdrOptSMALLINT,       "
-        //+ "\n  CAST(    1    AS TINYINT            ) AS mdrReqTINYINT,        "
-        //+ "\n  CAST( NULL    AS SMALLINT           ) AS mdrOptSMALLINT,       "
-        + "\n  CAST(    2    AS INTEGER            ) AS mdrReqINTEGER,        "
-        + "\n  CAST( NULL    AS BIGINT             ) AS mdrOptBIGINT,         "
-        + "\n  "
-        + "\n  CAST( NULL    AS FLOAT               ) AS mdrOptREAL,           "
-        //+ "\n  CAST( NULL    AS REAL               ) AS mdrOptREAL,           "
-        + "\n  CAST( NULL    AS FLOAT              ) AS mdrOptFLOAT,          "
-        + "\n  CAST(  3.3    AS DOUBLE             ) AS mdrReqDOUBLE,         "
-        + "\n  "
-        + "\n  CAST(  4.4    AS DECIMAL(5,3)       ) AS mdrReqDECIMAL_5_3,    "
-        + "\n  "
-        + "\n  CAST( 'Hi'    AS VARCHAR(10)        ) AS mdrReqVARCHAR_10,     "
-        + "\n  CAST( NULL    AS VARCHAR            ) AS mdrOptVARCHAR,        "
-        + "\n  CAST( '55'    AS CHAR(5)            ) AS mdrReqCHAR_5,         "
-        + "\n  CAST( NULL    AS VARBINARY(16)      ) AS mdrOptVARBINARY_16,   "
-        + "\n  CAST( NULL    AS VARBINARY(1048576) ) AS mdrOptBINARY_1048576, "
-        + "\n  CAST( NULL    AS BINARY(8)          ) AS mdrOptBINARY_8,       "
-        + "\n  "
-        + "\n                   DATE '2015-01-01'    AS mdrReqDATE,           "
-        + "\n                   TIME '23:59:59'      AS mdrReqTIME,           "
-        + "\n  CAST( NULL    AS TIME(7)            ) AS mdrOptTIME_7,         "
-        + "\n  CAST( NULL    AS TIMESTAMP          ) AS mdrOptTIMESTAMP,      "
-        + "\n  INTERVAL '1'     YEAR                 AS mdrReqINTERVAL_Y,     "
-        + "\n  INTERVAL '1-2'   YEAR(3) TO MONTH     AS mdrReqINTERVAL_3Y_Mo, "
-        + "\n  INTERVAL '2'     MONTH                AS mdrReqINTERVAL_Mo,    "
-        + "\n  INTERVAL '3'     DAY                  AS mdrReqINTERVAL_D,     "
-        + "\n  INTERVAL '3 4'   DAY(4) TO HOUR       AS mdrReqINTERVAL_4D_H,  "
-        + "\n  INTERVAL '3 4:5' DAY(3) TO MINUTE     AS mdrReqINTERVAL_3D_Mi, "
-        + "\n  INTERVAL '3 4:5:6' DAY(2) TO SECOND(5) AS mdrReqINTERVAL_2D_S5, "
-        + "\n  INTERVAL '4'     HOUR                 AS mdrReqINTERVAL_H,     "
-        + "\n  INTERVAL '4:5'   HOUR(1) TO MINUTE    AS mdrReqINTERVAL_1H_Mi, "
-        + "\n  INTERVAL '4:5:6' HOUR(3) TO SECOND(1) AS mdrReqINTERVAL_3H_S1, "
-        + "\n  INTERVAL '5'     MINUTE               AS mdrReqINTERVAL_Mi,    "
-        + "\n  INTERVAL '5:6'   MINUTE(5) TO SECOND  AS mdrReqINTERVAL_5Mi_S, "
-        + "\n  INTERVAL '6'     SECOND               AS mdrReqINTERVAL_S,     "
-        + "\n  INTERVAL '6'     SECOND(3)            AS mdrReqINTERVAL_3S,    "
-        + "\n  INTERVAL '6'     SECOND(3, 1)         AS mdrReqINTERVAL_3S1,   "
-        + "\n  '' "
-        + "\nFROM INFORMATION_SCHEMA.COLUMNS "
-        + "\nLIMIT 1 " );
+    util =
+        stmt.executeQuery(
+            ""
+                + "CREATE OR REPLACE VIEW "
+                + VIEW_NAME
+                + " AS SELECT "
+                + "\n  CAST( NULL    AS BOOLEAN            ) AS mdrOptBOOLEAN,        "
+                + "\n  "
+                + "\n  CAST(    1    AS INT            ) AS mdrReqTINYINT,        "
+                + "\n  CAST( NULL    AS INT           ) AS mdrOptSMALLINT,       "
+                // + "\n  CAST(    1    AS TINYINT            ) AS mdrReqTINYINT,        "
+                // + "\n  CAST( NULL    AS SMALLINT           ) AS mdrOptSMALLINT,       "
+                + "\n  CAST(    2    AS INTEGER            ) AS mdrReqINTEGER,        "
+                + "\n  CAST( NULL    AS BIGINT             ) AS mdrOptBIGINT,         "
+                + "\n  "
+                + "\n  CAST( NULL    AS FLOAT               ) AS mdrOptREAL,           "
+                // + "\n  CAST( NULL    AS REAL               ) AS mdrOptREAL,           "
+                + "\n  CAST( NULL    AS FLOAT              ) AS mdrOptFLOAT,          "
+                + "\n  CAST(  3.3    AS DOUBLE             ) AS mdrReqDOUBLE,         "
+                + "\n  "
+                + "\n  CAST(  4.4    AS DECIMAL(5,3)       ) AS mdrReqDECIMAL_5_3,    "
+                + "\n  "
+                + "\n  CAST( 'Hi'    AS VARCHAR(10)        ) AS mdrReqVARCHAR_10,     "
+                + "\n  CAST( NULL    AS VARCHAR            ) AS mdrOptVARCHAR,        "
+                + "\n  CAST( '55'    AS CHAR(5)            ) AS mdrReqCHAR_5,         "
+                + "\n  CAST( NULL    AS VARBINARY(16)      ) AS mdrOptVARBINARY_16,   "
+                + "\n  CAST( NULL    AS VARBINARY(1048576) ) AS mdrOptBINARY_1048576, "
+                + "\n  CAST( NULL    AS BINARY(8)          ) AS mdrOptBINARY_8,       "
+                + "\n  "
+                + "\n                   DATE '2015-01-01'    AS mdrReqDATE,           "
+                + "\n                   TIME '23:59:59'      AS mdrReqTIME,           "
+                + "\n  CAST( NULL    AS TIME(7)            ) AS mdrOptTIME_7,         "
+                + "\n  CAST( NULL    AS TIMESTAMP          ) AS mdrOptTIMESTAMP,      "
+                + "\n  INTERVAL '1'     YEAR                 AS mdrReqINTERVAL_Y,     "
+                + "\n  INTERVAL '1-2'   YEAR(3) TO MONTH     AS mdrReqINTERVAL_3Y_Mo, "
+                + "\n  INTERVAL '2'     MONTH                AS mdrReqINTERVAL_Mo,    "
+                + "\n  INTERVAL '3'     DAY                  AS mdrReqINTERVAL_D,     "
+                + "\n  INTERVAL '3 4'   DAY(4) TO HOUR       AS mdrReqINTERVAL_4D_H,  "
+                + "\n  INTERVAL '3 4:5' DAY(3) TO MINUTE     AS mdrReqINTERVAL_3D_Mi, "
+                + "\n  INTERVAL '3 4:5:6' DAY(2) TO SECOND(5) AS mdrReqINTERVAL_2D_S5, "
+                + "\n  INTERVAL '4'     HOUR                 AS mdrReqINTERVAL_H,     "
+                + "\n  INTERVAL '4:5'   HOUR(1) TO MINUTE    AS mdrReqINTERVAL_1H_Mi, "
+                + "\n  INTERVAL '4:5:6' HOUR(3) TO SECOND(1) AS mdrReqINTERVAL_3H_S1, "
+                + "\n  INTERVAL '5'     MINUTE               AS mdrReqINTERVAL_Mi,    "
+                + "\n  INTERVAL '5:6'   MINUTE(5) TO SECOND  AS mdrReqINTERVAL_5Mi_S, "
+                + "\n  INTERVAL '6'     SECOND               AS mdrReqINTERVAL_S,     "
+                + "\n  INTERVAL '6'     SECOND(3)            AS mdrReqINTERVAL_3S,    "
+                + "\n  INTERVAL '6'     SECOND(3, 1)         AS mdrReqINTERVAL_3S1,   "
+                + "\n  '' "
+                + "\nFROM INFORMATION_SCHEMA.COLUMNS "
+                + "\nLIMIT 1 ");
     assertThat(util.next()).isTrue();
-    assertThat(util.getBoolean(1)).as(
-      "Error creating temporary test-columns view " + VIEW_NAME + ": "
-        + util.getString(2)).isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error creating temporary test-columns view " + VIEW_NAME + ": " + util.getString(2))
+        .isTrue();
 
     // Set up result rows for temporary test view and Hivetest columns:
 
-    mdrOptBOOLEAN        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptBOOLEAN" );
+    mdrOptBOOLEAN = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptBOOLEAN");
 
     // TODO(DRILL-2470): Uncomment when TINYINT is implemented:
-    //mdrReqTINYINT        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqTINYINT" );
+    // mdrReqTINYINT        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqTINYINT" );
     // TODO(DRILL-2470): Uncomment when SMALLINT is implemented:
-    //mdrOptSMALLINT       = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptSMALLINT" );
-    mdrReqINTEGER        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTEGER" );
-    mdrOptBIGINT         = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptBIGINT" );
+    // mdrOptSMALLINT       = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptSMALLINT" );
+    mdrReqINTEGER = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTEGER");
+    mdrOptBIGINT = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptBIGINT");
 
     // TODO(DRILL-2683): Uncomment when REAL is implemented:
-    //mdrOptREAL           = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptREAL" );
-    mdrOptFLOAT          = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptFLOAT" );
-    mdrReqDOUBLE         = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqDOUBLE" );
+    // mdrOptREAL           = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptREAL" );
+    mdrOptFLOAT = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptFLOAT");
+    mdrReqDOUBLE = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqDOUBLE");
 
-    mdrReqDECIMAL_5_3    = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqDECIMAL_5_3" );
+    mdrReqDECIMAL_5_3 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqDECIMAL_5_3");
 
-    mdrReqVARCHAR_10     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqVARCHAR_10" );
-    mdrOptVARCHAR        = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptVARCHAR" );
-    mdrReqCHAR_5         = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqCHAR_5" );
-    mdrOptVARBINARY_16   = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptVARBINARY_16" );
-    mdrOptBINARY_1048576 = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptBINARY_1048576" );
+    mdrReqVARCHAR_10 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqVARCHAR_10");
+    mdrOptVARCHAR = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptVARCHAR");
+    mdrReqCHAR_5 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqCHAR_5");
+    mdrOptVARBINARY_16 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptVARBINARY_16");
+    mdrOptBINARY_1048576 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptBINARY_1048576");
 
-    mdrReqDATE           = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqDATE" );
-    mdrReqTIME           = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqTIME" );
-    mdrOptTIME_7         = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptTIME_7" );
-    mdrOptTIMESTAMP      = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrOptTIMESTAMP" );
+    mdrReqDATE = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqDATE");
+    mdrReqTIME = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqTIME");
+    mdrOptTIME_7 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptTIME_7");
+    mdrOptTIMESTAMP = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrOptTIMESTAMP");
 
-    mdrReqINTERVAL_Y     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Y" );
-    mdrReqINTERVAL_3Y_Mo = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3Y_Mo" );
-    mdrReqINTERVAL_Mo    = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Mo" );
-    mdrReqINTERVAL_D     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_D" );
-    mdrReqINTERVAL_4D_H  = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_4D_H" );
-    mdrReqINTERVAL_3D_Mi = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3D_Mi" );
-    mdrReqINTERVAL_2D_S5 = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_2D_S5" );
-    mdrReqINTERVAL_H     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_H" );
-    mdrReqINTERVAL_1H_Mi = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_1H_Mi" );
-    mdrReqINTERVAL_3H_S1 = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3H_S1" );
-    mdrReqINTERVAL_Mi    = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Mi" );
-    mdrReqINTERVAL_5Mi_S = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_5Mi_S" );
-    mdrReqINTERVAL_S     = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_S" );
-    mdrReqINTERVAL_3S    = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3S" );
-    mdrReqINTERVAL_3S1   = setUpRow( VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3S1" );
+    mdrReqINTERVAL_Y = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Y");
+    mdrReqINTERVAL_3Y_Mo = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3Y_Mo");
+    mdrReqINTERVAL_Mo = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Mo");
+    mdrReqINTERVAL_D = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_D");
+    mdrReqINTERVAL_4D_H = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_4D_H");
+    mdrReqINTERVAL_3D_Mi = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3D_Mi");
+    mdrReqINTERVAL_2D_S5 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_2D_S5");
+    mdrReqINTERVAL_H = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_H");
+    mdrReqINTERVAL_1H_Mi = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_1H_Mi");
+    mdrReqINTERVAL_3H_S1 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3H_S1");
+    mdrReqINTERVAL_Mi = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_Mi");
+    mdrReqINTERVAL_5Mi_S = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_5Mi_S");
+    mdrReqINTERVAL_S = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_S");
+    mdrReqINTERVAL_3S = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3S");
+    mdrReqINTERVAL_3S1 = setUpRow(VIEW_SCHEMA, VIEW_NAME, "mdrReqINTERVAL_3S1");
 
     /* TODO(DRILL-3253)(start): Update this once we have test plugin supporting all needed types.
     mdrReqARRAY   = setUpRow( "hive_test.default", "infoschematest", "listtype" );
@@ -311,28 +314,25 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
     // Get all columns for more diversity of values (e.g., nulls and non-nulls),
     // in case that affects metadata (e.g., nullability) (in future).
     final Statement stmt2 = getConnection().createStatement();
-    final ResultSet allColumns =
-            stmt2.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.COLUMNS " );
+    final ResultSet allColumns = stmt2.executeQuery("SELECT * FROM INFORMATION_SCHEMA.COLUMNS ");
     rowsMetadata = allColumns.getMetaData();
   }
 
   @AfterClass
   public static void tearDownConnection() throws SQLException {
     final ResultSet util =
-      getConnection().createStatement().executeQuery("DROP VIEW " + VIEW_NAME + "");
+        getConnection().createStatement().executeQuery("DROP VIEW " + VIEW_NAME + "");
     assertThat(util.next()).isTrue();
-    assertThat(util.getBoolean(1)).as(
-      "Error dropping temporary test-columns view " + VIEW_NAME + ": "
-        + util.getString(2)).isTrue();
+    assertThat(util.getBoolean(1))
+        .as("Error dropping temporary test-columns view " + VIEW_NAME + ": " + util.getString(2))
+        .isTrue();
     JdbcWithServerTestBase.tearDownConnection();
   }
 
-
-  private Integer getIntOrNull( ResultSet row, String columnName ) throws SQLException {
-    final int value = row.getInt( columnName );
+  private Integer getIntOrNull(ResultSet row, String columnName) throws SQLException {
+    final int value = row.getInt(columnName);
     return row.wasNull() ? null : value;
   }
-
 
   //////////////////////////////////////////////////////////////////////
   // Tests:
@@ -390,7 +390,6 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   // 49. DECLARED_NUMERIC_PRECISION
   // 50. DECLARED_NUMERIC_SCALE
 
-
   ////////////////////////////////////////////////////////////
   // Number of columns.
 
@@ -445,7 +444,6 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
     assertThat(rowsMetadata.isNullable(1)).isEqualTo(columnNoNulls);
   }
 
-
   ////////////////////////////////////////////////////////////
   // #2: TABLE_SCHEMA:
   // - SQL:
@@ -493,7 +491,6 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
     assertThat(rowsMetadata.isNullable(2)).isEqualTo(columnNoNulls);
   }
 
-
   ////////////////////////////////////////////////////////////
   // #3: TABLE_NAME:
   // - SQL:
@@ -532,7 +529,6 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   public void test_TABLE_NAME_hasRightNullability() throws SQLException {
     assertThat(rowsMetadata.isNullable(3)).isEqualTo(columnNoNulls);
   }
-
 
   ////////////////////////////////////////////////////////////
   // #4: COLUMN_NAME:
@@ -580,7 +576,6 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   public void test_COLUMN_NAME_hasRightNullability() throws SQLException {
     assertThat(rowsMetadata.isNullable(4)).isEqualTo(columnNoNulls);
   }
-
 
   ////////////////////////////////////////////////////////////
   // #5: ORDINAL_POSITION:
@@ -873,7 +868,6 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
     assertThat(rowsMetadata.isNullable(7)).isEqualTo(columnNoNulls);
   }
 
-
   ////////////////////////////////////////////////////////////
   // #8: DATA_TYPE:
   // - SQL:
@@ -956,9 +950,9 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   @Ignore("TODO(DRILL-3368): unignore when BINARY is implemented enough")
   @Test
   public void test_DATA_TYPE_hasRightValue_mdrOptBINARY_1048576() throws SQLException {
-    assertThat(mdrOptBINARY_1048576.getString("DATA_TYPE")).isEqualTo(
-      "BINARY VARYING"); // ?? current
-    assertThat(mdrOptBINARY_1048576.getString("DATA_TYPE")).isEqualTo("BINARY");  // ?? should be
+    assertThat(mdrOptBINARY_1048576.getString("DATA_TYPE"))
+        .isEqualTo("BINARY VARYING"); // ?? current
+    assertThat(mdrOptBINARY_1048576.getString("DATA_TYPE")).isEqualTo("BINARY"); // ?? should be
   }
 
   @Test
@@ -1120,7 +1114,7 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
 
   @Test
   public void test_CHARACTER_MAXIMUM_LENGTH_hasRightValue_mdrOptBINARY_1048576()
-    throws SQLException {
+      throws SQLException {
     assertThat(getIntOrNull(mdrOptBINARY_1048576, "CHARACTER_MAXIMUM_LENGTH")).isEqualTo(1048576);
   }
 
@@ -1151,7 +1145,7 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
 
   @Test
   public void test_CHARACTER_MAXIMUM_LENGTH_hasRightValue_mdrReqINTERVAL_H_S3()
-    throws SQLException {
+      throws SQLException {
     assertThat(getIntOrNull(mdrReqINTERVAL_3H_S1, "CHARACTER_MAXIMUM_LENGTH")).isNull();
   }
 
@@ -1262,22 +1256,19 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   @Test
   public void test_CHARACTER_OCTET_LENGTH_hasRightValue_mdrReqVARCHAR_10() throws SQLException {
     assertThat(getIntOrNull(mdrReqVARCHAR_10, "CHARACTER_OCTET_LENGTH"))
-      .isEqualTo(10   /* chars. */
-        * 4  /* max. UTF-8 bytes per char. */);
+        .isEqualTo(10 /* chars. */ * 4 /* max. UTF-8 bytes per char. */);
   }
 
   @Test
   public void test_CHARACTER_OCTET_LENGTH_hasRightValue_mdrOptVARCHAR() throws SQLException {
     assertThat(getIntOrNull(mdrOptVARCHAR, "CHARACTER_OCTET_LENGTH"))
-      .isEqualTo(65536 /* chars. (default of 65536) */
-        * 4  /* max. UTF-8 bytes per char. */);
+        .isEqualTo(65536 /* chars. (default of 65536) */ * 4 /* max. UTF-8 bytes per char. */);
   }
 
   @Test
   public void test_CHARACTER_OCTET_LENGTH_hasRightValue_mdrReqCHAR_5() throws SQLException {
     assertThat(getIntOrNull(mdrReqCHAR_5, "CHARACTER_OCTET_LENGTH"))
-      .isEqualTo(5    /* chars. */
-        * 4  /* max. UTF-8 bytes per char. */);
+        .isEqualTo(5 /* chars. */ * 4 /* max. UTF-8 bytes per char. */);
   }
 
   @Test
@@ -1603,7 +1594,7 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
 
   @Test
   public void test_NUMERIC_PRECISION_RADIX_hasRightValue_mdrOptBINARY_1048576()
-    throws SQLException {
+      throws SQLException {
     assertThat(getIntOrNull(mdrOptBINARY_1048576, "NUMERIC_PRECISION_RADIX")).isNull();
   }
 
@@ -2249,8 +2240,7 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
 
   @Test
   public void test_INTERVAL_TYPE_hasRightValue_mdrReqINTERVAL_H_S3() throws SQLException {
-    assertThat(mdrReqINTERVAL_3H_S1.getString("INTERVAL_TYPE")
-    ).isEqualTo("HOUR TO SECOND");
+    assertThat(mdrReqINTERVAL_3H_S1.getString("INTERVAL_TYPE")).isEqualTo("HOUR TO SECOND");
   }
 
   @Test
@@ -2570,7 +2560,6 @@ public class TestInformationSchemaColumns extends JdbcWithServerTestBase {
   public void test_INTERVAL_PRECISION_hasRightNullability() throws SQLException {
     assertThat(rowsMetadata.isNullable(16)).isEqualTo(columnNullable);
   }
-
 
   ////////////////////////////////////////////////////////////
   // Not (yet) implemented by Dremio:

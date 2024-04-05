@@ -15,13 +15,10 @@
  */
 package com.dremio.type;
 
-/**
- * Utilities related to grpc's Any type.
- */
+/** Utilities related to grpc's Any type. */
 public final class AnyTypeUtil {
 
   public static final String DREMIO_TYPE_URL_PREFIX = "dremio.com/v1/types";
 
-  private AnyTypeUtil() {
-  }
+  private AnyTypeUtil() {}
 }

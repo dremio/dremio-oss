@@ -18,15 +18,11 @@ package com.dremio.telemetry.api.config;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.test.DremioTest;
 import java.util.Arrays;
-
 import org.junit.Test;
 
-import com.dremio.test.DremioTest;
-
-/**
- * Ensure include/exclude filter works.
- */
+/** Ensure include/exclude filter works. */
 public class TestIncludesExcludesFilter extends DremioTest {
 
   @Test
@@ -45,7 +41,8 @@ public class TestIncludesExcludesFilter extends DremioTest {
 
   @Test
   public void includeAndExclude() {
-    IncludesExcludesFilter f = new IncludesExcludesFilter(Arrays.asList("a.*"), Arrays.asList("a\\.b.*"));
+    IncludesExcludesFilter f =
+        new IncludesExcludesFilter(Arrays.asList("a.*"), Arrays.asList("a\\.b.*"));
     assertTrue(f.matches("a.alpha", null));
     assertFalse(f.matches("a.beta", null));
   }

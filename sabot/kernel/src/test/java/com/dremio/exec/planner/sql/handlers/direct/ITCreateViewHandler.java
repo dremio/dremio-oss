@@ -17,8 +17,12 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.config.DremioConfig;
+import com.dremio.exec.store.iceberg.IcebergTestTables;
+import com.dremio.sabot.rpc.user.QueryDataBatch;
+import com.dremio.test.TemporarySystemProperties;
 import java.util.List;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -26,19 +30,12 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.config.DremioConfig;
-import com.dremio.exec.store.iceberg.IcebergTestTables;
-import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.dremio.test.TemporarySystemProperties;
-
 public class ITCreateViewHandler extends BaseTestQuery {
 
   private static final String VDS_NAME = "dfs_test.test_vds";
   private static IcebergTestTables.Table table;
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @BeforeClass
   public static void beforeClass() {
@@ -66,6 +63,7 @@ public class ITCreateViewHandler extends BaseTestQuery {
     String sql = String.format("CREATE VDS %s AS SELECT * FROM %s", VDS_NAME, table.getTableName());
     List<QueryDataBatch> results = testSqlWithResults(sql);
     String resultString = getResultString(results, "|");
-    assertThat(resultString).isEqualTo("ok|summary\ntrue|View 'dfs_test.test_vds' created successfully\n");
+    assertThat(resultString)
+        .isEqualTo("ok|summary\ntrue|View 'dfs_test.test_vds' created successfully\n");
   }
 }

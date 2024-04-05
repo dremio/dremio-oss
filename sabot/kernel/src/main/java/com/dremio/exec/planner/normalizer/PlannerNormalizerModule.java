@@ -15,31 +15,28 @@
  */
 package com.dremio.exec.planner.normalizer;
 
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.ops.UserDefinedFunctionExpander;
 import com.dremio.exec.planner.HepPlannerRunner;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.ContextInformation;
 
 public class PlannerNormalizerModule {
 
   public RelNormalizerTransformer buildRelNormalizerTransformer(
-    HepPlannerRunner hepPlannerRunner,
-    NormalizerRuleSets normalizerRuleSets,
-    PlannerSettings plannerSettings) {
-    return new RelNormalizerTransformer(
-      hepPlannerRunner,
-      normalizerRuleSets,
-      plannerSettings);
+      HepPlannerRunner hepPlannerRunner,
+      NormalizerRuleSets normalizerRuleSets,
+      PlannerSettings plannerSettings,
+      PlannerCatalog plannerCatalog) {
+    return new RelNormalizerTransformerImpl(
+        hepPlannerRunner, normalizerRuleSets, plannerSettings, plannerCatalog);
   }
 
   public NormalizerRuleSets buildNormalizeRuleSets(
-      PlannerSettings plannerSettings,
+      OptionResolver optionResolver,
       UserDefinedFunctionExpander userDefinedFunctionExpander,
       ContextInformation contextInformation) {
-    return new NormalizerRuleSets(
-      plannerSettings,
-      plannerSettings.getOptions(),
-      userDefinedFunctionExpander,
-      contextInformation);
+    return new NormalizerRuleSets(optionResolver, userDefinedFunctionExpander, contextInformation);
   }
 }

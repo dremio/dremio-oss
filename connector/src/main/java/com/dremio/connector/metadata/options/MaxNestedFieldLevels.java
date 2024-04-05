@@ -15,27 +15,24 @@
  */
 package com.dremio.connector.metadata.options;
 
-import java.util.stream.Stream;
-
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
+import java.util.stream.Stream;
 
-/**
- * Max allowed nested levels within a complex type column
- */
+/** Max allowed nested levels within a complex type column */
 public class MaxNestedFieldLevels extends IntMetadataOption
-  implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
+    implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
   public MaxNestedFieldLevels(int numLevels) {
     super(numLevels);
   }
 
   public static Integer getCount(MetadataOption... options) {
     return Stream.of(options)
-      .filter(o -> o instanceof MaxNestedFieldLevels)
-      .findFirst()
-      .map(o -> ((MaxNestedFieldLevels) o).getValue())
-      .orElse(null);
+        .filter(o -> o instanceof MaxNestedFieldLevels)
+        .findFirst()
+        .map(o -> ((MaxNestedFieldLevels) o).getValue())
+        .orElse(null);
   }
 }

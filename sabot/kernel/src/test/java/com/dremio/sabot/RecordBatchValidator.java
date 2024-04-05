@@ -15,9 +15,8 @@
  */
 package com.dremio.sabot;
 
-import java.util.List;
-
 import com.dremio.exec.record.RecordBatchData;
+import java.util.List;
 
 public interface RecordBatchValidator {
   void checkValid(List<RecordBatchData> actualBatches);

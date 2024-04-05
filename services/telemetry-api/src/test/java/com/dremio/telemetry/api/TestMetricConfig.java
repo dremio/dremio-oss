@@ -18,26 +18,30 @@ package com.dremio.telemetry.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
-import java.util.Arrays;
-import java.util.Collection;
-
-import org.junit.Test;
-
 import com.dremio.telemetry.api.config.MetricsConfigurator;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.dremio.test.DremioTest;
+import java.util.Arrays;
+import java.util.Collection;
+import org.junit.Test;
 
-/**
- * Ensure metric config is loaded and refreshed as expected.
- */
+/** Ensure metric config is loaded and refreshed as expected. */
 public class TestMetricConfig extends DremioTest {
 
   @Test
   public void tryBasicReport() throws InterruptedException {
     TestReportConfigurator trc1 = new TestReportConfigurator();
-    MetricsConfigurator parent1a = new MetricsConfigurator("a", null, trc1, Arrays.asList("a\\.*"), Arrays.asList("a\\.b.*"));
-    MetricsConfigurator parent1b = new MetricsConfigurator("b", null, trc1, Arrays.asList(), Arrays.asList());
-    MetricsConfigurator parent2 = new MetricsConfigurator("b", null, new TestReportConfigurator(), Arrays.asList("a\\.*"), Arrays.asList("a\\.b.*"));
+    MetricsConfigurator parent1a =
+        new MetricsConfigurator("a", null, trc1, Arrays.asList("a\\.*"), Arrays.asList("a\\.b.*"));
+    MetricsConfigurator parent1b =
+        new MetricsConfigurator("b", null, trc1, Arrays.asList(), Arrays.asList());
+    MetricsConfigurator parent2 =
+        new MetricsConfigurator(
+            "b",
+            null,
+            new TestReportConfigurator(),
+            Arrays.asList("a\\.*"),
+            Arrays.asList("a\\.b.*"));
 
     Metrics.onChange(Arrays.asList(parent1a));
 
@@ -45,16 +49,19 @@ public class TestMetricConfig extends DremioTest {
       Collection<MetricsConfigurator> parent = Metrics.getConfigurators();
       assertEquals(1, parent.size());
       // ensure that reporter was called as expected.
-      TestReportConfigurator trc = (TestReportConfigurator) parent.iterator().next().getConfigurator();
+      TestReportConfigurator trc =
+          (TestReportConfigurator) parent.iterator().next().getConfigurator();
       Thread.sleep(120);
       assertThat(trc.getCount()).isGreaterThan(5);
     }
     // make sure that parent 2 is added without changing parent1a.
     Metrics.onChange(Arrays.asList(parent1a, parent2));
-    assertThat(Arrays.asList(parent1a, parent2)).containsExactlyInAnyOrderElementsOf(Metrics.getConfigurators());
+    assertThat(Arrays.asList(parent1a, parent2))
+        .containsExactlyInAnyOrderElementsOf(Metrics.getConfigurators());
 
     // make sure that parent1a is swapped with parent 1b.
     Metrics.onChange(Arrays.asList(parent1b, parent2));
-    assertThat(Arrays.asList(parent1b, parent2)).containsExactlyInAnyOrderElementsOf(Metrics.getConfigurators());
+    assertThat(Arrays.asList(parent1b, parent2))
+        .containsExactlyInAnyOrderElementsOf(Metrics.getConfigurators());
   }
 }

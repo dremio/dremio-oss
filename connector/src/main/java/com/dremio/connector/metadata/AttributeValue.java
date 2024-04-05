@@ -18,18 +18,16 @@ package com.dremio.connector.metadata;
 import java.util.List;
 
 /**
- * Interface for a connector to provide a primitive value. The caller is responsible for determining the
- * type, and casting to the relevant sub-type, and then getting the value.
- * <p>
- * No type conversion is expected in implementations of this interface.
+ * Interface for a connector to provide a primitive value. The caller is responsible for determining
+ * the type, and casting to the relevant sub-type, and then getting the value.
+ *
+ * <p>No type conversion is expected in implementations of this interface.
  */
 public interface AttributeValue {
 
   Object getValueAsObject();
 
-  /**
-   * Boolean primitive value.
-   */
+  /** Boolean primitive value. */
   interface BooleanValue extends AttributeValue {
     @Override
     default Object getValueAsObject() {
@@ -42,12 +40,9 @@ public interface AttributeValue {
      * @return value
      */
     boolean getValue();
-
   }
 
-  /**
-   * Long primitive value.
-   */
+  /** Long primitive value. */
   interface LongValue extends AttributeValue {
     @Override
     default Object getValueAsObject() {
@@ -60,12 +55,9 @@ public interface AttributeValue {
      * @return value
      */
     long getValue();
-
   }
 
-  /**
-   * Double primitive value.
-   */
+  /** Double primitive value. */
   interface DoubleValue extends AttributeValue {
     @Override
     default Object getValueAsObject() {
@@ -78,12 +70,9 @@ public interface AttributeValue {
      * @return value
      */
     double getValue();
-
   }
 
-  /**
-   * String primitive value.
-   */
+  /** String primitive value. */
   interface StringValue extends AttributeValue {
     @Override
     default Object getValueAsObject() {
@@ -98,12 +87,9 @@ public interface AttributeValue {
     String getValue();
 
     boolean equalsIgnoreCase(AttributeValue.StringValue other);
-
   }
 
-  /**
-   * Identifier primitive value
-   */
+  /** Identifier primitive value */
   interface IdentifierValue extends AttributeValue {
     @Override
     default Object getValueAsObject() {
@@ -118,11 +104,11 @@ public interface AttributeValue {
     List<String> getComponents();
 
     boolean equalsIgnoreCase(AttributeValue.IdentifierValue other);
-
   }
 
   /**
    * Create a boolean attribute value
+   *
    * @param bool
    * @return
    */
@@ -132,6 +118,7 @@ public interface AttributeValue {
 
   /**
    * Create a long attribute value
+   *
    * @param longVal
    * @return
    */
@@ -141,6 +128,7 @@ public interface AttributeValue {
 
   /**
    * Create a double attribute value
+   *
    * @param doubleVal
    * @return
    */
@@ -150,6 +138,7 @@ public interface AttributeValue {
 
   /**
    * Create a string attribute value
+   *
    * @param stringVal
    * @return
    */
@@ -157,9 +146,7 @@ public interface AttributeValue {
     return new AttributeValues.StringImpl(stringVal);
   }
 
-  /**
-   * Create an identifier attribute value
-   */
+  /** Create an identifier attribute value */
   public static AttributeValue of(List<String> components) {
     return new AttributeValues.IdentifierImpl(components);
   }

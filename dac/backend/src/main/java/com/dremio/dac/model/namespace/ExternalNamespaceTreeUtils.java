@@ -15,11 +15,6 @@
  */
 package com.dremio.dac.model.namespace;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.model.folder.Folder;
@@ -28,10 +23,12 @@ import com.dremio.dac.model.sources.SourceName;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-/**
- * Helpers for making NamespaceTrees from external catalogs (e.g. Nessie)
- */
+/** Helpers for making NamespaceTrees from external catalogs (e.g. Nessie) */
 public final class ExternalNamespaceTreeUtils {
   private ExternalNamespaceTreeUtils() {}
 

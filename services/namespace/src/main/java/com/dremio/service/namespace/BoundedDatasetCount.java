@@ -15,9 +15,7 @@
  */
 package com.dremio.service.namespace;
 
-/**
- * BoundedDatasetCount represents a dataset count that was time/count bound.
- */
+/** BoundedDatasetCount represents a dataset count that was time/count bound. */
 public class BoundedDatasetCount {
   private final int count;
   private final boolean timeBound;

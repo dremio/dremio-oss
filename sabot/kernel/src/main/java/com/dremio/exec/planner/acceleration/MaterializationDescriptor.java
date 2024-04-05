@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.planner.acceleration;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-
-import javax.annotation.Nullable;
-
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.proto.UserBitShared.MeasureColumn;
@@ -30,9 +22,16 @@ import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.store.CatalogService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
- * A wrapper around materialized SQL query, replacement and a handle that points to acceleration entry in persistent store.
+ * A wrapper around materialized SQL query, replacement and a handle that points to acceleration
+ * entry in persistent store.
  */
 public class MaterializationDescriptor {
   protected final ReflectionInfo reflection;
@@ -42,7 +41,6 @@ public class MaterializationDescriptor {
   private final String version;
   private final long expirationTimestamp;
   private final byte[] planBytes;
-  private final Long strippedPlanHash;
   private final int stripVersion;
   private final double originalCost;
   private final long jobStart;
@@ -50,6 +48,7 @@ public class MaterializationDescriptor {
   private final IncrementalUpdateSettings incrementalUpdateSettings;
   private final JoinDependencyProperties joinDependencyProperties;
   private final CatalogService catalogService;
+  private final boolean forceExpansion;
 
   public MaterializationDescriptor(
       final ReflectionInfo reflection,
@@ -63,11 +62,12 @@ public class MaterializationDescriptor {
       final List<String> partition,
       final IncrementalUpdateSettings incrementalUpdateSettings,
       final JoinDependencyProperties joinDependencyProperties,
-      Long strippedPlanHash,
-      Integer stripVersion,
+      final Integer stripVersion,
+      final boolean forceExpansion,
       final CatalogService catalogService) {
     this.reflection = Preconditions.checkNotNull(reflection, "reflection info required");
-    this.materializationId = Preconditions.checkNotNull(materializationId, "materialization id is required");
+    this.materializationId =
+        Preconditions.checkNotNull(materializationId, "materialization id is required");
     this.version = version;
     this.expirationTimestamp = expirationTimestamp;
     this.planBytes = planBytes;
@@ -77,17 +77,13 @@ public class MaterializationDescriptor {
     this.partition = partition;
     this.incrementalUpdateSettings = incrementalUpdateSettings;
     this.joinDependencyProperties = joinDependencyProperties;
-    this.strippedPlanHash = strippedPlanHash;
-    this.stripVersion = Optional.ofNullable(stripVersion).orElse(strippedPlanHash == null ? 0 : 1);
+    this.stripVersion = Optional.ofNullable(stripVersion).orElse(1);
+    this.forceExpansion = forceExpansion;
     this.catalogService = catalogService;
   }
 
   public ReflectionType getReflectionType() {
     return reflection.getType();
-  }
-
-  public Long getStrippedPlanHash() {
-    return strippedPlanHash;
   }
 
   public int getStripVersion() {
@@ -110,7 +106,7 @@ public class MaterializationDescriptor {
     return reflection.getReflectionId();
   }
 
-  ReflectionInfo getLayoutInfo(){
+  public ReflectionInfo getLayoutInfo() {
     return reflection;
   }
 
@@ -124,6 +120,10 @@ public class MaterializationDescriptor {
 
   public IncrementalUpdateSettings getIncrementalUpdateSettings() {
     return incrementalUpdateSettings;
+  }
+
+  public boolean isForceExpansion() {
+    return forceExpansion;
   }
 
   JoinDependencyProperties getJoinDependencyProperties() {
@@ -146,10 +146,10 @@ public class MaterializationDescriptor {
       return false;
     }
     final MaterializationDescriptor that = (MaterializationDescriptor) o;
-    return Double.compare(that.originalCost, originalCost) == 0 &&
-        Objects.equals(reflection, that.reflection) &&
-        Objects.deepEquals(planBytes, that.planBytes) &&
-        Objects.equals(path, that.path);
+    return Double.compare(that.originalCost, originalCost) == 0
+        && Objects.equals(reflection, that.reflection)
+        && Objects.deepEquals(planBytes, that.planBytes)
+        && Objects.equals(path, that.path);
   }
 
   @Override
@@ -170,7 +170,10 @@ public class MaterializationDescriptor {
     return partition;
   }
 
-  public boolean isApplicable(Set<SubstitutionUtils.VersionedPath> queryTablesUsed, Set<SubstitutionUtils.VersionedPath> queryVdsUsed, Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
+  public boolean isApplicable(
+      Set<SubstitutionUtils.VersionedPath> queryTablesUsed,
+      Set<SubstitutionUtils.VersionedPath> queryVdsUsed,
+      Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
     return true;
   }
 
@@ -202,12 +205,18 @@ public class MaterializationDescriptor {
       this.type = type;
       this.reflectionId = reflectionId;
       this.arrowCachingEnabled = arrowCachingEnabled;
-      this.sortColumns = sortColumns == null ? ImmutableList.of() : ImmutableList.copyOf(sortColumns);
-      this.partitionColumns = partitionColumns == null ? ImmutableList.of() : ImmutableList.copyOf(partitionColumns);
-      this.distributionColumns = distributionColumns == null ? ImmutableList.of() : ImmutableList.copyOf(distributionColumns);
+      this.sortColumns =
+          sortColumns == null ? ImmutableList.of() : ImmutableList.copyOf(sortColumns);
+      this.partitionColumns =
+          partitionColumns == null ? ImmutableList.of() : ImmutableList.copyOf(partitionColumns);
+      this.distributionColumns =
+          distributionColumns == null
+              ? ImmutableList.of()
+              : ImmutableList.copyOf(distributionColumns);
       this.dimensions = dimensions == null ? ImmutableList.of() : ImmutableList.copyOf(dimensions);
       this.measures = measures == null ? ImmutableList.of() : ImmutableList.copyOf(measures);
-      this.displayColumns = displayColumns == null ? ImmutableList.of() : ImmutableList.copyOf(displayColumns);
+      this.displayColumns =
+          displayColumns == null ? ImmutableList.of() : ImmutableList.copyOf(displayColumns);
     }
 
     public String getReflectionId() {
@@ -259,20 +268,18 @@ public class MaterializationDescriptor {
         return false;
       }
       final ReflectionInfo that = (ReflectionInfo) o;
-      return
-          Objects.equals(reflectionId, that.reflectionId) &&
-          Objects.equals(sortColumns, that.sortColumns) &&
-          Objects.deepEquals(partitionColumns, that.partitionColumns) &&
-          Objects.equals(distributionColumns, that.distributionColumns) &&
-          Objects.equals(dimensions, that.dimensions) &&
-          Objects.equals(measures, that.measures) &&
-          Objects.equals(name, that.name);
+      return Objects.equals(reflectionId, that.reflectionId)
+          && Objects.equals(sortColumns, that.sortColumns)
+          && Objects.deepEquals(partitionColumns, that.partitionColumns)
+          && Objects.equals(distributionColumns, that.distributionColumns)
+          && Objects.equals(dimensions, that.dimensions)
+          && Objects.equals(measures, that.measures)
+          && Objects.equals(name, that.name);
     }
 
     @Override
     public int hashCode() {
       return Objects.hash(reflectionId, sortColumns, partitionColumns, distributionColumns, name);
     }
-
   }
 }

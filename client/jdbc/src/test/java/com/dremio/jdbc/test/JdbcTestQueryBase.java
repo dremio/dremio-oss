@@ -15,38 +15,43 @@
  */
 package com.dremio.jdbc.test;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.jdbc.DremioResultSet;
+import com.dremio.jdbc.JdbcWithServerTestBase;
+import com.google.common.base.Stopwatch;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Rule;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.jdbc.DremioResultSet;
-import com.dremio.jdbc.JdbcWithServerTestBase;
-import com.google.common.base.Stopwatch;
-
 public class JdbcTestQueryBase extends JdbcWithServerTestBase {
   // Set a timeout unless we're debugging.
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(40, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(40, TimeUnit.SECONDS);
 
   protected static final String SAMPLE_DATA_PATH;
-  static{
-    SAMPLE_DATA_PATH = Paths.get(TestTools.getWorkingPath()).getParent().getParent().resolve("sample-data").toAbsolutePath().toString();
+
+  static {
+    SAMPLE_DATA_PATH =
+        Paths.get(TestTools.getWorkingPath())
+            .getParent()
+            .getParent()
+            .resolve("sample-data")
+            .toAbsolutePath()
+            .toString();
   }
 
-  protected static void testQuery(String sql) throws Exception{
+  protected static void testQuery(String sql) throws Exception {
     boolean success = false;
     try {
       for (int x = 0; x < 1; x++) {
         Stopwatch watch = Stopwatch.createStarted();
         Statement s = getConnection().createStatement();
         ResultSet r = s.executeQuery(sql);
-        System.out.println(String.format("QueryId: %s", r.unwrap(DremioResultSet.class).getQueryId()));
+        System.out.println(
+            String.format("QueryId: %s", r.unwrap(DremioResultSet.class).getQueryId()));
         boolean first = true;
         while (r.next()) {
           ResultSetMetaData md = r.getMetaData();
@@ -66,7 +71,8 @@ public class JdbcTestQueryBase extends JdbcWithServerTestBase {
           System.out.println();
         }
 
-        System.out.println(String.format("Query completed in %d millis.", watch.elapsed(TimeUnit.MILLISECONDS)));
+        System.out.println(
+            String.format("Query completed in %d millis.", watch.elapsed(TimeUnit.MILLISECONDS)));
       }
 
       System.out.println("\n\n\n");

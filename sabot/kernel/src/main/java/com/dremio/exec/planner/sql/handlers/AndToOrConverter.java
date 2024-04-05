@@ -15,12 +15,14 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.physical.FilterPrel;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -31,13 +33,9 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.physical.FilterPrel;
-import com.google.common.collect.ImmutableSet;
-
 /**
- * A shuttle designed to convert
- * AND(exp_1<>literal_1, exp1<>literal_2, exp_2<>literal_3, exp_2<>literal_4,...) pattern to
+ * A shuttle designed to convert AND(exp_1<>literal_1, exp1<>literal_2, exp_2<>literal_3,
+ * exp_2<>literal_4,...) pattern to
  * AND(NOT(OR(exp_1=literal_1,exp_1=literal_2)),NOT(OR(exp_2=literal_3,exp_2=literal_4)),...).
  */
 class AndToOrConverter extends StatelessRelShuttleImpl {
@@ -60,7 +58,14 @@ class AndToOrConverter extends StatelessRelShuttleImpl {
     private final RexBuilder rexBuilder;
     private boolean converted;
     private final Set<SqlTypeName> SUPPORTED_TYPES =
-      ImmutableSet.of(SqlTypeName.INTEGER, SqlTypeName.BIGINT, SqlTypeName.DATE, SqlTypeName.TIME, SqlTypeName.TIMESTAMP, SqlTypeName.VARCHAR, SqlTypeName.VARBINARY);
+        ImmutableSet.of(
+            SqlTypeName.INTEGER,
+            SqlTypeName.BIGINT,
+            SqlTypeName.DATE,
+            SqlTypeName.TIME,
+            SqlTypeName.TIMESTAMP,
+            SqlTypeName.VARCHAR,
+            SqlTypeName.VARBINARY);
 
     public AndToOrRexShuttle(RexBuilder rexBuilder) {
       this.rexBuilder = rexBuilder;
@@ -97,7 +102,8 @@ class AndToOrConverter extends StatelessRelShuttleImpl {
           RexNode first = opCall.getOperands().get(0);
           RexNode second = opCall.getOperands().get(1);
 
-          if ((first.getType().getSqlTypeName() != second.getType().getSqlTypeName()) || !isTypeSuppored(first.getType().getSqlTypeName())) {
+          if ((first.getType().getSqlTypeName() != second.getType().getSqlTypeName())
+              || !isTypeSuppored(first.getType().getSqlTypeName())) {
             extras.add(rexNode);
             continue;
           }
@@ -137,9 +143,13 @@ class AndToOrConverter extends StatelessRelShuttleImpl {
           List<RexNode> operandList = new ArrayList<>();
           for (String expr : operandsByExpr.keySet()) {
             if (operandsByExpr.get(expr).size() > 1) {
-              operandList.add(rexBuilder.makeCall(SqlStdOperatorTable.NOT, rexBuilder.makeCall(SqlStdOperatorTable.OR, operandsByExpr.get(expr))));
+              operandList.add(
+                  rexBuilder.makeCall(
+                      SqlStdOperatorTable.NOT,
+                      rexBuilder.makeCall(SqlStdOperatorTable.OR, operandsByExpr.get(expr))));
             } else {
-              operandList.add(rexBuilder.makeCall(SqlStdOperatorTable.NOT, operandsByExpr.get(expr)));
+              operandList.add(
+                  rexBuilder.makeCall(SqlStdOperatorTable.NOT, operandsByExpr.get(expr)));
             }
           }
           operandList.addAll(extras);

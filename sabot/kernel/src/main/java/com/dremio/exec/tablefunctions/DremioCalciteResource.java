@@ -21,12 +21,9 @@ import org.apache.calcite.runtime.Resources.BaseMessage;
 import org.apache.calcite.runtime.Resources.ExInst;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 
-/**
- * Dremio's Calcite Resources
- */
+/** Dremio's Calcite Resources */
 public interface DremioCalciteResource extends CalciteResource {
-  DremioCalciteResource DREMIO_CALCITE_RESOURCE =
-    Resources.create(DremioCalciteResource.class);
+  DremioCalciteResource DREMIO_CALCITE_RESOURCE = Resources.create(DremioCalciteResource.class);
 
   /**
    * A Calcite exception that reports an external query metadata retrieval error.
@@ -34,14 +31,17 @@ public interface DremioCalciteResource extends CalciteResource {
    * @param cause the cause of the exception.
    * @return A SqlValidationException capturing the External Query metadata retrieval error.
    */
-  @BaseMessage("Resulted in error when attempting to retrieve metadata for External Query. Caused by ''{0}''")
+  @BaseMessage(
+      "Resulted in error when attempting to retrieve metadata for External Query. Caused by ''{0}''")
   ExInst<SqlValidatorException> externalQueryMetadataRetrievalError(Throwable cause);
 
   /**
-   * A Calcite exception that reports an unsupported operation error when external query is not supported on the source.
+   * A Calcite exception that reports an unsupported operation error when external query is not
+   * supported on the source.
    *
    * @param errorMessage the reason external query is not supported.
-   * @return A SqlValidationException capturing the unsupported error supplemented with a suggested followup action.
+   * @return A SqlValidationException capturing the unsupported error supplemented with a suggested
+   *     followup action.
    */
   @BaseMessage("{0}")
   ExInst<SqlValidatorException> externalQueryNotSupportedError(String errorMessage);
@@ -54,6 +54,7 @@ public interface DremioCalciteResource extends CalciteResource {
   @BaseMessage("Invalid External Query statement on source <{0}>")
   ExInst<SqlValidatorException> externalQueryInvalidError(String sourceName);
 
-  @BaseMessage("Number of target columns ({0,number}) does not equal number of source items ({1,number})")
+  @BaseMessage(
+      "Number of target columns ({0,number}) does not equal number of source items ({1,number})")
   ExInst<SqlValidatorException> unmatchColumn(int a0, int a1);
 }

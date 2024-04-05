@@ -20,16 +20,16 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
-
 import io.netty.buffer.ByteBuf;
 
-/**
- * Handler for result messages going from executor to coordinator.
- */
+/** Handler for result messages going from executor to coordinator. */
 public interface ExecToCoordResultsHandler {
 
-  void dataArrived(QueryData header, ByteBuf data, JobResultsRequest jobResultsRequest, ResponseSender sender) throws RpcException;
+  void dataArrived(
+      QueryData header, ByteBuf data, JobResultsRequest jobResultsRequest, ResponseSender sender)
+      throws RpcException;
 
   // return true if result was forwarded
-  boolean dataArrived(JobResultsRequestWrapper jobResultsRequestWrapper, ResponseSender sender) throws RpcException;
+  boolean dataArrived(JobResultsRequestWrapper jobResultsRequestWrapper, ResponseSender sender)
+      throws RpcException;
 }

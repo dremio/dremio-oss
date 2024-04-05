@@ -16,12 +16,17 @@
 /* eslint-disable */
 import { getJobStateEvents } from "../../sonar/JobStateEvents";
 
-export const waitForSqlSuccess = (matchSql: (sql: string) => boolean): Promise<void> =>
+export const waitForSqlSuccess = (
+  matchSql: (sql: string) => boolean,
+): Promise<void> =>
   new Promise(async (resolve) => {
-    const unsubscribe = getJobStateEvents().onJobStateChange("*", (jobDetails) => {
-      if (matchSql(jobDetails.sql)) {
-        unsubscribe();
-        resolve();
-      }
-    })
+    const unsubscribe = getJobStateEvents().onJobStateChange(
+      "*",
+      (jobSummary) => {
+        if (matchSql(jobSummary.description)) {
+          unsubscribe();
+          resolve();
+        }
+      },
+    );
   });

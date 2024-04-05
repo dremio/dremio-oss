@@ -17,15 +17,6 @@ package com.dremio.dac.server;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.Arrays;
-import java.util.List;
-
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.server.test.SampleDataPopulator;
@@ -39,7 +30,12 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-
+import java.util.Arrays;
+import java.util.List;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class TestDropView extends BaseTestServer {
 
@@ -72,7 +68,10 @@ public class TestDropView extends BaseTestServer {
   public void testDropViewWithMissingHistory() throws NamespaceException {
     DatasetConfig dsConfig = createView("space", "vds3");
     final LegacyKVStoreProvider provider = l(LegacyKVStoreProvider.class);
-    DatasetVersionMutator.deleteDatasetVersion(provider, dsConfig.getFullPathList(), dsConfig.getVirtualDataset().getVersion().getVersion());
+    DatasetVersionMutator.deleteDatasetVersion(
+        provider,
+        dsConfig.getFullPathList(),
+        dsConfig.getVirtualDataset().getVersion().getVersion());
     dropView(dsConfig.getFullPathList());
     verifyViewDeleted(dsConfig.getFullPathList());
   }
@@ -81,14 +80,20 @@ public class TestDropView extends BaseTestServer {
   public void testDeleteViewWithMissingHistory() throws NamespaceException {
     DatasetConfig dsConfig = createView("space", "vds4");
     final LegacyKVStoreProvider provider = l(LegacyKVStoreProvider.class);
-    DatasetVersionMutator.deleteDatasetVersion(provider, dsConfig.getFullPathList(), dsConfig.getVirtualDataset().getVersion().getVersion());
+    DatasetVersionMutator.deleteDatasetVersion(
+        provider,
+        dsConfig.getFullPathList(),
+        dsConfig.getVirtualDataset().getVersion().getVersion());
     deleteView(dsConfig.getFullPathList(), dsConfig.getTag());
     verifyViewDeleted(dsConfig.getFullPathList());
   }
 
   private DatasetConfig createView(String space, String name) throws NamespaceException {
     NamespaceKey datasetPath = new NamespaceKey(Arrays.asList(space, name));
-    final String query = "CREATE VIEW " + datasetPath.getSchemaPath() + " AS SELECT * FROM INFORMATION_SCHEMA.\"tables\"";
+    final String query =
+        "CREATE VIEW "
+            + datasetPath.getSchemaPath()
+            + " AS SELECT * FROM INFORMATION_SCHEMA.\"tables\"";
     submitJob(query);
 
     return newNamespaceService().getDataset(datasetPath);
@@ -101,24 +106,22 @@ public class TestDropView extends BaseTestServer {
 
   private void submitJob(String query) {
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_PREVIEW)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_PREVIEW)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
   }
 
   private void deleteView(List<String> path, String tag) {
-    WebTarget target = getAPIv2()
-      .path("dataset")
-      .path(String.join(".", path))
-      .queryParam("savedTag", tag);
+    WebTarget target =
+        getAPIv2().path("dataset").path(String.join(".", path)).queryParam("savedTag", tag);
     expectSuccess(getBuilder(target).buildDelete(), new GenericType<DatasetUI>() {});
   }
 
   private void verifyViewDeleted(List<String> path) {
     NamespaceKey datasetPath = new NamespaceKey(path);
     assertThatThrownBy(() -> newNamespaceService().getDataset(datasetPath))
-      .isExactlyInstanceOf(NamespaceNotFoundException.class);
+        .isExactlyInstanceOf(NamespaceNotFoundException.class);
   }
 }

@@ -15,33 +15,30 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.common.exceptions.UserException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
-
-/**
- * Tests for the {@code StoragePluginUtils} utility methods.
- */
+/** Tests for the {@code StoragePluginUtils} utility methods. */
 public class StoragePluginUtilsTest {
 
-  /**
-   * Test that an error message is appropriately formatted with the source name.
-   */
+  /** Test that an error message is appropriately formatted with the source name. */
   @Test
   public void testGenerateSourceErrorMessage() {
     final String sourceName = "test-source";
     final String errorMessage = "Failed to establish connection";
-    Assert.assertEquals("Source 'test-source' returned error 'Failed to establish connection'",
-      StoragePluginUtils.generateSourceErrorMessage(sourceName, errorMessage));
+    Assert.assertEquals(
+        "Source 'test-source' returned error 'Failed to establish connection'",
+        StoragePluginUtils.generateSourceErrorMessage(sourceName, errorMessage));
   }
 
   @Test
   public void testGenerateSourceErrorMessageFromFormatString() {
     final String sourceName = "test-source";
     final String errorString = "Returned status code 500 from cluster";
-    Assert.assertEquals("Source 'test-source' returned error 'Returned status code 500 from cluster'",
-      StoragePluginUtils.generateSourceErrorMessage(sourceName, errorString));
+    Assert.assertEquals(
+        "Source 'test-source' returned error 'Returned status code 500 from cluster'",
+        StoragePluginUtils.generateSourceErrorMessage(sourceName, errorString));
   }
 
   @Test
@@ -49,10 +46,12 @@ public class StoragePluginUtilsTest {
     final UserException.Builder builder = UserException.validationError();
     final String errorMessageFormatString = "Invalid username: %s";
     final String sourceName = "fictitious-source";
-    final UserException userException = StoragePluginUtils.message(
-      builder, sourceName, errorMessageFormatString, "invalid-user").buildSilently();
-    Assert.assertEquals("Source 'fictitious-source' returned error 'Invalid username: invalid-user'",
-      userException.getMessage());
+    final UserException userException =
+        StoragePluginUtils.message(builder, sourceName, errorMessageFormatString, "invalid-user")
+            .buildSilently();
+    Assert.assertEquals(
+        "Source 'fictitious-source' returned error 'Invalid username: invalid-user'",
+        userException.getMessage());
     Assert.assertEquals("plugin fictitious-source", userException.getContextStrings().get(0));
   }
 }

@@ -15,13 +15,6 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Named;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
@@ -32,17 +25,22 @@ import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.sort.external.SplayTree.SplayIterator;
 import com.google.common.base.Stopwatch;
-
+import java.util.concurrent.TimeUnit;
+import javax.inject.Named;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
 public abstract class SplaySorterTemplate implements SplaySorterInterface {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplaySorterTemplate.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SplaySorterTemplate.class);
 
   private FunctionContext context;
   private ExpandableHyperContainer hyperBatch;
   private final SplayTreeImpl tree = new SplayTreeImpl();
 
   @Override
-  public void init(FunctionContext context, ExpandableHyperContainer hyperContainer) throws SchemaChangeException {
+  public void init(FunctionContext context, ExpandableHyperContainer hyperContainer)
+      throws SchemaChangeException {
     this.context = context;
     this.hyperBatch = hyperContainer;
     doSetup(context, hyperContainer, null);
@@ -56,14 +54,15 @@ public abstract class SplaySorterTemplate implements SplaySorterInterface {
   }
 
   @Override
-  public void add(final SelectionVector2 sv2, final RecordBatchData batch) throws SchemaChangeException {
+  public void add(final SelectionVector2 sv2, final RecordBatchData batch)
+      throws SchemaChangeException {
     final Stopwatch watch = Stopwatch.createStarted();
 
     final int batchIndex = hyperBatch.size();
-    hyperBatch.addBatch(batch.getContainer());
+    hyperBatch.addBatch(batch.getVectorAccessible());
     doSetup(context, hyperBatch, null);
     final int batchCount = hyperBatch.size();
-    if(batchCount == 1){
+    if (batchCount == 1) {
       doSetup(context, hyperBatch, null);
     }
 
@@ -73,25 +72,29 @@ public abstract class SplaySorterTemplate implements SplaySorterInterface {
       int index = (batchIndex << 16) | (sv2.getIndex(count) & 65535);
       tree.put(index);
     }
-    logger.debug("Took {} us to add {} records", watch.elapsed(TimeUnit.MICROSECONDS), batch.getRecordCount());
+    logger.debug(
+        "Took {} us to add {} records",
+        watch.elapsed(TimeUnit.MICROSECONDS),
+        batch.getRecordCount());
   }
 
   @Override
-  public void setDataBuffer(ArrowBuf data){
+  public void setDataBuffer(ArrowBuf data) {
     tree.setData(data);
   }
 
   @Override
-  public SelectionVector4 getFinalSort(BufferAllocator allocator, int targetBatchSize){
+  public SelectionVector4 getFinalSort(BufferAllocator allocator, int targetBatchSize) {
     Stopwatch watch = Stopwatch.createStarted();
 
     final int totalCount = tree.getTotalCount();
-    final SelectionVector4 sortVector = new SelectionVector4(allocator.buffer(totalCount * 4), totalCount, targetBatchSize);
+    final SelectionVector4 sortVector =
+        new SelectionVector4(allocator.buffer(totalCount * 4), totalCount, targetBatchSize);
     final SplayIterator iterator = tree.iterator();
     int i = 0;
-    while(iterator.hasNext()){
+    while (iterator.hasNext()) {
       final int index = iterator.next();
-//      logger.debug("Setting {}={}", i, index);
+      //      logger.debug("Setting {}={}", i, index);
       sortVector.set(i, index);
       i++;
     }
@@ -107,14 +110,15 @@ public abstract class SplaySorterTemplate implements SplaySorterInterface {
   }
 
   @Override
-  public void close() throws Exception{
+  public void close() throws Exception {
     AutoCloseables.close(hyperBatch);
   }
 
-  public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming,
+  public abstract void doSetup(
+      @Named("context") FunctionContext context,
+      @Named("incoming") VectorAccessible incoming,
       @Named("outgoing") VectorAccessible outgoing);
 
-  public abstract int doEval(@Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
-
-
+  public abstract int doEval(
+      @Named("leftIndex") int leftIndex, @Named("rightIndex") int rightIndex);
 }

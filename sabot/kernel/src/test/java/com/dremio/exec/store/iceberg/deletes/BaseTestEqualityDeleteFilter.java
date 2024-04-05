@@ -18,12 +18,6 @@ package com.dremio.exec.store.iceberg.deletes;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.ORDINAL_SIZE;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
@@ -36,20 +30,31 @@ import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Pivots;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.FieldVector;
 
 public class BaseTestEqualityDeleteFilter extends BaseTestOperator {
 
-  protected EqualityDeleteHashTable buildTable(RecordSet buildRs, List<Integer> buildOrdinals) throws Exception {
+  protected EqualityDeleteHashTable buildTable(RecordSet buildRs, List<Integer> buildOrdinals)
+      throws Exception {
     int buildBatchSize = buildRs.getMaxBatchSize();
     int buildRecords = buildRs.getTotalRecords();
 
     try (Generator buildGenerator = buildRs.toGenerator(getTestAllocator());
-        ArrowBuf buildOrdinalBuf = getTestAllocator().buffer((long) buildBatchSize * ORDINAL_SIZE)) {
+        ArrowBuf buildOrdinalBuf =
+            getTestAllocator().buffer((long) buildBatchSize * ORDINAL_SIZE)) {
 
       List<SchemaPath> equalityFields = getFields(buildRs.getSchema());
       VectorAccessible buildAccessible = buildGenerator.getOutput();
-      EqualityDeleteHashTable.Builder builder = new EqualityDeleteHashTable.Builder(getTestAllocator(),
-          equalityFields, getFieldVectors(buildAccessible, buildRs.getSchema()), buildRecords, buildBatchSize);
+      EqualityDeleteHashTable.Builder builder =
+          new EqualityDeleteHashTable.Builder(
+              getTestAllocator(),
+              equalityFields,
+              getFieldVectors(buildAccessible, buildRs.getSchema()),
+              buildRecords,
+              buildBatchSize);
 
       int records;
       while ((records = buildGenerator.next(buildBatchSize)) > 0) {
@@ -64,24 +69,31 @@ public class BaseTestEqualityDeleteFilter extends BaseTestOperator {
   }
 
   protected PivotDef createPivotDef(VectorAccessible accessible, List<SchemaPath> equalityFields) {
-    List<FieldVectorPair> fieldVectorPairs = equalityFields.stream()
-        .map(f -> (FieldVector) getVectorFromSchemaPath(accessible, f.getRootSegment().getPath()))
-        .map(v -> new FieldVectorPair(v, v))
-        .collect(Collectors.toList());
+    List<FieldVectorPair> fieldVectorPairs =
+        equalityFields.stream()
+            .map(
+                f ->
+                    (FieldVector) getVectorFromSchemaPath(accessible, f.getRootSegment().getPath()))
+            .map(v -> new FieldVectorPair(v, v))
+            .collect(Collectors.toList());
 
     return PivotBuilder.getBlockDefinition(fieldVectorPairs);
   }
 
-  protected void find(EqualityDeleteHashTable table, int records, PivotDef pivotDef, ArrowBuf outOrdinals) {
+  protected void find(
+      EqualityDeleteHashTable table, int records, PivotDef pivotDef, ArrowBuf outOrdinals) {
     try (FixedBlockVector fbv = new FixedBlockVector(getTestAllocator(), pivotDef.getBlockWidth());
-        VariableBlockVector vbv = new VariableBlockVector(getTestAllocator(), pivotDef.getVariableCount())) {
+        VariableBlockVector vbv =
+            new VariableBlockVector(getTestAllocator(), pivotDef.getVariableCount())) {
       Pivots.pivot(pivotDef, records, fbv, vbv);
       table.find(records, fbv, vbv, outOrdinals);
     }
   }
 
   protected List<SchemaPath> getFields(BatchSchema schema) {
-    return schema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList());
+    return schema.getFields().stream()
+        .map(f -> SchemaPath.getSimplePath(f.getName()))
+        .collect(Collectors.toList());
   }
 
   protected List<FieldVector> getFieldVectors(VectorAccessible accessible, BatchSchema schema) {

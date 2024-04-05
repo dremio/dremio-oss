@@ -15,17 +15,14 @@
  */
 package com.dremio.plugins.sysflight;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.store.StoragePlugin;
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 
-/**
- * Rule that converts Flight logical to physical scan
- */
+/** Rule that converts Flight logical to physical scan */
 public class SysFlightScanPrule extends RelOptRule {
 
   private SysFlightStoragePlugin plugin;
@@ -38,18 +35,18 @@ public class SysFlightScanPrule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     SysFlightScanDrel logicalScan = call.rel(0);
-    SysFlightScanPrel physicalScan = new SysFlightScanPrel(
-        logicalScan.getCluster(),
-        logicalScan.getTraitSet().replace(Prel.PHYSICAL),
-        logicalScan.getTable(),
-        logicalScan.getTableMetadata(),
-        null,
-        logicalScan.getProjectedColumns(),
-        logicalScan.getObservedRowcountAdjustment(),
-        logicalScan.getHints(),
-        plugin,
-        ImmutableList.of()
-        );
+    SysFlightScanPrel physicalScan =
+        new SysFlightScanPrel(
+            logicalScan.getCluster(),
+            logicalScan.getTraitSet().replace(Prel.PHYSICAL),
+            logicalScan.getTable(),
+            logicalScan.getTableMetadata(),
+            null,
+            logicalScan.getProjectedColumns(),
+            logicalScan.getObservedRowcountAdjustment(),
+            logicalScan.getHints(),
+            plugin,
+            ImmutableList.of());
 
     call.transformTo(physicalScan);
   }

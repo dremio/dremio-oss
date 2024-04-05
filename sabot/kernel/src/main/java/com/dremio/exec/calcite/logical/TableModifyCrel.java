@@ -15,78 +15,149 @@
  */
 package com.dremio.exec.calcite.logical;
 
+import com.dremio.exec.planner.common.TableModifyRelBase;
+import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.google.common.base.Preconditions;
 import java.util.List;
-
+import java.util.Set;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.prepare.Prepare.CatalogReader;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rex.RexNode;
-
-import com.dremio.exec.planner.common.TableModifyRelBase;
-import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.google.common.base.Preconditions;
+import org.apache.iceberg.RowLevelOperationMode;
 
 /**
  * Crel level relational expression that modifies a table.
  *
- * It is similar to TableScan, but represents a request to modify a table rather than read from it.
- * It takes one child which produces the modified rows. Those rows are:
- *  for DELETE, the old values;
- *  for UPDATE, all old values plus updated new values;
- *  for MERGE, all old values plus updated new values and new values.
+ * <p>It is similar to TableScan, but represents a request to modify a table rather than read from
+ * it. It takes one child which produces the modified rows. Those rows are: for DELETE, the old
+ * values; for UPDATE, all old values plus updated new values; for MERGE, all old values plus
+ * updated new values and new values.
  */
 public class TableModifyCrel extends TableModifyRelBase {
 
-  public TableModifyCrel(RelOptCluster cluster,
-                         RelTraitSet traitSet,
-                         RelOptTable table,
-                         Prepare.CatalogReader schema,
-                         RelNode input,
-                         TableModify.Operation operation,
-                         List<String> updateColumnList,
-                         List<RexNode> sourceExpressionList,
-                         boolean flattened,
-                         CreateTableEntry createTableEntry,
-                         List<String> mergeUpdateColumnList,
-                         boolean hasSource) {
-    super(Convention.NONE, cluster, traitSet, table, schema, input, operation, updateColumnList,
-      sourceExpressionList, flattened, createTableEntry, mergeUpdateColumnList, hasSource);
+  public TableModifyCrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      CatalogReader schema,
+      RelNode input,
+      Operation operation,
+      List<String> updateColumnList,
+      List<RexNode> sourceExpressionList,
+      boolean flattened,
+      CreateTableEntry createTableEntry,
+      List<String> mergeUpdateColumnList,
+      boolean hasSource,
+      Set<String> outdatedTargetColumns,
+      RowLevelOperationMode dmlWriteMode) {
+    super(
+        Convention.NONE,
+        cluster,
+        traitSet,
+        table,
+        schema,
+        input,
+        operation,
+        updateColumnList,
+        sourceExpressionList,
+        flattened,
+        createTableEntry,
+        mergeUpdateColumnList,
+        hasSource,
+        outdatedTargetColumns,
+        dmlWriteMode);
 
-    Preconditions.checkArgument(operation != Operation.INSERT, "Insert is not supported in TableModifyCrel");
+    Preconditions.checkArgument(
+        operation != Operation.INSERT, "Insert is not supported in TableModifyCrel");
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new TableModifyCrel(getCluster(), traitSet, getTable(), getCatalogReader(), sole(inputs), getOperation(),
-      getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList(), hasSource());
+    return new TableModifyCrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        getCatalogReader(),
+        sole(inputs),
+        getOperation(),
+        getUpdateColumnList(),
+        getSourceExpressionList(),
+        isFlattened(),
+        getCreateTableEntry(),
+        getMergeUpdateColumnList(),
+        hasSource(),
+        getOutdatedTargetColumns(),
+        getDmlWriteMode());
   }
 
-  public static TableModifyCrel create(RelOptTable table,
-                                       Prepare.CatalogReader schema,
-                                       RelNode input,
-                                       TableModify.Operation operation,
-                                       List<String> updateColumnList,
-                                       List<RexNode> sourceExpressionList,
-                                       boolean flattened,
-                                       List<String> mergeUpdateColumnList,
-                                       boolean hasSource) {
+  public static TableModifyCrel create(
+      RelOptTable table,
+      CatalogReader schema,
+      RelNode input,
+      Operation operation,
+      List<String> updateColumnList,
+      List<RexNode> sourceExpressionList,
+      boolean flattened,
+      List<String> mergeUpdateColumnList,
+      boolean hasSource,
+      Set<String> outdatedTargetColumns,
+      RowLevelOperationMode dmlWriteMode) {
     final RelOptCluster cluster = input.getCluster();
     final RelTraitSet traitSet = cluster.traitSetOf(Convention.NONE);
-    return new TableModifyCrel(cluster, traitSet, table, schema, input,
-      operation, updateColumnList, sourceExpressionList, flattened, null, mergeUpdateColumnList, hasSource);
+    return new TableModifyCrel(
+        cluster,
+        traitSet,
+        table,
+        schema,
+        input,
+        operation,
+        updateColumnList,
+        sourceExpressionList,
+        flattened,
+        null,
+        mergeUpdateColumnList,
+        hasSource,
+        outdatedTargetColumns,
+        dmlWriteMode);
   }
 
   public TableModifyCrel createWith(CreateTableEntry createTableEntry) {
-    return new TableModifyCrel(getCluster(), getTraitSet(), getTable(), getCatalogReader(), sole(getInputs()),
-      getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened(), createTableEntry, getMergeUpdateColumnList(), hasSource());
+    return new TableModifyCrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        getCatalogReader(),
+        sole(getInputs()),
+        getOperation(),
+        getUpdateColumnList(),
+        getSourceExpressionList(),
+        isFlattened(),
+        createTableEntry,
+        getMergeUpdateColumnList(),
+        hasSource(),
+        getOutdatedTargetColumns(),
+        getDmlWriteMode());
   }
 
   public TableModifyCrel createWith(RelNode input) {
-    return new TableModifyCrel(getCluster(), getTraitSet(), getTable(), getCatalogReader(), input,
-      getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened(), getCreateTableEntry(), getMergeUpdateColumnList(), hasSource());
+    return new TableModifyCrel(
+        getCluster(),
+        getTraitSet(),
+        getTable(),
+        getCatalogReader(),
+        input,
+        getOperation(),
+        getUpdateColumnList(),
+        getSourceExpressionList(),
+        isFlattened(),
+        getCreateTableEntry(),
+        getMergeUpdateColumnList(),
+        hasSource(),
+        getOutdatedTargetColumns(),
+        getDmlWriteMode());
   }
 }

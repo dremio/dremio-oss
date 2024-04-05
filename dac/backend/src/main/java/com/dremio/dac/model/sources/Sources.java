@@ -18,9 +18,7 @@ package com.dremio.dac.model.sources;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Sources model
- */
+/** Sources model */
 public class Sources {
   private List<SourceUI> sources;
 

@@ -15,24 +15,23 @@
  */
 package com.dremio.dac.util;
 
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.catalog.model.VersionContext;
-import com.dremio.dac.proto.model.dataset.SourceVersionReference;
-
-/**
- * Util class for QueryExecutor
- */
+/** Util class for QueryExecutor */
 public class QueryExecutorUtils {
 
-  public static Map<String, VersionContext> createSourceVersionMapping(List<SourceVersionReference> referenceList) {
+  public static Map<String, VersionContext> createSourceVersionMapping(
+      List<SourceVersionReference> referenceList) {
     Map<String, VersionContext> versionContextMap = new HashMap<>();
     if (referenceList != null) {
       for (SourceVersionReference sourceVersionReference : referenceList) {
         String sourceName = sourceVersionReference.getSourceName();
-        com.dremio.dac.proto.model.dataset.VersionContext versionContext = sourceVersionReference.getReference();
+        com.dremio.dac.proto.model.dataset.VersionContext versionContext =
+            sourceVersionReference.getReference();
         VersionContext context;
         switch (versionContext.getType()) {
           case BRANCH:
@@ -45,7 +44,8 @@ public class QueryExecutorUtils {
             context = VersionContext.ofCommit(versionContext.getValue());
             break;
           default:
-            throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContext.getType());
+            throw new IllegalArgumentException(
+                "Unrecognized versionContextType: " + versionContext.getType());
         }
         versionContextMap.put(sourceName, context);
       }

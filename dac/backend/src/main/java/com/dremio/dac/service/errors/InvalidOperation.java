@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.service.errors;
 
-/**
- * Invalid operation on namespace.
- */
+/** Invalid operation on namespace. */
 public class InvalidOperation extends ServiceException {
   private static final long serialVersionUID = 1L;
 

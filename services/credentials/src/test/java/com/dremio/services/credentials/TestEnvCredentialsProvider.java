@@ -21,12 +21,9 @@ import static org.junit.Assert.assertTrue;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.junit.Test;
 
-/**
- * Tests for lookup in Env Credential Provider.
- */
+/** Tests for lookup in Env Credential Provider. */
 public class TestEnvCredentialsProvider {
 
   @Test
@@ -48,7 +45,5 @@ public class TestEnvCredentialsProvider {
 
     String ldap = provider.lookup(uri);
     assertEquals(originalString, ldap);
-
   }
-
 }

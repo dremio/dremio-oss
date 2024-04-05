@@ -18,17 +18,6 @@ package com.dremio.exec.testing;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_SCHEMA_FALLBACK_DISABLED;
 import static org.junit.Assert.fail;
 
-import java.util.Properties;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.holders.Float8Holder;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.QueryTestUtil;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -44,6 +33,14 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.test.DremioTest;
+import java.util.Properties;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.Float8Holder;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
 
 /*
  * TODO(DRILL-3170)
@@ -65,12 +62,13 @@ public class TestResourceLeak extends DremioTest {
   private static SabotConfig config;
 
   @SuppressWarnings("serial")
-  private static final Properties TEST_CONFIGURATIONS = new Properties() {
-    {
-      put(ExecConstants.HTTP_ENABLE, "false");
-      put(PARQUET_SCHEMA_FALLBACK_DISABLED, "true");
-    }
-  };
+  private static final Properties TEST_CONFIGURATIONS =
+      new Properties() {
+        {
+          put(ExecConstants.HTTP_ENABLE, "false");
+          put(PARQUET_SCHEMA_FALLBACK_DISABLED, "true");
+        }
+      };
 
   @BeforeClass
   public static void openClient() throws Exception {
@@ -107,7 +105,10 @@ public class TestResourceLeak extends DremioTest {
     }
   }
 
-  @FunctionTemplate(name = "leakResource", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      name = "leakResource",
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class Leak implements SimpleFunction {
 
     @Param Float8Holder in;

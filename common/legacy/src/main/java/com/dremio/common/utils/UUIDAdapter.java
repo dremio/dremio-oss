@@ -17,15 +17,14 @@ package com.dremio.common.utils;
 
 import java.util.UUID;
 
-/**
- * UUID adapter to help with conversion
- */
+/** UUID adapter to help with conversion */
 public final class UUIDAdapter {
 
   private UUIDAdapter() {}
 
   /**
    * Converts UUID to byte array
+   *
    * @param uuid Randomly generated UUID
    * @return uuid as byte array
    */
@@ -33,11 +32,11 @@ public final class UUIDAdapter {
     byte[] result = new byte[16];
     long msb = uuid.getMostSignificantBits();
     long lsb = uuid.getLeastSignificantBits();
-    for (int i =15;i>=8;i--) {
+    for (int i = 15; i >= 8; i--) {
       result[i] = (byte) (lsb & 0xFF);
       lsb >>= 8;
     }
-    for (int i =7;i>=0;i--) {
+    for (int i = 7; i >= 0; i--) {
       result[i] = (byte) (msb & 0xFF);
       msb >>= 8;
     }
@@ -46,6 +45,7 @@ public final class UUIDAdapter {
 
   /**
    * Converts byte array to UUID
+   *
    * @param bytes uuid as byte array
    * @return UUID
    */
@@ -53,10 +53,10 @@ public final class UUIDAdapter {
     long msb = 0;
     long lsb = 0;
     assert bytes.length == 16 : "bytes must be 16 bytes in length";
-    for (int i=0; i<8; i++) {
+    for (int i = 0; i < 8; i++) {
       msb = (msb << 8) | (bytes[i] & 0xff);
     }
-    for (int i=8; i<16; i++) {
+    for (int i = 8; i < 16; i++) {
       lsb = (lsb << 8) | (bytes[i] & 0xff);
     }
     return new UUID(msb, lsb);

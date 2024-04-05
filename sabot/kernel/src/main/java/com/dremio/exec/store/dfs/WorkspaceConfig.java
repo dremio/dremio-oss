@@ -20,11 +20,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Stores the workspace related config. A workspace has:
- *  - location which is a path.
- *  - writable flag to indicate whether the location supports creating new tables.
- *  - default storage format for new tables created in this workspace.
- *  - optional configuration override properties to access files in this workspace
+ * Stores the workspace related config. A workspace has: - location which is a path. - writable flag
+ * to indicate whether the location supports creating new tables. - default storage format for new
+ * tables created in this workspace. - optional configuration override properties to access files in
+ * this workspace
  */
 @JsonIgnoreProperties(value = {"storageformat"})
 public class WorkspaceConfig {
@@ -37,9 +36,10 @@ public class WorkspaceConfig {
   private final String defaultInputFormat;
 
   @JsonCreator
-  public WorkspaceConfig(@JsonProperty("location") String location,
-                         @JsonProperty("writable") boolean writable,
-                         @JsonProperty("defaultInputFormat") String defaultInputFormat) {
+  public WorkspaceConfig(
+      @JsonProperty("location") String location,
+      @JsonProperty("writable") boolean writable,
+      @JsonProperty("defaultInputFormat") String defaultInputFormat) {
     this.location = location;
     this.writable = writable;
     this.defaultInputFormat = defaultInputFormat;
@@ -98,5 +98,4 @@ public class WorkspaceConfig {
     }
     return true;
   }
-
 }

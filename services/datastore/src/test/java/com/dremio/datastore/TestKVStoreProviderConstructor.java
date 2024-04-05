@@ -18,14 +18,18 @@ package com.dremio.datastore;
 import static com.dremio.datastore.api.KVStoreProvider.getConstructor;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
+import com.dremio.datastore.api.KVStoreProvider;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.dremio.datastore.api.KVStoreProvider;
-
 class TestKVStoreProviderConstructor {
   @ParameterizedTest
-  @ValueSource(classes = {LocalKVStoreProvider.class, NoopKVStoreProvider.class, RemoteKVStoreProvider.class})
+  @ValueSource(
+      classes = {
+        LocalKVStoreProvider.class,
+        NoopKVStoreProvider.class,
+        RemoteKVStoreProvider.class
+      })
   void testHasTheExpectedConstructor(Class<? extends KVStoreProvider> cls) {
     assertThatNoException().isThrownBy(() -> getConstructor(cls));
   }

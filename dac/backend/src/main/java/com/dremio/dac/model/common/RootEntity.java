@@ -15,14 +15,9 @@
  */
 package com.dremio.dac.model.common;
 
-
-/**
- *  Base class for space home and sources.
- */
+/** Base class for space home and sources. */
 public abstract class RootEntity extends Name {
-  /**
-   * Root type
-   */
+  /** Root type */
   public enum RootType {
     SOURCE,
     SPACE,

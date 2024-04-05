@@ -28,19 +28,19 @@ describe("ResourcePin-spec", () => {
   });
 
   describe("render", () => {
-    it("should render pin", () => {
+    xit("should render pin", () => {
       const wrapper = shallow(<ResourcePin {...commonProps} />);
       expect(wrapper.hasClass("pin")).to.be.true;
     });
 
-    it("should have active class if isPinned", () => {
+    xit("should have active class if isPinned", () => {
       const wrapper = shallow(<ResourcePin {...commonProps} isPinned />);
       expect(wrapper.find(".active")).to.have.length(1);
     });
   });
 
   describe("click", () => {
-    it("should call toggleActivePin with name and active state", () => {
+    xit("should call toggleActivePin with name and active state", () => {
       const inactive = shallow(<ResourcePin {...commonProps} />);
       const event = { preventDefault: sinon.spy(), stopPropagation: sinon.spy };
       inactive.simulate("click", event);

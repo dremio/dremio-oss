@@ -19,8 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import org.junit.Test;
-
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.server.BaseTestServer;
@@ -32,10 +30,9 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.test.DremioTest;
+import org.junit.Test;
 
-/**
- * To test private fields not being visible/transferrable
- */
+/** To test private fields not being visible/transferrable */
 public class TestSourcePrivateFields extends BaseTestServer {
 
   @Test
@@ -52,7 +49,8 @@ public class TestSourcePrivateFields extends BaseTestServer {
     namespaceService.addOrUpdateSource(nameSpaceKey, source.asSourceConfig());
 
     final SourceConfig config = namespaceService.getSource(nameSpaceKey);
-    final ConnectionReader connectionReader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
+    final ConnectionReader connectionReader =
+        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
     SourceUI mySource = SourceUI.get(config, connectionReader);
     APrivateSource myS3config = (APrivateSource) mySource.getConfig();
@@ -85,7 +83,8 @@ public class TestSourcePrivateFields extends BaseTestServer {
     namespaceService.addOrUpdateSource(nameSpaceKey, source.asSourceConfig());
 
     final SourceConfig config = namespaceService.getSource(nameSpaceKey);
-    final ConnectionReader connectionReader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
+    final ConnectionReader connectionReader =
+        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
     SourceUI mySource = SourceUI.get(config, connectionReader);
     APrivateSource myS3config = (APrivateSource) mySource.getConfig();
@@ -108,7 +107,8 @@ public class TestSourcePrivateFields extends BaseTestServer {
     namespaceService.addOrUpdateSource(nameSpaceKey, source.asSourceConfig());
 
     final SourceConfig config = namespaceService.getSource(nameSpaceKey);
-    final ConnectionReader connectionReader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
+    final ConnectionReader connectionReader =
+        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
     NASConf mySource = (NASConf) SourceUI.get(config, connectionReader).getConfig();
     NASConf withPrivates = (NASConf) SourceUI.getWithPrivates(config, connectionReader).getConfig();

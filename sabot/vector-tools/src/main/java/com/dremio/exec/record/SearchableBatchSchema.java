@@ -15,33 +15,29 @@
  */
 package com.dremio.exec.record;
 
+import com.dremio.common.map.CaseInsensitiveMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.map.CaseInsensitiveMap;
+/** Supports efficient field search in batch schema */
+public final class SearchableBatchSchema extends BatchSchema {
+  private final Map<String, Field> fieldMap;
 
-/**
- * Supports efficient field search in batch schema
- */
-public final class SearchableBatchSchema extends BatchSchema{
-    private final Map<String, Field> fieldMap;
-
-    private SearchableBatchSchema(List<Field> fields) {
-        super(fields);
-        fieldMap = CaseInsensitiveMap.<Field>newHashMap();
-        for (Field field : fields) {
-            fieldMap.put(field.getName(), field);
-        }
+  private SearchableBatchSchema(List<Field> fields) {
+    super(fields);
+    fieldMap = CaseInsensitiveMap.<Field>newHashMap();
+    for (Field field : fields) {
+      fieldMap.put(field.getName(), field);
     }
+  }
 
-    @Override
-    public java.util.Optional<Field> findFieldIgnoreCase(String fieldName) {
-        return java.util.Optional.ofNullable(fieldMap.get(fieldName));
-    }
+  @Override
+  public java.util.Optional<Field> findFieldIgnoreCase(String fieldName) {
+    return java.util.Optional.ofNullable(fieldMap.get(fieldName));
+  }
 
-    public static SearchableBatchSchema of(BatchSchema schema) {
-        return new SearchableBatchSchema(schema.getFields());
-    }
+  public static SearchableBatchSchema of(BatchSchema schema) {
+    return new SearchableBatchSchema(schema.getFields());
+  }
 }

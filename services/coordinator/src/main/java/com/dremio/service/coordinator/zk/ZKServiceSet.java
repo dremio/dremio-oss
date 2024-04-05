@@ -18,23 +18,21 @@ package com.dremio.service.coordinator.zk;
 import static com.google.common.base.Throwables.propagate;
 import static com.google.common.collect.Collections2.transform;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.service.Service;
+import com.dremio.service.coordinator.AbstractServiceSet;
+import com.dremio.service.coordinator.RegistrationHandle;
+import com.google.common.base.Function;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.x.discovery.ServiceCache;
 import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceInstance;
 import org.apache.curator.x.discovery.details.ServiceCacheListener;
-
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.service.Service;
-import com.dremio.service.coordinator.AbstractServiceSet;
-import com.dremio.service.coordinator.RegistrationHandle;
-import com.google.common.base.Function;
 
 final class ZKServiceSet extends AbstractServiceSet implements Service {
   private final String serviceName;
@@ -45,7 +43,7 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
 
   private final class EndpointListener implements ServiceCacheListener {
     @Override
-    public void stateChanged(CuratorFramework client, ConnectionState newState) { }
+    public void stateChanged(CuratorFramework client, ConnectionState newState) {}
 
     @Override
     public void cacheChanged() {
@@ -81,11 +79,11 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
   }
 
   void unregister(ZKRegistrationHandle handle) {
-    //do not remove listeners, as they are global per service
+    // do not remove listeners, as they are global per service
 
     try {
       discovery.unregisterService(handle.getServiceInstance());
-    } catch(Exception e) {
+    } catch (Exception e) {
       throw propagate(e);
     }
   }
@@ -108,7 +106,7 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
         builder.append("Active nodes set changed.  Now includes ");
         builder.append(newNodesSet.size());
         builder.append(" total nodes.  New active nodes: \n");
-        for (NodeEndpoint bit: newNodesSet) {
+        for (NodeEndpoint bit : newNodesSet) {
           builder.append('\t');
           builder.append(bit.getAddress());
           builder.append(':');
@@ -122,7 +120,8 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
         ZKClusterCoordinator.logger.debug(builder.toString());
       }
 
-      // Notify the nodes listener for newly unregistered nodes. For now, we only care when nodes are down / unregistered.
+      // Notify the nodes listener for newly unregistered nodes. For now, we only care when nodes
+      // are down / unregistered.
       if (!unregisteredNodes.isEmpty()) {
         nodesUnregistered(unregisteredNodes);
       }
@@ -132,20 +131,20 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
       }
 
     } catch (Exception e) {
-      ZKClusterCoordinator.logger.error("Failure while update SabotNode service location cache.", e);
+      ZKClusterCoordinator.logger.error(
+          "Failure while update SabotNode service location cache.", e);
     }
   }
 
-  private ServiceInstance<NodeEndpoint> newServiceInstance(String name, NodeEndpoint endpoint) throws Exception {
-    return ServiceInstance.<NodeEndpoint>builder()
-      .name(name)
-      .payload(endpoint)
-      .build();
+  private ServiceInstance<NodeEndpoint> newServiceInstance(String name, NodeEndpoint endpoint)
+      throws Exception {
+    return ServiceInstance.<NodeEndpoint>builder().name(name).payload(endpoint).build();
   }
 
   @Override
   public Collection<NodeEndpoint> getAvailableEndpoints() {
-    return transform(serviceCache.getInstances(),
+    return transform(
+        serviceCache.getInstances(),
         new Function<ServiceInstance<NodeEndpoint>, NodeEndpoint>() {
           @Override
           public NodeEndpoint apply(ServiceInstance<NodeEndpoint> input) {
@@ -153,7 +152,6 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
           }
         });
   }
-
 
   @Override
   public void close() throws Exception {

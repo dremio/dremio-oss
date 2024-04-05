@@ -33,5 +33,4 @@ public class StoreException extends IOException {
   public StoreException(String message, Throwable cause) {
     super(message, cause);
   }
-
 }

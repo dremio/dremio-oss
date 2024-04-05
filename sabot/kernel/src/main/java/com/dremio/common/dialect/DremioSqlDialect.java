@@ -15,10 +15,16 @@
  */
 package com.dremio.common.dialect;
 
+import com.dremio.common.dialect.arp.transformer.CallTransformer;
+import com.dremio.common.dialect.arp.transformer.NoOpTransformer;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.rel2sql.DremioRelToSqlConverter;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
+import com.dremio.exec.planner.sql.ParserConfig;
+import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
-
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.rel.RelCollations;
@@ -52,49 +58,43 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.common.dialect.arp.transformer.CallTransformer;
-import com.dremio.common.dialect.arp.transformer.NoOpTransformer;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.common.rel2sql.DremioRelToSqlConverter;
-import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
-import com.dremio.exec.planner.sql.ParserConfig;
-import com.dremio.exec.planner.sql.SqlFunctionImpl;
-
 /**
- * DremioSqlDialect is an extension of Calcite's SqlDialect with
- * additional translation features and an optional dedicated DremioRelToSqlConverter.
+ * DremioSqlDialect is an extension of Calcite's SqlDialect with additional translation features and
+ * an optional dedicated DremioRelToSqlConverter.
  */
 public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
 
-  public static final DremioSqlDialect CALCITE = new DremioSqlDialect(
-    DatabaseProduct.CALCITE.name(),
-    "\"",
-    NullCollation.HIGH);
+  public static final DremioSqlDialect CALCITE =
+      new DremioSqlDialect(DatabaseProduct.CALCITE.name(), "\"", NullCollation.HIGH);
 
-  public static final DremioSqlDialect HIVE = new DremioSqlDialect(
-    DatabaseProduct.HIVE.name(),
-    "`",
-    NullCollation.HIGH);
+  public static final DremioSqlDialect HIVE =
+      new DremioSqlDialect(DatabaseProduct.HIVE.name(), "`", NullCollation.HIGH);
 
-  public static final DremioSqlDialect DEFAULT = new DremioSqlDialect(
-    DatabaseProduct.CALCITE.name(),
-    ParserConfig.QUOTING.string,
-    NullCollation.HIGH
-  );
+  public static final DremioSqlDialect DEFAULT =
+      new DremioSqlDialect(
+          DatabaseProduct.CALCITE.name(), ParserConfig.QUOTING.string, NullCollation.HIGH);
 
   // Custom functions
   private static final SqlFunction PI_FUNCTION =
-    new SqlFunction("PI", SqlKind.OTHER_FUNCTION, ReturnTypes.DOUBLE,
-      InferTypes.FIRST_KNOWN, OperandTypes.NILADIC, SqlFunctionCategory.NUMERIC);
+      new SqlFunction(
+          "PI",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.DOUBLE,
+          InferTypes.FIRST_KNOWN,
+          OperandTypes.NILADIC,
+          SqlFunctionCategory.NUMERIC);
 
-  protected static final SqlFunction DATEDIFF = new SqlFunction(
-    "DATEDIFF", SqlStdOperatorTable.TIMESTAMP_DIFF.getKind(),
-    SqlStdOperatorTable.TIMESTAMP_DIFF.getReturnTypeInference(),
-    SqlStdOperatorTable.TIMESTAMP_DIFF.getOperandTypeInference(),
-    SqlStdOperatorTable.TIMESTAMP_DIFF.getOperandTypeChecker(),
-    SqlStdOperatorTable.TIMESTAMP_DIFF.getFunctionType());
+  protected static final SqlFunction DATEDIFF =
+      new SqlFunction(
+          "DATEDIFF",
+          SqlStdOperatorTable.TIMESTAMP_DIFF.getKind(),
+          SqlStdOperatorTable.TIMESTAMP_DIFF.getReturnTypeInference(),
+          SqlStdOperatorTable.TIMESTAMP_DIFF.getOperandTypeInference(),
+          SqlStdOperatorTable.TIMESTAMP_DIFF.getOperandTypeChecker(),
+          SqlStdOperatorTable.TIMESTAMP_DIFF.getFunctionType());
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioSqlDialect.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioSqlDialect.class);
 
   protected final String databaseName;
 
@@ -112,10 +112,13 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     UNSUPPORTED
   }
 
-  protected DremioSqlDialect(String databaseProductName,
-                             String identifierQuoteString,
-                             NullCollation nullCollation) {
-    super(getDbProduct(databaseProductName), databaseProductName, identifierQuoteString, nullCollation);
+  protected DremioSqlDialect(
+      String databaseProductName, String identifierQuoteString, NullCollation nullCollation) {
+    super(
+        getDbProduct(databaseProductName),
+        databaseProductName,
+        identifierQuoteString,
+        nullCollation);
     this.databaseName = databaseProductName.toUpperCase(Locale.ROOT);
   }
 
@@ -135,10 +138,13 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   @Override
-  public boolean supportsFunction(SqlOperator operator, RelDataType type, List<RelDataType> paramTypes) {
+  public boolean supportsFunction(
+      SqlOperator operator, RelDataType type, List<RelDataType> paramTypes) {
     // Non-ARP dialects do not allow UDFs but do allow everything else
-    // We need to change this check to enumerate all the supported functions (similar to the base class)
-    return !(operator instanceof SqlFunctionImpl) && !operator.getName().toUpperCase().startsWith("CONVERT_");
+    // We need to change this check to enumerate all the supported functions (similar to the base
+    // class)
+    return !(operator instanceof SqlFunctionImpl)
+        && !operator.getName().toUpperCase().startsWith("CONVERT_");
   }
 
   @Override
@@ -151,13 +157,15 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     // Translate the PI function call to PI()
     if (call.getOperator() == SqlStdOperatorTable.PI) {
       super.unparseCall(
-        writer,
-        PI_FUNCTION.createCall(new SqlNodeList(call.getOperandList(), SqlParserPos.ZERO)),
-        leftPrec, rightPrec);
+          writer,
+          PI_FUNCTION.createCall(new SqlNodeList(call.getOperandList(), SqlParserPos.ZERO)),
+          leftPrec,
+          rightPrec);
     } else if (call.getOperator().equals(DremioSqlOperatorTable.E)) {
       // Translate the E() function call to EXP(1)
-      final SqlCall newCall = SqlStdOperatorTable.EXP.createCall(
-        SqlParserPos.ZERO, SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO));
+      final SqlCall newCall =
+          SqlStdOperatorTable.EXP.createCall(
+              SqlParserPos.ZERO, SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO));
       super.unparseCall(writer, newCall, leftPrec, rightPrec);
     } else if (call.getKind() == SqlKind.JOIN) {
       this.unparseJoin(writer, (SqlJoin) call, leftPrec, rightPrec);
@@ -217,13 +225,16 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
-   * Indicates if the given operator, which takes in a time unit literal, is supported with
-   * the given time unit.
-   * <p>
-   * The operands parameter includes the TimeUnit itself.
+   * Indicates if the given operator, which takes in a time unit literal, is supported with the
+   * given time unit.
+   *
+   * <p>The operands parameter includes the TimeUnit itself.
    */
-  public boolean supportsTimeUnitFunction(SqlOperator operator, TimeUnitRange timeUnit, RelDataType returnType,
-                                          List<RelDataType> paramTypes) {
+  public boolean supportsTimeUnitFunction(
+      SqlOperator operator,
+      TimeUnitRange timeUnit,
+      RelDataType returnType,
+      List<RelDataType> paramTypes) {
     return supportsFunction(operator, returnType, paramTypes);
   }
 
@@ -236,8 +247,8 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
-   * Get the name of the dummy table used to implement a select on VALUES query.
-   * If null, just use a VALUES statement.
+   * Get the name of the dummy table used to implement a select on VALUES query. If null, just use a
+   * VALUES statement.
    */
   public String getValuesDummyTable() {
     return null;
@@ -271,8 +282,8 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
-   * Gets the SqlCollation node that should applied to string columns that is specific to this
-   * data source.
+   * Gets the SqlCollation node that should applied to string columns that is specific to this data
+   * source.
    *
    * @param kind The type of SqlNode the collation would get applied to.
    */
@@ -301,7 +312,7 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
    * Indicates if the dialect supports sort.
    *
    * @param isCollationEmpty Indicates if the collation used by the Sort is empty.
-   * @param isOffsetEmpty    Indicates if the OFFSET is empty.
+   * @param isOffsetEmpty Indicates if the OFFSET is empty.
    * @return True if sort is supported with the given conditions. False otherwise.
    */
   public boolean supportsSort(boolean isCollationEmpty, boolean isOffsetEmpty) {
@@ -312,23 +323,17 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     return true;
   }
 
-  /**
-   * Indicates if the dialect supports the given join type.
-   */
+  /** Indicates if the dialect supports the given join type. */
   public boolean supportsJoin(JoinType type) {
     return true;
   }
 
-  /**
-   * Generates dialect-specific syntax for a join.
-   */
+  /** Generates dialect-specific syntax for a join. */
   public void unparseJoin(SqlWriter writer, SqlJoin join, int leftPrec, int rightPrec) {
     super.unparseCall(writer, join, leftPrec, rightPrec);
   }
 
-  /**
-   * Indicates if character data is automatically trimmed of trailing space in the data source.
-   */
+  /** Indicates if character data is automatically trimmed of trailing space in the data source. */
   public boolean requiresTrimOnChars() {
     return false;
   }
@@ -354,38 +359,37 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
-   * Time values within results have any provided timezone information removed
-   * while keeping the value the same. For instance 1pm PST is turned into 1pm
-   * UTC. This is useful for any driver that is sending the correct UTC time
-   * value, however the time zone is the default for the system.
+   * Time values within results have any provided timezone information removed while keeping the
+   * value the same. For instance 1pm PST is turned into 1pm UTC. This is useful for any driver that
+   * is sending the correct UTC time value, however the time zone is the default for the system.
    */
   public boolean coerceTimesToUTC() {
     return false;
   }
 
   /**
-   * Timestamp values within results have any provided timezone information
-   * removed while keeping the value the same. For instance 1pm PST is turned into
-   * 1pm UTC. This is useful for any driver that is sending the correct UTC time
-   * value, however the time zone is the default for the system.
+   * Timestamp values within results have any provided timezone information removed while keeping
+   * the value the same. For instance 1pm PST is turned into 1pm UTC. This is useful for any driver
+   * that is sending the correct UTC time value, however the time zone is the default for the
+   * system.
    */
   public boolean coerceTimestampsToUTC() {
     return false;
   }
 
   /**
-   * Date values within results may have a timezone offset without properly adjusting
-   * the hourly values, resulting in dates that are incorrect for comparisons and
-   * differences although appearing correct through the UI. This setting accounts for
-   * this and readjusts the value to be correct, effectively cancelling out the timezone.
+   * Date values within results may have a timezone offset without properly adjusting the hourly
+   * values, resulting in dates that are incorrect for comparisons and differences although
+   * appearing correct through the UI. This setting accounts for this and readjusts the value to be
+   * correct, effectively cancelling out the timezone.
    */
   public boolean adjustDateTimezone() {
     return false;
   }
 
   /**
-   * Determine if the supplied Dremio-specific datetime format string can be supported by the RDBMS by mapping it to
-   * the RDBMS specific format string.
+   * Determine if the supplied Dremio-specific datetime format string can be supported by the RDBMS
+   * by mapping it to the RDBMS specific format string.
    *
    * @param dateTimeFormatStr The Dremio datetime format string to check support for.
    * @return True if the datetime format string can be fully mapped to the RDBMS format string.
@@ -395,8 +399,8 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
-   * Determine if the supplied Dremio-specific numeric format string can be supported by the RDBMS by mapping it to
-   * the RDBMS specific format string.
+   * Determine if the supplied Dremio-specific numeric format string can be supported by the RDBMS
+   * by mapping it to the RDBMS specific format string.
    *
    * @param numericFormatStr The Dremio numeric format string to check support for.
    * @return True if the numeric format string can be fully mapped to the RDBMS format string.
@@ -406,8 +410,8 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
-   * Determine if the supplied Dremio-specific regex string can be supported by the RDBMS by mapping it to
-   * the RDBMS specific regex string.
+   * Determine if the supplied Dremio-specific regex string can be supported by the RDBMS by mapping
+   * it to the RDBMS specific regex string.
    *
    * @param regex The Dremio regex string to check support for.
    * @return True if the regex string can be fully mapped to the RDBMS regex string.
@@ -417,37 +421,35 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
-   * Indicates if the window frames Calcite automatically generates should be removed
-   * in OVER clauses.
+   * Indicates if the window frames Calcite automatically generates should be removed in OVER
+   * clauses.
    */
   public boolean removeDefaultWindowFrame(RexOver over) {
     return true;
   }
 
-  /**
-   * Dialect callback when a new SqlNode has been created based on a RexNode.
-   */
+  /** Dialect callback when a new SqlNode has been created based on a RexNode. */
   public SqlNode decorateSqlNode(RexNode rexNode, Supplier<SqlNode> defaultNodeSupplier) {
     return defaultNodeSupplier.get();
   }
 
   /**
-   * Dialect callback when a new SqlNode has been created based on an AggregateCall and its parameters.
+   * Dialect callback when a new SqlNode has been created based on an AggregateCall and its
+   * parameters.
    */
-  public SqlNode decorateSqlNode(AggregateCall aggCall, Supplier<List<RelDataType>> argTypes, Supplier<SqlNode> defaultNodeSupplier) {
+  public SqlNode decorateSqlNode(
+      AggregateCall aggCall,
+      Supplier<List<RelDataType>> argTypes,
+      Supplier<SqlNode> defaultNodeSupplier) {
     return defaultNodeSupplier.get();
   }
 
-  /**
-   * Gets a transformer to adjust the given RexCall
-   */
+  /** Gets a transformer to adjust the given RexCall */
   public CallTransformer getCallTransformer(RexCall call) {
     return NoOpTransformer.INSTANCE;
   }
 
-  /**
-   * Gets a transformer to adjust the given RexCall
-   */
+  /** Gets a transformer to adjust the given RexCall */
   public CallTransformer getCallTransformer(SqlOperator op) {
     return NoOpTransformer.INSTANCE;
   }
@@ -455,11 +457,13 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   /**
    * Determines if the input node has a boolean literal or a call that returns booleans.
    *
-   * @param node                    The node to explore.
-   * @param rexCallCanReturnBoolean Indicates that the node is permitted to have a child which is a call that returns a boolean.
+   * @param node The node to explore.
+   * @param rexCallCanReturnBoolean Indicates that the node is permitted to have a child which is a
+   *     call that returns a boolean.
    * @return
    */
-  public boolean hasBooleanLiteralOrRexCallReturnsBoolean(RexNode node, boolean rexCallCanReturnBoolean) {
+  public boolean hasBooleanLiteralOrRexCallReturnsBoolean(
+      RexNode node, boolean rexCallCanReturnBoolean) {
     final SqlTypeName nodeDataType = node.getType().getSqlTypeName();
     if (node instanceof RexLiteral) {
       final boolean toReturn = nodeDataType == SqlTypeName.BOOLEAN;
@@ -474,7 +478,7 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     if (node instanceof RexCall) {
       final RexCall call = (RexCall) node;
       if (nodeDataType == SqlTypeName.BOOLEAN
-        && (!rexCallCanReturnBoolean || call.getOperator().getKind() == SqlKind.CAST)) {
+          && (!rexCallCanReturnBoolean || call.getOperator().getKind() == SqlKind.CAST)) {
         logger.debug("RexCall returns boolean, {}", node);
         return true;
       }
@@ -496,9 +500,7 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     return false;
   }
 
-  /**
-   * Get the limit on the length of an identifier for this dialect.
-   */
+  /** Get the limit on the length of an identifier for this dialect. */
   public Integer getIdentifierLengthLimit() {
     return null;
   }
@@ -511,12 +513,16 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     return ContainerSupport.AUTO_DETECT;
   }
 
-  protected static SqlNode getVarcharWithPrecision(DremioSqlDialect dialect, RelDataType type, int precision) {
+  protected static SqlNode getVarcharWithPrecision(
+      DremioSqlDialect dialect, RelDataType type, int precision) {
     return new SqlDataTypeSpec(
-      new SqlBasicTypeNameSpec(type.getSqlTypeName(), precision,
-      type.getCharset() != null && dialect.supportsCharSet()
-        ? type.getCharset().name() : null,
-      SqlParserPos.ZERO),
-      SqlParserPos.ZERO);
+        new SqlBasicTypeNameSpec(
+            type.getSqlTypeName(),
+            precision,
+            type.getCharset() != null && dialect.supportsCharSet()
+                ? type.getCharset().name()
+                : null,
+            SqlParserPos.ZERO),
+        SqlParserPos.ZERO);
   }
 }

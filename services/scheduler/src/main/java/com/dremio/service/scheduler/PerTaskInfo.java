@@ -17,9 +17,8 @@ package com.dremio.service.scheduler;
 
 /**
  * Common Information about a task used by the per task recovery monitor and per task done handler
- * <p>
- * Used internally only
- * </p>
+ *
+ * <p>Used internally only
  */
 interface PerTaskInfo extends PerTaskSchedule {
   // fully qualified booking path for the task

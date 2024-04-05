@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.util;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.proto.UserBitShared;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Test functions in SchemaPath
- */
+/** Test functions in SchemaPath */
 public class TestSchemaPath extends ExecTest {
 
   @Test
@@ -59,5 +56,4 @@ public class TestSchemaPath extends ExecTest {
     SchemaPath simplePath = SchemaPath.create(aPart.build());
     Assert.assertTrue(simplePath.toDotString().equalsIgnoreCase("a.b.list.element.c"));
   }
-
 }

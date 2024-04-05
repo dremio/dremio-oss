@@ -17,9 +17,6 @@ package com.dremio.common.logical.data;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import java.util.Iterator;
-import java.util.List;
-
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
@@ -28,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import java.util.Iterator;
+import java.util.List;
 
 @JsonTypeName("window")
 public class Window extends SingleInputOperator {
@@ -37,13 +36,13 @@ public class Window extends SingleInputOperator {
   private final long start;
   private final long end;
 
-
   @JsonCreator
-  public Window(@JsonProperty("withins") List<NamedExpression> withins,
-                @JsonProperty("aggregations") List<NamedExpression> aggregations,
-                @JsonProperty("orderings") List<Order.Ordering> orderings,
-                @JsonProperty("start") Long start,
-                @JsonProperty("end") Long end) {
+  public Window(
+      @JsonProperty("withins") List<NamedExpression> withins,
+      @JsonProperty("aggregations") List<NamedExpression> aggregations,
+      @JsonProperty("orderings") List<Order.Ordering> orderings,
+      @JsonProperty("start") Long start,
+      @JsonProperty("end") Long end) {
     super();
     this.withins = withins;
     this.start = start == null ? Long.MIN_VALUE : start;
@@ -73,7 +72,8 @@ public class Window extends SingleInputOperator {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(LogicalVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitWindow(this, value);
   }
 
@@ -82,15 +82,14 @@ public class Window extends SingleInputOperator {
     return Iterators.singletonIterator(getInput());
   }
 
-  public static class Builder extends AbstractSingleBuilder<Window, Builder>{
+  public static class Builder extends AbstractSingleBuilder<Window, Builder> {
     private List<NamedExpression> aggregations = Lists.newArrayList();
     private List<NamedExpression> withins = Lists.newArrayList();
     private List<Order.Ordering> orderings = Lists.newArrayList();
     private long start = Long.MIN_VALUE;
     private long end = Long.MIN_VALUE;
 
-
-    public Builder addAggregation(FieldReference ref, LogicalExpression expr){
+    public Builder addAggregation(FieldReference ref, LogicalExpression expr) {
       aggregations.add(new NamedExpression(expr, ref));
       return this;
     }
@@ -102,7 +101,7 @@ public class Window extends SingleInputOperator {
 
     @Override
     public Window internalBuild() {
-      //TODO withins can actually be empty: over(), over(order by <expression>), ...
+      // TODO withins can actually be empty: over(), over(order by <expression>), ...
       checkState(!withins.isEmpty(), "Withins in window must not be empty.");
       checkState(!aggregations.isEmpty(), "Aggregations in window must not be empty.");
       return new Window(withins, aggregations, orderings, start, end);

@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import java.util.Arrays;
-
-import org.apache.calcite.avatica.util.Casing;
-import org.apache.calcite.sql.SqlJdbcFunctionCall;
-import org.apache.calcite.sql.parser.SqlAbstractParserImpl.Metadata;
-import org.apache.calcite.sql.parser.SqlParser;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -51,70 +44,84 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
+import org.apache.calcite.avatica.util.Casing;
+import org.apache.calcite.sql.SqlJdbcFunctionCall;
+import org.apache.calcite.sql.parser.SqlAbstractParserImpl.Metadata;
+import org.apache.calcite.sql.parser.SqlParser;
 
-/**
- * Contains worker {@link Runnable} for returning server meta information
- */
+/** Contains worker {@link Runnable} for returning server meta information */
 public class ServerMetaProvider {
-  private static final ImmutableList<MinorType> DRILL10_DECIMAL_TYPES = ImmutableList.of(
-      MinorType.DECIMAL9, MinorType.DECIMAL18,
-      MinorType.DECIMAL28DENSE, MinorType.DECIMAL28SPARSE,
-      MinorType.DECIMAL38DENSE, MinorType.DECIMAL38SPARSE);
+  private static final ImmutableList<MinorType> DRILL10_DECIMAL_TYPES =
+      ImmutableList.of(
+          MinorType.DECIMAL9, MinorType.DECIMAL18,
+          MinorType.DECIMAL28DENSE, MinorType.DECIMAL28SPARSE,
+          MinorType.DECIMAL38DENSE, MinorType.DECIMAL38SPARSE);
 
   // to advertise support for 2-argument LOCATE(...) function
   private static final String LOCATE_2 = "LOCATE_2";
 
-  private static final ServerMeta DEFAULT = ServerMeta.newBuilder()
-      .addAllConvertSupport(getSupportedConvertOps())
-      .addAllDateTimeFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getTimeDateFunctions()))
-      .addAllDateTimeLiteralsSupport(Arrays.asList(DateTimeLiteralsSupport.values()))
-      .addAllNumericFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getNumericFunctions()))
-      .addAllOrderBySupport(Arrays.asList(OrderBySupport.OB_UNRELATED, OrderBySupport.OB_EXPRESSION))
-      .addAllOuterJoinSupport(Arrays.asList(OuterJoinSupport.OJ_LEFT, OuterJoinSupport.OJ_RIGHT,
-          OuterJoinSupport.OJ_FULL))
-      .addAllStringFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getStringFunctions()))
-      .addStringFunctions(LOCATE_2)
-      .addAllSystemFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getSystemFunctions()))
-      .addAllSubquerySupport(Arrays.asList(SubQuerySupport.SQ_CORRELATED, SubQuerySupport.SQ_IN_COMPARISON,
-          SubQuerySupport.SQ_IN_EXISTS, SubQuerySupport.SQ_IN_QUANTIFIED))
-      .addAllUnionSupport(Arrays.asList(UnionSupport.U_UNION, UnionSupport.U_UNION_ALL))
-      .setAllTablesSelectable(false)
-      .setBlobIncludedInMaxRowSize(true)
-      .setCatalogAtStart(true)
-      .setCatalogSeparator(".")
-      .setCatalogTerm("catalog")
-      .setColumnAliasingSupported(true)
-      .setNullPlusNonNullEqualsNull(true)
-      .setCorrelationNamesSupport(CorrelationNamesSupport.CN_ANY)
-      .setReadOnly(false)
-      .setGroupBySupport(GroupBySupport.GB_UNRELATED)
-      .setLikeEscapeClauseSupported(true)
-      .setNullCollation(NullCollation.NC_HIGH)
-      .setSchemaTerm("schema")
-      .setSearchEscapeString("\\")
-      .setTableTerm("table")
-      .build();
+  private static final ServerMeta DEFAULT =
+      ServerMeta.newBuilder()
+          .addAllConvertSupport(getSupportedConvertOps())
+          .addAllDateTimeFunctions(
+              Splitter.on(",").split(SqlJdbcFunctionCall.getTimeDateFunctions()))
+          .addAllDateTimeLiteralsSupport(Arrays.asList(DateTimeLiteralsSupport.values()))
+          .addAllNumericFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getNumericFunctions()))
+          .addAllOrderBySupport(
+              Arrays.asList(OrderBySupport.OB_UNRELATED, OrderBySupport.OB_EXPRESSION))
+          .addAllOuterJoinSupport(
+              Arrays.asList(
+                  OuterJoinSupport.OJ_LEFT, OuterJoinSupport.OJ_RIGHT, OuterJoinSupport.OJ_FULL))
+          .addAllStringFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getStringFunctions()))
+          .addStringFunctions(LOCATE_2)
+          .addAllSystemFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getSystemFunctions()))
+          .addAllSubquerySupport(
+              Arrays.asList(
+                  SubQuerySupport.SQ_CORRELATED,
+                  SubQuerySupport.SQ_IN_COMPARISON,
+                  SubQuerySupport.SQ_IN_EXISTS,
+                  SubQuerySupport.SQ_IN_QUANTIFIED))
+          .addAllUnionSupport(Arrays.asList(UnionSupport.U_UNION, UnionSupport.U_UNION_ALL))
+          .setAllTablesSelectable(false)
+          .setBlobIncludedInMaxRowSize(true)
+          .setCatalogAtStart(true)
+          .setCatalogSeparator(".")
+          .setCatalogTerm("catalog")
+          .setColumnAliasingSupported(true)
+          .setNullPlusNonNullEqualsNull(true)
+          .setCorrelationNamesSupport(CorrelationNamesSupport.CN_ANY)
+          .setReadOnly(false)
+          .setGroupBySupport(GroupBySupport.GB_UNRELATED)
+          .setLikeEscapeClauseSupported(true)
+          .setNullCollation(NullCollation.NC_HIGH)
+          .setSchemaTerm("schema")
+          .setSearchEscapeString("\\")
+          .setTableTerm("table")
+          .build();
 
-  private static final ServerMeta DRILL_1_0_DEFAULT = ServerMeta.newBuilder(DEFAULT)
-      .clearConvertSupport()
-      .addAllConvertSupport(getDrill10SupportedConvertOps())
-      .build();
+  private static final ServerMeta DRILL_1_0_DEFAULT =
+      ServerMeta.newBuilder(DEFAULT)
+          .clearConvertSupport()
+          .addAllConvertSupport(getDrill10SupportedConvertOps())
+          .build();
 
-  private static final ServerMeta DEFAULT_WITHOUT_MAP = ServerMeta.newBuilder(DEFAULT)
-    .clearConvertSupport()
-    .addAllConvertSupport(getSupportedConvertOpsWithoutMap())
-    .build();
+  private static final ServerMeta DEFAULT_WITHOUT_MAP =
+      ServerMeta.newBuilder(DEFAULT)
+          .clearConvertSupport()
+          .addAllConvertSupport(getSupportedConvertOpsWithoutMap())
+          .build();
 
   private static Iterable<ConvertSupport> getSupportedConvertOpsWithoutMap() {
     // A set would be more appropriate but it's not possible to produce
     // duplicates, and an iterable is all we need.
     ImmutableList.Builder<ConvertSupport> supportedConvertedOps = ImmutableList.builder();
 
-    for(MinorType from: MinorType.values()) {
+    for (MinorType from : MinorType.values()) {
       if (from == MinorType.MAP) {
         continue;
       }
-      for(MinorType to: MinorType.values()) {
+      for (MinorType to : MinorType.values()) {
         if (to == MinorType.MAP) {
           continue;
         }
@@ -126,14 +133,13 @@ public class ServerMetaProvider {
     return supportedConvertedOps.build();
   }
 
-
   private static final Iterable<ConvertSupport> getSupportedConvertOps() {
     // A set would be more appropriate but it's not possible to produce
     // duplicates, and an iterable is all we need.
     ImmutableList.Builder<ConvertSupport> supportedConvertedOps = ImmutableList.builder();
 
-    for(MinorType from: MinorType.values()) {
-      for(MinorType to: MinorType.values()) {
+    for (MinorType from : MinorType.values()) {
+      for (MinorType to : MinorType.values()) {
         if (TypeCastRules.isCastable(from, to)) {
           supportedConvertedOps.add(ConvertSupport.newBuilder().setFrom(from).setTo(to).build());
         }
@@ -148,11 +154,11 @@ public class ServerMetaProvider {
     // duplicates, and an iterable is all we need.
     ImmutableList.Builder<ConvertSupport> supportedConvertedOps = ImmutableList.builder();
 
-    for(MinorType from: MinorType.values()) {
+    for (MinorType from : MinorType.values()) {
       if (from == MinorType.MAP) {
         continue;
       }
-      for(MinorType to: MinorType.values()) {
+      for (MinorType to : MinorType.values()) {
         if (to == MinorType.MAP) {
           continue;
         }
@@ -169,14 +175,16 @@ public class ServerMetaProvider {
     return supportedConvertedOps.build();
   }
 
-
-
-  private static final void addDrill10DecimalConvertOps(ImmutableList.Builder<ConvertSupport> builder, MinorType from, MinorType to) {
+  private static final void addDrill10DecimalConvertOps(
+      ImmutableList.Builder<ConvertSupport> builder, MinorType from, MinorType to) {
     ImmutableList.Builder<ConvertSupport> supportedConvertedOps = ImmutableList.builder();
 
-    for(MinorType newFrom: from == MinorType.DECIMAL ? DRILL10_DECIMAL_TYPES : ImmutableList.of(from)) {
-      for(MinorType newTo: to == MinorType.DECIMAL ? DRILL10_DECIMAL_TYPES : ImmutableList.of(to)) {
-        supportedConvertedOps.add(ConvertSupport.newBuilder().setFrom(newFrom).setTo(newTo).build());
+    for (MinorType newFrom :
+        from == MinorType.DECIMAL ? DRILL10_DECIMAL_TYPES : ImmutableList.of(from)) {
+      for (MinorType newTo :
+          to == MinorType.DECIMAL ? DRILL10_DECIMAL_TYPES : ImmutableList.of(to)) {
+        supportedConvertedOps.add(
+            ConvertSupport.newBuilder().setFrom(newFrom).setTo(newTo).build());
       }
     }
   }
@@ -194,15 +202,13 @@ public class ServerMetaProvider {
       respBuilder.setError(MetadataProvider.createPBError("get server meta", ex));
       return respBuilder.build();
     }
-
   }
 
-  /**
-   * Super class for all metadata provider runnable classes.
-   */
+  /** Super class for all metadata provider runnable classes. */
   public static class ServerMetaCommandRunner implements CommandRunner<GetServerMetaResp> {
     @SuppressWarnings("unused")
     private final GetServerMetaReq req;
+
     private final QueryId queryId;
     private final UserSession session;
     private final SabotContext dContext;
@@ -216,7 +222,6 @@ public class ServerMetaProvider {
       this.session = Preconditions.checkNotNull(session);
       this.dContext = Preconditions.checkNotNull(dContext);
       this.req = Preconditions.checkNotNull(req);
-
     }
 
     @Override
@@ -243,24 +248,28 @@ public class ServerMetaProvider {
     public GetServerMetaResp execute() throws Exception {
       final GetServerMetaResp.Builder respBuilder = GetServerMetaResp.newBuilder();
       final ServerMeta.Builder metaBuilder = getMetaDataBuilder(session.getRecordBatchFormat());
-      PlannerSettings plannerSettings = new PlannerSettings(dContext.getConfig(),
-        session.getOptions(), () -> dContext.getClusterResourceInformation());
+      PlannerSettings plannerSettings =
+          new PlannerSettings(
+              dContext.getConfig(),
+              session.getOptions(),
+              () -> dContext.getClusterResourceInformation());
 
       ParserConfig config = ParserConfig.newInstance(session, plannerSettings);
 
       int identifierMaxLength = config.identifierMaxLength();
       Metadata metadata = SqlParser.create("", config).getMetadata();
       metaBuilder
-        .setMaxCatalogNameLength(identifierMaxLength)
-        .setMaxColumnNameLength(identifierMaxLength)
-        .setMaxCursorNameLength(identifierMaxLength)
-        .setMaxSchemaNameLength(identifierMaxLength)
-        .setMaxTableNameLength(identifierMaxLength)
-        .setMaxUserNameLength(identifierMaxLength)
-        .setIdentifierQuoteString(config.quoting().string)
-        .setIdentifierCasing(getIdentifierCasing(config.unquotedCasing(), config.caseSensitive()))
-        .setQuotedIdentifierCasing(getIdentifierCasing(config.quotedCasing(), config.caseSensitive()))
-        .addAllSqlKeywords(Splitter.on(",").split(metadata.getJdbcKeywords()));
+          .setMaxCatalogNameLength(identifierMaxLength)
+          .setMaxColumnNameLength(identifierMaxLength)
+          .setMaxCursorNameLength(identifierMaxLength)
+          .setMaxSchemaNameLength(identifierMaxLength)
+          .setMaxTableNameLength(identifierMaxLength)
+          .setMaxUserNameLength(identifierMaxLength)
+          .setIdentifierQuoteString(config.quoting().string)
+          .setIdentifierCasing(getIdentifierCasing(config.unquotedCasing(), config.caseSensitive()))
+          .setQuotedIdentifierCasing(
+              getIdentifierCasing(config.quotedCasing(), config.caseSensitive()))
+          .addAllSqlKeywords(Splitter.on(",").split(metadata.getJdbcKeywords()));
       respBuilder.setServerMeta(metaBuilder);
       respBuilder.setStatus(RequestStatus.OK);
       respBuilder.setQueryId(queryId);
@@ -268,7 +277,7 @@ public class ServerMetaProvider {
     }
 
     private ServerMeta.Builder getMetaDataBuilder(RecordBatchFormat recordBatchFormat) {
-      switch (recordBatchFormat){
+      switch (recordBatchFormat) {
         case UNKNOWN:
         case DREMIO_0_9:
         case DREMIO_1_4:
@@ -282,18 +291,20 @@ public class ServerMetaProvider {
     }
 
     public static IdentifierCasing getIdentifierCasing(Casing casing, boolean caseSensitive) {
-      switch(casing) {
-      case TO_LOWER:
-        return IdentifierCasing.IC_STORES_LOWER;
+      switch (casing) {
+        case TO_LOWER:
+          return IdentifierCasing.IC_STORES_LOWER;
 
-      case TO_UPPER:
-        return IdentifierCasing.IC_STORES_UPPER;
+        case TO_UPPER:
+          return IdentifierCasing.IC_STORES_UPPER;
 
-      case UNCHANGED:
-        return caseSensitive ? IdentifierCasing.IC_SUPPORTS_MIXED : IdentifierCasing.IC_STORES_MIXED;
+        case UNCHANGED:
+          return caseSensitive
+              ? IdentifierCasing.IC_SUPPORTS_MIXED
+              : IdentifierCasing.IC_STORES_MIXED;
 
-      default:
-        throw new AssertionError("Unknown casing:" + casing);
+        default:
+          throw new AssertionError("Unknown casing:" + casing);
       }
     }
   }

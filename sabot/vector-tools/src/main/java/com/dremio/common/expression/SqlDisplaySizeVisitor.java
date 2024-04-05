@@ -37,7 +37,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Timestamp;
 import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 
-public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer>{
+public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer> {
 
   @Override
   public Integer visit(Null paramNull) {
@@ -61,23 +61,31 @@ public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer>{
 
   @Override
   public Integer visit(Int paramInt) {
-    switch(paramInt.getBitWidth()){
-    case 8:         return 4; // sign + 3 digit
-    case 16:        return 6; // sign + 5 digits
-    case 32:        return 11; // sign + 10 digits
-    case 64:        return 20; // sign + 19 digits
-    default:
-      throw new IllegalStateException("Unknown int width " + paramInt.getBitWidth());
+    switch (paramInt.getBitWidth()) {
+      case 8:
+        return 4; // sign + 3 digit
+      case 16:
+        return 6; // sign + 5 digits
+      case 32:
+        return 11; // sign + 10 digits
+      case 64:
+        return 20; // sign + 19 digits
+      default:
+        throw new IllegalStateException("Unknown int width " + paramInt.getBitWidth());
     }
   }
 
   @Override
   public Integer visit(FloatingPoint paramFloatingPoint) {
-    switch(paramFloatingPoint.getPrecision()){
-    case SINGLE: return 14; // sign + 7 digits + decimal point + E + 2 digits
-    case DOUBLE: return 24; // sign + 15 digits + decimal point + E + 3 digits
-    default:
-      throw new IllegalStateException("unable to report width for floating point of width " + paramFloatingPoint.getPrecision());
+    switch (paramFloatingPoint.getPrecision()) {
+      case SINGLE:
+        return 14; // sign + 7 digits + decimal point + E + 2 digits
+      case DOUBLE:
+        return 24; // sign + 15 digits + decimal point + E + 3 digits
+      default:
+        throw new IllegalStateException(
+            "unable to report width for floating point of width "
+                + paramFloatingPoint.getPrecision());
     }
   }
 
@@ -118,11 +126,14 @@ public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer>{
 
   @Override
   public Integer visit(Interval paramInterval) {
-    switch(paramInterval.getUnit()){
-    case DAY_TIME: return 0;
-    case YEAR_MONTH: return 0;
-    default:
-      throw new IllegalStateException("unable to determine width for interval with unit " + paramInterval.getUnit());
+    switch (paramInterval.getUnit()) {
+      case DAY_TIME:
+        return 0;
+      case YEAR_MONTH:
+        return 0;
+      default:
+        throw new IllegalStateException(
+            "unable to determine width for interval with unit " + paramInterval.getUnit());
     }
   }
 
@@ -160,5 +171,4 @@ public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer>{
   public Integer visit(ArrowType.Map paramMap) {
     return 0;
   }
-
 }

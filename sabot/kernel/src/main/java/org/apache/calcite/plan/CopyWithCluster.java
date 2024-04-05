@@ -15,10 +15,18 @@
  */
 package org.apache.calcite.plan;
 
+import com.dremio.common.VM;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.logical.RelOptTableWrapper;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import javax.annotation.Nullable;
-
 import org.apache.calcite.prepare.RelOptTableImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -46,61 +54,57 @@ import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 
-import com.dremio.common.VM;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.logical.RelOptTableWrapper;
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 /**
- * RelNode visitor that copies the nodes to the target cluster. Useful when replacing a materialized view
- * that was initially expanded using a planner A to a plan for planner B
+ * RelNode visitor that copies the nodes to the target cluster. Useful when replacing a materialized
+ * view that was initially expanded using a planner A to a plan for planner B
  */
 public class CopyWithCluster extends StatelessRelShuttleImpl {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CopyWithCluster.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CopyWithCluster.class);
 
-  private final Function<AggregateCall, AggregateCall> COPY_AGG_CALL = new Function<AggregateCall, AggregateCall>() {
-    @Override
-    public AggregateCall apply(AggregateCall input) {
-      return copyOf(input);
-    }
-  };
+  private final Function<AggregateCall, AggregateCall> COPY_AGG_CALL =
+      new Function<AggregateCall, AggregateCall>() {
+        @Override
+        public AggregateCall apply(AggregateCall input) {
+          return copyOf(input);
+        }
+      };
 
-  private final Function<RexNode, RexNode> COPY_REX_NODE = new Function<RexNode, RexNode>() {
-    @Override
-    public RexNode apply(RexNode input) {
-      return copyOf(input);
-    }
-  };
+  private final Function<RexNode, RexNode> COPY_REX_NODE =
+      new Function<RexNode, RexNode>() {
+        @Override
+        public RexNode apply(RexNode input) {
+          return copyOf(input);
+        }
+      };
 
-  private final Function<RexLiteral, RexLiteral> COPY_REX_LITERAL = new Function<RexLiteral, RexLiteral>() {
-    @Override
-    public RexLiteral apply(RexLiteral input) {
-      return (RexLiteral) copyOf(input);
-    }
-  };
+  private final Function<RexLiteral, RexLiteral> COPY_REX_LITERAL =
+      new Function<RexLiteral, RexLiteral>() {
+        @Override
+        public RexLiteral apply(RexLiteral input) {
+          return (RexLiteral) copyOf(input);
+        }
+      };
 
-  private final Function<RexLocalRef, RexLocalRef> COPY_REX_LOCAL_REF = new Function<RexLocalRef, RexLocalRef>() {
-    @Nullable
-    @Override
-    public RexLocalRef apply(@Nullable RexLocalRef input) {
-      // Note: RexCopier throws an UnsupportedException if we try to copy a RexLocalRef, so the assumption for now
-      // is that we'll never hit this in practice
-      return input == null ? null : (RexLocalRef) copyOf(input);
-    }
-  };
+  private final Function<RexLocalRef, RexLocalRef> COPY_REX_LOCAL_REF =
+      new Function<RexLocalRef, RexLocalRef>() {
+        @Nullable
+        @Override
+        public RexLocalRef apply(@Nullable RexLocalRef input) {
+          // Note: RexCopier throws an UnsupportedException if we try to copy a RexLocalRef, so the
+          // assumption for now
+          // is that we'll never hit this in practice
+          return input == null ? null : (RexLocalRef) copyOf(input);
+        }
+      };
 
-  private final Function<RelNode, RelNode> VISIT_REL_NODE = new Function<RelNode, RelNode>() {
-    @Override
-    public RelNode apply(RelNode input) {
-      return input.accept(CopyWithCluster.this);
-    }
-  };
+  private final Function<RelNode, RelNode> VISIT_REL_NODE =
+      new Function<RelNode, RelNode>() {
+        @Override
+        public RelNode apply(RelNode input) {
+          return input.accept(CopyWithCluster.this);
+        }
+      };
 
   private final RelOptCluster cluster;
 
@@ -115,7 +119,8 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
   }
 
   /**
-   * If assertions are enabled and any of the visited RelNodes was not copied, throw an UNSUPPORTED UserException
+   * If assertions are enabled and any of the visited RelNodes was not copied, throw an UNSUPPORTED
+   * UserException
    */
   public void validate() {
     if (!notSupportedRels.isEmpty()) {
@@ -151,10 +156,7 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
   public RelOptTable copyOf(RelOptTable table) {
     if (table instanceof RelOptTableWrapper) {
       final RelOptTableWrapper wrapper = (RelOptTableWrapper) table;
-      return new RelOptTableWrapper(
-        wrapper.getQualifiedName(),
-        copyOf(wrapper.getRelOptTable())
-      );
+      return new RelOptTableWrapper(wrapper.getQualifiedName(), copyOf(wrapper.getRelOptTable()));
     } else if (table instanceof RelOptTableImpl) {
       final RelOptTableImpl impl = (RelOptTableImpl) table;
       return impl.copy(copyOf(impl.getRowType())); // this won't copy the RelOptSchema
@@ -169,15 +171,15 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
 
   public RexProgram copyOf(RexProgram program) {
     return new RexProgram(
-      copyOf(program.getInputRowType()),
-      copyRexNodes(program.getExprList()),
-      Lists.transform(program.getProjectList(), COPY_REX_LOCAL_REF),
-      (RexLocalRef) copyOf(program.getCondition()),
-      copyOf(program.getOutputRowType())
-    );
+        copyOf(program.getInputRowType()),
+        copyRexNodes(program.getExprList()),
+        Lists.transform(program.getProjectList(), COPY_REX_LOCAL_REF),
+        (RexLocalRef) copyOf(program.getCondition()),
+        copyOf(program.getOutputRowType()));
   }
 
-  public ImmutableList<ImmutableList<RexLiteral>> copyOf(ImmutableList<ImmutableList<RexLiteral>> tuples) {
+  public ImmutableList<ImmutableList<RexLiteral>> copyOf(
+      ImmutableList<ImmutableList<RexLiteral>> tuples) {
     ImmutableList.Builder<ImmutableList<RexLiteral>> copied = ImmutableList.builder();
     for (ImmutableList<RexLiteral> literals : tuples) {
       copied.add(ImmutableList.copyOf(Iterables.transform(literals, COPY_REX_LITERAL)));
@@ -191,81 +193,77 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
 
   private AggregateCall copyOf(AggregateCall call) {
     return AggregateCall.create(
-      call.getAggregation(), // doesn't look we need to copy this
-      call.isDistinct(),
-      call.getArgList(),
-      call.filterArg,
-      copyOf(call.getType()),
-      call.getName());
+        call.getAggregation(), // doesn't look we need to copy this
+        call.isDistinct(),
+        call.getArgList(),
+        call.filterArg,
+        copyOf(call.getType()),
+        call.getName());
   }
 
   @Override
   public RelNode visit(LogicalAggregate aggregate) {
     final RelNode input = aggregate.getInput().accept(this);
     return new LogicalAggregate(
-      cluster,
-      copyOf(aggregate.getTraitSet()),
-      input,
-      aggregate.getGroupSet(),
-      aggregate.getGroupSets(),
-      copyOf(aggregate.getAggCallList())
-    );
+        cluster,
+        copyOf(aggregate.getTraitSet()),
+        input,
+        aggregate.getGroupSet(),
+        aggregate.getGroupSets(),
+        copyOf(aggregate.getAggCallList()));
   }
 
   @Override
   public RelNode visit(LogicalValues values) {
 
     return new LogicalValues(
-      cluster,
-      copyOf(values.getTraitSet()),
-      copyOf(values.getRowType()),
-      copyOf(values.getTuples())
-    );
+        cluster,
+        copyOf(values.getTraitSet()),
+        copyOf(values.getRowType()),
+        copyOf(values.getTuples()));
   }
 
   @Override
   public RelNode visit(LogicalFilter filter) {
     final RelNode input = filter.getInput().accept(this);
     return new LogicalFilter(
-      cluster,
-      copyOf(filter.getTraitSet()),
-      input,
-      copyOf(filter.getCondition()),
-      ImmutableSet.copyOf(filter.getVariablesSet())
-    );
+        cluster,
+        copyOf(filter.getTraitSet()),
+        input,
+        copyOf(filter.getCondition()),
+        ImmutableSet.copyOf(filter.getVariablesSet()));
   }
 
   @Override
   public RelNode visit(LogicalProject project) {
     final RelNode input = project.getInput().accept(this);
     return new LogicalProject(
-      cluster,
-      copyOf(project.getTraitSet()),
-      input,
-      Lists.transform(project.getProjects(), COPY_REX_NODE),
-      copyOf(project.getRowType())
-    );
+        cluster,
+        copyOf(project.getTraitSet()),
+        input,
+        Lists.transform(project.getProjects(), COPY_REX_NODE),
+        copyOf(project.getRowType()));
   }
 
   @Override
   public RelNode visit(LogicalJoin join) {
     // to the best of my knowledge join.systemFieldList is always empty
-    Preconditions.checkState(join.getSystemFieldList().isEmpty(), "join.systemFieldList is not empty!");
+    Preconditions.checkState(
+        join.getSystemFieldList().isEmpty(), "join.systemFieldList is not empty!");
 
     final RelNode left = join.getLeft().accept(this);
     final RelNode right = join.getRight().accept(this);
 
     return new LogicalJoin(
-      cluster,
-      copyOf(join.getTraitSet()),
-      left,
-      right,
-      copyOf(join.getCondition()),
-      join.getVariablesSet(),
-      join.getJoinType(),
-      join.isSemiJoinDone(),
-      ImmutableList.<RelDataTypeField>of()
-    );
+        cluster,
+        copyOf(join.getTraitSet()),
+        left,
+        right,
+        copyOf(join.getCondition()),
+        join.getVariablesSet(),
+        join.getJoinType(),
+        join.isSemiJoinDone(),
+        ImmutableList.<RelDataTypeField>of());
   }
 
   @Override
@@ -274,55 +272,37 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
     final RelNode right = correlate.getRight().accept(this);
 
     return new LogicalCorrelate(
-      cluster,
-      copyOf(correlate.getTraitSet()),
-      left,
-      right,
-      correlate.getCorrelationId(),
-      correlate.getRequiredColumns(),
-      correlate.getJoinType()
-    );
+        cluster,
+        copyOf(correlate.getTraitSet()),
+        left,
+        right,
+        correlate.getCorrelationId(),
+        correlate.getRequiredColumns(),
+        correlate.getJoinType());
   }
 
   @Override
   public RelNode visit(LogicalUnion union) {
     return new LogicalUnion(
-      cluster,
-      copyOf(union.getTraitSet()),
-      visitAll(union.getInputs()),
-      union.all
-    );
+        cluster, copyOf(union.getTraitSet()), visitAll(union.getInputs()), union.all);
   }
 
   @Override
   public RelNode visit(LogicalIntersect intersect) {
     return new LogicalIntersect(
-      cluster,
-      copyOf(intersect.getTraitSet()),
-      visitAll(intersect.getInputs()),
-      intersect.all
-    );
+        cluster, copyOf(intersect.getTraitSet()), visitAll(intersect.getInputs()), intersect.all);
   }
 
   @Override
   public RelNode visit(LogicalMinus minus) {
     return new LogicalMinus(
-      cluster,
-      copyOf(minus.getTraitSet()),
-      visitAll(minus.getInputs()),
-      minus.all
-    );
+        cluster, copyOf(minus.getTraitSet()), visitAll(minus.getInputs()), minus.all);
   }
 
   @Override
   public RelNode visit(LogicalSort sort) {
     final RelNode input = sort.getInput().accept(this);
-    return LogicalSort.create(
-      input,
-      sort.getCollation(),
-      copyOf(sort.offset),
-      copyOf(sort.fetch)
-    );
+    return LogicalSort.create(input, sort.getCollation(), copyOf(sort.offset), copyOf(sort.fetch));
   }
 
   @Override
@@ -334,33 +314,27 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
   private RelNode copyOf(LogicalWindow window) {
     final RelNode input = window.getInput().accept(this);
     return new LogicalWindow(
-      cluster,
-      copyOf(window.getTraitSet()),
-      input,
-      Lists.transform(window.constants, COPY_REX_LITERAL),
-      copyOf(window.getRowType()),
-      window.groups
-    );
+        cluster,
+        copyOf(window.getTraitSet()),
+        input,
+        Lists.transform(window.constants, COPY_REX_LITERAL),
+        copyOf(window.getRowType()),
+        window.groups);
   }
 
   private RelNode copyOf(LogicalTableScan rel) {
-    return new LogicalTableScan(
-      cluster,
-      copyOf(rel.getTraitSet()),
-      rel.getTable()
-    );
+    return new LogicalTableScan(cluster, copyOf(rel.getTraitSet()), rel.getTable());
   }
 
   private RelNode copyOf(LogicalTableFunctionScan rel) {
     return new LogicalTableFunctionScan(
-      cluster,
-      copyOf(rel.getTraitSet()),
-      visitAll(rel.getInputs()),
-      copyOf(rel.getCall()),
-      rel.getElementType(),
-      copyOf(rel.getRowType()),
-      rel.getColumnMappings()
-    );
+        cluster,
+        copyOf(rel.getTraitSet()),
+        visitAll(rel.getInputs()),
+        copyOf(rel.getCall()),
+        rel.getElementType(),
+        copyOf(rel.getRowType()),
+        rel.getColumnMappings());
   }
 
   @Override

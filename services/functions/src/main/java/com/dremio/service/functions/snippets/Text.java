@@ -20,7 +20,7 @@ import java.util.Optional;
 /**
  * A text in the VSCode Snippet:
  *
- * https://code.visualstudio.com/docs/editor/userdefinedsnippets
+ * <p>https://code.visualstudio.com/docs/editor/userdefinedsnippets
  */
 public final class Text extends SnippetElement {
   private final String value;

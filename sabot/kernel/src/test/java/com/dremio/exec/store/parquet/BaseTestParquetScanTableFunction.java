@@ -20,16 +20,6 @@ import static com.dremio.sabot.RecordSet.st;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Before;
-import org.mockito.Mock;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.exec.catalog.MutablePlugin;
@@ -55,15 +45,22 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
 import io.protostuff.ByteStringUtil;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Before;
+import org.mockito.Mock;
 
 public class BaseTestParquetScanTableFunction extends BaseTestTableFunction {
 
   protected FileSystem fs;
-  @Mock
-  protected StoragePluginId pluginId;
+  @Mock protected StoragePluginId pluginId;
+
   @Mock(extraInterfaces = {SupportsIcebergRootPointer.class, SupportsInternalIcebergTable.class})
   protected MutablePlugin plugin;
 
@@ -74,14 +71,22 @@ public class BaseTestParquetScanTableFunction extends BaseTestTableFunction {
     SupportsIcebergRootPointer sirp = (SupportsIcebergRootPointer) plugin;
     when(sirp.createFSWithAsyncOptions(any(), any(), any())).thenReturn(fs);
     SupportsInternalIcebergTable siit = (SupportsInternalIcebergTable) plugin;
-    when(siit.createScanTableFunction(any(), any(), any(), any())).thenAnswer(i ->
-        new ParquetScanTableFunction(i.getArgument(0), i.getArgument(1), i.getArgument(2), i.getArgument(3)));
+    when(siit.createScanTableFunction(any(), any(), any(), any()))
+        .thenAnswer(
+            i ->
+                new ParquetScanTableFunction(
+                    i.getArgument(0), i.getArgument(1), i.getArgument(2), i.getArgument(3)));
     when(pluginId.getName()).thenReturn("testplugin");
   }
 
-  protected RecordSet.Record inputRow(String path, long offset, long length,
-      PartitionProtobuf.NormalizedPartitionInfo partitionInfo, List<DeleteFileInfo> deleteFiles,
-      ByteString extendedProps) throws Exception {
+  protected RecordSet.Record inputRow(
+      String path,
+      long offset,
+      long length,
+      PartitionProtobuf.NormalizedPartitionInfo partitionInfo,
+      List<DeleteFileInfo> deleteFiles,
+      ByteString extendedProps)
+      throws Exception {
     long fileSize = fs.getFileAttributes(Path.of(path)).size();
     if (length == -1) {
       length = fileSize;
@@ -91,18 +96,18 @@ public class BaseTestParquetScanTableFunction extends BaseTestTableFunction {
         createSplitInformation(path, offset, length, fileSize, 0, partitionInfo),
         extendedProps.toByteArray(),
         deleteFiles.stream()
-            .map(info -> st(
-                info.getPath(),
-                info.getContent().id(),
-                info.getRecordCount(),
-                info.getEqualityIds()))
+            .map(
+                info ->
+                    st(
+                        info.getPath(),
+                        info.getContent().id(),
+                        info.getRecordCount(),
+                        info.getEqualityIds()))
             .collect(Collectors.toList()));
   }
 
   protected TableFunctionPOP getPopForParquet(
-      BatchSchema fullSchema,
-      List<SchemaPath> columns,
-      List<String> partitionColumns) {
+      BatchSchema fullSchema, List<SchemaPath> columns, List<String> partitionColumns) {
     BatchSchema projectedSchema = fullSchema.maskAndReorder(columns);
     return new TableFunctionPOP(
         PROPS,
@@ -121,7 +126,6 @@ public class BaseTestParquetScanTableFunction extends BaseTestTableFunction {
                 null,
                 columns,
                 partitionColumns,
-                null,
                 null,
                 false,
                 false,
@@ -153,7 +157,6 @@ public class BaseTestParquetScanTableFunction extends BaseTestTableFunction {
                 null,
                 columns,
                 partitionColumns,
-                null,
                 extendedProps,
                 false,
                 false,
@@ -175,11 +178,13 @@ public class BaseTestParquetScanTableFunction extends BaseTestTableFunction {
   }
 
   protected static ByteString getExtendedProperties(BatchSchema schema) {
-    IcebergProtobuf.IcebergDatasetXAttr.Builder builder = IcebergProtobuf.IcebergDatasetXAttr.newBuilder();
+    IcebergProtobuf.IcebergDatasetXAttr.Builder builder =
+        IcebergProtobuf.IcebergDatasetXAttr.newBuilder();
     for (int i = 0; i < schema.getFields().size(); i++) {
-      builder.addColumnIds(IcebergProtobuf.IcebergSchemaField.newBuilder()
-          .setSchemaPath(schema.getFields().get(i).getName())
-          .setId(i + 1));
+      builder.addColumnIds(
+          IcebergProtobuf.IcebergSchemaField.newBuilder()
+              .setSchemaPath(schema.getFields().get(i).getName())
+              .setId(i + 1));
     }
     return toProtostuff(builder.build()::writeTo);
   }
@@ -194,20 +199,29 @@ public class BaseTestParquetScanTableFunction extends BaseTestTableFunction {
     }
   }
 
-  protected static byte[] createSplitInformation(String path, long offset, long length, long fileSize, long mtime,
-      PartitionProtobuf.NormalizedPartitionInfo partitionInfo) throws Exception {
-    ParquetProtobuf.ParquetBlockBasedSplitXAttr splitExtended = ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
-        .setPath(path)
-        .setStart(offset)
-        .setLength(length)
-        .setFileLength(fileSize)
-        .setLastModificationTime(mtime)
-        .build();
+  protected static byte[] createSplitInformation(
+      String path,
+      long offset,
+      long length,
+      long fileSize,
+      long mtime,
+      PartitionProtobuf.NormalizedPartitionInfo partitionInfo)
+      throws Exception {
+    ParquetProtobuf.ParquetBlockBasedSplitXAttr splitExtended =
+        ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
+            .setPath(path)
+            .setStart(offset)
+            .setLength(length)
+            .setFileLength(fileSize)
+            .setLastModificationTime(mtime)
+            .build();
 
-    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
-        .setPartitionId(partitionInfo.getId())
-        .setExtendedProperty(splitExtended.toByteString());
+    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo =
+        PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
+            .setPartitionId(partitionInfo.getId())
+            .setExtendedProperty(splitExtended.toByteString());
 
-    return IcebergSerDe.serializeToByteArray(new SplitAndPartitionInfo(partitionInfo, splitInfo.build()));
+    return IcebergSerDe.serializeToByteArray(
+        new SplitAndPartitionInfo(partitionInfo, splitInfo.build()));
   }
 }

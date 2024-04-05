@@ -29,7 +29,7 @@ describe("tokenUtils", () => {
         "colA",
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const simpleIdentifier = parser.simpleIdentifier();
       expect(getText(simpleIdentifier)).toEqual({
@@ -50,7 +50,7 @@ describe("tokenUtils", () => {
         '"col-A"',
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const simpleIdentifier = parser.simpleIdentifier();
       expect(getText(simpleIdentifier)).toEqual({
@@ -71,7 +71,7 @@ describe("tokenUtils", () => {
         "SELECT",
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const select = parser.sqlSelect();
       const terminal = select.getToken(LiveEditParser.SELECT, 0);
@@ -86,7 +86,7 @@ describe("tokenUtils", () => {
         '"@dremio"',
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const simpleIdentifier = parser.simpleIdentifier();
       const terminal = simpleIdentifier
@@ -103,7 +103,7 @@ describe("tokenUtils", () => {
         "",
         undefined,
         undefined,
-        true
+        true,
       ).getParser();
       const eof = parser.simpleIdentifier();
       expect(getText(eof)).toEqual({
@@ -119,7 +119,7 @@ describe("tokenUtils", () => {
       const { commonTokenStream } = getAutocompleteParseTree(query);
       expect(commonTokenStream.get(2).type).toEqual(LiveEditParser.STAR);
       expect(getPriorToken(commonTokenStream, 2)?.type).toEqual(
-        LiveEditParser.SELECT
+        LiveEditParser.SELECT,
       );
     });
 

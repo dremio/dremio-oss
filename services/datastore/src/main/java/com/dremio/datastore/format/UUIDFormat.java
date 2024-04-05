@@ -15,10 +15,9 @@
  */
 package com.dremio.datastore.format;
 
-import java.util.UUID;
-
 import com.dremio.datastore.DatastoreFatalException;
 import com.dremio.datastore.FormatVisitor;
+import java.util.UUID;
 
 final class UUIDFormat implements Format<UUID> {
 
@@ -28,9 +27,7 @@ final class UUIDFormat implements Format<UUID> {
     return INSTANCE;
   }
 
-  private UUIDFormat() {
-
-  }
+  private UUIDFormat() {}
 
   @Override
   public Class<UUID> getRepresentedClass() {

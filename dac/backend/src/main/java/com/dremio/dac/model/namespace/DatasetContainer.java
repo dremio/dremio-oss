@@ -24,10 +24,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 /**
  * Interface for models that can contain datasets.
  *
- * Currently:
- * - Spaces can contain virtual datasets
- * - Home Spaces can contain virtual and uploaded physical datasets
- * - Sources can contain only physical datasets
+ * <p>Currently: - Spaces can contain virtual datasets - Home Spaces can contain virtual and
+ * uploaded physical datasets - Sources can contain only physical datasets
  */
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -36,12 +34,14 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     // to serialize into different concrete types
     property = "datasetContainerType")
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = Space.class, name = "space"),
-    @JsonSubTypes.Type(value = SourceUI.class, name = "source"),
-    @JsonSubTypes.Type(value = Home.class, name = "home"),
+  @JsonSubTypes.Type(value = Space.class, name = "space"),
+  @JsonSubTypes.Type(value = SourceUI.class, name = "source"),
+  @JsonSubTypes.Type(value = Home.class, name = "home"),
 })
 public interface DatasetContainer {
   String getName();
+
   Long getCtime();
+
   String getDescription();
 }

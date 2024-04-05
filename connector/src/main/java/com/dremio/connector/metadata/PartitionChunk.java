@@ -20,9 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Interface for a connector to provide details about a partition. TODO: add what this is
- */
+/** Interface for a connector to provide details about a partition. TODO: add what this is */
 public interface PartitionChunk {
 
   /**
@@ -42,8 +40,8 @@ public interface PartitionChunk {
   long getSplitCount();
 
   /**
-   * Returns a new listing of dataset splits in the partition chunk. There must be one or more dataset splits in a
-   * partition chunk.
+   * Returns a new listing of dataset splits in the partition chunk. There must be one or more
+   * dataset splits in a partition chunk.
    *
    * @return listing of dataset splits, not null
    */
@@ -51,9 +49,9 @@ public interface PartitionChunk {
 
   /**
    * Get any additional information about the partition chunk.
-   * <p>
-   * This will be provided by the catalog to other modules that request the catalog about the partition chunk, so any
-   * custom state could be returned.
+   *
+   * <p>This will be provided by the catalog to other modules that request the catalog about the
+   * partition chunk, so any custom state could be returned.
    *
    * @return extra information, not null
    */
@@ -85,7 +83,7 @@ public interface PartitionChunk {
    * Create {@code PartitionChunk}.
    *
    * @param datasetSplits dataset splits
-   * @param extraInfo     extra information
+   * @param extraInfo extra information
    * @return partition chunk
    */
   static PartitionChunk of(List<DatasetSplit> datasetSplits, BytesOutput extraInfo) {
@@ -96,7 +94,7 @@ public interface PartitionChunk {
    * Create {@code PartitionChunk}.
    *
    * @param partitionValues partition values
-   * @param datasetSplits   dataset splits
+   * @param datasetSplits dataset splits
    * @return partition chunk
    */
   static PartitionChunk of(List<PartitionValue> partitionValues, List<DatasetSplit> datasetSplits) {
@@ -107,15 +105,14 @@ public interface PartitionChunk {
    * Create {@code PartitionChunk}.
    *
    * @param partitionValues partition values
-   * @param datasetSplits   dataset splits
-   * @param extraInfo       extra information
+   * @param datasetSplits dataset splits
+   * @param extraInfo extra information
    * @return partition chunk
    */
   static PartitionChunk of(
       List<PartitionValue> partitionValues,
       List<DatasetSplit> datasetSplits,
-      BytesOutput extraInfo
-  ) {
+      BytesOutput extraInfo) {
     Objects.requireNonNull(partitionValues, "partition values is required");
     Objects.requireNonNull(datasetSplits, "dataset splits is required");
     Objects.requireNonNull(extraInfo, "extra info is required");

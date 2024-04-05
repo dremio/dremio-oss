@@ -15,27 +15,26 @@
  */
 package com.dremio.provision;
 
+import com.dremio.provision.ExecutorLogsProvider.ExecutorLogMetadata;
+import com.dremio.provision.service.ProvisioningHandlingException;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.function.Supplier;
 
-import com.dremio.provision.ExecutorLogsProvider.ExecutorLogMetadata;
-import com.dremio.provision.service.ProvisioningHandlingException;
-
-/**
- * Interface to provide implementations for different container log
- */
+/** Interface to provide implementations for different container log */
 public interface ExecutorLogsProvider extends Supplier<ExecutorLogMetadata> {
 
   /**
    * Get clusterType API
+   *
    * @return {@link ClusterType}
    */
   ClusterType getType();
 
   /**
    * prepare the executor logs download and return the number of files and errors
+   *
    * @param cluster Cluster identification of the set of executors
    * @param executorsAddr addresses of executors that we will get log from
    * @param outputDir directory of the output file
@@ -44,14 +43,18 @@ public interface ExecutorLogsProvider extends Supplier<ExecutorLogMetadata> {
    * @return number of executor log files and errors
    * @throws ProvisioningHandlingException if failed to get info from Resource Manager
    */
-  int prepareExecutorLogsDownload(Cluster cluster, Collection<String> executorsAddr,
-                             Path outputDir, long startTime, long endTime) throws ProvisioningHandlingException;
+  int prepareExecutorLogsDownload(
+      Cluster cluster,
+      Collection<String> executorsAddr,
+      Path outputDir,
+      long startTime,
+      long endTime)
+      throws ProvisioningHandlingException;
 
   /**
-   * Store info about requesting an executor log and
-   * either a resulting File or an Exception with error message if fails.
-   * Use the stored info to communicate with QueryLogBundleService and
-   * help QueryLogBundleService generate metadata file.
+   * Store info about requesting an executor log and either a resulting File or an Exception with
+   * error message if fails. Use the stored info to communicate with QueryLogBundleService and help
+   * QueryLogBundleService generate metadata file.
    */
   final class ExecutorLogMetadata {
     private final Object logLocator;
@@ -59,7 +62,8 @@ public interface ExecutorLogsProvider extends Supplier<ExecutorLogMetadata> {
     private final String errorMessage;
     private final Exception exception;
 
-    public ExecutorLogMetadata(Object logLocator, File outputFile, String errorMessage, Exception exception) {
+    public ExecutorLogMetadata(
+        Object logLocator, File outputFile, String errorMessage, Exception exception) {
       this.logLocator = logLocator;
       if (outputFile != null) {
         this.outputFile = new File(outputFile.getAbsolutePath());
@@ -90,5 +94,4 @@ public interface ExecutorLogsProvider extends Supplier<ExecutorLogMetadata> {
       return errorMessage != null || exception != null;
     }
   }
-
 }

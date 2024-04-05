@@ -17,6 +17,15 @@
 .overflow-auto {
   overflow: auto;
 }
+.overflow-visible {
+  overflow: visible !important;
+}
 .overflow-hidden {
   overflow: hidden;
+}
+.overflow-y-auto {
+  overflow-y: auto;
+}
+.overflow-x-auto {
+  overflow-x: auto;
 }

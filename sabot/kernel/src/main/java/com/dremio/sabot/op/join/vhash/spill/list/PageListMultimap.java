@@ -15,6 +15,13 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.list;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.dremio.sabot.op.join.vhash.spill.pool.Page;
+import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -23,48 +30,48 @@ import java.util.Spliterators;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
 import org.apache.arrow.memory.ArrowBuf;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.AutoCloseables.RollbackCloseable;
-import com.dremio.sabot.op.join.vhash.spill.pool.Page;
-import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
-
 /**
- * <p>This is akin to an off-heap LinkedListMultimap where the backing memory is a collection of equal-sized Pages
- * and the lists are populated backwards.
+ * This is akin to an off-heap LinkedListMultimap where the backing memory is a collection of
+ * equal-sized Pages and the lists are populated backwards.
  *
- * <p>The more complete structure could be thought of as a LinkedListMultimap<int, element> where an element
- * has the following layout of <b>rr bbbb ee nnnn pppp</b> (16 bytes) where each item is defined as:
+ * <p>The more complete structure could be thought of as a LinkedListMultimap<int, element> where an
+ * element has the following layout of <b>rr bbbb ee nnnn pppp</b> (16 bytes) where each item is
+ * defined as:
  * <li>rr - short recordIndex (index of record within the batch)
  * <li>bbbb - int batchId (index of the batch in the hyper-vector)
  * <li>ee - short empty
  * <li>nnnn - int next (index of next entry in the linked list)
  * <li>pppp - int key (in practice, it's ordinal in the hash-table)
  *
- * <p>The key is a positive integer. It should be dense from zero since the structure uses memory for all
- * values between the provided key and zero. It can be up to one less than the maximum positive value of an integer
- * since the maximum positive value is a sentinel value meaning no link.
+ *     <p>The key is a positive integer. It should be dense from zero since the structure uses
+ *     memory for all values between the provided key and zero. It can be up to one less than the
+ *     maximum positive value of an integer since the maximum positive value is a sentinel value
+ *     meaning no link.
  *
- * <p>This structure has three states:
+ *     <p>This structure has three states:
  * <li>BUILD: A structure we can insert into (this is the initial state)
  * <li>READ A readable collection of lists. (Can only be entered from BUILD state)
- * <li>CLOSED - All memory released and no longer functional (can be entered from either other state)
+ * <li>CLOSED - All memory released and no longer functional (can be entered from either other
+ *     state)
  *
- * <p>The structure is built of the following items:
+ *     <p>The structure is built of the following items:
  * <li>A list of heads for each key in a set of pages.
  * <li>A shared list holding structure which contains elements for all lists
  *
- * <p>The lists are stored in reverse order so we don't have to traverse the list every time we add a new item to it.
+ *     <p>The lists are stored in reverse order so we don't have to traverse the list every time we
+ *     add a new item to it.
  */
 public class PageListMultimap implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PageListMultimap.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PageListMultimap.class);
 
-  enum State {BUILD, READ, CLOSED}
+  enum State {
+    BUILD,
+    READ,
+    CLOSED
+  }
 
   // contains :
   // - start index into elements (4B)
@@ -155,8 +162,7 @@ public class PageListMultimap implements AutoCloseable {
   }
 
   static long getCarryAlongId(int batchId, int recordIndex) {
-    Preconditions.checkArgument(recordIndex <= 0x0000ffff,
-      "batch size should be <= 0x0000ffff");
+    Preconditions.checkArgument(recordIndex <= 0x0000ffff, "batch size should be <= 0x0000ffff");
     return (((long) batchId) << 16) | recordIndex;
   }
 
@@ -166,7 +172,7 @@ public class PageListMultimap implements AutoCloseable {
 
   public static int getRecordIndexFromLong(long carryAlongId) {
     // truncate the least significant 16 bytes of data.
-    return Short.toUnsignedInt((short)(carryAlongId & 0x0000FFFF));
+    return Short.toUnsignedInt((short) (carryAlongId & 0x0000FFFF));
   }
 
   ArrowBuf[] getHeadBufs() {
@@ -213,14 +219,23 @@ public class PageListMultimap implements AutoCloseable {
     Preconditions.checkArgument(state == State.BUILD);
     Preconditions.checkArgument(key >= 0);
     expandIfNecessary(1, key);
-    insertElement(key, getHeadBufs(), headShift, headMask, getElementBufs(), elementShift, elementMask, totalListSize, carryAlongId);
+    insertElement(
+        key,
+        getHeadBufs(),
+        headShift,
+        headMask,
+        getElementBufs(),
+        elementShift,
+        elementMask,
+        totalListSize,
+        carryAlongId);
     maxInsertedKey = Integer.max(maxInsertedKey, key);
     totalListSize++;
   }
 
   private void expandIfNecessary(int recordCount, int maximumKeyValue) {
-    if (elements.size() * elementsPerPage >= totalListSize + recordCount &&
-        heads.size() * headsPerPage >= maximumKeyValue + 1) {
+    if (elements.size() * elementsPerPage >= totalListSize + recordCount
+        && heads.size() * headsPerPage >= maximumKeyValue + 1) {
       // fast-path
       return;
     }
@@ -228,11 +243,13 @@ public class PageListMultimap implements AutoCloseable {
     try (RollbackCloseable c = new RollbackCloseable()) {
       // add element page (16 bytes per element)
       List<Page> localElementPages = new ArrayList<>();
-      while ((elements.size() + localElementPages.size()) * elementsPerPage < totalListSize + recordCount) {
+      while ((elements.size() + localElementPages.size()) * elementsPerPage
+          < totalListSize + recordCount) {
         Page p = c.add(pool.newPage());
         localElementPages.add(p);
 
-        // we don't need to initialize this memory since we always set the next pointer when inserting data.
+        // we don't need to initialize this memory since we always set the next pointer when
+        // inserting data.
       }
 
       // add head pointer page (4 bytes per pointer)
@@ -241,7 +258,7 @@ public class PageListMultimap implements AutoCloseable {
         final Page p = c.add(pool.newPage());
         localHeadPages.add(p);
         final ArrowBuf buf = p.getBackingBuf();
-        for(int bufOffset = 0; bufOffset < headsPerPage * HEAD_SIZE; bufOffset += HEAD_SIZE) {
+        for (int bufOffset = 0; bufOffset < headsPerPage * HEAD_SIZE; bufOffset += HEAD_SIZE) {
           buf.setInt(bufOffset, TERMINAL);
         }
       }
@@ -250,18 +267,10 @@ public class PageListMultimap implements AutoCloseable {
       elements.addAll(localElementPages);
       c.commit();
 
-      headBufs = heads.stream()
-        .map(Page::getBackingBuf)
-        .toArray(ArrowBuf[]::new);
-      elementBufs = elements.stream()
-        .map(Page::getBackingBuf)
-        .toArray(ArrowBuf[]::new);
-      headBufAddrs = heads.stream()
-        .mapToLong(Page::getAddress)
-        .toArray();
-      elementBufAddrs = elements.stream()
-        .mapToLong(Page::getAddress)
-        .toArray();
+      headBufs = heads.stream().map(Page::getBackingBuf).toArray(ArrowBuf[]::new);
+      elementBufs = elements.stream().map(Page::getBackingBuf).toArray(ArrowBuf[]::new);
+      headBufAddrs = heads.stream().mapToLong(Page::getAddress).toArray();
+      elementBufAddrs = elements.stream().mapToLong(Page::getAddress).toArray();
     } catch (RuntimeException ex) {
       throw ex;
     } catch (Exception ex) {
@@ -269,19 +278,17 @@ public class PageListMultimap implements AutoCloseable {
     }
   }
 
-  /**
-   * Insert a single element into a list.
-   */
+  /** Insert a single element into a list. */
   private static void insertElement(
-    final int key,
-    final ArrowBuf[] headBufs,
-    final int headShift,
-    final int headMask,
-    final ArrowBuf[] elementBufs,
-    final int elementShift,
-    final int elementMask,
-    final int listIndex,
-    final long carryAlongLocation) {
+      final int key,
+      final ArrowBuf[] headBufs,
+      final int headShift,
+      final int headMask,
+      final ArrowBuf[] elementBufs,
+      final int elementShift,
+      final int elementMask,
+      final int listIndex,
+      final long carryAlongLocation) {
     // get the head corresponding to the key.
     final int headPageIdx = key >>> headShift;
     final long headOffsetInPage = (key & headMask) * HEAD_SIZE;
@@ -299,12 +306,11 @@ public class PageListMultimap implements AutoCloseable {
     thisElementBuf.setLong(thisElementOffsetInPage, carryAlongLocation);
     thisElementBuf.setInt(thisElementOffsetInPage + NEXT_OFFSET, oldHead);
     thisElementBuf.setInt(thisElementOffsetInPage + KEY_OFFSET, key);
-
-    logger.trace("insert key {} index {} next {}", key, listIndex, oldHead);
   }
 
   /**
    * Insert a collection of items for a given batchId.
+   *
    * @param keysIn buffer with collection of four byte keys
    * @param maxKeyValue The maximum value of the key
    * @param batchId The incoming batch id
@@ -329,7 +335,16 @@ public class PageListMultimap implements AutoCloseable {
       final int key = keysIn.getInt(currentRecordIdx * KEY_SIZE);
       Preconditions.checkArgument(key <= maxKeyValue && key >= 0);
       Preconditions.checkState(listIndex < TERMINAL);
-      insertElement(key, headBufs, headShift, headMask, elementBufs, elementShift, elementMask, listIndex, carryAlongId);
+      insertElement(
+          key,
+          headBufs,
+          headShift,
+          headMask,
+          elementBufs,
+          elementShift,
+          elementMask,
+          listIndex,
+          carryAlongId);
     }
 
     maxInsertedKey = Integer.max(maxInsertedKey, maxKeyValue);
@@ -337,7 +352,10 @@ public class PageListMultimap implements AutoCloseable {
   }
 
   public void moveToRead() {
-    Preconditions.checkArgument(state == State.BUILD, "Must be in BUILD state to start reading. Currently in %s state.", state);
+    Preconditions.checkArgument(
+        state == State.BUILD,
+        "Must be in BUILD state to start reading. Currently in %s state.",
+        state);
     state = State.READ;
   }
 
@@ -347,15 +365,18 @@ public class PageListMultimap implements AutoCloseable {
 
   /**
    * Iterator for all the elements for specified key.
+   *
    * @param key
    * @return stream of values, each value is long of batchIdx, recordIndex
    */
   @VisibleForTesting
   public LongStream find(int key) {
-    Preconditions.checkArgument(state == State.READ, "Must be in READ state to read. Currently in a %s state.", state);
+    Preconditions.checkArgument(
+        state == State.READ, "Must be in READ state to read. Currently in a %s state.", state);
     Preconditions.checkArgument(key >= 0, "Key must be greater than or equal to zero.");
     if (key > maxInsertedKey) {
-      throw new ArrayIndexOutOfBoundsException(String.format("Key requested %d greater than max inserted key %d.", key, maxInsertedKey));
+      throw new ArrayIndexOutOfBoundsException(
+          String.format("Key requested %d greater than max inserted key %d.", key, maxInsertedKey));
     }
     final int head = headBufs[key >>> headShift].getInt(HEAD_SIZE * (key & headMask));
     final FindIterator iterator = new FindIterator(key, head);
@@ -364,11 +385,13 @@ public class PageListMultimap implements AutoCloseable {
 
   /**
    * Iterator for all the unvisited elements in the list.
+   *
    * @return stream of values
    */
   @VisibleForTesting
   public Stream<KeyAndCarryAlongId> findUnvisited() {
-    Preconditions.checkArgument(state == State.READ, "Must be in READ state to read. Currently in a %s state.", state);
+    Preconditions.checkArgument(
+        state == State.READ, "Must be in READ state to read. Currently in a %s state.", state);
     Preconditions.checkState(trackVisited, "Must have trackVisited set to true");
 
     return StreamSupport.stream(Spliterators.spliterator(new FindUnvisitedIterator(), 5, 0), false);
@@ -376,12 +399,15 @@ public class PageListMultimap implements AutoCloseable {
 
   /**
    * Array view for all the elements in the list.
+   *
    * @return array view
    */
   @VisibleForTesting
   public ArrayOfEntriesView findAll() {
-    Preconditions.checkArgument(state != State.CLOSED,
-      "Must be in BUILD/READ state to iterate. Currently in a %s state.", state);
+    Preconditions.checkArgument(
+        state != State.CLOSED,
+        "Must be in BUILD/READ state to iterate. Currently in a %s state.",
+        state);
 
     return new FindAllEntriesView();
   }
@@ -408,7 +434,7 @@ public class PageListMultimap implements AutoCloseable {
       final long val = currentElementBuf.getLong(offsetInPage);
       logger.trace("find key {} index {}", key, current);
 
-      current  = currentElementBuf.getInt(offsetInPage + NEXT_OFFSET);
+      current = currentElementBuf.getInt(offsetInPage + NEXT_OFFSET);
       if (trackVisited) {
         if (current > 0) {
           // first visit, mark as visited by flipping the sign.
@@ -421,7 +447,6 @@ public class PageListMultimap implements AutoCloseable {
 
       return val;
     }
-
   }
 
   private class FindAllEntriesView implements ArrayOfEntriesView {
@@ -461,7 +486,8 @@ public class PageListMultimap implements AutoCloseable {
     @Override
     public boolean hasNext() {
       if (!initDone) {
-        // can't do in constructor because the iterator may be created too early (before the find() calls).
+        // can't do in constructor because the iterator may be created too early (before the find()
+        // calls).
         skipVisited();
         initDone = true;
       }
@@ -510,8 +536,8 @@ public class PageListMultimap implements AutoCloseable {
   }
 
   /**
-   * A class that can be used to understand the carry along value stored in this
-   * map. Not used internally by the map since it would increase object overhead.
+   * A class that can be used to understand the carry along value stored in this map. Not used
+   * internally by the map since it would increase object overhead.
    */
   public static class CarryAlongId {
     private final long id;
@@ -562,9 +588,7 @@ public class PageListMultimap implements AutoCloseable {
     }
   }
 
-  /**
-   * Pair of key and CarryAlongId
-   */
+  /** Pair of key and CarryAlongId */
   public static class KeyAndCarryAlongId {
     private final int key;
     private final long carryAlongId;

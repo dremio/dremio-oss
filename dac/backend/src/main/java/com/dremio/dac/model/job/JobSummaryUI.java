@@ -17,10 +17,7 @@ package com.dremio.dac.model.job;
 
 import static com.dremio.dac.obfuscate.ObfuscationUtils.obfuscateSql;
 
-import java.util.List;
-
 import com.dremio.dac.util.JobUtil;
-import com.dremio.dac.util.TruncateString200Converter;
 import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
@@ -31,16 +28,15 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.util.List;
 
-/**
- * Job summary sent to UI.
- */
-@JsonIgnoreProperties(value={"isComplete"}, allowGetters=true)
+/** Job summary sent to UI. */
+@JsonIgnoreProperties(
+    value = {"isComplete"},
+    allowGetters = true)
 public class JobSummaryUI {
   private final String id;
   private final JobState state;
@@ -61,27 +57,29 @@ public class JobSummaryUI {
   private final List<String> datasetPathList;
   private final DatasetType datasetType;
   private final boolean isComplete;
+  private final int maxSqlLength;
 
   @JsonCreator
   public JobSummaryUI(
-    @JsonProperty("id") String id,
-    @JsonProperty("state") JobState state,
-    @JsonProperty("failureInfo") JobFailureInfo failureInfo,
-    @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
-    @JsonProperty("user") String user,
-    @JsonProperty("startTime") Long startTime,
-    @JsonProperty("endTime") Long endTime,
-    @JsonProperty("description") String description,
-    @JsonProperty("requestType") RequestType requestType,
-    @JsonProperty("accelerated") boolean accelerated,
-    @JsonProperty("datasetVersion") String datasetVersion,
-    @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
-    @JsonProperty("spilled") boolean spilled,
-    @JsonProperty("outputRecords") Long outputRecords,
-    @JsonProperty("outputLimited") boolean outputLimited,
-    @JsonProperty("processedRecords") Long processedRecords,
-    @JsonProperty("datasetPathList") List<String> datasetPathList,
-    @JsonProperty("datasetType") DatasetType datasetType) {
+      @JsonProperty("id") String id,
+      @JsonProperty("state") JobState state,
+      @JsonProperty("failureInfo") JobFailureInfo failureInfo,
+      @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
+      @JsonProperty("user") String user,
+      @JsonProperty("startTime") Long startTime,
+      @JsonProperty("endTime") Long endTime,
+      @JsonProperty("description") String description,
+      @JsonProperty("requestType") RequestType requestType,
+      @JsonProperty("accelerated") boolean accelerated,
+      @JsonProperty("datasetVersion") String datasetVersion,
+      @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
+      @JsonProperty("spilled") boolean spilled,
+      @JsonProperty("outputRecords") Long outputRecords,
+      @JsonProperty("outputLimited") boolean outputLimited,
+      @JsonProperty("processedRecords") Long processedRecords,
+      @JsonProperty("datasetPathList") List<String> datasetPathList,
+      @JsonProperty("datasetType") DatasetType datasetType,
+      int maxSqlLength) {
     this.id = id;
     this.state = state;
     this.failureInfo = failureInfo;
@@ -101,40 +99,47 @@ public class JobSummaryUI {
     this.datasetPathList = datasetPathList;
     this.datasetType = datasetType;
     this.isComplete = isComplete(this.state);
+    this.maxSqlLength = maxSqlLength;
   }
 
   @WithSpan
-  public static JobSummaryUI of(com.dremio.service.job.JobSummary input, NamespaceService service) {
-    String desc = JobsServiceUtil.getJobDescription(input.getRequestType(), input.getSql(), input.getDescription());
+  public static JobSummaryUI of(
+      com.dremio.service.job.JobSummary input, NamespaceService service, int maxSqlLength) {
+    String desc =
+        JobsServiceUtil.getJobDescription(
+            input.getRequestType(), input.getSql(), input.getDescription());
     final ParentDatasetInfo datasetInfo = JobsUI.getDatasetToDisplay(input, service);
     return new JobSummaryUI(
-      input.getJobId().getId(),
-      JobUtil.computeJobState(JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted()),
-      JobDetailsUI.toJobFailureInfo(
-        Strings.isNullOrEmpty(input.getFailureInfo()) ? null : input.getFailureInfo(),
-        JobsProtoUtil.toStuff(input.getDetailedJobFailureInfo())),
-      JobDetailsUI.toJobCancellationInfo(JobsProtoUtil.toStuff(input.getJobState()),
-        JobsProtoUtil.toStuff(input.getCancellationInfo())),
-      input.getUser(),
-      input.getStartTime() == 0 ? null : input.getStartTime(),
-      input.getEndTime() == 0 ? null : input.getEndTime(),
-      Strings.isNullOrEmpty(desc) ? null : obfuscateSql(desc),
-      JobsProtoUtil.toStuff(input.getRequestType()),
-      input.getAccelerated(),
-      input.getDatasetVersion(),
-      input.getSnowflakeAccelerated(),
-      input.getSpilled(),
-      input.getOutputRecords(),
-      input.getOutputLimited(),
-      input.getRecordCount(),
-      datasetInfo.getDatasetPathList(),
-      datasetInfo.getType());
+        input.getJobId().getId(),
+        JobUtil.computeJobState(
+            JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted()),
+        JobDetailsUI.toJobFailureInfo(
+            Strings.isNullOrEmpty(input.getFailureInfo()) ? null : input.getFailureInfo(),
+            JobsProtoUtil.toStuff(input.getDetailedJobFailureInfo())),
+        JobDetailsUI.toJobCancellationInfo(
+            JobsProtoUtil.toStuff(input.getJobState()),
+            JobsProtoUtil.toStuff(input.getCancellationInfo())),
+        input.getUser(),
+        input.getStartTime() == 0 ? null : input.getStartTime(),
+        input.getEndTime() == 0 ? null : input.getEndTime(),
+        Strings.isNullOrEmpty(desc) ? null : obfuscateSql(desc),
+        JobsProtoUtil.toStuff(input.getRequestType()),
+        input.getAccelerated(),
+        input.getDatasetVersion(),
+        input.getSnowflakeAccelerated(),
+        input.getSpilled(),
+        input.getOutputRecords(),
+        input.getOutputLimited(),
+        input.getRecordCount(),
+        datasetInfo.getDatasetPathList(),
+        datasetInfo.getType(),
+        maxSqlLength);
   }
 
   private static boolean isComplete(JobState state) {
     Preconditions.checkNotNull(state, "JobState must be set");
 
-    switch(state){
+    switch (state) {
       case CANCELLATION_REQUESTED:
       case ENQUEUED:
       case NOT_SUBMITTED:
@@ -184,9 +189,13 @@ public class JobSummaryUI {
     return endTime;
   }
 
-  @JsonSerialize(converter = TruncateString200Converter.class)
   public String getDescription() {
-    return description;
+    if (Strings.isNullOrEmpty(description)
+        || maxSqlLength == 0
+        || description.length() <= maxSqlLength) {
+      return description;
+    }
+    return String.format("%s...", description.substring(0, maxSqlLength));
   }
 
   public boolean isAccelerated() {

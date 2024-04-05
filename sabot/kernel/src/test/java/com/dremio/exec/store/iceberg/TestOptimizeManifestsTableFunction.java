@@ -30,15 +30,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-
-import org.apache.iceberg.RewriteManifests;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.exceptions.CommitFailedException;
-import org.apache.iceberg.io.FileIO;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -57,10 +48,15 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import java.util.Collections;
+import org.apache.iceberg.RewriteManifests;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.exceptions.CommitFailedException;
+import org.apache.iceberg.io.FileIO;
+import org.junit.Test;
 
-/**
- * Tests for {@link OptimizeManifestsTableFunction}
- */
+/** Tests for {@link OptimizeManifestsTableFunction} */
 public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
@@ -71,7 +67,8 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
 
       Table icebergTable = loadTable(table);
       Snapshot originalSnapshot = icebergTable.currentSnapshot();
-      Snapshot inProgressSnapshot = icebergTable.rewriteManifests().clusterBy(NO_CLUSTERING_RULE).apply();
+      Snapshot inProgressSnapshot =
+          icebergTable.rewriteManifests().clusterBy(NO_CLUSTERING_RULE).apply();
 
       OptimizeManifestsTableFunction.cleanOrphans(icebergTable.io(), inProgressSnapshot);
 
@@ -92,7 +89,8 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
     when(snapshot.summary()).thenReturn(ImmutableMap.of("manifests-replaced", "0"));
     assertThat(OptimizeManifestsTableFunction.hasNoManifestChanges(snapshot)).isTrue();
 
-    when(snapshot.summary()).thenReturn(ImmutableMap.of("manifests-created", "0", "manifests-replaced", "0"));
+    when(snapshot.summary())
+        .thenReturn(ImmutableMap.of("manifests-created", "0", "manifests-replaced", "0"));
     assertThat(OptimizeManifestsTableFunction.hasNoManifestChanges(snapshot)).isTrue();
 
     // Inconsistent cases, when manifests replaced XOR manifests created
@@ -106,26 +104,65 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
   @Test
   public void testHasNoManifestValid() {
     Snapshot snapshot = mock(Snapshot.class);
-    when(snapshot.summary()).thenReturn(ImmutableMap.of("manifests-created", "10", "manifests-replaced", "1", "total-data-files", "10"));
+    when(snapshot.summary())
+        .thenReturn(
+            ImmutableMap.of(
+                "manifests-created", "10", "manifests-replaced", "1", "total-data-files", "10"));
     assertThat(OptimizeManifestsTableFunction.hasNoManifestChanges(snapshot)).isFalse();
 
-    when(snapshot.summary()).thenReturn(ImmutableMap.of("manifests-created", "10", "manifests-replaced", "2", "total-data-files", "10", "total-delete-files", "1"));
+    when(snapshot.summary())
+        .thenReturn(
+            ImmutableMap.of(
+                "manifests-created",
+                "10",
+                "manifests-replaced",
+                "2",
+                "total-data-files",
+                "10",
+                "total-delete-files",
+                "1"));
     assertThat(OptimizeManifestsTableFunction.hasNoManifestChanges(snapshot)).isFalse();
 
-    when(snapshot.summary()).thenReturn(ImmutableMap.of("manifests-created", "2", "manifests-replaced", "2", "total-data-files", "10"));
+    when(snapshot.summary())
+        .thenReturn(
+            ImmutableMap.of(
+                "manifests-created", "2", "manifests-replaced", "2", "total-data-files", "10"));
     assertThat(OptimizeManifestsTableFunction.hasNoManifestChanges(snapshot)).isFalse();
 
-    when(snapshot.summary()).thenReturn(ImmutableMap.of("manifests-created", "3", "manifests-replaced", "3", "total-data-files", "10", "total-delete-files", "1"));
+    when(snapshot.summary())
+        .thenReturn(
+            ImmutableMap.of(
+                "manifests-created",
+                "3",
+                "manifests-replaced",
+                "3",
+                "total-data-files",
+                "10",
+                "total-delete-files",
+                "1"));
     assertThat(OptimizeManifestsTableFunction.hasNoManifestChanges(snapshot)).isFalse();
   }
 
   @Test
   public void testHasNoManifestRewrittenResidualFiles() {
     Snapshot snapshot = mock(Snapshot.class);
-    when(snapshot.summary()).thenReturn(ImmutableMap.of("manifests-created", "1", "manifests-replaced", "1", "total-data-files", "10"));
+    when(snapshot.summary())
+        .thenReturn(
+            ImmutableMap.of(
+                "manifests-created", "1", "manifests-replaced", "1", "total-data-files", "10"));
     assertThat(OptimizeManifestsTableFunction.hasNoManifestChanges(snapshot)).isTrue();
 
-    when(snapshot.summary()).thenReturn(ImmutableMap.of("manifests-created", "2", "manifests-replaced", "2", "total-data-files", "10", "total-delete-files", "10"));
+    when(snapshot.summary())
+        .thenReturn(
+            ImmutableMap.of(
+                "manifests-created",
+                "2",
+                "manifests-replaced",
+                "2",
+                "total-data-files",
+                "10",
+                "total-delete-files",
+                "10"));
     assertThat(OptimizeManifestsTableFunction.hasNoManifestChanges(snapshot)).isTrue();
   }
 
@@ -137,14 +174,17 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
       Table icebergTable = spy(loadTable(table));
       Snapshot snapshot = icebergTable.currentSnapshot();
       RewriteManifests rewriteManifestSpy = spy(icebergTable.rewriteManifests());
-      doThrow(new CommitFailedException("Forced failure of the commit")).when(rewriteManifestSpy).commit();
+      doThrow(new CommitFailedException("Forced failure of the commit"))
+          .when(rewriteManifestSpy)
+          .commit();
       when(icebergTable.rewriteManifests()).thenReturn(rewriteManifestSpy);
 
-      OptimizeManifestsTableFunction optimizeManifestsTableFunction = initializeWithMocks(icebergTable);
+      OptimizeManifestsTableFunction optimizeManifestsTableFunction =
+          initializeWithMocks(icebergTable);
 
       assertThatThrownBy(() -> optimizeManifestsTableFunction.noMoreToConsume())
-        .isInstanceOf(UserException.class)
-        .hasMessage("Error while rewriting table manifests.");
+          .isInstanceOf(UserException.class)
+          .hasMessage("Error while rewriting table manifests.");
 
       icebergTable.refresh();
       assertThat(icebergTable.currentSnapshot().snapshotId()).isEqualTo(snapshot.snapshotId());
@@ -155,7 +195,8 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
     }
   }
 
-  private OptimizeManifestsTableFunction initializeWithMocks(Table icebergTable) throws ExecutionSetupException {
+  private OptimizeManifestsTableFunction initializeWithMocks(Table icebergTable)
+      throws ExecutionSetupException {
     FragmentExecutionContext fec = mock(FragmentExecutionContext.class);
     OperatorContext context = mock(OperatorContext.class);
     OpProps opProps = mock(OpProps.class);
@@ -176,8 +217,12 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
     when(opProps.getUserName()).thenReturn(UserContext.SYSTEM_USER_CONTEXT.getUserId());
 
     IcebergModel icebergModel = mock(IcebergModel.class);
-    when(icebergMutablePlugin.getIcebergModel(any(IcebergTableProps.class), anyString(), any(OperatorContext.class),
-        any(FileIO.class))).thenReturn(icebergModel);
+    when(icebergMutablePlugin.getIcebergModel(
+            any(IcebergTableProps.class),
+            anyString(),
+            any(OperatorContext.class),
+            any(FileIO.class)))
+        .thenReturn(icebergModel);
     doNothing().when(icebergModel).refreshVersionContext();
     IcebergTableIdentifier icebergTableIdentifier = mock(IcebergTableIdentifier.class);
     when(icebergModel.getTableIdentifier(anyString())).thenReturn(icebergTableIdentifier);
@@ -187,7 +232,7 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
     doNothing().when(operatorStats).addLongStat(any(MetricDef.class), anyLong());
     when(context.getStats()).thenReturn(operatorStats);
     when(icebergModel.propertyAsLong(any(IcebergTableIdentifier.class), anyString(), anyLong()))
-      .thenReturn(MANIFEST_TARGET_SIZE_BYTES_DEFAULT);
+        .thenReturn(MANIFEST_TARGET_SIZE_BYTES_DEFAULT);
 
     return new OptimizeManifestsTableFunction(fec, context, opProps, tableFunctionConfig);
   }

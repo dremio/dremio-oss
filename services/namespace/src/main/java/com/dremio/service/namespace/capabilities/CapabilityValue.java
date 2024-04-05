@@ -64,7 +64,4 @@ public class CapabilityValue<T, X extends Capability<T>> {
   public int hashCode() {
     return Objects.hashCode(capability, value);
   }
-
-
-
 }

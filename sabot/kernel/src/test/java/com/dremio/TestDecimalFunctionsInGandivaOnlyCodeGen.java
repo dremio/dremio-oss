@@ -15,16 +15,12 @@
  */
 package com.dremio;
 
-
 import com.dremio.common.expression.SupportedEngines.CodeGenOption;
 
-/**
- * Tests Gandiva decimal functions that can run entirely in gandiva.
- */
+/** Tests Gandiva decimal functions that can run entirely in gandiva. */
 public class TestDecimalFunctionsInGandivaOnlyCodeGen extends BaseDecimalFunctionTests {
 
   public TestDecimalFunctionsInGandivaOnlyCodeGen() {
     execPreference = CodeGenOption.GandivaOnly.toString();
   }
-
 }

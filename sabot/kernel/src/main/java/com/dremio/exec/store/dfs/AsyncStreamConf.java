@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.store.dfs;
 
-/**
- * Interface to get async and cache config
- */
+/** Interface to get async and cache config */
 public interface AsyncStreamConf {
   /**
-   * Indicates that the plugin should use asynchronous reads when possible.
-   * (This means the user has enabled async for the source and the underlying FileSystem supports
-   * asynchronous reads).
+   * Indicates that the plugin should use asynchronous reads when possible. (This means the user has
+   * enabled async for the source and the underlying FileSystem supports asynchronous reads).
    */
   default boolean isAsyncEnabled() {
     return false;

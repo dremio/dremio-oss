@@ -16,9 +16,9 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
@@ -38,32 +38,47 @@ import org.apache.calcite.runtime.PredicateImpl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils;
-
 public class DremioProjectJoinTransposeRule extends RelOptRule {
   public static final DremioProjectJoinTransposeRule INSTANCE;
   private final ExprCondition preserveExprCondition;
 
-  private DremioProjectJoinTransposeRule(Class<? extends Project> projectClass, Class<? extends Join> joinClass, ExprCondition preserveExprCondition, RelBuilderFactory relFactory) {
-    super(operand(projectClass, operand(joinClass, any()), new RelOptRuleOperand[0]), relFactory, (String)null);
+  private DremioProjectJoinTransposeRule(
+      Class<? extends Project> projectClass,
+      Class<? extends Join> joinClass,
+      ExprCondition preserveExprCondition,
+      RelBuilderFactory relFactory) {
+    super(
+        operand(projectClass, operand(joinClass, any()), new RelOptRuleOperand[0]),
+        relFactory,
+        (String) null);
     this.preserveExprCondition = preserveExprCondition;
   }
 
   @Override
   public void onMatch(final RelOptRuleCall call) {
-    Project origProj = (Project)call.rel(0);
-    Join join = (Join)call.rel(1);
+    Project origProj = (Project) call.rel(0);
+    Join join = (Join) call.rel(1);
     Project wrappedProj = RexFieldAccessUtils.wrapProject(origProj, join, true, true);
 
     if (!join.isSemiJoin()) {
-      RexNode joinFilter = (RexNode)join.getCondition().accept(new RexShuttle() {
-        @Override
-        public RexNode visitCall(RexCall rexCall) {
-          RexNode node = super.visitCall(rexCall);
-          return (RexNode)(!(node instanceof RexCall) ? node : RelOptUtil.collapseExpandedIsNotDistinctFromExpr((RexCall)node, call.builder().getRexBuilder()));
-        }
-      });
-      PushProjector pushProject = new PushProjector(wrappedProj, joinFilter, join, this.preserveExprCondition, call.builder());
+      RexNode joinFilter =
+          (RexNode)
+              join.getCondition()
+                  .accept(
+                      new RexShuttle() {
+                        @Override
+                        public RexNode visitCall(RexCall rexCall) {
+                          RexNode node = super.visitCall(rexCall);
+                          return (RexNode)
+                              (!(node instanceof RexCall)
+                                  ? node
+                                  : RelOptUtil.collapseExpandedIsNotDistinctFromExpr(
+                                      (RexCall) node, call.builder().getRexBuilder()));
+                        }
+                      });
+      PushProjector pushProject =
+          new PushProjector(
+              wrappedProj, joinFilter, join, this.preserveExprCondition, call.builder());
       if (!pushProject.locateAllRefs()) {
         RelNode leftProjRel = pushProject.createProjectRefsAndExprs(join.getLeft(), true, false);
         RelNode rightProjRel = pushProject.createProjectRefsAndExprs(join.getRight(), true, true);
@@ -74,10 +89,18 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
           projJoinFieldList.addAll(join.getSystemFieldList());
           projJoinFieldList.addAll(leftProjRel.getRowType().getFieldList());
           projJoinFieldList.addAll(rightProjRel.getRowType().getFieldList());
-          newJoinFilter = pushProject.convertRefsAndExprs(joinFilter, projJoinFieldList, adjustments);
+          newJoinFilter =
+              pushProject.convertRefsAndExprs(joinFilter, projJoinFieldList, adjustments);
         }
 
-        Join newJoinRel = join.copy(join.getTraitSet(), newJoinFilter, leftProjRel, rightProjRel, join.getJoinType(), join.isSemiJoinDone());
+        Join newJoinRel =
+            join.copy(
+                join.getTraitSet(),
+                newJoinFilter,
+                leftProjRel,
+                rightProjRel,
+                join.getJoinType(),
+                join.isSemiJoinDone());
         RelNode topProject = pushProject.createNewProject(newJoinRel, adjustments);
         call.transformTo(RexFieldAccessUtils.unwrap(topProject));
       }
@@ -85,22 +108,25 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
   }
 
   static {
-    INSTANCE = new DremioProjectJoinTransposeRule(
-      LogicalProject.class,
-      LogicalJoin.class,
-      new ProjectJoinExprCondition(),
-      DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+    INSTANCE =
+        new DremioProjectJoinTransposeRule(
+            LogicalProject.class,
+            LogicalJoin.class,
+            new ProjectJoinExprCondition(),
+            DremioRelFactories.CALCITE_LOGICAL_BUILDER);
   }
 
   public static class ProjectJoinExprCondition extends PredicateImpl<RexNode>
-    implements PushProjector.ExprCondition {
+      implements PushProjector.ExprCondition {
     @Override
     public boolean test(RexNode expr) {
       if (expr instanceof RexCall) {
-        RexCall call = (RexCall)expr;
-        return call.getKind() != SqlKind.DIVIDE || call.getOperands().get(1).getKind() == SqlKind.LITERAL;
+        RexCall call = (RexCall) expr;
+        return call.getKind() != SqlKind.DIVIDE
+            || call.getOperands().get(1).getKind() == SqlKind.LITERAL;
       }
       return true;
     }
-  };
+  }
+  ;
 }

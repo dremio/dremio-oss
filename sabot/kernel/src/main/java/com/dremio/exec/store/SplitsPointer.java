@@ -19,13 +19,12 @@ import com.dremio.datastore.SearchTypes;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.google.common.base.Predicate;
 
-/**
- * Interface for split pointer
- */
+/** Interface for split pointer */
 public interface SplitsPointer extends SplitsKey {
 
   /**
    * get splits ratio
+   *
    * @return
    * @throws NamespaceException
    */
@@ -33,6 +32,7 @@ public interface SplitsPointer extends SplitsKey {
 
   /**
    * get total number of splits for the dataset
+   *
    * @return
    * @throws NamespaceException
    */
@@ -40,15 +40,16 @@ public interface SplitsPointer extends SplitsKey {
 
   /**
    * Apply filter query and prune partitions.
+   *
    * @param partitionFilterQuery
    * @return
    * @throws NamespaceException
    */
   SplitsPointer prune(SearchTypes.SearchQuery partitionFilterQuery);
 
-
   /**
    * Prune a set of splits based on a predicate.
+   *
    * @param splitPredicate The predicate to apply
    * @return The pruned SplitPointer.
    */
@@ -56,12 +57,14 @@ public interface SplitsPointer extends SplitsKey {
 
   /**
    * Iterable for splits.
+   *
    * @return
    */
   Iterable<PartitionChunkMetadata> getPartitionChunks();
 
   /**
    * id
+   *
    * @return
    */
   String computeDigest();
@@ -70,8 +73,6 @@ public interface SplitsPointer extends SplitsKey {
 
   boolean isPruned();
 
-  /**
-   * Get the split version
-   */
+  /** Get the split version */
   long getSplitVersion();
 }

@@ -25,21 +25,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param <S> selection
  */
 public class PreviewReq<R, S> {
-  // TODO: we don't use the selection, just the column name in selection. Not removing now to avoid destabilising UI
+  // TODO: we don't use the selection, just the column name in selection. Not removing now to avoid
+  // destabilising UI
   // and e2e tests.
   private final S selection;
   private final R rule;
+
   @JsonCreator
-  public PreviewReq(
-      @JsonProperty("selection") S selection,
-      @JsonProperty("rule") R rule) {
+  public PreviewReq(@JsonProperty("selection") S selection, @JsonProperty("rule") R rule) {
     super();
     this.selection = selection;
     this.rule = rule;
   }
+
   public S getSelection() {
     return selection;
   }
+
   public R getRule() {
     return rule;
   }

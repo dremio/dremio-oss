@@ -18,16 +18,18 @@ package com.dremio.plugins.util;
 
 import java.nio.file.AccessDeniedException;
 
-/**
- * Thrown if the access to the container is denied.
- */
+/** Thrown if the access to the container is denied. */
 public class ContainerAccessDeniedException extends AccessDeniedException {
-    public ContainerAccessDeniedException(String message) {
-        super(message);
-    }
+  public ContainerAccessDeniedException(String message) {
+    super(message);
+  }
 
-    public ContainerAccessDeniedException(String containerMsgKey, String containerName, Throwable cause) {
-      super(containerName, null, String.format("Access to %s is denied - %s", containerName, containerMsgKey));
-      initCause(cause);
-    }
+  public ContainerAccessDeniedException(
+      String containerMsgKey, String containerName, Throwable cause) {
+    super(
+        containerName,
+        null,
+        String.format("Access to %s is denied - %s", containerName, containerMsgKey));
+    initCause(cause);
+  }
 }

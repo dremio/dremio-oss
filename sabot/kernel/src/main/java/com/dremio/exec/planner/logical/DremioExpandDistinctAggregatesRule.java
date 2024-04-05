@@ -18,7 +18,6 @@ package com.dremio.exec.planner.logical;
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AGG;
 
 import java.util.Objects;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -29,23 +28,23 @@ import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.sql.SqlKind;
 
 /**
- * This rule uses AggregateExpandDistinctAggregatesRule in Calcite.
- * This overrides matches function to prevent expanding distincts
- * when they all appear in LISTAGG.
- * <p>
- * In principle, AggregateExpandDistinctAggregatesRule works for
- * LISTAGG as well. However, as of right now, LISTAGG performs
- * DISTINCT operation in Arrow Vector (FixedListVarcharVector).
- * <a href="https://docs.google.com/document/d/1WrjAFO2O0Td_jZeIFY0BDkFUgwHjclbywYren9lzvuI/edit?disco=AAAAYD1IRxw">
- *   This was an explicit design decision for LISTAGG</a>.
+ * This rule uses AggregateExpandDistinctAggregatesRule in Calcite. This overrides matches function
+ * to prevent expanding distincts when they all appear in LISTAGG.
  *
+ * <p>In principle, AggregateExpandDistinctAggregatesRule works for LISTAGG as well. However, as of
+ * right now, LISTAGG performs DISTINCT operation in Arrow Vector (FixedListVarcharVector). <a
+ * href="https://docs.google.com/document/d/1WrjAFO2O0Td_jZeIFY0BDkFUgwHjclbywYren9lzvuI/edit?disco=AAAAYD1IRxw">
+ * This was an explicit design decision for LISTAGG</a>.
  */
 public class DremioExpandDistinctAggregatesRule extends RelOptRule {
-  public static final RelOptRule INSTANCE = new DremioExpandDistinctAggregatesRule(AggregateExpandDistinctAggregatesRule.Config.JOIN);
+  public static final RelOptRule INSTANCE =
+      new DremioExpandDistinctAggregatesRule(AggregateExpandDistinctAggregatesRule.Config.JOIN);
   private final AggregateExpandDistinctAggregatesRule rule;
 
   private DremioExpandDistinctAggregatesRule(AggregateExpandDistinctAggregatesRule.Config config) {
-    super(RelOptHelper.some(LogicalAggregate.class, Convention.NONE, RelOptHelper.any(RelNode.class)), "DremioExpandDistinctAggregatesRule");
+    super(
+        RelOptHelper.some(LogicalAggregate.class, Convention.NONE, RelOptHelper.any(RelNode.class)),
+        "DremioExpandDistinctAggregatesRule");
     rule = config.toRule();
   }
 

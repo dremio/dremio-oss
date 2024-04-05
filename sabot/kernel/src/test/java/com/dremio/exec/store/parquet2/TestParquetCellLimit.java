@@ -17,19 +17,16 @@ package com.dremio.exec.store.parquet2;
 
 import static com.dremio.exec.ExecConstants.LIMIT_FIELD_SIZE_BYTES;
 
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.test.UserExceptionAssert;
+import org.junit.Test;
 
-/**
- * Tests the reading of parquet cell with a given limiting size.
- */
+/** Tests the reading of parquet cell with a given limiting size. */
 public class TestParquetCellLimit extends BaseTestQuery {
 
   @Test
   public void testCellSizeForVarcharFieldExceedingLimit() throws Exception {
-    try(AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 10L)) {
+    try (AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 10L)) {
       final String query = "select l_shipmode, l_comment from cp.\"parquet/cell_limit.parquet\"";
       UserExceptionAssert.assertThatThrownBy(() -> test(query))
           .hasMessageContaining("UNSUPPORTED_OPERATION ERROR: Field exceeds the size limit");
@@ -38,7 +35,7 @@ public class TestParquetCellLimit extends BaseTestQuery {
 
   @Test
   public void testCellSizeForNonVarcharFieldExceedingLimit() throws Exception {
-    try(AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 10L)) {
+    try (AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 10L)) {
       final String query = "select l_orderkey from cp.\"parquet/cell_limit.parquet\"";
       test(query);
     }
@@ -46,7 +43,7 @@ public class TestParquetCellLimit extends BaseTestQuery {
 
   @Test
   public void testCellSizeForVarcharFieldWithinLimit() throws Exception {
-    try(AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 50L)) {
+    try (AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 50L)) {
       final String query = "select l_comment from cp.\"parquet/cell_limit.parquet\"";
       test(query);
     }
@@ -54,7 +51,7 @@ public class TestParquetCellLimit extends BaseTestQuery {
 
   @Test
   public void testCellSizeForNonVarcharFieldWithinLimit() throws Exception {
-    try(AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 50L)) {
+    try (AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 50L)) {
       final String query = "select l_orderkey from cp.\"parquet/cell_limit.parquet\"";
       test(query);
     }

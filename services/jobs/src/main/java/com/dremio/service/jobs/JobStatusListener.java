@@ -21,30 +21,31 @@ import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 /**
  * A listener which notifies user about the progress of a job
  *
- * TODO: This interface is a subset of {@link AttemptObserver} except the method {@link #jobStarted(JobId)}.
- * If we end up taking more methods from {@link AttemptObserver}, change this to a subclass of {@link AttemptObserver}.
+ * <p>TODO: This interface is a subset of {@link AttemptObserver} except the method {@link
+ * #jobStarted(JobId)}. If we end up taking more methods from {@link AttemptObserver}, change this
+ * to a subclass of {@link AttemptObserver}.
  */
 public interface JobStatusListener {
 
-  /**
-   * A job status listener that does nothing.
-   */
-  JobStatusListener NO_OP = new JobStatusListener() {
-  };
+  /** A job status listener that does nothing. */
+  JobStatusListener NO_OP = new JobStatusListener() {};
 
   /**
-   * Called when the {@link JobRequest} has been handled by the service. A {@link Job} entry is now present in the kvstore.
+   * Called when the {@link JobRequest} has been handled by the service. A {@link Job} entry is now
+   * present in the kvstore.
    */
   default void jobSubmitted() {}
 
   /**
    * Called if {@link #jobSubmitted()} failed
+   *
    * @param e the exception thrown
    */
   default void submissionFailed(RuntimeException e) {}
 
   /**
    * Called when all query metadata has been collected.
+   *
    * @param metadata
    */
   default void metadataCollected(QueryMetadata metadata) {}
@@ -56,13 +57,9 @@ public interface JobStatusListener {
    */
   default void jobFailed(Exception e) {}
 
-  /**
-   * Called when the job has completed successfully
-   */
+  /** Called when the job has completed successfully */
   default void jobCompleted() {}
 
-  /**
-   * Called when the job was cancelled
-   */
+  /** Called when the job was cancelled */
   default void jobCancelled(String reason) {}
 }

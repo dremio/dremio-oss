@@ -19,22 +19,23 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for PutRequestDocumentWriter.
- */
-public class TestPutRequestDocumentWriter extends AbstractTestDocumentWriter<PutRequestDocumentWriter> {
+/** Tests for PutRequestDocumentWriter. */
+public class TestPutRequestDocumentWriter
+    extends AbstractTestDocumentWriter<PutRequestDocumentWriter> {
   @Override
   protected PutRequestDocumentWriter createDocumentWriter() {
     return new PutRequestDocumentWriter();
   }
 
   @Override
-  protected void verifySingleIndexValue(PutRequestDocumentWriter writer, IndexKey index, Object expectedValue) {
+  protected void verifySingleIndexValue(
+      PutRequestDocumentWriter writer, IndexKey index, Object expectedValue) {
     verifySingleIndexValueAtPosition(writer, index, expectedValue, 0);
   }
 
   @Override
-  protected void verifyMultiIndexValue(PutRequestDocumentWriter writer, IndexKey index, Object... expectedValues) {
+  protected void verifyMultiIndexValue(
+      PutRequestDocumentWriter writer, IndexKey index, Object... expectedValues) {
     for (int i = 0; i < expectedValues.length; i++) {
       verifySingleIndexValueAtPosition(writer, index, expectedValues, i);
     }
@@ -49,8 +50,8 @@ public class TestPutRequestDocumentWriter extends AbstractTestDocumentWriter<Put
     assertTrue(writer.stringMap.isEmpty());
   }
 
-  private static void verifySingleIndexValueAtPosition(PutRequestDocumentWriter writer,
-                                                          IndexKey index, Object expectedValue, int position) {
+  private static void verifySingleIndexValueAtPosition(
+      PutRequestDocumentWriter writer, IndexKey index, Object expectedValue, int position) {
     if (expectedValue instanceof String) {
       assertEquals(expectedValue, writer.stringMap.get(index).get(position));
     } else if (expectedValue instanceof Double) {

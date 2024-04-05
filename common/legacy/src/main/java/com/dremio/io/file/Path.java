@@ -20,6 +20,8 @@ import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
 import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
 import static com.dremio.io.file.UriSchemes.S3_SCHEME;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -28,17 +30,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
-
 /**
  * Filesystem path
  *
- * A path is equivalent to a URI with a optional schema and authority
- * and a path component. Other URI components might be ignored.
+ * <p>A path is equivalent to a URI with a optional schema and authority and a path component. Other
+ * URI components might be ignored.
  *
- * Paths can be compared. The comparison is equivalent to their URI representation.
- *
+ * <p>Paths can be compared. The comparison is equivalent to their URI representation.
  */
 public final class Path implements Comparable<Path> {
   public static final String AZURE_AUTHORITY_SUFFIX = ".blob.core.windows.net";
@@ -46,20 +44,29 @@ public final class Path implements Comparable<Path> {
 
   public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of("s3a", S3_SCHEME, "s3n");
   public static final Set<String> GCS_FILE_SYSTEM = ImmutableSet.of(GCS_SCHEME);
-  public static final Set<String> AZURE_FILE_SYSTEM = ImmutableSet.of("wasbs", "wasb", "abfs", "abfss");
+  public static final Set<String> AZURE_FILE_SYSTEM =
+      ImmutableSet.of("wasbs", "wasb", "abfs", "abfss");
   public static final Set<String> ADLS_FILE_SYSTEM = ImmutableSet.of(ADL_SCHEME);
 
-
-  public static final Set<Object> validSchemes = ImmutableSet.builder().addAll(S3_FILE_SYSTEM).
-    addAll(GCS_FILE_SYSTEM).addAll(AZURE_FILE_SYSTEM).addAll(ADLS_FILE_SYSTEM)
-    .addAll(Arrays.stream(UriSchemes.class.getFields()).map(x -> {
-      try {
-        return x.get(null);
-      } catch (IllegalAccessException e) {
-        e.printStackTrace();
-        return "";
-      }
-    }).collect(Collectors.toList())).build();
+  public static final Set<Object> validSchemes =
+      ImmutableSet.builder()
+          .addAll(S3_FILE_SYSTEM)
+          .addAll(GCS_FILE_SYSTEM)
+          .addAll(AZURE_FILE_SYSTEM)
+          .addAll(ADLS_FILE_SYSTEM)
+          .addAll(
+              Arrays.stream(UriSchemes.class.getFields())
+                  .map(
+                      x -> {
+                        try {
+                          return x.get(null);
+                        } catch (IllegalAccessException e) {
+                          e.printStackTrace();
+                          return "";
+                        }
+                      })
+                  .collect(Collectors.toList()))
+          .build();
 
   public static final String SEPARATOR = "/";
   public static final char SEPARATOR_CHAR = '/';
@@ -89,7 +96,7 @@ public final class Path implements Comparable<Path> {
   /**
    * Creates a path instance from the provided {@code path} string
    *
-   * The path should be using the same format as {@code Path#toString()}. Notably the path
+   * <p>The path should be using the same format as {@code Path#toString()}. Notably the path
    * component should not be encoded.
    *
    * @param path a URI-like path declaration.
@@ -107,8 +114,9 @@ public final class Path implements Comparable<Path> {
   /**
    * Merges {@code path1} and {@code path2} together
    *
-   * The merged path URI is created from {@code path1} scheme and authority, and the concatenation of
-   * {@code path1} and {@code path2} path components (irrespective of {@code path2} being an absolute path).
+   * <p>The merged path URI is created from {@code path1} scheme and authority, and the
+   * concatenation of {@code path1} and {@code path2} path components (irrespective of {@code path2}
+   * being an absolute path).
    *
    * @param path1 the first path to merge
    * @param path2 the second path to tmerge
@@ -135,12 +143,13 @@ public final class Path implements Comparable<Path> {
     }
 
     try {
-      return of(new URI(path1.uri.getScheme(), path1.uri.getAuthority(), finalPath.toString(), null, null));
+      return of(
+          new URI(
+              path1.uri.getScheme(), path1.uri.getAuthority(), finalPath.toString(), null, null));
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException();
     }
   }
-
 
   /**
    * Creates a path instance with no schema or authority
@@ -166,11 +175,12 @@ public final class Path implements Comparable<Path> {
   /**
    * Gets the filename
    *
-   * The filename is the last component of the URI path element
+   * <p>The filename is the last component of the URI path element
+   *
    * @return the file name
    */
   public String getName() {
-    final String path =  uri.getPath();
+    final String path = uri.getPath();
     int index = path.lastIndexOf(SEPARATOR_CHAR);
     return path.substring(index + 1);
   }
@@ -178,11 +188,11 @@ public final class Path implements Comparable<Path> {
   /**
    * Gets the path's parent
    *
-   * The parent has the URI schema and authority as this object (if any) and its
-   * path element is this object's path element except for the last component.
+   * <p>The parent has the URI schema and authority as this object (if any) and its path element is
+   * this object's path element except for the last component.
    *
-   * If the URI path's element is the root element ("/") or the current
-   * directory ("."), then this function returns {@code null}.
+   * <p>If the URI path's element is the root element ("/") or the current directory ("."), then
+   * this function returns {@code null}.
    *
    * @return the path's parent
    */
@@ -212,15 +222,14 @@ public final class Path implements Comparable<Path> {
   /**
    * Resolves the given path against this path
    *
-   * Resolution works as follows:
+   * <p>Resolution works as follows:
+   *
    * <ul>
-   * <li>if {@code that} is absolute, or its path component is absolute, returns
-   * {@code path}</li>
-   * <li>if {@code path} is empty, returns this path</li>
-   * <li>otherwise append {@code path} path component to this path component
-   * (separated by the path separator if necesseray), and creates a new
-   * {@code Path} instance with the current schema and authorite, and the new
-   * path component.</li>
+   *   <li>if {@code that} is absolute, or its path component is absolute, returns {@code path}
+   *   <li>if {@code path} is empty, returns this path
+   *   <li>otherwise append {@code path} path component to this path component (separated by the
+   *       path separator if necesseray), and creates a new {@code Path} instance with the current
+   *       schema and authorite, and the new path component.
    * </ul>
    *
    * Note that {@code that} scheme and authority components are ignored
@@ -250,7 +259,8 @@ public final class Path implements Comparable<Path> {
     finalPath.append(thatPath);
 
     try {
-      return of(new URI(this.uri.getScheme(), this.uri.getAuthority(), finalPath.toString(), null, null));
+      return of(
+          new URI(this.uri.getScheme(), this.uri.getAuthority(), finalPath.toString(), null, null));
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException(e);
     }
@@ -259,7 +269,8 @@ public final class Path implements Comparable<Path> {
   /**
    * Resolves the given path against this path
    *
-   * Behavior is same as <code>Path.resolve(Path.of(that))</code>}
+   * <p>Behavior is same as <code>Path.resolve(Path.of(that))</code>}
+   *
    * @param path the path to resolve against
    * @return
    */
@@ -271,18 +282,18 @@ public final class Path implements Comparable<Path> {
   /**
    * Checks if the path is absolute
    *
-   * The path is absolute if its URI path's element is absolute.
+   * <p>The path is absolute if its URI path's element is absolute.
+   *
    * @return {@code true} if the path is absolute, {@code false} otherwise
    */
   public boolean isAbsolute() {
     return uri.getPath().startsWith(SEPARATOR);
   }
 
-
   /**
    * Gets the path's depth
    *
-   * The path's depth is the number of components in the URI path element.
+   * <p>The path's depth is the number of components in the URI path element.
    *
    * @return the path's depth
    */
@@ -294,7 +305,7 @@ public final class Path implements Comparable<Path> {
     }
 
     int depth = 0;
-    for (int i = 0 ; i < path.length(); i++) {
+    for (int i = 0; i < path.length(); i++) {
       if (path.charAt(i) == SEPARATOR_CHAR) {
         depth++;
       }
@@ -304,6 +315,7 @@ public final class Path implements Comparable<Path> {
 
   /**
    * Gets the URI representation of this path
+   *
    * @return a URI instance
    */
   public URI toURI() {
@@ -317,10 +329,10 @@ public final class Path implements Comparable<Path> {
   /**
    * Gets the string representation of this path
    *
-   * The representation is a URI-like string, which might not be a valid URI at all.
-   * Notably, the path component is represented without any proper uri encoding.
+   * <p>The representation is a URI-like string, which might not be a valid URI at all. Notably, the
+   * path component is represented without any proper uri encoding.
    *
-   * The string representation can be parsed again using {@code Path#of(String)}
+   * <p>The string representation can be parsed again using {@code Path#of(String)}
    *
    * @return a string
    */
@@ -388,7 +400,7 @@ public final class Path implements Comparable<Path> {
       authority = null;
     }
 
-    if(scheme != null && !validSchemes.contains(scheme)) {
+    if (scheme != null && !validSchemes.contains(scheme)) {
       try {
         URI uriPath = new URI(null, authority, "/" + uri, null, null);
         return URI.create("/").relativize(uriPath);

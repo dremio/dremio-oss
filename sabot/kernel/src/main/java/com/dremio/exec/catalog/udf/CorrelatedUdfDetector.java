@@ -25,8 +25,7 @@ public final class CorrelatedUdfDetector extends RexShuttle {
   private static final class RexDetector extends RexShuttle {
     private boolean hasRexSubQuery;
 
-    private RexDetector() {
-    }
+    private RexDetector() {}
 
     @Override
     public RexNode visitSubQuery(RexSubQuery subQuery) {

@@ -19,8 +19,6 @@ import { connect } from "react-redux";
 import { Link } from "react-router";
 import Immutable from "immutable";
 import { injectIntl, FormattedMessage } from "react-intl";
-import clsx from "clsx";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import FontIcon from "components/Icon/FontIcon";
 import { CENTER } from "uiTheme/radium/flexStyle";
 import { getExploreState } from "@app/selectors/explore";
@@ -29,8 +27,7 @@ import { PALE_NAVY } from "uiTheme/radium/colors";
 
 import { openQlikSense } from "actions/explore/download";
 import { getQlikAppUrl } from "sagas/qlik";
-
-import SimpleButton from "components/Buttons/SimpleButton";
+import { Button } from "dremio-ui-lib/components";
 import Modal from "components/Modals/Modal";
 import ModalFooter from "components/Modals/components/ModalFooter";
 import ConfirmCancelFooter from "components/Modals/ConfirmCancelFooter";
@@ -204,15 +201,14 @@ export class QlikStateModal extends Component {
     if (qlikAppCreationSuccess) {
       return (
         <ModalFooter>
-          <SimpleButton
+          <Button
+            className="mr-1"
             data-qa="confirm"
-            type="button"
-            buttonStyle="primary"
-            className={clsx(classes["primaryButtonPsuedoClasses"])}
+            variant="primary"
             onClick={this.hide}
           >
             <FormattedMessage id="Common.Done" />
-          </SimpleButton>
+          </Button>
         </ModalFooter>
       );
     }

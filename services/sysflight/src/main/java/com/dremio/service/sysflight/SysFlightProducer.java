@@ -15,10 +15,15 @@
  */
 package com.dremio.service.sysflight;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.GrpcExceptionUtil;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
+import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
+import com.google.common.annotations.VisibleForTesting;
+import io.grpc.Status;
 import java.util.ArrayList;
-
 import javax.inject.Provider;
-
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.ActionType;
 import org.apache.arrow.flight.Criteria;
@@ -33,18 +38,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.GrpcExceptionUtil;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
-import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
-import com.google.common.annotations.VisibleForTesting;
-
-import io.grpc.Status;
-
-/**
- * Flight Producer for System tables
- */
+/** Flight Producer for System tables */
 public class SysFlightProducer implements FlightProducer, AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(SysFlightProducer.class);
 
@@ -58,7 +52,8 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
   public void getStream(CallContext callContext, Ticket ticket, ServerStreamListener listener) {
     LOGGER.debug("Got getStream request for ticket: {}", ticket);
     try {
-      final SysFlightTicket sysTicket = CoordinatorFlightTicket.parseFrom(ticket.getBytes()).getSyFlightTicket();
+      final SysFlightTicket sysTicket =
+          CoordinatorFlightTicket.parseFrom(ticket.getBytes()).getSyFlightTicket();
       // todo: set username in RequestContext from SysFlightTicket
       managerProvider.get().streamData(sysTicket, listener);
     } catch (UserException ue) {
@@ -71,7 +66,8 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
   }
 
   @Override
-  public void listFlights(CallContext callContext, Criteria criteria, StreamListener<FlightInfo> listener) {
+  public void listFlights(
+      CallContext callContext, Criteria criteria, StreamListener<FlightInfo> listener) {
     LOGGER.debug("Got listFlights request");
     try {
       managerProvider.get().listSchemas(listener);
@@ -88,7 +84,7 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
   public FlightInfo getFlightInfo(CallContext callContext, FlightDescriptor desc) {
     LOGGER.debug("Got getFlightInfo request for descriptor: {}", desc);
     try {
-      Schema schema =  managerProvider.get().getSchema(String.join(".", desc.getPath()));
+      Schema schema = managerProvider.get().getSchema(String.join(".", desc.getPath()));
       return new FlightInfo(schema, desc, new ArrayList<>(), -1, -1);
     } catch (Throwable e) {
       LOGGER.error("Exception while getFlightInfo: ", e);
@@ -97,7 +93,8 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
   }
 
   @Override
-  public Runnable acceptPut(CallContext callContext, FlightStream flightStream, StreamListener<PutResult> listener) {
+  public Runnable acceptPut(
+      CallContext callContext, FlightStream flightStream, StreamListener<PutResult> listener) {
     throw Status.UNIMPLEMENTED.asRuntimeException();
   }
 

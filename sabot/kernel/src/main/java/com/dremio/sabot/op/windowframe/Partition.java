@@ -17,14 +17,17 @@ package com.dremio.sabot.op.windowframe;
 
 /**
  * Used internally to keep track of partitions and frames.<br>
- * A partition can be partial, which means we don't know "yet" the total number of records that are part of this partition.
- * Even for partial partitions, we know the number of rows that are part of current frame
+ * A partition can be partial, which means we don't know "yet" the total number of records that are
+ * part of this partition. Even for partial partitions, we know the number of rows that are part of
+ * current frame
  */
 public class Partition {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Partition.class);
 
   private boolean partial; // true if we don't know yet the full length of this partition
-  private long length; // size of this partition (if partial is true, then this is a partial length of the partition)
+  private long
+      length; // size of this partition (if partial is true, then this is a partial length of the
+  // partition)
   private long remaining; // remaining non-processed rows in this partition
 
   private long peers; // remaining non-processed peers in current frame
@@ -48,10 +51,11 @@ public class Partition {
   public long getLength() {
     return length;
   }
+
   /**
    * @param length number of rows in this partition
-   * @param partial if true, then length is not the full length of the partition but just the number of rows in the
-   *                current batch
+   * @param partial if true, then length is not the full length of the partition but just the number
+   *     of rows in the current batch
    */
   public void updateLength(long length, boolean partial) {
     this.length += length;
@@ -72,7 +76,7 @@ public class Partition {
     rank = row_number; // rank = row number of 1st peer
     dense_rank++;
     percent_rank = length > 1 ? (double) (rank - 1) / (length - 1) : 0;
-    cume_dist = (double)(rank + peers - 1) / length;
+    cume_dist = (double) (rank + peers - 1) / length;
   }
 
   public boolean isDone() {
@@ -91,7 +95,8 @@ public class Partition {
       out = (int) Math.ceil((row_number - mod) / floor);
     }
 
-    logger.trace("NTILE(row_number = {}, nt = {}, ct = {}) = {}", row_number, numTiles, length, out);
+    logger.trace(
+        "NTILE(row_number = {}, nt = {}, ct = {}) = {}", row_number, numTiles, length, out);
     return out;
   }
 
@@ -120,8 +125,10 @@ public class Partition {
   public int getCurrentRowInPartition() {
     return currentRowInPartition;
   }
+
   @Override
   public String toString() {
-    return String.format("{length: %d, remaining partition: %d, remaining peers: %d}", length, remaining, peers);
+    return String.format(
+        "{length: %d, remaining partition: %d, remaining peers: %d}", length, remaining, peers);
   }
 }

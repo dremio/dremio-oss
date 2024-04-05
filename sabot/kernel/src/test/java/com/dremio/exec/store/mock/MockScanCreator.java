@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.mock;
 
-import java.util.List;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.mock.MockGroupScanPOP.MockScanEntry;
@@ -26,17 +24,20 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.collect.Lists;
+import java.util.List;
 
 public class MockScanCreator implements ProducerOperator.Creator<MockSubScanPOP> {
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context,
-      MockSubScanPOP config) throws ExecutionSetupException {
+  public ProducerOperator create(
+      FragmentExecutionContext fragmentExecContext, OperatorContext context, MockSubScanPOP config)
+      throws ExecutionSetupException {
     final List<MockScanEntry> entries = config.getReadEntries();
     final List<RecordReader> readers = Lists.newArrayList();
-    for(final MockScanEntry e : entries) {
+    for (final MockScanEntry e : entries) {
       readers.add(new MockRecordReader(context, e));
     }
-    return new ScanOperator(config, context, RecordReaderIterator.from(readers.iterator()));
+    return new ScanOperator(
+        fragmentExecContext, config, context, RecordReaderIterator.from(readers.iterator()));
   }
 }

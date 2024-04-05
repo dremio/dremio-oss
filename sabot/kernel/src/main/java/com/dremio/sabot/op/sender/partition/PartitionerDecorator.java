@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot.op.sender.partition;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.testing.ControlsInjector;
@@ -30,18 +24,24 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
- * Decorator class to hide multiple Partitioner existence from the caller
- * since this class involves multithreaded processing of incoming batches
- * as well as flushing it needs special handling of OperatorStats - stats
- * since stats are not suitable for use in multithreaded environment
- * The algorithm to figure out processing versus wait time is based on following formula:
- * totalWaitTime = totalAllPartitionersProcessingTime - max(sum(processingTime) by partitioner)
+ * Decorator class to hide multiple Partitioner existence from the caller since this class involves
+ * multithreaded processing of incoming batches as well as flushing it needs special handling of
+ * OperatorStats - stats since stats are not suitable for use in multithreaded environment The
+ * algorithm to figure out processing versus wait time is based on following formula: totalWaitTime
+ * = totalAllPartitionersProcessingTime - max(sum(processingTime) by partitioner)
  */
 public class PartitionerDecorator implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PartitionerDecorator.class);
-  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(PartitionerDecorator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(PartitionerDecorator.class);
+  private static final ControlsInjector injector =
+      ControlsInjectorFactory.getInjector(PartitionerDecorator.class);
 
   private List<Partitioner> partitioners;
   private final String tName;
@@ -49,7 +49,8 @@ public class PartitionerDecorator implements AutoCloseable {
   private final ExecutorService executor;
   private final OperatorContext context;
 
-  public PartitionerDecorator(List<Partitioner> partitioners, OperatorStats stats, OperatorContext context) {
+  public PartitionerDecorator(
+      List<Partitioner> partitioners, OperatorStats stats, OperatorContext context) {
     this.partitioners = partitioners;
     this.context = context;
     this.executor = context.getExecutor();
@@ -58,8 +59,9 @@ public class PartitionerDecorator implements AutoCloseable {
   }
 
   /**
-   * partitionBatch - decorator method to call real Partitioner(s) to process incoming batch
-   * uses either threading or not threading approach based on number Partitioners
+   * partitionBatch - decorator method to call real Partitioner(s) to process incoming batch uses
+   * either threading or not threading approach based on number Partitioners
+   *
    * @param incoming
    * @throws IOException
    */
@@ -69,32 +71,31 @@ public class PartitionerDecorator implements AutoCloseable {
 
   /**
    * finish partitioner work.
+   *
    * @throws IOException
    */
   public void finishWork() throws IOException {
     executeMethodLogic(new TerminationHandler());
   }
 
-  /**
-   * decorator method to call multiple Partitioners close()
-   */
+  /** decorator method to call multiple Partitioners close() */
   @Override
   public void close() throws Exception {
     AutoCloseables.close(partitioners);
   }
 
   /**
-   * Helper method to get PartitionOutgoingBatch based on the index
-   * since we may have more then one Partitioner
-   * As number of Partitioners should be very small AND this method it used very rarely,
+   * Helper method to get PartitionOutgoingBatch based on the index since we may have more then one
+   * Partitioner As number of Partitioners should be very small AND this method it used very rarely,
    * so it is OK to loop in order to find right partitioner
+   *
    * @param index - index of PartitionOutgoingBatch
    * @return PartitionOutgoingBatch
    */
   public PartitionOutgoingBatch getOutgoingBatches(int index) {
-    for (Partitioner part : partitioners ) {
+    for (Partitioner part : partitioners) {
       PartitionOutgoingBatch outBatch = part.getOutgoingBatch(index);
-      if ( outBatch != null ) {
+      if (outBatch != null) {
         return outBatch;
       }
     }
@@ -108,11 +109,12 @@ public class PartitionerDecorator implements AutoCloseable {
 
   /**
    * Helper to execute the different methods wrapped into same logic
+   *
    * @param iface
    * @throws IOException
    */
   protected void executeMethodLogic(final PartitionTask iface) throws IOException {
-    if (partitioners.size() == 1 ) {
+    if (partitioners.size() == 1) {
       // no need for threads
       iface.execute(partitioners.get(0));
       return;
@@ -124,14 +126,19 @@ public class PartitionerDecorator implements AutoCloseable {
     final List<Future<?>> taskFutures = Lists.newArrayList();
     CountDownLatchInjection testCountDownLatch = null;
     try {
-      // To simulate interruption of main fragment thread and interrupting the partition threads, create a
-      // CountDownInject patch. Partitioner threads await on the latch and main fragment thread counts down or
-      // interrupts waiting threads. This makes sures that we are actually interrupting the blocked partitioner threads.
-      testCountDownLatch = injector.getLatch(context.getExecutionControls(), "partitioner-sender-latch");
+      // To simulate interruption of main fragment thread and interrupting the partition threads,
+      // create a
+      // CountDownInject patch. Partitioner threads await on the latch and main fragment thread
+      // counts down or
+      // interrupts waiting threads. This makes sures that we are actually interrupting the blocked
+      // partitioner threads.
+      testCountDownLatch =
+          injector.getLatch(context.getExecutionControls(), "partitioner-sender-latch");
       testCountDownLatch.initialize(1);
 
       for (final Partitioner part : partitioners) {
-        final CustomRunnable runnable = new CustomRunnable(childThreadPrefix, latch, iface, part, testCountDownLatch);
+        final CustomRunnable runnable =
+            new CustomRunnable(childThreadPrefix, latch, iface, part, testCountDownLatch);
         runnables.add(runnable);
         taskFutures.add(executor.submit(runnable));
       }
@@ -139,7 +146,8 @@ public class PartitionerDecorator implements AutoCloseable {
       while (true) {
         try {
           // Wait for main fragment interruption.
-          injector.injectInterruptiblePause(context.getExecutionControls(), "wait-for-fragment-interrupt", logger);
+          injector.injectInterruptiblePause(
+              context.getExecutionControls(), "wait-for-fragment-interrupt", logger);
 
           // If there is no pause inserted at site "wait-for-fragment-interrupt", release the latch.
           injector.getLatch(context.getExecutionControls(), "partitioner-sender-latch").countDown();
@@ -148,7 +156,7 @@ public class PartitionerDecorator implements AutoCloseable {
           break;
         } catch (final InterruptedException e) {
           logger.debug("Interrupting partitioner threads. Fragment thread {}", tName);
-          for(Future<?> f : taskFutures) {
+          for (Future<?> f : taskFutures) {
             f.cancel(true);
           }
           break;
@@ -156,17 +164,17 @@ public class PartitionerDecorator implements AutoCloseable {
       }
 
       IOException excep = null;
-      for (final CustomRunnable runnable : runnables ) {
+      for (final CustomRunnable runnable : runnables) {
         IOException myException = runnable.getException();
-        if ( myException != null ) {
-          if ( excep == null ) {
+        if (myException != null) {
+          if (excep == null) {
             excep = myException;
           } else {
             excep.addSuppressed(myException);
           }
         }
       }
-      if ( excep != null ) {
+      if (excep != null) {
         throw excep;
       }
     } finally {
@@ -178,18 +186,14 @@ public class PartitionerDecorator implements AutoCloseable {
   }
 
   /**
-   * Helper interface to generalize functionality executed in the thread
-   * since it is absolutely the same for partitionBatch and flushOutgoingBatches
-   * protected is for testing purposes
+   * Helper interface to generalize functionality executed in the thread since it is absolutely the
+   * same for partitionBatch and flushOutgoingBatches protected is for testing purposes
    */
   protected interface PartitionTask {
     void execute(Partitioner partitioner) throws IOException;
   }
 
-  /**
-   * Class to handle running partitionBatch method
-   *
-   */
+  /** Class to handle running partitionBatch method */
   private static class PartitionBatchHandlingClass implements PartitionTask {
 
     private final VectorAccessible incoming;
@@ -204,14 +208,10 @@ public class PartitionerDecorator implements AutoCloseable {
     }
   }
 
-  /**
-   * Class to handle running flushOutgoingBatches method
-   *
-   */
+  /** Class to handle running flushOutgoingBatches method */
   private static class TerminationHandler implements PartitionTask {
 
-    public TerminationHandler() {
-    }
+    public TerminationHandler() {}
 
     @Override
     public void execute(Partitioner part) throws IOException {
@@ -220,11 +220,7 @@ public class PartitionerDecorator implements AutoCloseable {
     }
   }
 
-  /**
-   * Helper class to wrap Runnable with customized naming
-   * Exception handling
-   *
-   */
+  /** Helper class to wrap Runnable with customized naming Exception handling */
   private static class CustomRunnable implements Runnable {
 
     private final String parentThreadName;
@@ -235,8 +231,12 @@ public class PartitionerDecorator implements AutoCloseable {
 
     private volatile IOException exp;
 
-    public CustomRunnable(final String parentThreadName, final CountDownLatch latch, final PartitionTask iface,
-        final Partitioner part, CountDownLatchInjection testCountDownLatch) {
+    public CustomRunnable(
+        final String parentThreadName,
+        final CountDownLatch latch,
+        final PartitionTask iface,
+        final Partitioner part,
+        CountDownLatchInjection testCountDownLatch) {
       this.parentThreadName = parentThreadName;
       this.latch = latch;
       this.iface = iface;
@@ -250,7 +250,8 @@ public class PartitionerDecorator implements AutoCloseable {
       try {
         testCountDownLatch.await();
       } catch (final InterruptedException e) {
-        logger.debug("Test only: partitioner thread is interrupted in test countdown latch await()", e);
+        logger.debug(
+            "Test only: partitioner thread is interrupted in test countdown latch await()", e);
       }
 
       final Thread currThread = Thread.currentThread();
@@ -279,4 +280,4 @@ public class PartitionerDecorator implements AutoCloseable {
       return part;
     }
   }
- }
+}

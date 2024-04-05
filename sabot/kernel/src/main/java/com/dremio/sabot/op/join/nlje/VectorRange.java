@@ -15,19 +15,15 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.util.Closeable;
 import com.google.common.base.Preconditions;
-
 import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * A pair of offset vectors that describe the values of the probe and build values to scan.
- */
+/** A pair of offset vectors that describe the values of the probe and build values to scan. */
 public class VectorRange extends DualRange implements Closeable {
 
   public static final int PROBE_OUTPUT_SIZE = 2;
@@ -41,9 +37,7 @@ public class VectorRange extends DualRange implements Closeable {
   protected final int targetOutputSize;
   protected final IntRange currentOutputRange;
 
-  public VectorRange(
-      int maxInterOutput,
-      int targetOutputSize) {
+  public VectorRange(int maxInterOutput, int targetOutputSize) {
     Preconditions.checkArgument(targetOutputSize <= maxInterOutput);
     this.maxOutputRange = maxInterOutput;
     this.totalOutputRange = IntRange.EMPTY;
@@ -54,7 +48,6 @@ public class VectorRange extends DualRange implements Closeable {
   public void provideIterator(InputRangeIterator iter) {
     this.rangeIterator = iter;
   }
-
 
   private VectorRange(
       int maxOutputRange,
@@ -74,7 +67,7 @@ public class VectorRange extends DualRange implements Closeable {
   }
 
   public void allocate(BufferAllocator allocator) throws Exception {
-    try (RollbackCloseable rbc = new RollbackCloseable()){
+    try (RollbackCloseable rbc = new RollbackCloseable()) {
       probeOffsets = rbc.add(allocator.buffer(maxOutputRange * PROBE_OUTPUT_SIZE));
       buildOffsets = rbc.add(allocator.buffer(maxOutputRange * BUILD_OUTPUT_SIZE));
       rbc.commit();
@@ -107,12 +100,16 @@ public class VectorRange extends DualRange implements Closeable {
   }
 
   /**
-   * Get the next output range for the current set of matched values. Can only be called if hasRemainingOutput is true.
+   * Get the next output range for the current set of matched values. Can only be called if
+   * hasRemainingOutput is true.
+   *
    * @return The next range.
    */
   protected IntRange nextOutputRange() {
     Preconditions.checkArgument(hasRemainingOutput());
-    return IntRange.of(currentOutputRange.end, Math.min(currentOutputRange.end + targetOutputSize, totalOutputRange.end));
+    return IntRange.of(
+        currentOutputRange.end,
+        Math.min(currentOutputRange.end + targetOutputSize, totalOutputRange.end));
   }
 
   protected boolean hasRemainingOutput() {
@@ -131,7 +128,12 @@ public class VectorRange extends DualRange implements Closeable {
     return buildOffsets.memoryAddress();
   }
 
-  public static void set(long probeOutputAddr, long buildOutputAddr, int outputIndex, short probeIndex, int compoundBuildIndex) {
+  public static void set(
+      long probeOutputAddr,
+      long buildOutputAddr,
+      int outputIndex,
+      short probeIndex,
+      int compoundBuildIndex) {
     PlatformDependent.putShort(probeOutputAddr + outputIndex * PROBE_OUTPUT_SIZE, probeIndex);
     PlatformDependent.putInt(buildOutputAddr + outputIndex * BUILD_OUTPUT_SIZE, compoundBuildIndex);
   }
@@ -165,25 +167,60 @@ public class VectorRange extends DualRange implements Closeable {
   @Override
   public VectorRange nextOutput() {
 
-    if(hasRemainingOutput()) {
-      return new VectorRange(maxOutputRange, totalOutputRange, targetOutputSize, nextOutputRange(), rangeIterator, probeOffsets, buildOffsets);
+    if (hasRemainingOutput()) {
+      return new VectorRange(
+          maxOutputRange,
+          totalOutputRange,
+          targetOutputSize,
+          nextOutputRange(),
+          rangeIterator,
+          probeOffsets,
+          buildOffsets);
     }
 
-    if(rangeIterator.hasNext()) {
+    if (rangeIterator.hasNext()) {
       int records = rangeIterator.next();
-      return new VectorRange(maxOutputRange, IntRange.of(0, records), targetOutputSize, IntRange.EMPTY, rangeIterator, probeOffsets, buildOffsets);
+      return new VectorRange(
+          maxOutputRange,
+          IntRange.of(0, records),
+          targetOutputSize,
+          IntRange.EMPTY,
+          rangeIterator,
+          probeOffsets,
+          buildOffsets);
     }
 
-    return new VectorRange(maxOutputRange, IntRange.EMPTY, targetOutputSize, IntRange.EMPTY, rangeIterator, probeOffsets, buildOffsets);
+    return new VectorRange(
+        maxOutputRange,
+        IntRange.EMPTY,
+        targetOutputSize,
+        IntRange.EMPTY,
+        rangeIterator,
+        probeOffsets,
+        buildOffsets);
   }
 
   @Override
   public VectorRange startNextProbe(int records) {
     rangeIterator.startNextProbe(records);
-    return new VectorRange(maxOutputRange, IntRange.EMPTY, targetOutputSize, IntRange.EMPTY, rangeIterator, probeOffsets, buildOffsets);
+    return new VectorRange(
+        maxOutputRange,
+        IntRange.EMPTY,
+        targetOutputSize,
+        IntRange.EMPTY,
+        rangeIterator,
+        probeOffsets,
+        buildOffsets);
   }
 
   public VectorRange resetRecordsFound(int recordsFound) {
-    return new VectorRange(maxOutputRange, IntRange.of(0, recordsFound), targetOutputSize, IntRange.EMPTY, rangeIterator, probeOffsets, buildOffsets);
+    return new VectorRange(
+        maxOutputRange,
+        IntRange.of(0, recordsFound),
+        targetOutputSize,
+        IntRange.EMPTY,
+        rangeIterator,
+        probeOffsets,
+        buildOffsets);
   }
 }

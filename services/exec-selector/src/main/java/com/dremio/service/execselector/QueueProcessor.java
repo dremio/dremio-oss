@@ -15,24 +15,24 @@
  */
 package com.dremio.service.execselector;
 
+import com.dremio.common.concurrent.AutoCloseableLock;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import com.dremio.common.concurrent.AutoCloseableLock;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-
 /**
- * Processes events serially, in a separate thread. This is nothing but a wrapper around a BlockingQueue
- * Thread is spawned on 'start', and reaped at close
+ * Processes events serially, in a separate thread. This is nothing but a wrapper around a
+ * BlockingQueue Thread is spawned on 'start', and reaped at close
  *
  * @param <T> the event class
  */
 public class QueueProcessor<T> implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueueProcessor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(QueueProcessor.class);
 
   private final String name;
   private final Supplier<AutoCloseableLock> lockSupplier;
@@ -43,16 +43,18 @@ public class QueueProcessor<T> implements AutoCloseable {
   private boolean isClosed;
 
   /**
-   * Initialize a queue processor. When started, the thread that processes the events will be renamed to 'name'
+   * Initialize a queue processor. When started, the thread that processes the events will be
+   * renamed to 'name'
    *
-   * @param name          Name given to the thread that will process the events
-   * @param lockSupplier  Invoked before processing a batch of events. Individual calls to the consumer will be made
-   *                      under this lock. The lock will be closed once the events have been processed
-   * @param consumer      Invoked for every event found on the queue
-   *                      The consumer should not throw any exceptions. Any exceptions it does throw will be caught
-   *                      and ignored
+   * @param name Name given to the thread that will process the events
+   * @param lockSupplier Invoked before processing a batch of events. Individual calls to the
+   *     consumer will be made under this lock. The lock will be closed once the events have been
+   *     processed
+   * @param consumer Invoked for every event found on the queue The consumer should not throw any
+   *     exceptions. Any exceptions it does throw will be caught and ignored
    */
-  public QueueProcessor(String name, Supplier<AutoCloseableLock> lockSupplier, Consumer<T> consumer) {
+  public QueueProcessor(
+      String name, Supplier<AutoCloseableLock> lockSupplier, Consumer<T> consumer) {
     this.name = name;
     this.lockSupplier = lockSupplier;
     this.consumer = consumer;
@@ -63,8 +65,8 @@ public class QueueProcessor<T> implements AutoCloseable {
   }
 
   /**
-   * Add 'event' to the queue.
-   * The queue processor need not be started for events to be processed in the queue
+   * Add 'event' to the queue. The queue processor need not be started for events to be processed in
+   * the queue
    */
   public void enqueue(T event) {
     try {
@@ -75,28 +77,29 @@ public class QueueProcessor<T> implements AutoCloseable {
     }
   }
 
-  /**
-   * Spawn the event processing thread and start processing events.
-   */
+  /** Spawn the event processing thread and start processing events. */
   public void start() {
     Preconditions.checkState(workerThread == null, "Queue processor already started");
-    workerThread = new Thread(() -> {
-      while (!isClosed) {
-        try {
-          processBatch();
-        } catch (InterruptedException e) {
-          // will definitely happen on close, but safe to ignore otherwise
-        } catch (Exception e) {
-          logger.warn("Unhandled exception in queue processor {}", name, e);
-        }
-      }
-    }, name);
+    workerThread =
+        new Thread(
+            () -> {
+              while (!isClosed) {
+                try {
+                  processBatch();
+                } catch (InterruptedException e) {
+                  // will definitely happen on close, but safe to ignore otherwise
+                } catch (Exception e) {
+                  logger.warn("Unhandled exception in queue processor {}", name, e);
+                }
+              }
+            },
+            name);
     workerThread.start();
   }
 
   private void processBatch() throws InterruptedException {
     T event = queue.take();
-    try(AutoCloseableLock ignored = lockSupplier.get()) {
+    try (AutoCloseableLock ignored = lockSupplier.get()) {
       while (event != null) {
         consumer.accept(event);
         event = queue.poll(0, TimeUnit.NANOSECONDS);
@@ -111,7 +114,8 @@ public class QueueProcessor<T> implements AutoCloseable {
   }
 
   /**
-   * Reaps the event processing thread. The event processing thread might not finish processing the events on the queue
+   * Reaps the event processing thread. The event processing thread might not finish processing the
+   * events on the queue
    */
   @Override
   public void close() throws Exception {

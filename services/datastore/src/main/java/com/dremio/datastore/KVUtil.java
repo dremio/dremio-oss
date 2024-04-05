@@ -15,55 +15,59 @@
  */
 package com.dremio.datastore;
 
-import java.util.Map.Entry;
-
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import java.util.Map.Entry;
 
-/**
- * Small Utilities to work with kv store.
- */
+/** Small Utilities to work with kv store. */
 public class KVUtil {
 
   /**
    * Converts an Iterable<Entry<K, V>> into a similarly ordered ImmutableMap<K, V>
+   *
    * @param Iterable to transform.
    * @return new ordered map of items.
    */
-  public static <K, V> ImmutableMap<K, V> asMap(Iterable<Entry<K, V>> iterable){
+  public static <K, V> ImmutableMap<K, V> asMap(Iterable<Entry<K, V>> iterable) {
     ImmutableMap.Builder<K, V> builder = ImmutableMap.builder();
-    for(Entry<K, V> entry : iterable){
+    for (Entry<K, V> entry : iterable) {
       builder.put(entry.getKey(), entry.getValue());
     }
     return builder.build();
-
   }
 
   /**
    * Get the values for a Iterable<Entry<K, V>>
+   *
    * @param Iterable to lazily transform.
    * @return new Iterable of type <K>
    */
-  public static <K, V> Iterable<V> values(Iterable<Entry<K, V>> iterable){
-    return Iterables.transform(iterable, new Function<Entry<K, V>, V>(){
-      @Override
-      public V apply(Entry<K, V> input) {
-        return input.getValue();
-      }});
+  public static <K, V> Iterable<V> values(Iterable<Entry<K, V>> iterable) {
+    return Iterables.transform(
+        iterable,
+        new Function<Entry<K, V>, V>() {
+          @Override
+          public V apply(Entry<K, V> input) {
+            return input.getValue();
+          }
+        });
   }
 
   /**
    * Get the keys for a Iterable<Entry<K, V>>
+   *
    * @param iterable Iterable to lazily transform.
    * @return new Iterable of type <K>
    */
-  public static <K, V> Iterable<K> keys(Iterable<Entry<K, V>> iterable){
-    return Iterables.transform(iterable, new Function<Entry<K, V>, K>(){
-      @Override
-      public K apply(Entry<K, V> input) {
-        return input.getKey();
-      }});
+  public static <K, V> Iterable<K> keys(Iterable<Entry<K, V>> iterable) {
+    return Iterables.transform(
+        iterable,
+        new Function<Entry<K, V>, K>() {
+          @Override
+          public K apply(Entry<K, V> input) {
+            return input.getKey();
+          }
+        });
   }
-
 }

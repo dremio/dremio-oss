@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.physical.PrelUtil;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -26,13 +27,11 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.planner.physical.PrelUtil;
-
 public class BridgeExchangeRel extends SingleRel implements Rel {
   private final String bridgeSetId;
 
-  public BridgeExchangeRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, String bridgeSetId) {
+  public BridgeExchangeRel(
+      RelOptCluster cluster, RelTraitSet traitSet, RelNode input, String bridgeSetId) {
     super(cluster, traitSet, input);
     this.bridgeSetId = bridgeSetId;
   }
@@ -48,22 +47,22 @@ public class BridgeExchangeRel extends SingleRel implements Rel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return super.explainTerms(pw)
-      .item("bridgeSetId", bridgeSetId);
+    return super.explainTerms(pw).item("bridgeSetId", bridgeSetId);
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     RelNode child = this.getInput();
     final double rowCount = mq.getRowCount(this);
-    final DremioCost.Factory costFactory = (DremioCost.Factory)planner.getCostFactory();
+    final DremioCost.Factory costFactory = (DremioCost.Factory) planner.getCostFactory();
 
-    double adjustmentFactor = PrelUtil.getPlannerSettings(getCluster()).getCseCostAdjustmentFactor();
+    double adjustmentFactor =
+        PrelUtil.getPlannerSettings(getCluster()).getCseCostAdjustmentFactor();
     if (adjustmentFactor == Double.MAX_VALUE) {
       return costFactory.makeHugeCost();
     }
 
-    final int  rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
+    final int rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
     final double cpuCost = DremioCost.PROJECT_SIMPLE_CPU_COST * rowCount * rowWidth;
     final double ioCost = DremioCost.BYTE_DISK_WRITE_COST * rowCount * rowWidth;
 

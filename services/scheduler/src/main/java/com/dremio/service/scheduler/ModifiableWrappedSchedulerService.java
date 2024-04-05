@@ -15,26 +15,25 @@
  */
 package com.dremio.service.scheduler;
 
-import java.util.Optional;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.coordinator.ClusterElectionManager;
 import com.dremio.service.coordinator.ClusterServiceSetManager;
+import java.util.Optional;
+import javax.inject.Provider;
 
 /**
- * A wrapped modifiable scheduler service that hides the new clustered singleton under a feature flag
- * <p>
- * <strong>NOTE:</strong> for the new clustered singleton implementation, this wrapper uses the underlying singleton
- * scheduler service.
- * TODO: DX-68199; remove or refactor this when the old clustered singleton is entirely decommissioned.
- * </p>
+ * A wrapped modifiable scheduler service that hides the new clustered singleton under a feature
+ * flag
+ *
+ * <p><strong>NOTE:</strong> for the new clustered singleton implementation, this wrapper uses the
+ * underlying singleton scheduler service. TODO: DX-68199; remove or refactor this when the old
+ * clustered singleton is entirely decommissioned.
  */
 public class ModifiableWrappedSchedulerService implements ModifiableSchedulerService {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ModifiableWrappedSchedulerService.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ModifiableWrappedSchedulerService.class);
   private final Provider<OptionManager> optionManagerProvider;
   private final PositiveLongValidator option;
   private final Provider<ModifiableSchedulerService> schedulerServiceProvider;
@@ -48,16 +47,17 @@ public class ModifiableWrappedSchedulerService implements ModifiableSchedulerSer
   private final boolean isDistributedCoordinator;
   private volatile TaskGroupOptionListener taskGroupOptionListener;
 
-  public ModifiableWrappedSchedulerService(int capacity,
-                                           boolean isDistributedCoordinator,
-                                           String taskGroupName,
-                                           Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
-                                           Provider<ClusterElectionManager> clusterElectionManagerProvider,
-                                           Provider<CoordinationProtos.NodeEndpoint> currentNodeProvider,
-                                           PositiveLongValidator option,
-                                           Provider<OptionManager> optionManagerProvider,
-                                           Provider<ModifiableSchedulerService> schedulerServiceProvider,
-                                           boolean leaderlessEnabled) {
+  public ModifiableWrappedSchedulerService(
+      int capacity,
+      boolean isDistributedCoordinator,
+      String taskGroupName,
+      Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+      Provider<ClusterElectionManager> clusterElectionManagerProvider,
+      Provider<CoordinationProtos.NodeEndpoint> currentNodeProvider,
+      PositiveLongValidator option,
+      Provider<OptionManager> optionManagerProvider,
+      Provider<ModifiableSchedulerService> schedulerServiceProvider,
+      boolean leaderlessEnabled) {
     this.optionManagerProvider = optionManagerProvider;
     this.option = option;
     this.taskGroupName = taskGroupName;
@@ -82,15 +82,17 @@ public class ModifiableWrappedSchedulerService implements ModifiableSchedulerSer
       schedulerServiceInUse.start();
     }
     // register the task group option change listener
-    taskGroupOptionListener = new TaskGroupOptionListener(schedulerServiceInUse, taskGroupName, option,
-      optionManagerProvider);
+    taskGroupOptionListener =
+        new TaskGroupOptionListener(
+            schedulerServiceInUse, taskGroupName, option, optionManagerProvider);
     optionManagerProvider.get().addOptionChangeListener(taskGroupOptionListener);
     LOGGER.info("Wrapped Scheduler Service Started");
   }
 
   @Override
   public void addTaskGroup(ScheduleTaskGroup taskGroup) {
-    // no op as all invocations are internal due to 1-to-1 mapping of this instance and task group and
+    // no op as all invocations are internal due to 1-to-1 mapping of this instance and task group
+    // and
     // the task group is directly invoked on the inner scheduler
   }
 
@@ -103,7 +105,10 @@ public class ModifiableWrappedSchedulerService implements ModifiableSchedulerSer
   public Cancellable schedule(Schedule schedule, Runnable task) {
     Schedule groupedSchedule = schedule;
     if (schedule.getTaskName() != null && schedule.getSingleShotType() == null) {
-      groupedSchedule = Schedule.ClusteredSingletonBuilder.fromSchedule(schedule).taskGroup(taskGroupName).build();
+      groupedSchedule =
+          Schedule.ClusteredSingletonBuilder.fromSchedule(schedule)
+              .taskGroup(taskGroupName)
+              .build();
     }
     return schedulerServiceInUse.schedule(groupedSchedule, task);
   }
@@ -111,6 +116,11 @@ public class ModifiableWrappedSchedulerService implements ModifiableSchedulerSer
   @Override
   public Optional<CoordinationProtos.NodeEndpoint> getCurrentTaskOwner(String taskName) {
     return schedulerServiceInUse.getCurrentTaskOwner(taskName);
+  }
+
+  @Override
+  public boolean isRollingUpgradeInProgress(String taskName) {
+    return schedulerServiceInUse.isRollingUpgradeInProgress(taskName);
   }
 
   @Override
@@ -129,14 +139,14 @@ public class ModifiableWrappedSchedulerService implements ModifiableSchedulerSer
     } else {
       LOGGER.info("Using leader election based Clustered singleton");
       return new ModifiableLocalSchedulerService(
-        initialCapacity,
-        taskGroupName,
-        clusterServiceSetManagerProvider,
-        clusterElectionManagerProvider,
-        currentNodeProvider,
-        isDistributedCoordinator,
-        option,
-        optionManagerProvider);
+          initialCapacity,
+          taskGroupName,
+          clusterServiceSetManagerProvider,
+          clusterElectionManagerProvider,
+          currentNodeProvider,
+          isDistributedCoordinator,
+          option,
+          optionManagerProvider);
     }
   }
 }

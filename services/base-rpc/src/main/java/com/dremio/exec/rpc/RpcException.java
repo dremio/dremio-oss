@@ -15,21 +15,17 @@
  */
 package com.dremio.exec.rpc;
 
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.util.concurrent.ExecutionException;
-
-import javax.annotation.Nullable;
-
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.ExceptionWrapper;
 import com.google.common.base.Throwables;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.util.concurrent.ExecutionException;
+import javax.annotation.Nullable;
 
-/**
- * Parent class for all rpc exceptions.
- */
+/** Parent class for all rpc exceptions. */
 public class RpcException extends IOException {
   private static final long serialVersionUID = -5964230316010502319L;
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcException.class);
@@ -89,29 +85,31 @@ public class RpcException extends IOException {
     return new RpcException(message, t);
   }
 
-  public boolean isRemote(){
+  public boolean isRemote() {
     return false;
   }
 
-  public DremioPBError getRemoteError(){
+  public DremioPBError getRemoteError() {
     throw new UnsupportedOperationException();
   }
 
   /**
    * Unwrap the provided exception, and throws the underlying "cause" if an instance of clazz.
    *
-   * For {@code RpcException} wrapping {@code UserRemoteException}, try to unwrap the
-   * {@code DremioPBError} instance, and skip over the {@code UserRpcException} instances to find
-   * the root cause of the remote exception.
+   * <p>For {@code RpcException} wrapping {@code UserRemoteException}, try to unwrap the {@code
+   * DremioPBError} instance, and skip over the {@code UserRpcException} instances to find the root
+   * cause of the remote exception.
    *
-   * If the method is able to build an instance of the exception by reflection, and if the exception is
-   * of type {@code T}, or is a unchecked exception, throws the exception. Otherwise does nothing.
+   * <p>If the method is able to build an instance of the exception by reflection, and if the
+   * exception is of type {@code T}, or is a unchecked exception, throws the exception. Otherwise
+   * does nothing.
    *
    * @param e the exception to unwrap
    * @param clazz the exception class
    * @throws T if the underlying cause of e
    */
-  public static <T extends Throwable> void propagateIfPossible(@Nullable RpcException e, Class<T> clazz) throws T {
+  public static <T extends Throwable> void propagateIfPossible(
+      @Nullable RpcException e, Class<T> clazz) throws T {
     if (e == null) {
       return;
     }
@@ -140,13 +138,14 @@ public class RpcException extends IOException {
         continue;
       }
       break;
-    } while(true);
+    } while (true);
 
     Throwable t;
     try {
-      Constructor<? extends Throwable> constructor = exceptionClazz.getConstructor(String.class, Throwable.class);
+      Constructor<? extends Throwable> constructor =
+          exceptionClazz.getConstructor(String.class, Throwable.class);
       t = constructor.newInstance(ew.getMessage(), e);
-    } catch(ReflectiveOperationException nsme) {
+    } catch (ReflectiveOperationException nsme) {
       Constructor<? extends Throwable> constructor;
       try {
         constructor = exceptionClazz.getConstructor(String.class);

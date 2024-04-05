@@ -22,17 +22,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.google.common.base.Ticker;
 import java.text.SimpleDateFormat;
-
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.service.namespace.dataset.DatasetVersion;
-import com.google.common.base.Ticker;
-
-/**
- * DatasetVersion must work in a given range
- */
+/** DatasetVersion must work in a given range */
 public class TestDatasetVersion {
 
   @Test
@@ -88,14 +84,15 @@ public class TestDatasetVersion {
 
   @Test
   public void testUniqueness() {
-    Ticker ticker = new Ticker() {
-      private final long millis = System.currentTimeMillis();
+    Ticker ticker =
+        new Ticker() {
+          private final long millis = System.currentTimeMillis();
 
-      @Override
-      public long read() {
-        return millis;
-      }
-    };
+          @Override
+          public long read() {
+            return millis;
+          }
+        };
 
     DatasetVersion version1 = DatasetVersion.forTesting(ticker);
     DatasetVersion version2 = DatasetVersion.forTesting(ticker);

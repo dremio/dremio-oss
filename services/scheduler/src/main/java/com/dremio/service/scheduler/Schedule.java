@@ -21,6 +21,7 @@ import static com.dremio.service.scheduler.ScheduleBuilderImpl.combine;
 import static com.dremio.service.scheduler.ScheduleBuilderImpl.dayOfMonth;
 import static com.dremio.service.scheduler.ScheduleBuilderImpl.sameOrNext;
 
+import com.google.common.base.Preconditions;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
@@ -36,20 +37,21 @@ import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import com.google.common.base.Preconditions;
-
 /**
  * A recurring task schedule.
- * <p>
- * A schedule comprises a starting point and a set of periods and is used to generate a sequence of instants where a
- * task should be run.
+ *
+ * <p>A schedule comprises a starting point and a set of periods and is used to generate a sequence
+ * of instants where a task should be run.
  */
 public interface Schedule extends Iterable<Instant> {
   enum SingleShotType {
+    // Run task once and only once, default
+    RUN_EXACTLY_ONCE,
     // Run task once and only once in the cluster or on an upgrade
     RUN_ONCE_EVERY_UPGRADE,
     // Run task once and only once in the cluster, everytime the task gets a new task owner.
-    // Here the assumption is that the task switches over to a new instance if and only if the original task owner
+    // Here the assumption is that the task switches over to a new instance if and only if the
+    // original task owner
     // crashes.
     RUN_ONCE_EVERY_SWITCHOVER,
     // Run task once and only once in the cluster, everytime there is a membership loss
@@ -57,25 +59,25 @@ public interface Schedule extends Iterable<Instant> {
     RUN_ONCE_EVERY_MEMBER_DEATH,
   }
 
-  /**
-   * Builder interface to create {@code Schedule} instances
-   */
+  /** Builder interface to create {@code Schedule} instances */
   interface CommonBuilder<B, C> {
     B withTimeZone(ZoneId zoneId);
+
     C asClusteredSingleton(String taskName);
+
     Schedule build();
   }
 
-  /**
-   * Builder interface to create {@code Schedule} instances
-   */
+  /** Builder interface to create {@code Schedule} instances */
   interface BaseBuilder<B, C> extends CommonBuilder<B, C> {
     B startingAt(Instant start);
   }
 
-  interface SingleShotBuilder extends CommonBuilder<SingleShotBuilder, ClusteredSingletonSingleShotBuilder> {
+  interface SingleShotBuilder
+      extends CommonBuilder<SingleShotBuilder, ClusteredSingletonSingleShotBuilder> {
     /**
-     * Returns a builder that helps create a single shot schedule that runs once and only once instantaneously.
+     * Returns a builder that helps create a single shot schedule that runs once and only once
+     * instantaneously.
      *
      * @return a schedule builder that creates a run once schedule for the task
      */
@@ -84,7 +86,8 @@ public interface Schedule extends Iterable<Instant> {
     }
 
     /**
-     * Returns a builder that helps create a single shot schedule that runs once at a future point in time.
+     * Returns a builder that helps create a single shot schedule that runs once at a future point
+     * in time.
      *
      * @param start Time at which the single shot schedule should run
      * @return a schedule builder that creates a run once future schedule
@@ -96,14 +99,14 @@ public interface Schedule extends Iterable<Instant> {
 
   interface Builder extends BaseBuilder<Builder, ClusteredSingletonBuilder> {
     /**
-     * Create a single shot schedule which is actually a chain of single shots. So in reality it is not a single
-     * shot.
-     * <p>
-     * <strong>NOTE:</strong> This is only temporary as we need to allow the old scheduler to coexist with
-     * the new for some time. The old unfortunately models multiple schedules of a task as a chain of
-     * single shot schedules in order to allow occasional schedule modifications.
+     * Create a single shot schedule which is actually a chain of single shots. So in reality it is
+     * not a single shot.
+     *
+     * <p><strong>NOTE:</strong> This is only temporary as we need to allow the old scheduler to
+     * coexist with the new for some time. The old unfortunately models multiple schedules of a task
+     * as a chain of single shot schedules in order to allow occasional schedule modifications.
      * TODO: DX-68199 avoid the chain and use schedule modifier
-     * </p>
+     *
      * @return Builder for fluency
      */
     static Builder singleShotChain() {
@@ -169,10 +172,10 @@ public interface Schedule extends Iterable<Instant> {
      * Create a schedule builder where events are triggered every {@code days}, at a specific time
      *
      * @param days the number of days between events
-     * @param at   the specific time to generate the events at
+     * @param at the specific time to generate the events at
      * @return a schedule builder generating events every {@code days}
      * @throws IllegalArgumentException if {@code days} is negative
-     * @throws NullPointerException     if {@code at} is null
+     * @throws NullPointerException if {@code at} is null
      */
     static Builder everyDays(int days, LocalTime at) {
       Preconditions.checkNotNull(at);
@@ -191,20 +194,21 @@ public interface Schedule extends Iterable<Instant> {
     }
 
     /**
-     * Create a schedule build where events are triggered every {@code weeks}, at a specific day of week and time
+     * Create a schedule build where events are triggered every {@code weeks}, at a specific day of
+     * week and time
      *
-     * @param weeks     the number of weeks between events
+     * @param weeks the number of weeks between events
      * @param dayOfWeek the day of week when to generate events for
-     * @param at        the specific time to generate the events at
+     * @param at the specific time to generate the events at
      * @return a schedule builder generating events every {@code weeks}
      * @throws IllegalArgumentException if {@code weeks} is negative
-     * @throws NullPointerException     if {@code dayOfWeek} or {@code at} is null
+     * @throws NullPointerException if {@code dayOfWeek} or {@code at} is null
      */
     static Builder everyWeeks(int weeks, DayOfWeek dayOfWeek, LocalTime at) {
       Preconditions.checkNotNull(dayOfWeek);
       Preconditions.checkNotNull(at);
-      return ((ScheduleBuilderImpl) everyWeeks(weeks)).withAdjuster(
-        sameOrNext(Period.ofWeeks(1), combine(dayOfWeek, at)));
+      return ((ScheduleBuilderImpl) everyWeeks(weeks))
+          .withAdjuster(sameOrNext(Period.ofWeeks(1), combine(dayOfWeek, at)));
     }
 
     /**
@@ -219,61 +223,68 @@ public interface Schedule extends Iterable<Instant> {
     }
 
     /**
-     * Create a schedule builder where events are triggered every {@code months}, on a given day of the month and time
-     * <p>
-     * The specific day of the month is expressed as a day of the week and a week number, which
+     * Create a schedule builder where events are triggered every {@code months}, on a given day of
+     * the month and time
+     *
+     * <p>The specific day of the month is expressed as a day of the week and a week number, which
      * is useful to represent schedule like every 2nd tuesday of the month.
      *
-     * @param months      the number of months between events
+     * @param months the number of months between events
      * @param weekOfMonth the ordinal week of the month (1st week is 1)
-     * @param dayOfWeek   the day of week when to generate events for
-     * @param at          the specific time to generate the events at
+     * @param dayOfWeek the day of week when to generate events for
+     * @param at the specific time to generate the events at
      * @return a schedule builder generating events every {@code months}
-     * @throws IllegalArgumentException if {@code months} is negative, or if {@code weekOfMonth} is invalid.
-     * @throws NullPointerException     if {@code dayOfWeek} or {@code at} is null
+     * @throws IllegalArgumentException if {@code months} is negative, or if {@code weekOfMonth} is
+     *     invalid.
+     * @throws NullPointerException if {@code dayOfWeek} or {@code at} is null
      */
     static Builder everyMonths(int months, int weekOfMonth, DayOfWeek dayOfWeek, LocalTime at) {
       ChronoField.ALIGNED_WEEK_OF_MONTH.checkValidValue(weekOfMonth);
       Preconditions.checkNotNull(dayOfWeek);
       Preconditions.checkNotNull(at);
-      return ((ScheduleBuilderImpl) everyMonths(months)).withAdjuster(sameOrNext(Period.ofMonths(1),
-        combine(TemporalAdjusters.dayOfWeekInMonth(weekOfMonth, dayOfWeek), at)));
+      return ((ScheduleBuilderImpl) everyMonths(months))
+          .withAdjuster(
+              sameOrNext(
+                  Period.ofMonths(1),
+                  combine(TemporalAdjusters.dayOfWeekInMonth(weekOfMonth, dayOfWeek), at)));
     }
 
     /**
-     * Create a new schedule where events are triggered every {@code months}, on a given day of the month and time
+     * Create a new schedule where events are triggered every {@code months}, on a given day of the
+     * month and time
      *
-     * @param months     the number of months between events
-     * @param dayOfMonth the day of the month when to triggered events for. It
-     *                   might be adjusted if too large for a specific month
-     *                   (31 would be adjusted to 30 for an event triggered in April).
-     * @param at         the specific time to generate the events at
+     * @param months the number of months between events
+     * @param dayOfMonth the day of the month when to triggered events for. It might be adjusted if
+     *     too large for a specific month (31 would be adjusted to 30 for an event triggered in
+     *     April).
+     * @param at the specific time to generate the events at
      * @return a schedule builder generating events every {@code months}
-     * @throws IllegalArgumentException if {@code months} is negative, or if {@code dayOfMonth} is invalid.
-     * @throws NullPointerException     if {@code at} is null
+     * @throws IllegalArgumentException if {@code months} is negative, or if {@code dayOfMonth} is
+     *     invalid.
+     * @throws NullPointerException if {@code at} is null
      */
     static Builder everyMonths(int months, int dayOfMonth, LocalTime at) {
       ChronoField.DAY_OF_MONTH.checkValidIntValue(dayOfMonth);
       Preconditions.checkNotNull(at);
 
-      return ((ScheduleBuilderImpl) everyMonths(months)).withAdjuster(sameOrNext(Period.ofMonths(1),
-        combine(dayOfMonth(dayOfMonth), at)));
+      return ((ScheduleBuilderImpl) everyMonths(months))
+          .withAdjuster(sameOrNext(Period.ofMonths(1), combine(dayOfMonth(dayOfMonth), at)));
     }
   }
 
-  interface ClusteredSingletonSingleShotBuilder extends CommonBuilder<ClusteredSingletonSingleShotBuilder,
-    ClusteredSingletonSingleShotBuilder> {
+  interface ClusteredSingletonSingleShotBuilder
+      extends CommonBuilder<
+          ClusteredSingletonSingleShotBuilder, ClusteredSingletonSingleShotBuilder> {
     /**
      * Execute in lock step.
-     * <p>
-     * If this is set, schedules will be executed in lock step, where all nodes wait for the single shot task running
-     * on a single instance to complete.
-     * Lock step schedules can be duplicated which means two schedules can coexist with the same task name
-     * as long as they execute in sequence.
-     * </p>
-     * <p>
-     * <strong>NOTE:</strong> This is an optional extension for single shot immediate distributed schedules only.
-     * </p>
+     *
+     * <p>If this is set, schedules will be executed in lock step, where all nodes wait for the
+     * single shot task running on a single instance to complete. Lock step schedules can be
+     * duplicated which means two schedules can coexist with the same task name as long as they
+     * execute in sequence.
+     *
+     * <p><strong>NOTE:</strong> This is an optional extension for single shot immediate distributed
+     * schedules only.
      */
     ClusteredSingletonSingleShotBuilder inLockStep();
 
@@ -286,47 +297,48 @@ public interface Schedule extends Iterable<Instant> {
     ClusteredSingletonSingleShotBuilder setSingleShotType(SingleShotType singleShotType);
   }
 
-  interface ClusteredSingletonBuilder extends BaseBuilder<ClusteredSingletonBuilder, ClusteredSingletonBuilder> {
+  interface ClusteredSingletonBuilder
+      extends BaseBuilder<ClusteredSingletonBuilder, ClusteredSingletonBuilder> {
     /**
-     * Provides a new ClusteredSingletonBuilder from an existing schedule where the name cannot be modified.
+     * Provides a new ClusteredSingletonBuilder from an existing schedule where the name cannot be
+     * modified.
      */
     static ClusteredSingletonBuilder fromSchedule(Schedule old) {
       return new ClusteredSingletonBuilderImpl(old);
     }
 
     /**
-     * Provides a new ClusteredSingletonBuilder from an existing schedule where the name cannot be modified
-     * and amount needs to be changed
-     * <p>
-     * Assumption: for now modifiable schedules cannot modify schedules with temporal adjustments
-     * </p>
+     * Provides a new ClusteredSingletonBuilder from an existing schedule where the name cannot be
+     * modified and amount needs to be changed
+     *
+     * <p>Assumption: for now modifiable schedules cannot modify schedules with temporal adjustments
      */
     static ClusteredSingletonBuilder fromSchedule(Schedule old, TemporalAmount newAmount) {
-      Preconditions.checkArgument(old.getAdjuster().equals(NO_ADJUSTMENT),
-        "Modifications not allowed for schedules with temporal adjusters such as time of day");
+      Preconditions.checkArgument(
+          old.getAdjuster().equals(NO_ADJUSTMENT),
+          "Modifications not allowed for schedules with temporal adjusters such as time of day");
       return new ClusteredSingletonBuilderImpl(old, newAmount);
     }
 
     /**
      * Allows modification of schedule of the task.
-     * <p>
-     * This is a better pattern for clustered singleton schedules as this allows to model a task with occasionally
-     * varying schedules as opposed to a chain of single shot schedules. For a clustered singleton this will also
-     * bring in internal efficiencies, such as a service instance retaining ownership for task across multiple
-     * schedules.
-     * </p>
-     * @param scheduleModifier The modifier function that returns a new schedule. Return of a null schedule by this
-     *                         function indicates that there is no modification.
+     *
+     * <p>This is a better pattern for clustered singleton schedules as this allows to model a task
+     * with occasionally varying schedules as opposed to a chain of single shot schedules. For a
+     * clustered singleton this will also bring in internal efficiencies, such as a service instance
+     * retaining ownership for task across multiple schedules.
+     *
+     * @param scheduleModifier The modifier function that returns a new schedule. Return of a null
+     *     schedule by this function indicates that there is no modification.
      * @return builder for fluency
      */
     ClusteredSingletonBuilder scheduleModifier(Function<Schedule, Schedule> scheduleModifier);
 
     /**
      * Ownership release for leader election.
-     * <p>
-     * TODO: DX-68199 these calls will no longer be necessary once the distributed singleton is entirely
-     * migrated and not under a flag.
-     * </p>
+     *
+     * <p>TODO: DX-68199 these calls will no longer be necessary once the distributed singleton is
+     * entirely migrated and not under a flag.
      *
      * @param number time
      * @param timeUnit time unit
@@ -335,12 +347,10 @@ public interface Schedule extends Iterable<Instant> {
     ClusteredSingletonBuilder releaseOwnershipAfter(long number, TimeUnit timeUnit);
 
     /**
-     * Cleanup listener which is called when a task is cancelled.
-     * <p>
-     * <strong>NOTE:</strong> Currently only used in leader election unit tests.
-     * TODO: DX-68199 these calls will no longer be necessary once the distributed singleton is entirely
-     * migrated and not under a flag.
-     * </p>
+     * Cleanup listener which is called when a task is re-mastered.
+     *
+     * <p>Called locally whenever a local node looses booking/master status of the task.
+     *
      * @param cleanupListener cleanup listener
      * @return builder for fluency
      */
@@ -348,22 +358,22 @@ public interface Schedule extends Iterable<Instant> {
 
     /**
      * Optional task group to which the task and its schedule belongs to.
-     * <p>
-     * If task group is not specified, default task group will be used for the task and its schedule(s).
-     * </p>
-     * @param taskGroupName Name of the group to which it belongs
      *
+     * <p>If task group is not specified, default task group will be used for the task and its
+     * schedule(s).
+     *
+     * @param taskGroupName Name of the group to which it belongs
      * @return builder for fluency
      */
     ClusteredSingletonBuilder taskGroup(String taskGroupName);
 
     /**
-     * All schedules of this task are sticky to an instance and cannot be scheduled on another instance, unless the
-     * other instance crashes.
-     * <p>
-     * By default schedules of a task are not sticky and can be load balanced. Schedule users must explicitly state
-     * if they wish that a task must stick to an instance as long as that instance is alive
-     * </p>
+     * All schedules of this task are sticky to an instance and cannot be scheduled on another
+     * instance, unless the other instance crashes.
+     *
+     * <p>By default schedules of a task are not sticky and can be load balanced. Schedule users
+     * must explicitly state if they wish that a task must stick to an instance as long as that
+     * instance is alive
      *
      * @return builder
      */
@@ -372,21 +382,20 @@ public interface Schedule extends Iterable<Instant> {
 
   /**
    * Return the amount of time between two instants created by the schedule.
-   * <p>
-   * The information is approximative and not absolute as the schedule might be adjusted
-   * based on schedule constraints (like every week, or every 2nd Tuesday of every other month).
-   * </p>
+   *
+   * <p>The information is approximative and not absolute as the schedule might be adjusted based on
+   * schedule constraints (like every week, or every 2nd Tuesday of every other month).
+   *
    * @return the amount of time between events
    */
   TemporalAmount getPeriod();
 
   /**
    * Return an iterator over next scheduled events
-   * <p>
-   * Each sequence of events created by this method starts at the current
-   * time (so the sequence doesn't contain events from the past). More precisely
-   * the first event should be the closest instant greater or equals to now which satisfies the
-   * schedule conditions.
+   *
+   * <p>Each sequence of events created by this method starts at the current time (so the sequence
+   * doesn't contain events from the past). More precisely the first event should be the closest
+   * instant greater or equals to now which satisfies the schedule conditions.
    *
    * @return the iterator
    */
@@ -395,17 +404,15 @@ public interface Schedule extends Iterable<Instant> {
 
   /**
    * To get name of distributed singleton task
-   * <p>
-   * Assumption: Only distributed singleton schedules have task names.
-   * </p>
+   *
+   * <p>Assumption: Only distributed singleton schedules have task names.
    *
    * @return task name
    */
   String getTaskName();
 
   /**
-   * Time period after which to release leadership
-   * in milliseconds
+   * Time period after which to release leadership in milliseconds
    *
    * @return Ownership release time (will be deprecated in future)
    */
@@ -422,12 +429,11 @@ public interface Schedule extends Iterable<Instant> {
 
   /**
    * To run exactly once.
-   *<p>
-   *<strong>NOTE:</strong> these calls will no longer be necessary once the clustered singleton is entirely
-   *migrated and not under a flag. See DX-68199
-   *<strong>NOTE:</strong> this is extremely confusing and error prone and difficult to wean out from the code
-   * as this is used to distinguish between a chain of single shots vs an actual single shot.
-   *</p>
+   *
+   * <p><strong>NOTE:</strong> these calls will no longer be necessary once the clustered singleton
+   * is entirely migrated and not under a flag. See DX-68199 <strong>NOTE:</strong> this is
+   * extremely confusing and error prone and difficult to wean out from the code as this is used to
+   * distinguish between a chain of single shots vs an actual single shot.
    *
    * @return true if task run exactly once, false otherwise
    */
@@ -438,7 +444,7 @@ public interface Schedule extends Iterable<Instant> {
    *
    * @return true if the single shot schedule needs to run once every switch over
    */
-   SingleShotType getSingleShotType();
+  SingleShotType getSingleShotType();
 
   /**
    * Is the schedule sticky to an instance until the instance fails?
@@ -448,16 +454,12 @@ public interface Schedule extends Iterable<Instant> {
   boolean isSticky();
 
   /**
-   * To get CleanupListener that will be used
-   * to clean up during distributed singleton task
-   * losing/abandoning leadership
-   * This can/should be used by tasks that need
-   * to clearly differentiate their state while they are leaders
-   * or not leaders
-   *<p>
-   *<strong>NOTE:</strong> these calls will no longer be necessary once the distributed singleton is entirely
-   *migrated and not under a flag. See DX-68199
-   *</p>
+   * To get CleanupListener that will be used to clean up during distributed singleton task
+   * losing/abandoning leadership This can/should be used by tasks that need to clearly
+   * differentiate their state while they are leaders or not leaders
+   *
+   * <p><strong>NOTE:</strong> these calls will no longer be necessary once the distributed
+   * singleton is entirely migrated and not under a flag. See DX-68199
    *
    * @return CleanupListener
    */
@@ -468,17 +470,16 @@ public interface Schedule extends Iterable<Instant> {
   }
 
   /**
-   * Returns a function that can return a modified schedule from existing schedule.
-   * This will allow callers to modify the schedule.
-   * <p>
-   * The scheduler will call this function immediately after the task completes its run on its current schedule.
-   * </p>
-   * <p>
-   * Since a schedule object is immutable, this returns a new schedule object everytime there is a modification,
-   * with the unmodified parts copied to the new object. If there is no modification to the current schedule,
-   * a <i>null</i> should be returned, which indicates to the scheduler that it should continue using the
+   * Returns a function that can return a modified schedule from existing schedule. This will allow
+   * callers to modify the schedule.
+   *
+   * <p>The scheduler will call this function immediately after the task completes its run on its
    * current schedule.
-   * </p>
+   *
+   * <p>Since a schedule object is immutable, this returns a new schedule object everytime there is
+   * a modification, with the unmodified parts copied to the new object. If there is no modification
+   * to the current schedule, a <i>null</i> should be returned, which indicates to the scheduler
+   * that it should continue using the current schedule.
    *
    * @return a supplier that either returns a modified schedule OR null if no modification allowed
    */
@@ -487,12 +488,13 @@ public interface Schedule extends Iterable<Instant> {
   }
 
   /**
-   * In order to control capacity usage and allow the creator of the task schedule to control the capacity usage
-   * of all tasks within a group, the schedule creator has the option to create different groups that is uniquely
-   * identified by the group name. This will allow external control of capacity usage for different kind of tasks.
-   * <p>
-   * If the schedule has not specified a name for the {@code ScheduleTaskGroup} the default group available to the
-   * scheduler service will be used, while scheduling this task.
+   * In order to control capacity usage and allow the creator of the task schedule to control the
+   * capacity usage of all tasks within a group, the schedule creator has the option to create
+   * different groups that is uniquely identified by the group name. This will allow external
+   * control of capacity usage for different kind of tasks.
+   *
+   * <p>If the schedule has not specified a name for the {@code ScheduleTaskGroup} the default group
+   * available to the scheduler service will be used, while scheduling this task.
    *
    * @return name of the task group if set for this schedule, null otherwise
    */
@@ -518,10 +520,20 @@ public interface Schedule extends Iterable<Instant> {
     return NO_ADJUSTMENT;
   }
 
-  /**
-   * Whether this is a lock step schedule
-   */
+  /** Whether this is a lock step schedule */
   default boolean isInLockStep() {
+    return false;
+  }
+
+  /**
+   * Whether this schedule has a periodicity > 1 minute.
+   *
+   * <p>Used mainly for recovery of schedule time. Such recovery is only needed, if the period is
+   * large.
+   *
+   * @return true if large periodicity
+   */
+  default boolean isLargePeriodicity() {
     return false;
   }
 }

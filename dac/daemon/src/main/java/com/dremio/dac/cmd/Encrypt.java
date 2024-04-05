@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.cmd;
 
-import java.util.List;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -29,25 +27,25 @@ import com.dremio.services.credentials.CredentialsException;
 import com.dremio.services.credentials.LocalSecretCredentialsProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import java.util.List;
 
-/**
- * Encrypt command line.
- */
+/** Encrypt command line. */
 @AdminCommand(value = "encrypt", description = "Encrypt a user supplied string")
 public final class Encrypt {
 
   private Encrypt() {}
 
-  /**
-   * Command line options for encrypt
-   */
+  /** Command line options for encrypt */
   @Parameters(separators = "=")
   static final class EncryptOptions {
     @Parameter(description = "Secret to be encrypted")
     private List<String> secrets;
-    @Parameter(names = {"-h", "--help"}, description = "show usage", help = true)
-    private boolean help = false;
 
+    @Parameter(
+        names = {"-h", "--help"},
+        description = "show usage",
+        help = true)
+    private boolean help = false;
   }
 
   public static void main(String[] args) {
@@ -99,7 +97,8 @@ public final class Encrypt {
   }
 
   @VisibleForTesting
-  static String encrypt(DremioConfig config, ScanResult scanResult, String secret) throws CredentialsException {
+  static String encrypt(DremioConfig config, ScanResult scanResult, String secret)
+      throws CredentialsException {
     LocalSecretCredentialsProvider provider = LocalSecretCredentialsProvider.of(config, scanResult);
     return provider.encrypt(secret).toString();
   }

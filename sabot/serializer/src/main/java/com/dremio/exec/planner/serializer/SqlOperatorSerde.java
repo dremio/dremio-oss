@@ -15,21 +15,18 @@
  */
 package com.dremio.exec.planner.serializer;
 
+import com.dremio.plan.serialization.PSqlOperator;
+import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.stream.Collectors;
-
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.plan.serialization.PSqlOperator;
-import com.google.common.base.Preconditions;
-
-/**
- * Serialize TO <> FROM SqlOperator to Protobuf.
- */
+/** Serialize TO <> FROM SqlOperator to Protobuf. */
 public final class SqlOperatorSerde {
   private static final Logger logger = LoggerFactory.getLogger(SqlOperatorSerde.class);
 
@@ -64,26 +61,27 @@ public final class SqlOperatorSerde {
         throw new UnsupportedOperationException("Unknown name type: " + o.getSqlOperatorTypeCase());
     }
 
-    List<SqlOperator> overloads = sqlOperatorTable
-      .getOperatorList()
-      .stream()
-      .filter(x -> x.getName().equalsIgnoreCase(name))
-      .collect(Collectors.toList());
+    List<SqlOperator> overloads =
+        sqlOperatorTable.getOperatorList().stream()
+            .filter(x -> x.getName().equalsIgnoreCase(name))
+            .collect(Collectors.toList());
 
     if (overloads.size() > 1) {
       // Continue to filter by the operand count:
-      List<SqlOperator> filteredOverloads = overloads
-        .stream()
-        .filter(x -> {
-          try {
-            SqlOperandCountRange sqlOperandCountRange = x.getOperandCountRange();
-            return sqlOperandCountRange.getMax() == o.getMaxOperands() && sqlOperandCountRange.getMin() == o.getMinOperands();
-          } catch (Exception ex) {
-            // Some operators don't implement getOperandCountRange();
-            return true;
-          }
-        })
-        .collect(Collectors.toList());
+      List<SqlOperator> filteredOverloads =
+          overloads.stream()
+              .filter(
+                  x -> {
+                    try {
+                      SqlOperandCountRange sqlOperandCountRange = x.getOperandCountRange();
+                      return sqlOperandCountRange.getMax() == o.getMaxOperands()
+                          && sqlOperandCountRange.getMin() == o.getMinOperands();
+                    } catch (Exception ex) {
+                      // Some operators don't implement getOperandCountRange();
+                      return true;
+                    }
+                  })
+              .collect(Collectors.toList());
       if (!filteredOverloads.isEmpty()) {
         overloads = filteredOverloads;
       }
@@ -91,10 +89,10 @@ public final class SqlOperatorSerde {
 
     if (overloads.size() > 1) {
       // Then filter by the class name
-      List<SqlOperator> filteredOverloads = overloads
-        .stream()
-        .filter(x -> x.getClass().getName().equalsIgnoreCase(o.getClassName()))
-        .collect(Collectors.toList());
+      List<SqlOperator> filteredOverloads =
+          overloads.stream()
+              .filter(x -> x.getClass().getName().equalsIgnoreCase(o.getClassName()))
+              .collect(Collectors.toList());
       if (!filteredOverloads.isEmpty()) {
         overloads = filteredOverloads;
       }
@@ -118,16 +116,23 @@ public final class SqlOperatorSerde {
       logger.warn("Legacy Operator Serde Failed for: " + o.getName());
     }
 
+    PSqlOperator.Builder builder = PSqlOperator.newBuilder();
     // These are the cases that the legacy serde could not handle:
-    PSqlOperator.Builder builder = PSqlOperator
-      .newBuilder()
-      .setName(o.getName())
-      .setClassName(o.getClass().getName());
+    if (o instanceof SqlFunction) {
+      SqlFunction sqlFunction = (SqlFunction) o;
+      // If it's a function than we need to use the identifier, which has the full context path
+      // built into it.
+      builder.setName(sqlFunction.getNameAsId().toString());
+    } else {
+      builder.setName(o.getName());
+    }
+
+    builder.setClassName(o.getClass().getName());
 
     try {
       builder
-        .setMinOperands(o.getOperandCountRange().getMin())
-        .setMaxOperands(o.getOperandCountRange().getMax());
+          .setMinOperands(o.getOperandCountRange().getMin())
+          .setMaxOperands(o.getOperandCountRange().getMax());
     } catch (Exception ex) {
       // Some methods don't implement getOperandCountRange()
     }

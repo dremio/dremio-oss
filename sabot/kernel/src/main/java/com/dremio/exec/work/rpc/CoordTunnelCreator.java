@@ -27,7 +27,7 @@ public class CoordTunnelCreator {
     this.factory = factory;
   }
 
-  public CoordTunnel getTunnel(NodeEndpoint ep){
+  public CoordTunnel getTunnel(NodeEndpoint ep) {
     return new CoordTunnel(ep, factory.getCommandRunner(ep.getAddress(), ep.getFabricPort()));
   }
 }

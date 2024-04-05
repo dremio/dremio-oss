@@ -26,32 +26,28 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.io.file.FileSystem;
+import com.dremio.sabot.exec.context.OpProfileDef;
+import com.dremio.sabot.exec.context.OperatorStats;
 import java.util.Collections;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.io.file.FileSystem;
-import com.dremio.sabot.exec.context.OpProfileDef;
-import com.dremio.sabot.exec.context.OperatorStats;
-
-/**
- * Tests for {@link RecordingCacheReaderWriter}
- */
+/** Tests for {@link RecordingCacheReaderWriter} */
 public class RecordingCacheReaderWriterTest {
   private OperatorStats operatorStats;
   private RecordingCacheReaderWriter cacheReaderWriter;
 
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   @Before
   public void setup() throws Exception {
     FileSystem fs = mock(FileSystem.class);
-    when(fs.getFileBlockLocations((com.dremio.io.file.Path) any(), anyLong(), anyLong())).then(mock -> Collections.emptyList());
+    when(fs.getFileBlockLocations((com.dremio.io.file.Path) any(), anyLong(), anyLong()))
+        .then(mock -> Collections.emptyList());
 
     operatorStats = new OperatorStats(new OpProfileDef(1, 1, 1, 1), null);
     RocksDbBroker broker = new RocksDbBroker(tempDir.newFolder().toString());
@@ -100,7 +96,8 @@ public class RecordingCacheReaderWriterTest {
 
     cacheReaderWriter.close();
     assertEquals(1, operatorStats.getLongStat(BLOCK_AFFINITY_CACHE_MISSES)); // for the first GET
-    assertEquals(totalGets, operatorStats.getLongStat(BLOCK_AFFINITY_CACHE_HITS)); // for rest of the GETs
+    assertEquals(
+        totalGets, operatorStats.getLongStat(BLOCK_AFFINITY_CACHE_HITS)); // for rest of the GETs
   }
 
   @Test

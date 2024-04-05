@@ -15,22 +15,22 @@
  */
 package com.dremio.common.logical;
 
-import java.util.Set;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.store.StoragePluginConfig;
-
+import java.util.Set;
 
 public abstract class StoragePluginConfigBase extends StoragePluginConfig {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StoragePluginConfigBase.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(StoragePluginConfigBase.class);
 
-  public static Set<Class<? extends StoragePluginConfig>> getSubTypes(final ScanResult classpathScan) {
-    final Set<Class<? extends StoragePluginConfig>> packages = classpathScan.getImplementations(StoragePluginConfig.class);
+  public static Set<Class<? extends StoragePluginConfig>> getSubTypes(
+      final ScanResult classpathScan) {
+    final Set<Class<? extends StoragePluginConfig>> packages =
+        classpathScan.getImplementations(StoragePluginConfig.class);
     logger.debug("Found {} logical operator classes: {}.", packages.size(), packages);
     return packages;
   }
 
   @Override
   public abstract boolean equals(Object o);
-
 }

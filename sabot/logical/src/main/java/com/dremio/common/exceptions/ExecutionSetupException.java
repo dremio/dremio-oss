@@ -20,35 +20,34 @@ import java.lang.reflect.InvocationTargetException;
 public class ExecutionSetupException extends Exception {
 
   public static ExecutionSetupException fromThrowable(String message, Throwable cause) {
-    Throwable t = cause instanceof InvocationTargetException
-        ? ((InvocationTargetException)cause).getTargetException() : cause;
+    Throwable t =
+        cause instanceof InvocationTargetException
+            ? ((InvocationTargetException) cause).getTargetException()
+            : cause;
     if (t instanceof ExecutionSetupException) {
       return ((ExecutionSetupException) t);
     }
     return new ExecutionSetupException(message, t);
   }
+
   public ExecutionSetupException() {
     super();
-
   }
 
-  public ExecutionSetupException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+  public ExecutionSetupException(
+      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
-
   }
 
   public ExecutionSetupException(String message, Throwable cause) {
     super(message, cause);
-
   }
 
   public ExecutionSetupException(String message) {
     super(message);
-
   }
 
   public ExecutionSetupException(Throwable cause) {
     super(cause);
-
   }
 }

@@ -186,6 +186,8 @@
             <EXTERNAL> <REFLECTION> name = SimpleIdentifier() { return SqlAddExternalReflection(pos, tblName, name);}
           )
           |
+          <REFRESH> <REFLECTIONS> {return new SqlRefreshReflectionsForDataset(pos, tblName, sqlTableVersionSpec);}
+          |
           <FORGET> <METADATA> {return new SqlForgetTable(pos, tblName);}
           |
           <REFRESH> <METADATA>

@@ -19,7 +19,6 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.Java;
 import org.codehaus.janino.Java.MethodDeclarator;
@@ -72,14 +71,14 @@ public class MethodGrabber extends AbstractTraverser<RuntimeException> {
     String[] fQCN = md.getDeclaringType().getClassName().split("\\.");
     String returnLabel = fQCN[fQCN.length - 1] + "_" + md.name;
     Java.Block b = new Java.Block(md.getLocation());
-    b.addStatements(new DeepCopier() {
+    b.addStatements(
+        new DeepCopier() {
 
-      @Override
-      public Java.BlockStatement
-      copyReturnStatement(Java.ReturnStatement subject) {
-        return new Java.BreakStatement(subject.getLocation(), returnLabel);
-      }
-    }.copyBlockStatements(statements));
+          @Override
+          public Java.BlockStatement copyReturnStatement(Java.ReturnStatement subject) {
+            return new Java.BreakStatement(subject.getLocation(), returnLabel);
+          }
+        }.copyBlockStatements(statements));
     return new Java.LabeledStatement(md.getLocation(), returnLabel, b);
   }
 

@@ -15,11 +15,21 @@
  */
 package com.dremio.exec.planner;
 
+import static com.dremio.exec.planner.physical.PlannerSettings.MAX_NODES_PER_PLAN;
+import static com.dremio.exec.planner.physical.PlannerSettings.PLANNING_MAX_MILLIS;
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_DURING_PLANNING_PAUSE;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.logical.CancelFlag;
+import com.dremio.exec.planner.physical.DistributionTrait;
+import com.dremio.exec.planner.physical.DistributionTraitDef;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
-import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCostFactory;
@@ -32,20 +42,11 @@ import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.runtime.CalciteException;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.logical.CancelFlag;
-import com.dremio.exec.planner.physical.DistributionTrait;
-import com.dremio.exec.planner.physical.DistributionTraitDef;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.testing.ControlsInjector;
-import com.dremio.exec.testing.ControlsInjectorFactory;
-import com.dremio.exec.testing.ExecutionControls;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-
 public class DremioHepPlanner extends HepPlanner {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioHepPlanner.class);
-  private static final ControlsInjector INJECTOR = ControlsInjectorFactory.getInjector(DremioHepPlanner.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioHepPlanner.class);
+  private static final ControlsInjector INJECTOR =
+      ControlsInjectorFactory.getInjector(DremioHepPlanner.class);
 
   private final CancelFlag cancelFlag;
   private final PlannerPhase phase;
@@ -54,13 +55,19 @@ public class DremioHepPlanner extends HepPlanner {
   private final ExecutionControls executionControls;
   private final PlannerSettings plannerSettings;
 
-  public DremioHepPlanner(final HepProgram program, final Context context, final RelOptCostFactory costFactory, PlannerPhase phase, MatchCountListener matchCountListener) {
-    super(program, context, false, null, costFactory);
-    plannerSettings = context.unwrap(PlannerSettings.class);
-    this.cancelFlag = new CancelFlag(plannerSettings.getMaxPlanningPerPhaseMS());
+  public DremioHepPlanner(
+      final HepProgram program,
+      final PlannerSettings plannerSettings,
+      final RelOptCostFactory costFactory,
+      PlannerPhase phase,
+      MatchCountListener matchCountListener) {
+    super(program, plannerSettings, false, null, costFactory);
+    this.plannerSettings = plannerSettings;
+    this.cancelFlag = new CancelFlag(plannerSettings.getOptions().getOption(PLANNING_MAX_MILLIS));
     this.executionControls = plannerSettings.unwrap(ExecutionControls.class);
     this.phase = phase;
-    this.listener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
+    this.listener =
+        new MaxNodesListener(plannerSettings.getOptions().getOption(MAX_NODES_PER_PLAN));
     this.matchCountListener = matchCountListener;
     addListener(listener);
     addListener(matchCountListener);
@@ -73,10 +80,10 @@ public class DremioHepPlanner extends HepPlanner {
       listener.reset();
       matchCountListener.reset();
       return super.findBestExp();
-    } catch(RuntimeException ex) {
+    } catch (RuntimeException ex) {
       // if the planner is hiding a UserException, bubble its message to the top.
       Throwable t = Throwables.getRootCause(ex);
-      if(t instanceof UserException) {
+      if (t instanceof UserException) {
         throw UserException.parseError(ex).message(t.getMessage()).build(logger);
       } else {
         throw ex;
@@ -86,26 +93,32 @@ public class DremioHepPlanner extends HepPlanner {
     }
   }
 
-  public MatchCountListener getMatchCountListener() {
-    return matchCountListener;
-  }
-
   @Override
   public RelTraitSet emptyTraitSet() {
-    return RelTraitSet.createEmpty().plus(Convention.NONE).plus(DistributionTrait.DEFAULT).plus(RelCollations.EMPTY);
+    return RelTraitSet.createEmpty()
+        .plus(Convention.NONE)
+        .plus(DistributionTrait.DEFAULT)
+        .plus(RelCollations.EMPTY);
   }
 
   @Override
   public List<RelTraitDef> getRelTraitDefs() {
-    return ImmutableList.<RelTraitDef>of(ConventionTraitDef.INSTANCE, DistributionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
+    return ImmutableList.<RelTraitDef>of(
+        ConventionTraitDef.INSTANCE, DistributionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
   }
 
   @Override
   public void checkCancel() {
     if (cancelFlag.isCancelRequested()) {
-      ExceptionUtils.throwUserException(String.format("Query was cancelled because planning time exceeded %d seconds",
-                                                      cancelFlag.getTimeoutInSecs()),
-                                        null, plannerSettings, phase, UserException.AttemptCompletionState.PLANNING_TIMEOUT, logger);
+      ExceptionUtils.throwUserException(
+          String.format(
+              "Query was cancelled because planning time exceeded %d seconds",
+              cancelFlag.getTimeoutInSecs()),
+          null,
+          plannerSettings,
+          phase,
+          UserException.AttemptCompletionState.PLANNING_TIMEOUT,
+          logger);
     }
 
     if (executionControls != null) {
@@ -116,7 +129,13 @@ public class DremioHepPlanner extends HepPlanner {
       super.checkCancel();
     } catch (CalciteException e) {
       if (plannerSettings.isCancelledByHeapMonitor()) {
-        ExceptionUtils.throwUserException(plannerSettings.getCancelReason(), e, plannerSettings, phase, UserException.AttemptCompletionState.HEAP_MONITOR_C, logger);
+        ExceptionUtils.throwUserException(
+            plannerSettings.getCancelReason(),
+            e,
+            plannerSettings,
+            phase,
+            UserException.AttemptCompletionState.HEAP_MONITOR_C,
+            logger);
       } else {
         ExceptionUtils.throwUserCancellationException(plannerSettings);
       }

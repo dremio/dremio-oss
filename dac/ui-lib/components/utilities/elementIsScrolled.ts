@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-export const elementIsScrolledToRightEnd = (el: HTMLElement): boolean => el.scrollWidth - el.scrollLeft <= el.clientWidth;
+export const elementIsScrolledToRightEnd = (el: HTMLElement): boolean =>
+  el.scrollWidth - el.scrollLeft <= el.clientWidth;
 
-export const elementIsScrolledToLeftEnd = (el: HTMLElement): boolean => el.scrollLeft === 0;
-
+export const elementIsScrolledToLeftEnd = (el: HTMLElement): boolean =>
+  el.scrollLeft === 0;

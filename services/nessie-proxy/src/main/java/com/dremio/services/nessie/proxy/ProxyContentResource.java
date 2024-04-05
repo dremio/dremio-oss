@@ -15,11 +15,11 @@
  */
 package com.dremio.services.nessie.proxy;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import java.util.Map;
-
 import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
-
+import javax.ws.rs.Path;
 import org.projectnessie.api.v1.http.HttpContentApi;
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.error.NessieContentNotFoundException;
@@ -32,22 +32,21 @@ import org.projectnessie.model.GetMultipleContentsResponse.ContentWithKey;
 import org.projectnessie.model.ImmutableGetMultipleContentsResponse;
 import org.projectnessie.model.ser.Views;
 
-import com.fasterxml.jackson.annotation.JsonView;
-
 /** Nessie content-API REST endpoint that forwards via gRPC. */
 @RequestScoped
+@Path("api/v1/contents")
 public class ProxyContentResource implements HttpContentApi {
 
   @SuppressWarnings("checkstyle:visibilityModifier")
-  @Inject NessieApiV1 api;
+  @Inject
+  NessieApiV1 api;
 
-  public ProxyContentResource() {
-  }
+  public ProxyContentResource() {}
 
   @Override
   @JsonView(Views.V1.class)
-  public Content getContent(ContentKey key,
-    String ref, String hashOnRef) throws NessieNotFoundException {
+  public Content getContent(ContentKey key, String ref, String hashOnRef)
+      throws NessieNotFoundException {
     Content content = api.getContent().refName(ref).hashOnRef(hashOnRef).key(key).get().get(key);
     if (content == null) {
       throw new NessieContentNotFoundException(key, ref);
@@ -57,11 +56,13 @@ public class ProxyContentResource implements HttpContentApi {
 
   @Override
   @JsonView(Views.V1.class)
-  public GetMultipleContentsResponse getMultipleContents(String ref,
-    String hashOnRef, GetMultipleContentsRequest request) throws NessieNotFoundException {
-    Map<ContentKey, Content> contents = api.getContent().refName(ref).hashOnRef(hashOnRef)
-      .keys(request.getRequestedKeys()).get();
-    ImmutableGetMultipleContentsResponse.Builder resp = ImmutableGetMultipleContentsResponse.builder();
+  public GetMultipleContentsResponse getMultipleContents(
+      String ref, String hashOnRef, GetMultipleContentsRequest request)
+      throws NessieNotFoundException {
+    Map<ContentKey, Content> contents =
+        api.getContent().refName(ref).hashOnRef(hashOnRef).keys(request.getRequestedKeys()).get();
+    ImmutableGetMultipleContentsResponse.Builder resp =
+        ImmutableGetMultipleContentsResponse.builder();
     contents.forEach((k, v) -> resp.addContents(ContentWithKey.of(k, v)));
     return resp.build();
   }

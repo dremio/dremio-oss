@@ -18,9 +18,7 @@ package com.dremio.sabot.exec.cursors;
 import com.dremio.sabot.exec.rpc.FileStreamManager;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 
-/**
- * Interface for read/write cursor manager for a directory.
- */
+/** Interface for read/write cursor manager for a directory. */
 public interface FileCursorManager {
   interface Observer extends AutoCloseable {
     /**
@@ -30,7 +28,8 @@ public interface FileCursorManager {
      * @param cursor monotonically increasing cursor
      */
     void updateCursor(int fileSeq, long cursor);
-  };
+  }
+  ;
 
   /**
    * Register a writer.
@@ -40,7 +39,8 @@ public interface FileCursorManager {
    * @param onAllReadersDone callback to be invoked when all readers are finished.
    * @return an observer to track cursor movement
    */
-  Observer registerWriter(FileStreamManager streamManager, SharedResource resource, Runnable onAllReadersDone);
+  Observer registerWriter(
+      FileStreamManager streamManager, SharedResource resource, Runnable onAllReadersDone);
 
   /**
    * Register a reader.
@@ -50,25 +50,26 @@ public interface FileCursorManager {
    */
   Observer registerReader(SharedResource resource);
 
-  /**
-   * Notify that all registrations are now done.
-   */
+  /** Notify that all registrations are now done. */
   void notifyAllRegistrationsDone();
 
   /**
    * Get the associated stream manager (can return null if there is no writer).
+   *
    * @return stream manager.
    */
   FileStreamManager getFileStreamManager();
 
   /**
    * Get the value of the current write cursor.
+   *
    * @return cursor value.
    */
   long getWriteCursor();
 
   /**
    * Get the max value of the all read cursors.
+   *
    * @return cursor value.
    */
   long getMaxReadCursor();

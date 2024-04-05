@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.work.rpc;
 
-import java.util.Optional;
-
 import com.dremio.exec.proto.CoordRPC;
 import com.dremio.exec.proto.CoordRPC.RpcType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -28,10 +26,12 @@ import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
+import java.util.Optional;
 
 public class CoordTunnel {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoordTunnel.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CoordTunnel.class);
 
   private final NodeEndpoint ep;
   private final FabricCommandRunner manager;
@@ -51,7 +51,8 @@ public class CoordTunnel {
     }
 
     @Override
-    public void doRpcCall(RpcOutcomeListener<QueryProfile> outcomeListener, ProxyConnection connection) {
+    public void doRpcCall(
+        RpcOutcomeListener<QueryProfile> outcomeListener, ProxyConnection connection) {
       connection.send(outcomeListener, RpcType.REQ_QUERY_PROFILE, queryId, QueryProfile.class);
     }
   }
@@ -61,9 +62,11 @@ public class CoordTunnel {
 
     public CancelQuery(ExternalId queryId, String reason) {
       super();
-      this.jobCancelRequest = CoordRPC.JobCancelRequest.newBuilder()
-        .setExternalId(queryId)
-        .setCancelReason(Optional.ofNullable(reason).orElse("")).build();
+      this.jobCancelRequest =
+          CoordRPC.JobCancelRequest.newBuilder()
+              .setExternalId(queryId)
+              .setCancelReason(Optional.ofNullable(reason).orElse(""))
+              .build();
     }
 
     @Override
@@ -72,7 +75,7 @@ public class CoordTunnel {
     }
   }
 
-  public RpcFuture<Ack> requestCancelQuery(ExternalId queryId, String reason){
+  public RpcFuture<Ack> requestCancelQuery(ExternalId queryId, String reason) {
     CancelQuery c = new CancelQuery(queryId, reason);
     manager.runCommand(c);
     return c.getFuture();

@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.server.test;
 
-import java.io.IOException;
-
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.service.namespace.NamespaceException;
@@ -29,10 +27,9 @@ import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.google.common.base.StandardSystemProperty;
+import java.io.IOException;
 
-/**
- * Utility class that provides methods to populate Dremio with data for testing
- */
+/** Utility class that provides methods to populate Dremio with data for testing */
 public final class DataPopulatorUtils {
   private static final String DEFAULT_USER_NAME = "dremio";
   private static final String PASSWORD = "dremio123";
@@ -43,48 +40,48 @@ public final class DataPopulatorUtils {
   private DataPopulatorUtils() {}
 
   public static void addDefaultDremioUser(
-    final UserService userService,
-    final NamespaceService namespaceService) throws Exception {
+      final UserService userService, final NamespaceService namespaceService) throws Exception {
     if (!userService.hasAnyUser()) {
       createUserIfNotExists(
-        userService,
-        namespaceService,
-        DEFAULT_USER_NAME,
-        PASSWORD,
-        DEFAULT_USER_FIRSTNAME,
-        DEFAULT_USER_LASTNAME);
+          userService,
+          namespaceService,
+          DEFAULT_USER_NAME,
+          PASSWORD,
+          DEFAULT_USER_FIRSTNAME,
+          DEFAULT_USER_LASTNAME);
       // Special case for regression until we move away from views as physical files.
       // View expansion requires the user who wrote the file on the filesystem
       // to be present in the usergroup db
       if (ADD_PROCESS_USER) {
         createUserIfNotExists(
-          userService,
-          namespaceService,
-          StandardSystemProperty.USER_NAME.value(),
-          PASSWORD,
-          DEFAULT_USER_FIRSTNAME,
-          DEFAULT_USER_LASTNAME);
+            userService,
+            namespaceService,
+            StandardSystemProperty.USER_NAME.value(),
+            PASSWORD,
+            DEFAULT_USER_FIRSTNAME,
+            DEFAULT_USER_LASTNAME);
       }
     }
   }
 
   public static void createUserIfNotExists(
-    UserService userService,
-    NamespaceService ns,
-    String user,
-    String passwd,
-    String firstName,
-    String lastName) throws IOException, NamespaceException {
+      UserService userService,
+      NamespaceService ns,
+      String user,
+      String passwd,
+      String firstName,
+      String lastName)
+      throws IOException, NamespaceException {
     try {
       userService.getUser(user);
     } catch (UserNotFoundException e) {
       User userConfig =
-        SimpleUser.newBuilder()
-          .setUserName(user)
-          .setEmail(user + "@dremio.test")
-          .setFirstName(firstName)
-          .setLastName(lastName)
-          .build();
+          SimpleUser.newBuilder()
+              .setUserName(user)
+              .setEmail(user + "@dremio.test")
+              .setFirstName(firstName)
+              .setLastName(lastName)
+              .build();
       userService.createUser(userConfig, passwd);
     }
 

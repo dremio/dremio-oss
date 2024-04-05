@@ -15,17 +15,14 @@
  */
 package com.dremio.dac.model.sources;
 
-import java.util.Collections;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
 import com.dremio.dac.model.folder.FolderName;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import java.util.Collections;
 
-/**
- * Path to source.
- */
+/** Path to source. */
 public class SourcePath extends NamespacePath {
 
   public SourcePath(SourceName sourceName) {
@@ -58,7 +55,6 @@ public class SourcePath extends NamespacePath {
   }
 
   public SourceName getSourceName() {
-    return (SourceName)getRoot();
+    return (SourceName) getRoot();
   }
-
 }

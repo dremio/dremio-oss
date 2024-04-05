@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlKind;
@@ -28,34 +30,36 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 /**
- * This class is hold information on the return type for a UDF Function.
- * It is implemented as an Either Monad on Tabular and Scalar Function return types.
+ * This class is hold information on the return type for a UDF Function. It is implemented as an
+ * Either Monad on Tabular and Scalar Function return types.
  */
-  public final class SqlFunctionReturnType extends SqlCall {
+public final class SqlFunctionReturnType extends SqlCall {
   private static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("FUNTION_RETURN_TYPE", SqlKind.OTHER) {
-      @Override
-      public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-        if (operands.length == 2) {
-          return new SqlFunctionReturnType(pos, (SqlDataTypeSpec) operands[0], (SqlNodeList) operands[1]);
+      new SqlSpecialOperator("FUNTION_RETURN_TYPE", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          if (operands.length == 2) {
+            return new SqlFunctionReturnType(
+                pos, (SqlDataTypeSpec) operands[0], (SqlNodeList) operands[1]);
+          }
+          throw new IllegalArgumentException(
+              "SqlFunctionReturnType.createCall() has to get 2 operands!");
         }
-        throw new IllegalArgumentException("SqlFunctionReturnType.createCall() has to get 2 operands!");
-      }
-    };
+      };
 
   private SqlNodeList tabularReturnType;
   private SqlDataTypeSpec scalarReturnType;
 
-  public SqlFunctionReturnType(SqlParserPos pos, SqlDataTypeSpec scalarReturnType, SqlNodeList tabularReturnType) {
+  public SqlFunctionReturnType(
+      SqlParserPos pos, SqlDataTypeSpec scalarReturnType, SqlNodeList tabularReturnType) {
     super(pos);
     final boolean isTabularEmpty = tabularReturnType == null || tabularReturnType.size() == 0;
-    Preconditions.checkArgument((!isTabularEmpty && scalarReturnType == null) || (isTabularEmpty && scalarReturnType != null),
-      "Function return type should be either a scalar type or a tabular type");
+    Preconditions.checkArgument(
+        (!isTabularEmpty && scalarReturnType == null)
+            || (isTabularEmpty && scalarReturnType != null),
+        "Function return type should be either a scalar type or a tabular type");
     this.tabularReturnType = tabularReturnType;
     this.scalarReturnType = scalarReturnType;
   }

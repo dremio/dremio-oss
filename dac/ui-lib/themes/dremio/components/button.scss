@@ -27,7 +27,9 @@
 
   min-width: 100px;
 
-  transition: background 75ms ease-in-out, color 75ms ease-in-out;
+  transition:
+    background 75ms ease-in-out,
+    color 75ms ease-in-out;
 
   &__content {
     @extend .gap-05;
@@ -105,6 +107,26 @@
     &:hover {
       background: var(--dremio--color--status--error--background);
       border-color: var(--dremio--color--status--error--background);
+    }
+  }
+
+  &--tertiary-danger {
+    background: transparent;
+    border-color: transparent;
+    color: var(--dremio--color--status--error--foreground);
+
+    &:hover,
+    &:focus-visible {
+      &:not([aria-busy="true"]) {
+        background: var(--dremio--color--status--error--background);
+      }
+    }
+
+    &:disabled,
+    &[aria-disabled="true"] {
+      &:not([aria-busy="true"]) {
+        background: transparent !important;
+      }
     }
   }
 }

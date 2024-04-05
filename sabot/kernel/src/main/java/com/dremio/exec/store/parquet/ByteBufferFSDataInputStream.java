@@ -15,21 +15,19 @@
  */
 package com.dremio.exec.store.parquet;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
-
-public class ByteBufferFSDataInputStream extends ByteBufInputStream implements Seekable, PositionedReadable {
+public class ByteBufferFSDataInputStream extends ByteBufInputStream
+    implements Seekable, PositionedReadable {
 
   public ByteBufferFSDataInputStream(ByteBuf buffer) {
     super(buffer, true);
   }
-
 
   @Override
   public void readFully(long position, byte[] buffer) throws IOException {

@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
+import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("location-finder")
@@ -33,27 +32,27 @@ public class IcebergLocationFinderFunctionContext extends TableFunctionContext {
   private final boolean continueOnError;
 
   public IcebergLocationFinderFunctionContext(
-    @JsonProperty("pluginId") StoragePluginId storagePluginId,
-    @JsonProperty("schema") BatchSchema outputSchema,
-    @JsonProperty("projectedCols") List<SchemaPath> projectedCols,
-    @JsonProperty("tablePropertiesSkipCriteria") Map<String, String> tablePropertiesSkipCriteria,
-    @JsonProperty("continueOnError") boolean continueOnError){
-    super(null,
-      outputSchema,
-      null,
-      null,
-      null,
-      null,
-      storagePluginId,
-      null,
-      projectedCols,
-      null,
-      null,
-      null,
-      false,
-      false,
-      false,
-      null);
+      @JsonProperty("pluginId") StoragePluginId storagePluginId,
+      @JsonProperty("schema") BatchSchema outputSchema,
+      @JsonProperty("projectedCols") List<SchemaPath> projectedCols,
+      @JsonProperty("tablePropertiesSkipCriteria") Map<String, String> tablePropertiesSkipCriteria,
+      @JsonProperty("continueOnError") boolean continueOnError) {
+    super(
+        null,
+        outputSchema,
+        null,
+        null,
+        null,
+        null,
+        storagePluginId,
+        null,
+        projectedCols,
+        null,
+        null,
+        false,
+        false,
+        false,
+        null);
     this.tablePropertiesSkipCriteria = tablePropertiesSkipCriteria;
     this.continueOnError = continueOnError;
   }

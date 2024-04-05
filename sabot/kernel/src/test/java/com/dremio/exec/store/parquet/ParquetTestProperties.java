@@ -24,8 +24,11 @@ public class ParquetTestProperties {
   final int bytesPerPage;
   final Map<String, FieldInfo> fields;
 
-  public ParquetTestProperties(int numberRowGroups, int recordsPerRowGroup, int bytesPerPage,
-                               Map<String, FieldInfo> fields){
+  public ParquetTestProperties(
+      int numberRowGroups,
+      int recordsPerRowGroup,
+      int bytesPerPage,
+      Map<String, FieldInfo> fields) {
     this.numberRowGroups = numberRowGroups;
     this.recordsPerRowGroup = recordsPerRowGroup;
     this.bytesPerPage = bytesPerPage;

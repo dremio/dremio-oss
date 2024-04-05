@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.expr.fn;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.FunctionCall;
+import com.dremio.common.types.TypeProtos;
+import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -22,20 +26,16 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.FunctionCall;
-import com.dremio.common.types.TypeProtos;
-import com.dremio.exec.planner.sql.TypeInferenceUtils;
-
 public class PlugginRepositorySqlReturnTypeInference implements SqlReturnTypeInference {
-  static final Logger logger = LoggerFactory.getLogger(PlugginRepositorySqlReturnTypeInference.class);
+  static final Logger logger =
+      LoggerFactory.getLogger(PlugginRepositorySqlReturnTypeInference.class);
 
   private final PluggableFunctionRegistry registry;
   private final boolean isDecimalV2Enabled;
 
   // This is created per query, so safe to use decimal setting as a variable.
-  public PlugginRepositorySqlReturnTypeInference(PluggableFunctionRegistry registry,
-                                                 boolean isDecimalV2Enabled) {
+  public PlugginRepositorySqlReturnTypeInference(
+      PluggableFunctionRegistry registry, boolean isDecimalV2Enabled) {
     this.registry = registry;
     this.isDecimalV2Enabled = isDecimalV2Enabled;
   }
@@ -44,37 +44,39 @@ public class PlugginRepositorySqlReturnTypeInference implements SqlReturnTypeInf
   public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
     for (RelDataType type : opBinding.collectOperandTypes()) {
       final TypeProtos.MinorType minorType = TypeInferenceUtils.getMinorTypeFromCalciteType(type);
-      if(minorType == TypeProtos.MinorType.LATE) {
-        return opBinding.getTypeFactory()
-          .createTypeWithNullability(
-            opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY),
-            true);
+      if (minorType == TypeProtos.MinorType.LATE) {
+        return opBinding
+            .getTypeFactory()
+            .createTypeWithNullability(
+                opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
       }
     }
 
-    final FunctionCall functionCall = TypeInferenceUtils.convertSqlOperatorBindingToFunctionCall(opBinding);
+    final FunctionCall functionCall =
+        TypeInferenceUtils.convertSqlOperatorBindingToFunctionCall(opBinding);
     final AbstractFunctionHolder funcHolder = registry.findFunction(functionCall);
-    if(funcHolder == null) {
+    if (funcHolder == null) {
       final StringBuilder operandTypes = new StringBuilder();
-      for(int j = 0; j < opBinding.getOperandCount(); ++j) {
+      for (int j = 0; j < opBinding.getOperandCount(); ++j) {
         operandTypes.append(opBinding.getOperandType(j).getSqlTypeName());
-        if(j < opBinding.getOperandCount() - 1) {
+        if (j < opBinding.getOperandCount() - 1) {
           operandTypes.append(",");
         }
       }
 
-      throw UserException
-        .functionError()
-        .message(String.format("%s does not support operand types (%s)",
-          opBinding.getOperator().getName(),
-          operandTypes))
-        .build(logger);
+      throw UserException.functionError()
+          .message(
+              String.format(
+                  "%s does not support operand types (%s)",
+                  opBinding.getOperator().getName(), operandTypes))
+          .build(logger);
     }
 
     return TypeInferenceUtils.createCalciteTypeWithNullability(
-      opBinding.getTypeFactory(),
-      TypeInferenceUtils.getCalciteTypeFromMinorType(funcHolder.getReturnType(null).toMinorType()),
-      true,
-      null);
+        opBinding.getTypeFactory(),
+        TypeInferenceUtils.getCalciteTypeFromMinorType(
+            funcHolder.getReturnType(null).toMinorType()),
+        true,
+        null);
   }
 }

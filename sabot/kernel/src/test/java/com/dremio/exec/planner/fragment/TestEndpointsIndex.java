@@ -17,14 +17,12 @@ package com.dremio.exec.planner.fragment;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Test;
 
 public class TestEndpointsIndex {
 
@@ -32,10 +30,7 @@ public class TestEndpointsIndex {
   public void indexEndpointSingle() {
     EndpointsIndex.Builder indexBuilder = new EndpointsIndex.Builder();
 
-    NodeEndpoint ep = NodeEndpoint.newBuilder()
-        .setAddress("localhost")
-        .setFabricPort(1700)
-        .build();
+    NodeEndpoint ep = NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(1700).build();
     MinorFragmentEndpoint expected = new MinorFragmentEndpoint(16, ep);
 
     // add to index builder
@@ -55,10 +50,10 @@ public class TestEndpointsIndex {
     List<NodeEndpoint> endpoints = new ArrayList<>();
     for (int i = 0; i < 16; i++) {
       endpoints.add(
-        NodeEndpoint.newBuilder()
-          .setAddress("testing " + i)
-          .setFabricPort(6000 + (i % 8))
-          .build());
+          NodeEndpoint.newBuilder()
+              .setAddress("testing " + i)
+              .setFabricPort(6000 + (i % 8))
+              .build());
     }
 
     List<MinorFragmentEndpoint> expected = new ArrayList<>();
@@ -70,7 +65,8 @@ public class TestEndpointsIndex {
       expected.add(new MinorFragmentEndpoint(fragmentId, endpoints.get(endpointIdx)));
 
       // add to index builder
-      MinorFragmentIndexEndpoint ep = indexBuilder.addFragmentEndpoint(fragmentId, endpoints.get(endpointIdx));
+      MinorFragmentIndexEndpoint ep =
+          indexBuilder.addFragmentEndpoint(fragmentId, endpoints.get(endpointIdx));
       minorFragmentIndexEndpoints.add(ep);
     }
 

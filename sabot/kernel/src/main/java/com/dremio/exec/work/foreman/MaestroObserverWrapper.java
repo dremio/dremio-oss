@@ -20,6 +20,7 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
@@ -27,7 +28,8 @@ public class MaestroObserverWrapper implements MaestroObserver {
   private final AttemptObserver observer;
   private final ExecutionStageChangeListener stageChangeListener;
 
-  public MaestroObserverWrapper(final AttemptObserver observer, ExecutionStageChangeListener listener) {
+  public MaestroObserverWrapper(
+      final AttemptObserver observer, ExecutionStageChangeListener listener) {
     this.observer = observer;
     this.stageChangeListener = listener;
   }
@@ -45,37 +47,43 @@ public class MaestroObserverWrapper implements MaestroObserver {
 
   @Override
   public void planParallelStart() {
-      observer.planParallelStart();
+    observer.planParallelStart();
   }
 
   @Override
   public void planParallelized(PlanningSet planningSet) {
-      observer.planParallelized(planningSet);
+    observer.planParallelized(planningSet);
   }
 
   @Override
   public void plansDistributionComplete(QueryWorkUnit unit) {
-      observer.plansDistributionComplete(unit);
+    observer.plansDistributionComplete(unit);
   }
 
   @Override
-  public void planCompleted(ExecutionPlan plan) {
-      observer.planCompleted(plan);
+  public void planCompleted(ExecutionPlan plan, BatchSchema batchSchema) {
+    observer.planCompleted(plan, batchSchema);
   }
 
   @Override
   public void execStarted(UserBitShared.QueryProfile profile) {
-      observer.execStarted(profile);
+    observer.execStarted(profile);
   }
 
   @Override
-  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
-      observer.executorsSelected(millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText);
+  public void executorsSelected(
+      long millisTaken,
+      int idealNumFragments,
+      int idealNumNodes,
+      int numExecutors,
+      String detailsText) {
+    observer.executorsSelected(
+        millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText);
   }
 
   @Override
   public void recordsProcessed(long recordCount) {
-      observer.recordsProcessed(recordCount);
+    observer.recordsProcessed(recordCount);
   }
 
   @Override
@@ -85,36 +93,36 @@ public class MaestroObserverWrapper implements MaestroObserver {
 
   @Override
   public void planGenerationTime(long millisTaken) {
-      observer.planGenerationTime(millisTaken);
+    observer.planGenerationTime(millisTaken);
   }
 
   @Override
   public void planAssignmentTime(long millisTaken) {
-      observer.planAssignmentTime(millisTaken);
+    observer.planAssignmentTime(millisTaken);
   }
 
   @Override
   public void fragmentsStarted(long millisTaken, UserBitShared.FragmentRpcSizeStats stats) {
-      observer.fragmentsStarted(millisTaken, stats);
+    observer.fragmentsStarted(millisTaken, stats);
   }
 
   @Override
   public void fragmentsActivated(long millisTaken) {
-      observer.fragmentsActivated(millisTaken);
+    observer.fragmentsActivated(millisTaken);
   }
 
   @Override
   public void activateFragmentFailed(Exception ex) {
-      observer.activateFragmentFailed(ex);
+    observer.activateFragmentFailed(ex);
   }
 
   @Override
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
-      observer.resourcesScheduled(resourceSchedulingDecisionInfo);
+    observer.resourcesScheduled(resourceSchedulingDecisionInfo);
   }
 
   @Override
   public void recordExtraInfo(String name, byte[] bytes) {
-      observer.recordExtraInfo(name, bytes);
+    observer.recordExtraInfo(name, bytes);
   }
 }

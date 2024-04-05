@@ -15,12 +15,10 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.util.stream.StreamSupport;
-
-import javax.inject.Provider;
-
 import com.dremio.common.Version;
 import com.dremio.dac.cmd.AdminLogger;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceException;
@@ -32,14 +30,13 @@ import com.dremio.service.reflection.DatasetHashUtils;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.google.common.collect.ImmutableList;
+import java.util.stream.StreamSupport;
+import javax.inject.Provider;
 
-/**
- * Update all external reflections' query and target dataset hashes.
- */
+/** Update all external reflections' query and target dataset hashes. */
 public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyUpgradeTask {
 
-
-  //DO NOT MODIFY
+  // DO NOT MODIFY
   static final String taskUUID = "79312f25-49d6-40e7-8096-7e132e1b64c4";
 
   private NamespaceService namespace;
@@ -62,12 +59,12 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
 
   @Override
   public void upgrade(UpgradeContext context) {
-    namespace = new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
+    namespace =
+        new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
     store = new ExternalReflectionStore(DirectProvider.wrap(context.getLegacyKVStoreProvider()));
 
     final Iterable<ExternalReflection> reflections = store.getExternalReflections();
-    StreamSupport.stream(reflections.spliterator(), false)
-      .forEach(this::update);
+    StreamSupport.stream(reflections.spliterator(), false).forEach(this::update);
   }
 
   private void update(ExternalReflection reflection) {
@@ -86,7 +83,8 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
   }
 
   /**
-   * @return dataset hash, if dataset exists in the namespace (along with all its ancestors if its a VDS). null otherwise
+   * @return dataset hash, if dataset exists in the namespace (along with all its ancestors if its a
+   *     VDS). null otherwise
    */
   private Integer computeDatasetHash(String datasetId) {
     final DatasetConfig dataset = namespace.findDatasetByUUID(datasetId);
@@ -95,7 +93,9 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
     }
 
     try {
-      return DatasetHashUtils.computeDatasetHash(dataset, catalogServiceProvider.get(), false);
+      EntityExplorer catalog =
+          CatalogUtil.getSystemCatalogForReflections(catalogServiceProvider.get());
+      return DatasetHashUtils.computeDatasetHash(dataset, catalog, false);
     } catch (NamespaceException e) {
       return null;
     }

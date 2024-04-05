@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.planner.sql;
 
-import java.util.List;
-
-import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParser;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddRowAccessPolicy;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropRowAccessPolicy;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableSetColumnMasking;
@@ -30,115 +22,113 @@ import com.dremio.exec.planner.sql.parser.SqlAlterTableUnsetColumnMasking;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateView;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParser;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * TestPolicyParsing
- */
+/** TestPolicyParsing */
 public class TestPolicyParsing {
 
   @Test
   public void createTableWithColumnMasking() throws Exception {
-    testCreateTable("CREATE TABLE ss.crm.dbo.employees (\n" +
-        "     ssn_col VARCHAR MASKING POLICY protect_ssn (ssn_col, region)\n" +
-        "    ,region VARCHAR\n" +
-        "    ,state_col VARCHAR)\n",
-      ImmutableList.of(
-        "`ssn_col` VARCHAR `protect_ssn` (`ssn_col`, `region`)",
-        "`region` VARCHAR",
-        "`state_col` VARCHAR"),
-      null
-    );
+    testCreateTable(
+        "CREATE TABLE ss.crm.dbo.employees (\n"
+            + "     ssn_col VARCHAR MASKING POLICY protect_ssn (ssn_col, region)\n"
+            + "    ,region VARCHAR\n"
+            + "    ,state_col VARCHAR)\n",
+        ImmutableList.of(
+            "`ssn_col` VARCHAR `protect_ssn` (`ssn_col`, `region`)",
+            "`region` VARCHAR",
+            "`state_col` VARCHAR"),
+        null);
   }
 
   @Test
   public void alterTableSetColumnMasking() throws Exception {
-    testAlterTableSet("ALTER TABLE ss.crm.dbo.employees \n" +
-        "   MODIFY COLUMN ssn_col\n" +
-        "   SET MASKING POLICY protect_ssn (ssn_col, region)\n",
-      "ssn_col",
-      "protect_ssn (ssn_col, region)"
-    );
+    testAlterTableSet(
+        "ALTER TABLE ss.crm.dbo.employees \n"
+            + "   MODIFY COLUMN ssn_col\n"
+            + "   SET MASKING POLICY protect_ssn (ssn_col, region)\n",
+        "ssn_col",
+        "protect_ssn (ssn_col, region)");
   }
 
   @Test
   public void createTableWithRowPolicy() throws Exception {
-    testCreateTable("CREATE TABLE ss.crm.dbo.employees (\n" +
-        "     ssn_col VARCHAR\n" +
-        "    ,region VARCHAR\n" +
-        "    ,state_col VARCHAR)\n" +
-        "     ROW ACCESS POLICY state_policy ( state_col )",
-      null,
-      "`state_policy` (`state_col`)"
-    );
+    testCreateTable(
+        "CREATE TABLE ss.crm.dbo.employees (\n"
+            + "     ssn_col VARCHAR\n"
+            + "    ,region VARCHAR\n"
+            + "    ,state_col VARCHAR)\n"
+            + "     ROW ACCESS POLICY state_policy ( state_col )",
+        null,
+        "`state_policy` (`state_col`)");
   }
 
   @Test
   public void alterTableAddRowAccessPolicy() throws Exception {
-    testAlterTableAdd("ALTER TABLE ss.crm.dbo.sales_data \n" +
-        "   ADD ROW ACCESS POLICY state_policy ( state_col )\n",
-      "state_policy ( state_col )"
-    );
+    testAlterTableAdd(
+        "ALTER TABLE ss.crm.dbo.sales_data \n"
+            + "   ADD ROW ACCESS POLICY state_policy ( state_col )\n",
+        "state_policy ( state_col )");
   }
 
   @Test
   public void createTableWithColumnMaskingAndRowPolicy() throws Exception {
-    testCreateTable("CREATE TABLE ss.crm.dbo.employees (\n" +
-        "     ssn_col VARCHAR MASKING POLICY protect_ssn (ssn_col, region)\n" +
-        "    ,region VARCHAR\n" +
-        "    ,state_col VARCHAR)\n" +
-        "     ROW ACCESS POLICY state_policy ( state_col )",
-      ImmutableList.of(
-        "`ssn_col` VARCHAR `protect_ssn` (`ssn_col`, `region`)",
-        "`region` VARCHAR",
-        "`state_col` VARCHAR"),
-      "`state_policy` (`state_col`)"
-    );
+    testCreateTable(
+        "CREATE TABLE ss.crm.dbo.employees (\n"
+            + "     ssn_col VARCHAR MASKING POLICY protect_ssn (ssn_col, region)\n"
+            + "    ,region VARCHAR\n"
+            + "    ,state_col VARCHAR)\n"
+            + "     ROW ACCESS POLICY state_policy ( state_col )",
+        ImmutableList.of(
+            "`ssn_col` VARCHAR `protect_ssn` (`ssn_col`, `region`)",
+            "`region` VARCHAR",
+            "`state_col` VARCHAR"),
+        "`state_policy` (`state_col`)");
   }
 
   @Test
   public void createViewWithColumnMasking() throws Exception {
-    testCreateView("CREATE VIEW ss.crm.dbo.employees (\n" +
-        "     ssn_col MASKING POLICY protect_ssn (ssn_col, region)\n" +
-        "    ,region\n" +
-        "    ,state_col)\n" +
-        "     as select a, b, c from some_table",
-      ImmutableList.of(
-        "`ssn_col` protect_ssn (ssn_col, region)",
-        "region",
-        "state_col"),
-      null
-    );
+    testCreateView(
+        "CREATE VIEW ss.crm.dbo.employees (\n"
+            + "     ssn_col MASKING POLICY protect_ssn (ssn_col, region)\n"
+            + "    ,region\n"
+            + "    ,state_col)\n"
+            + "     as select a, b, c from some_table",
+        ImmutableList.of("`ssn_col` protect_ssn (ssn_col, region)", "region", "state_col"),
+        null);
   }
 
   @Test
   public void createViewWithColumnMaskingAndRowPolicy() throws Exception {
-    testCreateView("CREATE VIEW ss.crm.dbo.employees (\n" +
-        "     ssn_col MASKING POLICY protect_ssn (ssn_col, region)\n" +
-        "    ,region\n" +
-        "    ,state_col)\n" +
-        "     ROW ACCESS POLICY state_policy ( state_col ) as select a, b, c from some_table",
-      ImmutableList.of(
-         "`ssn_col` protect_ssn (ssn_col, region)",
-        "region",
-        "state_col"),
-      "state_policy ( state_col )"
-    );
+    testCreateView(
+        "CREATE VIEW ss.crm.dbo.employees (\n"
+            + "     ssn_col MASKING POLICY protect_ssn (ssn_col, region)\n"
+            + "    ,region\n"
+            + "    ,state_col)\n"
+            + "     ROW ACCESS POLICY state_policy ( state_col ) as select a, b, c from some_table",
+        ImmutableList.of("`ssn_col` protect_ssn (ssn_col, region)", "region", "state_col"),
+        "state_policy ( state_col )");
   }
 
   @Test
   public void UnsetMasking() throws Exception {
-    testAlterTableUnset("ALTER TABLE ss.crm.dbo.employees \n" +
-        "   MODIFY COLUMN ssn_col\n" +
-        "   UNSET MASKING POLICY protect_ssn\n",
-      "ssn_col"
-    );
+    testAlterTableUnset(
+        "ALTER TABLE ss.crm.dbo.employees \n"
+            + "   MODIFY COLUMN ssn_col\n"
+            + "   UNSET MASKING POLICY protect_ssn\n",
+        "ssn_col");
   }
 
   @Test
   public void dropRowPolicy() throws Exception {
-    testAlterTableDrop("ALTER TABLE ss.crm.dbo.employees \n" +
-        "   DROP ROW ACCESS POLICY state_policy ( state_col )\n"
-    );
+    testAlterTableDrop(
+        "ALTER TABLE ss.crm.dbo.employees \n"
+            + "   DROP ROW ACCESS POLICY state_policy ( state_col )\n");
   }
 
   private SqlNode parse(String command) throws Exception {
@@ -163,22 +153,31 @@ public class TestPolicyParsing {
     SqlNode result = parse(command);
     Assert.assertTrue(result instanceof SqlAlterTableSetColumnMasking);
     SqlAlterTableSetColumnMasking sqlResult = (SqlAlterTableSetColumnMasking) result;
-    Assert.assertEquals("Masking column doesn't match", column, sqlResult.getColumnName().toString());
-    Assert.assertEquals("Masking policy doesn't match",
-      masking.replace("\n","").replace(" ", "").replace("`", ""),
-      sqlResult.getColumnMasking().toString().replace("\n","").replace(" ", "").replace("`", ""));
+    Assert.assertEquals(
+        "Masking column doesn't match", column, sqlResult.getColumnName().toString());
+    Assert.assertEquals(
+        "Masking policy doesn't match",
+        masking.replace("\n", "").replace(" ", "").replace("`", ""),
+        sqlResult
+            .getColumnMasking()
+            .toString()
+            .replace("\n", "")
+            .replace(" ", "")
+            .replace("`", ""));
   }
 
   private void testAlterTableAdd(String command, String policy) throws Exception {
     SqlNode result = parse(command);
     Assert.assertTrue(result instanceof SqlAlterTableAddRowAccessPolicy);
     SqlAlterTableAddRowAccessPolicy sqlResult = (SqlAlterTableAddRowAccessPolicy) result;
-    Assert.assertEquals("Row policy doesn't match",
-      policy.replace("\n","").replace(" ", "").replace("`", ""),
-      sqlResult.getPolicy().toString().replace("\n","").replace(" ", "").replace("`", ""));
+    Assert.assertEquals(
+        "Row policy doesn't match",
+        policy.replace("\n", "").replace(" ", "").replace("`", ""),
+        sqlResult.getPolicy().toString().replace("\n", "").replace(" ", "").replace("`", ""));
   }
 
-  private void testCreateView(String command, List<String> expectedColumnSpec, String expectedRowPolicy) throws Exception{
+  private void testCreateView(
+      String command, List<String> expectedColumnSpec, String expectedRowPolicy) throws Exception {
     SqlNode result = parse(command);
     Assert.assertTrue(result instanceof SqlCreateView);
     SqlCreateView sqlResult = (SqlCreateView) result;
@@ -187,20 +186,25 @@ public class TestPolicyParsing {
       List<SqlNode> fieldList = sqlResult.getFieldList().getList();
       Assert.assertEquals(expectedColumnSpec.size(), fieldList.size());
       for (int i = 0; i < fieldList.size(); i++) {
-        Assert.assertEquals("Column spec doesn't match", expectedColumnSpec.get(i).replace("\n","").replace(" ", "").replace("`", ""), fieldList.get(i).toString().replace("\n","").replace(" ", "").replace("`", ""));
+        Assert.assertEquals(
+            "Column spec doesn't match",
+            expectedColumnSpec.get(i).replace("\n", "").replace(" ", "").replace("`", ""),
+            fieldList.get(i).toString().replace("\n", "").replace(" ", "").replace("`", ""));
       }
     }
 
     if (expectedRowPolicy == null) {
       Assert.assertNull(sqlResult.getPolicy());
     } else {
-      Assert.assertEquals("Row policy doesn't match",
-        expectedRowPolicy.replace("\n","").replace(" ", "").replace("`", ""),
-        sqlResult.getPolicy().toString().replace("\n","").replace(" ", "").replace("`", ""));
+      Assert.assertEquals(
+          "Row policy doesn't match",
+          expectedRowPolicy.replace("\n", "").replace(" ", "").replace("`", ""),
+          sqlResult.getPolicy().toString().replace("\n", "").replace(" ", "").replace("`", ""));
     }
   }
 
-  private void testCreateTable(String command, List<String> expectedColumnSpec, String expectedRowPolicy) throws Exception{
+  private void testCreateTable(
+      String command, List<String> expectedColumnSpec, String expectedRowPolicy) throws Exception {
     SqlNode result = parse(command);
     Assert.assertTrue(result instanceof SqlCreateEmptyTable);
     SqlCreateEmptyTable sqlResult = (SqlCreateEmptyTable) result;
@@ -209,14 +213,20 @@ public class TestPolicyParsing {
       List<SqlNode> fieldList = sqlResult.getFieldList().getList();
       Assert.assertEquals(expectedColumnSpec.size(), fieldList.size());
       for (int i = 0; i < fieldList.size(); i++) {
-        Assert.assertEquals("Column spec doesn't match", expectedColumnSpec.get(i).toLowerCase(), fieldList.get(i).toString().toLowerCase());
+        Assert.assertEquals(
+            "Column spec doesn't match",
+            expectedColumnSpec.get(i).toLowerCase(),
+            fieldList.get(i).toString().toLowerCase());
       }
     }
 
     if (expectedRowPolicy == null) {
       Assert.assertNull(sqlResult.getPolicy());
     } else {
-      Assert.assertEquals("Row policy doesn't match", expectedRowPolicy.toLowerCase(), sqlResult.getPolicy().toString().toLowerCase());
+      Assert.assertEquals(
+          "Row policy doesn't match",
+          expectedRowPolicy.toLowerCase(),
+          sqlResult.getPolicy().toString().toLowerCase());
     }
   }
 }

@@ -27,36 +27,30 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 
 /**
- * Rewrites `LIKE` operator into `COL_LIKE` function when both operands are column identifiers.
- * Also rewrites 'REGEXP_LIKE' function call into 'REGEXP_COL_LIKE' function call using the
- * same logic.
- * <p>
- * Example:
- * <p></p>
- * SELECT *
- * FROM TEST_TABLE
- * WHERE A LIKE B
- * <p>
- * is rewritten to
- * <p>
- * SELECT *
- * FROM TEST_TABLE
- * WHERE COL_LIKE(A, B)
- * <p></p>
- * SELECT *
- * FROM TEST_TABLE
- * WHERE REGEXP_LIKE(A, B)
- * <p>
- * is rewritten to
- * <p>
- * SELECT *
- * FROM TEST_TABLE
- * WHERE REGEXP_COL_LIKE(A, B)
+ * Rewrites `LIKE` operator into `COL_LIKE` function when both operands are column identifiers. Also
+ * rewrites 'REGEXP_LIKE' function call into 'REGEXP_COL_LIKE' function call using the same logic.
+ *
+ * <p>Example:
+ *
+ * <p>SELECT * FROM TEST_TABLE WHERE A LIKE B
+ *
+ * <p>is rewritten to
+ *
+ * <p>SELECT * FROM TEST_TABLE WHERE COL_LIKE(A, B)
+ *
+ * <p>SELECT * FROM TEST_TABLE WHERE REGEXP_LIKE(A, B)
+ *
+ * <p>is rewritten to
+ *
+ * <p>SELECT * FROM TEST_TABLE WHERE REGEXP_COL_LIKE(A, B)
+ *
  * <p>
  */
 public final class LikeToColumnLikeConvertlet implements FunctionConvertlet {
-  public static final LikeToColumnLikeConvertlet LIKE_TO_COL_LIKE = new LikeToColumnLikeConvertlet(LIKE, COL_LIKE);
-  public static final LikeToColumnLikeConvertlet REGEXP_LIKE_TO_REGEXP_COL_LIKE = new LikeToColumnLikeConvertlet(REGEXP_LIKE, REGEXP_COL_LIKE);
+  public static final LikeToColumnLikeConvertlet LIKE_TO_COL_LIKE =
+      new LikeToColumnLikeConvertlet(LIKE, COL_LIKE);
+  public static final LikeToColumnLikeConvertlet REGEXP_LIKE_TO_REGEXP_COL_LIKE =
+      new LikeToColumnLikeConvertlet(REGEXP_LIKE, REGEXP_COL_LIKE);
 
   private final SqlOperator src;
   private final SqlOperator dst;
@@ -69,8 +63,8 @@ public final class LikeToColumnLikeConvertlet implements FunctionConvertlet {
   @Override
   public boolean matches(RexCall call) {
     return call.getOperator().equals(src)
-      && call.getOperands().get(0).isA(SqlKind.INPUT_REF)
-      && call.getOperands().get(1).isA(SqlKind.INPUT_REF);
+        && call.getOperands().get(0).isA(SqlKind.INPUT_REF)
+        && call.getOperands().get(1).isA(SqlKind.INPUT_REF);
   }
 
   @Override

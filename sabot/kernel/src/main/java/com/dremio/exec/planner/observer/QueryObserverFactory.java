@@ -21,7 +21,8 @@ import com.dremio.sabot.rpc.user.UserSession;
 
 public interface QueryObserverFactory {
 
-  QueryObserver createNewQueryObserver(ExternalId id, UserSession session, UserResponseHandler handler);
+  QueryObserver createNewQueryObserver(
+      ExternalId id, UserSession session, UserResponseHandler handler);
 
   QueryObserverFactory DEFAULT = new RemoteQueryObserverFactory();
 }

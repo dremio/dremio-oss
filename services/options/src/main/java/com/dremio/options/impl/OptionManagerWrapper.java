@@ -15,12 +15,6 @@
  */
 package com.dremio.options.impl;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionList;
@@ -31,6 +25,11 @@ import com.dremio.options.OptionValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 
 /**
  * A {@link OptionManager} that handles fallback logic for other {@link OptionManager}'s.
@@ -40,7 +39,8 @@ public final class OptionManagerWrapper extends BaseOptionManager {
   private final List<OptionManager> optionManagers;
   private final OptionValidatorListing optionValidatorListing;
 
-  OptionManagerWrapper(OptionValidatorListing optionValidatorListing, List<OptionManager> optionManagers) {
+  OptionManagerWrapper(
+      OptionValidatorListing optionValidatorListing, List<OptionManager> optionManagers) {
     super(optionValidatorListing);
     this.optionManagers = optionManagers;
     this.optionValidatorListing = optionValidatorListing;
@@ -64,9 +64,7 @@ public final class OptionManagerWrapper extends BaseOptionManager {
       return new OptionManagerWrapper.Builder();
     }
 
-    /**
-     * Explicitly set a {@link OptionValidatorListing}.
-     */
+    /** Explicitly set a {@link OptionValidatorListing}. */
     public Builder withOptionValidatorProvider(OptionValidatorListing optionValidatorListing) {
       this.optionValidatorListing = optionValidatorListing;
       return this;
@@ -74,9 +72,10 @@ public final class OptionManagerWrapper extends BaseOptionManager {
 
     /**
      * Add an {@link OptionManager} to add it to the fallback structure. {@link OptionManager}'s
-     * should be added in reverse order (later managers have higher priority). Another {@link OptionManagerWrapper}
-     * can be added, in which case all {@link OptionManager}'s are added to the fallback structure.
-     * {@link OptionValidatorListing} is inferred from provided {@link OptionManager}.
+     * should be added in reverse order (later managers have higher priority). Another {@link
+     * OptionManagerWrapper} can be added, in which case all {@link OptionManager}'s are added to
+     * the fallback structure. {@link OptionValidatorListing} is inferred from provided {@link
+     * OptionManager}.
      */
     public Builder withOptionManager(OptionManager optionManager) {
       if (optionManager instanceof OptionManagerWrapper) {
@@ -95,8 +94,10 @@ public final class OptionManagerWrapper extends BaseOptionManager {
     }
 
     public OptionManagerWrapper build() {
-      Preconditions.checkNotNull(optionValidatorListing, "Builder was not provided with an OptionValidatorProvider.");
-      Preconditions.checkArgument(!optionManagerList.isEmpty(), "Builder was not provided with any optionManagers.");
+      Preconditions.checkNotNull(
+          optionValidatorListing, "Builder was not provided with an OptionValidatorProvider.");
+      Preconditions.checkArgument(
+          !optionManagerList.isEmpty(), "Builder was not provided with any optionManagers.");
       return new OptionManagerWrapper(optionValidatorListing, optionManagerList);
     }
   }
@@ -210,15 +211,16 @@ public final class OptionManagerWrapper extends BaseOptionManager {
    * @throws UnsupportedOperationException
    */
   @Override
-  public void addOptionChangeListener(OptionChangeListener optionChangeListener) throws UnsupportedOperationException {
+  public void addOptionChangeListener(OptionChangeListener optionChangeListener)
+      throws UnsupportedOperationException {
     boolean atleastOneSuccess = false;
     UnsupportedOperationException exception = null;
 
-    for(OptionManager om: optionManagers) {
+    for (OptionManager om : optionManagers) {
       try {
-         om.addOptionChangeListener(optionChangeListener);
-         atleastOneSuccess = true;
-      } catch(UnsupportedOperationException e) {
+        om.addOptionChangeListener(optionChangeListener);
+        atleastOneSuccess = true;
+      } catch (UnsupportedOperationException e) {
         exception = e;
       }
     }

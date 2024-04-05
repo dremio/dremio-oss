@@ -15,16 +15,16 @@
  */
 package com.dremio.service.accelerator;
 
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
- * Ensures following system tables work properly: sys.reflections, sys.dependencies, sys.refreshes, and sys.materializations
+ * Ensures following system tables work properly: sys.reflections, sys.dependencies, sys.refreshes,
+ * and sys.materializations
  */
 public class TestAccelerationSystemTables extends BaseTestServer {
   private static final NamespaceKey NONE_PATH = new NamespaceKey(ImmutableList.of("__none"));
@@ -37,38 +37,36 @@ public class TestAccelerationSystemTables extends BaseTestServer {
   @Test
   public void testReflectionsTable() {
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.reflections"))
-        .setDatasetPath(NONE_PATH)
-        .build()
-    );
+        JobRequest.newBuilder()
+            .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.reflections"))
+            .setDatasetPath(NONE_PATH)
+            .build());
   }
 
   @Test
   public void testMaterializationsTable() {
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.materializations"))
-        .setDatasetPath(NONE_PATH)
-        .build()
-    );
+        JobRequest.newBuilder()
+            .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.materializations"))
+            .setDatasetPath(NONE_PATH)
+            .build());
   }
 
   @Test
   public void testDependenciesTable() {
-    submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.reflection_dependencies"))
-        .setDatasetPath(NONE_PATH)
-        .build()
-    );
+    submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder()
+            .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.reflection_dependencies"))
+            .setDatasetPath(NONE_PATH)
+            .build());
   }
 
   @Test
   public void testRefreshesTable() {
-    submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.refreshes"))
-        .setDatasetPath(NONE_PATH)
-        .build()
-    );
+    submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder()
+            .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.refreshes"))
+            .setDatasetPath(NONE_PATH)
+            .build());
   }
 }

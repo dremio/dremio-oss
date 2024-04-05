@@ -15,61 +15,61 @@
  */
 package com.dremio.exec.physical.impl.join;
 
-/**
- * Marks each record that starts a new cluster.
- */
+/** Marks each record that starts a new cluster. */
 public abstract class SequenceFinder {
 
-//  private BufferAllocator allocator;
-//  private final LinkedList<ClusteredBatch> data = new LinkedList<>();
-//  private int batchesAdded;
-//
-//  private VectorAccessible incoming;
-//  private VectorContainer active;
-//
-//  public void setup(VectorAccessible incoming){
-//
-//  }
-//
-//
-//  private void consume(){
-//    data.add(new ClusteredBatch(incoming));
-//    batchesAdded++;
-//  }
-//
-//  private class ClusteredBatch implements AutoCloseable {
-//    private final RecordBatchData data;
-//    private final BitVector newIndicator;
-//
-//    public ClusteredBatch(VectorAccessible accessible) {
-//      this.data = new RecordBatchData(accessible, allocator);
-//      this.newIndicator = new BitVector(MajorTypeHelper.getFieldForNameAndMajorType("newIndicator", Types.required(MinorType.BIT)), allocator);
-//
-//      final BitVector.Mutator mutator = newIndicator.getMutator();
-//
-//      boolean firstRecordIsNew = batchesAdded == 0 || isBoundaryEqual();
-//      mutator.set(0, firstRecordIsNew ? 1 : 0);
-//
-//      final int count = data.getRecordCount();
-//      for(int i = 1; i < count; i++){
-//        mutator.set(0, firstRecordIsNew ? 1 : 0);
-//      }
-//    }
-//
-//    @Override
-//    public void close() throws Exception {
-//      AutoCloseables.close(data, newIndicator);
-//    }
-//
-//
-//  }
-//
-//
-//  public abstract boolean isBoundaryEqual(){
-//
-//  }
-//  public abstract boolean checkBoundaryEqual();
-//  public abstract boolean isEqual(int index1, int index2);
-//
+  //  private BufferAllocator allocator;
+  //  private final LinkedList<ClusteredBatch> data = new LinkedList<>();
+  //  private int batchesAdded;
+  //
+  //  private VectorAccessible incoming;
+  //  private VectorContainer active;
+  //
+  //  public void setup(VectorAccessible incoming){
+  //
+  //  }
+  //
+  //
+  //  private void consume(){
+  //    data.add(new ClusteredBatch(incoming));
+  //    batchesAdded++;
+  //  }
+  //
+  //  private class ClusteredBatch implements AutoCloseable {
+  //    private final RecordBatchData data;
+  //    private final BitVector newIndicator;
+  //
+  //    public ClusteredBatch(VectorAccessible accessible) {
+  //      this.data = new RecordBatchData(accessible, allocator);
+  //      this.newIndicator = new
+  // BitVector(MajorTypeHelper.getFieldForNameAndMajorType("newIndicator",
+  // Types.required(MinorType.BIT)), allocator);
+  //
+  //      final BitVector.Mutator mutator = newIndicator.getMutator();
+  //
+  //      boolean firstRecordIsNew = batchesAdded == 0 || isBoundaryEqual();
+  //      mutator.set(0, firstRecordIsNew ? 1 : 0);
+  //
+  //      final int count = data.getRecordCount();
+  //      for(int i = 1; i < count; i++){
+  //        mutator.set(0, firstRecordIsNew ? 1 : 0);
+  //      }
+  //    }
+  //
+  //    @Override
+  //    public void close() throws Exception {
+  //      AutoCloseables.close(data, newIndicator);
+  //    }
+  //
+  //
+  //  }
+  //
+  //
+  //  public abstract boolean isBoundaryEqual(){
+  //
+  //  }
+  //  public abstract boolean checkBoundaryEqual();
+  //  public abstract boolean isEqual(int index1, int index2);
+  //
 
 }

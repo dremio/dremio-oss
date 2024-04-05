@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDelete;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -28,45 +28,56 @@ import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-
-import com.google.common.base.Preconditions;
+import org.apache.iceberg.RowLevelOperationMode;
 
 /**
  * Extends Calcite's SqlDelete to add the ability to extend the table columns with system columns.
  */
 public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DELETE", SqlKind.DELETE) {
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("DELETE", SqlKind.DELETE) {
 
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 5, "SqlDelete.createCall() has to get 5 operands!");
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 5, "SqlDelete.createCall() has to get 5 operands!");
 
-      return new SqlDeleteFromTable(
-        pos,
-        operands[0],
-        operands[1],
-        (SqlIdentifier)operands[2],
-        operands[3],
-        (SqlTableVersionSpec) operands[4]);
-    }
-  };
+          return new SqlDeleteFromTable(
+              pos,
+              operands[0],
+              operands[1],
+              (SqlIdentifier) operands[2],
+              operands[3],
+              (SqlTableVersionSpec) operands[4]);
+        }
+      };
 
   private final SqlNode source;
   private SqlNode sourceOperand;
 
   private final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public SqlDeleteFromTable(SqlParserPos pos,
-                            SqlNode targetTable,
-                            SqlNode condition,
-                            SqlIdentifier alias,
-                            SqlNode source,
-                            SqlTableVersionSpec sqlTableVersionSpec) {
+  // Default Dml Write.Delete.Mode TableProperty in Dremio for now.
+  private RowLevelOperationMode dmlWriteMode = RowLevelOperationMode.COPY_ON_WRITE;
+
+  public SqlDeleteFromTable(
+      SqlParserPos pos,
+      SqlNode targetTable,
+      SqlNode condition,
+      SqlIdentifier alias,
+      SqlNode source,
+      SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, targetTable, condition, null, alias);
     this.source = source;
     this.sourceOperand = source;
     this.sqlTableVersionSpec = sqlTableVersionSpec;
+  }
+
+  @Override
+  public SqlNode getTargetTableWithoutExtendedCols() {
+    return super.getTargetTable();
   }
 
   @Override
@@ -84,11 +95,7 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
   @Override
   public List<SqlNode> getOperandList() {
     return ImmutableNullableList.of(
-      getTargetTable(),
-      getCondition(),
-      getAlias(),
-      sourceOperand,
-      sqlTableVersionSpec);
+        getTargetTable(), getCondition(), getAlias(), sourceOperand, sqlTableVersionSpec);
   }
 
   @Override
@@ -117,5 +124,15 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
       return sqlTableVersionSpec.getTableVersionSpec();
     }
     return null;
+  }
+
+  @Override
+  public void setDmlWriteMode(RowLevelOperationMode dmlWriteMode) {
+    this.dmlWriteMode = dmlWriteMode;
+  }
+
+  @Override
+  public RowLevelOperationMode getDmlWriteMode() {
+    return dmlWriteMode;
   }
 }

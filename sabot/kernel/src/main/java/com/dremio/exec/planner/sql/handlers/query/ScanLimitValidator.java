@@ -15,12 +15,11 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.tools.ValidationException;
-
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
 
 public final class ScanLimitValidator {
 
@@ -31,15 +30,11 @@ public final class ScanLimitValidator {
     } catch (ScanLimitException ex) {
       throw new ValidationException(
           String.format(
-              "At most %s columns including leaf level fields of complex type are allowed to be scanned, but the query is scanning %s. " +
-                  "Please include the columns you want to be returned from the query and try again",
-              limit,
-              ex.actualFieldCount
-          )
-      );
+              "At most %s columns including leaf level fields of complex type are allowed to be scanned, but the query is scanning %s. "
+                  + "Please include the columns you want to be returned from the query and try again",
+              limit, ex.actualFieldCount));
     }
   }
-
 
   private static final class ScanLimitException extends RuntimeException {
     private final int actualFieldCount;
@@ -70,8 +65,7 @@ public final class ScanLimitValidator {
     if (!dataType.isStruct()) {
       return 1;
     }
-    return dataType.getFieldList()
-        .stream()
+    return dataType.getFieldList().stream()
         .reduce(0, (acc, el) -> acc + getTotalFieldCount(el.getType()), Integer::sum);
   }
 }

@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.rpc;
 
-import java.io.OutputStream;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowByteBufAllocator;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.MemoryDebugInfo;
@@ -29,7 +22,6 @@ import com.dremio.exec.proto.GeneralRPCProtos.CompleteRpcMessage;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcHeader;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.WireFormat;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufOutputStream;
@@ -38,59 +30,76 @@ import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.PromisingMessageToMessageEncoder;
+import java.io.OutputStream;
+import java.util.List;
+import org.apache.arrow.memory.ArrowByteBufAllocator;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 
-/**
- * Converts an RPCMessage into wire format.
- */
-class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
+/** Converts an RPCMessage into wire format. */
+class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage> {
   final org.slf4j.Logger logger;
 
-  static final int HEADER_TAG = makeTag(CompleteRpcMessage.HEADER_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
-  static final int PROTOBUF_BODY_TAG = makeTag(CompleteRpcMessage.PROTOBUF_BODY_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
-  static final int RAW_BODY_TAG = makeTag(CompleteRpcMessage.RAW_BODY_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+  static final int HEADER_TAG =
+      makeTag(CompleteRpcMessage.HEADER_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+  static final int PROTOBUF_BODY_TAG =
+      makeTag(CompleteRpcMessage.PROTOBUF_BODY_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+  static final int RAW_BODY_TAG =
+      makeTag(CompleteRpcMessage.RAW_BODY_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
   static final int HEADER_TAG_LENGTH = getRawVarintSize(HEADER_TAG);
   static final int PROTOBUF_BODY_TAG_LENGTH = getRawVarintSize(PROTOBUF_BODY_TAG);
   static final int RAW_BODY_TAG_LENGTH = getRawVarintSize(RAW_BODY_TAG);
 
   public RpcEncoder(String name) {
     super(OutboundRpcMessage.class);
-    this.logger = org.slf4j.LoggerFactory.getLogger(RpcEncoder.class.getCanonicalName() + "-" + name);
+    this.logger =
+        org.slf4j.LoggerFactory.getLogger(RpcEncoder.class.getCanonicalName() + "-" + name);
   }
 
   @Override
-  protected void encode(ChannelHandlerContext ctx, OutboundRpcMessage msg, List<Object> out, ChannelPromise promise) throws Exception {
+  protected void encode(
+      ChannelHandlerContext ctx, OutboundRpcMessage msg, List<Object> out, ChannelPromise promise)
+      throws Exception {
     if (RpcConstants.EXTRA_DEBUGGING) {
       logger.debug("Rpc Encoder called with msg {}", msg);
     }
 
     if (!ctx.channel().isOpen()) {
-      //output.add(ctx.alloc().buffer(0));
+      // output.add(ctx.alloc().buffer(0));
       logger.debug("Channel closed, skipping encode.");
       msg.release();
       return;
     }
 
-    try{
+    try {
       if (RpcConstants.EXTRA_DEBUGGING) {
         logger.debug("Encoding outbound message {}", msg);
       }
       // first we build the RpcHeader
-      final RpcHeader header = RpcHeader.newBuilder()
-          .setMode(msg.mode)
-          .setCoordinationId(msg.coordinationId)
-          .setRpcType(msg.rpcType).build();
+      final RpcHeader header =
+          RpcHeader.newBuilder()
+              .setMode(msg.mode)
+              .setCoordinationId(msg.coordinationId)
+              .setRpcType(msg.rpcType)
+              .build();
 
       // figure out the full length
       final int headerLength = header.getSerializedSize();
       final int protoBodyLength = msg.pBody.getSerializedSize();
       final int rawBodyLength = msg.getRawBodySize();
       final int withoutRawLength =
-          HEADER_TAG_LENGTH + getRawVarintSize(headerLength) + headerLength +
-          PROTOBUF_BODY_TAG_LENGTH + getRawVarintSize(protoBodyLength) + protoBodyLength;
+          HEADER_TAG_LENGTH
+              + getRawVarintSize(headerLength)
+              + headerLength
+              + PROTOBUF_BODY_TAG_LENGTH
+              + getRawVarintSize(protoBodyLength)
+              + protoBodyLength;
 
       final int fullLength;
       if (rawBodyLength > 0) {
-        fullLength = withoutRawLength + (RAW_BODY_TAG_LENGTH + getRawVarintSize(rawBodyLength) + rawBodyLength);
+        fullLength =
+            withoutRawLength
+                + (RAW_BODY_TAG_LENGTH + getRawVarintSize(rawBodyLength) + rawBodyLength);
       } else {
         fullLength = withoutRawLength;
       }
@@ -99,21 +108,23 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
       // the heap so we can avoid off-heap memory allocation failures causing
       // command message instability.
       final ByteBuf withoutRawMessage;
-      if(rawBodyLength > 0){
+      if (rawBodyLength > 0) {
         try {
           withoutRawMessage = ctx.alloc().buffer(fullLength + 5);
-        } catch (OutOfMemoryException |OutOfMemoryError ex) {
+        } catch (OutOfMemoryException | OutOfMemoryError ex) {
           if (ErrorHelper.isDirectMemoryException(ex)) {
             msg.release();
-            UserException.Builder uexBuilder = UserException.memoryError(ex)
-              .message("Out of memory while encoding data.");
+            UserException.Builder uexBuilder =
+                UserException.memoryError(ex).message("Out of memory while encoding data.");
 
             ByteBufAllocator byteBufAllocator = ctx.alloc();
             if (byteBufAllocator instanceof ArrowByteBufAllocator) {
               BufferAllocator bufferAllocator = ((ArrowByteBufAllocator) byteBufAllocator).unwrap();
-              uexBuilder.addContext(ex instanceof OutOfMemoryException ?
-                MemoryDebugInfo.getDetailsOnAllocationFailure((OutOfMemoryException) ex, bufferAllocator) :
-                MemoryDebugInfo.getSummaryFromRoot(bufferAllocator));
+              uexBuilder.addContext(
+                  ex instanceof OutOfMemoryException
+                      ? MemoryDebugInfo.getDetailsOnAllocationFailure(
+                          (OutOfMemoryException) ex, bufferAllocator)
+                      : MemoryDebugInfo.getSummaryFromRoot(bufferAllocator));
             }
             promise.setFailure(uexBuilder.buildSilently());
             return;
@@ -143,7 +154,7 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
 
       // if exists, write data body and tag.
       if (msg.getRawBodySize() > 0) {
-        if(RpcConstants.EXTRA_DEBUGGING) {
+        if (RpcConstants.EXTRA_DEBUGGING) {
           logger.debug("Writing raw body of size {}", msg.getRawBodySize());
         }
 
@@ -151,7 +162,8 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
         cos.writeRawVarint32(rawBodyLength);
         cos.flush(); // need to flush so that dbody goes after if cos is caching.
 
-        CompositeByteBuf cbb = new CompositeByteBuf(withoutRawMessage.alloc(), true, msg.dBodies.length + 1);
+        CompositeByteBuf cbb =
+            new CompositeByteBuf(withoutRawMessage.alloc(), true, msg.dBodies.length + 1);
         cbb.addComponent(withoutRawMessage);
         int bufLength = withoutRawMessage.readableBytes();
         for (ByteBuf b : msg.dBodies) {
@@ -166,7 +178,10 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
       }
 
       if (RpcConstants.SOME_DEBUGGING) {
-        logger.debug("Wrote message length {}:{} bytes (head:body).  Message: " + msg, getRawVarintSize(fullLength), fullLength);
+        logger.debug(
+            "Wrote message length {}:{} bytes (head:body).  Message: " + msg,
+            getRawVarintSize(fullLength),
+            fullLength);
       }
       if (RpcConstants.EXTRA_DEBUGGING) {
         logger.debug("Sent message.  Ending writer index was {}.", withoutRawMessage.writerIndex());
@@ -174,11 +189,14 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
     } finally {
       // FIXME: why is the finally block commented out?
       // make sure to release Rpc Messages underlying byte buffers.
-      //msg.release();
+      // msg.release();
     }
   }
 
-  /** Makes a tag value given a field number and wire type, copied from WireFormat since it isn't public.  */
+  /**
+   * Makes a tag value given a field number and wire type, copied from WireFormat since it isn't
+   * public.
+   */
   static int makeTag(final int fieldNumber, final int wireType) {
     return (fieldNumber << 3) | wireType;
   }
@@ -195,5 +213,4 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
       }
     }
   }
-
 }

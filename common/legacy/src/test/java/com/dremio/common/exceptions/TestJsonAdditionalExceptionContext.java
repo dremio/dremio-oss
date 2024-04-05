@@ -15,20 +15,17 @@
  */
 package com.dremio.common.exceptions;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * Test JsonAdditionalExceptionContext serialize/deserialize functionality
- */
+/** Test JsonAdditionalExceptionContext serialize/deserialize functionality */
 public class TestJsonAdditionalExceptionContext {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory
-    .getLogger("--ignore.as.this.is.for.testing.exceptions--");
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger("--ignore.as.this.is.for.testing.exceptions--");
 
   private static final String TEST_DATA = "test data";
 
@@ -57,17 +54,16 @@ public class TestJsonAdditionalExceptionContext {
 
   @Test
   public void testSerializeDeserialize() throws Exception {
-    UserException ex = UserException.functionError()
-      .message("test")
-      .setAdditionalExceptionContext(new TestContext(TEST_DATA))
-      .build(logger);
+    UserException ex =
+        UserException.functionError()
+            .message("test")
+            .setAdditionalExceptionContext(new TestContext(TEST_DATA))
+            .build(logger);
     Assert.assertTrue(ex.getRawAdditionalExceptionContext() != null);
     Assert.assertTrue(TEST_DATA.equals(TestContext.fromUserException(ex).getData()));
 
     // test leaving AdditionalExceptionContext as null
-    ex = UserException.functionError()
-      .message("test")
-      .build(logger);
+    ex = UserException.functionError().message("test").build(logger);
     Assert.assertTrue(ex.getRawAdditionalExceptionContext() == null);
     Assert.assertTrue(TestContext.fromUserException(ex) == null);
   }

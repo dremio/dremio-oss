@@ -15,16 +15,12 @@
  */
 package com.dremio.plugins.s3.store;
 
+import com.amazonaws.SdkBaseException;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.amazonaws.SdkBaseException;
-
-/**
- * Check that the retry mechanism works correctly.
- */
+/** Check that the retry mechanism works correctly. */
 public class TestRetryableInvoker {
   @Test
   public void testNoRetry() throws Exception {
@@ -43,13 +39,14 @@ public class TestRetryableInvoker {
 
   private void testRetry(int numRetries) throws Exception {
     final S3AsyncByteReaderUsingSyncClient.RetryableInvoker invoker =
-      new S3AsyncByteReaderUsingSyncClient.RetryableInvoker(numRetries);
+        new S3AsyncByteReaderUsingSyncClient.RetryableInvoker(numRetries);
     final AtomicInteger counter = new AtomicInteger(0);
     try {
-      invoker.invoke(() -> {
-        counter.incrementAndGet();
-        throw new SdkBaseException("test exception");
-      });
+      invoker.invoke(
+          () -> {
+            counter.incrementAndGet();
+            throw new SdkBaseException("test exception");
+          });
       Assert.fail();
     } catch (SdkBaseException e) {
       Assert.assertEquals(numRetries + 1, counter.get());

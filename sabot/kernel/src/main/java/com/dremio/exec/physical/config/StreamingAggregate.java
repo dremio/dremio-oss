@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.List;
-
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -26,6 +24,7 @@ import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import java.util.List;
 
 @JsonTypeName("streaming-aggregate")
 public class StreamingAggregate extends AbstractSingle {
@@ -41,8 +40,7 @@ public class StreamingAggregate extends AbstractSingle {
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("groupByExprs") List<NamedExpression> groupByExprs,
       @JsonProperty("aggrExprs") List<NamedExpression> aggrExprs,
-      @JsonProperty("cardinality") float cardinality
-      ) {
+      @JsonProperty("cardinality") float cardinality) {
     super(props, child);
     this.groupByExprs = groupByExprs;
     this.aggrExprs = aggrExprs;
@@ -62,7 +60,8 @@ public class StreamingAggregate extends AbstractSingle {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E{
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value)
+      throws E {
     return physicalVisitor.visitStreamingAggregate(this, value);
   }
 
@@ -75,5 +74,4 @@ public class StreamingAggregate extends AbstractSingle {
   public int getOperatorType() {
     return CoreOperatorType.STREAMING_AGGREGATE_VALUE;
   }
-
 }

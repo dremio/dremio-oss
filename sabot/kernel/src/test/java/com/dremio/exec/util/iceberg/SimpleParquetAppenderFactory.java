@@ -17,10 +17,10 @@ package com.dremio.exec.util.iceberg;
 
 import static org.apache.iceberg.FileFormat.PARQUET;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
-
 import org.apache.commons.lang3.function.TriConsumer;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.FileFormat;
@@ -39,12 +39,7 @@ import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.MessageType;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Factory for creating parquet writers for data, position delete,
- * and equality delete files.
- */
+/** Factory for creating parquet writers for data, position delete, and equality delete files. */
 public class SimpleParquetAppenderFactory implements FileAppenderFactory<StructLike> {
 
   private final Schema schema;
@@ -56,13 +51,12 @@ public class SimpleParquetAppenderFactory implements FileAppenderFactory<StructL
   private final TriConsumer<Schema, RecordConsumer, StructLike> recordWriter;
 
   public SimpleParquetAppenderFactory(
-    final Table table,
-    final Schema positionDeleteSchema,
-    final Schema equalityDeleteSchema,
-    final List<Integer> equalityFieldIds,
-    final Function<Schema, MessageType> schemaConverter,
-    final TriConsumer<Schema, RecordConsumer, StructLike> recordWriter
-  ) {
+      final Table table,
+      final Schema positionDeleteSchema,
+      final Schema equalityDeleteSchema,
+      final List<Integer> equalityFieldIds,
+      final Function<Schema, MessageType> schemaConverter,
+      final TriConsumer<Schema, RecordConsumer, StructLike> recordWriter) {
     this.schema = table.schema();
     this.spec = table.spec();
     this.positionDeleteSchema = positionDeleteSchema;
@@ -76,9 +70,10 @@ public class SimpleParquetAppenderFactory implements FileAppenderFactory<StructL
   public FileAppender<StructLike> newAppender(OutputFile outputFile, FileFormat format) {
     Preconditions.checkArgument(format == PARQUET);
     try {
-      final ParquetWriter<StructLike> writer = new ParquetWriter<>(
-        new Path(outputFile.location()),
-        new IcebergParquetRecordWriter<>(schema, schemaConverter, recordWriter));
+      final ParquetWriter<StructLike> writer =
+          new ParquetWriter<>(
+              new Path(outputFile.location()),
+              new IcebergParquetRecordWriter<>(schema, schemaConverter, recordWriter));
       return new SimpleParquetAppender<>(writer, outputFile);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -87,36 +82,37 @@ public class SimpleParquetAppenderFactory implements FileAppenderFactory<StructL
 
   @Override
   public DataWriter<StructLike> newDataWriter(
-    EncryptedOutputFile outputFile, FileFormat format, StructLike partition) {
+      EncryptedOutputFile outputFile, FileFormat format, StructLike partition) {
     return new org.apache.iceberg.io.DataWriter<>(
-      newAppender(outputFile.encryptingOutputFile(), format),
-      format,
-      outputFile.encryptingOutputFile().location(),
-      spec,
-      partition,
-      outputFile.keyMetadata());
-  }
-
-  @Override
-  public EqualityDeleteWriter<StructLike> newEqDeleteWriter(
-    EncryptedOutputFile outputFile, FileFormat format, StructLike partition) {
-    Preconditions.checkArgument(format == PARQUET);
-    Preconditions.checkNotNull(equalityDeleteSchema);
-    Preconditions.checkNotNull(equalityFieldIds);
-    try {
-      final ParquetWriter<StructLike> writer = new ParquetWriter<>(
-        new Path(outputFile.encryptingOutputFile().location()),
-        new IcebergParquetRecordWriter<>(
-          equalityDeleteSchema, schemaConverter, recordWriter));
-      return new EqualityDeleteWriter<>(
-        new SimpleParquetAppender<>(writer, outputFile.encryptingOutputFile()),
+        newAppender(outputFile.encryptingOutputFile(), format),
         format,
         outputFile.encryptingOutputFile().location(),
         spec,
         partition,
-        outputFile.keyMetadata(),
-        null,
-        equalityFieldIds.stream().mapToInt(Integer::intValue).toArray());
+        outputFile.keyMetadata());
+  }
+
+  @Override
+  public EqualityDeleteWriter<StructLike> newEqDeleteWriter(
+      EncryptedOutputFile outputFile, FileFormat format, StructLike partition) {
+    Preconditions.checkArgument(format == PARQUET);
+    Preconditions.checkNotNull(equalityDeleteSchema);
+    Preconditions.checkNotNull(equalityFieldIds);
+    try {
+      final ParquetWriter<StructLike> writer =
+          new ParquetWriter<>(
+              new Path(outputFile.encryptingOutputFile().location()),
+              new IcebergParquetRecordWriter<>(
+                  equalityDeleteSchema, schemaConverter, recordWriter));
+      return new EqualityDeleteWriter<>(
+          new SimpleParquetAppender<>(writer, outputFile.encryptingOutputFile()),
+          format,
+          outputFile.encryptingOutputFile().location(),
+          spec,
+          partition,
+          outputFile.keyMetadata(),
+          null,
+          equalityFieldIds.stream().mapToInt(Integer::intValue).toArray());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -124,21 +120,22 @@ public class SimpleParquetAppenderFactory implements FileAppenderFactory<StructL
 
   @Override
   public PositionDeleteWriter<StructLike> newPosDeleteWriter(
-    EncryptedOutputFile outputFile, FileFormat format, StructLike partition) {
+      EncryptedOutputFile outputFile, FileFormat format, StructLike partition) {
     Preconditions.checkArgument(format == PARQUET);
     Preconditions.checkNotNull(positionDeleteSchema);
     try {
-      final ParquetWriter<StructLike> writer = new ParquetWriter<>(
-        new Path(outputFile.encryptingOutputFile().location()),
-        new IcebergParquetRecordWriter<>(
-          positionDeleteSchema, schemaConverter, recordWriter));
+      final ParquetWriter<StructLike> writer =
+          new ParquetWriter<>(
+              new Path(outputFile.encryptingOutputFile().location()),
+              new IcebergParquetRecordWriter<>(
+                  positionDeleteSchema, schemaConverter, recordWriter));
       return new PositionDeleteWriter<>(
-        new SimpleParquetAppender<>(writer, outputFile.encryptingOutputFile()),
-        format,
-        outputFile.encryptingOutputFile().location(),
-        spec,
-        partition,
-        outputFile.keyMetadata());
+          new SimpleParquetAppender<>(writer, outputFile.encryptingOutputFile()),
+          format,
+          outputFile.encryptingOutputFile().location(),
+          spec,
+          partition,
+          outputFile.keyMetadata());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

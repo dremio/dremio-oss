@@ -15,16 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.logical.Rel;
@@ -41,20 +31,31 @@ import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.parser.SqlExplainJson;
+import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.options.OptionManager;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlNode;
 
-/**
- * Handler for EXPLAIN JSON commands.
- */
+/** Handler for EXPLAIN JSON commands. */
 public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.Explain> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExplainJsonHandler.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExplainJsonHandler.class);
 
   private final SqlHandlerConfig config;
 
   public ExplainJsonHandler(SqlHandlerConfig config) {
     super();
-    this.config = new SqlHandlerConfig(config.getContext(), config.getConverter(), config.getObserver(),
-      config.getMaterializations().orElse(null));
+    this.config =
+        new SqlHandlerConfig(
+            config.getContext(),
+            config.getConverter(),
+            config.getObserver(),
+            config.getMaterializations().orElse(null));
   }
 
   @Override
@@ -67,38 +68,40 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
       final SqlNode innerNode = node.getQuery();
 
       Rel drel;
-      final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, innerNode);
+      final ConvertedRelNode convertedRelNode =
+          SqlToRelTransformer.validateAndConvert(config, innerNode);
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();
       drel = DrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
       PrelTransformer.convertToPrel(config, drel);
       return toResultInner(node.getPhase(), observer.nodes);
-    } catch (Exception ex){
+    } catch (Exception ex) {
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
   }
 
   private List<Explain> toResultInner(String phase, List<TransformedNode> nodes) {
     final OptionManager options = config.getContext().getOptions();
-    final boolean isLegacy = options != null && options.getOption(PlannerSettings.LEGACY_SERIALIZER_ENABLED);
+    final boolean isLegacy =
+        options != null && options.getOption(PlannerSettings.LEGACY_SERIALIZER_ENABLED);
     final RelSerializerFactory factory =
-      isLegacy ?
-        RelSerializerFactory.getLegacyPlanningFactory(config.getContext().getConfig(), config.getContext().getScanResult()) :
-        RelSerializerFactory.getPlanningFactory(config.getContext().getConfig(), config.getContext().getScanResult());
-    final LogicalPlanSerializer serializer = factory
-      .getSerializer(
-        config.getConverter().getCluster(),
-        DremioCompositeSqlOperatorTable.create(config.getContext().getFunctionRegistry()));
+        isLegacy
+            ? RelSerializerFactory.getLegacyPlanningFactory(
+                config.getContext().getConfig(), config.getContext().getScanResult())
+            : RelSerializerFactory.getPlanningFactory(
+                config.getContext().getConfig(), config.getContext().getScanResult());
+    final LogicalPlanSerializer serializer =
+        factory.getSerializer(
+            config.getConverter().getCluster(),
+            DremioCompositeSqlOperatorTable.create(config.getContext().getFunctionRegistry()));
 
     for (TransformedNode n : nodes) {
-      if(n.getPhase().equalsIgnoreCase(phase)) {
+      if (n.getPhase().equalsIgnoreCase(phase)) {
         return Collections.singletonList(new Explain(serializer.serializeToJson(n.getNode())));
       }
     }
 
-    throw UserException.validationError()
-      .message("Unknown phase: %s", phase)
-      .build(logger);
+    throw UserException.validationError().message("Unknown phase: %s", phase).build(logger);
   }
 
   private static class TransformedNode {
@@ -118,7 +121,6 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
     public RelNode getNode() {
       return node;
     }
-
   }
 
   private static class Observer extends AbstractAttemptObserver {
@@ -131,7 +133,7 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
     }
 
     @Override
-    public void finalPrel(Prel prel) {
+    public void finalPrelPlanGenerated(Prel prel) {
       add("PHYSICAL", prel);
     }
 
@@ -140,11 +142,15 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
     }
 
     @Override
-    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
-        long millisTaken, Map<String, Long> timeBreakdownPerRule) {
+    public void planRelTransform(
+        PlannerPhase phase,
+        RelOptPlanner planner,
+        RelNode before,
+        RelNode after,
+        long millisTaken,
+        List<PlannerPhaseRulesStats> rulesBreakdownStats) {
       add(phase.name(), after);
     }
-
   }
 
   public static class Explain {
@@ -155,7 +161,6 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
       super();
       this.json = json;
     }
-
   }
 
   @Override

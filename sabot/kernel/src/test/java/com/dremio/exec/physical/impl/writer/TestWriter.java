@@ -17,8 +17,11 @@ package com.dremio.exec.physical.impl.writer;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.record.RecordBatchLoader;
+import com.dremio.sabot.rpc.user.QueryDataBatch;
 import java.util.List;
-
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -26,17 +29,13 @@ import org.apache.hadoop.fs.Path;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.record.RecordBatchLoader;
-import com.dremio.sabot.rpc.user.QueryDataBatch;
-
 public class TestWriter extends BaseTestQuery {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestWriter.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestWriter.class);
 
   static FileSystem fs;
-  static String ALTER_SESSION = String.format("ALTER SESSION SET \"%s\" = 'csv'", ExecConstants.OUTPUT_FORMAT_OPTION);
+  static String ALTER_SESSION =
+      String.format("ALTER SESSION SET \"%s\" = 'csv'", ExecConstants.OUTPUT_FORMAT_OPTION);
 
   @BeforeClass
   public static void initFs() throws Exception {
@@ -46,15 +45,14 @@ public class TestWriter extends BaseTestQuery {
     fs = FileSystem.get(conf);
   }
 
-
-
   @Test
   public void simpleCTAS() throws Exception {
     final String tableName = "simplectas";
     runSQL("Use dfs_test");
     runSQL(ALTER_SESSION);
 
-    final String testQuery = String.format("CREATE TABLE %s AS SELECT * FROM cp.\"employee.json\"", tableName);
+    final String testQuery =
+        String.format("CREATE TABLE %s AS SELECT * FROM cp.\"employee.json\"", tableName);
 
     testCTASQueryHelper(tableName, testQuery, 1155);
   }
@@ -64,8 +62,11 @@ public class TestWriter extends BaseTestQuery {
     final String tableName = "complex1ctas";
     runSQL("Use dfs_test");
     runSQL(ALTER_SESSION);
-    final String testQuery = String.format("CREATE TABLE %s AS SELECT first_name, last_name, " +
-        "position_id FROM cp.\"employee.json\"", tableName);
+    final String testQuery =
+        String.format(
+            "CREATE TABLE %s AS SELECT first_name, last_name, "
+                + "position_id FROM cp.\"employee.json\"",
+            tableName);
 
     testCTASQueryHelper(tableName, testQuery, 1155);
   }
@@ -75,8 +76,11 @@ public class TestWriter extends BaseTestQuery {
     final String tableName = "complex1ctas";
     runSQL("Use dfs_test");
     runSQL(ALTER_SESSION);
-    final String testQuery = String.format("CREATE TABLE %s AS SELECT CAST(\"birth_date\" as Timestamp) FROM " +
-        "cp.\"employee.json\" GROUP BY birth_date", tableName);
+    final String testQuery =
+        String.format(
+            "CREATE TABLE %s AS SELECT CAST(\"birth_date\" as Timestamp) FROM "
+                + "cp.\"employee.json\" GROUP BY birth_date",
+            tableName);
 
     testCTASQueryHelper(tableName, testQuery, 52);
   }
@@ -86,29 +90,26 @@ public class TestWriter extends BaseTestQuery {
     final String tableName = "/test/simplectas2";
     runSQL(ALTER_SESSION);
     final String testQuery =
-        String.format("CREATE TABLE dfs_test.\"%s\" AS SELECT * FROM cp.\"employee.json\"",tableName);
+        String.format(
+            "CREATE TABLE dfs_test.\"%s\" AS SELECT * FROM cp.\"employee.json\"", tableName);
 
     testCTASQueryHelper(tableName, testQuery, 1155);
   }
 
   @Test
   public void simpleParquetDecimal() throws Exception {
-    try {
-      final String tableName = "simpleparquetdecimal";
-      final String testQuery = String.format("CREATE TABLE dfs_test.\"%s\" AS SELECT cast(salary as " +
-          "decimal(30,2)) * -1 as salary FROM cp.\"employee.json\"", tableName);
+    final String tableName = "simpleparquetdecimal";
+    final String testQuery =
+        String.format(
+            "CREATE TABLE dfs_test.\"%s\" AS SELECT cast(salary as "
+                + "decimal(30,2)) * -1 as salary FROM cp.\"employee.json\"",
+            tableName);
 
-      // enable decimal
-      test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-      testCTASQueryHelper(tableName, testQuery, 1155);
-
-      // disable decimal
-    } finally {
-      test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-    }
+    testCTASQueryHelper(tableName, testQuery, 1155);
   }
 
-  private void testCTASQueryHelper(String tableName, String testQuery, int expectedOutputCount) throws Exception {
+  private void testCTASQueryHelper(String tableName, String testQuery, int expectedOutputCount)
+      throws Exception {
     try {
       List<QueryDataBatch> results = testSqlWithResults(testQuery);
 
@@ -122,7 +123,8 @@ public class TestWriter extends BaseTestQuery {
           continue;
         }
 
-        BigIntVector recordWrittenV = (BigIntVector) batchLoader.getValueAccessorById(BigIntVector.class, 1).getValueVector();
+        BigIntVector recordWrittenV =
+            (BigIntVector) batchLoader.getValueAccessorById(BigIntVector.class, 1).getValueVector();
 
         for (int i = 0; i < batchLoader.getRecordCount(); i++) {
           recordsWritten += recordWrittenV.get(i);
@@ -141,8 +143,10 @@ public class TestWriter extends BaseTestQuery {
         }
       } catch (Exception e) {
         // ignore exceptions.
-        logger.warn("Failed to delete the table [{}, {}] created as part of the test",
-            getDfsTestTmpSchemaLocation(), tableName);
+        logger.warn(
+            "Failed to delete the table [{}, {}] created as part of the test",
+            getDfsTestTmpSchemaLocation(),
+            tableName);
       }
     }
   }

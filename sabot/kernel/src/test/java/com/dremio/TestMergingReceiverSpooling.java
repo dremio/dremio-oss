@@ -15,32 +15,29 @@
  */
 package com.dremio;
 
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
+import java.util.concurrent.TimeUnit;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 
-/**
- * Forces a query to spill in the merging receiver and confirms it doesn't get stuck
- */
+/** Forces a query to spill in the merging receiver and confirms it doesn't get stuck */
 public class TestMergingReceiverSpooling extends BaseTestQuery {
   @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
+  public final TestRule timeoutRule =
+      TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
 
   @Test
-  public void tpch18() throws Exception{
+  public void tpch18() throws Exception {
 
-    String query = "select l_orderkey from cp.\"tpch/lineitem.parquet\" group by l_orderkey having sum(l_quantity) > 300";
+    String query =
+        "select l_orderkey from cp.\"tpch/lineitem.parquet\" group by l_orderkey having sum(l_quantity) > 300";
 
     setSessionOption(ExecConstants.SLICE_TARGET, "10");
     setSessionOption(PlannerSettings.HASHAGG, "false");
     testRunAndPrint(UserBitShared.QueryType.SQL, query);
   }
-
 }

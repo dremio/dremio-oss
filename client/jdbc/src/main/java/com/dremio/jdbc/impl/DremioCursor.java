@@ -17,25 +17,6 @@ package com.dremio.jdbc.impl;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.calcite.avatica.AvaticaStatement;
-import org.apache.calcite.avatica.ColumnMetaData;
-import org.apache.calcite.avatica.Meta;
-import org.apache.calcite.avatica.Meta.Signature;
-import org.apache.calcite.avatica.util.ArrayImpl.Factory;
-import org.apache.calcite.avatica.util.Cursor;
-import org.slf4j.Logger;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.client.DremioClient;
@@ -53,12 +34,30 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
-
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.calcite.avatica.AvaticaStatement;
+import org.apache.calcite.avatica.ColumnMetaData;
+import org.apache.calcite.avatica.Meta;
+import org.apache.calcite.avatica.Meta.Signature;
+import org.apache.calcite.avatica.util.ArrayImpl.Factory;
+import org.apache.calcite.avatica.util.Cursor;
+import org.slf4j.Logger;
 
 class DremioCursor implements Cursor {
 
   /** Size of JDBC batch queue (in batches) above which throttling begins. */
-  public static final String JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD = "dremio.jdbc.batch_queue_throttling_threshold";
+  public static final String JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD =
+      "dremio.jdbc.batch_queue_throttling_threshold";
+
   public static final String IS_CATALOG_NAME = "DREMIO";
   // END_OF_STREAM_MESSAGE gets added to batchQueue to signal the waiting threads
   // that there is no more data in the queue, therefore aborting the operations waiting
@@ -85,6 +84,7 @@ class DremioCursor implements Cursor {
 
     /** (Just for logging.) */
     private int lastReceivedBatchNumber;
+
     /** (Just for logging.) */
     private int lastDequeuedBatchNumber;
 
@@ -95,15 +95,15 @@ class DremioCursor implements Cursor {
     volatile boolean completed = false;
 
     /** Whether throttling of incoming data is active. */
-    private final AtomicBoolean throttled = new AtomicBoolean( false );
+    private final AtomicBoolean throttled = new AtomicBoolean(false);
+
     private volatile ConnectionThrottle throttle;
 
     private volatile boolean closed = false;
 
     private final CountDownLatch firstMessageReceived = new CountDownLatch(1);
 
-    final LinkedBlockingDeque<QueryDataBatch> batchQueue =
-        Queues.newLinkedBlockingDeque();
+    final LinkedBlockingDeque<QueryDataBatch> batchQueue = Queues.newLinkedBlockingDeque();
 
     private final long batchQueuePollTimeoutMs;
 
@@ -112,36 +112,36 @@ class DremioCursor implements Cursor {
 
     /**
      * ...
-     * @param  batchQueueThrottlingThreshold
-     *         queue size threshold for throttling server
-     * @param  batchQueuePollTimeoutMs
-     *         timeout for batchQueue.Poll() in ms
+     *
+     * @param batchQueueThrottlingThreshold queue size threshold for throttling server
+     * @param batchQueuePollTimeoutMs timeout for batchQueue.Poll() in ms
      */
     @VisibleForTesting
-    ResultsListener( int batchQueueThrottlingThreshold, long batchQueuePollTimeoutMs ) {
+    ResultsListener(int batchQueueThrottlingThreshold, long batchQueuePollTimeoutMs) {
       instanceId = INSTANCE_ID_COUNTER.getAndIncrement();
       this.batchQueueThrottlingThreshold = batchQueueThrottlingThreshold;
       this.batchQueuePollTimeoutMs = batchQueuePollTimeoutMs;
-      logger.debug( "[#{}] Query listener created.", instanceId );
+      logger.debug("[#{}] Query listener created.", instanceId);
     }
 
     /**
      * ...
-     * @param  batchQueueThrottlingThreshold
-     *         queue size threshold for throttling server
+     *
+     * @param batchQueueThrottlingThreshold queue size threshold for throttling server
      */
-    ResultsListener( int batchQueueThrottlingThreshold ) {
+    ResultsListener(int batchQueueThrottlingThreshold) {
       this(batchQueueThrottlingThreshold, 50);
     }
 
     /**
      * Starts throttling if not currently throttling.
-     * @param  throttle  the "throttlable" object to throttle
-     * @return  true if actually started (wasn't throttling already)
+     *
+     * @param throttle the "throttlable" object to throttle
+     * @return true if actually started (wasn't throttling already)
      */
-    private boolean startThrottlingIfNot( ConnectionThrottle throttle ) {
-      final boolean started = throttled.compareAndSet( false, true );
-      if ( started ) {
+    private boolean startThrottlingIfNot(ConnectionThrottle throttle) {
+      final boolean started = throttled.compareAndSet(false, true);
+      if (started) {
         this.throttle = throttle;
         throttle.setAutoRead(false);
       }
@@ -150,11 +150,12 @@ class DremioCursor implements Cursor {
 
     /**
      * Stops throttling if currently throttling.
-     * @return  true if actually stopped (was throttling)
+     *
+     * @return true if actually stopped (was throttling)
      */
     private boolean stopThrottlingIfSo() {
-      final boolean stopped = throttled.compareAndSet( true, false );
-      if ( stopped ) {
+      final boolean stopped = throttled.compareAndSet(true, false);
+      if (stopped) {
         throttle.setAutoRead(true);
         throttle = null;
       }
@@ -170,7 +171,6 @@ class DremioCursor implements Cursor {
           throw new TimeoutException("Did not receive first message before timeout expiration.");
         }
       }
-
     }
 
     private void releaseIfFirst() {
@@ -179,25 +179,24 @@ class DremioCursor implements Cursor {
 
     @Override
     public void queryIdArrived(QueryId queryId) {
-      logger.debug( "[#{}] Received query ID: {}.",
-                    instanceId, QueryIdHelper.getQueryId( queryId ) );
+      logger.debug("[#{}] Received query ID: {}.", instanceId, QueryIdHelper.getQueryId(queryId));
       this.queryId = queryId;
     }
 
     @Override
     public void submissionFailed(UserException ex) {
-      logger.debug( "[#{}] Received query failure:", instanceId, ex );
+      logger.debug("[#{}] Received query failure:", instanceId, ex);
       this.executionFailureException = ex;
       completed = true;
       close();
-      logger.info( "[#{}] Query failed:", instanceId, ex );
+      logger.info("[#{}] Query failed:", instanceId, ex);
     }
 
     @Override
     public void dataArrived(QueryDataBatch result, ConnectionThrottle throttle) {
       lastReceivedBatchNumber++;
-      logger.debug( "[#{}] Received query data batch #{}: {}.",
-                    instanceId, lastReceivedBatchNumber, result );
+      logger.debug(
+          "[#{}] Received query data batch #{}: {}.", instanceId, lastReceivedBatchNumber, result);
 
       // If we're in a closed state, just release the message.
       if (closed) {
@@ -212,10 +211,9 @@ class DremioCursor implements Cursor {
       batchQueue.add(result);
 
       // Throttle server if queue size has exceed threshold.
-      if (batchQueue.size() > batchQueueThrottlingThreshold ) {
-        if ( startThrottlingIfNot( throttle ) ) {
-          logger.debug( "[#{}] Throttling started at queue size {}.",
-                        instanceId, batchQueue.size() );
+      if (batchQueue.size() > batchQueueThrottlingThreshold) {
+        if (startThrottlingIfNot(throttle)) {
+          logger.debug("[#{}] Throttling started at queue size {}.", instanceId, batchQueue.size());
         }
       }
 
@@ -224,7 +222,7 @@ class DremioCursor implements Cursor {
 
     @Override
     public void queryCompleted(QueryState state) {
-      logger.debug( "[#{}] Received query completion: {}.", instanceId, state );
+      logger.debug("[#{}] Received query completion: {}.", instanceId, state);
       completed = true;
       // Add an END_OF_STREAM_MESSAGE batch to the queue to signify no more data.
       batchQueue.add(END_OF_STREAM_MESSAGE);
@@ -235,22 +233,19 @@ class DremioCursor implements Cursor {
       return queryId;
     }
 
-
     /**
      * Gets the next batch of query results from the queue.
-     * @return  the next batch, or {@code null} after last batch has been returned
-     * @throws UserException
-     *         if the query failed
-     * @throws TimeoutException
-     *         if data was not received before timeout expiration
-     * @throws InterruptedException
-     *         if waiting on the queue was interrupted
+     *
+     * @return the next batch, or {@code null} after last batch has been returned
+     * @throws UserException if the query failed
+     * @throws TimeoutException if data was not received before timeout expiration
+     * @throws InterruptedException if waiting on the queue was interrupted
      */
     QueryDataBatch getNext() throws UserException, TimeoutException, InterruptedException {
       while (true) {
         if (executionFailureException != null) {
-          logger.debug( "[#{}] Dequeued query failure exception:",
-                        instanceId, executionFailureException );
+          logger.debug(
+              "[#{}] Dequeued query failure exception:", instanceId, executionFailureException);
           throw executionFailureException;
         }
         if (completed && batchQueue.isEmpty()) {
@@ -260,23 +255,29 @@ class DremioCursor implements Cursor {
           if (remaining < 0) {
             throw new TimeoutException("Query did not complete before timeout expiration");
           }
-          final QueryDataBatch qdb = completed ? batchQueue.poll() :
-            batchQueue.poll(Math.min(remaining, batchQueuePollTimeoutMs), TimeUnit.MILLISECONDS);
+          final QueryDataBatch qdb =
+              completed
+                  ? batchQueue.poll()
+                  : batchQueue.poll(
+                      Math.min(remaining, batchQueuePollTimeoutMs), TimeUnit.MILLISECONDS);
           if (qdb == END_OF_STREAM_MESSAGE) {
             return null;
           }
           if (qdb != null) {
             lastDequeuedBatchNumber++;
-            logger.debug( "[#{}] Dequeued query data batch #{}: {}.",
-                          instanceId, lastDequeuedBatchNumber, qdb );
+            logger.debug(
+                "[#{}] Dequeued query data batch #{}: {}.",
+                instanceId,
+                lastDequeuedBatchNumber,
+                qdb);
 
             // Unthrottle server if queue size has dropped enough below threshold:
-            if ( batchQueue.size() < batchQueueThrottlingThreshold / 2
-                 || batchQueue.size() == 0  // (in case threshold < 2)
-                 ) {
-              if ( stopThrottlingIfSo() ) {
-                logger.debug( "[#{}] Throttling stopped at queue size {}.",
-                              instanceId, batchQueue.size() );
+            if (batchQueue.size() < batchQueueThrottlingThreshold / 2
+                || batchQueue.size() == 0 // (in case threshold < 2)
+            ) {
+              if (stopThrottlingIfSo()) {
+                logger.debug(
+                    "[#{}] Throttling stopped at queue size {}.", instanceId, batchQueue.size());
               }
             }
             return qdb;
@@ -290,11 +291,13 @@ class DremioCursor implements Cursor {
     }
 
     void close() {
-      logger.debug( "[#{}] Query listener closing.", instanceId );
+      logger.debug("[#{}] Query listener closing.", instanceId);
       closed = true;
-      if ( stopThrottlingIfSo() ) {
-        logger.debug( "[#{}] Throttling stopped at close() (at queue size {}).",
-                      instanceId, batchQueue.size() );
+      if (stopThrottlingIfSo()) {
+        logger.debug(
+            "[#{}] Throttling stopped at close() (at queue size {}).",
+            instanceId,
+            batchQueue.size());
       }
       while (!batchQueue.isEmpty()) {
         QueryDataBatch qdb = batchQueue.poll();
@@ -317,10 +320,9 @@ class DremioCursor implements Cursor {
       // we want to unblock the main thread.
       releaseIfFirst();
     }
-
   }
 
-  private static final Logger logger = getLogger( DremioCursor.class );
+  private static final Logger logger = getLogger(DremioCursor.class);
 
   /** JDBC-specified string for unknown catalog, schema, and table names. */
   private static final String UNKNOWN_NAME_STRING = "";
@@ -346,22 +348,18 @@ class DremioCursor implements Cursor {
   /** Whether loadInitialSchema() has been called. */
   private boolean initialSchemaLoaded = false;
 
-  /** Whether after first batch.  (Re skipping spurious empty batches.) */
+  /** Whether after first batch. (Re skipping spurious empty batches.) */
   private boolean afterFirstBatch = false;
 
   /**
-   * Whether the next call to {@code this.}{@link #next()} should just return
-   * {@code true} rather than calling {@link #nextRowInternally()} to try to
-   * advance to the next record.
-   * <p>
-   *   Currently, can be true only for first call to {@link #next()}.
-   * </p>
-   * <p>
-   *   (Relates to {@link #loadInitialSchema()}'s calling
-   *   {@link #nextRowInternally()} one "extra" time (extra relative to number
-   *   of {@link ResultSet#next()} calls) at the beginning to get first batch
-   *   and schema before {@code Statement.execute...(...)} even returns.)
-   * </p>
+   * Whether the next call to {@code this.}{@link #next()} should just return {@code true} rather
+   * than calling {@link #nextRowInternally()} to try to advance to the next record.
+   *
+   * <p>Currently, can be true only for first call to {@link #next()}.
+   *
+   * <p>(Relates to {@link #loadInitialSchema()}'s calling {@link #nextRowInternally()} one "extra"
+   * time (extra relative to number of {@link ResultSet#next()} calls) at the beginning to get first
+   * batch and schema before {@code Statement.execute...(...)} even returns.)
    */
   private boolean returnTrueForNextCallToNext = false;
 
@@ -369,13 +367,11 @@ class DremioCursor implements Cursor {
   private boolean afterLastRow = false;
 
   private int currentRowNumber = -1;
-  /** Zero-based offset of current record in record batch.
-   * (Not <i>row</i> number.) */
+
+  /** Zero-based offset of current record in record batch. (Not <i>row</i> number.) */
   private int currentRecordNumber = -1;
 
-
   /**
-   *
    * @param statement
    * @param signature
    */
@@ -386,7 +382,7 @@ class DremioCursor implements Cursor {
 
     DremioClient client = connection.getClient();
     final int batchQueueThrottlingThreshold =
-        client.getConfig().getInt(JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD );
+        client.getConfig().getInt(JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD);
     resultsListener = new ResultsListener(batchQueueThrottlingThreshold);
     currentBatchHolder = new RecordBatchLoader(client.getRecordAllocator());
   }
@@ -416,23 +412,21 @@ class DremioCursor implements Cursor {
   // List<SqlAccessorWrapper>, and we have to cast from Accessor to
   // SqlAccessorWrapper in updateColumns().)
   @Override
-  public List<Accessor> createAccessors(List<ColumnMetaData> types,
-                                        Calendar localCalendar, Factory factory) {
+  public List<Accessor> createAccessors(
+      List<ColumnMetaData> types, Calendar localCalendar, Factory factory) {
     columnMetaDataList = (DremioColumnMetaDataList) types;
     return accessors;
   }
 
   synchronized void cleanup() {
-    if (resultsListener.getQueryId() != null && ! resultsListener.completed) {
+    if (resultsListener.getQueryId() != null && !resultsListener.completed) {
       connection.getClient().cancelQuery(resultsListener.getQueryId());
     }
     resultsListener.close();
     currentBatchHolder.clear();
   }
 
-  /**
-   * Updates column accessors and metadata from current record batch.
-   */
+  /** Updates column accessors and metadata from current record batch. */
   private void updateColumns() {
     // First update accessors and schema from batch:
     accessors.generateAccessors(this, currentBatchHolder, this.connection.getTimeZone());
@@ -441,19 +435,18 @@ class DremioCursor implements Cursor {
     final List<Class<?>> getObjectClasses = new ArrayList<>();
     // (Can't use modern for loop because, for some incompletely clear reason,
     // DremioAccessorList blocks iterator() (throwing exception).)
-    for ( int ax = 0; ax < accessors.size(); ax++ ) {
-      final SqlAccessorWrapper accessor =
-          accessors.get( ax );
-      getObjectClasses.add( accessor.getObjectClass() );
+    for (int ax = 0; ax < accessors.size(); ax++) {
+      final SqlAccessorWrapper accessor = accessors.get(ax);
+      getObjectClasses.add(accessor.getObjectClass());
     }
 
     // Update metadata for result set.
     columnMetaDataList.updateColumnMetaData(
         IS_CATALOG_NAME,
-        UNKNOWN_NAME_STRING,  // schema name
-        UNKNOWN_NAME_STRING,  // table name
+        UNKNOWN_NAME_STRING, // schema name
+        UNKNOWN_NAME_STRING, // table name
         schema,
-        getObjectClasses );
+        getObjectClasses);
 
     if (changeListener != null) {
       changeListener.schemaChanged(schema);
@@ -462,14 +455,12 @@ class DremioCursor implements Cursor {
 
   /**
    * ...
-   * <p>
-   *   Is to be called (once) from {@link #loadInitialSchema} for
-   *   {@link DremioResultSetImpl#execute()}, and then (repeatedly) from
-   *   {@link #next()} for {@link AvaticaResultSet#next()}.
-   * </p>
    *
-   * @return  whether cursor is positioned at a row (false when after end of
-   *   results)
+   * <p>Is to be called (once) from {@link #loadInitialSchema} for {@link
+   * DremioResultSetImpl#execute()}, and then (repeatedly) from {@link #next()} for {@link
+   * AvaticaResultSet#next()}.
+   *
+   * @return whether cursor is positioned at a row (false when after end of results)
    */
   private boolean nextRowInternally() throws SQLException {
     if (currentRecordNumber + 1 < currentBatchHolder.getRecordCount()) {
@@ -486,12 +477,10 @@ class DremioCursor implements Cursor {
         // (Apparently:)  Skip any spurious empty batches (batches that have
         // zero rows and/or null data, other than the first batch (which carries
         // the (initial) schema but no rows)).
-        if ( afterFirstBatch ) {
-          while ( qrb != null
-                  && ( qrb.getHeader().getRowCount() == 0
-                      || qrb.getData() == null ) ) {
+        if (afterFirstBatch) {
+          while (qrb != null && (qrb.getHeader().getRowCount() == 0 || qrb.getData() == null)) {
             // Empty message--dispose of and try to get another.
-            logger.warn( "Spurious batch read: {}", qrb );
+            logger.warn("Spurious batch read: {}", qrb);
 
             qrb.release();
 
@@ -504,7 +493,7 @@ class DremioCursor implements Cursor {
         if (qrb == null) {
           // End of batches--clean up, set state to done, report after last row.
 
-          currentBatchHolder.clear();  // (We load it so we clear it.)
+          currentBatchHolder.clear(); // (We load it so we clear it.)
           afterLastRow = true;
           return false;
         } else {
@@ -516,8 +505,7 @@ class DremioCursor implements Cursor {
 
           final boolean schemaChanged;
           try {
-            schemaChanged = currentBatchHolder.load(qrb.getHeader().getDef(),
-                                                    qrb.getData());
+            schemaChanged = currentBatchHolder.load(qrb.getHeader().getDef(), qrb.getData());
           } finally {
             qrb.release();
           }
@@ -526,65 +514,64 @@ class DremioCursor implements Cursor {
             updateColumns();
           }
 
-          if (returnTrueForNextCallToNext
-              && currentBatchHolder.getRecordCount() == 0) {
+          if (returnTrueForNextCallToNext && currentBatchHolder.getRecordCount() == 0) {
             returnTrueForNextCallToNext = false;
           }
           return true;
         }
-      } catch ( UserException e ) {
+      } catch (UserException e) {
         // A normally expected case--for any server-side error (e.g., syntax
         // error in SQL statement).
         // Construct SQLException with message text from the UserException.
         // TODO:  Map UserException error type to SQLException subclass (once
         // error type is accessible, of course. :-( )
-        throw new SQLException( e.getMessage(), e );
-      } catch ( TimeoutException e ) {
+        throw new SQLException(e.getMessage(), e);
+      } catch (TimeoutException e) {
         throw new SqlTimeoutException(
-            String.format("Cancelled after expiration of timeout of %d seconds.", statement.getQueryTimeout()),
+            String.format(
+                "Cancelled after expiration of timeout of %d seconds.",
+                statement.getQueryTimeout()),
             e);
-      } catch ( InterruptedException e ) {
+      } catch (InterruptedException e) {
         // Not normally expected--Dremio doesn't interrupt in this area (right?)--
         // but JDBC client certainly could.
-        throw new SQLException( "Interrupted.", e );
-      } catch ( SchemaChangeException e ) {
+        throw new SQLException("Interrupted.", e);
+      } catch (SchemaChangeException e) {
         // TODO:  Clean:  DRILL-2933:  RecordBatchLoader.load(...) no longer
         // throws SchemaChangeException, so check/clean catch clause.
-        throw new SQLException(
-            "Unexpected SchemaChangeException from RecordBatchLoader.load(...)" );
-      } catch ( RuntimeException e ) {
-        throw new SQLException( "Unexpected RuntimeException: " + e.toString(), e );
+        throw new SQLException("Unexpected SchemaChangeException from RecordBatchLoader.load(...)");
+      } catch (RuntimeException e) {
+        throw new SQLException("Unexpected RuntimeException: " + e.toString(), e);
       }
-
     }
   }
 
   /**
    * Advances to first batch to load schema data into result set metadata.
-   * <p>
-   *   To be called once from {@link DremioResultSetImpl#execute()} before
-   *   {@link #next()} is called from {@link AvaticaResultSet#next()}.
+   *
+   * <p>To be called once from {@link DremioResultSetImpl#execute()} before {@link #next()} is
+   * called from {@link AvaticaResultSet#next()}.
+   *
    * <p>
    */
   void loadInitialSchema() throws SQLException {
-    if ( initialSchemaLoaded ) {
-      throw new IllegalStateException(
-          "loadInitialSchema() called a second time" );
+    if (initialSchemaLoaded) {
+      throw new IllegalStateException("loadInitialSchema() called a second time");
     }
 
-    assert ! afterLastRow : "afterLastRow already true in loadInitialSchema()";
-    assert ! afterFirstBatch : "afterLastRow already true in loadInitialSchema()";
+    assert !afterLastRow : "afterLastRow already true in loadInitialSchema()";
+    assert !afterFirstBatch : "afterLastRow already true in loadInitialSchema()";
     assert -1 == currentRecordNumber
-        : "currentRecordNumber not -1 (is " + currentRecordNumber
-          + ") in loadInitialSchema()";
+        : "currentRecordNumber not -1 (is " + currentRecordNumber + ") in loadInitialSchema()";
     assert 0 == currentBatchHolder.getRecordCount()
         : "currentBatchHolder.getRecordCount() not 0 (is "
-          + currentBatchHolder.getRecordCount() + " in loadInitialSchema()";
+            + currentBatchHolder.getRecordCount()
+            + " in loadInitialSchema()";
 
     final PreparedStatement preparedStatement;
     if (statement instanceof DremioPreparedStatementImpl) {
       DremioPreparedStatementImpl dremioPreparedStatement = (DremioPreparedStatementImpl) statement;
-      preparedStatement  = dremioPreparedStatement.getPreparedStatementHandle();
+      preparedStatement = dremioPreparedStatement.getPreparedStatementHandle();
     } else {
       preparedStatement = null;
     }
@@ -596,18 +583,21 @@ class DremioCursor implements Cursor {
     }
 
     if (preparedStatement != null) {
-        connection.getClient().executePreparedStatement(preparedStatement.getServerHandle(), resultsListener);
+      connection
+          .getClient()
+          .executePreparedStatement(preparedStatement.getServerHandle(), resultsListener);
     } else {
       connection.getClient().runQuery(QueryType.SQL, signature.sql, resultsListener);
     }
 
     try {
       resultsListener.awaitFirstMessage();
-    } catch ( TimeoutException e ) {
+    } catch (TimeoutException e) {
       throw new SqlTimeoutException(
-          String.format("Cancelled after expiration of timeout of %d seconds.", statement.getQueryTimeout()),
+          String.format(
+              "Cancelled after expiration of timeout of %d seconds.", statement.getQueryTimeout()),
           e);
-    } catch ( InterruptedException e ) {
+    } catch (InterruptedException e) {
       // Preserve evidence that the interruption occurred so that code higher up
       // on the call stack can learn of the interruption and respond to it if it
       // wants to.
@@ -615,7 +605,7 @@ class DremioCursor implements Cursor {
 
       // Not normally expected--Dremio doesn't interrupt in this area (right?)--
       // but JDBC client certainly could.
-      throw new SQLException("Interrupted", e );
+      throw new SQLException("Interrupted", e);
     }
 
     returnTrueForNextCallToNext = true;
@@ -626,24 +616,21 @@ class DremioCursor implements Cursor {
   }
 
   /**
-   * Advances this cursor to the next row, if any, or to after the sequence of
-   * rows if no next row.
+   * Advances this cursor to the next row, if any, or to after the sequence of rows if no next row.
    *
-   * @return  whether cursor is positioned at a row (false when after end of
-   *   results)
+   * @return whether cursor is positioned at a row (false when after end of results)
    */
   @Override
   public boolean next() throws SQLException {
-    if ( ! initialSchemaLoaded ) {
-      throw new IllegalStateException(
-          "next() called but loadInitialSchema() was not called" );
+    if (!initialSchemaLoaded) {
+      throw new IllegalStateException("next() called but loadInitialSchema() was not called");
     }
     assert afterFirstBatch : "afterFirstBatch still false in next()";
 
-    if ( afterLastRow ) {
+    if (afterLastRow) {
       // We're already after end of rows/records--just report that after end.
       return false;
-    } else if ( returnTrueForNextCallToNext ) {
+    } else if (returnTrueForNextCallToNext) {
       ++currentRowNumber;
       // We have a deferred "not after end" to report--reset and report that.
       returnTrueForNextCallToNext = false;
@@ -651,7 +638,9 @@ class DremioCursor implements Cursor {
     } else {
       accessors.clearLastColumnIndexedInRow();
       boolean res = nextRowInternally();
-      if (res) { ++ currentRowNumber; }
+      if (res) {
+        ++currentRowNumber;
+      }
 
       return res;
     }
@@ -674,5 +663,4 @@ class DremioCursor implements Cursor {
   public boolean wasNull() throws SQLException {
     return accessors.wasNull();
   }
-
 }

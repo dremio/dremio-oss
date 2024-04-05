@@ -23,17 +23,21 @@ public class HiveSchemaTypeOptions {
   private final boolean parquetComplexTypesEnabled;
   private final boolean mapTypeEnabled;
   private final boolean nativeComplexTypesEnabled;
+  private final boolean deltaColumnMappingEnabled;
 
-  public HiveSchemaTypeOptions(boolean parquetComplexTypesEnabled, boolean mapTypeEnabled, boolean nativeComplexTypesEnabled) {
+  public HiveSchemaTypeOptions(boolean parquetComplexTypesEnabled, boolean mapTypeEnabled,
+                               boolean nativeComplexTypesEnabled, boolean deltaColumnMappingEnabled) {
     this.parquetComplexTypesEnabled = parquetComplexTypesEnabled;
     this.mapTypeEnabled = mapTypeEnabled;
     this.nativeComplexTypesEnabled = nativeComplexTypesEnabled;
+    this.deltaColumnMappingEnabled = deltaColumnMappingEnabled;
   }
 
   public HiveSchemaTypeOptions(final OptionManager optionManager) {
     this(optionManager.getOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED),
          optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE),
-         optionManager.getOption(ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE));
+         optionManager.getOption(ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE),
+         optionManager.getOption(ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING));
   }
 
   public boolean isParquetComplexTypesEnabled() {
@@ -46,5 +50,9 @@ public class HiveSchemaTypeOptions {
 
   public boolean isNativeComplexTypesEnabled() {
     return nativeComplexTypesEnabled;
+  }
+
+  public boolean isDeltaColumnMappingEnabled() {
+    return deltaColumnMappingEnabled;
   }
 }

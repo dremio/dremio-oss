@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 /**
- * Java client API for submitting queries and accepting result sets from a Dremio
- * server.
+ * Java client API for submitting queries and accepting result sets from a Dremio server.
  *
- * Data returned to this client is stored in the default columnar Value Vector
- * data structures used by Dremio internally. For users of Dremio requiring a more
- * traditional database interface to consume from an application, a JDBC driver
- * is available as well; see the {@see com.dremio.jdbc} package.
+ * <p>Data returned to this client is stored in the default columnar Value Vector data structures
+ * used by Dremio internally. For users of Dremio requiring a more traditional database interface to
+ * consume from an application, a JDBC driver is available as well; see the {@see com.dremio.jdbc}
+ * package.
  */
 package com.dremio.exec.client;

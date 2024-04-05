@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.calcite.sql.type.SqlTypeName;
-
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.physical.AdaptiveHashExchangePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
@@ -37,6 +29,12 @@ import com.dremio.exec.planner.physical.UnorderedMuxExchangePrel;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, RuntimeException> {
   private final boolean isMuxEnabled;
@@ -45,8 +43,12 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
   private final OptionManager options;
   private final GroupResourceInformation resourceInformation;
 
-
-  public InsertLocalExchangeVisitor(boolean isMuxEnabled, int muxFragmentsPerNode, boolean isDeMuxEnabled, GroupResourceInformation resourceInformation, OptionManager options) {
+  public InsertLocalExchangeVisitor(
+      boolean isMuxEnabled,
+      int muxFragmentsPerNode,
+      boolean isDeMuxEnabled,
+      GroupResourceInformation resourceInformation,
+      OptionManager options) {
     this.isMuxEnabled = isMuxEnabled;
     this.muxFragmentsPerNode = muxFragmentsPerNode;
     this.isDeMuxEnabled = isDeMuxEnabled;
@@ -56,12 +58,14 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
 
   @Override
   public Prel visitExchange(ExchangePrel prel, Void value) throws RuntimeException {
-    Prel child = ((Prel)prel.getInput()).accept(this, null);
+    Prel child = ((Prel) prel.getInput()).accept(this, null);
     // Whenever we encounter a HashToRandomExchangePrel
-    //   If MuxExchange is enabled, insert a UnorderedMuxExchangePrel before HashToRandomExchangePrel.
-    //   If DeMuxExchange is enabled, insert a UnorderedDeMuxExchangePrel after HashToRandomExchangePrel.
+    //   If MuxExchange is enabled, insert a UnorderedMuxExchangePrel before
+    // HashToRandomExchangePrel.
+    //   If DeMuxExchange is enabled, insert a UnorderedDeMuxExchangePrel after
+    // HashToRandomExchangePrel.
     if (!(prel instanceof HashToRandomExchangePrel)) {
-      return (Prel)prel.copy(prel.getTraitSet(), Collections.singletonList(child));
+      return (Prel) prel.copy(prel.getTraitSet(), Collections.singletonList(child));
     }
 
     Prel newPrel = child;
@@ -69,12 +73,15 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
     if (isMuxEnabled && !(child instanceof TableFunctionPrel)) {
       long parallelism = computeParallelism(prel, options, resourceInformation);
       long parallelismPerNode = parallelism / resourceInformation.getExecutorNodeCount();
-      //if parallelism for this exchange is already less than or equal to muxFragmentsPerNode, no point
+      // if parallelism for this exchange is already less than or equal to muxFragmentsPerNode, no
+      // point
       // adding the mux exchange here
       if (parallelismPerNode <= muxFragmentsPerNode) {
-        return (Prel)prel.copy(prel.getTraitSet(), Collections.singletonList(child));
+        return (Prel) prel.copy(prel.getTraitSet(), Collections.singletonList(child));
       }
-      newPrel = new UnorderedMuxExchangePrel(child.getCluster(), child.getTraitSet(), child, muxFragmentsPerNode);
+      newPrel =
+          new UnorderedMuxExchangePrel(
+              child.getCluster(), child.getTraitSet(), child, muxFragmentsPerNode);
     }
 
     newPrel = getNewHashExchange(prel, newPrel);
@@ -82,8 +89,12 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
     if (isDeMuxEnabled) {
       HashToRandomExchangePrel hashExchangePrel = (HashToRandomExchangePrel) newPrel;
       // Insert a DeMuxExchange to narrow down the number of receivers
-      newPrel = new UnorderedDeMuxExchangePrel(prel.getCluster(), prel.getTraitSet(), hashExchangePrel,
-          hashExchangePrel.getFields());
+      newPrel =
+          new UnorderedDeMuxExchangePrel(
+              prel.getCluster(),
+              prel.getTraitSet(),
+              hashExchangePrel,
+              hashExchangePrel.getFields());
     }
 
     return newPrel;
@@ -91,24 +102,31 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
 
   private Prel getNewHashExchange(ExchangePrel oldExchange, Prel child) {
     if (oldExchange instanceof AdaptiveHashExchangePrel) {
-      return new AdaptiveHashExchangePrel(oldExchange.getCluster(), oldExchange.getTraitSet(), child,
-        ((AdaptiveHashExchangePrel) oldExchange).getFields());
+      return new AdaptiveHashExchangePrel(
+          oldExchange.getCluster(),
+          oldExchange.getTraitSet(),
+          child,
+          ((AdaptiveHashExchangePrel) oldExchange).getFields());
     } else {
-      return new HashToRandomExchangePrel(oldExchange.getCluster(),
-        oldExchange.getTraitSet(), child, ((HashToRandomExchangePrel) oldExchange).getFields());
+      return new HashToRandomExchangePrel(
+          oldExchange.getCluster(),
+          oldExchange.getTraitSet(),
+          child,
+          ((HashToRandomExchangePrel) oldExchange).getFields());
     }
   }
 
   @Override
   public Prel visitPrel(Prel prel, Void value) throws RuntimeException {
     List<RelNode> children = Lists.newArrayList();
-    for(Prel child : prel){
+    for (Prel child : prel) {
       children.add(child.accept(this, null));
     }
     return (Prel) prel.copy(prel.getTraitSet(), children);
   }
 
-  public static Prel insertLocalExchanges(Prel prel, OptionManager options, GroupResourceInformation resourceInformation) {
+  public static Prel insertLocalExchanges(
+      Prel prel, OptionManager options, GroupResourceInformation resourceInformation) {
     final boolean isMuxEnabled = options.getOption(PlannerSettings.MUX_EXCHANGE);
     final boolean isDeMuxEnabled = options.getOption(PlannerSettings.DEMUX_EXCHANGE);
 
@@ -125,17 +143,24 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
     boolean useMuxExchange = isMuxEnabled;
     long muxFragmentsPerNode = 1;
 
-    // if total cluster cores above threshold, then we will use mux exchange with 1 fragment per node
+    // if total cluster cores above threshold, then we will use mux exchange with 1 fragment per
+    // node
     // this is the legacy behavior
-    if (isMuxEnabled && computeTotalParallelism(resourceInformation, options) < totalClusterCoresThreshold) {
-      // if a specific number of fragments per node has been set, so use that, but don't exceed cores/node
+    if (isMuxEnabled
+        && computeTotalParallelism(resourceInformation, options) < totalClusterCoresThreshold) {
+      // if a specific number of fragments per node has been set, so use that, but don't exceed
+      // cores/node
       if (options.getOption(PlannerSettings.MUX_FRAGS) != 0) {
-        muxFragmentsPerNode = Math.min(options.getOption(PlannerSettings.MUX_FRAGS),
-          resourceInformation.getAverageExecutorCores(options));
+        muxFragmentsPerNode =
+            Math.min(
+                options.getOption(PlannerSettings.MUX_FRAGS),
+                resourceInformation.getAverageExecutorCores(options));
       } else {
         // compute whether to use mux exchange and how many fragments per node
-        // by computing the total number of Arrow Buffers we expect the hash exchanges to need per node
-        // this is affected by the number of cores in the cluster and the count and type of the columns in the data
+        // by computing the total number of Arrow Buffers we expect the hash exchanges to need per
+        // node
+        // this is affected by the number of cores in the cluster and the count and type of the
+        // columns in the data
         ExchangeBufferCounter analyzer = new ExchangeBufferCounter(options, resourceInformation);
 
         prel.accept(analyzer);
@@ -148,9 +173,13 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
           useMuxExchange = false;
         } else {
           // compute number of frags per node needed to get total below threshold
-          muxFragmentsPerNode = bufferCountThreshold * resourceInformation.getAverageExecutorCores(options) / totalBufferCount;
+          muxFragmentsPerNode =
+              bufferCountThreshold
+                  * resourceInformation.getAverageExecutorCores(options)
+                  / totalBufferCount;
           // can't exceed number of cores per node
-          muxFragmentsPerNode = Math.min(muxFragmentsPerNode, resourceInformation.getAverageExecutorCores(options));
+          muxFragmentsPerNode =
+              Math.min(muxFragmentsPerNode, resourceInformation.getAverageExecutorCores(options));
           // can't be less than 1
           muxFragmentsPerNode = Math.max(muxFragmentsPerNode, 1);
         }
@@ -159,7 +188,13 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
 
     if (useMuxExchange || isDeMuxEnabled) {
       return prel.accept(
-        new InsertLocalExchangeVisitor(useMuxExchange, (int) muxFragmentsPerNode, isDeMuxEnabled, resourceInformation, options), null);
+          new InsertLocalExchangeVisitor(
+              useMuxExchange,
+              (int) muxFragmentsPerNode,
+              isDeMuxEnabled,
+              resourceInformation,
+              options),
+          null);
     }
     return prel;
   }
@@ -190,11 +225,14 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
     }
   }
 
-  private static long computeTotalParallelism(GroupResourceInformation resourceInformation, OptionManager options) {
-    return resourceInformation.getAverageExecutorCores(options) * resourceInformation.getExecutorNodeCount();
+  private static long computeTotalParallelism(
+      GroupResourceInformation resourceInformation, OptionManager options) {
+    return resourceInformation.getAverageExecutorCores(options)
+        * resourceInformation.getExecutorNodeCount();
   }
 
-  private static long computeBufferCountForExchange(RelNode prel, OptionManager options, GroupResourceInformation cri) {
+  private static long computeBufferCountForExchange(
+      RelNode prel, OptionManager options, GroupResourceInformation cri) {
     long parallelism = computeParallelism(prel, options, cri);
     long nodeCount = cri.getExecutorNodeCount();
     if (nodeCount == 0) {
@@ -202,15 +240,19 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
       // Let's not use mux exchange.
       return 0;
     }
-    int buffersPerBatch = prel.getRowType()
-      .getFieldList().stream().mapToInt(f -> bufferCountForType(f.getType())).sum();
+    int buffersPerBatch =
+        prel.getRowType().getFieldList().stream()
+            .mapToInt(f -> bufferCountForType(f.getType()))
+            .sum();
     return buffersPerBatch * parallelism * parallelism / nodeCount;
   }
 
-  private static long computeParallelism(RelNode prel, OptionManager options, GroupResourceInformation resourceInformation) {
+  private static long computeParallelism(
+      RelNode prel, OptionManager options, GroupResourceInformation resourceInformation) {
     double rc = prel.getCluster().getMetadataQuery().getRowCount(prel);
     long maxWidth = computeTotalParallelism(resourceInformation, options);
-    return Math.min((int) (rc / PrelUtil.getPlannerSettings(prel.getCluster()).getSliceTarget()), maxWidth);
+    return Math.min(
+        (int) (rc / PrelUtil.getPlannerSettings(prel.getCluster()).getSliceTarget()), maxWidth);
   }
 
   private static boolean isVariableLength(RelDataType type) {
@@ -218,7 +260,8 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
   }
 
   private static boolean isStruct(RelDataType type) {
-    return type.getSqlTypeName() == SqlTypeName.ROW || type.getSqlTypeName() == SqlTypeName.STRUCTURED;
+    return type.getSqlTypeName() == SqlTypeName.ROW
+        || type.getSqlTypeName() == SqlTypeName.STRUCTURED;
   }
 
   private static boolean isArray(RelDataType type) {

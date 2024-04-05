@@ -18,13 +18,10 @@ package com.dremio.service.flight;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.config.DremioConfig;
 import org.junit.Test;
 
-import com.dremio.config.DremioConfig;
-
-/**
- * Unit tests for DremioFlightService
- */
+/** Unit tests for DremioFlightService */
 public class TestDremioFlightService {
 
   @Test
@@ -38,7 +35,8 @@ public class TestDremioFlightService {
   public void testDefaultAuthenticationMode() {
     final DremioConfig config = DremioConfig.create();
     assertTrue(config.hasPath(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE));
-    assertEquals(DremioFlightService.FLIGHT_AUTH2_AUTH_MODE,
-      config.getString(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE));
+    assertEquals(
+        DremioFlightService.FLIGHT_AUTH2_AUTH_MODE,
+        config.getString(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE));
   }
 }

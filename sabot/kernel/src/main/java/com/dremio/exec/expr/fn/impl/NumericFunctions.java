@@ -15,31 +15,30 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.NullableBigIntHolder;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
 public class NumericFunctions {
 
-  @FunctionTemplate(name = "isnumeric", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "isnumeric",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class NullableBigIntIsNumeric implements SimpleFunction {
 
-    @Param
-    NullableBigIntHolder in;
-    @Output
-    NullableBitHolder out;
+    @Param NullableBigIntHolder in;
+    @Output NullableBitHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -52,17 +51,17 @@ public class NumericFunctions {
     }
   }
 
-  @FunctionTemplate(name = "isnumeric", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "isnumeric",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class NullableIntIsNumeric implements SimpleFunction {
 
-    @Param
-    NullableIntHolder in;
-    @Output
-    NullableBitHolder out;
+    @Param NullableIntHolder in;
+    @Output NullableBitHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -75,17 +74,16 @@ public class NumericFunctions {
     }
   }
 
-  @FunctionTemplate(name = "isnumeric", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "isnumeric",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
   public static class NullableVarCharIsNumeric implements SimpleFunction {
 
-    @Param
-    NullableVarCharHolder in;
-    @Output
-    NullableBitHolder out;
-    @Workspace
-    java.util.regex.Pattern pattern;
-    @Workspace
-    java.util.regex.Matcher matcher;
+    @Param NullableVarCharHolder in;
+    @Output NullableBitHolder out;
+    @Workspace java.util.regex.Pattern pattern;
+    @Workspace java.util.regex.Matcher matcher;
 
     @Override
     public void setup() {
@@ -99,13 +97,12 @@ public class NumericFunctions {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
-        String s = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end,
-            in.buffer);
+        String s =
+            com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+                in.start, in.end, in.buffer);
         out.value = matcher.reset(s).matches() ? 1 : 0;
       }
       out.isSet = 1;
-
     }
   }
-
 }

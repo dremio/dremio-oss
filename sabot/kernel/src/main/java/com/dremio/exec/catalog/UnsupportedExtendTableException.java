@@ -15,8 +15,5 @@
  */
 package com.dremio.exec.catalog;
 
-/**
- * Thrown when extended sql is not supported
- */
-public class UnsupportedExtendTableException extends UnsupportedOperationException {
-}
+/** Thrown when extended sql is not supported */
+public class UnsupportedExtendTableException extends UnsupportedOperationException {}

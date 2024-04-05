@@ -15,19 +15,15 @@
  */
 package com.dremio.service.flight.auth2;
 
+import com.dremio.service.flight.utils.DremioFlightAuthUtils;
+import com.dremio.service.users.UserService;
 import javax.inject.Provider;
-
 import org.apache.arrow.flight.auth2.BasicCallHeaderAuthenticator;
 import org.apache.arrow.flight.auth2.CallHeaderAuthenticator.AuthResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.service.flight.utils.DremioFlightAuthUtils;
-import com.dremio.service.users.UserService;
-
-/**
- * Dremio authentication specialized CredentialValidator implementation.
- */
+/** Dremio authentication specialized CredentialValidator implementation. */
 public class DremioCredentialValidator implements BasicCallHeaderAuthenticator.CredentialValidator {
   private static final Logger LOGGER = LoggerFactory.getLogger(DremioCredentialValidator.class);
 
@@ -47,7 +43,8 @@ public class DremioCredentialValidator implements BasicCallHeaderAuthenticator.C
   @Override
   public AuthResult validate(String username, String password) {
     com.dremio.service.users.AuthResult authResult =
-      DremioFlightAuthUtils.authenticateCredentials(userServiceProvider, username, password, LOGGER);
+        DremioFlightAuthUtils.authenticateCredentials(
+            userServiceProvider, username, password, LOGGER);
     return authResult::getUserName;
   }
 }

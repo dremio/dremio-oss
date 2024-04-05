@@ -17,13 +17,6 @@ package com.dremio.sabot.op.join.vhash.spill.partition;
 
 import static com.dremio.sabot.op.common.ht2.LBlockHashTable.ORDINAL_SIZE;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -50,12 +43,16 @@ import com.dremio.sabot.op.join.vhash.spill.slicer.RecordBatchPage;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Implementation of partition where the build table is entirely in memory.
- */
+/** Implementation of partition where the build table is entirely in memory. */
 final class MemoryPartition implements Partition, CanSwitchToSpilling {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryPartition.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MemoryPartition.class);
 
   private final JoinSetupParams setupParams;
   private final CopierFactory copierFactory;
@@ -81,44 +78,75 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
   private HeapLowMemController memoryController = null;
   private final String participantId;
   private final int fieldCount;
+  private PartitionColFilters partitionColFilters;
+  private NonPartitionColFilters nonPartitionColFilters;
+  private boolean filtersPreparedWithException = false;
 
-  MemoryPartition(JoinSetupParams setupParams, CopierFactory copierFactory, int partitionIdx, ArrowBuf sv2, ArrowBuf tableHash4B) {
+  MemoryPartition(
+      JoinSetupParams setupParams,
+      CopierFactory copierFactory,
+      int partitionIdx,
+      ArrowBuf sv2,
+      ArrowBuf tableHash4B) {
     this.setupParams = setupParams;
     this.copierFactory = copierFactory;
     this.partitionIdx = partitionIdx;
     this.sv2 = sv2;
     this.tableHash4B = tableHash4B;
-    this.partitionID = String.format("p_gen_%08d_idx_%08d", setupParams.getGeneration(), partitionIdx);
+    this.partitionID =
+        String.format("p_gen_%08d_idx_%08d", setupParams.getGeneration(), partitionIdx);
     this.fieldCount = setupParams.getCarryAlongSchema().getTotalFieldCount();
     final ExecProtos.FragmentHandle fragmentHandle = setupParams.getContext().getFragmentHandle();
-    participantId = String.format("joinspill-%s.%s.%s.%s.%s",
-      QueryIdHelper.getQueryId(fragmentHandle.getQueryId()), fragmentHandle.getMajorFragmentId(),
-      fragmentHandle.getMinorFragmentId(), this.setupParams.getOperatorId(), this.partitionID);
+    participantId =
+        String.format(
+            "joinspill-%s.%s.%s.%s.%s",
+            QueryIdHelper.getQueryId(fragmentHandle.getQueryId()),
+            fragmentHandle.getMajorFragmentId(),
+            fragmentHandle.getMinorFragmentId(),
+            this.setupParams.getOperatorId(),
+            this.partitionID);
     this.memoryController = this.setupParams.getContext().getHeapLowMemController();
     if (memoryController != null) {
       this.overheadParticipant = this.memoryController.addParticipant(participantId, fieldCount);
     }
-  /*
-   * build side structures
-   */
+    /*
+     * build side structures
+     */
     try (AutoCloseables.RollbackCloseable rc = new AutoCloseables.RollbackCloseable(true)) {
-      this.allocator = rc.add(setupParams.getOpAllocator().newChildAllocator(partitionID, 0, Long.MAX_VALUE));
-      this.pool = rc.add(new PagePool(allocator, (int)setupParams.getOptions().getOption(HashJoinOperator.PAGE_SIZE)));
+      this.allocator =
+          rc.add(setupParams.getOpAllocator().newChildAllocator(partitionID, 0, Long.MAX_VALUE));
+      this.pool =
+          rc.add(
+              new PagePool(
+                  allocator, (int) setupParams.getOptions().getOption(HashJoinOperator.PAGE_SIZE)));
       // linked list to link duplicate records (not collisions)
       this.linkedList = rc.add(new PageListMultimap(pool));
       // slicer to slice and copy incoming build batch into fixed size pages.
-      this.slicer = new PageBatchSlicer(pool, sv2, setupParams.getRight(), setupParams.getBuildNonKeyFieldsBitset());
+      this.slicer =
+          new PageBatchSlicer(
+              pool, sv2, setupParams.getRight(), setupParams.getBuildNonKeyFieldsBitset());
       // container for all the sliced record batches.
-      this.hyperContainer = rc.add(new ExpandableHyperContainer(allocator, setupParams.getCarryAlongSchema()));
+      this.hyperContainer =
+          rc.add(new ExpandableHyperContainer(allocator, setupParams.getCarryAlongSchema()));
       /*
        * Minimum hashtable size is set to 8K. This reduce the burden of unnecessarly allocating 1MB worth of control blocks
        * (for each partition) to 128K. This help batch workloads where total number of entries in the hashtable is very less.
        */
-      this.table = rc.add(new BlockJoinTable(setupParams.getBuildKeyPivot(), allocator, setupParams.getComparator(), 8192,
-        INITIAL_VAR_FIELD_AVERAGE_SIZE, setupParams.getSabotConfig(), setupParams.getOptions(), setupParams.isRuntimeFilterEnabled()));
+      this.table =
+          rc.add(
+              new BlockJoinTable(
+                  setupParams.getBuildKeyPivot(),
+                  allocator,
+                  setupParams.getComparator(),
+                  8192,
+                  INITIAL_VAR_FIELD_AVERAGE_SIZE,
+                  setupParams.getSabotConfig(),
+                  setupParams.getOptions(),
+                  setupParams.isRuntimeFilterEnabled()));
 
       // temp buffer to hold hash table ordinals, post-insertion into the table
-      this.hashTableOrdinals4B = rc.add(allocator.buffer(setupParams.getMaxInputBatchSize() * ORDINAL_SIZE));
+      this.hashTableOrdinals4B =
+          rc.add(allocator.buffer(setupParams.getMaxInputBatchSize() * ORDINAL_SIZE));
       rc.commit();
     } catch (RuntimeException ex) {
       throw ex;
@@ -135,9 +163,15 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
       throw new HeapLowMemoryReachedException();
     }
     // Add entries into the hash-table and get the hash table ordinals.
-    int recordsInserted = table.insertPivoted(sv2, pivotShift, records,
-      tableHash4B, setupParams.getPivotedFixedBlock(), setupParams.getPivotedVariableBlock(),
-      hashTableOrdinals4B /*output*/);
+    int recordsInserted =
+        table.insertPivoted(
+            sv2,
+            pivotShift,
+            records,
+            tableHash4B,
+            setupParams.getPivotedFixedBlock(),
+            setupParams.getPivotedVariableBlock(),
+            hashTableOrdinals4B /*output*/);
     Preconditions.checkState(recordsInserted <= records);
     if (recordsInserted == 0) {
       return 0;
@@ -163,8 +197,11 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
       // Update the links in the linked-list for the newly added batch.
       linkWatch.start();
       try {
-        ArrowBuf hashOrdinals = hashTableOrdinals4B.slice(numRecordsDone * ORDINAL_SIZE, batch.getRecordCount() * ORDINAL_SIZE);
-        linkedList.insertCollection(hashOrdinals, table.getMaxOrdinal(), buildBatchIndex, batch.getRecordCount());
+        ArrowBuf hashOrdinals =
+            hashTableOrdinals4B.slice(
+                numRecordsDone * ORDINAL_SIZE, batch.getRecordCount() * ORDINAL_SIZE);
+        linkedList.insertCollection(
+            hashOrdinals, table.getMaxOrdinal(), buildBatchIndex, batch.getRecordCount());
       } finally {
         linkWatch.stop();
       }
@@ -179,10 +216,11 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
       buildBatchIndex++;
       if (buildBatchIndex < 0) {
         throw UserException.unsupportedError()
-          .message("HashJoin doesn't support more than %d (Integer.MAX_VALUE) number of batches on build side in a " +
-              "single partition",
-            Integer.MAX_VALUE)
-          .build(logger);
+            .message(
+                "HashJoin doesn't support more than %d (Integer.MAX_VALUE) number of batches on build side in a "
+                    + "single partition",
+                Integer.MAX_VALUE)
+            .build(logger);
       }
     }
     if (overheadParticipant != null) {
@@ -205,7 +243,9 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
 
   private void checkAndCreateProbe() {
     if (probe == null) {
-      probe = new VectorizedProbe(setupParams, copierFactory, sv2, tableHash4B, table, linkedList, hyperContainer);
+      probe =
+          new VectorizedProbe(
+              setupParams, copierFactory, sv2, tableHash4B, table, linkedList, hyperContainer);
     }
   }
 
@@ -241,6 +281,18 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
   @Override
   public void prepareValueListFilters(NonPartitionColFilters nonPartitionColFilters) {
     table.prepareValueListFilters(nonPartitionColFilters);
+  }
+
+  @Override
+  public void setFilters(
+      NonPartitionColFilters nonPartitionColFilters, PartitionColFilters partitionColFilters) {
+    this.nonPartitionColFilters = nonPartitionColFilters;
+    this.partitionColFilters = partitionColFilters;
+  }
+
+  @Override
+  public boolean isFiltersPreparedWithException() {
+    return filtersPreparedWithException;
   }
 
   @Override
@@ -384,21 +436,51 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
     return allocator.getAllocatedMemory();
   }
 
+  // Add
   @Override
   public SwitchResult switchToSpilling(boolean spillAll) {
     Preconditions.checkState(!switchedToSpilling);
-    switchedToSpilling = true;
     setupParams.getSpillStats().incrementSpillCount();
 
     // create a releaser to free up the in-memory hash-table & the hyper-container.
-    SpillFileDescriptor spillFile = new SpillFileDescriptor(setupParams.getSpillManager().getSpillFile(partitionID + "_preSpillBuild.arrow"));
-    MemoryReleaser releaser = new BuildMemoryReleaser(setupParams, spillFile, linkedList,
-      table, hyperContainer, slicedBatchPages, allocator, ImmutableList.of(pool));
+    SpillFileDescriptor spillFile =
+        new SpillFileDescriptor(
+            setupParams.getSpillManager().getSpillFile(partitionID + "_preSpillBuild.arrow"));
+    MemoryReleaser releaser =
+        new BuildMemoryReleaser(
+            setupParams,
+            spillFile,
+            linkedList,
+            table,
+            hyperContainer,
+            slicedBatchPages,
+            allocator,
+            ImmutableList.of(pool));
     setupParams.getMultiMemoryReleaser().addReleaser(releaser);
-
+    // prepare bloom filters and value list filters before writing to disk
+    try {
+      if (partitionColFilters != null) {
+        prepareBloomFilters(partitionColFilters);
+      }
+      if (nonPartitionColFilters != null) {
+        prepareValueListFilters(nonPartitionColFilters);
+      }
+    } catch (Exception e) {
+      // This is just an optimisation. Hence, we don't throw the error further.
+      logger.warn("Error while processing runtime join filter", e);
+      filtersPreparedWithException = true;
+    }
     // Create a disk-partition to use in-place of this partition.
-    Partition newPartition = new DiskPartition(setupParams, partitionIdx, sv2, ImmutableList.of(spillFile),
-      new RecordedStats(getStats()), table.size());
+    Partition newPartition =
+        new DiskPartition(
+            setupParams,
+            partitionIdx,
+            sv2,
+            ImmutableList.of(spillFile),
+            new RecordedStats(getStats()),
+            table.size());
+    newPartition.setFilters(nonPartitionColFilters, partitionColFilters);
+    switchedToSpilling = true;
 
     // clean-up this partition
     AutoCloseables.closeNoChecked(this);
@@ -408,9 +490,7 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
     return new SwitchResult(true, newPartition);
   }
 
-  /**
-   * Notify other fragments of this spill by sending an Out-of-Band message
-   */
+  /** Notify other fragments of this spill by sending an Out-of-Band message */
   public void notifyOthersOfSpill() {
     OOBInfo oobInfo = setupParams.getOobInfo();
     if (!oobInfo.isOobSpillEnabled()) {
@@ -418,22 +498,29 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
     }
 
     try {
-      final OutOfBandMessage.Payload payload = new OutOfBandMessage.Payload(
-        ExecProtos.HashJoinSpill.newBuilder().setMemoryUse(allocator.getAllocatedMemory()).setMessageType(oobInfo.getMessage_type()).build());
+      final OutOfBandMessage.Payload payload =
+          new OutOfBandMessage.Payload(
+              ExecProtos.HashJoinSpill.newBuilder()
+                  .setMemoryUse(allocator.getAllocatedMemory())
+                  .setMessageType(oobInfo.getMessage_type())
+                  .build());
       for (CoordExecRPC.FragmentAssignment a : oobInfo.getAssignments()) {
-        final OutOfBandMessage message = new OutOfBandMessage(
-          oobInfo.getQueryId(),
-          oobInfo.getMajorFragmentId(),
-          a.getMinorFragmentIdList(),
-          oobInfo.getOperatorId(),
-          oobInfo.getMinorFragmentId(),
-          payload, true);
+        final OutOfBandMessage message =
+            new OutOfBandMessage(
+                oobInfo.getQueryId(),
+                oobInfo.getMajorFragmentId(),
+                a.getMinorFragmentIdList(),
+                oobInfo.getOperatorId(),
+                oobInfo.getMinorFragmentId(),
+                payload,
+                true);
 
-        final CoordinationProtos.NodeEndpoint endpoint = oobInfo.getEndpointsIndex().getNodeEndpoint(a.getAssignmentIndex());
+        final CoordinationProtos.NodeEndpoint endpoint =
+            oobInfo.getEndpointsIndex().getNodeEndpoint(a.getAssignmentIndex());
         oobInfo.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
       }
       setupParams.getSpillStats().incrementOOBSends();
-    } catch(final Exception ex) {
+    } catch (final Exception ex) {
       logger.warn("Failure while attempting to notify others of spilling.", ex);
     }
   }

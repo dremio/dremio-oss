@@ -20,12 +20,6 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.util.Optional;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Test;
-
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
@@ -33,10 +27,12 @@ import com.dremio.exec.util.FSHealthChecker;
 import com.dremio.io.file.Path;
 import com.dremio.plugins.util.CloseableResource;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.util.Optional;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Test;
 
-/**
- * Test the S3FSHealthChecker class.
- */
+/** Test the S3FSHealthChecker class. */
 public class TestS3FSHealthChecker {
 
   @Test
@@ -52,7 +48,7 @@ public class TestS3FSHealthChecker {
     fs.healthCheck(p, ImmutableSet.of());
   }
 
-  @Test (expected = IOException.class)
+  @Test(expected = IOException.class)
   public void testBadHealthCheck() throws IOException {
     TestExtendedS3FSHealthChecker fs = new TestExtendedS3FSHealthChecker(new Configuration());
     AmazonS3 mockedS3Client = mock(AmazonS3.class);
@@ -68,7 +64,8 @@ public class TestS3FSHealthChecker {
   @Test
   public void testS3FSHealthCheckerClassInstance() {
     String scheme = new String("dremioS3:///");
-    Optional<FSHealthChecker> healthCheckerClass = FSHealthChecker.getInstance(Path.of("/bucket/test"), scheme, new Configuration());
+    Optional<FSHealthChecker> healthCheckerClass =
+        FSHealthChecker.getInstance(Path.of("/bucket/test"), scheme, new Configuration());
     assertTrue(healthCheckerClass.isPresent());
     assertTrue(healthCheckerClass.get() instanceof S3FSHealthChecker);
   }

@@ -15,22 +15,22 @@
  */
 package com.dremio.sabot.task;
 
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.sabot.task.TaskManager.TaskHandle;
 import com.dremio.sabot.threads.AvailabilityCallback;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Holds an overall asynchronous task, including the priority, the AsyncTask and the
- * final cleaner to be executed once the task is done.
+ * Holds an overall asynchronous task, including the priority, the AsyncTask and the final cleaner
+ * to be executed once the task is done.
  */
 public class AsyncTaskWrapper implements Task {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AsyncTaskWrapper.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(AsyncTaskWrapper.class);
 
   enum WatchType {
     NONE,
@@ -51,7 +51,7 @@ public class AsyncTaskWrapper implements Task {
 
     @Override
     public int getThread() {
-      return (taskHandle != null) ? taskHandle.getThread(): -1;
+      return (taskHandle != null) ? taskHandle.getThread() : -1;
     }
 
     @Override
@@ -61,8 +61,9 @@ public class AsyncTaskWrapper implements Task {
 
     @Override
     public long getTotalBlockedDuration() {
-      return getDuration(WatchType.BLOCKED_ON_DOWNSTREAM) +
-        getDuration(WatchType.BLOCKED_ON_UPSTREAM) + getDuration(WatchType.BLOCKED_ON_SHARED_RESOURCE);
+      return getDuration(WatchType.BLOCKED_ON_DOWNSTREAM)
+          + getDuration(WatchType.BLOCKED_ON_UPSTREAM)
+          + getDuration(WatchType.BLOCKED_ON_SHARED_RESOURCE);
     }
 
     private void setTaskHandle(TaskHandle<AsyncTaskWrapper> taskHandle) {
@@ -87,8 +88,12 @@ public class AsyncTaskWrapper implements Task {
 
   private final TaskDescriptorImpl taskDescriptor = new TaskDescriptorImpl();
 
-  public AsyncTaskWrapper(long taskWeight, SchedulingGroup<AsyncTaskWrapper> schedulingGroup, AsyncTask asyncTask,
-                          AutoCloseable cleaner, int warnMaxTime) {
+  public AsyncTaskWrapper(
+      long taskWeight,
+      SchedulingGroup<AsyncTaskWrapper> schedulingGroup,
+      AsyncTask asyncTask,
+      AutoCloseable cleaner,
+      int warnMaxTime) {
     super();
     this.taskWeight = taskWeight;
     this.schedulingGroup = Preconditions.checkNotNull(schedulingGroup, "Scheduling group required");
@@ -116,8 +121,11 @@ public class AsyncTaskWrapper implements Task {
     stateEnded();
     try {
       if (getDuration(WatchType.SLEEP) - lastSleepDuration > warnMaxTime) {
-        logger.warn("DHL: The task {} has been in sleep for {}ms. The task last ran on thread e{}",
-          this, getDuration(WatchType.SLEEP) - lastSleepDuration, lastThread);
+        logger.warn(
+            "DHL: The task {} has been in sleep for {}ms. The task last ran on thread e{}",
+            this,
+            getDuration(WatchType.SLEEP) - lastSleepDuration,
+            lastThread);
       }
       asyncTask.run();
       lastThread = taskDescriptor.getThread();
@@ -132,13 +140,14 @@ public class AsyncTaskWrapper implements Task {
   }
 
   public void setAvailabilityCallback(final AvailabilityCallback callback) {
-    asyncTask.setWakeupCallback(new AvailabilityCallback() {
-      @Override
-      public void nowAvailable() {
-        unblocked();
-        callback.nowAvailable();
-      }
-    });
+    asyncTask.setWakeupCallback(
+        new AvailabilityCallback() {
+          @Override
+          public void nowAvailable() {
+            unblocked();
+            callback.nowAvailable();
+          }
+        });
   }
 
   private void unblocked() {
@@ -202,8 +211,14 @@ public class AsyncTaskWrapper implements Task {
         }
       }
     } catch (IllegalStateException e) {
-      // we don't want to cause a task to be dropped from execution if we are not tracking this stat correctly
-      logger.warn("stateStarted() called in the wrong order : state " + getState().name() + " runningWatch " + runningWatch.name(), e);
+      // we don't want to cause a task to be dropped from execution if we are not tracking this stat
+      // correctly
+      logger.warn(
+          "stateStarted() called in the wrong order : state "
+              + getState().name()
+              + " runningWatch "
+              + runningWatch.name(),
+          e);
     }
   }
 
@@ -239,8 +254,14 @@ public class AsyncTaskWrapper implements Task {
           break;
       }
     } catch (IllegalStateException e) {
-      // we don't want to cause a task to be dropped from execution if we are not tracking this stat correctly
-      logger.warn("stateEnded() called in the wrong order : state " + getState().name() + " runningWatch " + runningWatch.name(), e);
+      // we don't want to cause a task to be dropped from execution if we are not tracking this stat
+      // correctly
+      logger.warn(
+          "stateEnded() called in the wrong order : state "
+              + getState().name()
+              + " runningWatch "
+              + runningWatch.name(),
+          e);
     }
   }
 

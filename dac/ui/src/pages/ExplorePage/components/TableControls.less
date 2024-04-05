@@ -238,9 +238,11 @@
 
           &-addField {
             width: 120px;
+            min-width: 0;
           }
           &-groupBy {
             width: 102px;
+            min-width: 0;
           }
           &-join {
             width: 69px;
@@ -268,10 +270,25 @@
           .dropdownMenu {
             cursor: pointer;
 
+            &.--disabled {
+              .select-view-wrapper {
+                background-color: transparent;
+
+                .dropdownMenu__icon {
+                  filter: none;
+                }
+
+                dremio-icon {
+                  color: var(
+                    --dremio--color--icon--dremio--disabled
+                  ) !important;
+                }
+              }
+            }
+
             &:hover {
-              .dropdownMenu__iconWrap,
-              .fa {
-                .gray-icon-hover();
+              dremio-icon {
+                color: var(--dremio--color--link) !important;
               }
             }
           }

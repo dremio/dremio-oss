@@ -17,14 +17,14 @@ package com.dremio.exec.planner.sql.convertlet;
 
 import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_INTERSECTION;
 
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
-
 public final class ArrayIntersectionConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new NullableArrayFunctionConvertlet(new ArrayIntersectionConvertlet());
+  public static final FunctionConvertlet INSTANCE =
+      new NullableArrayFunctionConvertlet(new ArrayIntersectionConvertlet());
 
   private ArrayIntersectionConvertlet() {}
 
@@ -46,13 +46,15 @@ public final class ArrayIntersectionConvertlet implements FunctionConvertlet {
     RexBuilder rexBuilder = cx.getRexBuilder();
 
     return CorrelatedUnnestQueryBuilder.create(cx)
-      .unnest(arr1)
-      .transform( builder -> {
-        RexNode item1 = rexBuilder.makeInputRef(builder.peek(), 0);
-        RexCall arrayContains = (RexCall) rexBuilder.makeCall(DremioSqlOperatorTable.ARRAY_CONTAINS, arr2, item1);
-        arrayContains = ArrayContainsConvertlet.INSTANCE.convertCall(cx, arrayContains);
-        builder.filter(arrayContains);
-      })
-      .array();
+        .unnest(arr1)
+        .transform(
+            builder -> {
+              RexNode item1 = rexBuilder.makeInputRef(builder.peek(), 0);
+              RexCall arrayContains =
+                  (RexCall) rexBuilder.makeCall(DremioSqlOperatorTable.ARRAY_CONTAINS, arr2, item1);
+              arrayContains = ArrayContainsConvertlet.INSTANCE.convertCall(cx, arrayContains);
+              builder.filter(arrayContains);
+            })
+        .array();
   }
 }

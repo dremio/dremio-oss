@@ -21,6 +21,8 @@ public interface RpcOutcome<T> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcOutcome.class);
 
   public void set(Object value, ByteBuf buffer);
+
   public void setException(Throwable t);
+
   public Class<T> getOutcomeType();
 }

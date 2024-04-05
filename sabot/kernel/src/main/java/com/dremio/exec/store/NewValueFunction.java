@@ -15,23 +15,22 @@
  */
 package com.dremio.exec.store;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.holders.NullableBitHolder;
-import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
 /**
- *  The functions are similar to those created through FreeMarker template for fixed types. There is not much benefit to
- *  using code generation for generating the functions for variable length types, so simply doing them by hand.
+ * The functions are similar to those created through FreeMarker template for fixed types. There is
+ * not much benefit to using code generation for generating the functions for variable length types,
+ * so simply doing them by hand.
  */
 public class NewValueFunction {
 
@@ -58,11 +57,15 @@ public class NewValueFunction {
     public void eval() {
       out.isSet = 1;
 
-      if (initialized && // it's not the first value
-        previous.isSet == in.isSet && // nullability didn't change
-        (previous.isSet == 0 || // it's either a null partition or the partition value is the same
-          org.apache.arrow.memory.util.ByteFunctionHelpers.compare(previous.buffer, 0, previous.end, in.buffer, in.start, in.end) == 0)
-        ) {
+      if (initialized
+          && // it's not the first value
+          previous.isSet == in.isSet
+          && // nullability didn't change
+          (previous.isSet == 0
+              || // it's either a null partition or the partition value is the same
+              org.apache.arrow.memory.util.ByteFunctionHelpers.compare(
+                      previous.buffer, 0, previous.end, in.buffer, in.start, in.end)
+                  == 0)) {
         out.value = 0; // it's the same partition
       } else {
         out.value = 1; // it's a new partition
@@ -101,11 +104,15 @@ public class NewValueFunction {
     public void eval() {
       out.isSet = 1;
 
-      if (initialized && // it's not the first value
-        previous.isSet == in.isSet && // nullability didn't change
-        (previous.isSet == 0 || // it's either a null partition or the partition value is the same
-          org.apache.arrow.memory.util.ByteFunctionHelpers.compare(previous.buffer, 0, previous.end, in.buffer, in.start, in.end) == 0)
-        ) {
+      if (initialized
+          && // it's not the first value
+          previous.isSet == in.isSet
+          && // nullability didn't change
+          (previous.isSet == 0
+              || // it's either a null partition or the partition value is the same
+              org.apache.arrow.memory.util.ByteFunctionHelpers.compare(
+                      previous.buffer, 0, previous.end, in.buffer, in.start, in.end)
+                  == 0)) {
         out.value = 0; // it's the same partition
       } else {
         out.value = 1; // it's a new partition

@@ -32,18 +32,14 @@ final class NoopStreamObserver<T> implements StreamObserver<T> {
     return (StreamObserver<T>) INSTANCE;
   }
 
-  private NoopStreamObserver() {
-  }
+  private NoopStreamObserver() {}
 
   @Override
-  public void onNext(T value) {
-  }
+  public void onNext(T value) {}
 
   @Override
-  public void onError(Throwable t) {
-  }
+  public void onError(Throwable t) {}
 
   @Override
-  public void onCompleted() {
-  }
+  public void onCompleted() {}
 }

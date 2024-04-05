@@ -18,9 +18,7 @@ package com.dremio.service.coordinator.zk;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for {@code PathUtils}
- */
+/** Tests for {@code PathUtils} */
 public class TestPathUtils {
 
   @Test(expected = NullPointerException.class)
@@ -62,7 +60,6 @@ public class TestPathUtils {
     final String expected8 = "c/";
     Assert.assertEquals("invalid path", expected8, actual8);
   }
-
 
   @Test
   public void testNormalizeRemovesRedundantForwardSlashes() {

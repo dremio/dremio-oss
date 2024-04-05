@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.cost;
 
+import com.dremio.exec.store.sys.statistics.StatisticsService;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
@@ -25,11 +27,7 @@ import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataHandlerProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.store.sys.statistics.StatisticsService;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-
-public class DremioRelMetadataQuery extends RelMetadataQuery{
+public class DremioRelMetadataQuery extends RelMetadataQuery {
   private static final DremioRelMetadataQuery PROTOTYPE =
       new DremioRelMetadataQuery(DremioRelMetadataHandlerProvider.INSTANCE);
 
@@ -56,36 +54,27 @@ public class DremioRelMetadataQuery extends RelMetadataQuery{
   public RelOptCost getCumulativeCost(RelNode rel) {
     RelOptCost cost = super.getCumulativeCost(rel);
 
-    return cost == null
-      ? DremioCost.ZERO
-      : cost;
+    return cost == null ? DremioCost.ZERO : cost;
   }
 
   @Override
   public RelOptCost getNonCumulativeCost(RelNode rel) {
     RelOptCost cost = super.getNonCumulativeCost(rel);
 
-    return cost == null
-        ? DremioCost.ZERO
-        : cost;
+    return cost == null ? DremioCost.ZERO : cost;
   }
 
   @Override
   public Set<RelColumnOrigin> getColumnOrigins(RelNode rel, int column) {
     Set<RelColumnOrigin> columnOrigins = super.getColumnOrigins(rel, column);
-    return columnOrigins == null
-      ? ImmutableSet.of()
-      : columnOrigins;
+    return columnOrigins == null ? ImmutableSet.of() : columnOrigins;
   }
 
-  /**
-   * Ensures only one instance of DremioRelMetadataQuery is created for statistics
-   */
+  /** Ensures only one instance of DremioRelMetadataQuery is created for statistics */
   public static RelMetadataQuerySupplier getSupplier(StatisticsService service) {
     DremioRelMetadataHandlerProvider provider =
         DremioRelMetadataHandlerProvider.createMetadataProviderWithStatics(service);
-    DremioRelMetadataQuery prototype =
-      new DremioRelMetadataQuery(provider);
+    DremioRelMetadataQuery prototype = new DremioRelMetadataQuery(provider);
     return () -> new DremioRelMetadataQuery(prototype);
   }
 }

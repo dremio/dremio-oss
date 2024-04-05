@@ -20,9 +20,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
+import com.dremio.catalog.exception.UnsupportedForgetTableException;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.planner.sql.parser.SqlForgetTable;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Before;
@@ -31,13 +36,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
-
-import com.dremio.catalog.exception.UnsupportedForgetTableException;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.planner.sql.parser.SqlForgetTable;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestForgetTableHandler {
@@ -51,28 +49,37 @@ public class TestForgetTableHandler {
   public void setup() throws NamespaceException {
     forgetTableHandler = new ForgetTableHandler(catalog);
 
-    when(catalog.resolveSingle(any(NamespaceKey.class))).thenAnswer((Answer<NamespaceKey>) invocationOnMock -> {
-      NamespaceKey key = invocationOnMock.getArgument(0, NamespaceKey.class);
-      if (key.equals(TABLE_KEY)) {
-        return TABLE_KEY;
-      }
-      return null;
-    });
+    when(catalog.resolveSingle(any(NamespaceKey.class)))
+        .thenAnswer(
+            (Answer<NamespaceKey>)
+                invocationOnMock -> {
+                  NamespaceKey key = invocationOnMock.getArgument(0, NamespaceKey.class);
+                  if (key.equals(TABLE_KEY)) {
+                    return TABLE_KEY;
+                  }
+                  return null;
+                });
   }
 
   @Test
   public void toResult_validations() throws Exception {
     List<String> rootPaths = Arrays.asList("@home", "sys", "INFORMATION_SCHEMA");
 
-    for (String root: rootPaths) {
+    for (String root : rootPaths) {
       TABLE_KEY = new NamespaceKey(Arrays.asList(root, TABLE_NAME));
-      final SqlForgetTable forgetTable = new SqlForgetTable(
-        SqlParserPos.ZERO,
-        new SqlIdentifier(TABLE_KEY.getPathComponents(), SqlParserPos.ZERO));
-      doThrow(new UnsupportedForgetTableException("FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA.")).when(catalog).forgetTable(TABLE_KEY);
+      final SqlForgetTable forgetTable =
+          new SqlForgetTable(
+              SqlParserPos.ZERO,
+              new SqlIdentifier(TABLE_KEY.getPathComponents(), SqlParserPos.ZERO));
+      doThrow(
+              new UnsupportedForgetTableException(
+                  "FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA."))
+          .when(catalog)
+          .forgetTable(TABLE_KEY);
       assertThatThrownBy(() -> forgetTableHandler.toResult("", forgetTable))
-        .isInstanceOf(UserException.class)
-        .hasMessageContaining("FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA.");
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining(
+              "FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA.");
     }
   }
 }

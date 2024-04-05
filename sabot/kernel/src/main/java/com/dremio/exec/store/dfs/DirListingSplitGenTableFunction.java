@@ -15,27 +15,26 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.nio.charset.StandardCharsets;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.VarCharVector;
-
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import java.nio.charset.StandardCharsets;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
 
 /**
- * Table function converts input data file path, partition information and file size, and generates a VarBinary, which
- * contains serialised {@link com.dremio.exec.store.SplitAndPartitionInfo}.
+ * Table function converts input data file path, partition information and file size, and generates
+ * a VarBinary, which contains serialised {@link com.dremio.exec.store.SplitAndPartitionInfo}.
  *
- * This class extends {@link SplitGenTableFunction} to override the expected input to match the output of
- * {@link com.dremio.exec.store.metadatarefresh.dirlisting.DirListingScanPrel}.
+ * <p>This class extends {@link SplitGenTableFunction} to override the expected input to match the
+ * output of {@link com.dremio.exec.store.metadatarefresh.dirlisting.DirListingScanPrel}.
  */
 public class DirListingSplitGenTableFunction extends SplitGenTableFunction {
 
-  public DirListingSplitGenTableFunction(FragmentExecutionContext fec, OperatorContext context, TableFunctionConfig functionConfig) {
+  public DirListingSplitGenTableFunction(
+      FragmentExecutionContext fec, OperatorContext context, TableFunctionConfig functionConfig) {
     super(fec, context, functionConfig);
   }
 
@@ -46,9 +45,17 @@ public class DirListingSplitGenTableFunction extends SplitGenTableFunction {
 
   @Override
   protected void initializeIncomingVectors() {
-    pathVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH);
-    sizeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_SIZE);
-    modTimeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.MODIFICATION_TIME);
+    pathVector =
+        (VarCharVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH);
+    sizeVector =
+        (BigIntVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_SIZE);
+    modTimeVector =
+        (BigIntVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.MODIFICATION_TIME);
   }
-
 }

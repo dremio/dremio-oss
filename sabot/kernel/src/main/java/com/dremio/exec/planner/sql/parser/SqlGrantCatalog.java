@@ -15,10 +15,15 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -30,16 +35,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
-
-/**
- * Implements SQL Grants for Catalogs.
- */
+/** Implements SQL Grants for Catalogs. */
 public class SqlGrantCatalog extends SqlCall implements SimpleDirectHandler.Creator {
   private final SqlNodeList privilegeList;
   private final SqlLiteral grantType;
@@ -66,23 +62,30 @@ public class SqlGrantCatalog extends SqlCall implements SimpleDirectHandler.Crea
     CATALOG
   }
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 5, "SqlGrantCatalog.createCall() has to get 5 operands!");
-      return new SqlGrantCatalog(
-        pos,
-        (SqlNodeList) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlIdentifier) operands[2],
-        (SqlLiteral) operands[3],
-        (SqlIdentifier) operands[4]
-      );
-    }
-  };
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 5, "SqlGrantCatalog.createCall() has to get 5 operands!");
+          return new SqlGrantCatalog(
+              pos,
+              (SqlNodeList) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2],
+              (SqlLiteral) operands[3],
+              (SqlIdentifier) operands[4]);
+        }
+      };
 
-  public SqlGrantCatalog(SqlParserPos pos, SqlNodeList privilegeList, SqlLiteral grantType, SqlIdentifier entity,
-                         SqlLiteral granteeType, SqlIdentifier grantee) {
+  public SqlGrantCatalog(
+      SqlParserPos pos,
+      SqlNodeList privilegeList,
+      SqlLiteral grantType,
+      SqlIdentifier entity,
+      SqlLiteral granteeType,
+      SqlIdentifier grantee) {
     super(pos);
     this.privilegeList = privilegeList;
     this.grantType = grantType;
@@ -98,11 +101,15 @@ public class SqlGrantCatalog extends SqlCall implements SimpleDirectHandler.Crea
       final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
     } catch (ClassNotFoundException e) {
-      SqlGrantCatalog.GrantType grantTypeObject = (SqlGrantCatalog.GrantType) (grantType.getValue());
+      SqlGrantCatalog.GrantType grantTypeObject =
+          (SqlGrantCatalog.GrantType) (grantType.getValue());
       throw UserException.unsupportedError(e)
-        .message("GRANT on %s is not supported in this edition.", grantTypeObject.name())
-        .buildSilently();
-    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+          .message("GRANT on %s is not supported in this edition.", grantTypeObject.name())
+          .buildSilently();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
   }
@@ -116,7 +123,6 @@ public class SqlGrantCatalog extends SqlCall implements SimpleDirectHandler.Crea
     writer.keyword("TO");
     grantee.unparse(writer, leftPrec, rightPrec);
   }
-
 
   @Override
   public SqlOperator getOperator() {
@@ -165,5 +171,4 @@ public class SqlGrantCatalog extends SqlCall implements SimpleDirectHandler.Crea
       return type;
     }
   }
-
 }

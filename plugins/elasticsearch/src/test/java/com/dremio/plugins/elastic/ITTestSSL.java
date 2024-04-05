@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.elastic;
 
+import com.dremio.plugins.elastic.ElasticBaseTestQuery.ElasticSSL;
+import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
@@ -22,44 +24,41 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.plugins.elastic.ElasticBaseTestQuery.ElasticSSL;
-import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
-
-/**
- * Test that queries work when SSL is on
- */
+/** Test that queries work when SSL is on */
 @Ignore("DX-11932 maven plugin doesn't support SSL")
-@ElasticSSL(enabled=true)
+@ElasticSSL(enabled = true)
 public class ITTestSSL extends ElasticBaseTestQuery {
 
-    @BeforeClass
-    public static void beforeStart() {
-      Assume.assumeFalse(ElasticsearchCluster.USE_EXTERNAL_ES5);
-    }
+  @BeforeClass
+  public static void beforeStart() {
+    Assume.assumeFalse(ElasticsearchCluster.USE_EXTERNAL_ES5);
+  }
 
-    @Before
-    public void loadTable() throws Exception {
-      ColumnData[] data = getBusinessData();
-      load(schema, table, data);
-    }
+  @Before
+  public void loadTable() throws Exception {
+    ColumnData[] data = getBusinessData();
+    load(schema, table, data);
+  }
 
-    @After
-    public void after() {
-      elastic.wipe();
-    }
+  @After
+  public void after() {
+    elastic.wipe();
+  }
 
-    /**
-     * Just testing that we can run a query when SSL is enabled
-     * (see annotation on class)
-     * @throws Exception
-     */
-    @Test
-    public void test() throws Exception {
-      String sqlQueryLimit1 = "select city from elasticsearch." + schema + "." + table + " limit 1";
-      testBuilder().sqlQuery(sqlQueryLimit1).unOrdered()
-          .baselineColumns("city")
-          .baselineValues("Cambridge")
-          .build()
-          .run();
-    }
+  /**
+   * Just testing that we can run a query when SSL is enabled (see annotation on class)
+   *
+   * @throws Exception
+   */
+  @Test
+  public void test() throws Exception {
+    String sqlQueryLimit1 = "select city from elasticsearch." + schema + "." + table + " limit 1";
+    testBuilder()
+        .sqlQuery(sqlQueryLimit1)
+        .unOrdered()
+        .baselineColumns("city")
+        .baselineValues("Cambridge")
+        .build()
+        .run();
+  }
 }

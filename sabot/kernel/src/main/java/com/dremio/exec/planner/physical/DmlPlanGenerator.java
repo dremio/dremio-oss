@@ -15,18 +15,32 @@
  */
 package com.dremio.exec.planner.physical;
 
+import static com.dremio.exec.ExecConstants.ENABLE_DML_DISPLAY_RESULT_ONLY;
 import static com.dremio.exec.util.ColumnUtils.isSystemColumn;
 import static org.apache.calcite.rel.core.TableModify.Operation.DELETE;
 import static org.apache.calcite.rel.core.TableModify.Operation.MERGE;
 import static org.apache.calcite.rel.core.TableModify.Operation.UPDATE;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.physical.config.ManifestScanFilters;
+import com.dremio.exec.planner.TableManagementPlanGenerator;
+import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
+import com.dremio.exec.store.OperationType;
+import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.iceberg.IcebergScanPlanBuilder;
+import com.dremio.exec.util.ColumnUtils;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -45,20 +59,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.commons.collections4.CollectionUtils;
-
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.physical.config.ManifestScanFilters;
-import com.dremio.exec.planner.TableManagementPlanGenerator;
-import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.dremio.exec.store.OperationType;
-import com.dremio.exec.store.RecordWriter;
-import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.iceberg.IcebergScanPlanBuilder;
-import com.dremio.exec.util.ColumnUtils;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 /***
  * Generate copy-on-write based DML query plan. Support Delete, Update and Merge operations.
@@ -83,7 +83,6 @@ import com.google.common.collect.ImmutableList;
  */
 public class DmlPlanGenerator extends TableManagementPlanGenerator {
 
-  private static final int SYSTEM_COLUMN_COUNT = 2;
   private final TableModify.Operation operation;
   // update column names along with its index
   private final Map<String, Integer> updateColumnsWithIndex = new HashMap<>();
@@ -96,12 +95,20 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
     INSERT_ONLY,
     INVALID
   }
+
   private MergeType mergeType = MergeType.INVALID;
 
-  public DmlPlanGenerator(RelOptTable table, RelOptCluster cluster, RelTraitSet traitSet, RelNode input,
-                          TableMetadata tableMetadata, CreateTableEntry createTableEntry,
-                          TableModify.Operation operation, List<String> updateColumnList, boolean hasSource,
-                          OptimizerRulesContext context) {
+  public DmlPlanGenerator(
+      RelOptTable table,
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode input,
+      TableMetadata tableMetadata,
+      CreateTableEntry createTableEntry,
+      TableModify.Operation operation,
+      List<String> updateColumnList,
+      boolean hasSource,
+      OptimizerRulesContext context) {
     super(table, cluster, traitSet, input, tableMetadata, createTableEntry, context);
 
     this.operation = Preconditions.checkNotNull(operation, "DML operation cannot be null.");
@@ -125,7 +132,7 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
       int updateColumnCount = updateColumnsWithIndex.size();
       if (updateColumnCount == 0) {
         mergeType = MergeType.INSERT_ONLY;
-      }  else if (inputColumnCount > SYSTEM_COLUMN_COUNT + updateColumnCount) {
+      } else if (inputColumnCount > DmlUtils.SYSTEM_COLUMN_COUNT + updateColumnCount) {
         mergeType = MergeType.UPDATE_INSERT;
       } else {
         mergeType = MergeType.UPDATE_ONLY;
@@ -145,7 +152,16 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
         writerInputPlan = getInsertOnlyMergePlan(insertOnlyMergeInputDataPlan);
       } else {
         dataFileAggPlan = getDataFileAggPlan(input);
-        writerInputPlan = getDmlQueryResultFromCopyOnWriteJoinPlan(getCopyOnWriteJoinPlan(dataFileAggPlan));
+        writerInputPlan =
+            getDmlQueryResultFromCopyOnWriteJoinPlan(getCopyOnWriteJoinPlan(dataFileAggPlan));
+      }
+
+      boolean displayResultOnly =
+          PrelUtil.getPlannerSettings(cluster)
+              .getOptions()
+              .getOption(ENABLE_DML_DISPLAY_RESULT_ONLY);
+      if (displayResultOnly) {
+        return writerInputPlan;
       }
 
       return getRowCountPlan(getDataWriterPlan(writerInputPlan, dataFileAggPlan));
@@ -154,53 +170,51 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
     }
   }
 
-  /**
-   * Utility function to apply IS_NULL(col) filter for the given input node
-   */
-  private Prel addColumnIsNullFilter(RelNode inputNode, RelDataType fieldType,  int fieldIndex) {
+  /** Utility function to apply IS_NULL(col) filter for the given input node */
+  private Prel addColumnIsNullFilter(RelNode inputNode, RelDataType fieldType, int fieldIndex) {
     RexBuilder rexBuilder = cluster.getRexBuilder();
 
-    RexNode filterCondition = rexBuilder.makeCall(
-      SqlStdOperatorTable.IS_NULL,
-      rexBuilder.makeInputRef(fieldType, fieldIndex));
+    RexNode filterCondition =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.IS_NULL, rexBuilder.makeInputRef(fieldType, fieldIndex));
 
     return FilterPrel.create(
-      inputNode.getCluster(),
-      inputNode.getTraitSet(),
-      inputNode,
-      filterCondition);
+        inputNode.getCluster(), inputNode.getTraitSet(), inputNode, filterCondition);
   }
 
   /**
-   *  Extract "When Not Matched" rows from input
-   *    Input data layout from Calcite's
-   *    Inserted Data Area (Exp(userCol1),...,Exp(userColN)), System Columns(filePath, rowIndex)
+   * Extract "When Not Matched" rows from input Input data layout from Calcite's Inserted Data Area
+   * (Exp(userCol1),...,Exp(userColN)), System Columns(filePath, rowIndex)
    */
   private Prel getInsertOnlyMergeInputDataPlan() {
     // filter out matched rows since we are doing "When Not Matched"
-    RelDataTypeField filePathField = input.getRowType()
-      .getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
+    RelDataTypeField filePathField =
+        input.getRowType().getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
 
-    return addColumnIsNullFilter(input, filePathField.getType(),
-      input.getRowType().getFieldCount() - SYSTEM_COLUMN_COUNT);
+    return addColumnIsNullFilter(
+        input,
+        filePathField.getType(),
+        input.getRowType().getFieldCount() - DmlUtils.SYSTEM_COLUMN_COUNT);
   }
 
   /**
-   *  InsertOnlyMergePlan is essentially a wrapper on insertOnlyMergeInputDataPlan.
-   * The inserted data columns names from Calcite is in expression format (e.g., $0)
-   * We need map the names to user column names so that the downstream plan can consume
+   * InsertOnlyMergePlan is essentially a wrapper on insertOnlyMergeInputDataPlan. The inserted data
+   * columns names from Calcite is in expression format (e.g., $0) We need map the names to user
+   * column names so that the downstream plan can consume
    */
   private Prel getInsertOnlyMergePlan(Prel insertOnlyMergeInputDataPlan) {
     RexBuilder rexBuilder = cluster.getRexBuilder();
 
     // project (tablecol1, ..., tablecolN)
-    List<RelDataTypeField> projectFields = insertOnlyMergeInputDataPlan.getRowType().getFieldList().stream()
-      .filter(f -> !isSystemColumn(f.getName()))
-      .collect(Collectors.toList());
-    List<String> projectNames = table.getRowType().getFieldList()
-      .stream()
-      .filter(f -> !isSystemColumn(f.getName()))
-      .map(f -> f.getName()).collect(Collectors.toList());
+    List<RelDataTypeField> projectFields =
+        insertOnlyMergeInputDataPlan.getRowType().getFieldList().stream()
+            .filter(f -> !isSystemColumn(f.getName()))
+            .collect(Collectors.toList());
+    List<String> projectNames =
+        table.getRowType().getFieldList().stream()
+            .filter(f -> !isSystemColumn(f.getName()))
+            .map(f -> f.getName())
+            .collect(Collectors.toList());
 
     List<RexNode> projectExprs = new ArrayList<>();
     for (RelDataTypeField field : projectFields) {
@@ -208,78 +222,95 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
       projectExprs.add(projectExpr);
     }
 
-    RelDataType projectRowType = RexUtil.createStructType(insertOnlyMergeInputDataPlan.getCluster().getTypeFactory(), projectExprs,
-      projectNames, null);
+    RelDataType projectRowType =
+        RexUtil.createStructType(
+            insertOnlyMergeInputDataPlan.getCluster().getTypeFactory(),
+            projectExprs,
+            projectNames,
+            null);
 
     return ProjectPrel.create(
-      insertOnlyMergeInputDataPlan.getCluster(),
-      insertOnlyMergeInputDataPlan.getTraitSet(),
-      insertOnlyMergeInputDataPlan,
-      projectExprs,
-      projectRowType);
+        insertOnlyMergeInputDataPlan.getCluster(),
+        insertOnlyMergeInputDataPlan.getTraitSet(),
+        insertOnlyMergeInputDataPlan,
+        projectExprs,
+        projectRowType);
   }
 
   /**
-   *    HashJoinPrel ----------------------------------------------|
-   *    LEFT OUTER ON __FilePath == __FilePath                     |
-   *      AND __RowIndex == __RowIndex                         HashToRandomExchangePrel
-   *        |                                                      |
-   *        |                                                      |
-   *    HashToRandomExchangePrel                               (query results input with __FilePath)
-   *        |
-   *        |
-   *    (input from getCopyOnWriteDataFileScanPlan)
+   * HashJoinPrel ----------------------------------------------| LEFT OUTER ON __FilePath ==
+   * __FilePath | AND __RowIndex == __RowIndex HashToRandomExchangePrel | | | |
+   * HashToRandomExchangePrel (query results input with __FilePath) | | (input from
+   * getCopyOnWriteDataFileScanPlan)
    */
   private Prel getCopyOnWriteJoinPlan(Prel dataFileAggrPlan) {
     // left side: full Data from impacted data files
     RelNode leftDataFileScan = getCopyOnWriteDataFileScanPlan(dataFileAggrPlan);
 
-    DistributionTrait leftDistributionTrait = getHashDistributionTraitForFields(leftDataFileScan.getRowType(),
-      ImmutableList.of(ColumnUtils.FILE_PATH_COLUMN_NAME, ColumnUtils.ROW_INDEX_COLUMN_NAME));
-    RelTraitSet leftTraitSet = cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL)
-      .plus(leftDistributionTrait);
-    HashToRandomExchangePrel leftDataFileScanHashExchange = new HashToRandomExchangePrel(cluster, leftTraitSet,
-      leftDataFileScan, leftDistributionTrait.getFields());
+    DistributionTrait leftDistributionTrait =
+        getHashDistributionTraitForFields(
+            leftDataFileScan.getRowType(),
+            ImmutableList.of(ColumnUtils.FILE_PATH_COLUMN_NAME, ColumnUtils.ROW_INDEX_COLUMN_NAME));
+    RelTraitSet leftTraitSet =
+        cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(leftDistributionTrait);
+    HashToRandomExchangePrel leftDataFileScanHashExchange =
+        new HashToRandomExchangePrel(
+            cluster, leftTraitSet, leftDataFileScan, leftDistributionTrait.getFields());
 
     // right side: DMLed data
-    DistributionTrait rightDistributionTrait = getHashDistributionTraitForFields(input.getRowType(),
-      ImmutableList.of(ColumnUtils.FILE_PATH_COLUMN_NAME, ColumnUtils.ROW_INDEX_COLUMN_NAME));
-    RelTraitSet rightTraitSet = cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL)
-      .plus(rightDistributionTrait);
-    HashToRandomExchangePrel rightInputHashExchange = new HashToRandomExchangePrel(cluster, rightTraitSet,
-      input, rightDistributionTrait.getFields());
+    DistributionTrait rightDistributionTrait =
+        getHashDistributionTraitForFields(
+            input.getRowType(),
+            ImmutableList.of(ColumnUtils.FILE_PATH_COLUMN_NAME, ColumnUtils.ROW_INDEX_COLUMN_NAME));
+    RelTraitSet rightTraitSet =
+        cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(rightDistributionTrait);
+    HashToRandomExchangePrel rightInputHashExchange =
+        new HashToRandomExchangePrel(
+            cluster, rightTraitSet, input, rightDistributionTrait.getFields());
 
     // hash join on __FilePath == __FilePath AND __RowIndex == __RowIndex
-    RelDataTypeField leftFilePathField = leftDataFileScanHashExchange.getRowType()
-      .getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
-    RelDataTypeField leftRowIndexField = leftDataFileScanHashExchange.getRowType()
-      .getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
-    RelDataTypeField rightFilePathField = rightInputHashExchange.getRowType()
-      .getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
-    RelDataTypeField rightRowIndexField = rightInputHashExchange.getRowType()
-      .getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
+    RelDataTypeField leftFilePathField =
+        leftDataFileScanHashExchange
+            .getRowType()
+            .getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
+    RelDataTypeField leftRowIndexField =
+        leftDataFileScanHashExchange
+            .getRowType()
+            .getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
+    RelDataTypeField rightFilePathField =
+        rightInputHashExchange
+            .getRowType()
+            .getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
+    RelDataTypeField rightRowIndexField =
+        rightInputHashExchange
+            .getRowType()
+            .getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
 
     int leftFieldCount = leftDataFileScanHashExchange.getRowType().getFieldCount();
     RexBuilder rexBuilder = cluster.getRexBuilder();
-    RexNode joinCondition = rexBuilder.makeCall(
-      SqlStdOperatorTable.AND,
-      rexBuilder.makeCall(
-        SqlStdOperatorTable.EQUALS,
-        rexBuilder.makeInputRef(leftFilePathField.getType(), leftFilePathField.getIndex()),
-        rexBuilder.makeInputRef(rightFilePathField.getType(), leftFieldCount + rightFilePathField.getIndex())),
-      rexBuilder.makeCall(
-        SqlStdOperatorTable.EQUALS,
-        rexBuilder.makeInputRef(leftRowIndexField.getType(), leftRowIndexField.getIndex()),
-        rexBuilder.makeInputRef(rightRowIndexField.getType(), leftFieldCount + rightRowIndexField.getIndex())));
+    RexNode joinCondition =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.AND,
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                rexBuilder.makeInputRef(leftFilePathField.getType(), leftFilePathField.getIndex()),
+                rexBuilder.makeInputRef(
+                    rightFilePathField.getType(), leftFieldCount + rightFilePathField.getIndex())),
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                rexBuilder.makeInputRef(leftRowIndexField.getType(), leftRowIndexField.getIndex()),
+                rexBuilder.makeInputRef(
+                    rightRowIndexField.getType(), leftFieldCount + rightRowIndexField.getIndex())));
 
     return HashJoinPrel.create(
-      leftDataFileScanHashExchange.getCluster(),
-      leftDataFileScanHashExchange.getTraitSet(),
-      leftDataFileScanHashExchange,
-      rightInputHashExchange,
-      joinCondition,
-      null,
-      getCopyOnWriteJoinType());
+        leftDataFileScanHashExchange.getCluster(),
+        leftDataFileScanHashExchange.getTraitSet(),
+        leftDataFileScanHashExchange,
+        rightInputHashExchange,
+        joinCondition,
+        null,
+        getCopyOnWriteJoinType(),
+        true);
   }
 
   private JoinRelType getCopyOnWriteJoinType() {
@@ -319,14 +350,15 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
     Prel currentPrel = joinPlan;
     RexBuilder rexBuilder = cluster.getRexBuilder();
     int leftFieldCount = joinPlan.getInput(0).getRowType().getFieldCount();
-    RelDataTypeField leftRowIndexField = joinPlan.getInput(0).getRowType()
-      .getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
-    RelDataTypeField rightRowIndexField = joinPlan.getInput(1).getRowType()
-      .getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
+    RelDataTypeField leftRowIndexField =
+        joinPlan.getInput(0).getRowType().getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
+    RelDataTypeField rightRowIndexField =
+        joinPlan.getInput(1).getRowType().getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
 
     // detect dups
-    if ((operation == MERGE && (mergeType == MergeType.UPDATE_ONLY || mergeType == MergeType.UPDATE_INSERT))
-      || ((operation == UPDATE ||  operation == DELETE) && hasSource)) {
+    if ((operation == MERGE
+            && (mergeType == MergeType.UPDATE_ONLY || mergeType == MergeType.UPDATE_INSERT))
+        || ((operation == UPDATE || operation == DELETE) && hasSource)) {
       // Adds a table function to look for multiple matching rows, currently happens for
       // 1. MERGE with UPDATEs
       // 2. UPDATE with source
@@ -337,47 +369,64 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
 
     // Add Delete filter: FilterPrel (right.__RowIndex IS NULL)
     if (operation == DELETE) {
-      currentPrel = addColumnIsNullFilter(currentPrel, rightRowIndexField.getType(),
-        leftFieldCount + rightRowIndexField.getIndex());
+      currentPrel =
+          addColumnIsNullFilter(
+              currentPrel,
+              rightRowIndexField.getType(),
+              leftFieldCount + rightRowIndexField.getIndex());
     }
 
     // project (tablecol1, ..., tablecolN)
     List<RelDataTypeField> projectFields = getFieldsWithoutSystemColumns(joinPlan.getInput(0));
-    List<String> projectNames = projectFields.stream().map(RelDataTypeField::getName).collect(Collectors.toList());
+    List<String> projectNames =
+        projectFields.stream().map(RelDataTypeField::getName).collect(Collectors.toList());
     //  the condition for checking if right_row_index column is null
-    RexNode rightRowIndexNullCheck = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
-      rexBuilder.makeInputRef(rightRowIndexField.getType(), leftFieldCount + rightRowIndexField.getIndex()));
+    RexNode rightRowIndexNullCheck =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.IS_NULL,
+            rexBuilder.makeInputRef(
+                rightRowIndexField.getType(), leftFieldCount + rightRowIndexField.getIndex()));
 
     //  the condition for checking if left_row_index column is null
-    RexNode leftRowIndexFieldNullCheck = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
-      rexBuilder.makeInputRef(leftRowIndexField.getType(), leftRowIndexField.getIndex()));
+    RexNode leftRowIndexFieldNullCheck =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.IS_NULL,
+            rexBuilder.makeInputRef(leftRowIndexField.getType(), leftRowIndexField.getIndex()));
 
     List<RexNode> projectExprs = new ArrayList<>();
     for (RelDataTypeField field : projectFields) {
-      RexNode projectExpr = getCopyOnWriteJoinColumnProjectExpr(
-        rexBuilder, field, leftFieldCount, leftRowIndexFieldNullCheck, rightRowIndexNullCheck);
+      RexNode projectExpr =
+          getCopyOnWriteJoinColumnProjectExpr(
+              rexBuilder,
+              field,
+              leftFieldCount,
+              leftRowIndexFieldNullCheck,
+              rightRowIndexNullCheck);
       projectExprs.add(projectExpr);
     }
 
-    RelDataType projectRowType = RexUtil.createStructType(joinPlan.getCluster().getTypeFactory(), projectExprs,
-      projectNames, null);
+    RelDataType projectRowType =
+        RexUtil.createStructType(
+            joinPlan.getCluster().getTypeFactory(), projectExprs, projectNames, null);
 
     return ProjectPrel.create(
-      currentPrel.getCluster(),
-      currentPrel.getTraitSet(),
-      currentPrel,
-      projectExprs,
-      projectRowType);
+        currentPrel.getCluster(),
+        currentPrel.getTraitSet(),
+        currentPrel,
+        projectExprs,
+        projectRowType);
   }
 
   /**
-   *  if right_row_index column is null (i.e., the value is not updated),
-   *       use the column value from left side (original value)
-   *   else (i.e., the value is updated)
-   *       use the right side updated value
-   *
+   * if right_row_index column is null (i.e., the value is not updated), use the column value from
+   * left side (original value) else (i.e., the value is updated) use the right side updated value
    */
-  private RexNode getUpdateExpr(RexBuilder rexBuilder, RelDataTypeField field, int leftFieldCount, int insertedFieldCount, RexNode rightRowIndexNullcondition) {
+  private RexNode getUpdateExpr(
+      RexBuilder rexBuilder,
+      RelDataTypeField field,
+      int leftFieldCount,
+      int insertedFieldCount,
+      RexNode rightRowIndexNullcondition) {
     Integer updateColumnIndex = updateColumnsWithIndex.get(field.getName());
 
     // the value is not updated, use the column value from left side (original value)
@@ -386,50 +435,72 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
     }
 
     // value is updated, use the right side updated value.
-    return rexBuilder.makeCall(SqlStdOperatorTable.CASE, rightRowIndexNullcondition,
-      rexBuilder.makeInputRef(field.getType(), field.getIndex()),
-      rexBuilder.makeInputRef(field.getType(), leftFieldCount + insertedFieldCount + SYSTEM_COLUMN_COUNT + updateColumnIndex));
+    return rexBuilder.makeCall(
+        SqlStdOperatorTable.CASE,
+        rightRowIndexNullcondition,
+        rexBuilder.makeInputRef(field.getType(), field.getIndex()),
+        rexBuilder.makeInputRef(
+            field.getType(),
+            leftFieldCount
+                + insertedFieldCount
+                + DmlUtils.SYSTEM_COLUMN_COUNT
+                + updateColumnIndex));
   }
 
   /**
-   *   if left_row_index column is null (i.e., the row is inserted),
-   *       use inserted value
-   *   else
-   *       use update expression:
-   *                        if right_row_index column is null (i.e., the value is not updated),
-   *                                use original value
-   *                        else (i.e., the value is updated)
-   *                                use updated value
-   *
+   * if left_row_index column is null (i.e., the row is inserted), use inserted value else use
+   * update expression: if right_row_index column is null (i.e., the value is not updated), use
+   * original value else (i.e., the value is updated) use updated value
    */
-  private RexNode getMergeWithInsertExpr(RexBuilder rexBuilder, RelDataTypeField field, int leftFieldCount,
-                                         RexNode leftRowIndexFieldNullCheck, RexNode updateExpr) {
-    return rexBuilder.makeCall(SqlStdOperatorTable.CASE, leftRowIndexFieldNullCheck,
-      rexBuilder.makeInputRef(field.getType(), leftFieldCount + field.getIndex()),
-      updateExpr);
+  private RexNode getMergeWithInsertExpr(
+      RexBuilder rexBuilder,
+      RelDataTypeField field,
+      int leftFieldCount,
+      RexNode leftRowIndexFieldNullCheck,
+      RexNode updateExpr) {
+    return rexBuilder.makeCall(
+        SqlStdOperatorTable.CASE,
+        leftRowIndexFieldNullCheck,
+        rexBuilder.makeInputRef(field.getType(), leftFieldCount + field.getIndex()),
+        updateExpr);
   }
 
   private RexNode getCopyOnWriteJoinColumnProjectExpr(
-    RexBuilder rexBuilder, RelDataTypeField field, int leftFieldCount,
-    RexNode leftRowIndexNullCheck, RexNode rightRowIndexNullCheck) {
+      RexBuilder rexBuilder,
+      RelDataTypeField field,
+      int leftFieldCount,
+      RexNode leftRowIndexNullCheck,
+      RexNode rightRowIndexNullCheck) {
     switch (operation) {
       case DELETE:
         return rexBuilder.makeInputRef(field.getType(), field.getIndex());
       case UPDATE:
         return getUpdateExpr(rexBuilder, field, leftFieldCount, 0, rightRowIndexNullCheck);
       case MERGE:
-        switch(mergeType) {
+        switch (mergeType) {
           case UPDATE_ONLY:
             return getUpdateExpr(rexBuilder, field, leftFieldCount, 0, rightRowIndexNullCheck);
           case UPDATE_INSERT:
-            RexNode updateExprWithInsertedColumns = getUpdateExpr(rexBuilder, field, leftFieldCount,
-              leftFieldCount - SYSTEM_COLUMN_COUNT, rightRowIndexNullCheck);
-            return getMergeWithInsertExpr(rexBuilder, field, leftFieldCount, leftRowIndexNullCheck, updateExprWithInsertedColumns);
+            RexNode updateExprWithInsertedColumns =
+                getUpdateExpr(
+                    rexBuilder,
+                    field,
+                    leftFieldCount,
+                    leftFieldCount - DmlUtils.SYSTEM_COLUMN_COUNT,
+                    rightRowIndexNullCheck);
+            return getMergeWithInsertExpr(
+                rexBuilder,
+                field,
+                leftFieldCount,
+                leftRowIndexNullCheck,
+                updateExprWithInsertedColumns);
           default:
-            throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", mergeType));
+            throw new UnsupportedOperationException(
+                String.format("Unrecoverable Error: Invalid type: %s", mergeType));
         }
       default:
-        throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", operation));
+        throw new UnsupportedOperationException(
+            String.format("Unrecoverable Error: Invalid type: %s", operation));
     }
   }
 
@@ -438,100 +509,97 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
    */
   private List<RelDataTypeField> getFieldsWithoutSystemColumns(RelNode input) {
     return input.getRowType().getFieldList().stream()
-      .filter(f -> table.getRowType().getField(f.getName(), false, false) != null && !isSystemColumn(f.getName()))
-      .collect(Collectors.toList());
+        .filter(
+            f ->
+                table.getRowType().getField(f.getName(), false, false) != null
+                    && !isSystemColumn(f.getName()))
+        .collect(Collectors.toList());
   }
 
-  private DistributionTrait getHashDistributionTraitForFields(RelDataType rowType, List<String> columnNames) {
-    ImmutableList<DistributionTrait.DistributionField> fields = columnNames.stream()
-      .map(n -> new DistributionTrait.DistributionField(
-        Preconditions.checkNotNull(rowType.getField(n, false, false)).getIndex()))
-      .collect(ImmutableList.toImmutableList());
+  private DistributionTrait getHashDistributionTraitForFields(
+      RelDataType rowType, List<String> columnNames) {
+    ImmutableList<DistributionTrait.DistributionField> fields =
+        columnNames.stream()
+            .map(
+                n ->
+                    new DistributionTrait.DistributionField(
+                        Preconditions.checkNotNull(rowType.getField(n, false, false)).getIndex()))
+            .collect(ImmutableList.toImmutableList());
     return new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, fields);
   }
 
   /**
-   *    TableFunctionPrel(DATA_FILE_SCAN)
-   *        |
-   *        |
-   *    HashToRandomExchangePrel hash(splitsIdentity)
-   *        |
-   *        |
-   *    HashJoinPrel ----------------------------------------------|
-   *    INNER ON splitsIdentity.path == __FilePath                 |
-   *        |                                                      |
-   *        |                                                  BroadcastExchangePrel
-   *        |                                                      |
-   *    TableFunctionPrel(SPLIT_GEN_MANIFEST_SCAN)             dataFileListInput
-   *        |                                                  from createDataFileAggPrel()
-   *        |
-   *    HashToRandomExchangePrel hash(splitsIdentity)
-   *        |
-   *        |
-   *    IcebergManifestListPrel
+   * TableFunctionPrel(DATA_FILE_SCAN) | | HashToRandomExchangePrel hash(splitsIdentity) | |
+   * HashJoinPrel ----------------------------------------------| INNER ON splitsIdentity.path ==
+   * __FilePath | | | | BroadcastExchangePrel | | TableFunctionPrel(SPLIT_GEN_MANIFEST_SCAN)
+   * dataFileListInput | from createDataFileAggPrel() | HashToRandomExchangePrel
+   * hash(splitsIdentity) | | IcebergManifestListPrel
    */
   private RelNode getCopyOnWriteDataFileScanPlan(RelNode dataFileListInput) {
-    List<SchemaPath> allColumns = table.getRowType().getFieldNames().stream()
-        .map(SchemaPath::getSimplePath).collect(Collectors.toList());
-    IcebergScanPlanBuilder builder = new IcebergScanPlanBuilder(
-      cluster,
-      traitSet,
-      table,
-      tableMetadata,
-      allColumns,
-      context,
-      ManifestScanFilters.empty(),
-      null);
+    List<SchemaPath> allColumns =
+        table.getRowType().getFieldNames().stream()
+            .map(SchemaPath::getSimplePath)
+            .collect(Collectors.toList());
+    IcebergScanPlanBuilder builder =
+        new IcebergScanPlanBuilder(
+            cluster,
+            traitSet,
+            table,
+            tableMetadata,
+            allColumns,
+            context,
+            ManifestScanFilters.empty(),
+            null);
 
     return builder.buildWithDmlDataFileFiltering(dataFileListInput);
   }
 
   /**
-   *    HashAggPrel groupby(__FilePath)
-   *        |
-   *        |
-   *    HashToRandomExchangePrel
-   *        |
-   *        |
-   *    (query results input with __FilePath)
+   * HashAggPrel groupby(__FilePath) | | HashToRandomExchangePrel | | (query results input with
+   * __FilePath)
    */
   private Prel getDataFileAggPlan(RelNode aggInput) throws InvalidRelException {
-    RelDataTypeField filePathField = Preconditions.checkNotNull(aggInput.getRowType()
-      .getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false));
+    RelDataTypeField filePathField =
+        Preconditions.checkNotNull(
+            aggInput.getRowType().getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false));
 
     // hash exchange on __FilePath
     DistributionTrait.DistributionField distributionField =
-      new DistributionTrait.DistributionField(filePathField.getIndex());
-    DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-      ImmutableList.of(distributionField));
-    RelTraitSet relTraitSet = cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
-    HashToRandomExchangePrel filePathHashExchPrel = new HashToRandomExchangePrel(cluster, relTraitSet,
-      aggInput, distributionTrait.getFields());
+        new DistributionTrait.DistributionField(filePathField.getIndex());
+    DistributionTrait distributionTrait =
+        new DistributionTrait(
+            DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+            ImmutableList.of(distributionField));
+    RelTraitSet relTraitSet =
+        cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
+    HashToRandomExchangePrel filePathHashExchPrel =
+        new HashToRandomExchangePrel(cluster, relTraitSet, aggInput, distributionTrait.getFields());
 
     // hash agg groupby(__FilePath)
     ImmutableBitSet groupSet = ImmutableBitSet.of(filePathField.getIndex());
 
     // get dmled row count
-    AggregateCall aggRowCount = AggregateCall.create(
-      SqlStdOperatorTable.COUNT,
-      false,
-      false,
-      Collections.emptyList(),
-      -1,
-      RelCollations.EMPTY,
-      1,
-      filePathHashExchPrel,
-      cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT),
-      ColumnUtils.ROW_COUNT_COLUMN_NAME);
+    AggregateCall aggRowCount =
+        AggregateCall.create(
+            SqlStdOperatorTable.COUNT,
+            false,
+            false,
+            Collections.emptyList(),
+            -1,
+            RelCollations.EMPTY,
+            1,
+            filePathHashExchPrel,
+            cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT),
+            ColumnUtils.ROW_COUNT_COLUMN_NAME);
 
     return HashAggPrel.create(
-      cluster,
-      filePathHashExchPrel.getTraitSet(),
-      filePathHashExchPrel,
-      groupSet,
-      ImmutableList.of(groupSet),
-      ImmutableList.of(aggRowCount),
-      null);
+        cluster,
+        filePathHashExchPrel.getTraitSet(),
+        filePathHashExchPrel,
+        groupSet,
+        ImmutableList.of(groupSet),
+        ImmutableList.of(aggRowCount),
+        null);
   }
 
   /***
@@ -554,68 +622,81 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
     // The OPERATION_TYPE column in rows coming from writer committer could be:
     // 1. OperationType.ADD_DATAFILE  ---- the file we created from anti-join results
     // 2. OperationType.DELETE_DATAFILE  -- the files touched by DML operations
-    // we only keep rows from DMLed files (i.e.,  with OperationType.DELETE_DATAFILE) since the final rowcount will be DMLed rows
-    RelDataTypeField operationTypeField  = writerPrel.getRowType()
-      .getField(RecordWriter.OPERATION_TYPE.getName(), false, false);
-    RexNode deleteDataFileLiteral = rexBuilder.makeLiteral(OperationType.DELETE_DATAFILE.value, cluster.getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
+    // we only keep rows from DMLed files (i.e.,  with OperationType.DELETE_DATAFILE) since the
+    // final rowcount will be DMLed rows
+    RelDataTypeField operationTypeField =
+        writerPrel.getRowType().getField(RecordWriter.OPERATION_TYPE.getName(), false, false);
+    RexNode deleteDataFileLiteral =
+        rexBuilder.makeLiteral(
+            OperationType.DELETE_DATAFILE.value,
+            cluster.getTypeFactory().createSqlType(SqlTypeName.INTEGER),
+            true);
 
-    RexNode filterCondition = rexBuilder.makeCall(
-      SqlStdOperatorTable.EQUALS,
-      rexBuilder.makeInputRef(writerPrel, operationTypeField.getIndex()),
-      deleteDataFileLiteral);
+    RexNode filterCondition =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            rexBuilder.makeInputRef(writerPrel, operationTypeField.getIndex()),
+            deleteDataFileLiteral);
 
-    FilterPrel filterPrel = FilterPrel.create(
-      writerPrel.getCluster(),
-      writerPrel.getTraitSet(),
-      writerPrel,
-      filterCondition);
+    FilterPrel filterPrel =
+        FilterPrel.create(
+            writerPrel.getCluster(), writerPrel.getTraitSet(), writerPrel, filterCondition);
 
     // Agg: get the total row count for DMLed results
-    RelDataTypeField recordsField  = writerPrel.getRowType()
-      .getField(RecordWriter.RECORDS.getName(), false, false);
-    AggregateCall aggRowCount = AggregateCall.create(
-      SqlStdOperatorTable.SUM,
-      false,
-      false,
-      ImmutableList.of(recordsField.getIndex()),
-      -1,
-      RelCollations.EMPTY,
-      0,
-      filterPrel,
-      null,
-      RecordWriter.RECORDS.getName());
+    RelDataTypeField recordsField =
+        writerPrel.getRowType().getField(RecordWriter.RECORDS.getName(), false, false);
+    AggregateCall aggRowCount =
+        AggregateCall.create(
+            SqlStdOperatorTable.SUM,
+            false,
+            false,
+            ImmutableList.of(recordsField.getIndex()),
+            -1,
+            RelCollations.EMPTY,
+            0,
+            filterPrel,
+            null,
+            RecordWriter.RECORDS.getName());
 
-    StreamAggPrel rowCountAgg = StreamAggPrel.create(
-      filterPrel.getCluster(),
-      filterPrel.getTraitSet(),
-      filterPrel,
-      ImmutableBitSet.of(),
-      ImmutableList.of(),
-      ImmutableList.of(aggRowCount),
-      null);
+    StreamAggPrel rowCountAgg =
+        StreamAggPrel.create(
+            filterPrel.getCluster(),
+            filterPrel.getTraitSet(),
+            filterPrel,
+            ImmutableBitSet.of(),
+            ImmutableList.of(),
+            ImmutableList.of(aggRowCount),
+            null);
 
     // Project: return 0 as row count in case there is no Agg record (i.e., no DMLed results)
-    recordsField  = rowCountAgg.getRowType()
-      .getField(RecordWriter.RECORDS.getName(), false, false);
+    recordsField = rowCountAgg.getRowType().getField(RecordWriter.RECORDS.getName(), false, false);
     List<String> projectNames = ImmutableList.of(recordsField.getName());
-    RexNode zeroLiteral = rexBuilder.makeLiteral(0, rowCountAgg.getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
+    RexNode zeroLiteral =
+        rexBuilder.makeLiteral(
+            0, rowCountAgg.getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
     // check if the count of row count records is 0 (i.e., records column is null)
-    RexNode rowCountRecordExistsCheckCondition = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
-      rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
+    RexNode rowCountRecordExistsCheckCondition =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.IS_NULL,
+            rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
     // case when the count of row count records is 0, return 0, else return aggregated row count
-    RexNode projectExpr = rexBuilder.makeCall(SqlStdOperatorTable.CASE,
-      rowCountRecordExistsCheckCondition, zeroLiteral,
-      rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
+    RexNode projectExpr =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.CASE,
+            rowCountRecordExistsCheckCondition,
+            zeroLiteral,
+            rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
     List<RexNode> projectExprs = ImmutableList.of(projectExpr);
 
-    RelDataType projectRowType = RexUtil.createStructType(rowCountAgg.getCluster().getTypeFactory(), projectExprs,
-      projectNames, null);
+    RelDataType projectRowType =
+        RexUtil.createStructType(
+            rowCountAgg.getCluster().getTypeFactory(), projectExprs, projectNames, null);
 
     return ProjectPrel.create(
-      rowCountAgg.getCluster(),
-      rowCountAgg.getTraitSet(),
-      rowCountAgg,
-      projectExprs,
-      projectRowType);
+        rowCountAgg.getCluster(),
+        rowCountAgg.getTraitSet(),
+        rowCountAgg,
+        projectExprs,
+        projectRowType);
   }
 }

@@ -15,18 +15,22 @@
  */
 package com.dremio.service;
 
-import java.util.Objects;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import java.util.Objects;
 
 /**
- * A service registry that also supports exposing a lookup or injection provider for each registered service.
+ * A service registry that also supports exposing a lookup or injection provider for each registered
+ * service.
  */
 public class SingletonRegistry extends BinderImpl implements AutoCloseable {
 
-  private static enum ServiceState {INIT, STARTED, STOPPED};
+  private static enum ServiceState {
+    INIT,
+    STARTED,
+    STOPPED
+  };
 
   private final ServiceRegistry registry;
 
@@ -60,11 +64,12 @@ public class SingletonRegistry extends BinderImpl implements AutoCloseable {
   public <IFACE extends Service, IMPL extends IFACE> IMPL bind(Class<IFACE> iface, IMPL service) {
     ServiceReference<IFACE> ref = wrap(iface, service);
     super.bind(iface, ref);
-     registry.register(ref);
+    registry.register(ref);
     return service;
   }
 
-  public <IFACE extends AutoCloseable, IMPL extends IFACE> IMPL bind(Class<IFACE> iface, IMPL autoCloseable) {
+  public <IFACE extends AutoCloseable, IMPL extends IFACE> IMPL bind(
+      Class<IFACE> iface, IMPL autoCloseable) {
     CloseableReference<?> ref = wrap(iface, new CloseableAsService<IFACE>(autoCloseable));
     super.bind(iface, ref);
     registry.register(ref);
@@ -81,14 +86,16 @@ public class SingletonRegistry extends BinderImpl implements AutoCloseable {
     return replace((Class<A>) autoCloseable.getClass(), autoCloseable);
   }
 
-  public <IFACE extends Service, IMPL extends IFACE> IMPL replace(Class<IFACE> iface, IMPL service) {
+  public <IFACE extends Service, IMPL extends IFACE> IMPL replace(
+      Class<IFACE> iface, IMPL service) {
     ServiceReference<IFACE> ref = wrap(iface, service);
     super.replace(iface, ref);
     registry.replace(ref);
     return service;
   }
 
-  public <IFACE extends AutoCloseable, IMPL extends IFACE> IMPL replace(Class<IFACE> iface, IMPL autoCloseable) {
+  public <IFACE extends AutoCloseable, IMPL extends IFACE> IMPL replace(
+      Class<IFACE> iface, IMPL autoCloseable) {
     CloseableReference<IFACE> ref = wrap(iface, new CloseableAsService<IFACE>(autoCloseable));
     super.replace(iface, ref);
     registry.replace(ref);
@@ -104,17 +111,17 @@ public class SingletonRegistry extends BinderImpl implements AutoCloseable {
   static final class CloseableAsService<A extends AutoCloseable> implements Service {
     private final A c;
 
-    private CloseableAsService(A c){
+    private CloseableAsService(A c) {
       this.c = c;
     }
+
     @Override
     public void close() throws Exception {
       c.close();
     }
 
     @Override
-    public void start() throws Exception {
-    }
+    public void start() throws Exception {}
 
     @VisibleForTesting
     A getCloseable() {
@@ -122,19 +129,23 @@ public class SingletonRegistry extends BinderImpl implements AutoCloseable {
     }
   }
 
-  private static <S extends Service> ServiceReference<S> wrap(Class<S> iface, S obj){
+  private static <S extends Service> ServiceReference<S> wrap(Class<S> iface, S obj) {
     return new ServiceReference<>(iface, obj);
   }
 
-  private static <A extends AutoCloseable> CloseableReference<A> wrap(Class<A> iface, CloseableAsService<A> closeable){
+  private static <A extends AutoCloseable> CloseableReference<A> wrap(
+      Class<A> iface, CloseableAsService<A> closeable) {
     return new CloseableReference<>(iface, closeable);
   }
 
-  private abstract static class AbstractServiceReference<T extends Service> implements Resolver, Service {
+  private abstract static class AbstractServiceReference<T extends Service>
+      implements Resolver, Service {
     @SuppressWarnings("checkstyle:VisibilityModifier")
     protected final Class<?> iface;
+
     @SuppressWarnings("checkstyle:VisibilityModifier")
     protected final T service;
+
     private volatile ServiceState state = ServiceState.INIT;
 
     public AbstractServiceReference(Class<?> iface, T service) {
@@ -150,7 +161,8 @@ public class SingletonRegistry extends BinderImpl implements AutoCloseable {
 
     @Override
     public synchronized void start() throws Exception {
-      Preconditions.checkArgument(state == ServiceState.INIT, "Cannot start a service in state %s.", state.name());
+      Preconditions.checkArgument(
+          state == ServiceState.INIT, "Cannot start a service in state %s.", state.name());
       service.start();
       state = ServiceState.STARTED;
     }
@@ -201,11 +213,11 @@ public class SingletonRegistry extends BinderImpl implements AutoCloseable {
     public Object get(BindingProvider provider) {
       return service;
     }
-
   }
 
   @VisibleForTesting
-  static class CloseableReference<A extends AutoCloseable> extends AbstractServiceReference<CloseableAsService<A>> {
+  static class CloseableReference<A extends AutoCloseable>
+      extends AbstractServiceReference<CloseableAsService<A>> {
 
     public CloseableReference(Class<A> iface, CloseableAsService<A> service) {
       super(iface, service);
@@ -220,6 +232,5 @@ public class SingletonRegistry extends BinderImpl implements AutoCloseable {
     public Object get(BindingProvider provider) {
       return service.c;
     }
-
   }
 }

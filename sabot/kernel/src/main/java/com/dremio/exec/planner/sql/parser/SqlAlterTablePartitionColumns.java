@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.planner.sql.PartitionTransform;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,13 +29,7 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.planner.sql.PartitionTransform;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
-/**
- * Parse tree node for a ALTER TABLE ... ADD|DROP PARTITION FIELD statement.
- */
+/** Parse tree node for a ALTER TABLE ... ADD|DROP PARTITION FIELD statement. */
 public class SqlAlterTablePartitionColumns extends SqlAlterTable {
 
   public enum Mode {
@@ -42,30 +38,32 @@ public class SqlAlterTablePartitionColumns extends SqlAlterTable {
   }
 
   public static final SqlSpecialOperator ALTER_PARTITION_COLUMNS_OPERATOR =
-    new SqlSpecialOperator("ALTER_PARTITION_COLUMNS", SqlKind.ALTER_TABLE) {
+      new SqlSpecialOperator("ALTER_PARTITION_COLUMNS", SqlKind.ALTER_TABLE) {
 
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4);
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(operands.length == 4);
 
-      return new SqlAlterTablePartitionColumns(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlPartitionTransform) operands[2],
-        (SqlTableVersionSpec) operands[3]);
-    }
-  };
+          return new SqlAlterTablePartitionColumns(
+              pos,
+              (SqlIdentifier) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlPartitionTransform) operands[2],
+              (SqlTableVersionSpec) operands[3]);
+        }
+      };
 
   private final SqlLiteral mode;
   private final SqlPartitionTransform partitionTransform;
   private final SqlTableVersionSpec tableVersionSpec;
 
-  public SqlAlterTablePartitionColumns(SqlParserPos pos,
-                                       SqlIdentifier tableName,
-                                       SqlLiteral mode,
-                                       SqlPartitionTransform partitionTransform,
-                                       SqlTableVersionSpec tableVersionSpec) {
+  public SqlAlterTablePartitionColumns(
+      SqlParserPos pos,
+      SqlIdentifier tableName,
+      SqlLiteral mode,
+      SqlPartitionTransform partitionTransform,
+      SqlTableVersionSpec tableVersionSpec) {
     super(pos, tableName);
     this.mode = Preconditions.checkNotNull(mode);
     this.partitionTransform = Preconditions.checkNotNull(partitionTransform);
@@ -98,6 +96,7 @@ public class SqlAlterTablePartitionColumns extends SqlAlterTable {
   public PartitionTransform getPartitionTransform() {
     return PartitionTransform.from(partitionTransform);
   }
+
   public SqlTableVersionSpec getSqlTableVersionSpec() {
     return tableVersionSpec;
   }

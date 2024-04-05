@@ -18,37 +18,38 @@ package com.dremio.exec.fn.impl;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
+import org.junit.Test;
 
 public class TestMultiInputAdd extends BaseTestQuery {
 
-    @Test
-    public void testMultiInputAdd() throws Exception {
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-        readResourceAsString("/functions/multi_input_add_test.json"));
-      try(RecordBatchLoader batchLoader = new RecordBatchLoader(nodes[0].getContext().getAllocator())){
-        QueryDataBatch batch = results.get(0);
-        assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
+  @Test
+  public void testMultiInputAdd() throws Exception {
+    List<QueryDataBatch> results =
+        client.runQuery(
+            com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+            readResourceAsString("/functions/multi_input_add_test.json"));
+    try (RecordBatchLoader batchLoader =
+        new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
+      QueryDataBatch batch = results.get(0);
+      assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 
-        for (VectorWrapper<?> v : batchLoader) {
+      for (VectorWrapper<?> v : batchLoader) {
 
-            ValueVector vv = v.getValueVector();
+        ValueVector vv = v.getValueVector();
 
-            assertTrue((vv.getObject(0)).equals(10));
-        }
+        assertTrue((vv.getObject(0)).equals(10));
+      }
 
-        batchLoader.clear();
-        for(QueryDataBatch b : results){
-            b.release();
-        }
+      batchLoader.clear();
+      for (QueryDataBatch b : results) {
+        b.release();
       }
     }
+  }
 }

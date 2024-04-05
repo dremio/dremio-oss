@@ -15,7 +15,6 @@
  */
 package com.dremio.common.store;
 
-
 import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,8 +22,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property="type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
   // DX-7316
   @Type(value = FileSystemConfig.class, name = "__delegate"),
@@ -40,16 +38,15 @@ public abstract class StoragePluginConfig {
   @Override
   public abstract int hashCode();
 
-
   @JsonProperty("enabled")
-  public void setDeprecatedEnabled(boolean enabled){
-    if(!enabled){
+  public void setDeprecatedEnabled(boolean enabled) {
+    if (!enabled) {
       previouslyDisabled = true;
     }
   }
 
   @JsonIgnore
-  public boolean wasPreviouslyDisabled(){
+  public boolean wasPreviouslyDisabled() {
     return previouslyDisabled;
   }
 }

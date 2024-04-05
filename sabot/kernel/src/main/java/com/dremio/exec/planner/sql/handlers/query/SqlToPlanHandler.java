@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import org.apache.calcite.sql.SqlNode;
 
 public interface SqlToPlanHandler {
 
@@ -31,7 +30,7 @@ public interface SqlToPlanHandler {
     return null;
   }
 
-  public interface Creator {
+  interface Creator {
     SqlToPlanHandler toPlanHandler();
   }
 }

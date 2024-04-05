@@ -28,7 +28,9 @@ public class WindowRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new WindowRule();
 
   private WindowRule() {
-    super(RelOptHelper.some(LogicalWindow.class, Convention.NONE, RelOptHelper.any(RelNode.class)), "WindowRule");
+    super(
+        RelOptHelper.some(LogicalWindow.class, Convention.NONE, RelOptHelper.any(RelNode.class)),
+        "WindowRule");
   }
 
   @Override

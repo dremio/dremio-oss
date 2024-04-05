@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -27,32 +28,28 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
-
-/**
- * ALTER TABLE tblname ENABLE/DISABLE SCHEMA LEARNING
- */
+/** ALTER TABLE tblname ENABLE/DISABLE SCHEMA LEARNING */
 public class SqlAlterTableToggleSchemaLearning extends SqlAlterTable {
 
-  public static final SqlSpecialOperator TOGGLE_SCHEMA_LEARNING_OPERATOR = new SqlSpecialOperator("TOGGLE_SCHEMA_LEARNING", SqlKind.ALTER_TABLE) {
+  public static final SqlSpecialOperator TOGGLE_SCHEMA_LEARNING_OPERATOR =
+      new SqlSpecialOperator("TOGGLE_SCHEMA_LEARNING", SqlKind.ALTER_TABLE) {
 
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlToggleSchemaLearning.createCall() " +
-        "has to get 2 operands!");
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 2,
+              "SqlToggleSchemaLearning.createCall() " + "has to get 2 operands!");
 
-      return new SqlAlterTableToggleSchemaLearning(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlLiteral) operands[1]);
-    }
-  };
+          return new SqlAlterTableToggleSchemaLearning(
+              pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1]);
+        }
+      };
 
   private SqlLiteral enableSchemaLearning;
 
-  public SqlAlterTableToggleSchemaLearning(SqlParserPos pos, SqlIdentifier tblName, SqlLiteral enableSchemaLearning) {
+  public SqlAlterTableToggleSchemaLearning(
+      SqlParserPos pos, SqlIdentifier tblName, SqlLiteral enableSchemaLearning) {
     super(pos, tblName);
     this.enableSchemaLearning = enableSchemaLearning;
   }
@@ -82,5 +79,4 @@ public class SqlAlterTableToggleSchemaLearning extends SqlAlterTable {
   public boolean getEnableSchemaLearning() {
     return enableSchemaLearning.booleanValue();
   }
-
 }

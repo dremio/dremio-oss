@@ -21,26 +21,6 @@ import static com.dremio.exec.store.iceberg.IcebergUtils.getUsedIndices;
 import static com.dremio.proto.model.PartitionStats.PartitionStatsKey;
 import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.PartitionStatsReader;
-import org.apache.iceberg.io.CloseableIterator;
-import org.apache.iceberg.io.InputFile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -58,13 +38,28 @@ import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.collect.Maps;
-
 import io.opentelemetry.api.trace.Span;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionStatsReader;
+import org.apache.iceberg.io.CloseableIterator;
+import org.apache.iceberg.io.InputFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Class to utilize cache for partition stats.
- */
-public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
+/** Class to utilize cache for partition stats. */
+public class PartitionStatsBasedPrunerCache implements RecordPrunerCache {
 
   public static final Logger logger = LoggerFactory.getLogger(PartitionStatsBasedPrunerCache.class);
   private final PartitionStatsCache partitionStatsPredicateCache;
@@ -82,22 +77,25 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
   private final RelDataType rowType;
   private final BatchSchema batchSchema;
 
-  public PartitionStatsBasedPrunerCache(OptimizerRulesContext context,
-                                   ScanRelBase scan,
-                                   PruneFilterCondition pruneCondition,
-                                   PartitionStatsCache partitionStatsPredicateCache){
+  public PartitionStatsBasedPrunerCache(
+      OptimizerRulesContext context,
+      ScanRelBase scan,
+      PruneFilterCondition pruneCondition,
+      PartitionStatsCache partitionStatsPredicateCache) {
     this.scan = scan;
     this.context = context;
     this.partitionStatsPredicateCache = partitionStatsPredicateCache;
     this.tableMetadata = scan.getTableMetadata();
     this.projectedColumns = scan.getProjectedColumns();
     this.rowType = scan.getRowType();
-    this.specEvolTransEnabled = context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
+    this.specEvolTransEnabled =
+        context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
     Span.current().setAttribute("dremio.table.name", tableMetadata.getName().getSchemaPath());
     this.partitionColumns = tableMetadata.getReadDefinition().getPartitionColumnsList();
     this.batchSchema = tableMetadata.getSchema();
 
-    ImmutableDremioFileAttrs partitionStatsFileInfo = PartitionStatsHelper.getPartitionStatsFileAttrs(scan);
+    ImmutableDremioFileAttrs partitionStatsFileInfo =
+        PartitionStatsHelper.getPartitionStatsFileAttrs(scan);
     this.partitionStatsFile = partitionStatsFileInfo.fileName();
     this.partitionStatsFileLength = partitionStatsFileInfo.fileLength();
     this.storagePluginId = scan.getIcebergStatisticsPluginId(context);
@@ -113,23 +111,33 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
       if (plugin instanceof SupportsIcebergRootPointer) {
         RexNode finalPruneCondition = pruneCondition.getPartitionExpression();
         if (specEvolTransEnabled && pruneCondition.getPartitionRange() != null) {
-          finalPruneCondition = finalPruneCondition == null ? pruneCondition.getPartitionRange()
-            : scan.getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.AND, pruneCondition.getPartitionRange(), finalPruneCondition);
+          finalPruneCondition =
+              finalPruneCondition == null
+                  ? pruneCondition.getPartitionRange()
+                  : scan.getCluster()
+                      .getRexBuilder()
+                      .makeCall(
+                          SqlStdOperatorTable.AND,
+                          pruneCondition.getPartitionRange(),
+                          finalPruneCondition);
         }
-        if(context.getPlannerSettings().isPartitionStatsCacheEnabled()){
-          PartitionStatsKey partitionStatsKey = partitionStatsPredicateCache.computeKey(
-            scan.getCluster().getRexBuilder(),
-            partitionStatsFile,
-            finalPruneCondition,
-            projectedColumns.stream().map(
-              pc -> pc.getAsUnescapedPath()
-            ).collect(Collectors.toList()));
+        if (context.getPlannerSettings().isPartitionStatsCacheEnabled()) {
+          PartitionStatsKey partitionStatsKey =
+              partitionStatsPredicateCache.computeKey(
+                  scan.getCluster().getRexBuilder(),
+                  partitionStatsFile,
+                  finalPruneCondition,
+                  projectedColumns.stream()
+                      .map(pc -> pc.getAsUnescapedPath())
+                      .collect(Collectors.toList()));
 
-          //Partition stats cache could have stats for the given partition stats file and prune condition.
-          Optional<PartitionStatsValue> records = Optional.ofNullable(partitionStatsPredicateCache.get(partitionStatsKey));
-          if(!records.isPresent()){
+          // Partition stats cache could have stats for the given partition stats file and prune
+          // condition.
+          Optional<PartitionStatsValue> records =
+              Optional.ofNullable(partitionStatsPredicateCache.get(partitionStatsKey));
+          if (!records.isPresent()) {
             records = computePartitionStats(finalPruneCondition);
-            if(records.isPresent()){
+            if (records.isPresent()) {
               partitionStatsPredicateCache.put(partitionStatsKey, records.get());
             }
           }
@@ -142,14 +150,16 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
   }
 
   private boolean shouldPrune() {
-    boolean pruneConditionExists = pruneCondition != null && (pruneCondition.getPartitionExpression() != null
-      || specEvolTransEnabled && pruneCondition.getPartitionRange() != null);
+    boolean pruneConditionExists =
+        pruneCondition != null
+            && (pruneCondition.getPartitionExpression() != null
+                || specEvolTransEnabled && pruneCondition.getPartitionRange() != null);
 
     return storagePluginId != null
-      && pruneConditionExists
-      && partitionColumns != null
-      && StringUtils.isNotEmpty(partitionStatsFile)
-      && !isConditionOnImplicitCol();
+        && pruneConditionExists
+        && partitionColumns != null
+        && StringUtils.isNotEmpty(partitionStatsFile)
+        && !isConditionOnImplicitCol();
   }
 
   private boolean isConditionOnImplicitCol() {
@@ -157,26 +167,32 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
       return false;
     }
 
-    int updateColIndex = projectedColumns.indexOf(SchemaPath.getSimplePath(IncrementalUpdateUtils.UPDATE_COLUMN));
+    int updateColIndex =
+        projectedColumns.indexOf(SchemaPath.getSimplePath(IncrementalUpdateUtils.UPDATE_COLUMN));
     final AtomicBoolean isImplicit = new AtomicBoolean(false);
-    pruneCondition.getPartitionExpression().accept(new RexVisitorImpl<Void>(true) {
-      @Override
-      public Void visitInputRef(RexInputRef inputRef) {
-        isImplicit.set(updateColIndex==inputRef.getIndex());
-        return null;
-      }
-    });
+    pruneCondition
+        .getPartitionExpression()
+        .accept(
+            new RexVisitorImpl<Void>(true) {
+              @Override
+              public Void visitInputRef(RexInputRef inputRef) {
+                isImplicit.set(updateColIndex == inputRef.getIndex());
+                return null;
+              }
+            });
     return isImplicit.get();
   }
 
-  private Optional<PartitionStatsValue> computePartitionStats(RexNode finalPruneCondition) throws Exception {
+  private Optional<PartitionStatsValue> computePartitionStats(RexNode finalPruneCondition)
+      throws Exception {
 
     Optional<PartitionStatsValue> survivingRecords = Optional.empty();
 
     try (OperatorContextImpl operatorContext = newOperatorContext(context, scan)) {
 
-      PartitionSpec spec = getCurrentPartitionSpec(tableMetadata.getDatasetConfig().getPhysicalDataset());
-      if(spec == null){
+      PartitionSpec spec =
+          getCurrentPartitionSpec(tableMetadata.getDatasetConfig().getPhysicalDataset());
+      if (spec == null) {
         spec = IcebergUtils.getIcebergPartitionSpec(batchSchema, partitionColumns, null);
       }
       InputFile inputFile = createInputFile(operatorContext);
@@ -184,21 +200,34 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
       PartitionStatsReader partitionStatsReader = new PartitionStatsReader(inputFile, spec);
       try (CloseableIterator closeableIterator = partitionStatsReader.iterator()) {
         if (!closeableIterator.hasNext()) {
-          //handle the case where the stats are empty or not successfully generated
-          logger.warn(String.format("Encountered empty partition stats file for table %s during row count estimation. File %s.",
-            tableMetadata.getName().toString(), partitionStatsFile));
-          //Returning an empty Optional indicates a problem with partition pruning
-          //the upper layers handle it by considering all the rows of the table as qualified
+          // handle the case where the stats are empty or not successfully generated
+          logger.warn(
+              String.format(
+                  "Encountered empty partition stats file for table %s during row count estimation. File %s.",
+                  tableMetadata.getName().toString(), partitionStatsFile));
+          // Returning an empty Optional indicates a problem with partition pruning
+          // the upper layers handle it by considering all the rows of the table as qualified
           return Optional.empty();
         }
       }
-      try (RecordPruner pruner = new PartitionStatsBasedPruner(inputFile.location(), partitionStatsReader, context, spec, scan)) {
+      try (RecordPruner pruner =
+          new PartitionStatsBasedPruner(
+              inputFile.location(), partitionStatsReader, context, spec, scan)) {
 
         Map<String, Integer> partitionColToIdMap = createColNameToIdMap(partitionColumns);
 
-        survivingRecords = Optional.of(
-          pruner.prune(createColIdToNameMap(partitionColToIdMap), partitionColToIdMap, getUsedIndices, projectedColumns,
-            tableMetadata, finalPruneCondition, batchSchema, rowType, scan.getCluster()));
+        survivingRecords =
+            Optional.of(
+                pruner.prune(
+                    createColIdToNameMap(partitionColToIdMap),
+                    partitionColToIdMap,
+                    getUsedIndices,
+                    projectedColumns,
+                    tableMetadata,
+                    finalPruneCondition,
+                    batchSchema,
+                    rowType,
+                    scan.getCluster()));
       }
     } catch (RuntimeException | IOException e) {
       logger.error("Encountered exception during row count estimation: ", e);
@@ -210,16 +239,16 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
     SupportsIcebergRootPointer icebergRootPointerPlugin = (SupportsIcebergRootPointer) plugin;
 
     return icebergRootPointerPlugin
-      .createIcebergFileIO(
-        icebergRootPointerPlugin.createFS(
-          partitionStatsFile,
-          context.getContextInformation().getQueryUser(),
-          operatorContext),
-        operatorContext,
-        scan.getTableMetadata().getDatasetConfig().getFullPathList(),
-        scan.getPluginId().getName(),
-        partitionStatsFileLength)
-      .newInputFile(partitionStatsFile);
+        .createIcebergFileIO(
+            icebergRootPointerPlugin.createFS(
+                partitionStatsFile,
+                context.getContextInformation().getQueryUser(),
+                operatorContext),
+            operatorContext,
+            scan.getTableMetadata().getDatasetConfig().getFullPathList(),
+            scan.getPluginId().getName(),
+            partitionStatsFileLength)
+        .newInputFile(partitionStatsFile);
   }
 
   /*
@@ -229,7 +258,7 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
    * getRowType().getFieldNames() = [col1, col3, col4, col6]
    * inUseColIdToNameMap would be {1 -> col4, 3 -> col6}
    */
-  private Map<Integer, String> createColIdToNameMap(Map<String, Integer> partitionColToIdMap){
+  private Map<Integer, String> createColIdToNameMap(Map<String, Integer> partitionColToIdMap) {
     Map<Integer, String> inUseColIdToNameMap = Maps.newHashMap();
     for (String col : rowType.getFieldNames()) {
       Integer partitionIndex = partitionColToIdMap.get(col);
@@ -245,7 +274,7 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
    * The partition columns can have special columns added by Dremio. The ID is artificial,
    * i.e. it has nothing to do with the column ID or order of the column in the table.
    */
-  private Map<String, Integer> createColNameToIdMap(List<String> partitionColumns){
+  private Map<String, Integer> createColNameToIdMap(List<String> partitionColumns) {
     Map<String, Integer> partitionColToIdMap = Maps.newHashMap();
     int index = 0;
     for (String column : partitionColumns) {
@@ -254,33 +283,37 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache{
     return partitionColToIdMap;
   }
 
-  private OperatorContextImpl newOperatorContext(OptimizerRulesContext optimizerRulesContext, ScanRelBase scan) {
+  private OperatorContextImpl newOperatorContext(
+      OptimizerRulesContext optimizerRulesContext, ScanRelBase scan) {
     return new OperatorContextImpl(
-      optimizerRulesContext.getPlannerSettings().getSabotConfig(),
-      null, // DremioConfig
-      null, // FragmentHandle
-      null, // popConfig
-      optimizerRulesContext.getAllocator().newChildAllocator("p-s-r-" + scan.getTableMetadata().getDatasetConfig().getName(), 0, Long.MAX_VALUE),
-      null, // output allocator
-      null, // code compiler
-      new OperatorStats(new OpProfileDef(0, 0, 0, 0), optimizerRulesContext.getAllocator()), // stats
-      null, // execution controls
-      null, // fragment executor builder
-      null, // executor service
-      null, // function lookup context
-      null, // context information
-      optimizerRulesContext.getFunctionRegistry().getOptionManager(), // option manager
-      null, // spill service
-      null, // node debug context provider
-      1000, // target batch size
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null);
+        optimizerRulesContext.getPlannerSettings().getSabotConfig(),
+        null, // DremioConfig
+        null, // FragmentHandle
+        null, // popConfig
+        optimizerRulesContext
+            .getAllocator()
+            .newChildAllocator(
+                "p-s-r-" + scan.getTableMetadata().getDatasetConfig().getName(), 0, Long.MAX_VALUE),
+        null, // output allocator
+        null, // code compiler
+        new OperatorStats(
+            new OpProfileDef(0, 0, 0, 0), optimizerRulesContext.getAllocator()), // stats
+        null, // execution controls
+        null, // fragment executor builder
+        null, // executor service
+        null, // function lookup context
+        null, // context information
+        optimizerRulesContext.getFunctionRegistry().getOptionManager(), // option manager
+        null, // spill service
+        null, // node debug context provider
+        1000, // target batch size
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
-
 }

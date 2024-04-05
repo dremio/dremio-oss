@@ -18,14 +18,13 @@ package com.dremio.service.coordinator.zk;
 import com.dremio.service.coordinator.ElectionListener;
 import com.google.common.annotations.VisibleForTesting;
 
-/**
- * Helper interface for testing purposes
- */
+/** Helper interface for testing purposes */
 @VisibleForTesting
 interface ZKElectionListener extends ElectionListener {
   void onConnectionLoss();
 
   void onReconnection();
 
-  default void onBeginIsLeader() {};
+  default void onBeginIsLeader() {}
+  ;
 }

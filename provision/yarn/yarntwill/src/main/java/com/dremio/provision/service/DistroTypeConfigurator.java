@@ -15,26 +15,22 @@
  */
 package com.dremio.provision.service;
 
+import com.dremio.provision.DistroType;
+import com.dremio.provision.Property;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.provision.DistroType;
-import com.dremio.provision.Property;
-
-/**
- * IFace to unify all the DistroType based defaults
- */
-
+/** IFace to unify all the DistroType based defaults */
 public interface DistroTypeConfigurator {
 
-    EnumSet<DistroType> getSupportedTypes();
+  EnumSet<DistroType> getSupportedTypes();
 
-    boolean isSecure();
+  boolean isSecure();
 
-    Map<String, String> getAllDefaults();
+  Map<String, String> getAllDefaults();
 
-    Map<String, String> getAllToShowDefaults();
+  Map<String, String> getAllToShowDefaults();
 
-    void mergeProperties(List<Property> originalProperties);
+  void mergeProperties(List<Property> originalProperties);
 }

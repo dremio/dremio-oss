@@ -15,20 +15,17 @@
  */
 package org.joda.time.chrono;
 
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Locale;
-
 import org.junit.Test;
 
 public class DayOfWeekFromSundayDateTimeFieldTest {
 
   private static final DayOfWeekFromSundayDateTimeField instance =
       new DayOfWeekFromSundayDateTimeField(
-          ISOChronology.getInstanceUTC(),
-          ISOChronology.getInstanceUTC().days());
+          ISOChronology.getInstanceUTC(), ISOChronology.getInstanceUTC().days());
 
   @Test
   public void get() {

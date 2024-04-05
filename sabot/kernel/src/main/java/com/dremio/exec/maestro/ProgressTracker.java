@@ -15,19 +15,15 @@
  */
 package com.dremio.exec.maestro;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobtelemetry.GetQueryProgressMetricsRequest;
 import com.dremio.service.jobtelemetry.GetQueryProgressMetricsResponse;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
-
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Gets progress updates from JTS, and notifies the observer.
- */
+/** Gets progress updates from JTS, and notifies the observer. */
 class ProgressTracker implements AutoCloseable {
   private final UserBitShared.QueryId queryId;
   private final JobTelemetryClient jobTelemetryClient;
@@ -38,8 +34,10 @@ class ProgressTracker implements AutoCloseable {
 
   private volatile StreamObserver<GetQueryProgressMetricsRequest> requestObserver;
 
-  ProgressTracker(UserBitShared.QueryId queryId, JobTelemetryClient jobTelemetryClient,
-                  MaestroObserver observer) {
+  ProgressTracker(
+      UserBitShared.QueryId queryId,
+      JobTelemetryClient jobTelemetryClient,
+      MaestroObserver observer) {
     this.queryId = queryId;
     this.jobTelemetryClient = jobTelemetryClient;
     this.observer = observer;
@@ -49,41 +47,36 @@ class ProgressTracker implements AutoCloseable {
 
   private void subscribeForUpdates() {
     StreamObserver<GetQueryProgressMetricsResponse> responseObserver =
-      new StreamObserver<GetQueryProgressMetricsResponse>() {
-      @Override
-      public void onNext(GetQueryProgressMetricsResponse metricsResponse) {
-        long recordsProcessed = metricsResponse.getMetrics().getRowsProcessed();
-        long outputRecordsCount = metricsResponse.getMetrics().getOutputRecords();
-        if (recordsProcessed > prevRecordsProcessed) {
-          observer.recordsProcessed(recordsProcessed);
-          prevRecordsProcessed = recordsProcessed;
-        }
-        if (outputRecordsCount > prevOutputRecords) {
-          observer.recordsOutput(recordsProcessed);
-          prevOutputRecords = outputRecordsCount;
-        }
-      }
+        new StreamObserver<GetQueryProgressMetricsResponse>() {
+          @Override
+          public void onNext(GetQueryProgressMetricsResponse metricsResponse) {
+            long recordsProcessed = metricsResponse.getMetrics().getRowsProcessed();
+            long outputRecordsCount = metricsResponse.getMetrics().getOutputRecords();
+            if (recordsProcessed > prevRecordsProcessed) {
+              observer.recordsProcessed(recordsProcessed);
+              prevRecordsProcessed = recordsProcessed;
+            }
+            if (outputRecordsCount > prevOutputRecords) {
+              observer.recordsOutput(recordsProcessed);
+              prevOutputRecords = outputRecordsCount;
+            }
+          }
 
-      @Override
-      public void onError(Throwable throwable) {
-        // TODO: retry ?
-        responseLatch.countDown();
-      }
+          @Override
+          public void onError(Throwable throwable) {
+            // TODO: retry ?
+            responseLatch.countDown();
+          }
 
-      @Override
-      public void onCompleted() {
-        responseLatch.countDown();
-      }
-    };
+          @Override
+          public void onCompleted() {
+            responseLatch.countDown();
+          }
+        };
 
     // send metrics request
-    requestObserver =
-      jobTelemetryClient.getAsyncStub().getQueryProgressMetrics(responseObserver);
-    requestObserver.onNext(
-      GetQueryProgressMetricsRequest.newBuilder()
-        .setQueryId(queryId)
-        .build()
-    );
+    requestObserver = jobTelemetryClient.getAsyncStub().getQueryProgressMetrics(responseObserver);
+    requestObserver.onNext(GetQueryProgressMetricsRequest.newBuilder().setQueryId(queryId).build());
   }
 
   @Override

@@ -27,48 +27,47 @@ import static org.apache.calcite.sql.type.SqlTypeName.TINYINT;
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import static org.apache.calcite.sql.type.SqlTypeUtil.createArrayType;
 
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-
-/**
- * Immutable global variables for RelNodes and RexNodes.
- */
+/** Immutable global variables for RelNodes and RexNodes. */
 public final class ScaffoldingRel {
   public static final RelDataTypeFactory TYPE_FACTORY = JavaTypeFactoryImpl.INSTANCE;
   public static final RelDataType VARCHAR_TYPE = TYPE_FACTORY.createSqlType(VARCHAR);
   public static final RelDataType ANY_TYPE = TYPE_FACTORY.createSqlType(ANY);
   public static final RelDataType VARCHAR_NULL_TYPE =
-    TYPE_FACTORY.createTypeWithNullability(VARCHAR_TYPE, true);
+      TYPE_FACTORY.createTypeWithNullability(VARCHAR_TYPE, true);
   public static final RelDataType CHAR_NULL_TYPE =
-    TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(CHAR), true);
+      TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(CHAR), true);
   public static final RelDataType FLOAT_TYPE = TYPE_FACTORY.createSqlType(FLOAT);
+  public static final RelDataType FLOAT_NULL_TYPE =
+      TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(FLOAT), true);
   public static final RelDataType BIG_INT_TYPE = TYPE_FACTORY.createSqlType(BIGINT);
   public static final RelDataType BIG_INT_NULL_TYPE =
-    TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(BIGINT), true);
+      TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(BIGINT), true);
   public static final RelDataType INT_TYPE = TYPE_FACTORY.createSqlType(INTEGER);
   public static final RelDataType INT_NULL_TYPE =
       TYPE_FACTORY.createTypeWithNullability(INT_TYPE, true);
   public static final RelDataType INT_NULL_ARRAY_NULL_COLUMN_TYPE =
-    TYPE_FACTORY.createTypeWithNullability(
-      TYPE_FACTORY.createArrayType(INT_NULL_TYPE, -1), true);
-  public static final RelDataType INT_ARRAY_COLUMN_TYPE = createArrayType(TYPE_FACTORY,INT_TYPE,false);
-  public static final RelDataType VARCHAR_ARRAY_COLUMN_TYPE = createArrayType(TYPE_FACTORY,VARCHAR_TYPE,false);
+      TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createArrayType(INT_NULL_TYPE, -1), true);
+  public static final RelDataType INT_ARRAY_COLUMN_TYPE =
+      createArrayType(TYPE_FACTORY, INT_TYPE, false);
+  public static final RelDataType VARCHAR_ARRAY_COLUMN_TYPE =
+      createArrayType(TYPE_FACTORY, VARCHAR_TYPE, false);
   public static final RelDataType SMALL_INT_NULL_TYPE =
-    TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(SMALLINT), true);
+      TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(SMALLINT), true);
   public static final RelDataType TINY_INT_NULL_TYPE =
-    TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(TINYINT), true);
-  public static final RelDataType DATE_TYPE =
-    TYPE_FACTORY.createSqlType(SqlTypeName.DATE);
+      TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(TINYINT), true);
+  public static final RelDataType DATE_TYPE = TYPE_FACTORY.createSqlType(SqlTypeName.DATE);
   public static final RelDataType DATE_NULL_TYPE =
       TYPE_FACTORY.createTypeWithNullability(DATE_TYPE, true);
   public static final RelDataType TIMESTAMP_TYPE =
-    TYPE_FACTORY.createSqlType(SqlTypeName.TIMESTAMP);
+      TYPE_FACTORY.createSqlType(SqlTypeName.TIMESTAMP);
   public static final RelDataType TIMESTAMP_NULL_TYPE =
-    TYPE_FACTORY.createTypeWithNullability(TIMESTAMP_TYPE, true);
+      TYPE_FACTORY.createTypeWithNullability(TIMESTAMP_TYPE, true);
   public static final RelDataType BOOLEAN_TYPE = TYPE_FACTORY.createSqlType(BOOLEAN);
   public static final RelDataType BOOLEAN_NULL_TYPE =
       TYPE_FACTORY.createTypeWithNullability(BOOLEAN_TYPE, true);
@@ -76,6 +75,5 @@ public final class ScaffoldingRel {
 
   public static final RexBuilder REX_BUILDER = new RexBuilder(TYPE_FACTORY);
 
-  private ScaffoldingRel() {
-  }
+  private ScaffoldingRel() {}
 }

@@ -20,15 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
-import java.util.List;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.GenericType;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.server.BaseTestServer;
@@ -38,10 +29,14 @@ import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
+import java.util.List;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Test catalog API with Unlimited splits
- */
+/** Test catalog API with Unlimited splits */
 public class TestTableLocationWithUnlimitedSplits extends BaseTestServer {
   private static final String CATALOG_PATH = "/catalog/";
 
@@ -61,14 +56,13 @@ public class TestTableLocationWithUnlimitedSplits extends BaseTestServer {
     source.setMetadataPolicy(new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY));
 
     // create the source
-    source = expectSuccess(
-        getBuilder(getPublicAPI(3)
-            .path(CATALOG_PATH))
-            .buildPost(Entity.json(source)),
-        new GenericType<Source>() {}
-    );
+    source =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(source)),
+            new GenericType<Source>() {});
 
-    assertFalse("check auto-promotion is disabled", source.getMetadataPolicy().isAutoPromoteDatasets());
+    assertFalse(
+        "check auto-promotion is disabled", source.getMetadataPolicy().isAutoPromoteDatasets());
   }
 
   @After
@@ -77,7 +71,17 @@ public class TestTableLocationWithUnlimitedSplits extends BaseTestServer {
   }
 
   private Dataset createPDS(List<String> path, FileFormat format) {
-    return new Dataset(null, Dataset.DatasetType.PHYSICAL_DATASET, path, null, null, null, null, null, null, format,
+    return new Dataset(
+        null,
+        Dataset.DatasetType.PHYSICAL_DATASET,
+        path,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        format,
         null);
   }
 
@@ -88,13 +92,11 @@ public class TestTableLocationWithUnlimitedSplits extends BaseTestServer {
     assertNotNull(id, "Failed to find singlefile_parquet_dir directory");
 
     doc("load the singlefile_parquet_dir dir");
-    Folder folder = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(PathUtils.encodeURIComponent(id))
-      ).buildGet(),
-      new GenericType<Folder>() {}
-    );
+    Folder folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+                .buildGet(),
+            new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 1);
 
     String fileId = null;
@@ -102,8 +104,8 @@ public class TestTableLocationWithUnlimitedSplits extends BaseTestServer {
     for (CatalogItem item : folder.getChildren()) {
       List<String> path = item.getPath();
       // get the numbers.json file
-      if (item.getType() == CatalogItem.CatalogItemType.FILE &&
-        path.get(path.size() - 1).equals("0_0_0.parquet")) {
+      if (item.getType() == CatalogItem.CatalogItemType.FILE
+          && path.get(path.size() - 1).equals("0_0_0.parquet")) {
         fileId = item.getId();
         break;
       }
@@ -112,44 +114,37 @@ public class TestTableLocationWithUnlimitedSplits extends BaseTestServer {
     assertNotNull(fileId, "Failed to find 0_0_0.parquet file");
 
     doc("load the file");
-    final File file = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(PathUtils.encodeURIComponent(fileId))
-      ).buildGet(),
-      new GenericType<File>() {}
-    );
+    final File file =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(fileId)))
+                .buildGet(),
+            new GenericType<File>() {});
 
     doc("promote the file (dac/backend/src/test/resources/singlefile_parquet_dir/0_0_0.parquet)");
-    Dataset dataset = createPDS(CatalogServiceHelper.getPathFromInternalId(file.getId()), new ParquetFileConfig());
+    Dataset dataset =
+        createPDS(
+            CatalogServiceHelper.getPathFromInternalId(file.getId()), new ParquetFileConfig());
 
-    dataset = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(PathUtils.encodeURIComponent(fileId)))
-        .buildPost(Entity.json(dataset)
-        ),
-      new GenericType<Dataset>() {}
-    );
+    dataset =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(fileId)))
+                .buildPost(Entity.json(dataset)),
+            new GenericType<Dataset>() {});
 
     doc("load the dataset");
-    dataset = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(dataset.getId())
-      ).buildGet(),
-      new GenericType<Dataset>() {}
-    );
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            new GenericType<Dataset>() {});
 
-    assertEquals(SOURCE_PATH + "singlefile_parquet_dir/0_0_0.parquet", dataset.getFormat().getLocation());
+    assertEquals(
+        SOURCE_PATH + "singlefile_parquet_dir/0_0_0.parquet", dataset.getFormat().getLocation());
 
     doc("unpromote file");
     expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(dataset.getId())
-      ).buildDelete()
-    );
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
   }
 
   @Test
@@ -159,41 +154,29 @@ public class TestTableLocationWithUnlimitedSplits extends BaseTestServer {
     assertNotNull(id, "Failed to find singlefile_parquet_dir directory");
 
     doc("load singlefile_parquet_dir dir");
-    Folder folder = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(PathUtils.encodeURIComponent(id))
-      ).buildGet(),
-      new GenericType<Folder>() {}
-    );
+    Folder folder =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+                .buildGet(),
+            new GenericType<Folder>() {});
 
     Dataset dataset = createPDS(folder.getPath(), new ParquetFileConfig());
-    dataset = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(PathUtils.encodeURIComponent(id))
-      ).buildPost(Entity.json(dataset)),
-      new GenericType<Dataset>() {}
-    );
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
+                .buildPost(Entity.json(dataset)),
+            new GenericType<Dataset>() {});
 
     doc("load the promoted dataset");
-    dataset = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(dataset.getId())
-      ).buildGet(),
-      new GenericType<Dataset>() {}
-    );
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            new GenericType<Dataset>() {});
 
     assertEquals(SOURCE_PATH + "singlefile_parquet_dir", dataset.getFormat().getLocation());
 
     doc("unpromote the folder");
     expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(dataset.getId())
-      ).buildDelete()
-    );
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
   }
-
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Filter;
@@ -25,11 +26,7 @@ import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import com.dremio.exec.planner.common.MoreRelOptUtil;
-
-/**
- * TODO: add class constructor arguments for Calcite and move back there.
- */
+/** TODO: add class constructor arguments for Calcite and move back there. */
 public class FilterMergeCrule extends RelOptRule {
 
   public FilterMergeCrule(Class<? extends Filter> clazz, RelBuilderFactory relBuilderFactory) {
@@ -48,7 +45,8 @@ public class FilterMergeCrule extends RelOptRule {
     RexProgram bottomProgram = createProgram(bottomFilter);
     RexProgram topProgram = createProgram(topFilter);
 
-    RexProgram mergedProgram = RexProgramBuilder.mergePrograms(topProgram, bottomProgram, rexBuilder);
+    RexProgram mergedProgram =
+        RexProgramBuilder.mergePrograms(topProgram, bottomProgram, rexBuilder);
 
     RexNode newCondition = mergedProgram.expandLocalRef(mergedProgram.getCondition());
     newCondition = newCondition.accept(new MoreRelOptUtil.RexLiteralCanonicalizer(rexBuilder));
@@ -62,16 +60,14 @@ public class FilterMergeCrule extends RelOptRule {
   /**
    * Creates a RexProgram corresponding to a LogicalFilter
    *
-   * @param filterRel
-   *          the LogicalFilter
+   * @param filterRel the LogicalFilter
    * @return created RexProgram
    */
   private RexProgram createProgram(Filter filterRel) {
-    RexProgramBuilder programBuilder = new RexProgramBuilder(filterRel.getRowType(),
-        filterRel.getCluster().getRexBuilder());
+    RexProgramBuilder programBuilder =
+        new RexProgramBuilder(filterRel.getRowType(), filterRel.getCluster().getRexBuilder());
     programBuilder.addIdentity();
     programBuilder.addCondition(filterRel.getCondition());
     return programBuilder.getProgram();
   }
-
 }

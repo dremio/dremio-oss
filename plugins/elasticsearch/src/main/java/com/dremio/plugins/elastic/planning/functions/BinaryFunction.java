@@ -15,31 +15,27 @@
  */
 package com.dremio.plugins.elastic.planning.functions;
 
-import org.apache.calcite.rex.RexCall;
-
 import com.dremio.plugins.elastic.planning.rules.PredicateAnalyzer;
 import com.google.common.collect.Iterables;
-
+import org.apache.calcite.rex.RexCall;
 
 class BinaryFunction extends ElasticFunction {
 
-  public BinaryFunction(String commonName){
+  public BinaryFunction(String commonName) {
     super(commonName, commonName);
   }
 
-  public BinaryFunction(String dremioName, String elasticName){
+  public BinaryFunction(String dremioName, String elasticName) {
     super(dremioName, elasticName);
   }
 
   /**
-   * Convert a Rex Call for a binary operation into a groovy script.
-   * Note that these expressions can have more than two inputs and represent
-   * a chain of binary operations.
+   * Convert a Rex Call for a binary operation into a groovy script. Note that these expressions can
+   * have more than two inputs and represent a chain of binary operations.
    *
-   * Example:
-   * a = 5 OR b = 10 OR c = 20
+   * <p>Example: a = 5 OR b = 10 OR c = 20
    *
-   * Can be represented as a single RexCall for OR with three child expressions.
+   * <p>Can be represented as a single RexCall for OR with three child expressions.
    *
    * @param groovyOp the string of the groovy operation that this SQL function maps to
    * @param call the function to convert
@@ -56,5 +52,4 @@ class BinaryFunction extends ElasticFunction {
     String script = String.format("( %s %s %s )", op1.getScript(), elasticName, op2.getScript());
     return new FunctionRender(script, Iterables.concat(op1.getNulls(), op2.getNulls()));
   }
-
 }

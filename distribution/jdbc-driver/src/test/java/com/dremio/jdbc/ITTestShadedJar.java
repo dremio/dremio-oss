@@ -18,6 +18,7 @@ package com.dremio.jdbc;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.common.SuppressForbidden;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
@@ -32,7 +33,6 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -40,10 +40,9 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
-import com.dremio.common.SuppressForbidden;
-
 public class ITTestShadedJar {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ITTestShadedJar.class);
+  private static final org.slf4j.Logger LOGGER =
+      org.slf4j.LoggerFactory.getLogger(ITTestShadedJar.class);
 
   private static NodeClassLoader nodeLoader;
   private static ClassLoader rootClassLoader;
@@ -51,15 +50,15 @@ public class ITTestShadedJar {
 
   private static URL getJdbcUrl() throws MalformedURLException {
     return new URL(
-        String.format("%s../../target/dremio-jdbc-driver-%s.jar",
+        String.format(
+            "%s../../target/dremio-jdbc-driver-%s.jar",
             ClassLoader.getSystemClassLoader().getResource("").toString(),
-            System.getProperty("project.version")
-            ));
-
+            System.getProperty("project.version")));
   }
 
   @ClassRule
-  public static final TestRule CLASS_TIMEOUT = Timeout.builder().withTimeout(2, TimeUnit.MINUTES).build();
+  public static final TestRule CLASS_TIMEOUT =
+      Timeout.builder().withTimeout(2, TimeUnit.MINUTES).build();
 
   private static URLClassLoader classLoader;
   private static java.sql.Driver driver;
@@ -68,10 +67,11 @@ public class ITTestShadedJar {
   public static void findDriver() throws ReflectiveOperationException, MalformedURLException {
     LOGGER.info("java.class.path: {}", System.getProperty("java.class.path"));
 
-    classLoader = new URLClassLoader(new URL[] { getJdbcUrl() });
+    classLoader = new URLClassLoader(new URL[] {getJdbcUrl()});
 
-    Class<? extends java.sql.Driver> clazz = classLoader.loadClass("com.dremio.jdbc.Driver").asSubclass(java.sql.Driver.class);
-    driver = clazz.newInstance();
+    Class<? extends java.sql.Driver> clazz =
+        classLoader.loadClass("com.dremio.jdbc.Driver").asSubclass(java.sql.Driver.class);
+    driver = clazz.getDeclaredConstructor().newInstance();
   }
 
   @AfterClass
@@ -79,17 +79,20 @@ public class ITTestShadedJar {
     classLoader.close();
   }
 
-
   /**
-   * Helper method which creates a {@link Connection} using the JDBC driver. It is caller's responsibility to close
-   * the connection
+   * Helper method which creates a {@link Connection} using the JDBC driver. It is caller's
+   * responsibility to close the connection
+   *
    * @return
    */
   private Connection createConnection() throws Exception {
     // print class path for debugging
-    final Properties props = new Properties() {{
-      put("user", "anonymous");
-    }};
+    final Properties props =
+        new Properties() {
+          {
+            put("user", "anonymous");
+          }
+        };
     return driver.connect(jdbcURL, props);
   }
 
@@ -121,19 +124,21 @@ public class ITTestShadedJar {
   @Test
   public void executeFaultyQuery() throws Exception {
     try (Connection c = createConnection();
-      Statement stmt = c.createStatement()) {
-      // Only catching exception during executeQuery (and not while trying to connect/create a statement)
+        Statement stmt = c.createStatement()) {
+      // Only catching exception during executeQuery (and not while trying to connect/create a
+      // statement)
       assertThatThrownBy(() -> stmt.executeQuery("SELECT INVALID QUERY"))
-        .isInstanceOf(SQLException.class)
-        .hasMessageContaining("Column 'INVALID' not found in any table");
+          .isInstanceOf(SQLException.class)
+          .hasMessageContaining("Column 'INVALID' not found in any table");
     }
   }
 
   private static void printQuery(Connection c, String query) throws SQLException {
-    try (Statement s = c.createStatement(); ResultSet result = s.executeQuery(query)) {
+    try (Statement s = c.createStatement();
+        ResultSet result = s.executeQuery(query)) {
       while (result.next()) {
         final int columnCount = result.getMetaData().getColumnCount();
-        for(int i = 1; i < columnCount+1; i++){
+        for (int i = 1; i < columnCount + 1; i++) {
           System.out.print(result.getObject(i));
           System.out.print('\t');
         }
@@ -142,14 +147,12 @@ public class ITTestShadedJar {
     }
   }
 
-
-
   @BeforeClass
   public static void setupDefaultTestCluster() throws Exception {
     nodeLoader = new NodeClassLoader();
     rootClassLoader = Thread.currentThread().getContextClassLoader();
     try {
-    runWithLoader("NodeStartThread", nodeLoader);
+      runWithLoader("NodeStartThread", nodeLoader);
     } catch (Exception e) {
       printClassesLoaded("root", rootClassLoader);
       throw e;
@@ -228,11 +231,11 @@ public class ITTestShadedJar {
       // loader.loadClass("com.dremio.exec.exception.SchemaChangeException");
 
       // execute a single query to make sure the node is fully up
-      clazz.getMethod("testNoResult", String.class, new Object[] {}.getClass())
+      clazz
+          .getMethod("testNoResult", String.class, new Object[] {}.getClass())
           .invoke(null, "select * from (VALUES 1)", new Object[] {});
       jdbcURL = (String) clazz.getMethod("getJDBCURL").invoke(null);
     }
-
   }
 
   public static class NodeStopThread extends AbstractLoaderThread {
@@ -247,5 +250,4 @@ public class ITTestShadedJar {
       clazz.getMethod("closeClient").invoke(null);
     }
   }
-
 }

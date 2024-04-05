@@ -15,39 +15,48 @@
  */
 package com.dremio.dac.api;
 
-import java.util.List;
-
-import org.apache.arrow.vector.types.pojo.Field;
-
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.file.FileFormat;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.arrow.vector.types.pojo.Field;
 
-/**
- * Dataset model
- */
-@JsonIgnoreProperties(value={ "fields" }, allowGetters=true, ignoreUnknown = true)
+/** Dataset model */
+@JsonIgnoreProperties(
+    value = {"fields"},
+    allowGetters = true,
+    ignoreUnknown = true)
 public class Dataset implements CatalogEntity {
-  /**
-   * Dateset Type
-   */
+  /** Dateset Type */
   public enum DatasetType {
-    VIRTUAL_DATASET, PHYSICAL_DATASET
+    VIRTUAL_DATASET,
+    PHYSICAL_DATASET
   };
 
   private final String id;
   private final DatasetType type;
   private final List<String> path;
+
   @JsonSerialize(using = DatasetFieldSerializer.class)
   private List<Field> fields;
-  @JsonISODateTime
-  private final Long createdAt;
+
+  @JsonISODateTime private final Long createdAt;
   private final String tag;
   private final RefreshSettings accelerationRefreshPolicy;
+
+  /** Null indicates unknown. */
+  @JsonProperty private Boolean isMetadataExpired;
+
+  /** Null indicates unknown, not serialized to JSON */
+  @JsonProperty("lastMetadataRefreshAt")
+  @JsonISODateTime
+  private Long lastMetadataRefreshAtMillis;
 
   // for VDS
   private final String sql;
@@ -60,17 +69,17 @@ public class Dataset implements CatalogEntity {
   private final FileFormat format;
 
   public Dataset(
-    String id,
-    DatasetType type,
-    List<String> path,
-    List<Field> fields,
-    Long createdAt,
-    String tag,
-    RefreshSettings accelerationRefreshPolicy,
-    String sql,
-    List<String> sqlContext,
-    FileFormat format,
-    Boolean approximateStatisticsAllowed) {
+      String id,
+      DatasetType type,
+      List<String> path,
+      List<Field> fields,
+      Long createdAt,
+      String tag,
+      RefreshSettings accelerationRefreshPolicy,
+      String sql,
+      List<String> sqlContext,
+      FileFormat format,
+      Boolean approximateStatisticsAllowed) {
     this.id = id;
     this.type = type;
     this.path = path;
@@ -85,19 +94,40 @@ public class Dataset implements CatalogEntity {
   }
 
   @JsonCreator
-  public Dataset(
-    @JsonProperty("id") String id,
-    @JsonProperty("type") DatasetType type,
-    @JsonProperty("path") List<String> path,
-    @JsonProperty("createdAt") Long createdAt,
-    @JsonProperty("tag") String tag,
-    @JsonProperty("accelerationRefreshPolicy") RefreshSettings accelerationRefreshPolicy,
-    @JsonProperty("sql") String sql,
-    @JsonProperty("sqlContext") List<String> sqlContext,
-    @JsonProperty("format") FileFormat format,
-    @JsonProperty("approximateStatisticsAllowed") Boolean approximateStatisticsAllowed) {
+  private Dataset(
+      @JsonProperty("id") String id,
+      @JsonProperty("type") DatasetType type,
+      @JsonProperty("path") List<String> path,
+      @JsonProperty("createdAt") Long createdAt,
+      @JsonProperty("tag") String tag,
+      @JsonProperty("accelerationRefreshPolicy") RefreshSettings accelerationRefreshPolicy,
+      @JsonProperty("sql") String sql,
+      @JsonProperty("sqlContext") List<String> sqlContext,
+      @JsonProperty("format") FileFormat format,
+      @JsonProperty("approximateStatisticsAllowed") Boolean approximateStatisticsAllowed) {
     // we don't want to deserialize fields ever since they are immutable anyways
-    this(id, type, path, null, createdAt, tag, accelerationRefreshPolicy, sql, sqlContext, format, approximateStatisticsAllowed);
+    this(
+        id,
+        type,
+        path,
+        null,
+        createdAt,
+        tag,
+        accelerationRefreshPolicy,
+        sql,
+        sqlContext,
+        format,
+        approximateStatisticsAllowed);
+  }
+
+  /**
+   * Table metadata could be out-of-date, not valid refers to that state. See {@link
+   * com.dremio.exec.catalog.DatasetMetadataState}.
+   */
+  public void setMetadataExpired(
+      boolean isMetadataExpired, @Nullable Long lastMetadataRefreshAtMillis) {
+    this.isMetadataExpired = isMetadataExpired;
+    this.lastMetadataRefreshAtMillis = lastMetadataRefreshAtMillis;
   }
 
   @Override
@@ -145,9 +175,17 @@ public class Dataset implements CatalogEntity {
     return approximateStatisticsAllowed;
   }
 
-  /**
-   * Dataset acceleration refresh settings
-   */
+  /** Whether metadata is "valid", i.e. up-to-date with regards to refresh schedule settings. */
+  public Boolean getIsMetadataExpired() {
+    return isMetadataExpired;
+  }
+
+  /** Optional time in millis for when metadata validity was last run. */
+  public Long getLastMetadataRefreshAtMillis() {
+    return lastMetadataRefreshAtMillis;
+  }
+
+  /** Dataset acceleration refresh settings */
   public static class RefreshSettings {
     private final String refreshField;
     private final Long refreshPeriodMs;
@@ -155,18 +193,23 @@ public class Dataset implements CatalogEntity {
     private final RefreshMethod method;
     private final Boolean neverExpire;
     private final Boolean neverRefresh;
+    private final RefreshPolicyType activePolicyType;
+    private final String refreshSchedule;
 
     @JsonCreator
     public RefreshSettings(
-      @JsonProperty("refreshField") String refreshField,
-      @JsonProperty("refreshPeriodMs") Long refreshPeriodMs,
-      @JsonProperty("gracePeriodMs") Long gracePeriodMs,
-      @JsonProperty("method") RefreshMethod method,
-      @JsonProperty("neverExpire") Boolean neverExpire,
-      @JsonProperty("neverRefresh") Boolean neverRefresh
-    ) {
+        @JsonProperty("activePolicyType") RefreshPolicyType activePolicyType,
+        @JsonProperty("refreshField") String refreshField,
+        @JsonProperty("refreshPeriodMs") Long refreshPeriodMs,
+        @JsonProperty("refreshSchedule") String refreshSchedule,
+        @JsonProperty("gracePeriodMs") Long gracePeriodMs,
+        @JsonProperty("method") RefreshMethod method,
+        @JsonProperty("neverExpire") Boolean neverExpire,
+        @JsonProperty("neverRefresh") Boolean neverRefresh) {
+      this.activePolicyType = activePolicyType;
       this.refreshField = refreshField;
       this.refreshPeriodMs = refreshPeriodMs;
+      this.refreshSchedule = refreshSchedule;
       this.gracePeriodMs = gracePeriodMs;
       this.method = method;
       this.neverExpire = neverExpire;
@@ -174,12 +217,18 @@ public class Dataset implements CatalogEntity {
     }
 
     public RefreshSettings(AccelerationSettings settings) {
+      activePolicyType = settings.getRefreshPolicyType();
       refreshField = settings.getRefreshField();
       method = settings.getMethod();
       refreshPeriodMs = settings.getRefreshPeriod();
+      refreshSchedule = settings.getRefreshSchedule();
       gracePeriodMs = settings.getGracePeriod();
       neverExpire = settings.getNeverExpire();
       neverRefresh = settings.getNeverRefresh();
+    }
+
+    public RefreshPolicyType getActivePolicyType() {
+      return activePolicyType;
     }
 
     public String getRefreshField() {
@@ -188,6 +237,10 @@ public class Dataset implements CatalogEntity {
 
     public Long getRefreshPeriodMs() {
       return refreshPeriodMs;
+    }
+
+    public String getRefreshSchedule() {
+      return refreshSchedule;
     }
 
     public Long getGracePeriodMs() {
@@ -209,7 +262,9 @@ public class Dataset implements CatalogEntity {
     public AccelerationSettings toAccelerationSettings() {
       AccelerationSettings settings = new AccelerationSettings();
 
+      settings.setRefreshPolicyType(getActivePolicyType());
       settings.setRefreshPeriod(getRefreshPeriodMs());
+      settings.setRefreshSchedule(getRefreshSchedule());
       settings.setGracePeriod(getGracePeriodMs());
       settings.setMethod(getMethod());
       settings.setRefreshField(getRefreshField());

@@ -17,6 +17,10 @@ package com.dremio.dac.resource;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.server.admin.profile.ProfilesExporter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -25,14 +29,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.server.admin.profile.ProfilesExporter;
-import com.dremio.datastore.api.LegacyKVStoreProvider;
-
-/**
- * Export profiles resource
- */
+/** Export profiles resource */
 @RestResource
 @Secured
 @RolesAllowed({"admin"})
@@ -49,8 +46,7 @@ public class ExportProfilesResource {
   }
 
   @POST
-  public ExportProfilesStats exportProfiles(ExportProfilesParams exportParams)
-    throws Exception {
+  public ExportProfilesStats exportProfiles(ExportProfilesParams exportParams) throws Exception {
     final LegacyKVStoreProvider kvStoreProvider = kvStoreProviderProvider.get();
     ProfilesExporter exporter = getExporter(exportParams);
 

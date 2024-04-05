@@ -17,11 +17,10 @@ package com.dremio.concurrent;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Ensures no more than a single copy of this runnable is run at any one time.
- */
+/** Ensures no more than a single copy of this runnable is run at any one time. */
 public class SingletonRunnable implements Runnable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingletonRunnable.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SingletonRunnable.class);
 
   private final Runnable delegate;
   private final AtomicBoolean running = new AtomicBoolean(false);
@@ -32,7 +31,7 @@ public class SingletonRunnable implements Runnable {
 
   @Override
   public void run() {
-    if(!running.compareAndSet(false, true)) {
+    if (!running.compareAndSet(false, true)) {
       logger.info("Task {} already running, skipping secondary execution.", delegate.toString());
       return;
     }
@@ -52,5 +51,4 @@ public class SingletonRunnable implements Runnable {
   public static Runnable of(final Runnable delegate, final String name) {
     return new SingletonRunnable(delegate);
   }
-
 }

@@ -16,64 +16,53 @@
 
 package com.dremio.exec.expr.fn.impl;
 
-import javax.inject.Inject;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
 public class Soundex {
   /**
    * Returns the soundex code for a given string based on Oracle implement
-   * <p>
-   * The soundex function evaluates expression and returns the most significant letter in
-   * the input string followed by a phonetic code. Characters that are not alphabetic are
-   * ignored. If expression evaluates to the null value, null is returned.
-   * <p>
-   * The soundex algorithm works with the following steps:
-   * 1. Retain the first letter of the string and drop all other occurrences of a, e, i,
-   *  o, u, y, h, w. (let's call them special letters)
-   * 2. Replace consonants with digits as follows (after the first letter):
-   *  b, f, p, v → 1
-   *  c, g, j, k, q, s, x, z → 2
-   *  d, t → 3
-   *  l → 4
-   *  m, n → 5
-   *  r → 6
-   * 3. If two or more letters with the same number were adjacent in the original name
-   *  (before step 1), then omit all but the first. This rule also applies to the first
-   *  letter.
-   * 4. If the string have too few letters in the word that you can't assign three
-   *  numbers, append with zeros until there are three numbers. If you have four or more
-   *  numbers, retain only the first three.
+   *
+   * <p>The soundex function evaluates expression and returns the most significant letter in the
+   * input string followed by a phonetic code. Characters that are not alphabetic are ignored. If
+   * expression evaluates to the null value, null is returned.
+   *
+   * <p>The soundex algorithm works with the following steps: 1. Retain the first letter of the
+   * string and drop all other occurrences of a, e, i, o, u, y, h, w. (let's call them special
+   * letters) 2. Replace consonants with digits as follows (after the first letter): b, f, p, v → 1
+   * c, g, j, k, q, s, x, z → 2 d, t → 3 l → 4 m, n → 5 r → 6 3. If two or more letters with the
+   * same number were adjacent in the original name (before step 1), then omit all but the first.
+   * This rule also applies to the first letter. 4. If the string have too few letters in the word
+   * that you can't assign three numbers, append with zeros until there are three numbers. If you
+   * have four or more numbers, retain only the first three.
    */
-  @FunctionTemplate(name = "soundex", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      name = "soundex",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class SoundexFunction implements SimpleFunction {
-    @Param
-    NullableVarCharHolder in;
-    @Output
-    NullableVarCharHolder out;
-    @Inject
-    ArrowBuf buffer;
-    @Inject
-    FunctionErrorContext errCtx;
+    @Param NullableVarCharHolder in;
+    @Output NullableVarCharHolder out;
+    @Inject ArrowBuf buffer;
+    @Inject FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
       // Array that maps each letter from the alphabet to its corresponding number for the
       // soundex algorithm. ABCDEFGHIJKLMNOPQRSTUVWXYZ -> 01230120022455012623010202
-      final byte[] mappings = {'0', '1', '2', '3', '0', '1', '2', '0', '0',
-        '2', '2', '4', '5', '5', '0', '1', '2', '6',
-        '2', '3', '0', '1', '0', '2', '0', '2'};
+      final byte[] mappings = {
+        '0', '1', '2', '3', '0', '1', '2', '0', '0', '2', '2', '4', '5', '5', '0', '1', '2', '6',
+        '2', '3', '0', '1', '0', '2', '0', '2'
+      };
 
       final byte[] outBytea;
       if (in.end <= in.start || in.isSet == 0) {

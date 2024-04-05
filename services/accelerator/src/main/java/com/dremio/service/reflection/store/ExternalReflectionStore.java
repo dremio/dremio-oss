@@ -21,10 +21,6 @@ import static com.dremio.service.reflection.store.ReflectionIndexKeys.REFLECTION
 import static com.dremio.service.reflection.store.ReflectionIndexKeys.REFLECTION_NAME;
 import static com.dremio.service.reflection.store.ReflectionIndexKeys.TARGET_DATASET_ID;
 
-import java.util.Map.Entry;
-
-import javax.inject.Provider;
-
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
@@ -41,22 +37,24 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
+import java.util.Map.Entry;
+import javax.inject.Provider;
 
-/**
- * store for external reflections
- */
+/** store for external reflections */
 public class ExternalReflectionStore {
   private static final String TABLE_NAME = "external_reflection_store";
   private final Supplier<LegacyIndexedStore<ReflectionId, ExternalReflection>> store;
 
   public ExternalReflectionStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
-    this.store = Suppliers.memoize(new Supplier<LegacyIndexedStore<ReflectionId, ExternalReflection>>() {
-      @Override
-      public LegacyIndexedStore<ReflectionId, ExternalReflection> get() {
-        return provider.get().getStore(StoreCreator.class);
-      }
-    });
+    this.store =
+        Suppliers.memoize(
+            new Supplier<LegacyIndexedStore<ReflectionId, ExternalReflection>>() {
+              @Override
+              public LegacyIndexedStore<ReflectionId, ExternalReflection> get() {
+                return provider.get().getStore(StoreCreator.class);
+              }
+            });
   }
 
   public void addExternalReflection(ExternalReflection externalReflection) {
@@ -69,34 +67,34 @@ public class ExternalReflectionStore {
 
   public Iterable<ExternalReflection> findByDatasetId(String datasetId) {
     return Iterables.transform(
-      store.get()
-        .find(new LegacyFindByCondition()
-          .setCondition(
-            newTermQuery(DATASET_ID, datasetId)
-          )
-        ),
-      new Function<Entry<ReflectionId, ExternalReflection>, ExternalReflection>() {
-      @Override
-      public ExternalReflection apply(Entry<ReflectionId, ExternalReflection> entry) {
-        return entry.getValue();
-      }
-    });
+        store
+            .get()
+            .find(new LegacyFindByCondition().setCondition(newTermQuery(DATASET_ID, datasetId))),
+        new Function<Entry<ReflectionId, ExternalReflection>, ExternalReflection>() {
+          @Override
+          public ExternalReflection apply(Entry<ReflectionId, ExternalReflection> entry) {
+            return entry.getValue();
+          }
+        });
   }
 
   public Iterable<ExternalReflection> getExternalReflections() {
-    return Iterables.transform(store.get().find(), new Function<Entry<ReflectionId,ExternalReflection>, ExternalReflection>() {
-      @Override
-      public ExternalReflection apply(Entry<ReflectionId, ExternalReflection> entry) {
-        return entry.getValue();
-      }
-    });
+    return Iterables.transform(
+        store.get().find(),
+        new Function<Entry<ReflectionId, ExternalReflection>, ExternalReflection>() {
+          @Override
+          public ExternalReflection apply(Entry<ReflectionId, ExternalReflection> entry) {
+            return entry.getValue();
+          }
+        });
   }
 
   public void deleteExternalReflection(String id) {
     store.get().delete(new ReflectionId(id));
   }
 
-  private static final class Converter implements DocumentConverter<ReflectionId,ExternalReflection> {
+  private static final class Converter
+      implements DocumentConverter<ReflectionId, ExternalReflection> {
     private Integer version = 0;
 
     @Override
@@ -113,22 +111,24 @@ public class ExternalReflectionStore {
     }
   }
 
-  /**
-   * {@link ExternalReflectionStore} creator
-   */
-  public static final class StoreCreator implements LegacyIndexedStoreCreationFunction<ReflectionId, ExternalReflection> {
+  /** {@link ExternalReflectionStore} creator */
+  public static final class StoreCreator
+      implements LegacyIndexedStoreCreationFunction<ReflectionId, ExternalReflection> {
     @Override
-    public LegacyIndexedStore<ReflectionId, ExternalReflection> build(LegacyStoreBuildingFactory factory) {
-      return factory.<ReflectionId, ExternalReflection>newStore()
-        .name(TABLE_NAME)
-        .keyFormat(Format.ofProtostuff(ReflectionId.class))
-        .valueFormat(Format.ofProtostuff(ExternalReflection.class))
-        .versionExtractor(ExternalReflectionVersionExtractor.class)
-        .buildIndexed(new Converter());
+    public LegacyIndexedStore<ReflectionId, ExternalReflection> build(
+        LegacyStoreBuildingFactory factory) {
+      return factory
+          .<ReflectionId, ExternalReflection>newStore()
+          .name(TABLE_NAME)
+          .keyFormat(Format.ofProtostuff(ReflectionId.class))
+          .valueFormat(Format.ofProtostuff(ExternalReflection.class))
+          .versionExtractor(ExternalReflectionVersionExtractor.class)
+          .buildIndexed(new Converter());
     }
   }
 
-  private static final class ExternalReflectionVersionExtractor implements VersionExtractor<ExternalReflection> {
+  private static final class ExternalReflectionVersionExtractor
+      implements VersionExtractor<ExternalReflection> {
     @Override
     public String getTag(ExternalReflection value) {
       return value.getTag();

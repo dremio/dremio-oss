@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.BaseTestQuery;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-
-/**
- * Test OPTIMIZE TABLE scenarios
- */
+/** Test OPTIMIZE TABLE scenarios */
 public class ITOptimizeTable extends BaseTestQuery {
-  // Defining SOURCE such that you can easily copy and paste the same test across other test variations
+  // Defining SOURCE such that you can easily copy and paste the same test across other test
+  // variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
   @Test

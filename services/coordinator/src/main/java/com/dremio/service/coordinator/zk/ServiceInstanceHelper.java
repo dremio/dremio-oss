@@ -15,19 +15,20 @@
  */
 package com.dremio.service.coordinator.zk;
 
+import com.dremio.exec.proto.CoordinationProtos.DremioServiceInstance;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import org.apache.curator.x.discovery.ServiceInstance;
 import org.apache.curator.x.discovery.ServiceInstanceBuilder;
 import org.apache.curator.x.discovery.details.InstanceSerializer;
 
-import com.dremio.exec.proto.CoordinationProtos.DremioServiceInstance;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
 final class ServiceInstanceHelper {
   private ServiceInstanceHelper() {}
 
-  public static final InstanceSerializer<NodeEndpoint> SERIALIZER = new DremioServiceInstanceSerializer();
+  public static final InstanceSerializer<NodeEndpoint> SERIALIZER =
+      new DremioServiceInstanceSerializer();
 
-  private static final class DremioServiceInstanceSerializer implements InstanceSerializer<NodeEndpoint>{
+  private static final class DremioServiceInstanceSerializer
+      implements InstanceSerializer<NodeEndpoint> {
 
     @Override
     public byte[] serialize(ServiceInstance<NodeEndpoint> i) throws Exception {
@@ -49,6 +50,5 @@ final class ServiceInstanceHelper {
       b.payload(i.getEndpoint());
       return b.build();
     }
-
   }
 }

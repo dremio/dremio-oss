@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -15,21 +16,54 @@
     limitations under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-services-nessie-storage-upgrade</artifactId>
   <packaging>jar</packaging>
   <name>Services - Nessie Storage Upgrade</name>
 
+  <properties>
+    <!-- last nessie version with the old storage model -->
+    <nessie.oldstorage.version>0.74.0</nessie.oldstorage.version>
+  </properties>
+
   <dependencies>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-server-store</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-versioned-persist-adapter</artifactId>
+      <version>${nessie.oldstorage.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-versioned-persist-serialize</artifactId>
+      <version>${nessie.oldstorage.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-versioned-persist-store</artifactId>
+      <version>${nessie.oldstorage.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-versioned-persist-non-transactional</artifactId>
+      <version>${nessie.oldstorage.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-dac-daemon</artifactId>

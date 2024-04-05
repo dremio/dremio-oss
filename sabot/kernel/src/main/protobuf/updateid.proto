@@ -25,6 +25,7 @@ message UpdateId {
     MTIME = 1;
     FIELD = 2;
     SNAPSHOT = 3;
+    MULTI_DATASET = 4;
   }
   optional common.MinorType type = 1;
   optional int32 int_update_id = 2;
@@ -33,4 +34,12 @@ message UpdateId {
   optional double double_update_id = 5;
   optional float float_update_id = 6;
   optional IdType update_id_type = 7;
+  optional MultiDatasetUpdateId multi_dataset_update_id = 8;
+}
+message MultiDatasetUpdateId {
+  repeated SingleDatasetUpdateId single_dataset_update_id = 1;
+}
+message SingleDatasetUpdateId {
+  optional string dataset_id = 1;
+  optional string snapshot_id = 2;
 }

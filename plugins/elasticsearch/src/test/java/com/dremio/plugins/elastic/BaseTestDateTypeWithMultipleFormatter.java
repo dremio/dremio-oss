@@ -17,125 +17,124 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.sql.Timestamp;
-
 import org.joda.time.LocalDateTime;
 
-import com.google.common.collect.ImmutableMap;
-
-/**
- * Utilities to preopulate various dates and times.
- */
+/** Utilities to preopulate various dates and times. */
 public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery {
 
   protected static final long DATE_TIME_LONG = 1974231927;
   protected static final String DATE_TIME_STRING = "1974231927";
   protected static final String DATE_TIME_STRING_2 = "1970-01-23T20:23:51.927";
-  protected static final LocalDateTime DATE_TIME_RESULT = new LocalDateTime(Timestamp.valueOf("1970-01-23 20:23:51.927"));
+  protected static final LocalDateTime DATE_TIME_RESULT =
+      new LocalDateTime(Timestamp.valueOf("1970-01-23 20:23:51.927"));
 
-  /**
-   * Testing date formats:  "basic_date||year_month||year"
-   */
+  /** Testing date formats: "basic_date||year_month||year" */
   protected void populateDateFormatter() throws IOException {
-    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "basic_date||year_month||year"), new Object[][]{
-        {"20161209"},
-        {"20171011"},
-        {"2017-01"},
-        {"2017"}
-      })
-    };
+    final ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "field",
+              DATE,
+              ImmutableMap.of("format", "basic_date||year_month||year"),
+              new Object[][] {{"20161209"}, {"20171011"}, {"2017-01"}, {"2017"}})
+        };
     elastic.load(schema, table, data);
   }
 
-  /**
-   * Testing default formats:  "strict_date_optional_time||epoch_millis"
-   */
+  /** Testing default formats: "strict_date_optional_time||epoch_millis" */
   protected void populateDefaultFormatter() throws IOException {
-    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("field", DATE, new Object[][]{
-        {DATE_TIME_STRING},
-        {DATE_TIME_STRING_2},
-        {DATE_TIME_LONG}
-      })
-    };
+    final ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "field",
+              DATE,
+              new Object[][] {{DATE_TIME_STRING}, {DATE_TIME_STRING_2}, {DATE_TIME_LONG}})
+        };
     elastic.load(schema, table, data);
   }
 
   protected void populateNullWithDefaultFormatter() throws IOException {
-    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("field", DATE, new Object[][]{
-        {DATE_TIME_STRING},
-        {DATE_TIME_STRING_2},
-        null
-      })
-    };
+    final ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "field", DATE, new Object[][] {{DATE_TIME_STRING}, {DATE_TIME_STRING_2}, null})
+        };
     elastic.load(schema, table, data);
   }
 
   protected void populateCustomFormatter() throws IOException {
-    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "MM-dd-yyyy||strict_date_optional_time"), new Object[][]{
-        {DATE_TIME_STRING_2},
-        {"10-12-2017"},
-        {"01-23-1970"},
-        {"10-12-2017"},
-      })
-    };
+    final ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "field",
+              DATE,
+              ImmutableMap.of("format", "MM-dd-yyyy||strict_date_optional_time"),
+              new Object[][] {
+                {DATE_TIME_STRING_2}, {"10-12-2017"}, {"01-23-1970"}, {"10-12-2017"},
+              })
+        };
     elastic.load(schema, table, data);
   }
 
   /**
-   * Testing formats with mix of default/date/timestamp:  "strict_date_optional_time||year||epoch_millis"
+   * Testing formats with mix of default/date/timestamp:
+   * "strict_date_optional_time||year||epoch_millis"
    */
   protected void populateComplexFormatter() throws IOException {
     final ElasticsearchCluster.ColumnData[] data;
     if (elastic.getMinVersionInCluster().getMajor() == 7) {
-      data = new ElasticsearchCluster.ColumnData[] {
-        new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "strict_date_optional_time||year||epoch_millis"), new Object[][]{
-          {DATE_TIME_STRING_2},
-          {"2017"}
-        })
-      };
+      data =
+          new ElasticsearchCluster.ColumnData[] {
+            new ElasticsearchCluster.ColumnData(
+                "field",
+                DATE,
+                ImmutableMap.of("format", "strict_date_optional_time||year||epoch_millis"),
+                new Object[][] {{DATE_TIME_STRING_2}, {"2017"}})
+          };
     } else {
-      data = new ElasticsearchCluster.ColumnData[] {
-        new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "strict_date_optional_time||year||epoch_millis"), new Object[][]{
-          {DATE_TIME_STRING},
-          {DATE_TIME_STRING_2},
-          {DATE_TIME_LONG},
-          {"2017"}
-        })
-      };
+      data =
+          new ElasticsearchCluster.ColumnData[] {
+            new ElasticsearchCluster.ColumnData(
+                "field",
+                DATE,
+                ImmutableMap.of("format", "strict_date_optional_time||year||epoch_millis"),
+                new Object[][] {
+                  {DATE_TIME_STRING}, {DATE_TIME_STRING_2}, {DATE_TIME_LONG}, {"2017"}
+                })
+          };
     }
     elastic.load(schema, table, data);
   }
 
   protected void populateComplexFormatterStrict() throws IOException {
-    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "strict_date_optional_time||strict_year||epoch_millis"), new Object[][]{
-        {DATE_TIME_STRING},
-        {DATE_TIME_STRING_2},
-        {DATE_TIME_LONG},
-        {"2017"}
-      })
-    };
+    final ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "field",
+              DATE,
+              ImmutableMap.of("format", "strict_date_optional_time||strict_year||epoch_millis"),
+              new Object[][] {{DATE_TIME_STRING}, {DATE_TIME_STRING_2}, {DATE_TIME_LONG}, {"2017"}})
+        };
     elastic.load(schema, table, data);
   }
 
   /**
-   * Testing time formats:  "basic_time||time_no_millis"
+   * Testing time formats: "basic_time||time_no_millis"
    *
-   * basic_t_time vs basic_t_Time between ES 5 and 6, so this format is not tested
+   * <p>basic_t_time vs basic_t_Time between ES 5 and 6, so this format is not tested
    */
   protected void populateTimeFormatter() throws IOException {
-    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[] {
-      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "basic_time||time_no_millis"), new Object[][]{
-        {"010203.123Z"},
-        {"01:01:15Z"},
-        {"010203.345Z"}
-      })
-    };
+    final ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "field",
+              DATE,
+              ImmutableMap.of("format", "basic_time||time_no_millis"),
+              new Object[][] {{"010203.123Z"}, {"01:01:15Z"}, {"010203.345Z"}})
+        };
     elastic.load(schema, table, data);
   }
 }

@@ -15,6 +15,9 @@
  */
 package com.dremio.common.graph;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimaps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,10 +26,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Multimaps;
 
 class AdjacencyList<V extends GraphValue<V>> {
   private Set<Node> allNodes = new HashSet<Node>();
@@ -71,12 +70,11 @@ class AdjacencyList<V extends GraphValue<V>> {
     return adjacencies.keySet();
   }
 
-
   Collection<Node> getInternalLeafNodes() {
     // we have to use the allNodes list as otherwise destination only nodes won't be found.
     List<Node> nodes = new LinkedList<Node>(allNodes);
 
-    for (Iterator<Node> i = nodes.iterator(); i.hasNext();) {
+    for (Iterator<Node> i = nodes.iterator(); i.hasNext(); ) {
       final Node n = i.next();
 
       // remove any nodes that have one or more outbound edges.
@@ -84,7 +82,6 @@ class AdjacencyList<V extends GraphValue<V>> {
       if (adjList != null && !adjList.isEmpty()) {
         i.remove();
       }
-
     }
     return nodes;
   }
@@ -97,7 +94,6 @@ class AdjacencyList<V extends GraphValue<V>> {
   public Collection<V> getLeafNodes() {
     return convert(getInternalLeafNodes());
   }
-
 
   Collection<Node> getInternalRootNodes() {
     Set<Node> nodes = new HashSet<Node>(getNodeSet());
@@ -128,7 +124,8 @@ class AdjacencyList<V extends GraphValue<V>> {
       List<List<Node>> cyclicReferences = GraphAlgos.checkDirected(this);
       if (cyclicReferences.size() > 0) {
         throw new IllegalArgumentException(
-            "A logical plan must be a valid DAG.  You have cyclic references in your graph.  " + cyclicReferences);
+            "A logical plan must be a valid DAG.  You have cyclic references in your graph.  "
+                + cyclicReferences);
       }
     }
   }
@@ -144,7 +141,7 @@ class AdjacencyList<V extends GraphValue<V>> {
   class Node implements Comparable<Node> {
     final V nodeValue;
     boolean visited = false; // used for Kosaraju's algorithm and Edmonds's
-                             // algorithm
+    // algorithm
     int lowlink = -1; // used for Tarjan's algorithm
     int index = -1; // used for Tarjan's algorithm
 
@@ -157,7 +154,8 @@ class AdjacencyList<V extends GraphValue<V>> {
 
     @Override
     public int compareTo(final Node argNode) {
-      // just do an identity compare since elsewhere you should ensure that only one node exists for each nodeValue.
+      // just do an identity compare since elsewhere you should ensure that only one node exists for
+      // each nodeValue.
       return argNode == this ? 0 : -1;
     }
 
@@ -189,7 +187,6 @@ class AdjacencyList<V extends GraphValue<V>> {
     public String toString() {
       return "Node [val=" + nodeValue + "]";
     }
-
   }
 
   public static <V extends GraphValue<V>> AdjacencyList<V> newInstance(Collection<V> nodes) {
@@ -200,5 +197,4 @@ class AdjacencyList<V extends GraphValue<V>> {
     }
     return builder.getAdjacencyList();
   }
-
 }

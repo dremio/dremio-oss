@@ -15,20 +15,16 @@
  */
 package com.dremio.exec.store.cache;
 
-import java.util.Objects;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.io.file.FileBlockLocation;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.BlockLocations;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.BlockLocationsList;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DataFileUID;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Utility to serialize and deserialize keys and values
- */
+/** Utility to serialize and deserialize keys and values */
 public class KeyValueSerDe {
   private static final Logger LOGGER = LoggerFactory.getLogger(KeyValueSerDe.class);
 
@@ -37,10 +33,10 @@ public class KeyValueSerDe {
     Objects.requireNonNull(pluginId);
 
     return DataFileUID.newBuilder()
-      .setDataFilePath(dataFilePath)
-      .setPluginId(pluginId)
-      .build()
-      .toByteArray();
+        .setDataFilePath(dataFilePath)
+        .setPluginId(pluginId)
+        .build()
+        .toByteArray();
   }
 
   public static DataFileUID deserializeKey(byte[] serialized) {
@@ -59,11 +55,12 @@ public class KeyValueSerDe {
 
     BlockLocationsList.Builder blockLocationsBuilder = BlockLocationsList.newBuilder();
     for (FileBlockLocation blockLocation : blockLocations) {
-      BlockLocations blockLocationProtobuf = BlockLocations.newBuilder()
-        .setOffset(blockLocation.getOffset())
-        .setSize(blockLocation.getSize())
-        .addAllHosts(blockLocation.getHosts())
-        .build();
+      BlockLocations blockLocationProtobuf =
+          BlockLocations.newBuilder()
+              .setOffset(blockLocation.getOffset())
+              .setSize(blockLocation.getSize())
+              .addAllHosts(blockLocation.getHosts())
+              .build();
 
       blockLocationsBuilder.addBlockLocations(blockLocationProtobuf);
     }

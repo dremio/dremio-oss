@@ -16,13 +16,11 @@
 package com.dremio.exec.store.dfs;
 
 import java.util.function.Function;
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
- * RowCountEstimator interface.
- * Implementation of this should return row count estimate function
+ * RowCountEstimator interface. Implementation of this should return row count estimate function
  * which is used in RelMdRowCount.
  */
 public interface RowCountEstimator extends RelNode {

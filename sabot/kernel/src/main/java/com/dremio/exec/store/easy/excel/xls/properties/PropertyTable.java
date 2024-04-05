@@ -15,25 +15,23 @@
  */
 package com.dremio.exec.store.easy.excel.xls.properties;
 
+import com.dremio.exec.store.easy.excel.xls.BlockStore;
+import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.List;
 import java.util.Stack;
-
 import org.apache.poi.poifs.common.POIFSConstants;
 import org.apache.poi.poifs.property.PropertyConstants;
 import org.apache.poi.poifs.storage.HeaderBlock;
 
-import com.dremio.exec.store.easy.excel.xls.BlockStore;
-import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
-import com.google.common.collect.Lists;
-
 /**
  * DIRECTORY table. Contains meta information about the file's structure.<br>
  * <br>
- * table properties are Directory entries that describe the content of the file
- * each entry can be either a root, storage or stream. In case of .xls storage=workbook, stream=sheet
+ * table properties are Directory entries that describe the content of the file each entry can be
+ * either a root, storage or stream. In case of .xls storage=workbook, stream=sheet
  *
- * Simplified version of {@link org.apache.poi.poifs.property.PropertyTable}
+ * <p>Simplified version of {@link org.apache.poi.poifs.property.PropertyTable}
  */
 public class PropertyTable {
 
@@ -46,7 +44,6 @@ public class PropertyTable {
    * determine whether the specified index is valid
    *
    * @param index value to be checked
-   *
    * @return true if the index is valid
    */
   private static boolean isValidIndex(int index) {
@@ -56,7 +53,6 @@ public class PropertyTable {
   public PropertyTable(final XlsInputStream is, HeaderBlock header, BlockStore blockStore) {
     this.is = is;
     this.sectorSize = header.getBigBlockSize().getBigBlockSize();
-
 
     // Directory sectors are stored as a chain starting from sector # header.propertyStart
     // and FAT table contains link to next sector in the chain
@@ -86,22 +82,21 @@ public class PropertyTable {
         throw new IllegalStateException("Couldn't read from stream");
       }
 
-      switch (bytes[PropertyConstants.PROPERTY_TYPE_OFFSET ]) {
-        case PropertyConstants.DIRECTORY_TYPE :
-        case PropertyConstants.ROOT_TYPE :
+      switch (bytes[PropertyConstants.PROPERTY_TYPE_OFFSET]) {
+        case PropertyConstants.DIRECTORY_TYPE:
+        case PropertyConstants.ROOT_TYPE:
           properties.add(new DirectoryProperty(index, bytes));
           break;
-        case PropertyConstants.DOCUMENT_TYPE :
+        case PropertyConstants.DOCUMENT_TYPE:
           properties.add(new DocumentProperty(index, bytes));
           break;
-        default :
+        default:
           // add a null as we'll need to access properties by index later (or do we ?)
           properties.add(null);
           break;
       }
     }
   }
-
 
   private void populatePropertyTree(DirectoryProperty root) {
     int index = root.getChildIndex();
@@ -123,13 +118,11 @@ public class PropertyTable {
         populatePropertyTree((DirectoryProperty) property);
       }
       index = property.getPreviousChildIndex();
-      if (isValidIndex(index))
-      {
+      if (isValidIndex(index)) {
         children.push(properties.get(index));
       }
       index = property.getNextChildIndex();
-      if (isValidIndex(index))
-      {
+      if (isValidIndex(index)) {
         children.push(properties.get(index));
       }
     }
@@ -150,9 +143,7 @@ public class PropertyTable {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("PropertyTable with ")
-            .append(size())
-            .append(" entries: [\n");
+    builder.append("PropertyTable with ").append(size()).append(" entries: [\n");
     for (Property property : properties) {
       if (property != null) {
         builder.append("\t").append(property.getName()).append("\n");

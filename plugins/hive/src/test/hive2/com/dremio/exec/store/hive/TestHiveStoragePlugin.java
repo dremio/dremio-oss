@@ -19,15 +19,12 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_SERVER2_ENABLE_
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
+import com.dremio.exec.server.SabotContext;
+import com.dremio.service.users.SystemUser;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Test;
 
-import com.dremio.exec.server.SabotContext;
-import com.dremio.service.users.SystemUser;
-
-/**
- * Tests for HiveStoragePlugin
- */
+/** Tests for HiveStoragePlugin */
 public class TestHiveStoragePlugin {
   private static final String TEST_USER_NAME = "testUser";
 

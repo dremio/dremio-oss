@@ -15,42 +15,43 @@
  */
 package com.dremio.resource;
 
+import com.dremio.exec.proto.CoordinationProtos;
 import java.io.Closeable;
 
-import com.dremio.exec.proto.CoordinationProtos;
-
 /**
- * Resource container as part of resource allocation
- * resources released when ResourceAllocation is closed
+ * Resource container as part of resource allocation resources released when ResourceAllocation is
+ * closed
  */
 public interface ResourceAllocation extends Closeable {
 
   /**
    * Produces NodeEndpoint for the allocated resource
+   *
    * @return NodeEndpoint
    */
   CoordinationProtos.NodeEndpoint getEndPoint();
 
   /**
    * Major Fragment this allocation belongs to
+   *
    * @return
    */
   int getMajorFragment();
 
   /**
    * Allocated memory per resource
+   *
    * @return
    */
   long getMemory();
 
   /**
    * Allocated Resource ID
+   *
    * @return id
    */
   long getId();
 
-  /**
-   * Assign Major FragmentId
-   */
+  /** Assign Major FragmentId */
   void assignMajorFragment(int majorFragmentId);
 }

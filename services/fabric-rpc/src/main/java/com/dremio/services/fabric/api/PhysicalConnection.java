@@ -18,17 +18,17 @@ package com.dremio.services.fabric.api;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.proto.FabricProto.RpcType;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
 
-/**
- * A simplified connection-like object for sending messages.
- */
+/** A simplified connection-like object for sending messages. */
 public interface PhysicalConnection {
 
-  <SEND extends MessageLite, RECEIVE extends MessageLite> void send(RpcOutcomeListener<RECEIVE> outcomeListener,
-      RpcType rpcType, SEND protobufBody, Class<RECEIVE> clazz, ByteBuf... dataBodies);
+  <SEND extends MessageLite, RECEIVE extends MessageLite> void send(
+      RpcOutcomeListener<RECEIVE> outcomeListener,
+      RpcType rpcType,
+      SEND protobufBody,
+      Class<RECEIVE> clazz,
+      ByteBuf... dataBodies);
 
   boolean isActive();
-
 }

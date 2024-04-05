@@ -23,14 +23,16 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 
 /**
- * Approximately estimates the cost evaluating an expression by calculating the number of internal nodes in it.
+ * Approximately estimates the cost evaluating an expression by calculating the number of internal
+ * nodes in it.
  */
 // Can enhance this later to provide additional weight for specific Gandiva/Java functions
 // TODO: Improve the definition of work
 // For now, functions, if-expr and case statements contribute 1 to the work
 public class ExpressionWorkEstimator extends AbstractExprVisitor<Double, Void, RuntimeException> {
   @Override
-  public Double visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
+  public Double visitFunctionHolderExpression(FunctionHolderExpression holder, Void value)
+      throws RuntimeException {
     double result = 1.0;
 
     for (LogicalExpression arg : holder.args) {
@@ -68,7 +70,8 @@ public class ExpressionWorkEstimator extends AbstractExprVisitor<Double, Void, R
   }
 
   @Override
-  public Double visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+  public Double visitCaseExpression(CaseExpression caseExpression, Void value)
+      throws RuntimeException {
     double result = 1.0;
 
     for (LogicalExpression e : caseExpression) {

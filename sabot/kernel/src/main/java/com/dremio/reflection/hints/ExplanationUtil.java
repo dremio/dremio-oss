@@ -22,33 +22,29 @@ import com.dremio.sabot.kernel.proto.ReflectionExplanation;
 import com.dremio.sabot.kernel.proto.ReflectionExplanationType;
 
 public class ExplanationUtil {
-  private ExplanationUtil() {
-  }
+  private ExplanationUtil() {}
 
   static ReflectionExplanation fieldMissingExplanation(String name, int columnIndex) {
     return new ReflectionExplanation()
         .setExplanation(ReflectionExplanationType.FIELD_MISSING)
-        .setFieldMissing(new FieldMissingExplanation()
-            .setColumnIndex(columnIndex)
-            .setColumnName(name));
+        .setFieldMissing(
+            new FieldMissingExplanation().setColumnIndex(columnIndex).setColumnName(name));
   }
 
   static ReflectionExplanation filterOverSpecified(String filterDescription) {
     return new ReflectionExplanation()
         .setExplanation(ReflectionExplanationType.FILTER_OVER_SPECIFIED)
-        .setFilterOverSpecified(new FilterOverSpecifiedExplanation()
-            .setFilter(filterDescription));
+        .setFilterOverSpecified(new FilterOverSpecifiedExplanation().setFilter(filterDescription));
   }
 
   static ReflectionExplanation disjointFilterExplanation(String filterDescription) {
     return new ReflectionExplanation()
         .setExplanation(ReflectionExplanationType.DISJOINT_FILTER)
-        .setDisjointFilter(new DisjointFilterExplanation()
-            .setFilter(filterDescription));
+        .setDisjointFilter(new DisjointFilterExplanation().setFilter(filterDescription));
   }
 
   static String toString(ReflectionExplanation reflectionExplanation) {
-    switch (reflectionExplanation.getExplanation()){
+    switch (reflectionExplanation.getExplanation()) {
       case FIELD_MISSING:
         return reflectionExplanation.getFieldMissing().toString();
       case DISJOINT_FILTER:

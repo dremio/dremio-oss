@@ -20,10 +20,9 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-
 class CastFunction extends ElasticFunction {
 
-  public CastFunction(){
+  public CastFunction() {
     super("cast", "cast");
   }
 
@@ -32,10 +31,13 @@ class CastFunction extends ElasticFunction {
     checkArity(call, 1);
     RexNode input = call.getOperands().get(0);
     FunctionRender op1 = input.accept(renderer.getVisitor());
-    return new FunctionRender(getCastScript(input.getType(), call.getType(), op1.getScript(), renderer.isUsingPainless()), op1.getNulls());
+    return new FunctionRender(
+        getCastScript(input.getType(), call.getType(), op1.getScript(), renderer.isUsingPainless()),
+        op1.getNulls());
   }
 
-  private String getCastScript(RelDataType inputType, RelDataType targetType, String inputScript, boolean isPainless){
+  private String getCastScript(
+      RelDataType inputType, RelDataType targetType, String inputScript, boolean isPainless) {
     final SqlTypeName inputTypeName = inputType.getSqlTypeName();
     final SqlTypeName targetTypeName = targetType.getSqlTypeName();
     final int targetPrecision = targetType.getPrecision();
@@ -74,14 +76,18 @@ class CastFunction extends ElasticFunction {
             return String.format("(%s).floatValue()", inputScript);
           case VARCHAR:
             int length = targetPrecision;
-            if(length < 20){
+            if (length < 20) {
               // double is 18, float is 10, int64 is 20.
 
               // Painless doesn't support dynamic dispatch. Java 7 doesn't support Integer.min()
-              if(isPainless){
-                return String.format("Double.toString(%s).substring(0, Integer.min(%d, Double.toString(%s).length()))", inputScript, length, inputScript);
+              if (isPainless) {
+                return String.format(
+                    "Double.toString(%s).substring(0, Integer.min(%d, Double.toString(%s).length()))",
+                    inputScript, length, inputScript);
               } else {
-                return String.format("Double.toString(%s).substring(0, Math.min(%d, Double.toString(%s).length()))", inputScript, length, inputScript);
+                return String.format(
+                    "Double.toString(%s).substring(0, Math.min(%d, Double.toString(%s).length()))",
+                    inputScript, length, inputScript);
               }
             } else {
               return String.format("Double.toString(%s)", inputScript);
@@ -107,14 +113,18 @@ class CastFunction extends ElasticFunction {
             return String.format("(long)(%s)", inputScript);
           case VARCHAR:
             int length = targetPrecision;
-            if(length < 20){
+            if (length < 20) {
               // double is 18, float is 10, int64 is 20.
 
               // Painless doesn't support dynamic dispatch. Java 7 doesn't support Integer.min()
-              if(isPainless){
-                return String.format("Long.toString(%s).substring(0, Integer.min(%d, Double.toString(%s).length()))", inputScript, length, inputScript);
-              }else{
-                return String.format("Long.toString(%s).substring(0, Math.min(%d, Double.toString(%s).length()))", inputScript, length, inputScript);
+              if (isPainless) {
+                return String.format(
+                    "Long.toString(%s).substring(0, Integer.min(%d, Double.toString(%s).length()))",
+                    inputScript, length, inputScript);
+              } else {
+                return String.format(
+                    "Long.toString(%s).substring(0, Math.min(%d, Double.toString(%s).length()))",
+                    inputScript, length, inputScript);
               }
             } else {
               return String.format("Long.toString(%s)", inputScript);
@@ -129,5 +139,4 @@ class CastFunction extends ElasticFunction {
     }
     throw new RuntimeException("Cannot push down anything but trivial casts");
   }
-
 }

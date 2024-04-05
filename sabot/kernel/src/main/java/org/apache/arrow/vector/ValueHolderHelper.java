@@ -18,7 +18,6 @@ package org.apache.arrow.vector;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.math.BigDecimal;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.holders.BigIntHolder;
@@ -155,16 +154,15 @@ public class ValueHolderHelper {
 
   public static NullableBitHolder getNullableBitHolder(boolean isNull, int value) {
     NullableBitHolder holder = new NullableBitHolder();
-    holder.isSet = isNull? 0 : 1;
-    if (! isNull) {
+    holder.isSet = isNull ? 0 : 1;
+    if (!isNull) {
       holder.value = value;
     }
 
     return holder;
   }
 
-
-  public static NullableVarCharHolder getNullableVarCharHolder(ArrowBuf buf, String s){
+  public static NullableVarCharHolder getNullableVarCharHolder(ArrowBuf buf, String s) {
     NullableVarCharHolder vch = new NullableVarCharHolder();
 
     byte[] b = s.getBytes(UTF_8);
@@ -176,7 +174,7 @@ public class ValueHolderHelper {
     return vch;
   }
 
-  public static VarCharHolder getVarCharHolder(ArrowBuf buf, String s){
+  public static VarCharHolder getVarCharHolder(ArrowBuf buf, String s) {
     VarCharHolder vch = new VarCharHolder();
 
     byte[] b = s.getBytes(UTF_8);
@@ -187,7 +185,7 @@ public class ValueHolderHelper {
     return vch;
   }
 
-  public static VarCharHolder getVarCharHolder(BufferAllocator a, String s){
+  public static VarCharHolder getVarCharHolder(BufferAllocator a, String s) {
     VarCharHolder vch = new VarCharHolder();
 
     byte[] b = s.getBytes(UTF_8);
@@ -197,7 +195,6 @@ public class ValueHolderHelper {
     vch.buffer.setBytes(0, b);
     return vch;
   }
-
 
   public static IntervalYearHolder getIntervalYearHolder(int intervalYear) {
     IntervalYearHolder holder = new IntervalYearHolder();
@@ -221,12 +218,14 @@ public class ValueHolderHelper {
     dch.milliseconds = millis;
     return dch;
   }
+
   public static NullableDecimalHolder getNullableDecimalHolder(ArrowBuf buf, String value) {
     BigDecimal bd = new BigDecimal(value);
     return getNullableDecimalHolder(buf, bd, bd.precision(), bd.scale());
   }
 
-  public static NullableDecimalHolder getNullableDecimalHolder(ArrowBuf buf, BigDecimal decimal, int precision, int scale) {
+  public static NullableDecimalHolder getNullableDecimalHolder(
+      ArrowBuf buf, BigDecimal decimal, int precision, int scale) {
     NullableDecimalHolder holder = new NullableDecimalHolder();
     buf.reallocIfNeeded(16);
     DecimalUtility.writeBigDecimalToArrowBuf(decimal, buf, 0, DecimalVector.TYPE_WIDTH);
@@ -237,5 +236,4 @@ public class ValueHolderHelper {
     holder.isSet = 1;
     return holder;
   }
-
 }

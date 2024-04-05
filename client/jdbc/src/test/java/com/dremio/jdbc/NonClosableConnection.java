@@ -15,6 +15,7 @@
  */
 package com.dremio.jdbc;
 
+import com.google.common.base.Preconditions;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -34,12 +35,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
-import com.google.common.base.Preconditions;
-
 /**
  * A connection decorator that ignores {@link Connection#close} calls.
  *
- * All other calls are delegated to inner {@link Connection connection}.
+ * <p>All other calls are delegated to inner {@link Connection connection}.
  */
 public final class NonClosableConnection implements Connection {
   private final Connection delegate;
@@ -158,17 +157,20 @@ public final class NonClosableConnection implements Connection {
   }
 
   @Override
-  public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
+  public Statement createStatement(int resultSetType, int resultSetConcurrency)
+      throws SQLException {
     return delegate.createStatement(resultSetType, resultSetConcurrency);
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
+  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
+      throws SQLException {
     return delegate.prepareStatement(sql, resultSetType, resultSetConcurrency);
   }
 
   @Override
-  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
+  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency)
+      throws SQLException {
     return delegate.prepareCall(sql, resultSetType, resultSetConcurrency);
   }
 
@@ -213,17 +215,23 @@ public final class NonClosableConnection implements Connection {
   }
 
   @Override
-  public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+  public Statement createStatement(
+      int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
     return delegate.createStatement(resultSetType, resultSetConcurrency, resultSetHoldability);
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-    return delegate.prepareStatement(sql, resultSetType, resultSetConcurrency, resultSetHoldability);
+  public PreparedStatement prepareStatement(
+      String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+      throws SQLException {
+    return delegate.prepareStatement(
+        sql, resultSetType, resultSetConcurrency, resultSetHoldability);
   }
 
   @Override
-  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+  public CallableStatement prepareCall(
+      String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+      throws SQLException {
     return delegate.prepareCall(sql, resultSetType, resultSetConcurrency, resultSetHoldability);
   }
 

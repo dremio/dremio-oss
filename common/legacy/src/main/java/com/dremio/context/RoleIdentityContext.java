@@ -17,11 +17,10 @@ package com.dremio.context;
 
 import org.apache.commons.lang3.StringUtils;
 
-/**
- * Role Identity
- */
+/** Role Identity */
 public class RoleIdentityContext {
-  public static final RequestContext.Key<RoleIdentityContext> CTX_KEY = RequestContext.newKey("role_identity_ctx_key");
+  public static final RequestContext.Key<RoleIdentityContext> CTX_KEY =
+      RequestContext.newKey("role_identity_ctx_key");
   private final String roleId;
 
   public RoleIdentityContext(String roleId) {
@@ -37,7 +36,8 @@ public class RoleIdentityContext {
   }
 
   public static boolean isSet() {
-    final RoleIdentityContext roleIdentity = RequestContext.current().get(RoleIdentityContext.CTX_KEY);
+    final RoleIdentityContext roleIdentity =
+        RequestContext.current().get(RoleIdentityContext.CTX_KEY);
     return roleIdentity != null && !StringUtils.isEmpty(roleIdentity.getRoleId());
   }
 }

@@ -16,8 +16,6 @@
 import { Component } from "react";
 
 import PropTypes from "prop-types";
-import clsx from "clsx";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 import Tabs from "components/Tabs";
 import Select from "components/Fields/Select";
 
@@ -42,7 +40,7 @@ import {
   STRUCT,
   BOOLEAN,
 } from "@app/constants/DataTypes";
-import SimpleButton from "components/Buttons/SimpleButton";
+import { Button } from "dremio-ui-lib/components";
 import {
   NoParamToBinary,
   NoParamToDateTimeTimestamp,
@@ -52,12 +50,10 @@ import {
   NoParamToText,
 } from "components/Menus/ExplorePage/ColumnTypeMenu";
 import {
-  padding,
   selectLeftAligned,
   rowMargin,
   typeElement,
   selectItem as selectItemCls,
-  cancelButton,
 } from "./DataTypeConverterView.less";
 
 import NonMatchingForm from "./forms/NonMatchingForm";
@@ -144,7 +140,7 @@ class DataTypeConverterView extends Component {
       ? this.options
       : [{ label: defaultValue, disabled: true }, ...this.options];
     return (
-      <div className={padding}>
+      <div className="p-2">
         <div style={styles.convertToLabel}>{laDeprecated("Convert to")}</div>
         <div className={rowMargin}>
           <Select
@@ -175,13 +171,9 @@ class DataTypeConverterView extends Component {
       return null;
     }
     return (
-      <SimpleButton
-        buttonStyle="secondary"
-        className={clsx(cancelButton, classes["secondaryButtonPsuedoClasses"])}
-        onClick={this.props.cancel}
-      >
+      <Button variant="secondary" onClick={this.props.cancel} className="ml-2">
         {laDeprecated("Cancel")}
-      </SimpleButton>
+      </Button>
     );
   }
 

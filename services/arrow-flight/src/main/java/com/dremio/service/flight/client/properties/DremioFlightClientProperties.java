@@ -17,28 +17,24 @@ package com.dremio.service.flight.client.properties;
 
 import static com.dremio.common.utils.PathUtils.parseFullPath;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-
-import org.apache.arrow.flight.CallHeaders;
-
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import org.apache.arrow.flight.CallHeaders;
 
-/**
- * Class with accepted Dremio Flight client property constants.
- */
+/** Class with accepted Dremio Flight client property constants. */
 public final class DremioFlightClientProperties {
   public static final Set<String> SUPPORTED_FLIGHT_CLIENT_USER_SESSION_PROPERTIES =
-    ImmutableSet.of(
-      UserSession.QUOTING,
-      UserSession.ROUTING_TAG,
-      UserSession.ROUTING_QUEUE,
-      UserSession.SCHEMA);
+      ImmutableSet.of(
+          UserSession.QUOTING,
+          UserSession.ROUTING_TAG,
+          UserSession.ROUTING_QUEUE,
+          UserSession.SCHEMA);
   private static final String SUPPORTS_COMPLEX_TYPES = "supports_complex_types";
 
   /**
@@ -47,27 +43,32 @@ public final class DremioFlightClientProperties {
    * @param builder the UserSession Builder to apply client properties to.
    * @param callHeaders the CallHeaders to parse client properties from.
    */
-  public static void applyClientPropertiesToUserSessionBuilder(UserSession.Builder builder, CallHeaders callHeaders) {
+  public static void applyClientPropertiesToUserSessionBuilder(
+      UserSession.Builder builder, CallHeaders callHeaders) {
     if (callHeaders == null || builder == null) {
       return;
     }
 
     final List<UserProtos.Property> properties = new ArrayList<>();
 
-    callHeaders.keys().forEach(key -> {
-      if (DremioFlightClientProperties.SUPPORTED_FLIGHT_CLIENT_USER_SESSION_PROPERTIES
-        .contains(key.toLowerCase(Locale.ROOT))) {
-        final String value = callHeaders.get(key);
-        properties.add(DremioFlightClientProperties.createUserProperty(key, value));
-      }
-      if (callHeaders.containsKey(SUPPORTS_COMPLEX_TYPES)) {
-        builder.setSupportComplexTypes(Boolean.parseBoolean(callHeaders.get(SUPPORTS_COMPLEX_TYPES)));
-      }
-    });
+    callHeaders
+        .keys()
+        .forEach(
+            key -> {
+              if (DremioFlightClientProperties.SUPPORTED_FLIGHT_CLIENT_USER_SESSION_PROPERTIES
+                  .contains(key.toLowerCase(Locale.ROOT))) {
+                final String value = callHeaders.get(key);
+                properties.add(DremioFlightClientProperties.createUserProperty(key, value));
+              }
+              if (callHeaders.containsKey(SUPPORTS_COMPLEX_TYPES)) {
+                builder.setSupportComplexTypes(
+                    Boolean.parseBoolean(callHeaders.get(SUPPORTS_COMPLEX_TYPES)));
+              }
+            });
 
     if (!properties.isEmpty()) {
       builder.withUserProperties(
-        UserProtos.UserProperties.newBuilder().addAllProperties(properties).build());
+          UserProtos.UserProperties.newBuilder().addAllProperties(properties).build());
     }
   }
 
@@ -77,23 +78,27 @@ public final class DremioFlightClientProperties {
    * @param userSession the UserSession to apply supported mutable properties to.
    * @param callHeaders CallHeaders to parse mutable client properties from.
    */
-  public static void applyMutableClientProperties(UserSession userSession, CallHeaders callHeaders) {
+  public static void applyMutableClientProperties(
+      UserSession userSession, CallHeaders callHeaders) {
     if (callHeaders == null || userSession == null) {
       return;
     }
 
-    callHeaders.keys().forEach(key -> {
-      final String keyLC = key.toLowerCase(Locale.ROOT);
-      if (keyLC.equals(UserSession.SCHEMA)) {
-        final String value = callHeaders.get(key);
-        final NamespaceKey oldNamespaceKey = userSession.getDefaultSchemaPath();
-        final List<String> components = parseFullPath(value);
-        userSession.setDefaultSchemaPath(components);
-      } else if (keyLC.equals(UserSession.ROUTING_ENGINE)) {
-        final String oldRoutingEngine = userSession.getRoutingEngine();
-        userSession.setRoutingEngine(callHeaders.get(key));
-      }
-    });
+    callHeaders
+        .keys()
+        .forEach(
+            key -> {
+              final String keyLC = key.toLowerCase(Locale.ROOT);
+              if (keyLC.equals(UserSession.SCHEMA)) {
+                final String value = callHeaders.get(key);
+                final NamespaceKey oldNamespaceKey = userSession.getDefaultSchemaPath();
+                final List<String> components = parseFullPath(value);
+                userSession.setDefaultSchemaPath(components);
+              } else if (keyLC.equals(UserSession.ROUTING_ENGINE)) {
+                final String oldRoutingEngine = userSession.getRoutingEngine();
+                userSession.setRoutingEngine(callHeaders.get(key));
+              }
+            });
   }
 
   /**

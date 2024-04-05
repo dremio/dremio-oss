@@ -17,15 +17,14 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
+import com.dremio.plugins.Version;
+import com.dremio.plugins.elastic.ElasticBaseTestQuery.PublishHost;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.plugins.Version;
-import com.dremio.plugins.elastic.ElasticBaseTestQuery.PublishHost;
-
 // Enable http.publish_host so that we get localhost/127.0.0.1:9200 as http_address
-@PublishHost(enabled=true)
+@PublishHost(enabled = true)
 public class ITTestElasticSearch7 extends ElasticBaseTestQuery {
 
   private static final Logger logger = LoggerFactory.getLogger(ITTestElasticSearch7.class);
@@ -33,77 +32,77 @@ public class ITTestElasticSearch7 extends ElasticBaseTestQuery {
 
   @Test
   public void testSQLNotInQuery() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"Oakland"},
-        {"San Jose"}
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
     elastic.load(schema, table, data);
-    String sql = String.format("select location from elasticsearch.%s.%s where location NOT IN ('Oakland')", schema, table);
-    testBuilder().sqlQuery(sql).unOrdered()
-      .baselineColumns("location")
-      .baselineValues("San Francisco")
-      .baselineValues("San Jose")
-      .go();
+    String sql =
+        String.format(
+            "select location from elasticsearch.%s.%s where location NOT IN ('Oakland')",
+            schema, table);
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Francisco")
+        .baselineValues("San Jose")
+        .go();
   }
 
   @Test
   public void testSQLNotEqualsQuery() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"Oakland"},
-        {"San Jose"}
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
     elastic.load(schema, table, data);
-    String sql = String.format("select location from elasticsearch.%s.%s where location != 'Oakland' ", schema, table);
-    testBuilder().sqlQuery(sql).unOrdered()
-      .baselineColumns("location")
-      .baselineValues("San Francisco")
-      .baselineValues("San Jose")
-      .go();
+    String sql =
+        String.format(
+            "select location from elasticsearch.%s.%s where location != 'Oakland' ", schema, table);
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Francisco")
+        .baselineValues("San Jose")
+        .go();
   }
 
   @Test
   public void testGetESData() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"Oakland"},
-        {"San Jose"}
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
     elastic.load(schema, table, data);
     String sql = String.format("select location from elasticsearch.%s.%s", schema, table);
-    testBuilder().sqlQuery(sql).unOrdered()
-      .baselineColumns("location")
-      .baselineValues("San Francisco")
-      .baselineValues("Oakland")
-      .baselineValues("San Jose")
-      .go();
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("location")
+        .baselineValues("San Francisco")
+        .baselineValues("Oakland")
+        .baselineValues("San Jose")
+        .go();
   }
 
   @Test
   public void testGetESDataCount() throws Exception {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("location", TEXT, new Object[][]{
-        {"San Francisco"},
-        {"Oakland"},
-        {"San Jose"}
-      })
-    };
+    ElasticsearchCluster.ColumnData[] data =
+        new ElasticsearchCluster.ColumnData[] {
+          new ElasticsearchCluster.ColumnData(
+              "location", TEXT, new Object[][] {{"San Francisco"}, {"Oakland"}, {"San Jose"}})
+        };
 
     elastic.load(schema, table, data);
     String sql = String.format("select count(*) from elasticsearch.%s.%s", schema, table);
-    testBuilder().sqlQuery(sql).unOrdered()
-      .baselineColumns("EXPR$0")
-      .baselineValues(3L)
-      .go();
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("EXPR$0").baselineValues(3L).go();
   }
 }

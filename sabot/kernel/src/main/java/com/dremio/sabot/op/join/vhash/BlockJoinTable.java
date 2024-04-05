@@ -15,12 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-import java.util.concurrent.TimeUnit;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionManager;
@@ -33,6 +27,10 @@ import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.koloboke.collect.hash.HashConfig;
+import java.util.concurrent.TimeUnit;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 
 public class BlockJoinTable implements JoinTable {
   private static final int MAX_VALUES_PER_BATCH = 4096;
@@ -49,17 +47,34 @@ public class BlockJoinTable implements JoinTable {
   private final Stopwatch buildHashComputationWatch = Stopwatch.createUnstarted();
   private final Stopwatch probeHashComputationWatch = Stopwatch.createUnstarted();
 
-  public BlockJoinTable(PivotDef buildPivot, PivotDef probePivot, BufferAllocator allocator,
-                        NullComparator nullMask, int minSize, int varFieldAverageSize, SabotConfig sabotConfig,
-                        OptionManager optionManager, boolean runtimeFilterEnabled) {
+  public BlockJoinTable(
+      PivotDef buildPivot,
+      PivotDef probePivot,
+      BufferAllocator allocator,
+      NullComparator nullMask,
+      int minSize,
+      int varFieldAverageSize,
+      SabotConfig sabotConfig,
+      OptionManager optionManager,
+      boolean runtimeFilterEnabled) {
     super();
     Preconditions.checkState(buildPivot.getBlockWidth() == probePivot.getBlockWidth());
     Preconditions.checkState(buildPivot.getBlockWidth() != 0);
     this.allocator = allocator.newChildAllocator("block-join", 0, allocator.getLimit());
-    this.table = HashTable.getInstance(sabotConfig,
-      optionManager, new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot, allocator,
-        minSize, varFieldAverageSize, false, MAX_VALUES_PER_BATCH,
-        nullMask, runtimeFilterEnabled));
+    this.table =
+        HashTable.getInstance(
+            sabotConfig,
+            optionManager,
+            new HashTable.HashTableCreateArgs(
+                HashConfig.getDefault(),
+                buildPivot,
+                allocator,
+                minSize,
+                varFieldAverageSize,
+                false,
+                MAX_VALUES_PER_BATCH,
+                nullMask,
+                runtimeFilterEnabled));
     this.buildPivot = buildPivot;
     this.probePivot = probePivot;
     this.tableTracing = false;
@@ -67,6 +82,7 @@ public class BlockJoinTable implements JoinTable {
 
   /**
    * Copy the keys of the records specified in ordinals to keyFixed/keyVar.
+   *
    * @param ordinals input buffer of ordinals
    * @param count count of ordinals
    * @param keyFixed dst for fixed portion of keys
@@ -112,7 +128,8 @@ public class BlockJoinTable implements JoinTable {
   }
 
   @Override
-  public void prepareBloomFilters(PartitionColFilters partitionColFilters, boolean sizeDynamically) {
+  public void prepareBloomFilters(
+      PartitionColFilters partitionColFilters, boolean sizeDynamically) {
     partitionColFilters.prepareBloomFilters(table);
   }
 
@@ -123,8 +140,9 @@ public class BlockJoinTable implements JoinTable {
 
   @Override
   public void insert(ArrowBuf out, int records) {
-    try(FixedBlockVector fbv = new FixedBlockVector(allocator, buildPivot.getBlockWidth());
-        VariableBlockVector var = new VariableBlockVector(allocator, buildPivot.getVariableCount())) {
+    try (FixedBlockVector fbv = new FixedBlockVector(allocator, buildPivot.getBlockWidth());
+        VariableBlockVector var =
+            new VariableBlockVector(allocator, buildPivot.getVariableCount())) {
       // STEP 1: first we pivot.
       pivotBuildWatch.start();
       Pivots.pivot(buildPivot, records, fbv, var);
@@ -146,8 +164,9 @@ public class BlockJoinTable implements JoinTable {
         insertWatch.stop();
 
         if (recordsAdded < records) {
-          throw new OutOfMemoryException(String.format("Only %d records out of %d were added to the HashTable",
-            recordsAdded, records));
+          throw new OutOfMemoryException(
+              String.format(
+                  "Only %d records out of %d were added to the HashTable", recordsAdded, records));
         }
       }
 
@@ -167,8 +186,9 @@ public class BlockJoinTable implements JoinTable {
   public void find(ArrowBuf out, final int records) {
     final HashTable table = this.table;
 
-    try(FixedBlockVector fbv = new FixedBlockVector(allocator, probePivot.getBlockWidth());
-        VariableBlockVector var = new VariableBlockVector(allocator, probePivot.getVariableCount());
+    try (FixedBlockVector fbv = new FixedBlockVector(allocator, probePivot.getBlockWidth());
+        VariableBlockVector var =
+            new VariableBlockVector(allocator, probePivot.getVariableCount());
         ArrowBuf hashValues = allocator.buffer(records * 8)) {
       // STEP 1: first we pivot.
       probePivotWatch.start();
@@ -225,5 +245,4 @@ public class BlockJoinTable implements JoinTable {
   public String traceReport() {
     return table.traceReport();
   }
-
 }

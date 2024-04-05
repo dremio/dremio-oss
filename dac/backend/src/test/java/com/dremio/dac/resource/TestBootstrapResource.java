@@ -15,13 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.common.perf.Timer;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
@@ -36,20 +29,23 @@ import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.User;
 import com.dremio.test.DremioTest;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
+import org.junit.Assume;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Tests for class {@link BootstrapResource}
- */
+/** Tests for class {@link BootstrapResource} */
 public class TestBootstrapResource extends BaseTestServer {
 
   // make sure we disable the test APIs otherwise NoUserFilter will never be tested.
-  private static DACConfig dacConfig =  DACConfig
-    .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-    .autoPort(true)
-    .serveUI(false)
-    .inMemoryStorage(false)
-    .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-    .clusterMode(DACDaemon.ClusterMode.LOCAL);
+  private static DACConfig dacConfig =
+      DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+          .autoPort(true)
+          .serveUI(false)
+          .inMemoryStorage(false)
+          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+          .clusterMode(DACDaemon.ClusterMode.LOCAL);
 
   @BeforeClass
   public static void init() throws Exception {
@@ -74,7 +70,8 @@ public class TestBootstrapResource extends BaseTestServer {
     // first make sure test APIs are disabled, we want to exercise NoUserFilter
     doc("ensure test APIs disabled");
     try {
-      expectStatus(Response.Status.NOT_FOUND, getAPIv2().path("/test/clear").request().buildPost(null));
+      expectStatus(
+          Response.Status.NOT_FOUND, getAPIv2().path("/test/clear").request().buildPost(null));
     } catch (AssertionError e) {
       throw new AssertionError("This test expects test APIs to be disabled", e);
     }
@@ -84,32 +81,58 @@ public class TestBootstrapResource extends BaseTestServer {
     // so trying to login should trigger the NoUserFilter and return a FORBIDDEN response
     {
       final UserLogin userLogin = new UserLogin(DEFAULT_USERNAME, DEFAULT_PASSWORD);
-      GenericErrorMessage errorMessage = expectStatus(Response.Status.FORBIDDEN,
-        getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)), GenericErrorMessage.class);
+      GenericErrorMessage errorMessage =
+          expectStatus(
+              Response.Status.FORBIDDEN,
+              getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
+              GenericErrorMessage.class);
       assertErrorMessage(errorMessage, GenericErrorMessage.NO_USER_MSG, "");
     }
 
     {
       // trying to access a secured API should also return the same expected error
-      GenericErrorMessage errorMessage = expectStatus(Response.Status.FORBIDDEN,
-        getAPIv2().path("users/all").request().buildGet(), GenericErrorMessage.class);
+      GenericErrorMessage errorMessage =
+          expectStatus(
+              Response.Status.FORBIDDEN,
+              getAPIv2().path("users/all").request().buildGet(),
+              GenericErrorMessage.class);
       assertErrorMessage(errorMessage, GenericErrorMessage.NO_USER_MSG, "");
     }
 
     doc("create first user");
     {
-      final User uc = SimpleUser.newBuilder().setUserName("bootstrap_user").setEmail("bootstrap_user@dremio.test")
-        .setFirstName("test").setLastName("dremio").build();
-      expectSuccess(getAPIv2().path("bootstrap/firstuser").request(JSON).buildPut(Entity.json(new UserForm(uc, "dremio123"))), UserUI.class);
+      final User uc =
+          SimpleUser.newBuilder()
+              .setUserName("bootstrap_user")
+              .setEmail("bootstrap_user@dremio.test")
+              .setFirstName("test")
+              .setLastName("dremio")
+              .build();
+      expectSuccess(
+          getAPIv2()
+              .path("bootstrap/firstuser")
+              .request(JSON)
+              .buildPut(Entity.json(new UserForm(uc, "dremio123"))),
+          UserUI.class);
     }
 
     doc("access first user api 2nd time");
     {
-      final User uc = SimpleUser.newBuilder().setUserName("bootstrap_user_2").setEmail("bootstrap_user_2@dremio.test")
-        .setFirstName("bootstrap").setLastName("dremio").build();
-      UserExceptionMapper.ErrorMessageWithContext errorMessage = expectError(FamilyExpectation.CLIENT_ERROR, getAPIv2()
-        .path("bootstrap/firstuser").request(JSON).buildPut(Entity.json(new UserForm(uc, "dremio123"))),
-        UserExceptionMapper.ErrorMessageWithContext.class);
+      final User uc =
+          SimpleUser.newBuilder()
+              .setUserName("bootstrap_user_2")
+              .setEmail("bootstrap_user_2@dremio.test")
+              .setFirstName("bootstrap")
+              .setLastName("dremio")
+              .build();
+      UserExceptionMapper.ErrorMessageWithContext errorMessage =
+          expectError(
+              FamilyExpectation.CLIENT_ERROR,
+              getAPIv2()
+                  .path("bootstrap/firstuser")
+                  .request(JSON)
+                  .buildPut(Entity.json(new UserForm(uc, "dremio123"))),
+              UserExceptionMapper.ErrorMessageWithContext.class);
       assertErrorMessage(errorMessage, BootstrapResource.ERROR_MSG, "");
     }
 
@@ -117,5 +140,4 @@ public class TestBootstrapResource extends BaseTestServer {
     doc("login as first user");
     login("bootstrap_user", "dremio123");
   }
-
 }

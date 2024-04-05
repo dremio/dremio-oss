@@ -15,12 +15,9 @@
  */
 package com.dremio.exec.store.iceberg;
 
-
 import java.io.Serializable;
 
-/**
- * Holds Iceberg metadata file information
- */
+/** Holds Iceberg metadata file information */
 public class IcebergMetadataInformation implements Serializable {
 
   private final byte[] icebergMetadataFileByte;

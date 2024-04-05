@@ -18,10 +18,6 @@ package com.dremio.exec.catalog;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 
-import java.util.Map;
-
-import org.junit.rules.ExternalResource;
-
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.JobsTable;
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.MaterializationsTable;
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.RecentJobsTable;
@@ -47,16 +43,15 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.sysflight.SysFlightDataProvider;
 import com.dremio.service.sysflight.SystemTableManager.TABLES;
 import com.google.common.collect.Maps;
-
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
+import java.util.Map;
+import org.junit.rules.ExternalResource;
 
-/**
- * Sys Flight test resource
- */
+/** Sys Flight test resource */
 public class TestSysFlightResource extends ExternalResource {
 
   private Server server;
@@ -64,70 +59,86 @@ public class TestSysFlightResource extends ExternalResource {
 
   // mock ChronicleGrpc service
   private final ChronicleGrpc.ChronicleImplBase chronicleService =
-    mock(ChronicleGrpc.ChronicleImplBase.class,
-      delegatesTo(
-        new ChronicleGrpc.ChronicleImplBase(){
-          @Override
-          public void getActiveJobs(ActiveJobsRequest jobsRequest,
-            io.grpc.stub.StreamObserver<com.dremio.service.job.ActiveJobSummary> responseObserver){
-            responseObserver.onNext(ActiveJobSummary.newBuilder()
-              .setJobId("1")
-              .setStatus("RUNNING")
-              .setQueryType("UI_RUN")
-              .setUserName("user")
-              .setAccelerated(false)
-              .setErrorMsg("err")
-              .build());
-            responseObserver.onNext(ActiveJobSummary.getDefaultInstance());
-            responseObserver.onCompleted();
-          }
+      mock(
+          ChronicleGrpc.ChronicleImplBase.class,
+          delegatesTo(
+              new ChronicleGrpc.ChronicleImplBase() {
+                @Override
+                public void getActiveJobs(
+                    ActiveJobsRequest jobsRequest,
+                    io.grpc.stub.StreamObserver<com.dremio.service.job.ActiveJobSummary>
+                        responseObserver) {
+                  responseObserver.onNext(
+                      ActiveJobSummary.newBuilder()
+                          .setJobId("1")
+                          .setStatus("RUNNING")
+                          .setQueryType("UI_RUN")
+                          .setUserName("user")
+                          .setAccelerated(false)
+                          .setErrorMsg("err")
+                          .build());
+                  responseObserver.onNext(ActiveJobSummary.getDefaultInstance());
+                  responseObserver.onCompleted();
+                }
 
-          @Override
-          public void getRecentJobs(RecentJobsRequest recentJobsRequest,
-                                    io.grpc.stub.StreamObserver<com.dremio.service.job.RecentJobSummary> responseObserver){
-            responseObserver.onNext(RecentJobSummary.newBuilder()
-              .setJobId("2")
-              .setStatus("RUNNING")
-              .setQueryType("UI_RUN")
-              .setUserName("user")
-              .setAccelerated(true)
-              .setErrorMsg("errmsg")
-              .build());
-            responseObserver.onNext(RecentJobSummary.getDefaultInstance());
-            responseObserver.onCompleted();
-          }
-        }
-      ));
+                @Override
+                public void getRecentJobs(
+                    RecentJobsRequest recentJobsRequest,
+                    io.grpc.stub.StreamObserver<com.dremio.service.job.RecentJobSummary>
+                        responseObserver) {
+                  responseObserver.onNext(
+                      RecentJobSummary.newBuilder()
+                          .setJobId("2")
+                          .setStatus("RUNNING")
+                          .setQueryType("UI_RUN")
+                          .setUserName("user")
+                          .setAccelerated(true)
+                          .setErrorMsg("errmsg")
+                          .build());
+                  responseObserver.onNext(RecentJobSummary.getDefaultInstance());
+                  responseObserver.onCompleted();
+                }
+              }));
 
   private final ReflectionDescriptionServiceImplBase acclService =
-    mock(ReflectionDescriptionServiceImplBase.class,
-      delegatesTo(
-        new ReflectionDescriptionServiceImplBase() {
-          @Override
-          public void listReflections(ListReflectionsRequest request,
-            StreamObserver<ListReflectionsResponse> responseObserver) {
-            ListReflectionsResponse resp = ListReflectionsResponse.getDefaultInstance();
-            responseObserver.onNext(resp);
-            responseObserver.onCompleted();
-          }
+      mock(
+          ReflectionDescriptionServiceImplBase.class,
+          delegatesTo(
+              new ReflectionDescriptionServiceImplBase() {
+                @Override
+                public void listReflections(
+                    ListReflectionsRequest request,
+                    StreamObserver<ListReflectionsResponse> responseObserver) {
+                  responseObserver.onNext(
+                      ListReflectionsResponse.newBuilder()
+                          .setDatasetId("datasetId")
+                          .setDatasetName("datasetName")
+                          .setReflectionId("reflectionId")
+                          .build());
+                  responseObserver.onNext(ListReflectionsResponse.getDefaultInstance());
+                  responseObserver.onCompleted();
+                }
 
-          @Override
-          public void listReflectionDependencies(ListReflectionDependenciesRequest request,
-            StreamObserver<ListReflectionDependenciesResponse> responseObserver) {
-            ListReflectionDependenciesResponse resp = ListReflectionDependenciesResponse.getDefaultInstance();
-            responseObserver.onNext(resp);
-            responseObserver.onCompleted();
-          }
+                @Override
+                public void listReflectionDependencies(
+                    ListReflectionDependenciesRequest request,
+                    StreamObserver<ListReflectionDependenciesResponse> responseObserver) {
+                  ListReflectionDependenciesResponse resp =
+                      ListReflectionDependenciesResponse.getDefaultInstance();
+                  responseObserver.onNext(resp);
+                  responseObserver.onCompleted();
+                }
 
-          @Override
-          public void listMaterializations(ListMaterializationsRequest request,
-            StreamObserver<ListMaterializationsResponse> responseObserver) {
-            ListMaterializationsResponse resp = ListMaterializationsResponse.getDefaultInstance();
-            responseObserver.onNext(resp);
-            responseObserver.onCompleted();
-          }
-        }
-      ));
+                @Override
+                public void listMaterializations(
+                    ListMaterializationsRequest request,
+                    StreamObserver<ListMaterializationsResponse> responseObserver) {
+                  ListMaterializationsResponse resp =
+                      ListMaterializationsResponse.getDefaultInstance();
+                  responseObserver.onNext(resp);
+                  responseObserver.onCompleted();
+                }
+              }));
 
   @Override
   public void before() throws Exception {
@@ -137,13 +148,18 @@ public class TestSysFlightResource extends ExternalResource {
   /** instantiates in-process gRPC server with mock implementation & creates a channel to it */
   private void setupServer() throws Exception {
     String serverName = InProcessServerBuilder.generateName();
-    server = InProcessServerBuilder.forName(serverName).directExecutor()
-      .addService(chronicleService).addService(acclService).build().start();
+    server =
+        InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(chronicleService)
+            .addService(acclService)
+            .build()
+            .start();
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
   }
 
-  private ChronicleGrpc.ChronicleStub getChronicleStub(){
-    return  ChronicleGrpc.newStub(channel);
+  private ChronicleGrpc.ChronicleStub getChronicleStub() {
+    return ChronicleGrpc.newStub(channel);
   }
 
   private ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub getReflectionStub() {
@@ -155,7 +171,8 @@ public class TestSysFlightResource extends ExternalResource {
     tablesMap.put(TABLES.JOBS, new JobsTable(this::getChronicleStub));
     tablesMap.put(TABLES.REFLECTIONS, new ReflectionsTable(this::getReflectionStub));
     tablesMap.put(TABLES.MATERIALIZATIONS, new MaterializationsTable(this::getReflectionStub));
-    tablesMap.put(TABLES.REFLECTION_DEPENDENCIES, new ReflectionDependenciesTable(this::getReflectionStub));
+    tablesMap.put(
+        TABLES.REFLECTION_DEPENDENCIES, new ReflectionDependenciesTable(this::getReflectionStub));
     tablesMap.put(TABLES.JOBS_RECENT, new RecentJobsTable(this::getChronicleStub));
     return tablesMap;
   }
@@ -175,6 +192,8 @@ public class TestSysFlightResource extends ExternalResource {
     c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     c.setConfig(conf.toBytesString());
 
-    ((CatalogServiceImpl) node.getContext().getCatalogService()).getSystemUserCatalog().createSource(c);
+    ((CatalogServiceImpl) node.getContext().getCatalogService())
+        .getSystemUserCatalog()
+        .createSource(c);
   }
 }

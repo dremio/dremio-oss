@@ -15,24 +15,17 @@
  */
 package com.dremio.dac.explore.model;
 
-import java.util.List;
-
-import javax.validation.constraints.NotNull;
-
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
+import javax.validation.constraints.NotNull;
 
-
-/**
- * this class is used to pass info about target dataset from ui
- */
+/** this class is used to pass info about target dataset from ui */
 public class ReapplyDataset {
-  @NotNull
-  private final List<String> datasetPathElements;
-  @NotNull
-  private final DatasetVersion version;
+  @NotNull private final List<String> datasetPathElements;
+  @NotNull private final DatasetVersion version;
 
   @JsonCreator
   public ReapplyDataset(

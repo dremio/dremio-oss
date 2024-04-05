@@ -18,15 +18,7 @@ package com.dremio.dac.model.sources;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
-
-import javax.ws.rs.client.Entity;
-
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
+import ch.qos.logback.classic.Level;
 import com.dremio.common.util.FileUtils;
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -41,14 +33,17 @@ import com.dremio.io.file.Path;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
+import java.io.IOException;
+import javax.ws.rs.client.Entity;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-import ch.qos.logback.classic.Level;
-
-/**
- * Test FormatTools via REST api explored by {@SourceResource}
- */
+/** Test FormatTools via REST api explored by {@SourceResource} */
 public class TestFormatTools extends BaseTestServer {
-  private static final ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
+  private static final ch.qos.logback.classic.Logger rootLogger =
+      ((ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("com.dremio"));
   private static Level originalLogLevel;
 
   @BeforeClass
@@ -72,7 +67,8 @@ public class TestFormatTools extends BaseTestServer {
       SourceUI source = new SourceUI();
       source.setName("dfs_static_test_hadoop");
       source.setConfig(nas);
-      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+      source.setMetadataPolicy(
+          UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source);
     }
   }
@@ -84,7 +80,11 @@ public class TestFormatTools extends BaseTestServer {
   @Test
   public void testParquetFormat() throws Exception {
     String fileUrlPath = getUrlPath("/singlefile_parquet_dir/0_0_0.parquet");
-    FileFormatUI fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + fileUrlPath)).buildGet(), FileFormatUI.class);
+    FileFormatUI fileFormat =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + fileUrlPath))
+                .buildGet(),
+            FileFormatUI.class);
     assertTrue(fileFormat.getFileFormat() instanceof ParquetFileConfig);
     assertEquals(FileType.PARQUET, fileFormat.getFileFormat().getFileType());
   }
@@ -92,7 +92,12 @@ public class TestFormatTools extends BaseTestServer {
   @Test
   public void testIcebergFormat() throws Exception {
     String tableUrlPath = getUrlPath("/datasets/iceberg/empty_table");
-    FileFormatUI fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + tableUrlPath)).buildGet(), FileFormatUI.class);
+    FileFormatUI fileFormat =
+        expectSuccess(
+            getBuilder(
+                    getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + tableUrlPath))
+                .buildGet(),
+            FileFormatUI.class);
     assertTrue(fileFormat.getFileFormat() instanceof IcebergFileConfig);
     assertEquals(FileType.ICEBERG, fileFormat.getFileFormat().getFileType());
   }
@@ -100,12 +105,24 @@ public class TestFormatTools extends BaseTestServer {
   @Test
   public void testIcebergTablePreviewData() throws Exception {
     setSystemOption("dac.format.preview.batch_size", "1000");
-    IcebergTestTables.Table icebergTable = IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES.get();
+    IcebergTestTables.Table icebergTable =
+        IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES.get();
     try {
       String tableUrlPath = icebergTable.getLocation();
-      FileFormatUI fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + tableUrlPath)).buildGet(), FileFormatUI.class);
+      FileFormatUI fileFormat =
+          expectSuccess(
+              getBuilder(
+                      getAPIv2().path("/source/dfs_static_test_hadoop/file_format/" + tableUrlPath))
+                  .buildGet(),
+              FileFormatUI.class);
       assertTrue(fileFormat.getFileFormat() instanceof IcebergFileConfig);
-      JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dfs_static_test_hadoop/file_preview/" + tableUrlPath)).buildPost(Entity.json(fileFormat.getFileFormat())), JobDataFragment.class);
+      JobDataFragment data =
+          expectSuccess(
+              getBuilder(
+                      getAPIv2()
+                          .path("/source/dfs_static_test_hadoop/file_preview/" + tableUrlPath))
+                  .buildPost(Entity.json(fileFormat.getFileFormat())),
+              JobDataFragment.class);
       assertEquals(551, data.getReturnedRowCount());
       assertEquals(6, data.getColumns().size());
       assertEquals("order_id", data.getColumns().get(0).getName());
@@ -128,15 +145,18 @@ public class TestFormatTools extends BaseTestServer {
     IcebergFileConfig icebergFileConfig = new IcebergFileConfig();
 
     doc("preview data for metastore iceberg table");
-    UserExceptionMapper.ErrorMessageWithContext error = expectError(
-      FamilyExpectation.CLIENT_ERROR,
-      getBuilder(getAPIv2()
-        .path("/source/dfs_static_test_hadoop/file_preview" + tableUrlPath))
-        .buildPost(Entity.json(icebergFileConfig)),
-      UserExceptionMapper.ErrorMessageWithContext.class
-    );
-    assertTrue(error.getErrorMessage().contains(
-      "This folder does not contain a filesystem-based Iceberg table. If the table in this folder is managed via a catalog " +
-      "such as Hive, Glue, or Nessie, please use a data source configured for that catalog to connect to this table."));
+    UserExceptionMapper.ErrorMessageWithContext error =
+        expectError(
+            FamilyExpectation.CLIENT_ERROR,
+            getBuilder(
+                    getAPIv2().path("/source/dfs_static_test_hadoop/file_preview" + tableUrlPath))
+                .buildPost(Entity.json(icebergFileConfig)),
+            UserExceptionMapper.ErrorMessageWithContext.class);
+    assertTrue(
+        error
+            .getErrorMessage()
+            .contains(
+                "This folder does not contain a filesystem-based Iceberg table. If the table in this folder is managed via a catalog "
+                    + "such as Hive, Glue, or Nessie, please use a data source configured for that catalog to connect to this table."));
   }
 }

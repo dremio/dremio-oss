@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.store.metadatarefresh.footerread;
 
+import com.dremio.exec.record.BatchSchema;
 import org.apache.iceberg.FileFormat;
 
-import com.dremio.exec.record.BatchSchema;
-
-/**
- * ORC footer used during metadata refresh
- */
+/** ORC footer used during metadata refresh */
 public class OrcFooter extends Footer {
-    public OrcFooter(BatchSchema schema, long rowCount) {
-        super(schema, rowCount, FileFormat.ORC);
-    }
+  public OrcFooter(BatchSchema schema, long rowCount) {
+    super(schema, rowCount, FileFormat.ORC);
+  }
 }

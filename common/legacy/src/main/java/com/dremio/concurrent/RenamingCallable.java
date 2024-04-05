@@ -48,12 +48,14 @@ public final class RenamingCallable<V> implements Callable<V> {
   }
 
   public static RenamingCallable<Void> of(final Runnable delegate, final String name) {
-    return of(new Callable<Void>() {
-      @Override
-      public Void call() throws Exception {
-        delegate.run();
-        return null;
-      }
-    }, name);
+    return of(
+        new Callable<Void>() {
+          @Override
+          public Void call() throws Exception {
+            delegate.run();
+            return null;
+          }
+        },
+        name);
   }
 }

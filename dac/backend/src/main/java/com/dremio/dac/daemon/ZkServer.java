@@ -15,50 +15,48 @@
  */
 package com.dremio.dac.daemon;
 
-import java.io.File;
-import java.net.BindException;
-import java.util.Properties;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.zookeeper.server.ServerConfig;
-import org.apache.zookeeper.server.ZooKeeperServerMain;
-import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
-
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.service.Service;
 import com.google.common.base.Throwables;
-import com.google.common.io.Files;
+import java.io.IOException;
+import java.net.BindException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Properties;
+import org.apache.commons.io.file.PathUtils;
+import org.apache.zookeeper.server.ServerConfig;
+import org.apache.zookeeper.server.ZooKeeperServerMain;
+import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 
-/**
- * ZooKeeper server service.
- */
+/** ZooKeeper server service. */
 public class ZkServer implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZkServer.class);
-
-  private static final int DEFAULT_ZK_PORT = 2181;
   private static final int ZK_SERVER_STARTUP_TIME = 1000;
 
-  private final File storageDir;
-  private int port = DEFAULT_ZK_PORT;
+  private final Path storageDir;
   private final boolean autoPort;
 
+  private int port;
   private Thread zkThread;
   private ZkEmbeddedServer zkEmbeddedServer;
 
   public ZkServer(String dirPath, int port, final boolean autoPort) {
-    try (TimedBlock b = Timer.time("new ZkServer")) {
-      if (dirPath != null) {
-        // TODO - add basic sanity check that the input value looks like a filesytem path
-        storageDir = new File(dirPath);
-      } else {
-        storageDir = Files.createTempDir();
-        logger.info("Created temporary storage dir: {}", storageDir.toString());
+    if (dirPath != null) {
+      // TODO - add basic sanity check that the input value looks like a filesytem path
+      storageDir = Paths.get(dirPath);
+    } else {
+      try {
+        storageDir = Files.createTempDirectory("zkServer");
+        logger.info("Created temporary storage dir: {}", storageDir.toAbsolutePath());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
-      this.autoPort = autoPort;
-      this.port = port;
-      // start embedded zookeeper in here in order to initialize port.
     }
+    this.autoPort = autoPort;
+    this.port = port;
+    // start embedded zookeeper in here in order to initialize port.
   }
 
   public int getPort() {
@@ -67,19 +65,20 @@ public class ZkServer implements Service {
 
   @Override
   public void start() throws Exception {
-    if (!FileUtils.deleteQuietly(storageDir)) {
-      logger.warn("Couldn't delete Zookeeper data directory");
+    try (TimedBlock ignored = Timer.time("new ZkServer")) {
+      if (!deleteQuietly(storageDir)) {
+        logger.warn("Couldn't delete Zookeeper data directory: {}", storageDir);
+      }
+      init();
     }
-
-    init();
   }
 
   public void init() throws Exception {
     logger.info("Starting Zookeeper");
 
     final Properties startupProperties = new Properties();
-    final File dir = new File(storageDir, "zookeeper");
-    startupProperties.put("dataDir", dir.toString());
+    final Path dir = storageDir.resolve("zookeeper");
+    startupProperties.put("dataDir", dir.toAbsolutePath().toString());
     final ServerConfig configuration = new ServerConfig();
     final QuorumPeerConfig quorumConfiguration = new QuorumPeerConfig();
 
@@ -127,8 +126,7 @@ public class ZkServer implements Service {
     logger.info("Stopped Zookeeper at localhost:{}", port);
   }
 
-
-  final class ZkEmbeddedServer extends ZooKeeperServerMain implements Runnable {
+  static final class ZkEmbeddedServer extends ZooKeeperServerMain implements Runnable {
     private final ServerConfig configuration;
     private volatile Throwable error = null;
 
@@ -154,4 +152,16 @@ public class ZkServer implements Service {
     }
   }
 
+  private static boolean deleteQuietly(Path path) {
+    if (!Files.exists(path)) {
+      return true;
+    }
+    try {
+      PathUtils.delete(path);
+    } catch (IOException e) {
+      logger.debug("Failed to delete path: {}", path, e);
+      return false;
+    }
+    return true;
+  }
 }

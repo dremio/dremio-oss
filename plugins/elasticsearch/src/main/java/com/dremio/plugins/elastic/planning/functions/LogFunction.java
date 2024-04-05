@@ -19,7 +19,7 @@ import org.apache.calcite.rex.RexCall;
 
 public class LogFunction extends ElasticFunction {
 
-  public LogFunction(String dremioName, String elasticName){
+  public LogFunction(String dremioName, String elasticName) {
     super(dremioName, elasticName);
   }
 
@@ -28,6 +28,8 @@ public class LogFunction extends ElasticFunction {
     checkArity(call, 2);
     FunctionRender operand0 = call.getOperands().get(0).accept(renderer.getVisitor());
     FunctionRender operand1 = call.getOperands().get(1).accept(renderer.getVisitor());
-    return new FunctionRender(String.format("( log(%s)/log(%s) )", operand0.getScript(), operand1.getScript()), nulls(operand0, operand1));
+    return new FunctionRender(
+        String.format("( log(%s)/log(%s) )", operand0.getScript(), operand1.getScript()),
+        nulls(operand0, operand1));
   }
 }

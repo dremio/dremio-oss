@@ -15,34 +15,38 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.TableOptimizeRel;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
 
-/**
- * Generate physical plan for OPTIMIZE TABLE with file systems.
- */
+/** Generate physical plan for OPTIMIZE TABLE with file systems. */
 public class FileSystemTableOptimizePrule extends TableOptimizePruleBase {
 
   public FileSystemTableOptimizePrule(OptimizerRulesContext context) {
-    super(RelOptHelper.some(TableOptimizeRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
-      "Prel.FileSystemTableOptimizePrule", context);
+    super(
+        RelOptHelper.some(TableOptimizeRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
+        "Prel.FileSystemTableOptimizePrule",
+        context);
   }
 
   @Override
   public boolean matches(RelOptRuleCall call) {
-    return call.<TableOptimizeRel>rel(0).getCreateTableEntry().getPlugin() instanceof FileSystemPlugin;
+    return call.<TableOptimizeRel>rel(0).getCreateTableEntry().getPlugin()
+        instanceof FileSystemPlugin;
   }
 
   @Override
   public void onMatch(RelOptRuleCall call) {
     final TableOptimizeRel optimizeRel = call.rel(0);
-    call.transformTo(getPhysicalPlan(optimizeRel,call.rel(1), ((DremioPrepareTable) optimizeRel.getTable()).getTable().getDataset()));
+    call.transformTo(
+        getPhysicalPlan(
+            optimizeRel,
+            call.rel(1),
+            ((DremioPrepareTable) optimizeRel.getTable()).getTable().getDataset()));
   }
 }

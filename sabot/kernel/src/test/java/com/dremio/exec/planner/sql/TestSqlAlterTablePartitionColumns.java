@@ -18,17 +18,19 @@ package com.dremio.exec.planner.sql;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.apache.calcite.sql.SqlNode;
-import org.junit.Test;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.sql.SqlNode;
+import org.junit.Test;
 
 public class TestSqlAlterTablePartitionColumns {
-  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100,
-    PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig =
+      new ParserConfig(
+          ParserConfig.QUOTING,
+          100,
+          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Test
   public void testAddPartitionColumn() {
@@ -108,8 +110,8 @@ public class TestSqlAlterTablePartitionColumns {
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlAlterTablePartitionColumns alter = (SqlAlterTablePartitionColumns) sqlNode;
 
-    PartitionTransform expected = new PartitionTransform("x", PartitionTransform.Type.BUCKET,
-      ImmutableList.of(42));
+    PartitionTransform expected =
+        new PartitionTransform("x", PartitionTransform.Type.BUCKET, ImmutableList.of(42));
 
     assertThat(alter.getMode()).isEqualTo(SqlAlterTablePartitionColumns.Mode.ADD);
     assertThat(alter.getPartitionTransform()).usingRecursiveComparison().isEqualTo(expected);
@@ -121,8 +123,8 @@ public class TestSqlAlterTablePartitionColumns {
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlAlterTablePartitionColumns alter = (SqlAlterTablePartitionColumns) sqlNode;
 
-    PartitionTransform expected = new PartitionTransform("x", PartitionTransform.Type.TRUNCATE,
-      ImmutableList.of(42));
+    PartitionTransform expected =
+        new PartitionTransform("x", PartitionTransform.Type.TRUNCATE, ImmutableList.of(42));
 
     assertThat(alter.getMode()).isEqualTo(SqlAlterTablePartitionColumns.Mode.ADD);
     assertThat(alter.getPartitionTransform()).usingRecursiveComparison().isEqualTo(expected);
@@ -206,8 +208,8 @@ public class TestSqlAlterTablePartitionColumns {
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlAlterTablePartitionColumns alter = (SqlAlterTablePartitionColumns) sqlNode;
 
-    PartitionTransform expected = new PartitionTransform("x", PartitionTransform.Type.BUCKET,
-      ImmutableList.of(42));
+    PartitionTransform expected =
+        new PartitionTransform("x", PartitionTransform.Type.BUCKET, ImmutableList.of(42));
 
     assertThat(alter.getMode()).isEqualTo(SqlAlterTablePartitionColumns.Mode.DROP);
     assertThat(alter.getPartitionTransform()).usingRecursiveComparison().isEqualTo(expected);
@@ -219,8 +221,8 @@ public class TestSqlAlterTablePartitionColumns {
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlAlterTablePartitionColumns alter = (SqlAlterTablePartitionColumns) sqlNode;
 
-    PartitionTransform expected = new PartitionTransform("x", PartitionTransform.Type.TRUNCATE,
-      ImmutableList.of(42));
+    PartitionTransform expected =
+        new PartitionTransform("x", PartitionTransform.Type.TRUNCATE, ImmutableList.of(42));
 
     assertThat(alter.getMode()).isEqualTo(SqlAlterTablePartitionColumns.Mode.DROP);
     assertThat(alter.getPartitionTransform()).usingRecursiveComparison().isEqualTo(expected);
@@ -228,23 +230,23 @@ public class TestSqlAlterTablePartitionColumns {
 
   @Test
   public void testBucketPartitionTransformWithBadArgsFails() {
-    String sql ="ALTER TABLE t1 ADD PARTITION FIELD bucket('asdf', name)";
+    String sql = "ALTER TABLE t1 ADD PARTITION FIELD bucket('asdf', name)";
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlAlterTablePartitionColumns alter = (SqlAlterTablePartitionColumns) sqlNode;
 
     assertThatThrownBy(alter::getPartitionTransform)
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments for partition transform");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments for partition transform");
   }
 
   @Test
   public void testTruncatePartitionTransformWithBadArgsFails() {
-    String sql ="ALTER TABLE t1 DROP PARTITION FIELD truncate('asdf', name)";
+    String sql = "ALTER TABLE t1 DROP PARTITION FIELD truncate('asdf', name)";
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlAlterTablePartitionColumns alter = (SqlAlterTablePartitionColumns) sqlNode;
 
     assertThatThrownBy(alter::getPartitionTransform)
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Invalid arguments for partition transform");
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Invalid arguments for partition transform");
   }
 }

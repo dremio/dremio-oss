@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.generator.supplier;
 
-/**
- * Generates floats starting at Float.MIN_VALUE.
- */
+/** Generates floats starting at Float.MIN_VALUE. */
 public class FloatSupplier implements UniqueSupplier<Float> {
   private float nextFloat = Float.MIN_VALUE;
 

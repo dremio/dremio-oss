@@ -20,17 +20,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
-import java.util.Arrays;
-import java.util.List;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.junit.Rule;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
@@ -50,11 +39,18 @@ import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
+import java.util.Arrays;
+import java.util.List;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.junit.Rule;
+import org.junit.Test;
+import org.mockito.Mockito;
 
 public class TestAbstractDataCollector extends DremioTest {
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testReserveMemory() {
@@ -63,49 +59,75 @@ public class TestAbstractDataCollector extends DremioTest {
     FragmentWorkQueue workQueue = mock(FragmentWorkQueue.class);
     TunnelProvider tunnelProvider = mock(TunnelProvider.class);
 
-    EndpointsIndex endpointsIndex = new EndpointsIndex(
-      Arrays.asList(
-        NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(12345).build(),
-        NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(12345).build()
-      )
-    );
+    EndpointsIndex endpointsIndex =
+        new EndpointsIndex(
+            Arrays.asList(
+                NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(12345).build(),
+                NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(12345).build()));
     List<CoordExecRPC.MinorFragmentIndexEndpoint> list =
-      Arrays.asList(
-        MinorFragmentIndexEndpoint.newBuilder().setEndpointIndex(0).setMinorFragmentId(0).build(),
-        MinorFragmentIndexEndpoint.newBuilder().setEndpointIndex(0).setMinorFragmentId(0).build()
-      );
+        Arrays.asList(
+            MinorFragmentIndexEndpoint.newBuilder()
+                .setEndpointIndex(0)
+                .setMinorFragmentId(0)
+                .build(),
+            MinorFragmentIndexEndpoint.newBuilder()
+                .setEndpointIndex(0)
+                .setMinorFragmentId(0)
+                .build());
 
-    CoordExecRPC.Collector collector = CoordExecRPC.Collector.newBuilder()
-      .setIsSpooling(true)
-      .setOppositeMajorFragmentId(3)
-      .setSupportsOutOfOrder(true)
-      .addAllIncomingMinorFragmentIndex(list)
-      .build();
-    ExecProtos.FragmentHandle handle = ExecProtos.FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234234).build();
-    BufferAllocator allocator = allocatorRule.newAllocator("test-abstract-data-collector", 0, 2000000);
+    CoordExecRPC.Collector collector =
+        CoordExecRPC.Collector.newBuilder()
+            .setIsSpooling(true)
+            .setOppositeMajorFragmentId(3)
+            .setSupportsOutOfOrder(true)
+            .addAllIncomingMinorFragmentIndex(list)
+            .build();
+    ExecProtos.FragmentHandle handle =
+        ExecProtos.FragmentHandle.newBuilder()
+            .setMajorFragmentId(2323)
+            .setMinorFragmentId(234234)
+            .build();
+    BufferAllocator allocator =
+        allocatorRule.newAllocator("test-abstract-data-collector", 0, 2000000);
     boolean outOfMemory = false;
     final SchedulerService schedulerService = Mockito.mock(SchedulerService.class);
-    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
-                                                           new Provider<SchedulerService>() {
-                                                             @Override
-                                                             public SchedulerService get() {
-                                                               return schedulerService;
-                                                             }
-                                                           });
-    final OptionManager options = new DefaultOptionManager(new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT));
+    final SpillService spillService =
+        new SpillServiceImpl(
+            DremioConfig.create(null, config),
+            new DefaultSpillServiceOptions(),
+            new Provider<SchedulerService>() {
+              @Override
+              public SchedulerService get() {
+                return schedulerService;
+              }
+            });
+    final OptionManager options =
+        new DefaultOptionManager(new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT));
     try {
       spillService.start();
     } catch (Exception e) {
       fail("Unable to start spill service");
     }
     try {
-      AbstractDataCollector dataCollector = new AbstractDataCollector(resourceGroup, true,
-        collector, 10240, allocator, config, options, handle, workQueue, tunnelProvider, spillService, endpointsIndex) {
-        @Override
-        protected RawBatchBuffer getBuffer(int minorFragmentId) {
-          return null;
-        }
-      };
+      AbstractDataCollector dataCollector =
+          new AbstractDataCollector(
+              resourceGroup,
+              true,
+              collector,
+              10240,
+              allocator,
+              config,
+              options,
+              handle,
+              workQueue,
+              tunnelProvider,
+              spillService,
+              endpointsIndex) {
+            @Override
+            protected RawBatchBuffer getBuffer(int minorFragmentId) {
+              return null;
+            }
+          };
     } catch (OutOfMemoryException e) {
       /* Each minor fragment will reserve an arrow buffer with 1024*1024 size. 2*1024*1024 memory is required
        * because there are two minor fragments. Allocator is limited to 2000000, so OutOfMemoryException is
@@ -113,7 +135,7 @@ public class TestAbstractDataCollector extends DremioTest {
        * allocator is closed.
        */
       // The first allocation should succeed
-      assertEquals(allocator.getPeakMemoryAllocation(), 1024*1024);
+      assertEquals(allocator.getPeakMemoryAllocation(), 1024 * 1024);
 
       outOfMemory = true;
     }

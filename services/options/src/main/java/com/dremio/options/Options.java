@@ -21,11 +21,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-/**
- * Annotation on classes having {@code OptionValidator} to be registered
- */
+/** Annotation on classes having {@code OptionValidator} to be registered */
 @Retention(RUNTIME)
 @Target(TYPE)
-public @interface Options {
-
-}
+public @interface Options {}

@@ -17,13 +17,6 @@ package com.dremio.exec.util;
 
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 
-import java.util.List;
-
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.commons.lang3.StringUtils;
-import org.joda.time.LocalDateTime;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.exec.expr.TypeHelper;
@@ -33,6 +26,11 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import java.util.List;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
+import org.joda.time.LocalDateTime;
 
 public class VectorUtil {
 
@@ -49,20 +47,21 @@ public class VectorUtil {
 
     int width = columns.size();
     for (String column : columns) {
-      System.out.printf("%s%s",column, column == columns.get(width - 1) ? "\n" : delimiter);
+      System.out.printf("%s%s", column, column == columns.get(width - 1) ? "\n" : delimiter);
     }
     for (int row = 0; row < rows; row++) {
       int columnCounter = 0;
       for (VectorWrapper<?> vw : va) {
         boolean lastColumn = columnCounter == width - 1;
-        Object o ;
-        try{
+        Object o;
+        try {
           o = vw.getValueVector().getObject(row);
-        }catch(Exception e){
-          throw new RuntimeException("failure while trying to read column " + vw.getField().getName(), e);
+        } catch (Exception e) {
+          throw new RuntimeException(
+              "failure while trying to read column " + vw.getField().getName(), e);
         }
         if (o == null) {
-          //null value
+          // null value
           String value = "null";
           System.out.printf("%s%s", value, lastColumn ? "\n" : delimiter);
         } else if (o instanceof byte[]) {
@@ -81,8 +80,11 @@ public class VectorUtil {
     }
   }
 
-  public static void appendVectorAccessibleContent(VectorAccessible va, StringBuilder formattedResults,
-      final String delimiter, boolean includeHeader) {
+  public static void appendVectorAccessibleContent(
+      VectorAccessible va,
+      StringBuilder formattedResults,
+      final String delimiter,
+      boolean includeHeader) {
     if (includeHeader) {
       List<String> columns = Lists.newArrayList();
       for (VectorWrapper<?> vw : va) {
@@ -105,7 +107,9 @@ public class VectorUtil {
         } else if (o instanceof LocalDateTime) {
           // TODO(DRILL-3882) - remove this once the datetime is not returned in an
           // object needlessly holding a timezone
-          rowValues.add(DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD\"T\"HH:MI:SS.FFF").print((LocalDateTime) o));
+          rowValues.add(
+              DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD\"T\"HH:MI:SS.FFF")
+                  .print((LocalDateTime) o));
         } else {
           rowValues.add(o.toString());
         }
@@ -124,7 +128,7 @@ public class VectorUtil {
   }
 
   public static void showVectorAccessibleContent(VectorAccessible va, int columnWidth) {
-    showVectorAccessibleContent(va, new int[]{ columnWidth });
+    showVectorAccessibleContent(va, new int[] {columnWidth});
   }
 
   public static void showVectorAccessibleContent(VectorAccessible va, int[] columnWidths) {
@@ -137,7 +141,14 @@ public class VectorUtil {
       width += columnWidth + 2;
       formats.add("| %-" + columnWidth + "s");
       Field field = vw.getValueVector().getField();
-      columns.add(field.getName() + "<" + getMajorTypeForField(field).getMinorType() + "(" + getMajorTypeForField(field).getMode() + ")" + ">");
+      columns.add(
+          field.getName()
+              + "<"
+              + getMajorTypeForField(field).getMinorType()
+              + "("
+              + getMajorTypeForField(field).getMode()
+              + ")"
+              + ">");
       columnIndex++;
     }
 
@@ -145,12 +156,14 @@ public class VectorUtil {
     System.out.println(rows + " row(s):");
     for (int row = 0; row < rows; row++) {
       // header, every 50 rows.
-      if (row%50 == 0) {
+      if (row % 50 == 0) {
         System.out.println(StringUtils.repeat("-", width + 1));
         columnIndex = 0;
         for (String column : columns) {
           int columnWidth = getColumnWidth(columnWidths, columnIndex);
-          System.out.printf(formats.get(columnIndex), column.length() <= columnWidth ? column : column.substring(0, columnWidth - 1));
+          System.out.printf(
+              formats.get(columnIndex),
+              column.length() <= columnWidth ? column : column.substring(0, columnWidth - 1));
           columnIndex++;
         }
         System.out.print("|\n");
@@ -167,7 +180,11 @@ public class VectorUtil {
         } else {
           cellString = DremioStringUtils.escapeNewLines(String.valueOf(o));
         }
-        System.out.printf(formats.get(columnIndex), cellString.length() <= columnWidth ? cellString : cellString.substring(0, columnWidth - 1));
+        System.out.printf(
+            formats.get(columnIndex),
+            cellString.length() <= columnWidth
+                ? cellString
+                : cellString.substring(0, columnWidth - 1));
         columnIndex++;
       }
       System.out.print("|\n");
@@ -182,17 +199,18 @@ public class VectorUtil {
   }
 
   private static int getColumnWidth(int[] columnWidths, int columnIndex) {
-    return (columnWidths == null) ? DEFAULT_COLUMN_WIDTH
+    return (columnWidths == null)
+        ? DEFAULT_COLUMN_WIDTH
         : (columnWidths.length > columnIndex) ? columnWidths[columnIndex] : columnWidths[0];
   }
 
   public static long getSize(VectorAccessible vectorAccessible) {
     long size = 0;
-    for(VectorWrapper vw : vectorAccessible) {
+    for (VectorWrapper vw : vectorAccessible) {
       if (vw.isHyper()) {
         ValueVector[] vectors = vw.getValueVectors();
         if (vectors != null) {
-          for(ValueVector vv : vectors) {
+          for (ValueVector vv : vectors) {
             size += vv.getBufferSize();
           }
         }
@@ -204,9 +222,13 @@ public class VectorUtil {
     return size;
   }
 
-  public static ValueVector getVectorFromSchemaPath(VectorAccessible vectorAccessible, String schemaPath) {
-    TypedFieldId typedFieldId = vectorAccessible.getSchema().getFieldId(SchemaPath.getSimplePath(schemaPath));
+  public static ValueVector getVectorFromSchemaPath(
+      VectorAccessible vectorAccessible, String schemaPath) {
+    TypedFieldId typedFieldId =
+        vectorAccessible.getSchema().getFieldId(SchemaPath.getSimplePath(schemaPath));
     Field field = vectorAccessible.getSchema().getColumn(typedFieldId.getFieldIds()[0]);
-    return vectorAccessible.getValueAccessorById(TypeHelper.getValueVectorClass(field), typedFieldId.getFieldIds()).getValueVector();
+    return vectorAccessible
+        .getValueAccessorById(TypeHelper.getValueVectorClass(field), typedFieldId.getFieldIds())
+        .getValueVector();
   }
 }

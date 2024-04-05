@@ -16,10 +16,14 @@
 
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -30,12 +34,6 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 
 public class SqlGrantOnScript extends SqlCall implements SimpleDirectHandler.Creator {
 
@@ -52,26 +50,27 @@ public class SqlGrantOnScript extends SqlCall implements SimpleDirectHandler.Cre
   }
 
   private static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
-      @Override
-      public SqlCall createCall(SqlLiteral functionQualifier,
-                                SqlParserPos pos,
-                                SqlNode... operands) {
-        Preconditions.checkArgument(operands.length == 5,
-                                    "SqlGrantOnScript.createCall() has to get 5 operands!");
-        return new SqlGrantOnScript(pos,
-                                    (SqlNodeList) operands[0],
-                                    (SqlIdentifier) operands[2],
-                                    (SqlLiteral) operands[3],
-                                    (SqlIdentifier) operands[4]);
-      }
-    };
+      new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 5, "SqlGrantOnScript.createCall() has to get 5 operands!");
+          return new SqlGrantOnScript(
+              pos,
+              (SqlNodeList) operands[0],
+              (SqlIdentifier) operands[2],
+              (SqlLiteral) operands[3],
+              (SqlIdentifier) operands[4]);
+        }
+      };
 
-  public SqlGrantOnScript(SqlParserPos pos,
-                          SqlNodeList privilegeList,
-                          SqlIdentifier script,
-                          SqlLiteral granteeType,
-                          SqlIdentifier grantee) {
+  public SqlGrantOnScript(
+      SqlParserPos pos,
+      SqlNodeList privilegeList,
+      SqlIdentifier script,
+      SqlLiteral granteeType,
+      SqlIdentifier grantee) {
     super(pos);
     this.privilegeList = privilegeList;
     this.script = script;
@@ -90,7 +89,11 @@ public class SqlGrantOnScript extends SqlCall implements SimpleDirectHandler.Cre
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.ScriptGrantHandler");
       Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
-    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {
+    } catch (InstantiationException
+        | IllegalAccessException
+        | ClassNotFoundException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw Throwables.propagate(e);
     }
   }
@@ -131,5 +134,4 @@ public class SqlGrantOnScript extends SqlCall implements SimpleDirectHandler.Cre
   public SqlIdentifier getGrantee() {
     return grantee;
   }
-
 }

@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.FunctionHolderExpression;
@@ -28,34 +23,44 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.exec.compile.sig.ConstantExpressionIdentifier;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Case expression splitter analyzer. Does in-depth analysis and splits a case expression, such that each
- * sub-expression can be evaluated either in Gandiva or Java. This analyzer is effectively a helper class for
- * {@link CaseExpressionSplitter} and it does a recursive analysis of whether the expression needs a split and
- * if so provides the splitter information on how to do the splits through the {@link CaseSplits} object.
- * <p>
- * The case expression splitting is done in a different way to IfExpr Splitting, where initially the case expression is
- * split into two vertical splits (when_split and then_split) and based on further analysis split further into multiple
- * horizontal splits in both the "when" and "then" vertical splits.
+ * Case expression splitter analyzer. Does in-depth analysis and splits a case expression, such that
+ * each sub-expression can be evaluated either in Gandiva or Java. This analyzer is effectively a
+ * helper class for {@link CaseExpressionSplitter} and it does a recursive analysis of whether the
+ * expression needs a split and if so provides the splitter information on how to do the splits
+ * through the {@link CaseSplits} object.
+ *
+ * <p>The case expression splitting is done in a different way to IfExpr Splitting, where initially
+ * the case expression is split into two vertical splits (when_split and then_split) and based on
+ * further analysis split further into multiple horizontal splits in both the "when" and "then"
+ * vertical splits.
+ *
  * <p>
  */
 public class CaseExpressionAnalyzer {
   private static final CaseSplits WRAPPED_ZERO_SPLIT_PREFERRED =
-    new ZeroCaseSplits(CaseSplit.getZeroSplit(CaseSplit.CaseSplitType.PREFERRED));
+      new ZeroCaseSplits(CaseSplit.getZeroSplit(CaseSplit.CaseSplitType.PREFERRED));
   private static final CaseSplits WRAPPED_ZERO_SPLIT_NON_PREFERRED =
-    new ZeroCaseSplits(CaseSplit.getZeroSplit(CaseSplit.CaseSplitType.NON_PREFERRED));
+      new ZeroCaseSplits(CaseSplit.getZeroSplit(CaseSplit.CaseSplitType.NON_PREFERRED));
   private static final CaseSplits WRAPPED_ZERO_SPLIT_PREFERRED_FLIPPED =
-    new ZeroCaseSplits(CaseSplit.getZeroSplitFlipped(CaseSplit.CaseSplitType.PREFERRED));
+      new ZeroCaseSplits(CaseSplit.getZeroSplitFlipped(CaseSplit.CaseSplitType.PREFERRED));
   private static final CaseSplits WRAPPED_ZERO_SPLIT_NON_PREFERRED_FLIPPED =
-    new ZeroCaseSplits(CaseSplit.getZeroSplitFlipped(CaseSplit.CaseSplitType.NON_PREFERRED));
+      new ZeroCaseSplits(CaseSplit.getZeroSplitFlipped(CaseSplit.CaseSplitType.NON_PREFERRED));
 
   private enum CodegenState {
-    FULL(CaseSplit.CaseSplitType.PREFERRED, false, true),       // Fully Executable in Preferred
-    MIXED(CaseSplit.CaseSplitType.MIXED, false, false),          // sub expressions is mixed
-    NONE(CaseSplit.CaseSplitType.NON_PREFERRED, false, true),   // Entire condition executable in non-preferred only
+    FULL(CaseSplit.CaseSplitType.PREFERRED, false, true), // Fully Executable in Preferred
+    MIXED(CaseSplit.CaseSplitType.MIXED, false, false), // sub expressions is mixed
+    NONE(
+        CaseSplit.CaseSplitType.NON_PREFERRED,
+        false,
+        true), // Entire condition executable in non-preferred only
     ANY(CaseSplit.CaseSplitType.PREFERRED, true, true),
-    NA(CaseSplit.CaseSplitType.PREFERRED, true, true);         // Not applicable
+    NA(CaseSplit.CaseSplitType.PREFERRED, true, true); // Not applicable
 
     private final CaseSplit.CaseSplitType splitType;
     private final boolean allCompatible;
@@ -79,14 +84,15 @@ public class CaseExpressionAnalyzer {
   private final SupportedEngines.Engine preferredEngine;
   private final SupportedEngines.Engine nonPreferredEngine;
 
-  CaseExpressionAnalyzer(SupportedEngines.Engine preferredEngine, SupportedEngines.Engine nonPreferredEngine) {
+  CaseExpressionAnalyzer(
+      SupportedEngines.Engine preferredEngine, SupportedEngines.Engine nonPreferredEngine) {
     this.preferredEngine = preferredEngine;
     this.nonPreferredEngine = nonPreferredEngine;
   }
 
   /**
-   * Does a top down analysis of a case expression and provides information about how best to split it in the
-   * {@link CaseSplits} object.
+   * Does a top down analysis of a case expression and provides information about how best to split
+   * it in the {@link CaseSplits} object.
    *
    * @param context case expression with code gen context.
    * @return Information on how to split the case expression end to end.
@@ -108,19 +114,22 @@ public class CaseExpressionAnalyzer {
   }
 
   private CaseSplits preferred() {
-    return (preferredEngine.equals(SupportedEngines.Engine.GANDIVA)) ? WRAPPED_ZERO_SPLIT_PREFERRED :
-      WRAPPED_ZERO_SPLIT_PREFERRED_FLIPPED;
+    return (preferredEngine.equals(SupportedEngines.Engine.GANDIVA))
+        ? WRAPPED_ZERO_SPLIT_PREFERRED
+        : WRAPPED_ZERO_SPLIT_PREFERRED_FLIPPED;
   }
 
   private CaseSplits nonPreferred() {
-    return (nonPreferredEngine.equals(SupportedEngines.Engine.JAVA)) ? WRAPPED_ZERO_SPLIT_NON_PREFERRED :
-      WRAPPED_ZERO_SPLIT_NON_PREFERRED_FLIPPED;
+    return (nonPreferredEngine.equals(SupportedEngines.Engine.JAVA))
+        ? WRAPPED_ZERO_SPLIT_NON_PREFERRED
+        : WRAPPED_ZERO_SPLIT_NON_PREFERRED_FLIPPED;
   }
 
   private MultiCaseSplits buildCaseSplit(CodegenSummary[] codegenSummaries) {
     // decide on split by checking compatibility
-    final MultiCaseSplits caseSplits = new MultiCaseSplits(codegenSummaries.length,
-      this.preferredEngine != SupportedEngines.Engine.GANDIVA);
+    final MultiCaseSplits caseSplits =
+        new MultiCaseSplits(
+            codegenSummaries.length, this.preferredEngine != SupportedEngines.Engine.GANDIVA);
     final int lastIdx = codegenSummaries.length - 1;
     CodegenSummary previousSummary = null;
     int conditionIdx = 0;
@@ -129,11 +138,13 @@ public class CaseExpressionAnalyzer {
     for (final CodegenSummary summary : codegenSummaries) {
       if (previousSummary != null) {
         if (summary.isHorizontalWhenSplitHere(previousSummary)) {
-          caseSplits.addWhenSplit(conditionIdx, codegenSummaries[conditionIdx - 1].whenState.toSplitType());
+          caseSplits.addWhenSplit(
+              conditionIdx, codegenSummaries[conditionIdx - 1].whenState.toSplitType());
           lastWhenSplitIdx = conditionIdx;
         }
         if (summary.isHorizontalThenOrElseSplitHere(previousSummary)) {
-          caseSplits.addThenSplit(conditionIdx, codegenSummaries[conditionIdx - 1].thenOrElseState.toSplitType());
+          caseSplits.addThenSplit(
+              conditionIdx, codegenSummaries[conditionIdx - 1].thenOrElseState.toSplitType());
           lastThenSplitIdx = conditionIdx;
         }
       }
@@ -151,9 +162,9 @@ public class CaseExpressionAnalyzer {
   }
 
   /**
-   * Rewrite "ANY" codegen states. "ANY" codegen state is given to "when" or "then" expressions that are
-   * fully constant and is executable in both engines. "ANY" state is rewritten the appropriate state to get the
-   * most efficient splits.
+   * Rewrite "ANY" codegen states. "ANY" codegen state is given to "when" or "then" expressions that
+   * are fully constant and is executable in both engines. "ANY" state is rewritten the appropriate
+   * state to get the most efficient splits.
    *
    * @param codegenSummaries current codegen summary
    */
@@ -202,10 +213,16 @@ public class CaseExpressionAnalyzer {
       CodegenState nextState = CodegenState.NA;
       final int lastIdx = (when) ? codegenSummaries.length - 2 : codegenSummaries.length - 1;
       if (start > 0) {
-        prevState = (when) ? codegenSummaries[start - 1].whenState : codegenSummaries[start - 1].thenOrElseState;
+        prevState =
+            (when)
+                ? codegenSummaries[start - 1].whenState
+                : codegenSummaries[start - 1].thenOrElseState;
       }
       if (end < lastIdx) {
-        nextState = (when) ? codegenSummaries[end + 1].whenState : codegenSummaries[end + 1].thenOrElseState;
+        nextState =
+            (when)
+                ? codegenSummaries[end + 1].whenState
+                : codegenSummaries[end + 1].thenOrElseState;
       }
       CodegenState newState;
       if (prevState != CodegenState.NA && nextState != CodegenState.NA) {
@@ -219,8 +236,10 @@ public class CaseExpressionAnalyzer {
         }
       } else {
         // on the top or bottom edge
-        newState = (prevState == CodegenState.NA && nextState == CodegenState.NA) ? CodegenState.FULL
-          : (prevState == CodegenState.NA) ? nextState : prevState;
+        newState =
+            (prevState == CodegenState.NA && nextState == CodegenState.NA)
+                ? CodegenState.FULL
+                : (prevState == CodegenState.NA) ? nextState : prevState;
         if (newState == CodegenState.MIXED) {
           newState = CodegenState.FULL;
         }
@@ -238,17 +257,18 @@ public class CaseExpressionAnalyzer {
   /**
    * Summarize codegen of every expression/sub expression of the case statement.
    *
-   * @param caseExpression   expression to inspect and summarize
+   * @param caseExpression expression to inspect and summarize
    * @param conditionSummary summarized data
    */
-  private boolean summarizeCodegen(CaseExpression caseExpression, CodegenSummary[] conditionSummary) {
+  private boolean summarizeCodegen(
+      CaseExpression caseExpression, CodegenSummary[] conditionSummary) {
     int i = 0;
     boolean needsSplit = false;
     for (final CaseExpression.CaseConditionNode node : caseExpression.caseConditions) {
       CodeGenContext whenContext = (CodeGenContext) node.whenExpr;
       CodeGenContext thenContext = (CodeGenContext) node.thenExpr;
-      final CodegenSummary thisSummary = new CodegenSummary(computeCodegenState(whenContext),
-        computeCodegenState(thenContext));
+      final CodegenSummary thisSummary =
+          new CodegenSummary(computeCodegenState(whenContext), computeCodegenState(thenContext));
       if (!needsSplit) {
         needsSplit = thisSummary.needsSplit();
         if (i > 0 && !needsSplit) {
@@ -269,18 +289,23 @@ public class CaseExpressionAnalyzer {
   }
 
   private CodegenState computeCodegenState(CodeGenContext exprContext) {
-    SupportedEngines engines = findLeastCommon(exprContext.getExecutionEngineForExpression(),
-      exprContext.getExecutionEngineForSubExpression());
+    SupportedEngines engines =
+        findLeastCommon(
+            exprContext.getExecutionEngineForExpression(),
+            exprContext.getExecutionEngineForSubExpression());
     int engineCount = engines.size();
     if (engineCount == 0) {
       return CodegenState.MIXED;
     }
     if (engineCount == 1) {
-      return engines.contains(preferredEngine) ? CodegenState.FULL : mixedIfAnyPreferred(exprContext);
+      return engines.contains(preferredEngine)
+          ? CodegenState.FULL
+          : mixedIfAnyPreferred(exprContext);
     }
     // if engine count is 2, but if entire expression is constant, let us put ANY as don't care
-    return (ConstantExpressionIdentifier.isExpressionConstant(exprContext.getChild())) ?
-      CodegenState.ANY : CodegenState.FULL;
+    return (ConstantExpressionIdentifier.isExpressionConstant(exprContext.getChild()))
+        ? CodegenState.ANY
+        : CodegenState.FULL;
   }
 
   private CodegenState mixedIfAnyPreferred(CodeGenContext exprContext) {
@@ -288,18 +313,21 @@ public class CaseExpressionAnalyzer {
     return (ret != null && ret) ? CodegenState.MIXED : CodegenState.NONE;
   }
 
-  private SupportedEngines findLeastCommon(SupportedEngines executionEngineForExpression,
-                                           SupportedEngines executionEngineForSubExpression) {
+  private SupportedEngines findLeastCommon(
+      SupportedEngines executionEngineForExpression,
+      SupportedEngines executionEngineForSubExpression) {
     final SupportedEngines ret = new SupportedEngines();
-    if (executionEngineForExpression.contains(preferredEngine) &&
-      executionEngineForSubExpression.contains(preferredEngine)) {
+    if (executionEngineForExpression.contains(preferredEngine)
+        && executionEngineForSubExpression.contains(preferredEngine)) {
       ret.add(preferredEngine);
     }
     final int exprEngineCount = executionEngineForExpression.size();
     final int subExprEngineCount = executionEngineForSubExpression.size();
-    if ((exprEngineCount == 2 && subExprEngineCount == 2) || (exprEngineCount == 1 && subExprEngineCount == 1 &&
-      executionEngineForExpression.contains(nonPreferredEngine) &&
-      executionEngineForSubExpression.contains(nonPreferredEngine))) {
+    if ((exprEngineCount == 2 && subExprEngineCount == 2)
+        || (exprEngineCount == 1
+            && subExprEngineCount == 1
+            && executionEngineForExpression.contains(nonPreferredEngine)
+            && executionEngineForSubExpression.contains(nonPreferredEngine))) {
       ret.add(nonPreferredEngine);
     }
     return ret;
@@ -333,15 +361,16 @@ public class CaseExpressionAnalyzer {
 
     boolean needsSplit(CodegenSummary prevSummary) {
       return thenOrElseState.isNotCompatible(prevSummary.thenOrElseState)
-        || whenState.isNotCompatible(prevSummary.whenState) || whenState.isNotCompatible(prevSummary.thenOrElseState)
-        || thenOrElseState.isNotCompatible(prevSummary.whenState);
+          || whenState.isNotCompatible(prevSummary.whenState)
+          || whenState.isNotCompatible(prevSummary.thenOrElseState)
+          || thenOrElseState.isNotCompatible(prevSummary.whenState);
     }
   }
 
   /**
-   * Implementation of Case Splits when the analyzer decides on zero splits as the expression can be executed in
-   * preferred engine in its entirety OR the expression has no sub expression candidate that can execute in
-   * preferred.
+   * Implementation of Case Splits when the analyzer decides on zero splits as the expression can be
+   * executed in preferred engine in its entirety OR the expression has no sub expression candidate
+   * that can execute in preferred.
    */
   private static final class ZeroCaseSplits implements CaseSplits {
     private final CaseSplit singleSplit;
@@ -361,9 +390,7 @@ public class CaseExpressionAnalyzer {
     }
   }
 
-  /**
-   * Implementation of {@code CaseSplits}, when there is some splitting of case required.
-   */
+  /** Implementation of {@code CaseSplits}, when there is some splitting of case required. */
   public static final class MultiCaseSplits implements CaseSplits {
     private final Deque<CaseSplit> whenSplits;
     private final Deque<CaseSplit> thenSplits;
@@ -384,16 +411,16 @@ public class CaseExpressionAnalyzer {
 
     void addWhenSplit(int conditionIndex, CaseSplit.CaseSplitType splitType) {
       assert conditionIndex >= prevWhenSplitEnd;
-      final CaseSplit caseSplit = new CaseSplit(prevWhenSplitEnd, conditionIndex, numThenOrElse, true,
-        splitType, flipped);
+      final CaseSplit caseSplit =
+          new CaseSplit(prevWhenSplitEnd, conditionIndex, numThenOrElse, true, splitType, flipped);
       prevWhenSplitEnd = conditionIndex;
       whenSplits.offerLast(caseSplit);
     }
 
     void addThenSplit(int conditionIndex, CaseSplit.CaseSplitType splitType) {
       assert conditionIndex >= prevThenSplitEnd;
-      final CaseSplit caseSplit = new CaseSplit(prevThenSplitEnd, conditionIndex, numThenOrElse, false,
-        splitType, flipped);
+      final CaseSplit caseSplit =
+          new CaseSplit(prevThenSplitEnd, conditionIndex, numThenOrElse, false, splitType, flipped);
       prevThenSplitEnd = conditionIndex;
       thenSplits.offerLast(caseSplit);
     }
@@ -411,32 +438,34 @@ public class CaseExpressionAnalyzer {
     @Override
     public List<CaseSplit> getAllMixedThenSplits() {
       return thenSplits.stream()
-        .filter((s) -> s.getSplitType() == CaseSplit.CaseSplitType.MIXED)
-        .collect(Collectors.toList());
+          .filter((s) -> s.getSplitType() == CaseSplit.CaseSplitType.MIXED)
+          .collect(Collectors.toList());
     }
 
     @Override
     public List<CaseSplit> getAllNonPreferredThenSplits() {
       return thenSplits.stream()
-        .filter((s) -> s.getSplitType() == CaseSplit.CaseSplitType.NON_PREFERRED)
-        .collect(Collectors.toList());
+          .filter((s) -> s.getSplitType() == CaseSplit.CaseSplitType.NON_PREFERRED)
+          .collect(Collectors.toList());
     }
 
     @Override
     public List<CaseSplit> getAllPreferredThenSplits() {
       return thenSplits.stream()
-        .filter((s) -> s.getSplitType() == CaseSplit.CaseSplitType.PREFERRED)
-        .collect(Collectors.toList());
+          .filter((s) -> s.getSplitType() == CaseSplit.CaseSplitType.PREFERRED)
+          .collect(Collectors.toList());
     }
   }
 
   /**
-   * Visits expression tree recursively to identify whether there is an expression executable in preferred below in
-   * the sub tree, even though the current expression and sub expression is executable only in non-preferred engine.
+   * Visits expression tree recursively to identify whether there is an expression executable in
+   * preferred below in the sub tree, even though the current expression and sub expression is
+   * executable only in non-preferred engine.
    */
   class PreferredEngineChecker extends AbstractExprVisitor<Boolean, Void, RuntimeException> {
     @Override
-    public Boolean visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    public Boolean visitCaseExpression(CaseExpression caseExpression, Void value)
+        throws RuntimeException {
       return checkChildren(caseExpression);
     }
 
@@ -446,7 +475,8 @@ public class CaseExpressionAnalyzer {
     }
 
     @Override
-    public Boolean visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
+    public Boolean visitFunctionHolderExpression(FunctionHolderExpression holder, Void value)
+        throws RuntimeException {
       return checkChildren(holder);
     }
 
@@ -462,9 +492,9 @@ public class CaseExpressionAnalyzer {
 
     private boolean checkChildren(LogicalExpression childExpr) {
       if (ConstantExpressionIdentifier.isExpressionConstant(childExpr)) {
-        if (childExpr instanceof CodeGenContext &&
-          ((CodeGenContext) childExpr).getExecutionEngineForExpression().size() >= 2
-          && ((CodeGenContext) childExpr).getExecutionEngineForSubExpression().size() >= 2) {
+        if (childExpr instanceof CodeGenContext
+            && ((CodeGenContext) childExpr).getExecutionEngineForExpression().size() >= 2
+            && ((CodeGenContext) childExpr).getExecutionEngineForSubExpression().size() >= 2) {
           // no need to go deep into a constant expression that is supported by both engines
           return false;
         }
@@ -476,8 +506,9 @@ public class CaseExpressionAnalyzer {
         }
         if (e instanceof CodeGenContext) {
           final CodeGenContext context = (CodeGenContext) e;
-          ret = (context.getExecutionEngineForExpression().contains(preferredEngine) ||
-            context.getExecutionEngineForSubExpression().contains(preferredEngine));
+          ret =
+              (context.getExecutionEngineForExpression().contains(preferredEngine)
+                  || context.getExecutionEngineForSubExpression().contains(preferredEngine));
           if (ret) {
             ret = canCheckForPreferred(context.getChild());
           }

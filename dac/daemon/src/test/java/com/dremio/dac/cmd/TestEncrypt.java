@@ -19,46 +19,40 @@ import static com.dremio.config.DremioConfig.CREDENTIALS_KEYSTORE_PASSWORD;
 import static com.dremio.config.DremioConfig.LOCAL_WRITE_PATH_STRING;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.test.DremioTest;
 import java.net.URI;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.config.DremioConfig;
-import com.dremio.test.DremioTest;
-
-/**
- * Tests for Encrypt command
- */
+/** Tests for Encrypt command */
 public class TestEncrypt extends DremioTest {
 
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Test
   public void testEncryptWithDefaultPassword() throws Exception {
     String secret = "secretEncryptDecryptValidation";
-    DremioConfig conf = DEFAULT_DREMIO_CONFIG
-        .withValue(LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().getAbsolutePath())
-        .withValue(CREDENTIALS_KEYSTORE_PASSWORD, "dremio123");
+    DremioConfig conf =
+        DEFAULT_DREMIO_CONFIG
+            .withValue(LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().getAbsolutePath())
+            .withValue(CREDENTIALS_KEYSTORE_PASSWORD, "dremio123");
 
     String uri = Encrypt.encrypt(conf, CLASSPATH_SCAN_RESULT, secret);
     assertEquals("secret", URI.create(uri).getScheme());
-
   }
 
   @Test
   public void testEncryptWithDataPasswordUri() throws Exception {
 
     String secret = "secretEncryptDecryptValidation";
-    DremioConfig conf = DEFAULT_DREMIO_CONFIG
-        .withValue(LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().getAbsolutePath())
-        .withValue(CREDENTIALS_KEYSTORE_PASSWORD, "data:,dremio345");
+    DremioConfig conf =
+        DEFAULT_DREMIO_CONFIG
+            .withValue(LOCAL_WRITE_PATH_STRING, tempFolder.newFolder().getAbsolutePath())
+            .withValue(CREDENTIALS_KEYSTORE_PASSWORD, "data:,dremio345");
 
     String uri = Encrypt.encrypt(conf, CLASSPATH_SCAN_RESULT, secret);
     assertEquals("secret", URI.create(uri).getScheme());
-
   }
-
 }

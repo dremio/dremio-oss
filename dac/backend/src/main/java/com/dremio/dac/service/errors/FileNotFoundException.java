@@ -18,9 +18,7 @@ package com.dremio.dac.service.errors;
 import com.dremio.file.FilePath;
 import com.dremio.file.UserFileResourcePath;
 
-/**
- * Thrown when a file is not found for a given path in home directory of a user.
- */
+/** Thrown when a file is not found for a given path in home directory of a user. */
 public class FileNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 

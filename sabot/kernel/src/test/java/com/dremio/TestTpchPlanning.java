@@ -15,16 +15,12 @@
  */
 package com.dremio;
 
+import com.dremio.common.util.TestTools;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-
-import com.dremio.common.util.TestTools;
-
-
 
 public class TestTpchPlanning extends BaseTestQuery {
 

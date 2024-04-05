@@ -16,11 +16,12 @@
 package com.dremio.exec.store.iceberg.model;
 
 /**
- * Class to store custom iceberg conventions and constants. To be used for keeping constants, not to be implemented/instantiated.
+ * Class to store custom iceberg conventions and constants. To be used for keeping constants, not to
+ * be implemented/instantiated.
  */
 public interface IcebergConstants {
 
-    String FILE_VERSION = "version";
-    String ADDED_DATA_FILES = "added-data-files";
-    String DELETED_DATA_FILES = "deleted-data-files";
+  String FILE_VERSION = "version";
+  String ADDED_DATA_FILES = "added-data-files";
+  String DELETED_DATA_FILES = "deleted-data-files";
 }

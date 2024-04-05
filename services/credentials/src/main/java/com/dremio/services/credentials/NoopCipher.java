@@ -18,15 +18,13 @@ package com.dremio.services.credentials;
 import javax.inject.Inject;
 
 /**
- * A no-op cipher implementation. Useful for ensuring certain configurations
- * of dremio or nodes don't encrypt/decrypt.
+ * A no-op cipher implementation. Useful for ensuring certain configurations of dremio or nodes
+ * don't encrypt/decrypt.
  */
 public class NoopCipher implements Cipher {
 
   @Inject
-  public NoopCipher() {
-  }
-
+  public NoopCipher() {}
 
   @Override
   public String encrypt(String secret) throws CredentialsException {

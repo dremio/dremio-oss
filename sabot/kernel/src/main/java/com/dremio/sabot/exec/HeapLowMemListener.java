@@ -18,14 +18,14 @@ package com.dremio.sabot.exec;
 import java.lang.management.MemoryPoolMXBean;
 
 /**
- * Should be implemented by any dremio controller that requires to take action on a
- * low memory signal.
+ * Should be implemented by any dremio controller that requires to take action on a low memory
+ * signal.
  */
 public interface HeapLowMemListener {
   /**
-   * Handle memory notifications from heap monitor. if {@code collectionThresholdCrossed} is true, this
-   * indicates that collection usage threshold (post GC) has crossed. Otherwise, this just indicates which pool has
-   * collection threshold configured.
+   * Handle memory notifications from heap monitor. if {@code collectionThresholdCrossed} is true,
+   * this indicates that collection usage threshold (post GC) has crossed. Otherwise, this just
+   * indicates which pool has collection threshold configured.
    *
    * @param collectionThresholdCrossed whether collection usage threshold has crossed
    * @param pool which pool has collection usage threshold crossed
@@ -33,9 +33,9 @@ public interface HeapLowMemListener {
   void handleMemNotification(boolean collectionThresholdCrossed, MemoryPoolMXBean pool);
 
   /**
-   * Handle usage threshold notifications from monitor. Rather than indicating the pool, this indicates that the
-   * usage (pre GC) has crossed a threshold. This can arrive earlier allowing implementations to monitor memory
-   * more aggressively.
+   * Handle usage threshold notifications from monitor. Rather than indicating the pool, this
+   * indicates that the usage (pre GC) has crossed a threshold. This can arrive earlier allowing
+   * implementations to monitor memory more aggressively.
    */
   void handleUsageCrossedNotification();
 

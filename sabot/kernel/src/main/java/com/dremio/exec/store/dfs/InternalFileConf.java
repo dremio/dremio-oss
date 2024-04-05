@@ -15,12 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.Property;
@@ -33,14 +27,16 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-
 import io.protostuff.Tag;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
+import javax.inject.Provider;
 
-/**
- * Source type used for internal purposes.
- */
+/** Source type used for internal purposes. */
 @SourceType(value = "INTERNAL", configurable = false)
-public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, MayBeDistFileSystemPlugin<InternalFileConf>> {
+public class InternalFileConf
+    extends MayBeDistFileSystemConf<InternalFileConf, MayBeDistFileSystemPlugin<InternalFileConf>> {
 
   @Tag(1)
   public String connection;
@@ -98,7 +94,8 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
 
   @Tag(19)
   public String sharedAccessKey = null;
-  //Tag has been deprecated please do not use.
+
+  // Tag has been deprecated please do not use.
 
   @Override
   public Path getPath() {
@@ -176,15 +173,21 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
   }
 
   @Override
-  public MayBeDistFileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public MayBeDistFileSystemPlugin<InternalFileConf> newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new MayBeDistFileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
-  public InternalFileConf() {
-  }
+  public InternalFileConf() {}
 
-  InternalFileConf(String connection, String path, boolean enableImpersonation, List<Property> propertyList,
-                   SchemaMutability mutability, boolean enableAsync, DataCredentials dataCredentials) {
+  InternalFileConf(
+      String connection,
+      String path,
+      boolean enableImpersonation,
+      List<Property> propertyList,
+      SchemaMutability mutability,
+      boolean enableAsync,
+      DataCredentials dataCredentials) {
     this.connection = connection;
     this.path = path;
     this.enableImpersonation = enableImpersonation;
@@ -214,17 +217,18 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
       SchemaMutability mutability,
       MetadataPolicy policy,
       boolean enableAsync,
-      DataCredentials dataCredentials
-      ) {
+      DataCredentials dataCredentials) {
     SourceConfig conf = new SourceConfig();
     final String connection;
-    if(path.getAuthority() != null) {
+    if (path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
       connection = path.getScheme() + ":///";
     }
 
-    InternalFileConf fc = new InternalFileConf(connection, path.getPath(), false, null, mutability, enableAsync, dataCredentials);
+    InternalFileConf fc =
+        new InternalFileConf(
+            connection, path.getPath(), false, null, mutability, enableAsync, dataCredentials);
     conf.setConnectionConf(fc);
     conf.setMetadataPolicy(policy);
     conf.setName(name);
@@ -246,22 +250,24 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
     return enableAsync;
   }
 
-  private final transient Supplier<URI> uri = new Supplier<URI>() {
-    @Override
-    public URI get() {
-      try {
-        return new URI(connection);
-      } catch (URISyntaxException e) {
-        throw Throwables.propagate(e);
-      }
-    }};
+  private final transient Supplier<URI> uri =
+      new Supplier<URI>() {
+        @Override
+        public URI get() {
+          try {
+            return new URI(connection);
+          } catch (URISyntaxException e) {
+            throw Throwables.propagate(e);
+          }
+        }
+      };
 
   public boolean isPdfsBased() {
     return uri.get().getScheme().equals("pdfs");
   }
 
   @Override
-  public String getDefaultCtasFormat(){
-    return  defaultCtasFormat.getDefaultCtasFormat();
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
   }
 }

@@ -15,52 +15,46 @@
  */
 package com.dremio.io.file;
 
+import com.google.common.base.Preconditions;
 import java.util.function.Predicate;
 
-import com.google.common.base.Preconditions;
-
-/**
- * Contains commonly used path filter predicates
- */
+/** Contains commonly used path filter predicates */
 public final class PathFilters {
 
-  private PathFilters() {
-  }
+  private PathFilters() {}
 
-  /**
-   * Filter accepting any file
-   */
-  public static final Predicate<Path> ALL_FILES = unused -> true ;
+  /** Filter accepting any file */
+  public static final Predicate<Path> ALL_FILES = unused -> true;
 
   /**
    * Filters out file names which are considered hidden.
    *
-   * Hidden files starts with either dot (.) or underscore (_) characters. This includes
-   * mapreduce files/directories like "_SUCCESS" success file markers, or "_logs" job
-   * log output
+   * <p>Hidden files starts with either dot (.) or underscore (_) characters. This includes
+   * mapreduce files/directories like "_SUCCESS" success file markers, or "_logs" job log output
    */
-  public static final Predicate<Path> NO_HIDDEN_FILES = (Path path) -> {
-    final String name = path.getName();
-    if (name.isEmpty()) {
-      // Is that even possible?
-      return true;
-    }
+  public static final Predicate<Path> NO_HIDDEN_FILES =
+      (Path path) -> {
+        final String name = path.getName();
+        if (name.isEmpty()) {
+          // Is that even possible?
+          return true;
+        }
 
-    switch (name.charAt(0)) {
-    // Hidden files
-    case '.':
-    case '_':
-      return false;
+        switch (name.charAt(0)) {
+            // Hidden files
+          case '.':
+          case '_':
+            return false;
 
-    default:
-      return true;
-    }
-  };
+          default:
+            return true;
+        }
+      };
 
   /**
    * Creates a path predicates to filter files based on their prefix
    *
-   * The suffix is matched against the filename, not the whole path.
+   * <p>The suffix is matched against the filename, not the whole path.
    *
    * @param suffix the filename prefix
    * @return a path predicate instance
@@ -74,7 +68,7 @@ public final class PathFilters {
   /**
    * Creates a path predicates to filter files based on their suffix
    *
-   * The suffix is matched against the filename, not the whole path.
+   * <p>The suffix is matched against the filename, not the whole path.
    *
    * @param suffix the filename suffix
    * @return a path predicate instance

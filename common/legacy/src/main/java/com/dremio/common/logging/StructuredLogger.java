@@ -15,24 +15,23 @@
  */
 package com.dremio.common.logging;
 
+import com.google.protobuf.Message;
 import java.util.function.Function;
 
-import com.google.protobuf.Message;
-
-/**
- * Logger to log Structured messages.
- */
+/** Logger to log Structured messages. */
 public interface StructuredLogger<T> {
 
   /**
    * Log the give <code>data</code> at INFO Level.
+   *
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    */
-  void info( T data, String message);
+  void info(T data, String message);
 
   /**
    * Log the give <code>data</code> at DEBUG Level.
+   *
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    */
@@ -40,6 +39,7 @@ public interface StructuredLogger<T> {
 
   /**
    * Log the give <code>data</code> at WARN Level.
+   *
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    */
@@ -47,19 +47,23 @@ public interface StructuredLogger<T> {
 
   /**
    * Log the give <code>data</code> at ERROR Level.
+   *
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    */
   void error(T data, String message);
+
   /**
    * Log the give <code>data</code> at INFO Level.
+   *
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    */
-  void info( T data, String message, Object... args);
+  void info(T data, String message, Object... args);
 
   /**
    * Log the give <code>data</code> at DEBUG Level.
+   *
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    * @param args - arguments to the parameterized message.
@@ -68,6 +72,7 @@ public interface StructuredLogger<T> {
 
   /**
    * Log the give <code>data</code> at WARN Level.
+   *
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    * @param args - arguments to the parameterized message.
@@ -76,6 +81,7 @@ public interface StructuredLogger<T> {
 
   /**
    * Log the give <code>data</code> at ERROR Level.
+   *
    * @param message - A string message.
    * @param data - the protobuf instance to be logged.
    * @param args - arguments to the parameterized message.
@@ -84,6 +90,7 @@ public interface StructuredLogger<T> {
 
   /**
    * Get a structured Logger instance for Protobuf Objects.
+   *
    * @param clazz - Instance of the Specific Protobuf Class.
    * @param loggerName - logger name.
    * @param <V> The specific type of protobuf.
@@ -95,6 +102,7 @@ public interface StructuredLogger<T> {
 
   /**
    * Get a structured Logger instance for Protobuf Objects.
+   *
    * @param clazz - Instance of the Specific Protobuf Class.
    * @param loggerClass - logger class.
    * @param <V> The specific type of protobuf.
@@ -106,9 +114,12 @@ public interface StructuredLogger<T> {
 
   /**
    * Helper method to convert the message to a different type and log that.
-   * @param mapper to convert the source type <code>U</code> to structured type <code>T</code> to be logged.
+   *
+   * @param mapper to convert the source type <code>U</code> to structured type <code>T</code> to be
+   *     logged.
    * @param <U> The source type data being generated in.
-   * @return - a wrapped StructuredLogger for the source struct type (which is not a protobuf message).
+   * @return - a wrapped StructuredLogger for the source struct type (which is not a protobuf
+   *     message).
    */
   default <U> StructuredLogger<U> compose(Function<? super U, ? extends T> mapper) {
     return new ComposedStructuredLogger<>(this, mapper);
@@ -116,6 +127,7 @@ public interface StructuredLogger<T> {
 
   /**
    * An utility class to compose a chain of structured loggers.
+   *
    * @param <T> The type of messages this logger will accept
    * @param <R> The type of messages the parent logger will accept.
    */
@@ -123,7 +135,8 @@ public interface StructuredLogger<T> {
     private final StructuredLogger<R> parentLogger;
     private final Function<? super T, ? extends R> mapper;
 
-    public ComposedStructuredLogger(StructuredLogger<R> parentLogger, Function<? super T, ? extends R> mapper) {
+    public ComposedStructuredLogger(
+        StructuredLogger<R> parentLogger, Function<? super T, ? extends R> mapper) {
       this.parentLogger = parentLogger;
       this.mapper = mapper;
     }

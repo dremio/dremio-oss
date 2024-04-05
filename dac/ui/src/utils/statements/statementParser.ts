@@ -157,7 +157,7 @@ const extractMultiLineComment = (query: string, from: Position): QueryPart => {
  */
 const getMatchingQuoteForLiteralOrIdentifierAt = (
   query: string,
-  position: Position
+  position: Position,
 ): string | undefined => {
   const char = symbolAt(query, position);
   switch (char) {
@@ -180,7 +180,7 @@ const getMatchingQuoteForLiteralOrIdentifierAt = (
 const advanceToClosingQuote = (
   query: string,
   quote: string,
-  position: Position
+  position: Position,
 ): Position => {
   let positionCursor = advancePosition(query, position, 1); // skipping opening quote
 
@@ -227,13 +227,13 @@ const extractExpression = (query: string, from: Position): QueryPart => {
 
     const matchingQuote = getMatchingQuoteForLiteralOrIdentifierAt(
       query,
-      currentPosition
+      currentPosition,
     );
     if (matchingQuote !== undefined) {
       lastPosition = advanceToClosingQuote(
         query,
         matchingQuote,
-        currentPosition
+        currentPosition,
       );
     } else {
       lastPosition = currentPosition;
@@ -255,7 +255,7 @@ const extractExpression = (query: string, from: Position): QueryPart => {
  */
 const skipSemicolons = (
   query: string,
-  positionCursor: Skippable<Position>
+  positionCursor: Skippable<Position>,
 ): Skippable<Position> => {
   if (isPastLastPosition(positionCursor)) {
     return positionCursor;
@@ -274,7 +274,7 @@ const skipSemicolons = (
  */
 const extractStatement = (
   query: string,
-  from: Position
+  from: Position,
 ): Skippable<Statement> => {
   const startPosition = skipSemicolons(query, value(from));
   if (isSkipped(startPosition)) {
@@ -324,7 +324,7 @@ const extractStatement = (
 
 export const extractStatements = (
   query: string | null | undefined,
-  customStartingPosition?: { column: number; line: number }
+  customStartingPosition?: { column: number; line: number },
 ): Statement[] => {
   if (query === null || query === undefined || query.length === 0) {
     return [];

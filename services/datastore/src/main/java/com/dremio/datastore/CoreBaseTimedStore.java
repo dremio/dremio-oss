@@ -17,19 +17,16 @@ package com.dremio.datastore;
 
 import static com.dremio.common.perf.Timer.time;
 
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.IncrementCounter;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Adds timing instrumentation to KVStore interface
- */
+/** Adds timing instrumentation to KVStore interface */
 abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   private final String name;
   private final CoreKVStore<K, V> kvStore;
@@ -61,7 +58,8 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   }
 
   @Override
-  public Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByRange<KVStoreTuple<K>> range, FindOption... options) {
+  public Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(
+      FindByRange<KVStoreTuple<K>> range, FindOption... options) {
     try (TimedBlock b = time(getName() + ".find(FindByRange)")) {
       return kvStore.find(range, options);
     }
@@ -75,7 +73,8 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   }
 
   @Override
-  public Document<KVStoreTuple<K>, KVStoreTuple<V>> put(KVStoreTuple<K> key, KVStoreTuple<V> v, PutOption... options) {
+  public Document<KVStoreTuple<K>, KVStoreTuple<V>> put(
+      KVStoreTuple<K> key, KVStoreTuple<V> v, PutOption... options) {
     try (TimedBlock b = time(name + ".put")) {
       return kvStore.put(key, v, options);
     }
@@ -96,23 +95,25 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   }
 
   @Override
-  public Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> get(List<KVStoreTuple<K>> keys, GetOption... options) {
+  public Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> get(
+      List<KVStoreTuple<K>> keys, GetOption... options) {
     try (TimedBlock b = time(name + ".get(List)")) {
       return kvStore.get(keys, options);
     }
   }
 
   @Override
-  public void bulkIncrement(Map<KVStoreTuple<K>, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+  public void bulkIncrement(
+      Map<KVStoreTuple<K>, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
     try (TimedBlock b = time(name + ".bulkIncrement")) {
       kvStore.bulkIncrement(keysToIncrement, option);
     }
   }
 
   @Override
-  public void bulkDelete(List<KVStoreTuple<K>> keysToDelete) {
+  public void bulkDelete(List<KVStoreTuple<K>> keysToDelete, DeleteOption... deleteOptions) {
     try (TimedBlock b = time(name + ".bulkDelete")) {
-      kvStore.bulkDelete(keysToDelete);
+      kvStore.bulkDelete(keysToDelete, deleteOptions);
     }
   }
 
@@ -128,25 +129,25 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
     }
   }
 
-
   /**
-  *
-  * An indexed and versioned KVStore that handles concurrent udpates.
-  *
-  * @param <KEY>
-  * @param <VALUE>
-  */
+   * An indexed and versioned KVStore that handles concurrent udpates.
+   *
+   * @param <KEY>
+   * @param <VALUE>
+   */
   public static class TimedIndexedStoreImplCore<KEY, VALUE> extends CoreBaseTimedStore<KEY, VALUE>
-    implements CoreIndexedStore<KEY, VALUE> {
+      implements CoreIndexedStore<KEY, VALUE> {
 
     private final CoreIndexedStore<KEY, VALUE> kvStore;
+
     public TimedIndexedStoreImplCore(String name, CoreIndexedStore<KEY, VALUE> kvStore) {
       super(name, kvStore);
       this.kvStore = kvStore;
     }
 
     @Override
-    public Iterable<Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find(FindByCondition find, FindOption... options) {
+    public Iterable<Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find(
+        FindByCondition find, FindOption... options) {
       try (TimedBlock b = time(getName() + ".find(FindByCondition)")) {
         return kvStore.find(find, options);
       }

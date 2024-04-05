@@ -22,12 +22,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.junit.Before;
-import org.junit.Test;
-
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
+import org.junit.Before;
+import org.junit.Test;
 
 public class TestEagerCachingOptionResolver {
   private OptionManager optionManager;
@@ -43,7 +42,8 @@ public class TestEagerCachingOptionResolver {
     optionList = new OptionList();
     optionValueA = OptionValue.createDouble(OptionValue.OptionType.SYSTEM, "testOptionA", 2);
     optionValueB = OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "testOptionB", true);
-    optionValueC = OptionValue.createString(OptionValue.OptionType.SYSTEM, "testOptionC", "someValue");
+    optionValueC =
+        OptionValue.createString(OptionValue.OptionType.SYSTEM, "testOptionC", "someValue");
     optionList.add(optionValueA);
     optionList.add(optionValueB);
     optionList.add(optionValueC);
@@ -68,7 +68,8 @@ public class TestEagerCachingOptionResolver {
   @Test
   public void testSetOption() {
     final OptionManager eagerCachingOptionManager = new EagerCachingOptionManager(optionManager);
-    final OptionValue newOption = OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "newOption", true);
+    final OptionValue newOption =
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "newOption", true);
     eagerCachingOptionManager.setOption(newOption);
     // setOption should write-through to underlying option manager
     verify(optionManager, times(1)).setOption(newOption);
@@ -81,7 +82,8 @@ public class TestEagerCachingOptionResolver {
     assertNull(eagerCachingOptionManager.getOption(optionValueC.getName()));
 
     // deleteOption should write-through to underlying option manager
-    verify(optionManager, times(1)).deleteOption(optionValueC.getName(), OptionValue.OptionType.SYSTEM);
+    verify(optionManager, times(1))
+        .deleteOption(optionValueC.getName(), OptionValue.OptionType.SYSTEM);
   }
 
   @Test

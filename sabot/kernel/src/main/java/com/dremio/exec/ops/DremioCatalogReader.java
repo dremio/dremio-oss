@@ -15,12 +15,24 @@
  */
 package com.dremio.exec.ops;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.catalog.DremioSchema;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.DremioTranslatableTable;
+import com.dremio.exec.catalog.SimpleCatalog;
+import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacro;
+import com.dremio.exec.tablefunctions.VersionedTableMacro;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.IntPredicate;
-
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -59,27 +71,12 @@ import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.util.Optionality;
 import org.apache.calcite.util.Util;
 
-import com.dremio.catalog.model.CatalogEntityKey;
-import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.exec.catalog.DremioPrepareTable;
-import com.dremio.exec.catalog.DremioSchema;
-import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.DremioTranslatableTable;
-import com.dremio.exec.catalog.SimpleCatalog;
-import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacro;
-import com.dremio.exec.tablefunctions.VersionedTableMacro;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.instrumentation.annotations.WithSpan;
-
 /**
  * Dremio implementation of several interfaces that are typically provided by CalciteCatalogReader.
  * Interacts with {@link PlannerCatalog} object to validate and return tables.
  */
-public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.CatalogReader, SqlOperatorTable {
+public class DremioCatalogReader
+    implements SqlValidatorCatalogReader, Prepare.CatalogReader, SqlOperatorTable {
 
   private final PlannerCatalog plannerCatalog;
 
@@ -89,7 +86,8 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     this.plannerCatalog = plannerCatalog;
 
     ImmutableList.Builder<List<String>> schemaPaths = ImmutableList.builder();
-    if (plannerCatalog.getDefaultSchema() != null && !plannerCatalog.getDefaultSchema().getPathComponents().isEmpty()) {
+    if (plannerCatalog.getDefaultSchema() != null
+        && !plannerCatalog.getDefaultSchema().getPathComponents().isEmpty()) {
       // If not empty, this is the schema set by the UI
       schemaPaths.add(ImmutableList.copyOf(plannerCatalog.getDefaultSchema().getPathComponents()));
     }
@@ -104,23 +102,30 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     NamespaceKey namespaceKey = new NamespaceKey(paramList);
     Span.current().setAttribute("dremio.table.name", namespaceKey.getSchemaPath());
     final DremioTable table = plannerCatalog.getValidatedTableWithSchema(namespaceKey);
-    if(table == null) {
+    if (table == null) {
       return null;
     }
     return new DremioPrepareTable(this, plannerCatalog.getTypeFactory(), table);
   }
 
   /**
-   * Gets the DremioTable(does not resolve to schema path)
+   * Gets the DremioTable(resolve to schema path)
+   *
    * @param catalogEntityKey expects a fully resolved CatalogEntityKey path
    * @return
    */
   public DremioTable getTable(CatalogEntityKey catalogEntityKey) {
-    return plannerCatalog.getValidatedTableSnapshotWithSchema(catalogEntityKey.toNamespaceKey(), catalogEntityKey.getTableVersionContext());
+    return plannerCatalog.getTableWithSchema(catalogEntityKey);
   }
 
-  public DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
-    return plannerCatalog.getTableSnapshotIgnoreSchema(key, context);
+  /**
+   * Gets the DremioTable(does not resolve to schema path)
+   *
+   * @param catalogEntityKey expects a fully resolved CatalogEntityKey path
+   * @return
+   */
+  public DremioTranslatableTable getTableIgnoreSchema(CatalogEntityKey catalogEntityKey) {
+    return plannerCatalog.getTableIgnoreSchema(catalogEntityKey);
   }
 
   /**
@@ -131,10 +136,11 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
    */
   public Optional<RelDataType> getTableSchema(List<String> paramList) {
     final DremioTable table = plannerCatalog.getTableWithSchema(new NamespaceKey(paramList));
-    if(table == null) {
+    if (table == null) {
       return Optional.empty();
     }
-    return Optional.of(new DremioPrepareTable(this, plannerCatalog.getTypeFactory(), table).getRowType());
+    return Optional.of(
+        new DremioPrepareTable(this, plannerCatalog.getTypeFactory(), table).getRowType());
   }
 
   public void validateSelection() {
@@ -167,7 +173,8 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   @Override
-  public RelDataType createTypeFromProjection(RelDataType paramRelDataType, List<String> paramList) {
+  public RelDataType createTypeFromProjection(
+      RelDataType paramRelDataType, List<String> paramList) {
     throw new UnsupportedOperationException();
   }
 
@@ -197,8 +204,7 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   @Override
-  public void registerRules(RelOptPlanner paramRelOptPlanner) throws Exception {
-  }
+  public void registerRules(RelOptPlanner paramRelOptPlanner) throws Exception {}
 
   @Override
   public List<SqlOperator> getOperatorList() {
@@ -207,8 +213,9 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
 
   @Override
   public DremioPrepareTable getTableForMember(List<String> paramList) {
-    final DremioTable table = plannerCatalog.getValidatedTableIgnoreSchema(new NamespaceKey(paramList));
-    if(table == null) {
+    final DremioTable table =
+        plannerCatalog.getValidatedTableIgnoreSchema(new NamespaceKey(paramList));
+    if (table == null) {
       return null;
     }
     return new DremioPrepareTable(this, plannerCatalog.getTypeFactory(), table);
@@ -216,29 +223,28 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
 
   @Override
   public DremioCatalogReader withSchemaPath(List<String> newNamespacePath) {
-    NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
+    NamespaceKey withSchemaPath =
+        newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
     return new DremioCatalogReader(plannerCatalog.resolvePlannerCatalog(withSchemaPath));
   }
 
   @Override
-  public void lookupOperatorOverloads(final SqlIdentifier paramSqlIdentifier,
-                                      SqlFunctionCategory paramSqlFunctionCategory,
-                                      SqlSyntax paramSqlSyntax,
-                                      List<SqlOperator> paramList,
-                                      SqlNameMatcher nameMatcher) {
-    if(null == paramSqlFunctionCategory
-        || null == paramSqlIdentifier) {
+  public void lookupOperatorOverloads(
+      final SqlIdentifier paramSqlIdentifier,
+      SqlFunctionCategory paramSqlFunctionCategory,
+      SqlSyntax paramSqlSyntax,
+      List<SqlOperator> paramList,
+      SqlNameMatcher nameMatcher) {
+    if (null == paramSqlFunctionCategory || null == paramSqlIdentifier) {
       return;
     }
     findFunctions(new NamespaceKey(paramSqlIdentifier.names), paramSqlFunctionCategory).stream()
-      .map(input -> toOp(paramSqlIdentifier, input))
-      .forEach(paramList::add);
-
+        .map(input -> toOp(paramSqlIdentifier, input))
+        .forEach(paramList::add);
   }
 
   private Collection<Function> findFunctions(
-    NamespaceKey namespaceKey,
-    SqlFunctionCategory paramSqlFunctionCategory) {
+      NamespaceKey namespaceKey, SqlFunctionCategory paramSqlFunctionCategory) {
     switch (paramSqlFunctionCategory) {
       case USER_DEFINED_FUNCTION:
         return plannerCatalog.getFunctions(namespaceKey, SimpleCatalog.FunctionType.SCALAR);
@@ -250,10 +256,10 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   /**
-   * Based on:
-   * org.apache.calcite.prepare.CalciteCatalogReader.toOp(SqlIdentifier name, final Function function)
-   * org.apache.calcite.prepare.CalciteCatalogReader.toOp(RelDataTypeFactory typeFactory, SqlIdentifier name, final Function function)
-   * This is because that class considers these utilities to be private concerns.
+   * Based on: org.apache.calcite.prepare.CalciteCatalogReader.toOp(SqlIdentifier name, final
+   * Function function) org.apache.calcite.prepare.CalciteCatalogReader.toOp(RelDataTypeFactory
+   * typeFactory, SqlIdentifier name, final Function function) This is because that class considers
+   * these utilities to be private concerns.
    */
   private SqlOperator toOp(SqlIdentifier name, final Function function) {
     List<RelDataType> argTypes = new ArrayList<>();
@@ -261,32 +267,55 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     for (FunctionParameter o : function.getParameters()) {
       final RelDataType type = o.getType(plannerCatalog.getTypeFactory());
       argTypes.add(type);
-      typeFamilies.add(
-          Util.first(type.getSqlTypeName().getFamily(), SqlTypeFamily.ANY));
+      typeFamilies.add(Util.first(type.getSqlTypeName().getFamily(), SqlTypeFamily.ANY));
     }
-    final IntPredicate isParameterAtIndexOptional = index ->
-      function.getParameters().get(index).isOptional();
+    final IntPredicate isParameterAtIndexOptional =
+        index -> function.getParameters().get(index).isOptional();
     final FamilyOperandTypeChecker typeChecker =
         OperandTypes.family(typeFamilies, isParameterAtIndexOptional::test);
     final List<RelDataType> paramTypes = toSql(argTypes);
     if (function instanceof ScalarFunction) {
-      return new SqlUserDefinedFunction(name, infer((ScalarFunction) function),
-          InferTypes.explicit(argTypes), typeChecker, paramTypes, function);
+      return new SqlUserDefinedFunction(
+          name,
+          infer((ScalarFunction) function),
+          InferTypes.explicit(argTypes),
+          typeChecker,
+          paramTypes,
+          function);
     } else if (function instanceof AggregateFunction) {
-      return new SqlUserDefinedAggFunction(name,
-          infer((AggregateFunction) function), InferTypes.explicit(argTypes),
-          typeChecker, (AggregateFunction) function, false, false, Optionality.FORBIDDEN, plannerCatalog.getTypeFactory());
+      return new SqlUserDefinedAggFunction(
+          name,
+          infer((AggregateFunction) function),
+          InferTypes.explicit(argTypes),
+          typeChecker,
+          (AggregateFunction) function,
+          false,
+          false,
+          Optionality.FORBIDDEN,
+          plannerCatalog.getTypeFactory());
     } else if (function instanceof VersionedTableMacro) {
-      return new SqlVersionedTableMacro(name, ReturnTypes.CURSOR,
-          InferTypes.explicit(argTypes), typeChecker, paramTypes,
+      return new SqlVersionedTableMacro(
+          name,
+          ReturnTypes.CURSOR,
+          InferTypes.explicit(argTypes),
+          typeChecker,
+          paramTypes,
           (VersionedTableMacro) function);
     } else if (function instanceof TableMacro) {
-      return new SqlUserDefinedTableMacro(name, ReturnTypes.CURSOR,
-          InferTypes.explicit(argTypes), typeChecker, paramTypes,
+      return new SqlUserDefinedTableMacro(
+          name,
+          ReturnTypes.CURSOR,
+          InferTypes.explicit(argTypes),
+          typeChecker,
+          paramTypes,
           (TableMacro) function);
     } else if (function instanceof TableFunction) {
-      return new SqlUserDefinedTableFunction(name, ReturnTypes.CURSOR,
-          InferTypes.explicit(argTypes), typeChecker, paramTypes,
+      return new SqlUserDefinedTableFunction(
+          name,
+          ReturnTypes.CURSOR,
+          InferTypes.explicit(argTypes),
+          typeChecker,
+          paramTypes,
           (TableFunction) function);
     } else {
       throw new AssertionError("unknown function type " + function);
@@ -294,8 +323,7 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   /**
-   * Based on:
-   * org.apache.calcite.prepare.CalciteCatalogReader.infer(final ScalarFunction function)
+   * Based on: org.apache.calcite.prepare.CalciteCatalogReader.infer(final ScalarFunction function)
    * This is because that class considers these utilities to be private concerns.
    */
   private SqlReturnTypeInference infer(final ScalarFunction function) {
@@ -309,9 +337,8 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   /**
-   * Based on:
-   * org.apache.calcite.prepare.CalciteCatalogReader.infer(final AggregateFunction function)
-   * This is because that class considers these utilities to be private concerns.
+   * Based on: org.apache.calcite.prepare.CalciteCatalogReader.infer(final AggregateFunction
+   * function) This is because that class considers these utilities to be private concerns.
    */
   private SqlReturnTypeInference infer(final AggregateFunction function) {
     return new SqlReturnTypeInference() {
@@ -324,12 +351,13 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   /**
-   * Based on:
-   * org.apache.calcite.prepare.CalciteCatalogReader.toSql(final RelDataTypeFactory typeFactory, List<RelDataType> types)
-   * This is because that class considers these utilities to be private concerns.
+   * Based on: org.apache.calcite.prepare.CalciteCatalogReader.toSql(final RelDataTypeFactory
+   * typeFactory, List<RelDataType> types) This is because that class considers these utilities to
+   * be private concerns.
    */
   private List<RelDataType> toSql(List<RelDataType> types) {
-    return Lists.transform(types,
+    return Lists.transform(
+        types,
         new com.google.common.base.Function<RelDataType, RelDataType>() {
           @Override
           public RelDataType apply(RelDataType type) {
@@ -339,16 +367,16 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   /**
-   * Based on:
-   * org.apache.calcite.prepare.CalciteCatalogReader.toSql(RelDataTypeFactory typeFactory, RelDataType type)
-   * This is because that class considers these utilities to be private concerns.
+   * Based on: org.apache.calcite.prepare.CalciteCatalogReader.toSql(RelDataTypeFactory typeFactory,
+   * RelDataType type) This is because that class considers these utilities to be private concerns.
    */
   private RelDataType toSql(RelDataType type) {
     if (type instanceof RelDataTypeFactoryImpl.JavaType
-        && ((RelDataTypeFactoryImpl.JavaType) type).getJavaClass()
-        == Object.class) {
-      return plannerCatalog.getTypeFactory().createTypeWithNullability(
-        plannerCatalog.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
+        && ((RelDataTypeFactoryImpl.JavaType) type).getJavaClass() == Object.class) {
+      return plannerCatalog
+          .getTypeFactory()
+          .createTypeWithNullability(
+              plannerCatalog.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
     }
     return plannerCatalog.getTypeFactory().toSql(type);
   }

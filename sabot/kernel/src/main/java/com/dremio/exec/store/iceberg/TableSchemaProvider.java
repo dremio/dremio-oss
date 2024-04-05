@@ -16,14 +16,9 @@
 package com.dremio.exec.store.iceberg;
 
 import java.util.function.BiFunction;
-
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 
-/**
- *
- *  Given a table and snapshot, provide a correct schema.
- */
-public interface TableSchemaProvider extends BiFunction<Table, Snapshot, Schema> {
-}
+/** Given a table and snapshot, provide a correct schema. */
+public interface TableSchemaProvider extends BiFunction<Table, Snapshot, Schema> {}

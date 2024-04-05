@@ -15,21 +15,19 @@
  */
 package com.dremio.connector.metadata.options;
 
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.connector.metadata.GetDatasetOption;
-import com.dremio.connector.metadata.ListPartitionChunkOption;
-
-/**
- * Specifies the type of filter for a metadata refresh and the list of files/partitions.
- */
+/** Specifies the type of filter for a metadata refresh and the list of files/partitions. */
 public class RefreshTableFilterOption implements GetDatasetOption, ListPartitionChunkOption {
   private final List<String> filesList;
   private final Map<String, String> partition;
 
   /**
    * Creates a new RefreshTableFilterOption with the given filename list.
+   *
    * @param filesList list of filenames that the new object will contain
    */
   public RefreshTableFilterOption(List<String> filesList) {
@@ -39,6 +37,7 @@ public class RefreshTableFilterOption implements GetDatasetOption, ListPartition
 
   /**
    * Creates a new RefreshTableFilterOption with the given partition.
+   *
    * @param partition map of key-value pairs to specify a partition
    */
   public RefreshTableFilterOption(Map<String, String> partition) {
@@ -48,6 +47,7 @@ public class RefreshTableFilterOption implements GetDatasetOption, ListPartition
 
   /**
    * Is a files list available.
+   *
    * @return whether a files list is available
    */
   public boolean isFilesList() {
@@ -56,6 +56,7 @@ public class RefreshTableFilterOption implements GetDatasetOption, ListPartition
 
   /**
    * Is a partition available.
+   *
    * @return whether a partition is available
    */
   public boolean isPartition() {
@@ -64,6 +65,7 @@ public class RefreshTableFilterOption implements GetDatasetOption, ListPartition
 
   /**
    * Returns the list of filenames.
+   *
    * @return the list of filenames
    */
   public List<String> getFilesList() {
@@ -71,8 +73,9 @@ public class RefreshTableFilterOption implements GetDatasetOption, ListPartition
   }
 
   /**
-   * Returns the key-value pairs for a partition. The map maintains the order of the
-   * key-value pairs.
+   * Returns the key-value pairs for a partition. The map maintains the order of the key-value
+   * pairs.
+   *
    * @return the key-value paris for a partition
    */
   public Map<String, String> getPartition() {

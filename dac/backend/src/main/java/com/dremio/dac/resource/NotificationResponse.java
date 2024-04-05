@@ -18,21 +18,23 @@ package com.dremio.dac.resource;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * A notification response that is used for generic server confirmations
- */
+/** A notification response that is used for generic server confirmations */
 public class NotificationResponse {
 
-  /**
-   * The type of response to return to the ui.
-   */
-  public static enum ResponseType {OK, INFO, WARN, ERROR}
+  /** The type of response to return to the ui. */
+  public static enum ResponseType {
+    OK,
+    INFO,
+    WARN,
+    ERROR
+  }
 
   private final ResponseType type;
   private final String message;
 
   @JsonCreator
-  public NotificationResponse(@JsonProperty("type") ResponseType type, @JsonProperty("name") String message) {
+  public NotificationResponse(
+      @JsonProperty("type") ResponseType type, @JsonProperty("name") String message) {
     super();
     this.type = type;
     this.message = message;
@@ -45,5 +47,4 @@ public class NotificationResponse {
   public String getMessage() {
     return message;
   }
-
 }

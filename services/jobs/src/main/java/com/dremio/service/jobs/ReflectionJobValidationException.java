@@ -17,11 +17,10 @@ package com.dremio.service.jobs;
 
 import com.dremio.service.job.proto.JobId;
 
-/**
- * Exception to capture errors in Reflection job retrieval.
- */
+/** Exception to capture errors in Reflection job retrieval. */
 public class ReflectionJobValidationException extends JobException {
   private final String reflectionId;
+
   public ReflectionJobValidationException(JobId jobId, String reflectionId) {
     super(jobId, "Reflection is not materialized by the job");
     this.reflectionId = reflectionId;

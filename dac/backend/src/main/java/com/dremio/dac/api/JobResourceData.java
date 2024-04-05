@@ -17,13 +17,6 @@ package com.dremio.dac.api;
 
 import static com.dremio.common.perf.Timer.time;
 
-import java.io.IOException;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.perf.Timer;
 import com.dremio.dac.explore.model.APIJobResultsSerializer;
 import com.dremio.dac.explore.model.DataJsonOutput;
@@ -41,27 +34,35 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.io.IOException;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * REST API V3 Job Data
- */
-@JsonSerialize(using=JobResourceData.JobDataSerializer.class)
+/** REST API V3 Job Data */
+@JsonSerialize(using = JobResourceData.JobDataSerializer.class)
 public class JobResourceData {
   private static final Logger logger = LoggerFactory.getLogger(JobResourceData.class);
 
   private JobDataFragment delegate;
   private long rowCount;
 
-  public JobResourceData() {
-  }
+  public JobResourceData() {}
 
-  public JobResourceData(JobsService jobsService, JobSummary jobSummary, String userName, BufferAllocator allocator, int offset, int limit) {
-    SessionId sessionId = jobSummary.getSessionId() == null ? null : JobsProtoUtil.toStuff(jobSummary.getSessionId());
-    this.delegate = new JobDataWrapper(jobsService,
-      JobsProtoUtil.toStuff(jobSummary.getJobId()),
-      sessionId,
-      userName)
-      .range(allocator, offset, limit);
+  public JobResourceData(
+      JobsService jobsService,
+      JobSummary jobSummary,
+      String userName,
+      BufferAllocator allocator,
+      int offset,
+      int limit) {
+    SessionId sessionId =
+        jobSummary.getSessionId() == null ? null : JobsProtoUtil.toStuff(jobSummary.getSessionId());
+    this.delegate =
+        new JobDataWrapper(
+                jobsService, JobsProtoUtil.toStuff(jobSummary.getJobId()), sessionId, userName)
+            .range(allocator, offset, limit);
     this.rowCount = jobSummary.getOutputRecords();
   }
 
@@ -73,17 +74,19 @@ public class JobResourceData {
     return rowCount;
   }
 
-  /**
-   * Serializer for Query data
-   */
+  /** Serializer for Query data */
   public static class JobDataSerializer extends JsonSerializer<JobResourceData> {
-    private void writeField(Field field, JsonGenerator generator, boolean skipName) throws IOException {
-      APIFieldDescriber.FieldDescriber describer = new APIFieldDescriber.FieldDescriber(generator, field, false);
+    private void writeField(Field field, JsonGenerator generator, boolean skipName)
+        throws IOException {
+      APIFieldDescriber.FieldDescriber describer =
+          new APIFieldDescriber.FieldDescriber(generator, field, false);
       field.getType().accept(describer);
     }
 
     @Override
-    public void serialize(JobResourceData jobData, JsonGenerator generator, SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+    public void serialize(
+        JobResourceData jobData, JsonGenerator generator, SerializerProvider serializerProvider)
+        throws IOException, JsonProcessingException {
       try (Timer.TimedBlock b = time("serialize job results VV -> JSON")) {
 
         generator.writeStartObject();
@@ -105,12 +108,13 @@ public class JobResourceData {
         generator.writeStartArray();
         final boolean convertNumbersToStrings = DataJsonOutput.isNumberAsString(serializerProvider);
 
-        final APIJobResultsSerializer jsonWriter = new APIJobResultsSerializer(generator, convertNumbersToStrings);
+        final APIJobResultsSerializer jsonWriter =
+            new APIJobResultsSerializer(generator, convertNumbersToStrings);
         jsonWriter.setup();
 
         for (RecordBatchHolder batchHolder : jobData.delegate.getRecordBatches()) {
           final EventBasedRecordWriter recordWriter =
-            new EventBasedRecordWriter(batchHolder.getData().getContainer(), jsonWriter);
+              new EventBasedRecordWriter(batchHolder.getData().getVectorAccessible(), jsonWriter);
 
           for (int i = batchHolder.getStart(); i < batchHolder.getEnd(); i++) {
             recordWriter.writeOneRecord(i);
@@ -129,16 +133,13 @@ public class JobResourceData {
     }
   }
 
-  /**
-   * Job Data Results
-   */
+  /** Job Data Results */
   public static class JobDataResults {
     private long rowCount;
     private JsonNode schema;
     private JsonNode rows;
 
-    public JobDataResults() {
-    }
+    public JobDataResults() {}
 
     public long getRowCount() {
       return rowCount;

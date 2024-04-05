@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.dfs.system;
 
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.SortOrder;
-import org.apache.iceberg.TableMetadata;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.SchemaConverter;
@@ -28,12 +23,16 @@ import com.dremio.io.file.Path;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.SortOrder;
+import org.apache.iceberg.TableMetadata;
 
 /**
- * This class represents the metadata for the tables stored by {@link SystemIcebergTablesStoragePlugin}
- * It provides methods to access the schema, batch schema, table location, and other
- * properties of the table.
- * */
+ * This class represents the metadata for the tables stored by {@link
+ * SystemIcebergTablesStoragePlugin} It provides methods to access the schema, batch schema, table
+ * location, and other properties of the table.
+ */
 public abstract class SystemIcebergTableMetadata {
 
   private final Schema schema;
@@ -46,12 +45,13 @@ public abstract class SystemIcebergTableMetadata {
    * Constructs an instance of SystemIcebergTableMetadata.
    *
    * @param schemaVersion The version of the schema for the table.
-   * @param schema        The iceberg schema of the table.
-   * @param pluginName    Name of the {@link SystemIcebergTablesStoragePlugin}
-   * @param pluginPath    Path of the {@link SystemIcebergTablesStoragePlugin}
-   * @param tableName     Name of the iceberg table.
+   * @param schema The iceberg schema of the table.
+   * @param pluginName Name of the {@link SystemIcebergTablesStoragePlugin}
+   * @param pluginPath Path of the {@link SystemIcebergTablesStoragePlugin}
+   * @param tableName Name of the iceberg table.
    */
-  public SystemIcebergTableMetadata(long schemaVersion, Schema schema, String pluginName, String pluginPath, String tableName) {
+  public SystemIcebergTableMetadata(
+      long schemaVersion, Schema schema, String pluginName, String pluginPath, String tableName) {
     this.schema = schema;
     this.namespaceKey = new NamespaceKey(ImmutableList.of(pluginName, tableName));
     this.tableLocation = Path.of(pluginPath).resolve(namespaceKey.getName()).toString();
@@ -83,7 +83,10 @@ public abstract class SystemIcebergTableMetadata {
    * @return The BatchSchema object representing the schema of the table.
    */
   public BatchSchema getBatchSchema() {
-    return SchemaConverter.getBuilder().setTableName(tableName).build().fromIceberg(getIcebergSchema());
+    return SchemaConverter.getBuilder()
+        .setTableName(tableName)
+        .build()
+        .fromIceberg(getIcebergSchema());
   }
 
   /**
@@ -116,46 +119,54 @@ public abstract class SystemIcebergTableMetadata {
   /**
    * Get the IcebergTableProps object required for creating the table in Iceberg.
    *
-   * @return The IcebergTableProps object representing the properties of the table for the CREATE operation.
+   * @return The IcebergTableProps object representing the properties of the table for the CREATE
+   *     operation.
    */
   public IcebergTableProps getIcebergTablePropsForCreate() {
-    TableMetadata tableMetadata = TableMetadata.buildFromEmpty()
-      .addSchema(getIcebergSchema(), getIcebergSchema().highestFieldId())
-      .assignUUID()
-      .addPartitionSpec(PartitionSpec.unpartitioned())
-      .addSortOrder(SortOrder.unsorted())
-      .setLocation(getTableLocation())
-      .setProperties(ImmutableMap.of("schema_version", String.valueOf(schemaVersion)))
-      .build();
-    return IcebergTableProps.createInstance(IcebergCommandType.CREATE, null, null, tableMetadata, null);
+    TableMetadata tableMetadata =
+        TableMetadata.buildFromEmpty()
+            .addSchema(getIcebergSchema(), getIcebergSchema().highestFieldId())
+            .assignUUID()
+            .addPartitionSpec(PartitionSpec.unpartitioned())
+            .addSortOrder(SortOrder.unsorted())
+            .setLocation(getTableLocation())
+            .setProperties(ImmutableMap.of("schema_version", String.valueOf(schemaVersion)))
+            .build();
+    return IcebergTableProps.createInstance(
+        IcebergCommandType.CREATE, null, null, tableMetadata, null);
   }
 
   /**
    * Get the IcebergTableProps object required for inserting into the table in Iceberg.
    *
-   * @return The IcebergTableProps object representing the properties of the table for the INSERT operation.
+   * @return The IcebergTableProps object representing the properties of the table for the INSERT
+   *     operation.
    */
   public IcebergTableProps getIcebergTablePropsForInsert() {
-    TableMetadata tableMetadata = TableMetadata.buildFromEmpty()
-      .addSchema(getIcebergSchema(), getIcebergSchema().highestFieldId())
-      .addPartitionSpec(PartitionSpec.unpartitioned())
-      .addSortOrder(SortOrder.unsorted())
-      .setLocation(getTableLocation())
-      .build();
-    return IcebergTableProps.createInstance(IcebergCommandType.INSERT, null, null, tableMetadata, null);
+    TableMetadata tableMetadata =
+        TableMetadata.buildFromEmpty()
+            .addSchema(getIcebergSchema(), getIcebergSchema().highestFieldId())
+            .addPartitionSpec(PartitionSpec.unpartitioned())
+            .addSortOrder(SortOrder.unsorted())
+            .setLocation(getTableLocation())
+            .build();
+    return IcebergTableProps.createInstance(
+        IcebergCommandType.INSERT, null, null, tableMetadata, null);
   }
 
-
   /**
-   * Generates a view query based on the schema version, table name, and namespace key of this dataset handle.
-   * This method constructs a view query by calling the {@link SystemIcebergViewQueryBuilder#getViewQuery()} method
-   * with the current schema version, table name, and namespace key, and a null username.
+   * Generates a view query based on the schema version, table name, and namespace key of this
+   * dataset handle. This method constructs a view query by calling the {@link
+   * SystemIcebergViewQueryBuilder#getViewQuery()} method with the current schema version, table
+   * name, and namespace key, and a null username.
    *
    * @return The generated view query as a SQL string.
-   * @throws UnsupportedOperationException if the schema version or table name is not supported, or if the generation of
-   * the view query is not possible for the given parameters.
+   * @throws UnsupportedOperationException if the schema version or table name is not supported, or
+   *     if the generation of the view query is not possible for the given parameters.
    */
   public String getViewQuery() {
-    return new SystemIcebergViewQueryBuilder(getSchemaVersion(), getTableName(), getNamespaceKey(), null).getViewQuery();
+    return new SystemIcebergViewQueryBuilder(
+            getSchemaVersion(), getTableName(), getNamespaceKey(), null)
+        .getViewQuery();
   }
 }

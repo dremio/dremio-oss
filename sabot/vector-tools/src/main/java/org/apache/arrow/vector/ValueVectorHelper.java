@@ -15,17 +15,22 @@
  */
 package org.apache.arrow.vector;
 
+import com.dremio.exec.proto.UserBitShared.SerializedField;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.exec.proto.UserBitShared.SerializedField;
 
 public interface ValueVectorHelper {
 
   SerializedField getMetadata();
+
   SerializedField.Builder getMetadataBuilder();
-  void loadFromValidityAndDataBuffers(SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer);
+
+  void loadFromValidityAndDataBuffers(
+      SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer);
+
   void loadData(SerializedField metadata, ArrowBuf buffer);
+
   void load(SerializedField metadata, ArrowBuf buffer);
+
   void materialize(Field field);
 }

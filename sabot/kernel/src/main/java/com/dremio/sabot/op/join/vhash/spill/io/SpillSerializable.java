@@ -15,10 +15,6 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.io;
 
-import java.io.IOException;
-
-import org.apache.arrow.vector.FieldVector;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
@@ -26,6 +22,8 @@ import com.dremio.sabot.op.join.vhash.spill.pool.PageSupplier;
 import com.dremio.sabot.op.join.vhash.spill.slicer.Sizer;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillInputStream;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillOutputStream;
+import java.io.IOException;
+import org.apache.arrow.vector.FieldVector;
 
 public interface SpillSerializable {
 
@@ -48,18 +46,18 @@ public interface SpillSerializable {
    * @return spill chunk
    * @throws IOException
    */
-  SpillChunk readChunkFromStream(PageSupplier pageSupplier, BatchSchema unpivotedColumnsSchema, SpillInputStream input) throws IOException;
+  SpillChunk readChunkFromStream(
+      PageSupplier pageSupplier, BatchSchema unpivotedColumnsSchema, SpillInputStream input)
+      throws IOException;
 
   static int computeUnpivotedSizeRounded(VectorAccessible va) {
     int total = 0;
     for (VectorWrapper<?> wrapper : va) {
       FieldVector fieldVector = (FieldVector) wrapper.getValueVector();
-      //Get Sizer implementation for the current vector type
+      // Get Sizer implementation for the current vector type
       Sizer sizer = Sizer.get(fieldVector);
 
-
       total += sizer.getSizeInBytesStartingFromOrdinal(0, fieldVector.getValueCount());
-
     }
     return total;
   }

@@ -16,15 +16,15 @@
 @import "~@app/uiTheme/less/color-schema.less";
 
 .action-button {
-  border: none;
-  box-shadow: 0 1px 1px @box-shadow;
-  border-radius: 2px;
-  background: #eee;
-  height: 23px;
   width: 42px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
+  height: 23px;
+  border-radius: 2px;
+  box-shadow: rgb(194, 194, 194) 0px 1px 1px;
+  background: @action-btn-bg;
+  dremio-icon {
+    inline-size: 20px;
+    block-size: 20px;
+  }
   &:hover {
     background: #fff;
   }

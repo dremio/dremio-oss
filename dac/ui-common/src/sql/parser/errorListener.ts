@@ -45,7 +45,7 @@ export function createParserErrorListeners(logger: ReturnType<Logger>): {
       line: number,
       charPositionInLine: number,
       msg: string,
-      e: RecognitionException | undefined
+      e: RecognitionException | undefined,
     ) => {
       errors.push({
         type: "lexer",
@@ -69,7 +69,7 @@ Msg: ${msg}`);
       line: number,
       charPositionInLine: number,
       msg: string,
-      e: RecognitionException | undefined
+      e: RecognitionException | undefined,
     ) => {
       errors.push({
         type: "parser",

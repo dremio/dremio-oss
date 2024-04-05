@@ -21,10 +21,11 @@ import org.junit.Test;
 /**
  * Runs test cases on the local filesystem-based Hadoop source.
  *
- * Note: Contains all tests in AlterTests.
+ * <p>Note: Contains all tests in AlterTests.
  */
 public class ITAlter extends ITDmlQueryBase {
-  // Defining SOURCE such that you can easily copy and paste the same test across other test variations
+  // Defining SOURCE such that you can easily copy and paste the same test across other test
+  // variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
   @Override

@@ -17,6 +17,4 @@
 package com.dremio.exec.physical.base;
 
 /** Writer physical operator */
-public interface Writer extends PhysicalOperator{
-
-}
+public interface Writer extends PhysicalOperator {}

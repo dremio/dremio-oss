@@ -22,8 +22,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * A trimmed down User Object with basic/non-sensitive info.
- * Used mainly in context of searching the user from UI.
+ * A trimmed down User Object with basic/non-sensitive info. Used mainly in context of searching the
+ * user from UI.
  */
 public final class UserLite implements User {
   private final UID uid;
@@ -33,18 +33,19 @@ public final class UserLite implements User {
   private final boolean active;
 
   @JsonCreator
-  private UserLite (
-    @JsonProperty("uid") UID uid,
-    @JsonProperty("userName") String userName,
-    @JsonProperty("firstName") String firstName,
-    @JsonProperty("lastName") String lastName,
-    @JsonProperty("active") Boolean active) {
+  private UserLite(
+      @JsonProperty("uid") UID uid,
+      @JsonProperty("userName") String userName,
+      @JsonProperty("firstName") String firstName,
+      @JsonProperty("lastName") String lastName,
+      @JsonProperty("active") Boolean active) {
     this.uid = uid;
     this.userName = userName;
     this.firstName = firstName;
     this.lastName = lastName;
     this.active = active == null || active;
   }
+
   @Override
   public UID getUID() {
     return uid;
@@ -99,9 +100,7 @@ public final class UserLite implements User {
     return active;
   }
 
-  /**
-   * A builder for {@code UserLite}
-   */
+  /** A builder for {@code UserLite} */
   public static final class Builder {
     private UID uid;
     private String userName;
@@ -111,6 +110,7 @@ public final class UserLite implements User {
     private boolean active;
 
     private Builder() {}
+
     public UID getUID() {
       return uid;
     }

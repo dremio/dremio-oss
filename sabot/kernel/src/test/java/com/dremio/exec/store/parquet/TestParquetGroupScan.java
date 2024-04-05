@@ -18,32 +18,55 @@ package com.dremio.exec.store.parquet;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestParquetGroupScan extends BaseTestQuery {
 
   private void prepareTables(final String tableName, boolean refreshMetadata) throws Exception {
     // first create some parquet subfolders
-    testNoResult("CREATE TABLE dfs_test.\"%s\"      AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 1", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/501\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 2", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/502\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 4", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/503\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 8", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/504\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 16", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/505\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 32", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/60\"   AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 64", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/602\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 128", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/6031\" AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 256", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/6032\" AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 512", tableName);
-    testNoResult("CREATE TABLE dfs_test.\"%s/6033\" AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 1024", tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s\"      AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 1",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/501\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 2",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/502\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 4",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/503\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 8",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/504\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 16",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/505\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 32",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/60\"   AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 64",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/602\"  AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 128",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/6031\" AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 256",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/6032\" AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 512",
+        tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/6033\" AS SELECT employee_id FROM cp.\"employee.json\" LIMIT 1024",
+        tableName);
 
     // we need an empty subfolder `4376/20160401`
     // to do this we first create a table inside that subfolder
-    testNoResult("CREATE TABLE dfs_test.\"%s/6041/a\" AS SELECT * FROM cp.\"employee.json\" LIMIT 1", tableName);
+    testNoResult(
+        "CREATE TABLE dfs_test.\"%s/6041/a\" AS SELECT * FROM cp.\"employee.json\" LIMIT 1",
+        tableName);
     // then we delete the table, leaving the parent subfolder empty
     testNoResult("DROP TABLE   dfs_test.\"%s/6041/a\"", tableName);
 
@@ -59,10 +82,11 @@ public class TestParquetGroupScan extends BaseTestQuery {
     prepareTables("4376_1", true);
 
     testBuilder()
-      .sqlQuery("SELECT COUNT(*) AS \"count\" FROM dfs_test.\"4376_1/60*\"")
-      .ordered()
-      .baselineColumns("count").baselineValues(1984L)
-      .go();
+        .sqlQuery("SELECT COUNT(*) AS \"count\" FROM dfs_test.\"4376_1/60*\"")
+        .ordered()
+        .baselineColumns("count")
+        .baselineValues(1984L)
+        .go();
   }
 
   @Test
@@ -75,8 +99,11 @@ public class TestParquetGroupScan extends BaseTestQuery {
       fail("Query should've failed!");
     } catch (UserRemoteException uex) {
       final String expectedMsg = "The table you tried to query is empty";
-      assertTrue(String.format("Error message should contain \"%s\" but was instead \"%s\"", expectedMsg,
-        uex.getMessage()), uex.getMessage().contains(expectedMsg));
+      assertTrue(
+          String.format(
+              "Error message should contain \"%s\" but was instead \"%s\"",
+              expectedMsg, uex.getMessage()),
+          uex.getMessage().contains(expectedMsg));
     }
   }
 
@@ -88,10 +115,14 @@ public class TestParquetGroupScan extends BaseTestQuery {
       runSQL("SELECT COUNT(*) AS \"count\" FROM dfs_test.\"4376_3/604*\"");
       fail("Query should've failed!");
     } catch (UserRemoteException uex) {
-      final String expectedMsg = "The file format for 'dfs_test.\"4376_3/604*\"' could not be identified. In order for automatic format detection to succeed, " +
-        "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.";
-      assertTrue(String.format("Error message should contain \"%s\" but was instead \"%s\"", expectedMsg,
-        uex.getMessage()), uex.getMessage().contains(expectedMsg));
+      final String expectedMsg =
+          "The file format for 'dfs_test.\"4376_3/604*\"' could not be identified. In order for automatic format detection to succeed, "
+              + "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.";
+      assertTrue(
+          String.format(
+              "Error message should contain \"%s\" but was instead \"%s\"",
+              expectedMsg, uex.getMessage()),
+          uex.getMessage().contains(expectedMsg));
     }
   }
 
@@ -105,8 +136,11 @@ public class TestParquetGroupScan extends BaseTestQuery {
       fail("Query should've failed!");
     } catch (UserRemoteException uex) {
       final String expectedMsg = "The table you tried to query is empty";
-      assertTrue(String.format("Error message should contain \"%s\" but was instead \"%s\"", expectedMsg,
-        uex.getMessage()), uex.getMessage().contains(expectedMsg));
+      assertTrue(
+          String.format(
+              "Error message should contain \"%s\" but was instead \"%s\"",
+              expectedMsg, uex.getMessage()),
+          uex.getMessage().contains(expectedMsg));
     }
   }
 
@@ -117,10 +151,14 @@ public class TestParquetGroupScan extends BaseTestQuery {
       runSQL("SELECT COUNT(*) AS \"count\" FROM dfs_test.\"4376_5/6041\"");
       fail("Query should've failed!");
     } catch (UserRemoteException uex) {
-      final String expectedMsg = "The file format for 'dfs_test.\"4376_5/6041\"' could not be identified. In order for automatic format detection to succeed, " +
-        "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.";
-      assertTrue(String.format("Error message should contain \"%s\" but was instead \"%s\"", expectedMsg,
-        uex.getMessage()), uex.getMessage().contains(expectedMsg));
+      final String expectedMsg =
+          "The file format for 'dfs_test.\"4376_5/6041\"' could not be identified. In order for automatic format detection to succeed, "
+              + "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.";
+      assertTrue(
+          String.format(
+              "Error message should contain \"%s\" but was instead \"%s\"",
+              expectedMsg, uex.getMessage()),
+          uex.getMessage().contains(expectedMsg));
     }
   }
 
@@ -132,7 +170,8 @@ public class TestParquetGroupScan extends BaseTestQuery {
 
     final String query = "SELECT * FROM dfs.\"[WORKING_PATH]/src/test/resources/parquet/dx-11829\"";
 
-    // run the query once to for schema learning purposes. As one of the files doesn't contain column "dt", schema
+    // run the query once to for schema learning purposes. As one of the files doesn't contain
+    // column "dt", schema
     // sampling could pick up that file and make the original table schema only "field", "dir0"
     try {
       test(query);

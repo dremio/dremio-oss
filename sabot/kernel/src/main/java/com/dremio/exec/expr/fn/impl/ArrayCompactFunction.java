@@ -15,14 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.SimpleFunction;
@@ -32,10 +24,19 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 public class ArrayCompactFunction {
 
-  @FunctionTemplate(name = "array_compact", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL,  derivation = ListWithoutRemovedElements.class)
+  @FunctionTemplate(
+      name = "array_compact",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL,
+      derivation = ListWithoutRemovedElements.class)
   public static class ArrayCompact implements SimpleFunction {
 
     @Param private FieldReader in;
@@ -43,8 +44,7 @@ public class ArrayCompactFunction {
     @Inject private FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {
@@ -61,10 +61,7 @@ public class ArrayCompactFunction {
       Preconditions.checkArgument(args.size() == 1);
       CompleteType type = args.get(0).getCompleteType();
       Preconditions.checkArgument(type.getChildren().size() == 1);
-      return new CompleteType(
-        ArrowType.List.INSTANCE,
-        type.getChildren().get(0)
-      );
+      return new CompleteType(ArrowType.List.INSTANCE, type.getChildren().get(0));
     }
   }
 }

@@ -16,7 +16,6 @@
 package com.dremio.exec.store.iceberg;
 
 import java.util.Objects;
-
 import org.apache.iceberg.Snapshot;
 
 public class SnapshotEntry {
@@ -26,10 +25,15 @@ public class SnapshotEntry {
   private final Long timestampMillis;
 
   public SnapshotEntry(String metadataJsonPath, Snapshot snapshot) {
-    this(metadataJsonPath, snapshot.snapshotId(), snapshot.manifestListLocation(), snapshot.timestampMillis());
+    this(
+        metadataJsonPath,
+        snapshot.snapshotId(),
+        snapshot.manifestListLocation(),
+        snapshot.timestampMillis());
   }
 
-  public SnapshotEntry(String metadataJsonPath, long snapshotId, String manifestListPath, Long timestampMillis) {
+  public SnapshotEntry(
+      String metadataJsonPath, long snapshotId, String manifestListPath, Long timestampMillis) {
     this.metadataJsonPath = metadataJsonPath;
     this.snapshotId = snapshotId;
     this.manifestListPath = manifestListPath;
@@ -61,8 +65,9 @@ public class SnapshotEntry {
       return false;
     }
     SnapshotEntry that = (SnapshotEntry) o;
-    return snapshotId == that.snapshotId && Objects.equals(manifestListPath,
-        that.manifestListPath) && Objects.equals(metadataJsonPath, that.metadataJsonPath);
+    return snapshotId == that.snapshotId
+        && Objects.equals(manifestListPath, that.manifestListPath)
+        && Objects.equals(metadataJsonPath, that.metadataJsonPath);
   }
 
   @Override
@@ -72,11 +77,18 @@ public class SnapshotEntry {
 
   @Override
   public String toString() {
-    return "SnapshotEntry{" +
-        "snapshotId=" + snapshotId +
-        ", manifestListPath='" + manifestListPath + '\'' +
-        ", metadataJsonPath='" + metadataJsonPath + '\'' +
-        ", timestampMillis='" + timestampMillis + '\'' +
-        '}';
+    return "SnapshotEntry{"
+        + "snapshotId="
+        + snapshotId
+        + ", manifestListPath='"
+        + manifestListPath
+        + '\''
+        + ", metadataJsonPath='"
+        + metadataJsonPath
+        + '\''
+        + ", timestampMillis='"
+        + timestampMillis
+        + '\''
+        + '}';
   }
 }

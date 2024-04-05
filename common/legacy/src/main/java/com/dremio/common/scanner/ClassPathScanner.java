@@ -19,23 +19,6 @@ import static java.lang.String.format;
 import static java.util.Collections.unmodifiableList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import org.reflections.Reflections;
-import org.reflections.scanners.Scanner;
-import org.reflections.util.ConfigurationBuilder;
-import org.reflections.util.FilterBuilder;
-
 import com.dremio.common.SuppressForbidden;
 import com.dremio.common.config.CommonConstants;
 import com.dremio.common.config.SabotConfig;
@@ -51,7 +34,17 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 import javassist.bytecode.AccessFlag;
 import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ClassFile;
@@ -71,36 +64,44 @@ import javassist.bytecode.annotation.MemberValue;
 import javassist.bytecode.annotation.MemberValueVisitor;
 import javassist.bytecode.annotation.ShortMemberValue;
 import javassist.bytecode.annotation.StringMemberValue;
+import org.reflections.Reflections;
+import org.reflections.scanners.Scanner;
+import org.reflections.util.ConfigurationBuilder;
+import org.reflections.util.FilterBuilder;
 
 /**
- * Classpath scanning utility.
- * The classpath should be scanned once at startup from a SabotConfig instance. {@see ClassPathScanner#fromPrescan(SabotConfig)}
- * The SabotConfig provides:
- *  - the list of packages to scan. (dremio.classpath.scanning.packages) {@see CommonConstants#IMPLEMENTATIONS_SCAN_PACKAGES}
- *  - the list of base classes to scan for implementations. (dremio.classpath.scanning.base.classes) {@see CommonConstants#IMPLEMENTATIONS_SCAN_CLASSES}
- *  - the list of annotations to scan for. (dremio.classpath.scanning.annotations) {@see CommonConstants#IMPLEMENTATIONS_SCAN_ANNOTATIONS}
- * Only the class directories and jars containing a sabot-module.conf will be scanned.
- * Dremio core packages are scanned at build time and the result is saved in a JSON file. {@see ClassPathScanner#FUNCTION_REGISTRY_FILE}
- * At runtime only the locations that have not been scanned yet will be scanned.
+ * Classpath scanning utility. The classpath should be scanned once at startup from a SabotConfig
+ * instance. {@see ClassPathScanner#fromPrescan(SabotConfig)} The SabotConfig provides: - the list
+ * of packages to scan. (dremio.classpath.scanning.packages) {@see
+ * CommonConstants#IMPLEMENTATIONS_SCAN_PACKAGES} - the list of base classes to scan for
+ * implementations. (dremio.classpath.scanning.base.classes) {@see
+ * CommonConstants#IMPLEMENTATIONS_SCAN_CLASSES} - the list of annotations to scan for.
+ * (dremio.classpath.scanning.annotations) {@see CommonConstants#IMPLEMENTATIONS_SCAN_ANNOTATIONS}
+ * Only the class directories and jars containing a sabot-module.conf will be scanned. Dremio core
+ * packages are scanned at build time and the result is saved in a JSON file. {@see
+ * ClassPathScanner#FUNCTION_REGISTRY_FILE} At runtime only the locations that have not been scanned
+ * yet will be scanned.
  */
 public final class ClassPathScanner {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassPathScanner.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ClassPathScanner.class);
 
   /** Configuration pathname to list of names of packages to scan for implementations. */
   private static final String IMPLEMENTATIONS_SCAN_PACKAGES = "dremio.classpath.scanning.packages";
 
   /** Configuration pathname to list of names of base classes to scan for implementations. */
-  private static final String IMPLEMENTATIONS_SCAN_CLASSES = "dremio.classpath.scanning.base.classes";
+  private static final String IMPLEMENTATIONS_SCAN_CLASSES =
+      "dremio.classpath.scanning.base.classes";
 
   /** Configuration pathname to list of names of annotations to scan for. */
-  private static final String IMPLEMENTATIONS_SCAN_ANNOTATIONS = "dremio.classpath.scanning.annotations";
+  private static final String IMPLEMENTATIONS_SCAN_ANNOTATIONS =
+      "dremio.classpath.scanning.annotations";
 
   /** Configuration pathname to turn off build time caching. */
-  private static final String IMPLEMENTATIONS_SCAN_CACHE = "dremio.classpath.scanning.cache.enabled";
+  private static final String IMPLEMENTATIONS_SCAN_CACHE =
+      "dremio.classpath.scanning.cache.enabled";
 
-  /**
-   * scans the inheritance tree
-   */
+  /** scans the inheritance tree */
   @SuppressForbidden
   private static class SubTypesScanner implements Scanner {
 
@@ -109,7 +110,8 @@ public final class ClassPathScanner {
 
     public SubTypesScanner(List<ParentClassDescriptor> parentImplementations) {
       for (ParentClassDescriptor parentClassDescriptor : parentImplementations) {
-        parentsChildren.putAll(parentClassDescriptor.getName(), parentClassDescriptor.getChildren());
+        parentsChildren.putAll(
+            parentClassDescriptor.getName(), parentClassDescriptor.getChildren());
       }
     }
 
@@ -117,7 +119,8 @@ public final class ClassPathScanner {
     public List<Entry<String, String>> scan(final ClassFile classFile) {
       String className = classFile.getName();
       String superclass = classFile.getSuperclass();
-      boolean isAbstract = (classFile.getAccessFlags() & (AccessFlag.INTERFACE | AccessFlag.ABSTRACT)) != 0;
+      boolean isAbstract =
+          (classFile.getAccessFlags() & (AccessFlag.INTERFACE | AccessFlag.ABSTRACT)) != 0;
       ChildClassDescriptor scannedClass = new ChildClassDescriptor(className, isAbstract);
       if (!superclass.equals(Object.class.getName())) {
         children.put(superclass, scannedClass);
@@ -149,12 +152,9 @@ public final class ClassPathScanner {
       }
       return result;
     }
-
   }
 
-  /**
-   * converts the annotation attribute value into a list of string to simplify
-   */
+  /** converts the annotation attribute value into a list of string to simplify */
   @SuppressForbidden
   @SuppressWarnings("checkstyle:FinalClass")
   private static class ListingMemberValueVisitor implements MemberValueVisitor {
@@ -247,8 +247,8 @@ public final class ClassPathScanner {
   }
 
   /**
-   * scans functions annotated with configured annotations
-   *  and keeps track of its annotations and fields
+   * scans functions annotated with configured annotations and keeps track of its annotations and
+   * fields
    */
   @SuppressForbidden
   private static final class AnnotationScanner implements Scanner {
@@ -268,7 +268,8 @@ public final class ClassPathScanner {
 
     @Override
     public List<Entry<String, String>> scan(final ClassFile classFile) {
-      AnnotationsAttribute annotations = ((AnnotationsAttribute)classFile.getAttribute(AnnotationsAttribute.visibleTag));
+      AnnotationsAttribute annotations =
+          ((AnnotationsAttribute) classFile.getAttribute(AnnotationsAttribute.visibleTag));
       if (annotations != null) {
         boolean isAnnotated = false;
         for (javassist.bytecode.annotation.Annotation a : annotations.getAnnotations()) {
@@ -283,20 +284,28 @@ public final class ClassPathScanner {
           List<FieldDescriptor> fieldDescriptors = new ArrayList<>(classFields.size());
           for (FieldInfo field : classFields) {
             String fieldName = field.getName();
-            AnnotationsAttribute fieldAnnotations = ((AnnotationsAttribute)field.getAttribute(AnnotationsAttribute.visibleTag));
+            AnnotationsAttribute fieldAnnotations =
+                ((AnnotationsAttribute) field.getAttribute(AnnotationsAttribute.visibleTag));
             final List<AnnotationDescriptor> annotationDescriptors =
-                (fieldAnnotations != null) ? getAnnotationDescriptors(fieldAnnotations) : Collections.<AnnotationDescriptor>emptyList();
-            fieldDescriptors.add(new FieldDescriptor(fieldName, field.getDescriptor(), annotationDescriptors));
+                (fieldAnnotations != null)
+                    ? getAnnotationDescriptors(fieldAnnotations)
+                    : Collections.<AnnotationDescriptor>emptyList();
+            fieldDescriptors.add(
+                new FieldDescriptor(fieldName, field.getDescriptor(), annotationDescriptors));
           }
-          functions.add(new AnnotatedClassDescriptor(classFile.getName(), classAnnotations, fieldDescriptors));
+          functions.add(
+              new AnnotatedClassDescriptor(
+                  classFile.getName(), classAnnotations, fieldDescriptors));
         }
       }
 
       return Collections.emptyList();
     }
 
-    private List<AnnotationDescriptor> getAnnotationDescriptors(AnnotationsAttribute annotationsAttr) {
-      List<AnnotationDescriptor> annotationDescriptors = new ArrayList<>(annotationsAttr.numAnnotations());
+    private List<AnnotationDescriptor> getAnnotationDescriptors(
+        AnnotationsAttribute annotationsAttr) {
+      List<AnnotationDescriptor> annotationDescriptors =
+          new ArrayList<>(annotationsAttr.numAnnotations());
       for (javassist.bytecode.annotation.Annotation annotation : annotationsAttr.getAnnotations()) {
         // Sigh: javassist uses raw collections (is this 2002?)
         @SuppressWarnings("unchecked")
@@ -330,22 +339,19 @@ public final class ClassPathScanner {
   /**
    * Gets URLs of any classpath resources with given resource pathname.
    *
-   * @param  resourcePathname  resource pathname of classpath resource instances
-   *           to scan for (relative to specified class loaders' classpath roots)
-   * @param  returnRootPathname  whether to collect classpath root portion of
-   *           URL for each resource instead of full URL of each resource
-   * @param  classLoaders  set of class loaders in which to look up resource;
-   *           none (empty array) to specify to use current thread's context
-   *           class loader and {@link Reflections}'s class loader
-   * @returns  ...; empty set if none
+   * @param resourcePathname resource pathname of classpath resource instances to scan for (relative
+   *     to specified class loaders' classpath roots)
+   * @param returnRootPathname whether to collect classpath root portion of URL for each resource
+   *     instead of full URL of each resource
+   * @returns ...; empty set if none
    */
-  public static Collection<URL> forResource(final String resourcePathname, final boolean returnRootPathname) {
-    logger.debug("Scanning classpath for resources with pathname \"{}\".",
-                 resourcePathname);
+  public static Collection<URL> forResource(
+      final String resourcePathname, final boolean returnRootPathname) {
+    logger.debug("Scanning classpath for resources with pathname \"{}\".", resourcePathname);
     // Okay to use a set to remove duplicate but ordering is important
     // and need to be consistent with classpath ordering
     final Set<URL> resultUrlSet = Sets.newLinkedHashSet();
-    final ClassLoader classLoader = ClassPathScanner.class.getClassLoader();
+    final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     try {
       final Enumeration<URL> resourceUrls = classLoader.getResources(resourcePathname);
       while (resourceUrls.hasMoreElements()) {
@@ -392,13 +398,17 @@ public final class ClassPathScanner {
   }
 
   /**
-   *
    * @param pathsToScan the locations to scan for .class files
    * @param packagePrefixes the whitelist of package prefixes to scan
    * @param parentResult if there was a prescan, its result
    * @return the merged scan
    */
-  static ScanResult scan(Collection<URL> pathsToScan, Collection<String> packagePrefixes, Collection<String> scannedClasses, Collection<String> scannedAnnotations, ScanResult parentResult) {
+  static ScanResult scan(
+      Collection<URL> pathsToScan,
+      Collection<String> packagePrefixes,
+      Collection<String> scannedClasses,
+      Collection<String> scannedAnnotations,
+      ScanResult parentResult) {
     Stopwatch watch = Stopwatch.createStarted();
     try {
       AnnotationScanner annotationScanner = new AnnotationScanner(scannedAnnotations);
@@ -408,48 +418,45 @@ public final class ClassPathScanner {
         for (String prefix : packagePrefixes) {
           filter.includePackage(prefix);
         }
-        ConfigurationBuilder conf = new ConfigurationBuilder()
-            .setParallel(false) // our scanners are not thread-safe
-            .setUrls(pathsToScan)
-            .filterInputsBy(filter)
-            .setScanners(annotationScanner, subTypesScanner);
+        ConfigurationBuilder conf =
+            new ConfigurationBuilder()
+                .setParallel(false) // our scanners are not thread-safe
+                .setUrls(pathsToScan)
+                .filterInputsBy(filter)
+                .setScanners(annotationScanner, subTypesScanner);
 
         // scans stuff, but don't use the funky storage layer
         new Reflections(conf);
       }
       List<ParentClassDescriptor> implementations = new ArrayList<>();
-      for (String baseTypeName: scannedClasses) {
+      for (String baseTypeName : scannedClasses) {
         implementations.add(
             new ParentClassDescriptor(
-                baseTypeName,
-                new ArrayList<>(subTypesScanner.getChildrenOf(baseTypeName))));
+                baseTypeName, new ArrayList<>(subTypesScanner.getChildrenOf(baseTypeName))));
       }
       List<AnnotatedClassDescriptor> annotated = annotationScanner.getAnnotatedClasses();
       verifyClassUnicity(annotated, pathsToScan);
       return new ScanResult(
-          packagePrefixes,
-          scannedClasses,
-          scannedAnnotations,
-          annotated,
-          implementations);
+          packagePrefixes, scannedClasses, scannedAnnotations, annotated, implementations);
     } finally {
       logger.info(
-          format("Scanning packages %s in locations %s took %dms",
+          format(
+              "Scanning packages %s in locations %s took %dms",
               packagePrefixes, pathsToScan, watch.elapsed(MILLISECONDS)));
     }
   }
 
-  private static void verifyClassUnicity(List<AnnotatedClassDescriptor> annotatedClasses, Collection<URL> pathsScanned) {
+  private static void verifyClassUnicity(
+      List<AnnotatedClassDescriptor> annotatedClasses, Collection<URL> pathsScanned) {
     Set<String> scanned = new HashSet<>();
     for (AnnotatedClassDescriptor annotated : annotatedClasses) {
       if (!scanned.add(annotated.getClassName())) {
         throw UserException.functionError()
             .message(
                 "function %s scanned twice in the following locations:\n"
-                + "%s\n"
-                + "Do you have conflicting jars on the classpath?",
-                annotated.getClassName(), pathsScanned
-            )
+                    + "%s\n"
+                    + "Do you have conflicting jars on the classpath?",
+                annotated.getClassName(), pathsScanned)
             .build(logger);
       }
     }
@@ -467,7 +474,7 @@ public final class ClassPathScanner {
   /**
    * Scans the current classpath using the provided config.
    *
-   * The returned object is immutable and should be cached as much as possible.
+   * <p>The returned object is immutable and should be cached as much as possible.
    */
   public static ScanResult fromPrescan(SabotConfig config) {
     return RunTimeScan.fromPrescan(config);

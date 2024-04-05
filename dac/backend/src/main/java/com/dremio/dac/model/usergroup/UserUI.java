@@ -15,22 +15,21 @@
  */
 package com.dremio.dac.model.usergroup;
 
-import java.io.UnsupportedEncodingException;
-import java.security.Principal;
-import java.util.HashMap;
-import java.util.Map;
-
 import com.dremio.dac.model.common.AddressableResource;
 import com.dremio.service.users.User;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.UnsupportedEncodingException;
+import java.security.Principal;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * Model for user information.
- */
-@JsonIgnoreProperties(value={"links", "id"}, allowGetters=true)
+/** Model for user information. */
+@JsonIgnoreProperties(
+    value = {"links", "id"},
+    allowGetters = true)
 public class UserUI implements AddressableResource, Principal {
   private final UserName userName;
 
@@ -39,9 +38,10 @@ public class UserUI implements AddressableResource, Principal {
   private UserResourcePath resourcePath;
 
   @JsonCreator
-  public UserUI(@JsonProperty("resourcePath") UserResourcePath resourcePath,
-                @JsonProperty("userName") UserName userName,
-                @JsonProperty("userConfig") User userGroup) {
+  public UserUI(
+      @JsonProperty("resourcePath") UserResourcePath resourcePath,
+      @JsonProperty("userName") UserName userName,
+      @JsonProperty("userConfig") User userGroup) {
     this.resourcePath = resourcePath;
     this.userName = userName;
     this.user = userGroup;

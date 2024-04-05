@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
-import java.util.stream.Collectors;
-
-import org.apache.calcite.rel.logical.LogicalIntersect;
-
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PLogicalIntersect;
+import java.util.stream.Collectors;
+import org.apache.calcite.rel.logical.LogicalIntersect;
 
-/**
- * Serde for LogicalIntersect
- */
-public final class LogicalIntersectSerde implements RelNodeSerde<LogicalIntersect, PLogicalIntersect>{
+/** Serde for LogicalIntersect */
+public final class LogicalIntersectSerde
+    implements RelNodeSerde<LogicalIntersect, PLogicalIntersect> {
 
   @Override
   public PLogicalIntersect serialize(LogicalIntersect intersect, RelToProto s) {
@@ -38,8 +35,6 @@ public final class LogicalIntersectSerde implements RelNodeSerde<LogicalIntersec
   @Override
   public LogicalIntersect deserialize(PLogicalIntersect node, RelFromProto s) {
     return LogicalIntersect.create(
-      node.getInputsList().stream().map(s::toRel).collect(Collectors.toList()),
-      node.getAll());
+        node.getInputsList().stream().map(s::toRel).collect(Collectors.toList()), node.getAll());
   }
-
 }

@@ -22,13 +22,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Injection for a single pause. Pause indefinitely until signalled. This class is used internally for tracking
- * injected pauses. Note that pauses can be fired only once; nFire field is ignored. These pauses are specified via
- * {@link com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS} session option.
+ * Injection for a single pause. Pause indefinitely until signalled. This class is used internally
+ * for tracking injected pauses. Note that pauses can be fired only once; nFire field is ignored.
+ * These pauses are specified via {@link com.dremio.exec.ExecConstants#NODE_CONTROL_INJECTIONS}
+ * session option.
  *
- * After the pauses are set, the user sends another signal to unpause all the pauses. This triggers the AttemptManager to
- * 1) unpause all pauses in QueryContext, and
- * 2) send an unpause signal to all fragments, each of which unpauses all pauses in FragmentContext.
+ * <p>After the pauses are set, the user sends another signal to unpause all the pauses. This
+ * triggers the AttemptManager to 1) unpause all pauses in QueryContext, and 2) send an unpause
+ * signal to all fragments, each of which unpauses all pauses in FragmentContext.
  */
 @JsonAutoDetect(fieldVisibility = Visibility.ANY)
 public class PauseInjection extends Injection {
@@ -36,11 +37,13 @@ public class PauseInjection extends Injection {
   private final ExtendedLatch latch = new ExtendedLatch(1);
 
   @JsonCreator // ensures instances are created only through JSON
-  private PauseInjection(@JsonProperty("address") final String address,
-                         @JsonProperty("port") final int port,
-                         @JsonProperty("siteClass") final String siteClass,
-                         @JsonProperty("desc") final String desc,
-                         @JsonProperty("nSkip") final int nSkip) throws InjectionConfigurationException {
+  private PauseInjection(
+      @JsonProperty("address") final String address,
+      @JsonProperty("port") final int port,
+      @JsonProperty("siteClass") final String siteClass,
+      @JsonProperty("desc") final String desc,
+      @JsonProperty("nSkip") final int nSkip)
+      throws InjectionConfigurationException {
     super(address, port, siteClass, desc, nSkip, 1);
   }
 

@@ -15,10 +15,6 @@
  */
 package com.dremio.common.util;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -26,10 +22,11 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * SchemaPath deserialization utility, that can work on compound paths.
- */
+/** SchemaPath deserialization utility, that can work on compound paths. */
 public class SchemaPathDeserializer extends StdDeserializer<SchemaPath> {
 
   protected SchemaPathDeserializer() {
@@ -37,7 +34,9 @@ public class SchemaPathDeserializer extends StdDeserializer<SchemaPath> {
   }
 
   @Override
-  public SchemaPath deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JacksonException {
+  public SchemaPath deserialize(
+      JsonParser jsonParser, DeserializationContext deserializationContext)
+      throws IOException, JacksonException {
     JsonNode node = jsonParser.getCodec().readTree(jsonParser);
     if (node == null) {
       return null;
@@ -52,7 +51,7 @@ public class SchemaPathDeserializer extends StdDeserializer<SchemaPath> {
     boolean delimiterExpectedNext = false;
 
     // The values are delimited by ".", enclosed in "`", whereas "\" is used as an escape character.
-    for (int i = 0 ; i < serializedStr.length(); i++) {
+    for (int i = 0; i < serializedStr.length(); i++) {
       char c = serializedStr.charAt(i);
       if (delimiterExpectedNext) {
         Preconditions.checkState(c == '.', "Invalid format, delimiter expected at " + i);
@@ -82,7 +81,8 @@ public class SchemaPathDeserializer extends StdDeserializer<SchemaPath> {
 
       currentSubPathBuilder.append(c);
     }
-    Preconditions.checkState(!activeTokenPosition, "Invalid format, path segment not closed properly");
+    Preconditions.checkState(
+        !activeTokenPosition, "Invalid format, path segment not closed properly");
     Preconditions.checkState(!subPaths.isEmpty(), "No paths found");
 
     String[] subPathArr = subPaths.toArray(new String[subPaths.size()]);

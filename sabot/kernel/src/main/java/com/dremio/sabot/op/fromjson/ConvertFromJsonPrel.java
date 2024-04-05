@@ -15,21 +15,6 @@
  */
 package com.dremio.sabot.op.fromjson;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.linq4j.Ord;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexNode;
-
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -44,16 +29,38 @@ import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexNode;
 
 @Options
 public class ConvertFromJsonPrel extends SinglePrel {
 
-  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.convert_from_json.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.convert_from_json.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RESERVE =
+      new PositiveLongValidator(
+          "planner.op.convert_from_json.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT =
+      new PositiveLongValidator(
+          "planner.op.convert_from_json.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final List<ConversionColumn> conversions;
 
-  public ConvertFromJsonPrel(RelOptCluster cluster, RelTraitSet traits, RelDataType rowType, RelNode child, List<ConversionColumn> conversions) {
+  public ConvertFromJsonPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelDataType rowType,
+      RelNode child,
+      List<ConversionColumn> conversions) {
     super(cluster, traits, child);
     this.rowType = rowType;
     this.conversions = conversions;
@@ -71,13 +78,18 @@ public class ConvertFromJsonPrel extends SinglePrel {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ConvertFromJsonPrel(getCluster(), getTraitSet(), rowType, inputs.get(0), conversions);
+    return new ConvertFromJsonPrel(
+        getCluster(), getTraitSet(), rowType, inputs.get(0), conversions);
   }
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     PhysicalOperator child = ((Prel) getInput()).getPhysicalOperator(creator);
-    return new ConvertFromJsonPOP(creator.props(this, null, getSchema(child.getProps().getSchema(), conversions), RESERVE, LIMIT), child, conversions);
+    return new ConvertFromJsonPOP(
+        creator.props(
+            this, null, getSchema(child.getProps().getSchema(), conversions), RESERVE, LIMIT),
+        child,
+        conversions);
   }
 
   public List<ConversionColumn> getConversions() {
@@ -89,12 +101,15 @@ public class ConvertFromJsonPrel extends SinglePrel {
     super.explainTerms(pw);
     List<RexNode> childExprs = MoreRelOptUtil.getChildExps(input);
 
-    List<String> convertFields = Lists.transform(conversions, new Function<ConversionColumn, String>() {
-      @Override
-      public String apply(ConversionColumn input) {
-        return input.getInputField();
-      }
-    });
+    List<String> convertFields =
+        Lists.transform(
+            conversions,
+            new Function<ConversionColumn, String>() {
+              @Override
+              public String apply(ConversionColumn input) {
+                return input.getInputField();
+              }
+            });
 
     for (Ord<RelDataTypeField> field : Ord.zip(rowType.getFieldList())) {
       String fieldName = field.e.getName();
@@ -113,16 +128,16 @@ public class ConvertFromJsonPrel extends SinglePrel {
     return pw;
   }
 
-  private static BatchSchema getSchema(BatchSchema schema, List<ConversionColumn> conversions){
+  private static BatchSchema getSchema(BatchSchema schema, List<ConversionColumn> conversions) {
     final Map<String, ConversionColumn> cMap = new HashMap<>();
-    for(ConversionColumn c : conversions){
+    for (ConversionColumn c : conversions) {
       cMap.put(c.getInputField().toLowerCase(), c);
     }
 
     final SchemaBuilder builder = BatchSchema.newBuilder();
-    for(Field f : schema){
+    for (Field f : schema) {
       ConversionColumn conversion = cMap.get(f.getName().toLowerCase());
-      if(conversion != null){
+      if (conversion != null) {
         builder.addField(conversion.asField(f.getName()));
       } else {
         builder.addField(f);

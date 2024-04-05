@@ -18,7 +18,6 @@ package com.dremio.common.memory;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationOutcome;
 import org.apache.arrow.memory.ArrowBuf;
@@ -28,11 +27,12 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocator;
 
 /**
- * The root allocator for using direct memory inside a Dremio process.
- * Tracks all top-level allocators
+ * The root allocator for using direct memory inside a Dremio process. Tracks all top-level
+ * allocators
  */
 public final class DremioRootAllocator extends RootAllocator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioRootAllocator.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(DremioRootAllocator.class);
 
   private final ConcurrentMap<String, BufferAllocator> children;
 
@@ -47,10 +47,7 @@ public final class DremioRootAllocator extends RootAllocator {
     return listener.getAvailableBuffers();
   }
 
-  /**
-   * Constructor, hidden from public use. Use {@link #create(long)} instead
-   */
-
+  /** Constructor, hidden from public use. Use {@link #create(long)} instead */
   private RootAllocatorListener listener;
 
   private DremioRootAllocator(final RootAllocatorListener listener, final long limit) {
@@ -61,12 +58,14 @@ public final class DremioRootAllocator extends RootAllocator {
 
   @Override
   public ArrowBuf buffer(final long initialRequestSize) {
-    throw new UnsupportedOperationException("Dremio's root allocator should not be used for direct allocations");
+    throw new UnsupportedOperationException(
+        "Dremio's root allocator should not be used for direct allocations");
   }
 
   @Override
   public ArrowBuf buffer(final long initialRequestSize, BufferManager manager) {
-    throw new UnsupportedOperationException("Dremio's root allocator should not be used for direct allocations");
+    throw new UnsupportedOperationException(
+        "Dremio's root allocator should not be used for direct allocations");
   }
 
   private static final class RootAllocatorListener implements AllocationListener {
@@ -95,7 +94,7 @@ public final class DremioRootAllocator extends RootAllocator {
     public void onPreAllocation(long size) {
       // We don't decrement here since it means we'll possibly leak a reference.
       // However, we throw here since we need to throw before any partial-accounting occurs.
-      if(availBuffers.get() < 1) {
+      if (availBuffers.get() < 1) {
         throw new OutOfMemoryException("Buffer count exceeds maximum.");
       }
     }

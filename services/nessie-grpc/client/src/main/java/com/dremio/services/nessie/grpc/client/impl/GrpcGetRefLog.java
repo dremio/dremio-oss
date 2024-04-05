@@ -19,18 +19,15 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNo
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
+import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc.RefLogServiceBlockingStub;
 import java.util.stream.Stream;
-
 import javax.annotation.Nullable;
-
 import org.projectnessie.api.v1.params.RefLogParams;
 import org.projectnessie.api.v1.params.RefLogParamsBuilder;
 import org.projectnessie.client.api.GetRefLogBuilder;
 import org.projectnessie.client.builder.StreamingUtil;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.RefLogResponse;
-
-import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc.RefLogServiceBlockingStub;
 
 final class GrpcGetRefLog implements GetRefLogBuilder {
 
@@ -77,14 +74,13 @@ final class GrpcGetRefLog implements GetRefLogBuilder {
   }
 
   private RefLogResponse get(RefLogParams p) throws NessieNotFoundException {
-    return handleNessieNotFoundEx(
-      () -> fromProto(stub.getRefLog(toProto(p))));
+    return handleNessieNotFoundEx(() -> fromProto(stub.getRefLog(toProto(p))));
   }
 
   @Override
   public Stream<RefLogResponse.RefLogResponseEntry> stream() throws NessieNotFoundException {
     RefLogParams p = params.build();
     return StreamingUtil.generateStream(
-      RefLogResponse::getLogEntries, pageToken -> get(p.forNextPage(pageToken)));
+        RefLogResponse::getLogEntries, pageToken -> get(p.forNextPage(pageToken)));
   }
 }

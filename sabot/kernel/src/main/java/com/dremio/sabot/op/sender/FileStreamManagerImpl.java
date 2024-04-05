@@ -15,24 +15,20 @@
  */
 package com.dremio.sabot.op.sender;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.sabot.exec.rpc.FileStreamManager;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Wrapper over SpillManager to deal with create/open/delete streams.
- */
+/** Wrapper over SpillManager to deal with create/open/delete streams. */
 public class FileStreamManagerImpl implements FileStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(FileStreamManagerImpl.class);
   private final SpillManager spillManager;
@@ -55,7 +51,8 @@ public class FileStreamManagerImpl implements FileStreamManager {
 
   @Override
   public OutputStream createOutputStream(int fileSeq) throws IOException {
-    Preconditions.checkState(spillFileMap.get(fileSeq) == null, "duplicate file with seq " + fileSeq);
+    Preconditions.checkState(
+        spillFileMap.get(fileSeq) == null, "duplicate file with seq " + fileSeq);
     SpillFile spillFile = spillManager.getSpillFile(getFileName(fileSeq));
     spillFileMap.put(fileSeq, spillFile);
     return spillFile.create(false);
@@ -64,7 +61,8 @@ public class FileStreamManagerImpl implements FileStreamManager {
   @Override
   public InputStream getInputStream(int fileSeq) throws IOException {
     SpillFile spillFile = spillFileMap.get(fileSeq);
-    Preconditions.checkNotNull(spillFile, "reader tried to open file with seq " + fileSeq + " ahead of writer");
+    Preconditions.checkNotNull(
+        spillFile, "reader tried to open file with seq " + fileSeq + " ahead of writer");
     return spillFile.open(false);
   }
 

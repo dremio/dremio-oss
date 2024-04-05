@@ -15,31 +15,31 @@
  */
 package com.dremio.sabot.exec.rpc;
 
-import java.io.IOException;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.ExecRPC;
 import com.dremio.exec.record.FragmentWritableBatch;
 import com.dremio.sabot.exec.cursors.FileCursorManager;
 import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.sabot.threads.sharedres.SharedResource;
+import java.io.IOException;
 
-/**
- * Wrapper over FileTunnel to account pending batches and flow control (TODO)
- */
+/** Wrapper over FileTunnel to account pending batches and flow control (TODO) */
 public class AccountingFileTunnel implements AutoCloseable {
   private final FileTunnel tunnel;
   private final FileCursorManager.Observer observer;
   private boolean allReceiversDone;
 
-  public AccountingFileTunnel(FileTunnel tunnel, FileCursorManagerFactory cursorManagerFactory, SharedResource sharedResource) {
+  public AccountingFileTunnel(
+      FileTunnel tunnel,
+      FileCursorManagerFactory cursorManagerFactory,
+      SharedResource sharedResource) {
     this.tunnel = tunnel;
 
     FileStreamManager streamManager = tunnel.getFileStreamManager();
-    this.observer = cursorManagerFactory.getManager(streamManager.getId()).registerWriter(
-      streamManager,
-      sharedResource,
-      () -> allReceiversDone = true);
+    this.observer =
+        cursorManagerFactory
+            .getManager(streamManager.getId())
+            .registerWriter(streamManager, sharedResource, () -> allReceiversDone = true);
   }
 
   public void sendStreamComplete(ExecRPC.FragmentStreamComplete streamComplete) throws IOException {

@@ -16,20 +16,20 @@
 package com.dremio.exec.vector.complex.fn;
 
 /**
- * Describes the default date output format to use for JSON. Dremio's default behavior for text output formats is to use
- * a string which can be implicitly casted back to its original type (so the same format as the SQL literal format where
- * applicable). However, in JSON, we also can use extended types to specifically identify the data type of the output.
- * In this case, Dremio outputs ISO standard formats rather than SQL formats to ensure compatibility with other systems
- * (namely MongoDB).
+ * Describes the default date output format to use for JSON. Dremio's default behavior for text
+ * output formats is to use a string which can be implicitly casted back to its original type (so
+ * the same format as the SQL literal format where applicable). However, in JSON, we also can use
+ * extended types to specifically identify the data type of the output. In this case, Dremio outputs
+ * ISO standard formats rather than SQL formats to ensure compatibility with other systems (namely
+ * MongoDB).
  */
 public enum DateOutputFormat {
   /**
-   * The SQL literal format for dates.  This means no timezone in times and a space in between the date and time for timestamp.
+   * The SQL literal format for dates. This means no timezone in times and a space in between the
+   * date and time for timestamp.
    */
   SQL,
 
-  /**
-   * The ISO standard format for dates/times.
-   */
+  /** The ISO standard format for dates/times. */
   ISO
 }

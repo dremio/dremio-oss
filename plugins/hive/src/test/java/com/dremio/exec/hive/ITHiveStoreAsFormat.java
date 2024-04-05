@@ -37,28 +37,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 
 @RunWith(Parameterized.class)
 public class ITHiveStoreAsFormat extends HiveTestBase {
   private final String tableFormat;
-
-  protected static Boolean runWithUnlimitedSplitSupport = false;
   private static AutoCloseable mapEnabled;
   private static AutoCloseable complexTypeEnabled;
-  private static AutoCloseable icebergDisabled;
-
-  @BeforeClass
-  public static void disableUnlimitedSplitFeature() {
-    icebergDisabled = disableUnlimitedSplitsAndIcebergSupportFlags();
-  }
-
-  @AfterClass
-  public static void resetUnlimitedSplitFeature() throws Exception {
-    icebergDisabled.close();
-  }
 
   @BeforeClass
   public static void enableMapFeature() {
@@ -78,16 +64,6 @@ public class ITHiveStoreAsFormat extends HiveTestBase {
   @AfterClass
   public static void resetComplexTypeFeature() throws Exception {
     complexTypeEnabled.close();
-  }
-
-  @BeforeClass
-  public static void setupOptions() throws Exception {
-    test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-  }
-
-  @AfterClass
-  public static void shutdownOptions() throws Exception {
-    test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   @Parameterized.Parameters(name = "Table Format {0}")

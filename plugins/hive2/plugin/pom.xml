@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,13 +16,12 @@
     limitations under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -54,28 +53,28 @@
       <artifactId>gcs-connector</artifactId>
       <version>hadoop2-${gcs-connector-version}</version>
       <classifier>shaded</classifier>
-        <exclusions>
-          <exclusion>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.oauth-client</groupId>
-            <artifactId>google-oauth-client</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.grpc</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.flogger</groupId>
-            <artifactId>flogger-log4j-backend</artifactId>
-          </exclusion>
-        </exclusions>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.oauth-client</groupId>
+          <artifactId>google-oauth-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.flogger</groupId>
+          <artifactId>flogger-log4j-backend</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -126,28 +125,28 @@
           <artifactId>hadoop-yarn-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jets3t</artifactId>
           <groupId>net.java.dev.jets3t</groupId>
+          <artifactId>jets3t</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>mockito-all</artifactId>
           <groupId>org.mockito</groupId>
+          <artifactId>mockito-all</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>commons-logging</groupId>
           <artifactId>commons-logging-api</artifactId>
-          <groupId>commons-logging</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.sun.jersey</groupId>
@@ -166,8 +165,8 @@
           <artifactId>jersey-client</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>core</artifactId>
           <groupId>org.eclipse.jdt</groupId>
+          <artifactId>core</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.codehaus.jackson</groupId>
@@ -213,8 +212,8 @@
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -258,28 +257,28 @@
           <artifactId>hadoop-yarn-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jets3t</artifactId>
           <groupId>net.java.dev.jets3t</groupId>
+          <artifactId>jets3t</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>mockito-all</artifactId>
           <groupId>org.mockito</groupId>
+          <artifactId>mockito-all</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>commons-logging</groupId>
           <artifactId>commons-logging-api</artifactId>
-          <groupId>commons-logging</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.sun.jersey</groupId>
@@ -298,8 +297,8 @@
           <artifactId>jersey-client</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>core</artifactId>
           <groupId>org.eclipse.jdt</groupId>
+          <artifactId>core</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.codehaus.jackson</groupId>
@@ -341,20 +340,20 @@
           <artifactId>jetty-util</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>commons-logging</groupId>
           <artifactId>commons-logging-api</artifactId>
-          <groupId>commons-logging</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.sun.jersey</groupId>
@@ -420,28 +419,28 @@
           <artifactId>jetty-util</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jets3t</artifactId>
           <groupId>net.java.dev.jets3t</groupId>
+          <artifactId>jets3t</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>mockito-all</artifactId>
           <groupId>org.mockito</groupId>
+          <artifactId>mockito-all</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>commons-logging</groupId>
           <artifactId>commons-logging-api</artifactId>
-          <groupId>commons-logging</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-logging</artifactId>
           <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.sun.jersey</groupId>
@@ -460,8 +459,8 @@
           <artifactId>jersey-client</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>core</artifactId>
           <groupId>org.eclipse.jdt</groupId>
+          <artifactId>core</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.codehaus.jackson</groupId>
@@ -593,8 +592,8 @@
           <artifactId>commons-logging</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -624,12 +623,12 @@
           <artifactId>servlet-api-2.5</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.sun.jersey</groupId>
@@ -648,24 +647,24 @@
           <artifactId>jersey-client</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>asm</artifactId>
           <groupId>asm</groupId>
+          <artifactId>asm</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>libthrift</artifactId>
           <groupId>org.apache.thrift</groupId>
+          <artifactId>libthrift</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jruby-complete</artifactId>
           <groupId>org.jruby</groupId>
+          <artifactId>jruby-complete</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jcodings</artifactId>
           <groupId>org.jruby.jcodings</groupId>
+          <artifactId>jcodings</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>joni</artifactId>
           <groupId>org.jruby.joni</groupId>
+          <artifactId>joni</artifactId>
         </exclusion>
         <exclusion>
           <groupId>commons-logging</groupId>
@@ -676,52 +675,52 @@
           <artifactId>commons-logging-api</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.avro</groupId>
           <artifactId>avro-ipc</artifactId>
-          <groupId>org.apache.avro</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.avro</groupId>
           <artifactId>avro</artifactId>
-          <groupId>org.apache.avro</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>commons-codec</artifactId>
           <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>tomcat</groupId>
           <artifactId>jasper-runtime</artifactId>
-          <groupId>tomcat</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.codehaus.jackson</groupId>
           <artifactId>jackson-core-asl</artifactId>
-          <groupId>org.codehaus.jackson</groupId>
         </exclusion>
         <exclusion>
+          <groupId>org.codehaus.jackson</groupId>
           <artifactId>jackson-mapper-asl</artifactId>
-          <groupId>org.codehaus.jackson</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>jasper-compiler</artifactId>
           <groupId>tomcat</groupId>
+          <artifactId>jasper-compiler</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jamon-runtime</artifactId>
           <groupId>org.jamon</groupId>
+          <artifactId>jamon-runtime</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>jaxb-api</artifactId>
           <groupId>javax.xml.bind</groupId>
+          <artifactId>jaxb-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>zookeeper</artifactId>
           <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.mortbay.jetty</groupId>
           <artifactId>jsp-2.1</artifactId>
-          <groupId>org.mortbay.jetty</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>jsp-api-2.1</artifactId>
           <groupId>org.mortbay.jetty</groupId>
+          <artifactId>jsp-api-2.1</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.mortbay.jetty</groupId>
@@ -752,8 +751,8 @@
           <artifactId>metrics-core</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>stax-api</artifactId>
           <groupId>stax</groupId>
+          <artifactId>stax-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.github.stephenc.findbugs</groupId>
@@ -854,9 +853,9 @@
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
+      <version>${project.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -870,9 +869,9 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
-      <version>${hadoop.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -884,11 +883,12 @@
       </exclusions>
     </dependency>
 
-    <dependency> <!-- needed for Hive test data generator -->
+    <dependency>
+      <!-- needed for Hive test data generator -->
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-llap-client</artifactId>
-      <scope>test</scope>
       <version>${hive.version}</version>
+      <scope>test</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hive</groupId>
@@ -903,8 +903,8 @@
     <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-exec</artifactId>
-      <scope>test</scope>
       <version>${hive.version}</version>
+      <scope>test</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.logging.log4j</groupId>
@@ -919,16 +919,16 @@
           <artifactId>mapr-log4j-slf4j-impl</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>servlet-api</artifactId>
           <groupId>javax.servlet</groupId>
+          <artifactId>servlet-api</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>netty-all</artifactId>
           <groupId>io.netty</groupId>
+          <artifactId>netty-all</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.apache.hive</groupId>
@@ -1031,8 +1031,8 @@
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -1145,10 +1145,10 @@
         <executions>
           <execution>
             <id>copy-java-sources</id>
-            <phase>process-sources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <outputDirectory>${project.build.directory}/generated-sources/src/main</outputDirectory>
               <resources>
@@ -1174,10 +1174,10 @@
           </execution>
           <execution>
             <id>copy-test-sources</id>
-            <phase>process-sources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <outputDirectory>${test.source.dir}</outputDirectory>
               <resources>
@@ -1195,8 +1195,10 @@
           </execution>
           <execution>
             <id>copy-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
             <configuration>
               <resources>
                 <resource>
@@ -1217,8 +1219,10 @@
           </execution>
           <execution>
             <id>copy-test-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
             <configuration>
               <resources>
                 <resource>
@@ -1240,10 +1244,10 @@
         <executions>
           <execution>
             <id>link-pf4j-resources</id>
-            <phase>pre-integration-test</phase>
             <goals>
               <goal>exec</goal>
             </goals>
+            <phase>pre-integration-test</phase>
             <configuration>
               <executable>sh</executable>
               <arguments>
@@ -1266,10 +1270,10 @@
         <executions>
           <execution>
             <id>generate-fmpp-sources</id>
-            <phase>process-sources</phase>
             <goals>
               <goal>generate</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <config>${project.build.directory}/generated-sources/src/main/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources/fmpp</output>
@@ -1283,10 +1287,10 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <executions>
           <execution>
-            <phase>process-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>process-sources</phase>
             <configuration>
               <protoSourceRoot>${project.build.directory}/generated-sources/src/main/proto</protoSourceRoot>
             </configuration>
@@ -1298,10 +1302,10 @@
         <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
           <execution>
-            <phase>generate-sources</phase>
             <goals>
               <goal>add-source</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
               <sources>
                 <source>${project.build.directory}/generated-sources/src/main/java</source>
@@ -1313,10 +1317,10 @@
           </execution>
           <execution>
             <id>add-generated-test-source</id>
-            <phase>generate-test-sources</phase>
             <goals>
               <goal>add-test-source</goal>
             </goals>
+            <phase>generate-test-sources</phase>
             <configuration>
               <sources>
                 <source>${test.source.dir}/java</source>
@@ -1336,10 +1340,10 @@
           </execution>
           <execution>
             <id>jar-resources</id>
-            <phase>package</phase>
             <goals>
               <goal>jar</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <classesDirectory>${project.build.directory}/src-resources</classesDirectory>
               <skipIfEmpty>true</skipIfEmpty>
@@ -1366,17 +1370,17 @@
               <Plugin-Version>${project.version}</Plugin-Version>
               <Plugin-Provider>Dremio Corporation</Plugin-Provider>
               <Plugin-Class>com.dremio.exec.store.hive.HivePf4jPlugin</Plugin-Class>
-              <Plugin-Dependencies></Plugin-Dependencies>
+              <Plugin-Dependencies/>
             </manifestEntries>
           </archive>
         </configuration>
         <executions>
           <execution>
             <id>make-assembly</id>
-            <phase>package</phase>
             <goals>
               <goal>single</goal>
             </goals>
+            <phase>package</phase>
           </execution>
         </executions>
       </plugin>
@@ -1429,8 +1433,8 @@
               <artifactId>commons-logging</artifactId>
             </exclusion>
             <exclusion>
-              <artifactId>commons-codec</artifactId>
               <groupId>commons-codec</groupId>
+              <artifactId>commons-codec</artifactId>
             </exclusion>
             <exclusion>
               <groupId>com.fasterxml.jackson.core</groupId>
@@ -1458,12 +1462,6 @@
           <groupId>com.microsoft.azure</groupId>
           <artifactId>azure-storage</artifactId>
           <version>${azure-storage.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>org.apache.commons</groupId>
-              <artifactId>commons-lang3</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
@@ -1494,11 +1492,12 @@
           <artifactId>hadoop-azure-datalake</artifactId>
           <version>${hadoop-azure-datalake.version}</version>
         </dependency>
-        <!-- Enforce hive3 plugin is built before we try to copy it here for test purposes with hive-universal. -->
+        <!-- Enforce hive3 plugin is built before we try to copy it here for test purposes -->
         <dependency>
           <groupId>com.dremio.plugins</groupId>
           <artifactId>dremio-hive3-plugin</artifactId>
           <version>${project.version}</version>
+          <type>pom</type>
           <scope>test</scope>
           <exclusions>
             <exclusion>
@@ -1506,7 +1505,6 @@
               <artifactId>*</artifactId>
             </exclusion>
           </exclusions>
-          <type>pom</type>
         </dependency>
       </dependencies>
       <build>
@@ -1515,10 +1513,12 @@
             <artifactId>maven-resources-plugin</artifactId>
             <executions>
               <execution>
-                <!-- hive3-plugin is required for integration tests in hive-universal mode -->
+                <!-- hive3-plugin is required for integration tests as hive3 is used under the hood for hive2 -->
                 <id>copy-pf4j-test-resources</id>
-                <phase>generate-resources</phase>
-                <goals><goal>copy-resources</goal></goals>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <phase>${hive2.plugin.copy.phase}</phase>
                 <configuration>
                   <resources>
                     <resource>
@@ -1541,19 +1541,6 @@
           <name>mapr</name>
         </property>
       </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <excludes>
-                <exclude>com/dremio/exec/store/hive/GlueAWSCredentialsFactory.java</exclude>
-                <exclude>com/dremio/plugins/s3/store/STSCredentialProviderV1.java</exclude>
-              </excludes>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
       <properties>
         <hadoop.version>${plugin.hive2.mapr.hadoop.version}</hadoop.version>
         <hive.version>${plugin.hive2.mapr.hive.version}</hive.version>
@@ -1586,6 +1573,19 @@
           <scope>test</scope>
         </dependency>
       </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <excludes>
+                <exclude>com/dremio/exec/store/hive/GlueAWSCredentialsFactory.java</exclude>
+                <exclude>com/dremio/plugins/s3/store/STSCredentialProviderV1.java</exclude>
+              </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

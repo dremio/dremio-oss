@@ -15,21 +15,20 @@
  */
 package com.dremio.authenticator;
 
+import com.dremio.service.Service;
 import org.jetbrains.annotations.NotNull;
 
-import com.dremio.service.Service;
-
 /**
- * This interface defines an API for an authentication mechanism provider.
- * Implementations of this interface are responsible for performing authentication
- * based on a specific token type. Implementations of this interface are NOT
- * responsible for retrieving information about the authenticated user except
- * the Username/Password Auth Provider(s).
- * <p>
- * Authentication involves validating user credentials (e.g., username/password)
- * or verifying the authenticity of a token.
- * <p>
- * Example usage:
+ * This interface defines an API for an authentication mechanism provider. Implementations of this
+ * interface are responsible for performing authentication based on a specific token type.
+ * Implementations of this interface are NOT responsible for retrieving information about the
+ * authenticated user except the Username/Password Auth Provider(s).
+ *
+ * <p>Authentication involves validating user credentials (e.g., username/password) or verifying the
+ * authenticity of a token.
+ *
+ * <p>Example usage:
+ *
  * <pre>
  *     AuthProvider authProvider = new MyAuthProvider();
  *     AuthRequest authRequest = AuthRequest.builder()
@@ -52,23 +51,18 @@ import com.dremio.service.Service;
  */
 public interface AuthProvider extends Service {
 
-  /**
-   * Returns true if token type is supported
-   */
+  /** Returns true if token type is supported */
   boolean isSupported(String tokenType);
 
   /**
    * Validates credentials (password/token).
    *
-   * @param request contains
-   *                - a password or a token is required
-   *                - a username is required when a password is provided, optional otherwise
-   *                - resource type based on the client type is required
-   * @return Authenticate result
-   * - either a userID or username is required
-   * - the type of token validation that had successfully validated the credentials is required
-   * - expiry is optional
-   * @throws AuthException                 if the authentication failed.
+   * @param request contains - a password or a token is required - a username is required when a
+   *     password is provided, optional otherwise - resource type based on the client type is
+   *     required
+   * @return Authenticate result - either a userID or username is required - the type of token
+   *     validation that had successfully validated the credentials is required - expiry is optional
+   * @throws AuthException if the authentication failed.
    * @throws UnsupportedOperationException if requested operation is not supported.
    */
   @NotNull
@@ -76,14 +70,13 @@ public interface AuthProvider extends Service {
 
   /**
    * Make sure all required services are available.
+   *
    * @throws RuntimeException if the required services cannot be initialized.
    */
   @Override
   void start();
 
-  /**
-   * NOOP
-   */
+  /** NOOP */
   @Override
   default void close() {}
 }

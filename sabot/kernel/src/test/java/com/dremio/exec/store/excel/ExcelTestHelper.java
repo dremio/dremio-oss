@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.store.excel;
 
+import com.dremio.TestBuilder;
 import java.io.File;
 import java.io.FileOutputStream;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -32,17 +32,11 @@ import org.apache.poi.util.LocaleUtil;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.joda.time.LocalDateTime;
 
-import com.dremio.TestBuilder;
-
-/**
- * Helper class that generates test data for XLS/XLSX unit tests
- */
+/** Helper class that generates test data for XLS/XLSX unit tests */
 class ExcelTestHelper {
 
-  private static final LocalDateTime EXP_DATE_1 =
-          new LocalDateTime(1983, 5, 18, 4, 0, 0, 0);
-  private static final LocalDateTime EXP_DATE_2 =
-          new LocalDateTime(2013, 07, 05, 5, 0, 1, 0);
+  private static final LocalDateTime EXP_DATE_1 = new LocalDateTime(1983, 5, 18, 4, 0, 0, 0);
+  private static final LocalDateTime EXP_DATE_2 = new LocalDateTime(2013, 07, 05, 5, 0, 1, 0);
 
   private final boolean xls;
   private final String testFilePath;
@@ -70,10 +64,10 @@ class ExcelTestHelper {
     headerRow.createCell(4).setCellValue("Formula");
     headerRow.createCell(5).setCellValue("Boolean");
     headerRow.createCell(6).setCellValue("Error");
-    generateSheetData(sheetWithHeader, style, (short)1);
+    generateSheetData(sheetWithHeader, style, (short) 1);
 
     Sheet sheetWithoutHeader = wb.createSheet("Sheet 2");
-    generateSheetData(sheetWithoutHeader, style, (short)0);
+    generateSheetData(sheetWithoutHeader, style, (short) 0);
 
     testFilePath = new File(parent, "excelTestFile").getPath();
 
@@ -83,7 +77,8 @@ class ExcelTestHelper {
     fileOut.close();
   }
 
-  private static void generateSheetData(final Sheet sheet, final CellStyle style, short startingRow) {
+  private static void generateSheetData(
+      final Sheet sheet, final CellStyle style, short startingRow) {
     int currentRow = startingRow;
     // Create first row values
     Row row1 = sheet.createRow(currentRow++);
@@ -91,11 +86,12 @@ class ExcelTestHelper {
     row1.createCell(1).setCellValue("One");
     row1.createCell(2).setCellValue("One");
     Cell c13 = row1.createCell(3);
-    c13.setCellValue(LocaleUtil.getLocaleCalendar(1983, 04/*zero based*/, 18, 4, 0, 0));
+    c13.setCellValue(LocaleUtil.getLocaleCalendar(1983, 04 /*zero based*/, 18, 4, 0, 0));
     c13.setCellStyle(style);
     Cell c14 = row1.createCell(4);
     c14.setCellFormula("A2+1");
-    // For formulas we read pre-computed values. Editors set the precomputed value by default. We need to add it here
+    // For formulas we read pre-computed values. Editors set the precomputed value by default. We
+    // need to add it here
     // explicitly as the library doesn't pre compute the formula value.
     c14.setCellValue(2.0d);
     row1.createCell(5).setCellValue(true);
@@ -108,7 +104,7 @@ class ExcelTestHelper {
     row2.createCell(1).setCellValue("Two");
     row2.createCell(2).setCellValue("Two");
     Cell c23 = row2.createCell(3);
-    c23.setCellValue(LocaleUtil.getLocaleCalendar(2013, 06/*zero based*/, 05, 5, 0, 1));
+    c23.setCellValue(LocaleUtil.getLocaleCalendar(2013, 06 /*zero based*/, 05, 5, 0, 1));
     c23.setCellStyle(style);
     Cell c24 = row2.createCell(4);
     c24.setCellFormula("A3+1");
@@ -137,10 +133,15 @@ class ExcelTestHelper {
     sheet.addMergedRegion(new CellRangeAddress(startingRow + 3, startingRow + 4, 1, 2));
   }
 
-  void test(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
-    final StringBuilder builder = new StringBuilder()
+  void test(
+      final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion)
+      throws Exception {
+    final StringBuilder builder =
+        new StringBuilder()
             .append("SELECT * FROM ")
-            .append("TABLE(dfs.\"").append(testFilePath).append("\" (")
+            .append("TABLE(dfs.\"")
+            .append(testFilePath)
+            .append("\" (")
             .append("type => 'excel'");
 
     if (sheetName != null) {
@@ -161,40 +162,58 @@ class ExcelTestHelper {
 
     builder.append("))");
 
-    testBuilder
-              .sqlQuery(builder.toString())
-              .unOrdered();
+    testBuilder.sqlQuery(builder.toString()).unOrdered();
 
     if (header) {
-      testBuilder.baselineColumns("Number", "String1", "String2", "MyTime", "Formula", "Boolean", "Error");
+      testBuilder.baselineColumns(
+          "Number", "String1", "String2", "MyTime", "Formula", "Boolean", "Error");
     } else {
       testBuilder.baselineColumns("A", "B", "C", "D", "E", "F", "G");
     }
 
     if (mergedCellExpansion) {
       testBuilder
-              .baselineValues(1.0d, "One", "One", EXP_DATE_1, 2.0d, true, "#ERROR")
-              .baselineValues(2.0d, "Two", "Two", EXP_DATE_2, 3.0d, false, "#ERROR")
-              .baselineValues(3.0d, "Three and Three", "Three and Three", null, null, false, null)
-              .baselineValues(4.0d, "Four and Four, Five and Five", "Four and Four, Five and Five", null, null, false, null)
-              .baselineValues(5.0d, "Four and Four, Five and Five", "Four and Four, Five and Five", null, null, false, null);
+          .baselineValues(1.0d, "One", "One", EXP_DATE_1, 2.0d, true, "#ERROR")
+          .baselineValues(2.0d, "Two", "Two", EXP_DATE_2, 3.0d, false, "#ERROR")
+          .baselineValues(3.0d, "Three and Three", "Three and Three", null, null, false, null)
+          .baselineValues(
+              4.0d,
+              "Four and Four, Five and Five",
+              "Four and Four, Five and Five",
+              null,
+              null,
+              false,
+              null)
+          .baselineValues(
+              5.0d,
+              "Four and Four, Five and Five",
+              "Four and Four, Five and Five",
+              null,
+              null,
+              false,
+              null);
     } else {
       testBuilder
-              .baselineValues(1.0d, "One", "One", EXP_DATE_1, 2.0d, true, "#ERROR")
-              .baselineValues(2.0d, "Two", "Two", EXP_DATE_2, 3.0d, false, "#ERROR")
-              .baselineValues(3.0d, "Three and Three", null, null, null, false, null)
-              .baselineValues(4.0d, "Four and Four, Five and Five", null, null, null, null, null)
-              .baselineValues(5.0d, null, null, null, null, null, null);
+          .baselineValues(1.0d, "One", "One", EXP_DATE_1, 2.0d, true, "#ERROR")
+          .baselineValues(2.0d, "Two", "Two", EXP_DATE_2, 3.0d, false, "#ERROR")
+          .baselineValues(3.0d, "Three and Three", null, null, null, false, null)
+          .baselineValues(4.0d, "Four and Four, Five and Five", null, null, null, null, null)
+          .baselineValues(5.0d, null, null, null, null, null, null);
     }
 
     testBuilder.go();
   }
 
-  void testProjectPushdown1(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
-    final StringBuilder builder = new StringBuilder()
-      .append("SELECT Number, MyTime FROM ")
-      .append("TABLE(dfs.\"").append(testFilePath).append("\" (")
-      .append("type => 'excel'");
+  void testProjectPushdown1(
+      final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion)
+      throws Exception {
+    final StringBuilder builder =
+        new StringBuilder()
+            .append("SELECT Number, MyTime FROM ")
+            .append("TABLE(dfs.\"")
+            .append(testFilePath)
+            .append("\" (")
+            .append("type => 'excel'");
 
     if (sheetName != null) {
       builder.append(", sheet => '").append(sheetName).append("'");
@@ -214,9 +233,7 @@ class ExcelTestHelper {
 
     builder.append("))");
 
-    testBuilder
-      .sqlQuery(builder.toString())
-      .unOrdered();
+    testBuilder.sqlQuery(builder.toString()).unOrdered();
 
     if (header) {
       testBuilder.baselineColumns("Number", "MyTime");
@@ -235,11 +252,16 @@ class ExcelTestHelper {
     testBuilder.go();
   }
 
-  void testProjectPushdown2(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
-    final StringBuilder builder = new StringBuilder()
-      .append("SELECT  Number, String2 FROM ")
-      .append("TABLE(dfs.\"").append(testFilePath).append("\" (")
-      .append("type => 'excel'");
+  void testProjectPushdown2(
+      final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion)
+      throws Exception {
+    final StringBuilder builder =
+        new StringBuilder()
+            .append("SELECT  Number, String2 FROM ")
+            .append("TABLE(dfs.\"")
+            .append(testFilePath)
+            .append("\" (")
+            .append("type => 'excel'");
 
     if (sheetName != null) {
       builder.append(", sheet => '").append(sheetName).append("'");
@@ -259,9 +281,7 @@ class ExcelTestHelper {
 
     builder.append("))");
 
-    testBuilder
-      .sqlQuery(builder.toString())
-      .unOrdered();
+    testBuilder.sqlQuery(builder.toString()).unOrdered();
 
     if (header) {
       testBuilder.baselineColumns("Number", "String2");
@@ -272,30 +292,35 @@ class ExcelTestHelper {
     /* STRING2 is the projected column and has merged cell values from STRING1 which is
      * a non-projected column
      */
-    if(mergedCellExpansion) {
+    if (mergedCellExpansion) {
       testBuilder
-        .baselineValues(1.0d, "One")
-        .baselineValues(2.0d, "Two")
-        .baselineValues(3.0d, "Three and Three")
-        .baselineValues(4.0d, "Four and Four, Five and Five")
-        .baselineValues(5.0d, "Four and Four, Five and Five");
+          .baselineValues(1.0d, "One")
+          .baselineValues(2.0d, "Two")
+          .baselineValues(3.0d, "Three and Three")
+          .baselineValues(4.0d, "Four and Four, Five and Five")
+          .baselineValues(5.0d, "Four and Four, Five and Five");
     } else {
       testBuilder
-        .baselineValues(1.0d, "One")
-        .baselineValues(2.0d, "Two")
-        .baselineValues(3.0d, null)
-        .baselineValues(4.0d, null)
-        .baselineValues(5.0d, null);
+          .baselineValues(1.0d, "One")
+          .baselineValues(2.0d, "Two")
+          .baselineValues(3.0d, null)
+          .baselineValues(4.0d, null)
+          .baselineValues(5.0d, null);
     }
 
     testBuilder.go();
   }
 
-  void testProjectPushdown3(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
-    final StringBuilder builder = new StringBuilder()
-      .append("SELECT  String1, String2 FROM ")
-      .append("TABLE(dfs.\"").append(testFilePath).append("\" (")
-      .append("type => 'excel'");
+  void testProjectPushdown3(
+      final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion)
+      throws Exception {
+    final StringBuilder builder =
+        new StringBuilder()
+            .append("SELECT  String1, String2 FROM ")
+            .append("TABLE(dfs.\"")
+            .append(testFilePath)
+            .append("\" (")
+            .append("type => 'excel'");
 
     if (sheetName != null) {
       builder.append(", sheet => '").append(sheetName).append("'");
@@ -315,9 +340,7 @@ class ExcelTestHelper {
 
     builder.append("))");
 
-    testBuilder
-      .sqlQuery(builder.toString())
-      .unOrdered();
+    testBuilder.sqlQuery(builder.toString()).unOrdered();
 
     if (header) {
       testBuilder.baselineColumns("String1", "String2");
@@ -328,20 +351,20 @@ class ExcelTestHelper {
     /* STRING2 is the projected column and has merged cell values from STRING1 which is
      * also a projected column
      */
-    if(mergedCellExpansion) {
+    if (mergedCellExpansion) {
       testBuilder
-        .baselineValues("One", "One")
-        .baselineValues("Two", "Two")
-        .baselineValues("Three and Three", "Three and Three")
-        .baselineValues("Four and Four, Five and Five", "Four and Four, Five and Five")
-        .baselineValues("Four and Four, Five and Five", "Four and Four, Five and Five");
+          .baselineValues("One", "One")
+          .baselineValues("Two", "Two")
+          .baselineValues("Three and Three", "Three and Three")
+          .baselineValues("Four and Four, Five and Five", "Four and Four, Five and Five")
+          .baselineValues("Four and Four, Five and Five", "Four and Four, Five and Five");
     } else {
       testBuilder
-        .baselineValues("One", "One")
-        .baselineValues("Two", "Two")
-        .baselineValues("Three and Three", null)
-        .baselineValues("Four and Four, Five and Five", null)
-        .baselineValues(null, null);
+          .baselineValues("One", "One")
+          .baselineValues("Two", "Two")
+          .baselineValues("Three and Three", null)
+          .baselineValues("Four and Four, Five and Five", null)
+          .baselineValues(null, null);
     }
 
     testBuilder.go();

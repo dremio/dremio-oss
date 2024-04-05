@@ -22,6 +22,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.SqlUtils;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.DremioRexBuilder;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacro;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.tablefunctions.TableMacroNames;
+import com.dremio.exec.tablefunctions.VersionedTableMacro;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.exec.context.ContextInformation;
+import com.dremio.test.specs.OptionResolverSpec;
+import com.dremio.test.specs.OptionResolverSpecBuilder;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,7 +49,6 @@ import java.util.Objects;
 import java.util.TimeZone;
 import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
-
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.plan.RelOptCluster;
@@ -66,6 +82,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
+import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.Util;
 import org.junit.Assert;
@@ -73,27 +90,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.catalog.model.dataset.TableVersionType;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.DremioRexBuilder;
-import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacro;
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.dremio.exec.tablefunctions.TableMacroNames;
-import com.dremio.exec.tablefunctions.VersionedTableMacro;
-import com.dremio.options.OptionResolver;
-import com.dremio.sabot.exec.context.ContextInformation;
-import com.dremio.test.specs.OptionResolverSpec;
-import com.dremio.test.specs.OptionResolverSpecBuilder;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
 @RunWith(MockitoJUnitRunner.class)
 public class TestTableVersionParsing {
   private static SqlDialect DREMIO_DIALECT =
-    new SqlDialect(SqlDialect.DatabaseProduct.UNKNOWN, "Dremio", Character.toString(SqlUtils.QUOTE), NullCollation.FIRST);
+      new SqlDialect(
+          SqlDialect.DatabaseProduct.UNKNOWN,
+          "Dremio",
+          Character.toString(SqlUtils.QUOTE),
+          NullCollation.FIRST);
 
   private Map<List<String>, VersionedTableMacro> tableMacroMocks;
 
@@ -101,42 +105,46 @@ public class TestTableVersionParsing {
   private static final List<String> TABLE_HISTORY_MACRO_NAME = ImmutableList.of("table_history");
   private static final List<String> TABLE_FILES_MACRO_NAME = ImmutableList.of("table_files");
 
-
   @Test
   public void testTableWithSnapshotVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
     parseAndValidate("SELECT * FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected));
   }
 
   @Test
   public void testTableWithBranchVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.BRANCH, "branch1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.BRANCH, "branch1"));
 
     parseAndValidate("SELECT * FROM my.table1 AT BRANCH branch1", ImmutableList.of(expected));
   }
+
   @Test
   public void testTableWithTagVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.TAG, "tag1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.TAG, "tag1"));
 
-     parseAndValidate("SELECT * FROM my.table1 AT TAG tag1", ImmutableList.of(expected));
+    parseAndValidate("SELECT * FROM my.table1 AT TAG tag1", ImmutableList.of(expected));
   }
 
   @Test
   public void testTableWithReferenceVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.REFERENCE, "ref1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.REFERENCE, "ref1"));
 
     parseAndValidate("SELECT * FROM my.table1 AT REF ref1", ImmutableList.of(expected));
     parseAndValidate("SELECT * FROM my.table1 AT REFERENCE ref1", ImmutableList.of(expected));
@@ -144,10 +152,11 @@ public class TestTableVersionParsing {
 
   @Test
   public void testTableWithCommitVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.COMMIT, "hash1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.COMMIT, "hash1"));
 
     parseAndValidate("SELECT * FROM my.table1 AT COMMIT hash1", ImmutableList.of(expected));
   }
@@ -159,13 +168,15 @@ public class TestTableVersionParsing {
     cal.set(Calendar.MILLISECOND, 111);
     long timestampInMillis = cal.getTimeInMillis();
 
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
 
-    parseAndValidate("SELECT * FROM my.table1 AT TIMESTAMP '2022-01-01 01:01:01.111'",
-      ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM my.table1 AT TIMESTAMP '2022-01-01 01:01:01.111'",
+        ImmutableList.of(expected));
   }
 
   @Test
@@ -175,180 +186,219 @@ public class TestTableVersionParsing {
     cal.set(Calendar.MILLISECOND, 111);
     long timestampInMillis = cal.getTimeInMillis();
 
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
 
-    parseAndValidate("SELECT * FROM my.table1 AT " +
-      "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')", ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM my.table1 AT "
+            + "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')",
+        ImmutableList.of(expected));
   }
+
   @Test
   public void testTableWithBranchVersionAndASOFTimestamp() throws Exception {
     Instant time = Instant.now();
     Timestamp timestamp = Timestamp.from(time);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.BRANCH, "branch1", time));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.BRANCH, "branch1", time));
 
     parseAndValidate(
-      String.format(("SELECT * FROM my.table1 AT BRANCH branch1 AS OF '%s'"), timestamp),
-      ImmutableList.of(expected));
+        String.format(("SELECT * FROM my.table1 AT BRANCH branch1 AS OF '%s'"), timestamp),
+        ImmutableList.of(expected));
   }
+
   @Test
   public void testTableWithTagVersionAndASOFTimestamp() throws Exception {
     Instant time = Instant.now();
     Timestamp timestamp = Timestamp.from(time);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.TAG, "tag1", time));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.TAG, "tag1", time));
 
     parseAndValidate(
-      String.format(("SELECT * FROM my.table1 AT TAG tag1 AS OF '%s'"), timestamp),
-      ImmutableList.of(expected));
+        String.format(("SELECT * FROM my.table1 AT TAG tag1 AS OF '%s'"), timestamp),
+        ImmutableList.of(expected));
   }
+
   @Test
   public void testTableWithReferenceVersionAndASOFTimestamp() throws Exception {
     Instant time = Instant.now();
     Timestamp timestamp = Timestamp.from(time);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.REFERENCE, "branch1", time));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.REFERENCE, "branch1", time));
 
     parseAndValidate(
-      String.format(("SELECT * FROM my.table1 AT REF branch1 AS OF '%s'"), timestamp),
-      ImmutableList.of(expected));
+        String.format(("SELECT * FROM my.table1 AT REF branch1 AS OF '%s'"), timestamp),
+        ImmutableList.of(expected));
   }
+
   @Test
   public void testTableWithCommitVersionAndASOFTimestamp() throws Exception {
     Instant time = Instant.now();
     Timestamp timestamp = Timestamp.from(time);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.COMMIT, "xyz", time));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.COMMIT, "xyz", time));
 
-
-    assertThatThrownBy(() -> parseAndValidate(
-      String.format(("SELECT * FROM my.table1 AT COMMIT 'xyz' AS OF '%s'"), timestamp),
-      ImmutableList.of(expected)))
-      .isInstanceOf(SqlParseException.class);
+    assertThatThrownBy(
+            () ->
+                parseAndValidate(
+                    String.format(
+                        ("SELECT * FROM my.table1 AT COMMIT 'xyz' AS OF '%s'"), timestamp),
+                    ImmutableList.of(expected)))
+        .isInstanceOf(SqlParseException.class);
   }
+
   @Test
   public void testTableWithInvalidTimestampExpressionVersionFails() {
-    assertThatThrownBy(() -> parseAndValidate(
-      "SELECT * FROM dfs_hadoop.tmp.iceberg AT 1.254 * 87.9", ImmutableList.of()))
-      .isInstanceOf(CalciteContextException.class);
+    assertThatThrownBy(
+            () ->
+                parseAndValidate(
+                    "SELECT * FROM dfs_hadoop.tmp.iceberg AT 1.254 * 87.9", ImmutableList.of()))
+        .isInstanceOf(CalciteContextException.class);
   }
 
   @Test
   public void testSelectWithInvalidTimestampWithASOFSyntax() {
-    assertThatThrownBy(() -> parseAndValidate(
-      "SELECT * FROM dfs_hadoop.tmp.iceberg AT BRANCH main AS OF 1.254 * 87.9", ImmutableList.of()))
-      .isInstanceOf(SqlParseException.class);
+    assertThatThrownBy(
+            () ->
+                parseAndValidate(
+                    "SELECT * FROM dfs_hadoop.tmp.iceberg AT BRANCH main AS OF 1.254 * 87.9",
+                    ImmutableList.of()))
+        .isInstanceOf(SqlParseException.class);
   }
 
   @Test
   public void testMalformedVersionContextFails() {
-    assertThatThrownBy(() -> parseAndValidate(
-      "SELECT * FROM dfs_hadoop.tmp.iceberg AT AS foo", ImmutableList.of()))
-      .isInstanceOf(SqlParseException.class);
+    assertThatThrownBy(
+            () ->
+                parseAndValidate(
+                    "SELECT * FROM dfs_hadoop.tmp.iceberg AT AS foo", ImmutableList.of()))
+        .isInstanceOf(SqlParseException.class);
   }
 
   @Test
   public void testTableAliasingWithVersionContext() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
     parseAndValidate("SELECT table1.id FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected));
   }
 
   @Test
   public void testWithClauseWithVersionContext() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
-    parseAndValidate("WITH cte1 AS (SELECT table1.id FROM my.table1 AT SNAPSHOT '1') " +
-      "SELECT cte1.id FROM cte1", ImmutableList.of(expected));
+    parseAndValidate(
+        "WITH cte1 AS (SELECT table1.id FROM my.table1 AT SNAPSHOT '1') "
+            + "SELECT cte1.id FROM cte1",
+        ImmutableList.of(expected));
   }
 
   @Test
   public void testJoinWithDifferentVersionContexts() throws Exception {
-    TableMacroInvocation leftExpected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
-    TableMacroInvocation rightExpected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table2\""),
-      new TableVersionContext(TableVersionType.BRANCH, "branch1"));
+    TableMacroInvocation leftExpected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+    TableMacroInvocation rightExpected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table2\""),
+            new TableVersionContext(TableVersionType.BRANCH, "branch1"));
 
-    parseAndValidate("SELECT l.*, r.id FROM " +
-      "my.table1 AT SNAPSHOT '1' AS l INNER JOIN " +
-      "my.table2 AT BRANCH branch1 AS r ON l.id = r.id",
-      ImmutableList.of(leftExpected, rightExpected));
+    parseAndValidate(
+        "SELECT l.*, r.id FROM "
+            + "my.table1 AT SNAPSHOT '1' AS l INNER JOIN "
+            + "my.table2 AT BRANCH branch1 AS r ON l.id = r.id",
+        ImmutableList.of(leftExpected, rightExpected));
   }
 
   @Test
   public void testTableMacroWithSnapshotVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_HISTORY_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_HISTORY_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
-    parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT SNAPSHOT '1'",
-      ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM TABLE(table_history('my.table1')) AT SNAPSHOT '1'",
+        ImmutableList.of(expected));
   }
 
   @Test
   public void testTableMacroWithBranchVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_HISTORY_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.BRANCH, "branch1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_HISTORY_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.BRANCH, "branch1"));
 
-    parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT BRANCH branch1",
-      ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM TABLE(table_history('my.table1')) AT BRANCH branch1",
+        ImmutableList.of(expected));
   }
 
   @Test
   public void testTableMacroWithTagVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_HISTORY_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.TAG, "tag1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_HISTORY_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.TAG, "tag1"));
 
-    parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT TAG tag1",
-      ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM TABLE(table_history('my.table1')) AT TAG tag1", ImmutableList.of(expected));
   }
 
   @Test
   public void testTableMacroWithReferenceVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_HISTORY_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.REFERENCE, "ref1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_HISTORY_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.REFERENCE, "ref1"));
 
-    parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT REF ref1", ImmutableList.of(expected));
-    parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT REFERENCE ref1", ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM TABLE(table_history('my.table1')) AT REF ref1", ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM TABLE(table_history('my.table1')) AT REFERENCE ref1",
+        ImmutableList.of(expected));
   }
 
   @Test
   public void testTableMacroWithCommitVersion() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_HISTORY_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.COMMIT, "hash1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_HISTORY_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.COMMIT, "hash1"));
 
-    parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT COMMIT hash1",
-      ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM TABLE(table_history('my.table1')) AT COMMIT hash1",
+        ImmutableList.of(expected));
   }
 
   @Test
@@ -358,13 +408,15 @@ public class TestTableVersionParsing {
     cal.set(Calendar.MILLISECOND, 111);
     long timestampInMillis = cal.getTimeInMillis();
 
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_HISTORY_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_HISTORY_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
 
-    parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT TIMESTAMP '2022-01-01 01:01:01.111'",
-      ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM TABLE(table_history('my.table1')) AT TIMESTAMP '2022-01-01 01:01:01.111'",
+        ImmutableList.of(expected));
   }
 
   @Test
@@ -374,52 +426,62 @@ public class TestTableVersionParsing {
     cal.set(Calendar.MILLISECOND, 111);
     long timestampInMillis = cal.getTimeInMillis();
 
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_HISTORY_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_HISTORY_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
 
-    parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT " +
-      "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')", ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM TABLE(table_history('my.table1')) AT "
+            + "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')",
+        ImmutableList.of(expected));
   }
 
   @Test
   public void testTableWithSnapshotVersionFailsWithFeatureDisabled() {
-    assertThatThrownBy(() -> parseAndValidate(
-      "SELECT * FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(), false))
-      .isInstanceOf(UserException.class);
+    assertThatThrownBy(
+            () ->
+                parseAndValidate(
+                    "SELECT * FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(), false))
+        .isInstanceOf(UserException.class);
   }
 
   @Test
   public void testQuotedTableName() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-        TIME_TRAVEL_MACRO_NAME,
-        ImmutableList.of("\"my\".\"quoted/path.with.dots/to/table1\""),
-        new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"quoted/path.with.dots/to/table1\""),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
-    parseAndValidate("SELECT * FROM my.\"quoted/path.with.dots/to/table1\" AT SNAPSHOT '1'", ImmutableList.of(expected));
+    parseAndValidate(
+        "SELECT * FROM my.\"quoted/path.with.dots/to/table1\" AT SNAPSHOT '1'",
+        ImmutableList.of(expected));
   }
 
   @Test
   public void testDeepCopy() throws Exception {
-    TableMacroInvocation expected = new TableMacroInvocation(
-        TIME_TRAVEL_MACRO_NAME,
-        ImmutableList.of("\"my\".\"table1\""),
-        new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
-    parseAndValidate("SELECT table1.id FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true, true);
+    parseAndValidate(
+        "SELECT table1.id FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true, true);
   }
 
   @Test
   public void testUnparseTableWithVersion() throws Exception {
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.BRANCH, "branch1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.BRANCH, "branch1"));
     String inputSqlString = "SELECT * FROM my.table1 AT BRANCH branch1";
-    String expectedUnparsedString  = "SELECT *\n" +
-      "FROM \"my\".\"table1\" AT BRANCH branch1";
+    String expectedUnparsedString = "SELECT *\n" + "FROM \"my\".\"table1\" AT BRANCH branch1";
     SqlNode rootNode = parseAndValidate(inputSqlString, ImmutableList.of(expected), true);
     rootNode.unparse(writer, 0, 0);
     String sqlString = writer.toString();
@@ -448,16 +510,18 @@ public class TestTableVersionParsing {
   @Test
   public void testUnparseTableMacroWithSnapshotVersion() throws Exception {
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_FILES_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "snapshotid1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_FILES_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "snapshotid1"));
 
-    String expectedUnparsedString  = "SELECT *\n" +
-      "FROM my.table1 AT SNAPSHOT snapshotid1";
-    SqlNode rootNode = parseAndValidate("SELECT * FROM TABLE(table_files('my.table1')) AT SNAPSHOT 'snapshotid1'",
-      ImmutableList.of(expected),
-      true);
+    String expectedUnparsedString = "SELECT *\n" + "FROM my.table1 AT SNAPSHOT snapshotid1";
+    SqlNode rootNode =
+        parseAndValidate(
+            "SELECT * FROM TABLE(table_files('my.table1')) AT SNAPSHOT 'snapshotid1'",
+            ImmutableList.of(expected),
+            true);
     rootNode.unparse(writer, 0, 0);
     String sqlString = writer.toString();
     Assert.assertEquals(sqlString, expectedUnparsedString);
@@ -471,17 +535,20 @@ public class TestTableVersionParsing {
     cal.set(Calendar.MILLISECOND, 111);
     long timestampInMillis = cal.getTimeInMillis();
 
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
 
-    String expectedUnparsedString  = "SELECT *\n" +
-      "FROM \"my\".\"table1\" AT TIMESTAMP 2022-01-01 01:01:01.111";
+    String expectedUnparsedString =
+        "SELECT *\n" + "FROM \"my\".\"table1\" AT TIMESTAMP 2022-01-01 01:01:01.111";
 
-
-    SqlNode rootNode = parseAndValidate("SELECT * FROM my.table1 AT TIMESTAMP '2022-01-01 01:01:01.111'",
-      ImmutableList.of(expected), true);
+    SqlNode rootNode =
+        parseAndValidate(
+            "SELECT * FROM my.table1 AT TIMESTAMP '2022-01-01 01:01:01.111'",
+            ImmutableList.of(expected),
+            true);
     rootNode.unparse(writer, 0, 0);
     String sqlString = writer.toString();
     Assert.assertEquals(sqlString, expectedUnparsedString);
@@ -495,15 +562,21 @@ public class TestTableVersionParsing {
     cal.set(Calendar.MILLISECOND, 111);
     long timestampInMillis = cal.getTimeInMillis();
 
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.TIMESTAMP, timestampInMillis));
 
-    String expectedUnparsedString  = "SELECT *\n" +
-      "FROM \"my\".\"table1\" AT TIMESTAMPADD(DAY, 10, TIMESTAMP '2022-01-01 01:01:01.111')";
-    SqlNode rootNode = parseAndValidate("SELECT * FROM my.table1 AT " +
-      "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')", ImmutableList.of(expected), true);
+    String expectedUnparsedString =
+        "SELECT *\n"
+            + "FROM \"my\".\"table1\" AT TIMESTAMPADD(DAY, 10, TIMESTAMP '2022-01-01 01:01:01.111')";
+    SqlNode rootNode =
+        parseAndValidate(
+            "SELECT * FROM my.table1 AT "
+                + "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')",
+            ImmutableList.of(expected),
+            true);
     rootNode.unparse(writer, 0, 0);
     String sqlString = writer.toString();
     Assert.assertEquals(sqlString, expectedUnparsedString);
@@ -512,16 +585,19 @@ public class TestTableVersionParsing {
   @Test
   public void testUnparseQuotedTableNameWithTag() throws Exception {
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"quoted/path.with.dots/to/table1\""),
-      new TableVersionContext(TableVersionType.TAG, "tag1"));
-    String expectedUnparsedString  = "SELECT *\n" +
-      "FROM \"my\".\"quoted/path.with.dots/to/table1\" AT TAG tag1";
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"quoted/path.with.dots/to/table1\""),
+            new TableVersionContext(TableVersionType.TAG, "tag1"));
+    String expectedUnparsedString =
+        "SELECT *\n" + "FROM \"my\".\"quoted/path.with.dots/to/table1\" AT TAG tag1";
 
-    SqlNode rootNode = parseAndValidate("SELECT * FROM my.\"quoted/path.with.dots/to/table1\" AT TAG tag1",
-      ImmutableList.of(expected),
-      true);
+    SqlNode rootNode =
+        parseAndValidate(
+            "SELECT * FROM my.\"quoted/path.with.dots/to/table1\" AT TAG tag1",
+            ImmutableList.of(expected),
+            true);
     rootNode.unparse(writer, 0, 0);
     String sqlString = writer.toString();
     Assert.assertEquals(sqlString, expectedUnparsedString);
@@ -530,14 +606,16 @@ public class TestTableVersionParsing {
   @Test
   public void testUnparseTableWithSnapshotVersion() throws Exception {
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TIME_TRAVEL_MACRO_NAME,
-      ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TIME_TRAVEL_MACRO_NAME,
+            ImmutableList.of("\"my\".\"table1\""),
+            new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
-    String expectedUnparsedString  = "SELECT *\n" +
-      "FROM \"my\".\"table1\" AT SNAPSHOT 1";
-    SqlNode rootNode = parseAndValidate("SELECT * FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true);
+    String expectedUnparsedString = "SELECT *\n" + "FROM \"my\".\"table1\" AT SNAPSHOT 1";
+    SqlNode rootNode =
+        parseAndValidate(
+            "SELECT * FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true);
     rootNode.unparse(writer, 0, 0);
     String sqlString = writer.toString();
     Assert.assertEquals(sqlString, expectedUnparsedString);
@@ -546,32 +624,42 @@ public class TestTableVersionParsing {
   @Test
   public void testUnparseTableMacroWithTagVersion() throws Exception {
     SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
-    TableMacroInvocation expected = new TableMacroInvocation(
-      TABLE_HISTORY_MACRO_NAME,
-      ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.TAG, "tag1"));
+    TableMacroInvocation expected =
+        new TableMacroInvocation(
+            TABLE_HISTORY_MACRO_NAME,
+            ImmutableList.of("my.table1"),
+            new TableVersionContext(TableVersionType.TAG, "tag1"));
 
-    String expectedUnparsedString  = "SELECT *\n" +
-      "FROM my.table1 AT TAG tag1";
-    SqlNode rootNode = parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT TAG tag1",
-      ImmutableList.of(expected),
-      true);
+    String expectedUnparsedString = "SELECT *\n" + "FROM my.table1 AT TAG tag1";
+    SqlNode rootNode =
+        parseAndValidate(
+            "SELECT * FROM TABLE(table_history('my.table1')) AT TAG tag1",
+            ImmutableList.of(expected),
+            true);
     rootNode.unparse(writer, 0, 0);
     String sqlString = writer.toString();
     Assert.assertEquals(sqlString, expectedUnparsedString);
   }
 
-  public void parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations) throws Exception {
+  public void parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations)
+      throws Exception {
     parseAndValidate(sql, expectedTableMacroInvocations, true, false);
   }
 
-  public SqlNode parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations,
-      boolean enableTimeTravel) throws Exception {
+  public SqlNode parseAndValidate(
+      String sql,
+      List<TableMacroInvocation> expectedTableMacroInvocations,
+      boolean enableTimeTravel)
+      throws Exception {
     return parseAndValidate(sql, expectedTableMacroInvocations, enableTimeTravel, false);
   }
 
-  public SqlNode parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations,
-                               boolean enableTimeTravel, boolean validateWithDeepCopy) throws Exception {
+  public SqlNode parseAndValidate(
+      String sql,
+      List<TableMacroInvocation> expectedTableMacroInvocations,
+      boolean enableTimeTravel,
+      boolean validateWithDeepCopy)
+      throws Exception {
     // Mocks required for validator and expression resolver
     final Prepare.CatalogReader catalogReader = mock(Prepare.CatalogReader.class);
     when(catalogReader.nameMatcher()).thenReturn(SqlNameMatchers.withCaseSensitive(true));
@@ -582,31 +670,54 @@ public class TestTableVersionParsing {
     when(cluster.getPlanner()).thenReturn(planner);
     when(cluster.getRexBuilder()).thenReturn(rexBuilder);
     final ContextInformation contextInformation = mock(ContextInformation.class);
-    final ConvertletTable convertletTable = new ConvertletTable(contextInformation, false);
-    final OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec()
-      .addOption(ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL, enableTimeTravel));
+    final ConvertletTable convertletTable = new ConvertletTable(false);
+    final OptionResolver optionResolver =
+        OptionResolverSpecBuilder.build(
+            new OptionResolverSpec()
+                .addOption(ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL, enableTimeTravel));
 
-    // Setup a mock per table macro so that we can associate expecteds to a specific macro invocation
+    // Setup a mock per table macro so that we can associate expecteds to a specific macro
+    // invocation
     initializeTableMacroMocks();
 
     // Mocks for table macro lookup
     final SqlOperatorTable operatorTable = mock(SqlOperatorTable.class);
-    doAnswer(invocation -> {
-      lookupOperatorOverloads(invocation.getArgument(0), invocation.getArgument(1),
-        invocation.getArgument(2), invocation.getArgument(3), invocation.getArgument(4));
-      return null;
-    }).when(operatorTable).lookupOperatorOverloads(any(), any(), any(), any(), any());
+    doAnswer(
+            invocation -> {
+              lookupOperatorOverloads(
+                  invocation.getArgument(0),
+                  invocation.getArgument(1),
+                  invocation.getArgument(2),
+                  invocation.getArgument(3),
+                  invocation.getArgument(4));
+              return null;
+            })
+        .when(operatorTable)
+        .lookupOperatorOverloads(any(), any(), any(), any(), any());
+    final SqlValidator.Config conf =
+        SqlValidator.Config.DEFAULT
+            .withSqlConformance(DremioSqlConformance.INSTANCE)
+            .withAmbiguousColumnAllowed(
+                optionResolver.getOption(PlannerSettings.ALLOW_AMBIGUOUS_COLUMN));
 
-    SqlValidatorImpl validator = new SqlValidatorImpl(
-      new SqlValidatorImpl.FlattenOpCounter(),
-      SqlOperatorTables.chain(DremioCompositeSqlOperatorTable.create(), operatorTable),
-      catalogReader,
-      JavaTypeFactoryImpl.INSTANCE,
-      DremioSqlConformance.INSTANCE,
-      optionResolver);
-    SqlToRelConverter sqlToRelConverter = new SqlToRelConverter(viewExpander, validator, catalogReader,
-      cluster, convertletTable, SqlToRelConverter.Config.DEFAULT);
-    VersionedTableExpressionResolver resolver = new VersionedTableExpressionResolver(validator, rexBuilder);
+    SqlValidatorImpl validator =
+        new SqlValidatorImpl(
+            new SqlValidatorImpl.FlattenOpCounter(),
+            SqlOperatorTables.chain(DremioCompositeSqlOperatorTable.create(), operatorTable),
+            catalogReader,
+            JavaTypeFactoryImpl.INSTANCE,
+            conf,
+            optionResolver);
+    SqlToRelConverter sqlToRelConverter =
+        new SqlToRelConverter(
+            viewExpander,
+            validator,
+            catalogReader,
+            cluster,
+            convertletTable,
+            SqlToRelConverter.Config.DEFAULT);
+    VersionedTableExpressionResolver resolver =
+        new VersionedTableExpressionResolver(validator, rexBuilder, contextInformation);
 
     // Parse
     ParserConfig parserConfig = new ParserConfig(Quoting.DOUBLE_QUOTE, 128, true);
@@ -639,29 +750,39 @@ public class TestTableVersionParsing {
   }
 
   private void initializeTableMacroMocks() {
-    final List<FunctionParameter> functionParameters = new ReflectiveFunctionBase.ParameterListBuilder()
-      .add(String.class, "table_name").build();
+    final List<FunctionParameter> functionParameters =
+        new ReflectiveFunctionBase.ParameterListBuilder().add(String.class, "table_name").build();
     final TranslatableTable table = mock(TranslatableTable.class);
-    when(table.getRowType(any())).thenAnswer(invocation -> {
-      RelDataTypeFactory typeFactory = invocation.getArgument(0);
-      return typeFactory.createStructType(
-        ImmutableList.of(typeFactory.createSqlType(SqlTypeName.INTEGER)), ImmutableList.of("id"));
-    });
+    when(table.getRowType(any()))
+        .thenAnswer(
+            invocation -> {
+              RelDataTypeFactory typeFactory = invocation.getArgument(0);
+              return typeFactory.createStructType(
+                  ImmutableList.of(typeFactory.createSqlType(SqlTypeName.INTEGER)),
+                  ImmutableList.of("id"));
+            });
 
-    tableMacroMocks = ImmutableMap.of(
-      TIME_TRAVEL_MACRO_NAME, mock(VersionedTableMacro.class),
-      TABLE_HISTORY_MACRO_NAME, mock(VersionedTableMacro.class),
-      TABLE_FILES_MACRO_NAME, mock(VersionedTableMacro.class)
-    );
+    tableMacroMocks =
+        ImmutableMap.of(
+            TIME_TRAVEL_MACRO_NAME, mock(VersionedTableMacro.class),
+            TABLE_HISTORY_MACRO_NAME, mock(VersionedTableMacro.class),
+            TABLE_FILES_MACRO_NAME, mock(VersionedTableMacro.class));
 
-    tableMacroMocks.values().forEach(m -> {
-      when(m.getParameters()).thenReturn(functionParameters);
-      when(m.apply(any(), any())).thenReturn(table);
-    });
+    tableMacroMocks
+        .values()
+        .forEach(
+            m -> {
+              when(m.getParameters()).thenReturn(functionParameters);
+              when(m.apply(any(), any())).thenReturn(table);
+            });
   }
 
-  private void lookupOperatorOverloads(SqlIdentifier opName, SqlFunctionCategory category, SqlSyntax syntax,
-                                       List<SqlOperator> operatorList, SqlNameMatcher nameMatcher) {
+  private void lookupOperatorOverloads(
+      SqlIdentifier opName,
+      SqlFunctionCategory category,
+      SqlSyntax syntax,
+      List<SqlOperator> operatorList,
+      SqlNameMatcher nameMatcher) {
     if (category != SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION) {
       return;
     }
@@ -673,16 +794,21 @@ public class TestTableVersionParsing {
       for (FunctionParameter o : tableMacro.getParameters()) {
         final RelDataType type = o.getType(JavaTypeFactoryImpl.INSTANCE);
         argTypes.add(type);
-        typeFamilies.add(
-          Util.first(type.getSqlTypeName().getFamily(), SqlTypeFamily.ANY));
+        typeFamilies.add(Util.first(type.getSqlTypeName().getFamily(), SqlTypeFamily.ANY));
       }
-      final IntPredicate isParameterAtIndexOptional = index ->
-        tableMacro.getParameters().get(index).isOptional();
+      final IntPredicate isParameterAtIndexOptional =
+          index -> tableMacro.getParameters().get(index).isOptional();
       final FamilyOperandTypeChecker typeChecker =
-        OperandTypes.family(typeFamilies, isParameterAtIndexOptional::test);
+          OperandTypes.family(typeFamilies, isParameterAtIndexOptional::test);
       final List<RelDataType> paramTypes = toSql(argTypes);
-      SqlVersionedTableMacro operator = new SqlVersionedTableMacro(opName, ReturnTypes.CURSOR,
-        InferTypes.explicit(argTypes), typeChecker, paramTypes, tableMacro);
+      SqlVersionedTableMacro operator =
+          new SqlVersionedTableMacro(
+              opName,
+              ReturnTypes.CURSOR,
+              InferTypes.explicit(argTypes),
+              typeChecker,
+              paramTypes,
+              tableMacro);
 
       operatorList.add(operator);
     }
@@ -694,10 +820,9 @@ public class TestTableVersionParsing {
 
   private RelDataType toSql(RelDataType type) {
     if (type instanceof RelDataTypeFactoryImpl.JavaType
-      && ((RelDataTypeFactoryImpl.JavaType) type).getJavaClass()
-      == Object.class) {
+        && ((RelDataTypeFactoryImpl.JavaType) type).getJavaClass() == Object.class) {
       return JavaTypeFactoryImpl.INSTANCE.createTypeWithNullability(
-        JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.ANY), true);
+          JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.ANY), true);
     }
     return JavaTypeFactoryImpl.INSTANCE.toSql(type);
   }
@@ -708,8 +833,8 @@ public class TestTableVersionParsing {
     private final List<Object> arguments;
     private final TableVersionContext tableVersionContext;
 
-    public TableMacroInvocation(List<String> name, List<Object> arguments,
-                                TableVersionContext tableVersionContext) {
+    public TableMacroInvocation(
+        List<String> name, List<Object> arguments, TableVersionContext tableVersionContext) {
       this.name = name;
       this.arguments = arguments;
       this.tableVersionContext = tableVersionContext;
@@ -726,9 +851,9 @@ public class TestTableVersionParsing {
       }
 
       TableMacroInvocation other = (TableMacroInvocation) obj;
-      return Objects.equals(name, other.name) &&
-        Objects.equals(arguments, other.arguments) &&
-        Objects.equals(tableVersionContext, other.tableVersionContext);
+      return Objects.equals(name, other.name)
+          && Objects.equals(arguments, other.arguments)
+          && Objects.equals(tableVersionContext, other.tableVersionContext);
     }
 
     @Override

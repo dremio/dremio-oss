@@ -15,24 +15,23 @@
  */
 package com.dremio.exec.compile;
 
+import com.dremio.exec.compile.ClassTransformer.ClassNames;
+import com.dremio.exec.exception.ClassTransformationException;
+import com.google.common.collect.MapMaker;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.codehaus.commons.compiler.CompileException;
-
-import com.dremio.exec.compile.ClassTransformer.ClassNames;
-import com.dremio.exec.exception.ClassTransformationException;
-import com.google.common.collect.MapMaker;
 
 public class QueryClassLoader extends URLClassLoader {
   private final ClassCompilerSelector compilerSelector;
 
   private final AtomicLong index = new AtomicLong(0);
 
-  private final ConcurrentMap<String, byte[]> customClasses = new MapMaker().concurrencyLevel(4).makeMap();
+  private final ConcurrentMap<String, byte[]> customClasses =
+      new MapMaker().concurrencyLevel(4).makeMap();
 
   public QueryClassLoader(ClassCompilerSelector classCompilerSelector) {
     super(new URL[0], Thread.currentThread().getContextClassLoader());
@@ -45,7 +44,8 @@ public class QueryClassLoader extends URLClassLoader {
 
   public void injectByteCode(String className, byte[] classBytes) throws IOException {
     if (customClasses.containsKey(className)) {
-      throw new IOException(String.format("The class defined %s has already been loaded.", className));
+      throw new IOException(
+          String.format("The class defined %s has already been loaded.", className));
     }
     customClasses.put(className, classBytes);
   }
@@ -55,7 +55,7 @@ public class QueryClassLoader extends URLClassLoader {
     byte[] ba = customClasses.get(className);
     if (ba != null) {
       return this.defineClass(className, ba, 0, ba.length);
-    }else{
+    } else {
       return super.findClass(className);
     }
   }

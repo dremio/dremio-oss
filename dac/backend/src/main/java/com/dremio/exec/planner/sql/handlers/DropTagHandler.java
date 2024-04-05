@@ -17,12 +17,6 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
@@ -35,13 +29,15 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 
 /**
  * Handler for dropping tag.
  *
- * DROP TAG [ IF EXISTS ] tagName
- * [ AT COMMIT commitHash | FORCE ]
- * [ IN sourceName ]
+ * <p>DROP TAG [ IF EXISTS ] tagName [ AT COMMIT commitHash | FORCE ] [ IN sourceName ]
  */
 public class DropTagHandler extends BaseVersionHandler<SimpleCommandResult> {
 
@@ -59,23 +55,24 @@ public class DropTagHandler extends BaseVersionHandler<SimpleCommandResult> {
 
     final SqlDropTag dropTag = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlDropTag.class));
     final SqlIdentifier sourceIdentifier = dropTag.getSourceName();
-    final String sourceName = VersionedHandlerUtils.resolveSourceName(
-      sourceIdentifier,
-      userSession.getDefaultSchemaPath());
+    final String sourceName =
+        VersionedHandlerUtils.resolveSourceName(
+            sourceIdentifier, userSession.getDefaultSchemaPath());
 
-    String commitHash = (dropTag.getCommitHash() != null)
-      ? dropTag.getCommitHash().toString()
-      : "";
+    String commitHash = (dropTag.getCommitHash() != null) ? dropTag.getCommitHash().toString() : "";
     final String tagName = requireNonNull(dropTag.getTagName()).toString();
     final boolean forceDrop = dropTag.getForceDrop().booleanValue();
-    final boolean shouldErrorIfTagDoesNotExist = dropTag.shouldErrorIfTagDoesNotExist().booleanValue();
+    final boolean shouldErrorIfTagDoesNotExist =
+        dropTag.shouldErrorIfTagDoesNotExist().booleanValue();
 
-    //Prevent dropping current tag
+    // Prevent dropping current tag
     VersionContext currentSessionVersion = userSession.getSessionVersionForSource(sourceName);
-    if (currentSessionVersion.isTag() && currentSessionVersion.getValue().equals(tagName)){
+    if (currentSessionVersion.isTag() && currentSessionVersion.getValue().equals(tagName)) {
       throw UserException.validationError()
-        .message("Cannot drop tag %s for source %s while it is set in the current session's reference context ", tagName, sourceName)
-        .buildSilently();
+          .message(
+              "Cannot drop tag %s for source %s while it is set in the current session's reference context ",
+              tagName, sourceName)
+          .buildSilently();
     }
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);
@@ -94,8 +91,7 @@ public class DropTagHandler extends BaseVersionHandler<SimpleCommandResult> {
       }
       // Return success, but still give message about not found
       return Collections.singletonList(
-        SimpleCommandResult.successful(
-          "Tag %s not found on source %s.", tagName, sourceName));
+          SimpleCommandResult.successful("Tag %s not found on source %s.", tagName, sourceName));
     }
 
     return Collections.singletonList(

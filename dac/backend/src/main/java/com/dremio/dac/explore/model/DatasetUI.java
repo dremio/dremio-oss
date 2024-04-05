@@ -17,11 +17,6 @@ package com.dremio.dac.explore.model;
 
 import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.folder.SourceFolderPath;
@@ -33,13 +28,13 @@ import com.dremio.dac.proto.model.dataset.Derivation;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.util.DatasetUIUtils;
 import com.dremio.dac.util.DatasetsUtil;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
@@ -47,11 +42,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-
-/**
- * Minimal info of Dataset needed by UI.
- */
+/** Minimal info of Dataset needed by UI. */
 public class DatasetUI {
 
   private final String id;
@@ -77,9 +73,7 @@ public class DatasetUI {
   private final Map<String, VersionContextReq> references;
 
   public static DatasetUI newInstance(
-    VirtualDatasetUI vds,
-    DatasetVersion tipVersion,
-    NamespaceService namespaceService) throws NamespaceException {
+      VirtualDatasetUI vds, DatasetVersion tipVersion, Catalog catalog) throws NamespaceException {
 
     Boolean isUnsaved = (vds.getIsNamed() != null) ? !vds.getIsNamed() : null;
     List<String> fullPath = vds.getFullPathList();
@@ -87,23 +81,31 @@ public class DatasetUI {
     DatasetType datasetType;
 
     boolean isDerivedDirectly = DatasetsUtil.isCreatedFromParent(vds.getLastTransform());
-    boolean isUnsavedDirectPhysicalDataset = isUnsaved && vds.getDerivation() == Derivation.DERIVED_PHYSICAL && isDerivedDirectly;
+    boolean isUnsavedDirectPhysicalDataset =
+        isUnsaved && vds.getDerivation() == Derivation.DERIVED_PHYSICAL && isDerivedDirectly;
     boolean atHistoryTip = tipVersion == null || tipVersion.equals(vds.getVersion());
     final List<ParentDataset> parentsList = vds.getParentsList();
 
     if (isUnsavedDirectPhysicalDataset && atHistoryTip) { // example select * mongo.yelp.review
       ParentDataset parentDataset = parentsList.get(0);
-      displayFullPath = parentDataset.getDatasetPathList(); // There is always going to be one parent since its tmp dataset created directly from a physical dataset.
+      displayFullPath =
+          parentDataset
+              .getDatasetPathList(); // There is always going to be one parent since its tmp dataset
+      // created directly from a physical dataset.
       datasetType = parentDataset.getType();
-    } else if(isUnsaved && vds.getDerivation() == Derivation.DERIVED_PHYSICAL) {
+    } else if (isUnsaved && vds.getDerivation() == Derivation.DERIVED_PHYSICAL) {
       displayFullPath = fullPath; // this is going to be tmp.UNTITLED
       datasetType = DatasetType.VIRTUAL_DATASET;
     } else {
-      // if its tmp.UNTITLED we want to get the parent dataset path to display.  The UI uses displayFullPath for history
-      // requests, and therefore we need to be precise here. We manually check the path as this code would previously get
+      // if its tmp.UNTITLED we want to get the parent dataset path to display.  The UI uses
+      // displayFullPath for history
+      // requests, and therefore we need to be precise here. We manually check the path as this code
+      // would previously get
       // triggered for history dataset entries that derive from another dataset.
-      if (isUnsaved && vds.getDerivation() == Derivation.DERIVED_VIRTUAL && parentsList.size() > 0
-        && Arrays.asList("tmp", "UNTITLED").equals(fullPath)) {
+      if (isUnsaved
+          && vds.getDerivation() == Derivation.DERIVED_VIRTUAL
+          && parentsList.size() > 0
+          && Arrays.asList("tmp", "UNTITLED").equals(fullPath)) {
         displayFullPath = parentsList.get(0).getDatasetPathList();
       } else {
         displayFullPath = fullPath;
@@ -115,14 +117,12 @@ public class DatasetUI {
     String sql = vds.getSql();
     List<String> context = vds.getState().getContextList();
 
-    String entityId = null;
-
-    if (namespaceService != null) {
-      entityId = namespaceService.getEntityIdByPath(new NamespaceKey(displayFullPath));
-    }
+    String entityId =
+        catalog != null ? catalog.getEntityIdByPath(new NamespaceKey(displayFullPath)) : null;
 
     final String datasetId = vds.getId();
-    Map<String, VersionContextReq> versionContextReqMap = DatasetUIUtils.createVersionContextMap(vds.getReferencesList());
+    Map<String, VersionContextReq> versionContextReqMap =
+        DatasetUIUtils.createVersionContextMap(vds.getReferencesList());
 
     if (VersionedDatasetId.tryParse(datasetId) != null) {
       Preconditions.checkArgument(entityId == null);
@@ -182,14 +182,19 @@ public class DatasetUI {
     this.descendants = descendants;
     this.canReapply = canReapply;
     this.datasetType = datasetType;
-    this.links = links != null ? ImmutableMap.copyOf(links) : ImmutableMap.<String, String> of();
-    this.apiLinks = apiLinks != null ? ImmutableMap.copyOf(apiLinks) : ImmutableMap.<String, String> of();
+    this.links = links != null ? ImmutableMap.copyOf(links) : ImmutableMap.<String, String>of();
+    this.apiLinks =
+        apiLinks != null ? ImmutableMap.copyOf(apiLinks) : ImmutableMap.<String, String>of();
     this.entityId = entityId;
-    this.references = references != null ? ImmutableMap.copyOf(references) : ImmutableMap.<String, VersionContextReq> of();
+    this.references =
+        references != null
+            ? ImmutableMap.copyOf(references)
+            : ImmutableMap.<String, VersionContextReq>of();
   }
 
   /**
    * SQL of the dataset definition.
+   *
    * @return
    */
   public String getSql() {
@@ -198,6 +203,7 @@ public class DatasetUI {
 
   /**
    * Returns the references.
+   *
    * @return
    */
   public Map<String, VersionContextReq> getReferences() {
@@ -206,6 +212,7 @@ public class DatasetUI {
 
   /**
    * Context where this dataset is created. Ex. mongo.yelp. => [ "mongo", "yelp ]
+   *
    * @return
    */
   public List<String> getContext() {
@@ -213,8 +220,9 @@ public class DatasetUI {
   }
 
   /**
-   * Dataset full path. Last component is the Dataset name.
-   * Ex. myspace.subspace."my.Dataset" => ["myspace", "subspace", "my.Dataset"]
+   * Dataset full path. Last component is the Dataset name. Ex. myspace.subspace."my.Dataset" =>
+   * ["myspace", "subspace", "my.Dataset"]
+   *
    * @return
    */
   public List<String> getFullPath() {
@@ -227,6 +235,7 @@ public class DatasetUI {
 
   /**
    * Saved version of the dataset.
+   *
    * @return
    */
   public String getVersion() {
@@ -235,6 +244,7 @@ public class DatasetUI {
 
   /**
    * Dataset version.
+   *
    * @return
    */
   public DatasetVersion getDatasetVersion() {
@@ -243,6 +253,7 @@ public class DatasetUI {
 
   /**
    * Number of jobs related to this dataset.
+   *
    * @return
    */
   public Integer getJobCount() {
@@ -251,6 +262,7 @@ public class DatasetUI {
 
   /**
    * Number of descendant datasets derived from this dataset.
+   *
    * @return
    */
   public Integer getDescendants() {
@@ -262,7 +274,7 @@ public class DatasetUI {
   }
 
   @JsonProperty("canReapply")
-  public Boolean canReapply(){
+  public Boolean canReapply() {
     return canReapply;
   }
 
@@ -278,9 +290,12 @@ public class DatasetUI {
     return apiLinks;
   }
 
-  public String getEntityId() { return entityId; }
+  public String getEntityId() {
+    return entityId;
+  }
 
-  // TODO make this consistent with DatasetSummary.getLinks. In ideal case, both methods should use the same util method
+  // TODO make this consistent with DatasetSummary.getLinks. In ideal case, both methods should use
+  // the same util method
   public static Map<String, String> createLinks(
       List<String> fullPath,
       List<String> displayFullPath,
@@ -308,20 +323,36 @@ public class DatasetUI {
       queryUrlPath = new DatasetPath(displayFullPath).getQueryUrlPath();
     }
     Map<String, String> links = new HashMap<>();
-    links.put("self", queryUrlPath + "?version="
-      + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
-    links.put("edit", queryUrlPath + "?mode=edit&version="
-      + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
-    final JobFilters jobFilters = new JobFilters()
-      .addFilter(JobIndexKeys.ALL_DATASETS, dottedFullPath)
-      .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
+    links.put(
+        "self",
+        queryUrlPath
+            + "?version="
+            + (datasetVersion == null
+                ? datasetVersion
+                : encodeURIComponent(datasetVersion.toString())));
+    links.put(
+        "edit",
+        queryUrlPath
+            + "?mode=edit&version="
+            + (datasetVersion == null
+                ? datasetVersion
+                : encodeURIComponent(datasetVersion.toString())));
+    final JobFilters jobFilters =
+        new JobFilters()
+            .addFilter(JobIndexKeys.ALL_DATASETS, dottedFullPath)
+            .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     links.put("jobs", jobFilters.toUrl());
 
     return links;
   }
 
-  public static Map<String, String> createApiLinks(List<String> fullPath, List<String> displayFullPath, DatasetType datasetType,
-      DatasetVersion datasetVersion, boolean isUnsaved, boolean isDerivedDirectly)  {
+  public static Map<String, String> createApiLinks(
+      List<String> fullPath,
+      List<String> displayFullPath,
+      DatasetType datasetType,
+      DatasetVersion datasetVersion,
+      boolean isUnsaved,
+      boolean isDerivedDirectly) {
     String dottedFullPath = new NamespaceKey(fullPath).toUrlEncodedString();
 
     Map<String, String> links = new HashMap<>();
@@ -333,22 +364,24 @@ public class DatasetUI {
     return links;
   }
 
-  private static String getNamespaceEntityUrlPath(List<String> displayFullPath, DatasetType datasetType) {
-    switch(datasetType) {
-    case VIRTUAL_DATASET:
-      return new DatasetPath(displayFullPath).toUrlPath();
-    case PHYSICAL_DATASET:
-      return new PhysicalDatasetPath(displayFullPath).toUrlPath();
-    case PHYSICAL_DATASET_SOURCE_FILE:
-      return new SourceFilePath(displayFullPath).toUrlPath();
-    case PHYSICAL_DATASET_SOURCE_FOLDER:
-      return new SourceFolderPath(displayFullPath).toUrlPath();
-    case PHYSICAL_DATASET_HOME_FILE:
-      return new FilePath(displayFullPath).toUrlPath();
-    case PHYSICAL_DATASET_HOME_FOLDER:
-      return new FolderPath(displayFullPath).toUrlPath(); // this should not happen. can't query folder in home
-    default:
-      return null;
+  private static String getNamespaceEntityUrlPath(
+      List<String> displayFullPath, DatasetType datasetType) {
+    switch (datasetType) {
+      case VIRTUAL_DATASET:
+        return new DatasetPath(displayFullPath).toUrlPath();
+      case PHYSICAL_DATASET:
+        return new PhysicalDatasetPath(displayFullPath).toUrlPath();
+      case PHYSICAL_DATASET_SOURCE_FILE:
+        return new SourceFilePath(displayFullPath).toUrlPath();
+      case PHYSICAL_DATASET_SOURCE_FOLDER:
+        return new SourceFolderPath(displayFullPath).toUrlPath();
+      case PHYSICAL_DATASET_HOME_FILE:
+        return new FilePath(displayFullPath).toUrlPath();
+      case PHYSICAL_DATASET_HOME_FOLDER:
+        return new FolderPath(displayFullPath)
+            .toUrlPath(); // this should not happen. can't query folder in home
+      default:
+        return null;
     }
   }
 }

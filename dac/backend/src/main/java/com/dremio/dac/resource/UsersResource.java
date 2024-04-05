@@ -15,16 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import java.io.IOException;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.usergroup.UserName;
@@ -33,10 +23,16 @@ import com.dremio.dac.model.usergroup.UserUI;
 import com.dremio.dac.model.usergroup.UsersUI;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserService;
+import java.io.IOException;
+import javax.annotation.security.RolesAllowed;
+import javax.inject.Inject;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 
-/**
- * List/search users/admins.
- */
+/** List/search users/admins. */
 @RestResource
 @Secured
 @RolesAllowed("admin")

@@ -16,29 +16,26 @@
 package com.dremio.telemetry.api.config;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-
 import io.opentracing.Tracer;
 
-/**
- * A interface for configuring and starting metrics. Should include a @JsonTypeName annotation.
- */
+/** A interface for configuring and starting metrics. Should include a @JsonTypeName annotation. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 public abstract class TracerConfigurator {
 
   /**
-   * Important to implement since this is used to confirm whether to replace an existing configuration.
+   * Important to implement since this is used to confirm whether to replace an existing
+   * configuration.
    */
   @Override
   public abstract int hashCode();
 
   /**
-   * Important to implement since this is used to confirm whether to replace an existing configuration.
+   * Important to implement since this is used to confirm whether to replace an existing
+   * configuration.
    */
   @Override
   public abstract boolean equals(Object other);
 
-  /**
-   * Converts the config into a tracer. Should not register tracer as global tracer.
-   */
+  /** Converts the config into a tracer. Should not register tracer as global tracer. */
   public abstract Tracer getTracer();
 }

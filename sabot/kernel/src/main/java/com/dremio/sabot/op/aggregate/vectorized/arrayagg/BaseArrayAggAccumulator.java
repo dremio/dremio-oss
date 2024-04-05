@@ -20,10 +20,15 @@ import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.KEYINDEX_OFFSET;
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH;
 
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
+import com.dremio.sabot.op.aggregate.vectorized.AccumulatorBuilder;
+import com.google.common.base.Preconditions;
+import io.netty.util.internal.PlatformDependent;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
@@ -32,23 +37,17 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
-import com.dremio.sabot.op.aggregate.vectorized.AccumulatorBuilder;
-import com.google.common.base.Preconditions;
-
-import io.netty.util.internal.PlatformDependent;
-
 /**
- * Baseline Accumulator that is responsible for holding accumulated items of ARRAY_AGG.
- * {@link com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator} adds batches of
- * data buffers and passes data items for accumulation. {@link BaseArrayAggAccumulator} is
- * responsible for holding accumulated items by group and outputting batches when requested.
+ * Baseline Accumulator that is responsible for holding accumulated items of ARRAY_AGG. {@link
+ * com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator} adds batches of data buffers
+ * and passes data items for accumulation. {@link BaseArrayAggAccumulator} is responsible for
+ * holding accumulated items by group and outputting batches when requested.
+ *
  * @param <ElementType> Type of individual element being accumulated
  * @param <VectorType> Container Arrow vector being used for holding accumulated items
  */
-public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends FieldVector> implements Accumulator {
+public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends FieldVector>
+    implements Accumulator {
   private FieldVector input;
   private final FieldVector transferVector;
   private final int maxValuesPerBatch;
@@ -57,8 +56,12 @@ public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends Fi
   private boolean resizeInProgress;
   private final BufferAllocator allocator;
 
-  protected BaseArrayAggAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
-                                    BaseValueVector tempAccumulatorHolder, BufferAllocator allocator) {
+  protected BaseArrayAggAccumulator(
+      FieldVector input,
+      FieldVector transferVector,
+      int maxValuesPerBatch,
+      BaseValueVector tempAccumulatorHolder,
+      BufferAllocator allocator) {
     this.input = input;
     this.transferVector = transferVector;
     this.tempAccumulatorHolder = (ListVector) tempAccumulatorHolder;
@@ -73,9 +76,10 @@ public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends Fi
   protected abstract void writeItem(UnionListWriter writer, ElementType item);
 
   protected abstract BaseArrayAggAccumulatorHolder<ElementType, VectorType> getAccumulatorHolder(
-     int maxValuesPerBatch, BufferAllocator allocator);
+      int maxValuesPerBatch, BufferAllocator allocator);
 
-  protected abstract ElementType getElement(long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer);
+  protected abstract ElementType getElement(
+      long baseAddress, int itemIndex, ArrowBuf dataBuffer, ArrowBuf offsetBuffer);
 
   protected BufferAllocator getAllocator() {
     return allocator;
@@ -92,19 +96,25 @@ public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends Fi
     final long incomingBit = inputVector.getValidityBufferAddress();
     final long incomingValue = inputVector.getDataBufferAddress();
     final ArrowBuf incomingDataBuf = inputVector.getDataBuffer();
-    final ArrowBuf incomingOffsetBuf = inputVector instanceof BaseVariableWidthVector ? getInput().getOffsetBuffer(): null;
+    final ArrowBuf incomingOffsetBuf =
+        inputVector instanceof BaseVariableWidthVector ? getInput().getOffsetBuffer() : null;
 
-    for (long partitionAndOrdinalAddr = offsetAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+    for (long partitionAndOrdinalAddr = offsetAddr;
+        partitionAndOrdinalAddr < maxAddr;
+        partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
       /* get the index of data in input vector */
       final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
       /* get the corresponding data from input vector -- source data for accumulation */
-      final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      final int bitVal =
+          (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7))
+              & 1;
       /* incoming record is null, skip it */
       if (bitVal == 0) {
         continue;
       }
 
-      final ElementType newVal = getElement(incomingValue, incomingIndex, incomingDataBuf, incomingOffsetBuf);
+      final ElementType newVal =
+          getElement(incomingValue, incomingIndex, incomingDataBuf, incomingOffsetBuf);
 
       /* get the hash table ordinal */
       final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
@@ -129,11 +139,14 @@ public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends Fi
     }
   }
 
-  private void prepareTransferVector(ListVector transferVector, int batchIndex, final int targetIndex) {
+  private void prepareTransferVector(
+      ListVector transferVector, int batchIndex, final int targetIndex) {
     transferVector.clear();
     UnionListWriter writer = transferVector.getWriter();
-    BaseArrayAggAccumulatorHolder<ElementType, VectorType> batch = accumulatedBatches.get(batchIndex);
-    Iterator<BaseArrayAggAccumulatorHolder<ElementType, VectorType>.ElementsGroup> groups = batch.getGroupsIterator();
+    BaseArrayAggAccumulatorHolder<ElementType, VectorType> batch =
+        accumulatedBatches.get(batchIndex);
+    Iterator<BaseArrayAggAccumulatorHolder<ElementType, VectorType>.ElementsGroup> groups =
+        batch.getGroupsIterator();
     if (!groups.hasNext()) {
       writer.startList();
       writer.endList();
@@ -187,23 +200,24 @@ public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends Fi
 
   @Override
   public void verifyBatchCount(int batches) {
-    Preconditions.checkArgument(batches == this.accumulatedBatches.size(),
-      "Error: Detected incorrect batch count in ArrayAgg Accumulator");
+    Preconditions.checkArgument(
+        batches == this.accumulatedBatches.size(),
+        "Error: Detected incorrect batch count in ArrayAgg Accumulator");
   }
 
   @Override
   public void releaseBatch(int batchIdx) {
     accumulatedBatches.get(batchIdx).close();
-    accumulatedBatches.remove(batchIdx);
   }
 
   @Override
   public void resetToMinimumSize() throws Exception {
-    accumulatedBatches.forEach(x -> {
-      if (x != null) {
-        x.close();
-      }
-    });
+    accumulatedBatches.forEach(
+        x -> {
+          if (x != null) {
+            x.close();
+          }
+        });
     accumulatedBatches = new LinkedList<>();
   }
 
@@ -232,10 +246,10 @@ public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends Fi
 
   @Override
   public long getSizeInBytes() {
-    long dataBufferSize = accumulatedBatches
-      .stream()
-      .map(BaseArrayAggAccumulatorHolder::getSizeInBytes)
-      .reduce(0L, Long::sum);
+    long dataBufferSize =
+        accumulatedBatches.stream()
+            .map(BaseArrayAggAccumulatorHolder::getSizeInBytes)
+            .reduce(0L, Long::sum);
     return dataBufferSize + (long) accumulatedBatches.size() * getValidityBufferSize();
   }
 
@@ -268,8 +282,7 @@ public abstract class BaseArrayAggAccumulator<ElementType, VectorType extends Fi
   }
 
   @Override
-  public void compact(int batchIndex, int nextRecSize) {
-  }
+  public void compact(int batchIndex, int nextRecSize) {}
 
   @Override
   public void close() throws Exception {

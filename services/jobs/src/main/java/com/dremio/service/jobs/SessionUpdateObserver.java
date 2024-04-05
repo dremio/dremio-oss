@@ -15,17 +15,16 @@
  */
 package com.dremio.service.jobs;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.usersessions.UserSessionService;
 import com.dremio.service.usersessions.UserSessionService.UserSessionAndVersion;
 import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of {@link SessionObserver} that will update the session id in the store
- * when the job is completed.
+ * Implementation of {@link SessionObserver} that will update the session id in the store when the
+ * job is completed.
  */
 public class SessionUpdateObserver implements SessionObserver {
   private static final Logger logger = LoggerFactory.getLogger(SessionUpdateObserver.class);
@@ -35,10 +34,9 @@ public class SessionUpdateObserver implements SessionObserver {
   private final String sessionId;
 
   public SessionUpdateObserver(UserSessionService userSessionService, String sessionId) {
-    this.userSessionService = Preconditions.checkNotNull(userSessionService,
-      "UserSessionService must not be null");
-    this.sessionId = Preconditions.checkNotNull(sessionId,
-      "SessionId must not be null");
+    this.userSessionService =
+        Preconditions.checkNotNull(userSessionService, "UserSessionService must not be null");
+    this.sessionId = Preconditions.checkNotNull(sessionId, "SessionId must not be null");
   }
 
   @Override

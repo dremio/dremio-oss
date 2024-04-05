@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.dremio.common.VM;
 import com.google.common.base.Stopwatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CancelFlag extends org.apache.calcite.util.CancelFlag {
 
@@ -31,18 +30,14 @@ public class CancelFlag extends org.apache.calcite.util.CancelFlag {
     this.timeout = timeout;
   }
 
-  /**
-   * Reset the flag
-   */
+  /** Reset the flag */
   public void reset() {
     this.atomicBoolean.set(false);
     watch.reset();
     watch.start();
   }
 
-  /**
-   * stop the flag
-   */
+  /** stop the flag */
   public void stop() {
     this.atomicBoolean.set(false);
     watch.stop();
@@ -59,7 +54,7 @@ public class CancelFlag extends org.apache.calcite.util.CancelFlag {
 
   @Override
   public boolean isCancelRequested() {
-    if(!VM.isDebugEnabled() && watch.elapsed(TimeUnit.MILLISECONDS) > timeout) {
+    if (!VM.isDebugEnabled() && watch.elapsed(TimeUnit.MILLISECONDS) > timeout) {
       return true;
     }
 

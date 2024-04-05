@@ -23,16 +23,14 @@ import com.dremio.options.TypeValidators.StringValidator;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-/**
- * A read-only OptionManager that lazily caches the response from the delegate OptionManager.
- */
+/** A read-only OptionManager that lazily caches the response from the delegate OptionManager. */
 public class CachingOptionResolver implements OptionResolver {
 
   private final OptionResolver delegate;
+
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
-  private final Cache<String, Object> options = CacheBuilder.newBuilder()
-      .maximumSize(10000)
-      .build();
+  private final Cache<String, Object> options =
+      CacheBuilder.newBuilder().maximumSize(10000).build();
 
   public CachingOptionResolver(OptionResolver delegate) {
     this.delegate = delegate;

@@ -15,11 +15,8 @@
  */
 package com.dremio.dac.util;
 
-/**
- * A JSON serialization converter that truncates strings above 200 characters
- */
-public class TruncateString200Converter extends TruncateStringJSONConverter
-{
+/** A JSON serialization converter that truncates strings above 200 characters */
+public class TruncateString200Converter extends TruncateStringJSONConverter {
   public TruncateString200Converter() {
     super(200);
   }

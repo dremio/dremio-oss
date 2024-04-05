@@ -15,15 +15,12 @@
  */
 package com.dremio.test.specs;
 
+import com.dremio.options.OptionResolver;
+import com.dremio.options.TypeValidators;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.dremio.options.OptionResolver;
-import com.dremio.options.TypeValidators;
-
-/**
- * Spec for creating an OptionManager
- */
+/** Spec for creating an OptionManager */
 public class OptionResolverSpec implements ISpec<OptionResolver> {
   public static final OptionResolverSpec DEFAULT = new OptionResolverSpec();
   Map<TypeValidators.BooleanValidator, Boolean> booleanOptions = new HashMap<>();

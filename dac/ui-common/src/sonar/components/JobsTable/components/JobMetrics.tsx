@@ -39,7 +39,7 @@ export const JobMetrics = ({ job }: { job: any }) => {
         <div className="job-metrics__metric">
           <div className="job-metrics__metricLabel">
             {t(
-              JobStatusLabels[phase.phaseName as keyof typeof JobStatusLabels]
+              JobStatusLabels[phase.phaseName as keyof typeof JobStatusLabels],
             )}
           </div>
           <div className="job-metrics__metricValues">

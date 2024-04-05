@@ -15,17 +15,6 @@
  */
 package com.dremio.sabot.op.join.merge;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NavigableMap;
-import java.util.NoSuchElementException;
-import java.util.TreeMap;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.util.TransferPair;
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
@@ -33,11 +22,17 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NavigableMap;
+import java.util.NoSuchElementException;
+import java.util.TreeMap;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.util.TransferPair;
+import org.apache.commons.lang3.tuple.Pair;
 
-/**
- * MarkedAsyncIterator implementation using in-memory memory storage only
- *
- */
+/** MarkedAsyncIterator implementation using in-memory memory storage only */
 class InMemoryMarkedIterator implements MarkedAsyncIterator {
 
   // batches stored internally in the iterator
@@ -109,7 +104,6 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
     }
 
     return ret;
-
   }
 
   @Override
@@ -144,7 +138,8 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
       clearMark();
     }
 
-    Preconditions.checkState(hasNext(), "Cannot mark iterator when its current position is illegal");
+    Preconditions.checkState(
+        hasNext(), "Cannot mark iterator when its current position is illegal");
 
     marked = true;
     markedBatchIndex = currentBatchIndex;
@@ -160,7 +155,8 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
 
   @Override
   public Runnable asyncAcceptBatch(VectorAccessible batch) {
-    Preconditions.checkState(batchNotStored == null, "Iterator has a batch not yet fully processed");
+    Preconditions.checkState(
+        batchNotStored == null, "Iterator has a batch not yet fully processed");
 
     batchNotStored = batch;
     if (currentBatchIndex.equals(BATCH_NOT_STORED_INDEX)) {
@@ -172,14 +168,23 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
       @Override
       public void run() {
         // save the current not stored batch if necessary
-        if (marked || (currentBatchIndex.equals(BATCH_NOT_STORED_INDEX) && currentBatchOffset < batchNotStored.getRecordCount())) {
+        if (marked
+            || (currentBatchIndex.equals(BATCH_NOT_STORED_INDEX)
+                && currentBatchOffset < batchNotStored.getRecordCount())) {
           final VectorContainer batchTransfered = transferBatch(batchNotStored);
           storedBatches.put(newBatchIndexCounter, batchTransfered);
 
-          currentBatchIndex = currentBatchIndex.equals(BATCH_NOT_STORED_INDEX) ? newBatchIndexCounter : currentBatchIndex;
-          markedBatchIndex = markedBatchIndex.equals(BATCH_NOT_STORED_INDEX) ? newBatchIndexCounter : markedBatchIndex;
+          currentBatchIndex =
+              currentBatchIndex.equals(BATCH_NOT_STORED_INDEX)
+                  ? newBatchIndexCounter
+                  : currentBatchIndex;
+          markedBatchIndex =
+              markedBatchIndex.equals(BATCH_NOT_STORED_INDEX)
+                  ? newBatchIndexCounter
+                  : markedBatchIndex;
 
-          if (currentBatchIndex.equals(newBatchIndexCounter) && currentBatchOffset >= batchTransfered.getRecordCount()) {
+          if (currentBatchIndex.equals(newBatchIndexCounter)
+              && currentBatchOffset >= batchTransfered.getRecordCount()) {
             currentBatchIndex = BATCH_NOT_STORED_INDEX;
             currentBatchOffset = 0;
           }
@@ -189,7 +194,6 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
 
         batchNotStored = null;
       }
-
     };
   }
 
@@ -213,13 +217,15 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
         return;
       }
 
-      if (!(marked && !markedBatchIndex.equals(BATCH_NOT_STORED_INDEX) && markedBatchIndex <= key)) {
+      if (!(marked
+          && !markedBatchIndex.equals(BATCH_NOT_STORED_INDEX)
+          && markedBatchIndex <= key)) {
         storedBatches.get(key).close();
         keysToRemove.add(key);
       }
     }
 
-    for(Integer key: keysToRemove) {
+    for (Integer key : keysToRemove) {
       storedBatches.remove(key);
     }
   }
@@ -232,7 +238,8 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
     final List<ValueVector> vectors = Lists.newArrayList();
     for (VectorWrapper<?> v : batch) {
       if (v.isHyper()) {
-        throw new UnsupportedOperationException("Record batch data can't be created based on a hyper batch.");
+        throw new UnsupportedOperationException(
+            "Record batch data can't be created based on a hyper batch.");
       }
       TransferPair tp = v.getValueVector().getTransferPair(allocator);
       tp.transfer();
@@ -248,7 +255,7 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
 
   @Override
   public void close() throws Exception {
-    for (Integer key: storedBatches.keySet()) {
+    for (Integer key : storedBatches.keySet()) {
       storedBatches.get(key).close();
     }
 
@@ -271,5 +278,4 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
   public VectorAccessible getDummyBatch() {
     return dummyBatch;
   }
-
 }

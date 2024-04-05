@@ -15,9 +15,10 @@
  */
 package com.dremio.common.graph;
 
-
 public interface GraphVisitor<T> {
   public boolean enter(T o);
+
   public void leave(T o);
+
   public boolean visit(T o);
 }

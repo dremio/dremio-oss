@@ -16,28 +16,19 @@
 
 package com.dremio.dac.model.userpreferences;
 
+import com.dremio.dac.api.JsonISODateTime;
 import java.util.List;
-
 import javax.annotation.Nullable;
 
-import com.dremio.dac.api.JsonISODateTime;
-
-/**
- * Class Entity
- */
+/** Class Entity */
 public class Entity {
   private final String id;
   private final String name;
   private final List<String> fullPath;
   private final String type;
-  @JsonISODateTime
-  private final Long starredAt;
+  @JsonISODateTime private final Long starredAt;
 
-  public Entity(String id,
-                String name,
-                List<String> fullPath,
-                String type,
-                Long starredAt) {
+  public Entity(String id, String name, List<String> fullPath, String type, Long starredAt) {
     this.id = id;
     this.name = name;
     this.fullPath = fullPath;

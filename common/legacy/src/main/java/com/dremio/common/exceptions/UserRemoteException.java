@@ -15,14 +15,13 @@
  */
 package com.dremio.common.exceptions;
 
-import java.util.List;
-
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
+import java.util.List;
 
 /**
- * Wraps a DremioPBError object so we don't need to rebuilt it multiple times when sending it to the client. It also
- * gives access to the original exception className and message.
+ * Wraps a DremioPBError object so we don't need to rebuilt it multiple times when sending it to the
+ * client. It also gives access to the original exception className and message.
  */
 public final class UserRemoteException extends UserException {
 
@@ -62,13 +61,14 @@ public final class UserRemoteException extends UserException {
 
     if (error.hasException()) {
       sb.append("\n");
-      for (UserBitShared.StackTraceElementWrapper stackLine : error.getException().getStackTraceList()) {
+      for (UserBitShared.StackTraceElementWrapper stackLine :
+          error.getException().getStackTraceList()) {
         sb.append(stackLine.getClassName())
-          .append("(")
-          .append(stackLine.getFileName())
-          .append(":")
-          .append(stackLine.getLineNumber())
-          .append(")\n");
+            .append("(")
+            .append(stackLine.getFileName())
+            .append(":")
+            .append(stackLine.getLineNumber())
+            .append(")\n");
       }
     }
     return sb.toString();

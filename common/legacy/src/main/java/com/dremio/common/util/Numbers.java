@@ -15,15 +15,14 @@
  */
 package com.dremio.common.util;
 
-/**
- * Utility class for number related things.
- */
+/** Utility class for number related things. */
 public final class Numbers {
 
-  private Numbers(){}
+  private Numbers() {}
 
   /**
    * Get the next power of two at or after the provided value.
+   *
    * @param val The minimum value to use.
    * @return The first power of two greater than or equal to the input.
    */

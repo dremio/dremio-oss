@@ -15,9 +15,7 @@
  */
 package com.dremio.service.nessie;
 
-/**
- * Creates the CommitLog KV store for Nessie.
- */
+/** Creates the CommitLog KV store for Nessie. */
 public class NessieCommitLogStoreBuilder extends AbstractNessieStoreBuilder {
   public NessieCommitLogStoreBuilder() {
     super("commit_log");

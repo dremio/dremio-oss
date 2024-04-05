@@ -16,11 +16,12 @@
 package com.dremio.exec.store.dfs;
 
 /**
- * An abstraction providing a read-only property bag interface on top of some concrete filesystem configuration.
- * This provides a way for exposing filesystem configuration without introducing direct dependencies on Hadoop
- * Configuration objects.
+ * An abstraction providing a read-only property bag interface on top of some concrete filesystem
+ * configuration. This provides a way for exposing filesystem configuration without introducing
+ * direct dependencies on Hadoop Configuration objects.
  */
 public interface FileSystemConfigurationAdapter {
   String get(String name);
+
   String get(String name, String defaultValue);
 }

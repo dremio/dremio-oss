@@ -15,9 +15,7 @@
  */
 package com.dremio.plugins.elastic;
 
-/**
- * Subset of Elasticsearch types for Test Cluster population.
- */
+/** Subset of Elasticsearch types for Test Cluster population. */
 public enum ElasticsearchType {
   BYTE,
   SHORT,

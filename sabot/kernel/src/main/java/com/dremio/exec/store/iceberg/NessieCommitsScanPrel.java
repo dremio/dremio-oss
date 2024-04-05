@@ -15,19 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.AbstractRelNode;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.VacuumOutputSchema;
@@ -41,14 +28,27 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.AbstractRelNode;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
 
-/**
- * Scan on Nessie Commits, given a criteria.
- */
+/** Scan on Nessie Commits, given a criteria. */
 @Options
 public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
-  public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.nessie.commits.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.nessie.commits.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final TypeValidators.LongValidator RESERVE =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.scan.nessie.commits.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final TypeValidators.LongValidator LIMIT =
+      new TypeValidators.PositiveLongValidator(
+          "planner.op.scan.nessie.commits.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final String user;
   private final RelDataType relDataType;
@@ -59,14 +59,14 @@ public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
   private final BatchSchema batchSchema;
 
   public NessieCommitsScanPrel(
-    RelOptCluster cluster,
-    RelTraitSet traitSet,
-    BatchSchema batchSchema,
-    SnapshotsScanOptions snapshotsScanOptions,
-    String user,
-    StoragePluginId storagePluginId,
-    long estimatedRows,
-    int maxParallelizationWidth) {
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      BatchSchema batchSchema,
+      SnapshotsScanOptions snapshotsScanOptions,
+      String user,
+      StoragePluginId storagePluginId,
+      long estimatedRows,
+      int maxParallelizationWidth) {
     super(cluster, traitSet);
     this.batchSchema = batchSchema;
     this.relDataType = VacuumOutputSchema.getRowType(batchSchema, cluster.getTypeFactory());
@@ -110,24 +110,24 @@ public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     return new NessieCommitsGroupScan(
-      creator.props(this, user, batchSchema, RESERVE, LIMIT),
-      storagePluginId,
-      SchemaUtilities.allColPaths(batchSchema),
-      snapshotsScanOptions,
-      maxParallelizationWidth);
+        creator.props(this, user, batchSchema, RESERVE, LIMIT),
+        storagePluginId,
+        SchemaUtilities.allColPaths(batchSchema),
+        snapshotsScanOptions,
+        maxParallelizationWidth);
   }
 
   @Override
   public Prel copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new NessieCommitsScanPrel(
-      getCluster(),
-      getTraitSet(),
-      batchSchema,
-      snapshotsScanOptions,
-      user,
-      storagePluginId,
-      estimatedRows,
-      maxParallelizationWidth);
+        getCluster(),
+        getTraitSet(),
+        batchSchema,
+        snapshotsScanOptions,
+        user,
+        storagePluginId,
+        estimatedRows,
+        maxParallelizationWidth);
   }
 
   @Override
@@ -136,7 +136,8 @@ public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
   }
 
   @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value)
+      throws E {
     return logicalVisitor.visitLeaf(this, value);
   }
 

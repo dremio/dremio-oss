@@ -25,9 +25,7 @@ import com.dremio.service.accelerator.proto.MaterializationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 
-/**
- * Maps between ui and kvstore objects.
- */
+/** Maps between ui and kvstore objects. */
 public class UiMapper {
 
   static MaterializationDetailsUI toUI(MaterializationDetails details) {
@@ -36,6 +34,7 @@ public class UiMapper {
     }
     return new MaterializationDetailsUI(details);
   }
+
   static DatasetDetailsUI toUI(DatasetDetails details) {
     if (details == null) {
       return null;
@@ -57,7 +56,7 @@ public class UiMapper {
     return new ReflectionRelationshipUI(relationship);
   }
 
-  public static ReflectionExplanationUI toUI(ReflectionExplanation reflectionExplanation){
+  public static ReflectionExplanationUI toUI(ReflectionExplanation reflectionExplanation) {
     if (reflectionExplanation == null) {
       return null;
     }
@@ -68,11 +67,10 @@ public class UiMapper {
       case FIELD_MISSING:
         FieldMissingExplanation fieldMissingExplanation = reflectionExplanation.getFieldMissing();
         return new ReflectionExplanationUI.FieldMissing(
-            fieldMissingExplanation.getColumnName(),
-            fieldMissingExplanation.getColumnIndex());
+            fieldMissingExplanation.getColumnName(), fieldMissingExplanation.getColumnIndex());
       case FILTER_OVER_SPECIFIED:
         FilterOverSpecifiedExplanation filterOverSpecifiedExplanation =
-          reflectionExplanation.getFilterOverSpecified();
+            reflectionExplanation.getFilterOverSpecified();
         return new ReflectionExplanationUI.FilterOverSpecified(
             filterOverSpecifiedExplanation.getFilter());
       default:

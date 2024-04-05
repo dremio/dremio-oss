@@ -19,9 +19,7 @@ import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests the functionality implemented by the {@link ContainerFileSystem} class.
- */
+/** Tests the functionality implemented by the {@link ContainerFileSystem} class. */
 public class ContainerFileSystemTest {
 
   @Test

@@ -18,22 +18,6 @@ package com.dremio.exec.planner.logical.partition;
 import static com.dremio.exec.expr.ExpressionTreeMaterializer.materializeAndCheckErrors;
 import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -52,10 +36,22 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.TableMetadata;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Maps;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Class providing split pruning functionality for filter conditions in the query
- */
+/** Class providing split pruning functionality for filter conditions in the query */
 public abstract class RecordPruner implements AutoCloseable {
   protected static final Logger logger = LoggerFactory.getLogger(RecordPruner.class);
   protected static final int PARTITION_BATCH_SIZE = Character.MAX_VALUE;
@@ -71,25 +67,27 @@ public abstract class RecordPruner implements AutoCloseable {
 
   public RecordPruner(OptimizerRulesContext optimizerContext) {
     this.optimizerContext = optimizerContext;
-    this.allocator = optimizerContext.getAllocator().newChildAllocator("prune-scan-rule", 0, Long.MAX_VALUE);
+    this.allocator =
+        optimizerContext.getAllocator().newChildAllocator("prune-scan-rule", 0, Long.MAX_VALUE);
     this.outputVector = new BitVector("", allocator);
     this.inputContainer = new VectorContainer();
   }
 
   /**
    * Prune splits based on filters in the input filter condition.
+   *
    * @return Pair of count of the surviving records and surviving files
    */
   public abstract PartitionStatsValue prune(
-    Map<Integer, String> inUseColIdToNameMap,
-    Map<String, Integer> partitionColToIdMap,
-    Function<RexNode, List<Integer>> usedIndexes,
-    List<SchemaPath> projectedColumns,
-    TableMetadata tableMetadata,
-    RexNode pruneCondition,
-    BatchSchema batchSchema,
-    RelDataType rowType,
-    RelOptCluster cluster);
+      Map<Integer, String> inUseColIdToNameMap,
+      Map<String, Integer> partitionColToIdMap,
+      Function<RexNode, List<Integer>> usedIndexes,
+      List<SchemaPath> projectedColumns,
+      TableMetadata tableMetadata,
+      RexNode pruneCondition,
+      BatchSchema batchSchema,
+      RelDataType rowType,
+      RelOptCluster cluster);
 
   @Override
   public void close() {
@@ -100,11 +98,17 @@ public abstract class RecordPruner implements AutoCloseable {
     partitionColIdToTypeMap = Maps.newHashMap();
     partitionColNameToTypeMap = Maps.newHashMap();
     for (int partitionColIndex : inUseColIdToNameMap.keySet()) {
-      final SchemaPath column = SchemaPath.getSimplePath(inUseColIdToNameMap.get(partitionColIndex));
+      final SchemaPath column =
+          SchemaPath.getSimplePath(inUseColIdToNameMap.get(partitionColIndex));
       final CompleteType completeType = batchSchema.getFieldId(column).getFinalType();
       final MajorType type;
       if (completeType.getPrecision() != null && completeType.getScale() != null) {
-        type = Types.withScaleAndPrecision(completeType.toMinorType(), TypeProtos.DataMode.OPTIONAL, completeType.getScale(), completeType.getPrecision());
+        type =
+            Types.withScaleAndPrecision(
+                completeType.toMinorType(),
+                TypeProtos.DataMode.OPTIONAL,
+                completeType.getScale(),
+                completeType.getPrecision());
       } else {
         type = Types.optional(completeType.toMinorType());
       }
@@ -113,7 +117,10 @@ public abstract class RecordPruner implements AutoCloseable {
     }
   }
 
-  protected void setupVectors(Map<Integer, String> inUseColIdToNameMap, Map<String, Integer> partitionColToIdMap, int batchSize) {
+  protected void setupVectors(
+      Map<Integer, String> inUseColIdToNameMap,
+      Map<String, Integer> partitionColToIdMap,
+      int batchSize) {
     vectors = new ValueVector[partitionColToIdMap.size()];
     outputVector.allocateNew(batchSize);
 
@@ -128,15 +135,21 @@ public abstract class RecordPruner implements AutoCloseable {
     }
   }
 
-  protected LogicalExpression materializePruneExpr(RexNode pruneCondition, RelDataType rowType, RelOptCluster cluster) {
+  protected LogicalExpression materializePruneExpr(
+      RexNode pruneCondition, RelDataType rowType, RelOptCluster cluster) {
     logger.debug("Attempting to prune {}", pruneCondition);
     inputContainer.buildSchema();
     ParseContext parseContext = new ParseContext(optimizerContext.getPlannerSettings());
 
     timer.start();
-    LogicalExpression pruneExpr = RexToExpr.toExpr(parseContext, rowType, cluster.getRexBuilder(), pruneCondition);
-    LogicalExpression materializedExpr = materializeAndCheckErrors(pruneExpr, inputContainer.getSchema(), optimizerContext.getFunctionRegistry());
-    logger.debug("Elapsed time to create and materialize expression: {}ms", timer.elapsed(TimeUnit.MILLISECONDS));
+    LogicalExpression pruneExpr =
+        RexToExpr.toExpr(parseContext, rowType, cluster.getRexBuilder(), pruneCondition);
+    LogicalExpression materializedExpr =
+        materializeAndCheckErrors(
+            pruneExpr, inputContainer.getSchema(), optimizerContext.getFunctionRegistry());
+    logger.debug(
+        "Elapsed time to create and materialize expression: {}ms",
+        timer.elapsed(TimeUnit.MILLISECONDS));
     timer.reset();
 
     if (materializedExpr == null) {
@@ -147,16 +160,19 @@ public abstract class RecordPruner implements AutoCloseable {
 
   protected void evaluateExpr(LogicalExpression materializedExpr, int batchSize) {
     timer.start();
-    InterpreterEvaluator.evaluate(batchSize, optimizerContext, inputContainer, outputVector, materializedExpr);
-    logger.debug("Elapsed time in interpreter evaluation: {}ms with # of partitions: {}",
-      timer.elapsed(TimeUnit.MILLISECONDS), batchSize);
+    InterpreterEvaluator.evaluate(
+        batchSize, optimizerContext, inputContainer, outputVector, materializedExpr);
+    logger.debug(
+        "Elapsed time in interpreter evaluation: {}ms with # of partitions: {}",
+        timer.elapsed(TimeUnit.MILLISECONDS),
+        batchSize);
     timer.reset();
     adjustVectorMarkers(batchSize);
   }
 
   /**
-   * Set the record count in vectors to the same as the batch size.
-   * Calling this method saves on the cost of multiple allocations or vector resets.
+   * Set the record count in vectors to the same as the batch size. Calling this method saves on the
+   * cost of multiple allocations or vector resets.
    */
   private void adjustVectorMarkers(int batchSize) {
     if (batchSize != PARTITION_BATCH_SIZE) {

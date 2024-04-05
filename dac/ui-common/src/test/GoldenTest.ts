@@ -32,20 +32,20 @@ export function runGoldenTests<TestResult>(
   testCases: string[],
   expecteds: Record<string, TestResult>,
   testFileName: string,
-  testBody: (input: string) => TestResult
+  testBody: (input: string) => TestResult,
 ): void;
 /** Run golden tests, where the testCases values are used as input to the test body */
 export function runGoldenTests<TestInput, TestResult>(
   testCases: Record<string, TestInput>,
   expecteds: Record<string, TestResult>,
   testFileName: string,
-  testBody: (input: TestInput) => TestResult
+  testBody: (input: TestInput) => TestResult,
 ): void;
 export function runGoldenTests<TestInput, TestResult>(
   testCases: string[] | Record<string, TestInput>,
   expecteds: Record<string, TestResult>,
   testFileName: string,
-  testBody: (input: string | TestInput) => TestResult
+  testBody: (input: string | TestInput) => TestResult,
 ): void {
   const testNameIsData = Array.isArray(testCases);
   const testNames: string[] = testNameIsData

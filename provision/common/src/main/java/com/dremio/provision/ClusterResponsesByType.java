@@ -15,21 +15,18 @@
  */
 package com.dremio.provision;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
-
 import javax.validation.constraints.NotNull;
-
 import org.immutables.value.Value.Immutable;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-/**
- * List of cluster responses organized by type.
- */
+/** List of cluster responses organized by type. */
 @JsonDeserialize(builder = ImmutableClusterResponsesByType.Builder.class)
 @Immutable
 public interface ClusterResponsesByType {
-  @NotNull ClusterType getClusterType();
+  @NotNull
+  ClusterType getClusterType();
+
   List<ClusterResponse> getClusterList();
 
   public static ImmutableClusterResponsesByType.Builder builder() {

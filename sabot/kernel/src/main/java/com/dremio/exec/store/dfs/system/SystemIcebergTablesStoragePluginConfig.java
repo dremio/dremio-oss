@@ -17,11 +17,6 @@ package com.dremio.exec.store.dfs.system;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
-import java.net.URI;
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -33,19 +28,27 @@ import com.dremio.io.file.Path;
 import com.dremio.service.coordinator.proto.DataCredentials;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.Tag;
+import java.net.URI;
+import java.util.List;
+import javax.inject.Provider;
 
 /**
- * The COPY INTO ERROR plugin configuration is utilized to instantiate a SystemIcebergTablesStoragePlugin. Clients should follow these steps to obtain a reference to the SystemIcebergTablesStoragePlugin:
+ * The COPY INTO ERROR plugin configuration is utilized to instantiate a
+ * SystemIcebergTablesStoragePlugin. Clients should follow these steps to obtain a reference to the
+ * SystemIcebergTablesStoragePlugin:
  *
- * 1. Use {@link SystemIcebergTablesStoragePluginConfig#create(URI, boolean, boolean, DataCredentials)} to create a new SystemIcebergTablesStoragePlugin instance. This constructor sets the connection parameter for the returning SourceConfig instance.
+ * <p>1. Use {@link SystemIcebergTablesStoragePluginConfig#create(URI, boolean, boolean,
+ * DataCredentials)} to create a new SystemIcebergTablesStoragePlugin instance. This constructor
+ * sets the connection parameter for the returning SourceConfig instance.
  *
- * 2. Call {@link SystemIcebergTablesStoragePluginConfig#newPlugin(SabotContext, String, Provider)} to create a SystemIcebergTablesStoragePlugin instance by invoking its constructor.
- *
+ * <p>2. Call {@link SystemIcebergTablesStoragePluginConfig#newPlugin(SabotContext, String,
+ * Provider)} to create a SystemIcebergTablesStoragePlugin instance by invoking its constructor.
  */
 @SourceType(value = "SYSTEMICEBERGTABLES", configurable = false)
-public class SystemIcebergTablesStoragePluginConfig extends MayBeDistFileSystemConf<SystemIcebergTablesStoragePluginConfig, SystemIcebergTablesStoragePlugin> {
+public class SystemIcebergTablesStoragePluginConfig
+    extends MayBeDistFileSystemConf<
+        SystemIcebergTablesStoragePluginConfig, SystemIcebergTablesStoragePlugin> {
 
   public static final String SYSTEM_ICEBERG_TABLES_PLUGIN_NAME = "__system_iceberg_tables_storage";
 
@@ -93,12 +96,16 @@ public class SystemIcebergTablesStoragePluginConfig extends MayBeDistFileSystemC
 
   @Tag(15)
   public String sharedAccessKey = null;
-  //Tag has been deprecated please do not use.
 
-  public SystemIcebergTablesStoragePluginConfig() {
-  }
+  // Tag has been deprecated please do not use.
 
-  public SystemIcebergTablesStoragePluginConfig(URI path, boolean enableAsync, boolean enableS3FileStatusCheck, DataCredentials dataCredentials) {
+  public SystemIcebergTablesStoragePluginConfig() {}
+
+  public SystemIcebergTablesStoragePluginConfig(
+      URI path,
+      boolean enableAsync,
+      boolean enableS3FileStatusCheck,
+      DataCredentials dataCredentials) {
     if (path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
@@ -128,7 +135,8 @@ public class SystemIcebergTablesStoragePluginConfig extends MayBeDistFileSystemC
   }
 
   @Override
-  public SystemIcebergTablesStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public SystemIcebergTablesStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new SystemIcebergTablesStoragePlugin(this, context, name, pluginIdProvider);
   }
 
@@ -222,9 +230,15 @@ public class SystemIcebergTablesStoragePluginConfig extends MayBeDistFileSystemC
     return accountKind;
   }
 
-  public static SourceConfig create(URI path, boolean enableAsync, boolean enableS3FileStatusCheck, DataCredentials dataCredentials) {
+  public static SourceConfig create(
+      URI path,
+      boolean enableAsync,
+      boolean enableS3FileStatusCheck,
+      DataCredentials dataCredentials) {
     SourceConfig conf = new SourceConfig();
-    SystemIcebergTablesStoragePluginConfig connection = new SystemIcebergTablesStoragePluginConfig(path, enableAsync, enableS3FileStatusCheck, dataCredentials);
+    SystemIcebergTablesStoragePluginConfig connection =
+        new SystemIcebergTablesStoragePluginConfig(
+            path, enableAsync, enableS3FileStatusCheck, dataCredentials);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);

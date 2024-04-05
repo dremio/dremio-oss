@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.physical;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.dremio.common.graph.Graph;
 import com.dremio.common.graph.GraphAlgos;
 import com.dremio.common.logical.PlanProperties;
@@ -31,61 +28,67 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Optional;
 
-@JsonPropertyOrder({ "head", "graph" })
+@JsonPropertyOrder({"head", "graph"})
 public class PhysicalPlan {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PhysicalPlan.class);
 
   PlanProperties properties;
   Graph<PhysicalOperator, Root, Leaf> graph;
 
-  @JsonIgnore
-  Runnable committer;
+  @JsonIgnore Runnable committer;
 
   // cleaner for failure/cancellation during plan execution
-  @JsonIgnore
-  Runnable cleaner;
+  @JsonIgnore Runnable cleaner;
 
   @JsonCreator
-  public PhysicalPlan(@JsonProperty("head") PlanProperties properties, @JsonProperty("graph") List<PhysicalOperator> operators) {
+  public PhysicalPlan(
+      @JsonProperty("head") PlanProperties properties,
+      @JsonProperty("graph") List<PhysicalOperator> operators) {
     this.properties = properties;
     this.graph = Graph.newGraph(operators, Root.class, Leaf.class);
   }
 
-  public PhysicalPlan(PlanProperties properties, List<PhysicalOperator> operators, Runnable committer) {
+  public PhysicalPlan(
+      PlanProperties properties, List<PhysicalOperator> operators, Runnable committer) {
     this(properties, operators);
     this.committer = committer;
     this.cleaner = null;
   }
 
-  public PhysicalPlan(PlanProperties properties, List<PhysicalOperator> operators, Runnable committer, Runnable cleaner) {
+  public PhysicalPlan(
+      PlanProperties properties,
+      List<PhysicalOperator> operators,
+      Runnable committer,
+      Runnable cleaner) {
     this(properties, operators);
     this.committer = committer;
     this.cleaner = cleaner;
   }
 
   @JsonProperty("graph")
-  public List<PhysicalOperator> getSortedOperators(){
+  public List<PhysicalOperator> getSortedOperators() {
     // reverse the list so that nested references are flattened rather than nested.
     return getSortedOperators(true);
   }
 
-  public Root getRoot(){
+  public Root getRoot() {
     return graph.getRoots().iterator().next();
   }
 
-  public List<PhysicalOperator> getSortedOperators(boolean reverse){
+  public List<PhysicalOperator> getSortedOperators(boolean reverse) {
     List<PhysicalOperator> list = GraphAlgos.TopoSorter.sort(graph);
-    if(reverse){
+    if (reverse) {
       return Lists.reverse(list);
-    }else{
+    } else {
       return list;
     }
-
   }
 
   @JsonIgnore
-  public double getCost(){
+  public double getCost() {
     double totalCost = 0;
     for (final PhysicalOperator ops : getSortedOperators()) {
       totalCost += ops.getProps().getCost();
@@ -106,7 +109,6 @@ public class PhysicalPlan {
       throw new RuntimeException(e);
     }
   }
-
 
   public Optional<Runnable> getCommitter() {
     return Optional.ofNullable(committer);

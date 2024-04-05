@@ -196,23 +196,4 @@
       }
     }
   }
-  @media only screen and(max-height: 600px) {
-    // Adjust the min-height for the left nav in short browser screen
-    .finder-nav .nav-list {
-      min-height: calc(25vh - 28px) !important;
-    }
-    .left-tree .left-tree-wrap {
-      min-height: 25vh !important;
-    }
-    // No need to set a min-height for the external list
-    .left-tree .left-tree-wrap:last-child {
-      min-height: auto !important;
-    }
-  }
-  @media all and (-ms-high-contrast: none) {
-    *::-ms-backdrop,
-    .left-tree {
-      min-height: 560px;
-    } /* Min-height for IE11 only */
-  }
 }

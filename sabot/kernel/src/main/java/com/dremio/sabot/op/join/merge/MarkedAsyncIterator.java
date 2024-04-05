@@ -15,40 +15,34 @@
  */
 package com.dremio.sabot.op.join.merge;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.dremio.exec.record.VectorAccessible;
 import com.google.common.collect.PeekingIterator;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Describes marked iterator used in sort-merge join; it is compatible with the batch data
  * processing interface
  *
- * Because sort-merge join requires cartesian product of identical-key sets from
- * both left and right tables, we need to be able to backtrace records from previous batches
- *
+ * <p>Because sort-merge join requires cartesian product of identical-key sets from both left and
+ * right tables, we need to be able to backtrace records from previous batches
  */
-interface MarkedAsyncIterator extends PeekingIterator<Pair<VectorAccessible, Integer>>, AutoCloseable {
+interface MarkedAsyncIterator
+    extends PeekingIterator<Pair<VectorAccessible, Integer>>, AutoCloseable {
 
-  /**
-   * mark current point of iteration
-   */
+  /** mark current point of iteration */
   void mark();
 
   /**
    * peek marked location
+   *
    * @return a pair of batch and index within the batch
    */
   Pair<VectorAccessible, Integer> peekMark();
 
-  /**
-   * restore to the state when mark() is called the last time
-   */
+  /** restore to the state when mark() is called the last time */
   void resetToMark();
 
-  /**
-   * remove mark
-   */
+  /** remove mark */
   void clearMark();
 
   /**
@@ -57,14 +51,14 @@ interface MarkedAsyncIterator extends PeekingIterator<Pair<VectorAccessible, Int
   VectorAccessible getDummyBatch();
 
   /**
-   * Add next batch to iterator, and return a callback to be called when
-   * data loadable in this call will be released
+   * Add next batch to iterator, and return a callback to be called when data loadable in this call
+   * will be released
    *
-   * It is not allowed to call asyncPopulateBatch before executing Runnable
-   * returned, i.e. one batch at a time
+   * <p>It is not allowed to call asyncPopulateBatch before executing Runnable returned, i.e. one
+   * batch at a time
+   *
    * @param batch a batch that will not be released until callback is executed
    * @return callback before batch needs to be released
    */
   Runnable asyncAcceptBatch(VectorAccessible batch);
-
 }

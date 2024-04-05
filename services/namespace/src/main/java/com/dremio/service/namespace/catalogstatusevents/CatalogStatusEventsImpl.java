@@ -15,35 +15,51 @@
  */
 package com.dremio.service.namespace.catalogstatusevents;
 
-import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CatalogStatusEventsImpl implements CatalogStatusEvents {
-  private ConcurrentHashMap<CatalogStatusEventTopic, ConcurrentHashMap<Integer, WeakReference<CatalogStatusSubscriber>>> topics;
+  private static final Logger LOGGER = LoggerFactory.getLogger(CatalogStatusEventsImpl.class);
+  private final ConcurrentHashMap<
+          CatalogStatusEventTopic, ConcurrentHashMap<Integer, CatalogStatusSubscriber>>
+      topics;
+
   public CatalogStatusEventsImpl() {
     this.topics = new ConcurrentHashMap<>();
   }
 
   @Override
-  public void subscribe(CatalogStatusEventTopic catalogStatusEventTopic, CatalogStatusSubscriber subscriber) {
+  public void subscribe(
+      CatalogStatusEventTopic catalogStatusEventTopic, CatalogStatusSubscriber subscriber) {
     if (!topics.containsKey(catalogStatusEventTopic)) {
       topics.put(catalogStatusEventTopic, new ConcurrentHashMap<>());
     }
-    topics.get(catalogStatusEventTopic).put(subscriber.hashCode(), new WeakReference<>(subscriber));
+    topics.get(catalogStatusEventTopic).put(subscriber.hashCode(), subscriber);
   }
 
   @Override
   public void publish(CatalogStatusEvent event) {
-    ConcurrentHashMap<Integer, WeakReference<CatalogStatusSubscriber>> map = topics.get(event.getTopic());
+    ConcurrentHashMap<Integer, CatalogStatusSubscriber> map = topics.get(event.getTopic());
     if (map == null) {
       return;
     }
 
-    for(Map.Entry<Integer, WeakReference<CatalogStatusSubscriber>> subscribers : map.entrySet()) {
-      WeakReference<CatalogStatusSubscriber> subscriberRef = subscribers.getValue();
-      CatalogStatusSubscriber subscriber = subscriberRef.get();
-      subscriber.onCatalogStatusEvent(event);
+    for (Map.Entry<Integer, CatalogStatusSubscriber> subscribers : map.entrySet()) {
+      CatalogStatusSubscriber subscriber = subscribers.getValue();
+
+      try {
+        subscriber.onCatalogStatusEvent(event);
+      } catch (Exception exception) {
+        // We need to catch any exception here in order not to disturb
+        // the catalog lifecycle
+        LOGGER.error(
+            "Failed to call subscriber {} to publish CatalogStatusEvent event {}.",
+            subscriber.getClass().getSimpleName(),
+            event,
+            exception);
+      }
     }
   }
 }

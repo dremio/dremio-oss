@@ -22,12 +22,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.arrow.vector.util.Text;
 
 /**
- * Builder for Flight correctness tests. Based on com.dremio.TestBuilder,
- * but simplified to only do in-memory tests.
+ * Builder for Flight correctness tests. Based on com.dremio.TestBuilder, but simplified to only do
+ * in-memory tests.
  */
 public class FlightTestBuilder {
   private final FlightClientUtils.FlightClientWrapper flightClientWrapper;
@@ -62,17 +61,21 @@ public class FlightTestBuilder {
     build().run();
   }
 
-  public FlightTestBuilder baselineValues(Object ... baselineValues) {
+  public FlightTestBuilder baselineValues(Object... baselineValues) {
     if (baselineRecords == null) {
       baselineRecords = new ArrayList<>();
     }
     Map<String, Object> ret = new LinkedHashMap<>();
     int i = 0;
-    assertTrue("Must set expected columns before baseline values/records.", baselineColumns != null);
+    assertTrue(
+        "Must set expected columns before baseline values/records.", baselineColumns != null);
     if (baselineValues == null) {
       baselineValues = new Object[] {null};
     }
-    assertEquals("Must supply the same number of baseline values as columns.", baselineValues.length, baselineColumns.length);
+    assertEquals(
+        "Must supply the same number of baseline values as columns.",
+        baselineValues.length,
+        baselineColumns.length);
     for (String s : baselineColumns) {
       ret.put(s, toArrowType(baselineValues[i]));
       i++;
@@ -81,9 +84,7 @@ public class FlightTestBuilder {
     return this;
   }
 
-  /**
-   * Coerce standard value types used an inputs to testBuilder to Arrow types.
-   */
+  /** Coerce standard value types used an inputs to testBuilder to Arrow types. */
   static Object toArrowType(Object originalValue) {
     if (originalValue instanceof String) {
       return new Text((String) originalValue);

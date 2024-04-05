@@ -15,9 +15,16 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.rpc.user.UserSession;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Constructor;
 import java.util.List;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -28,15 +35,6 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
-import com.dremio.options.OptionResolver;
-import com.dremio.sabot.rpc.user.UserSession;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 /*
  * Lists all tags under a source.
  *
@@ -44,15 +42,15 @@ import com.google.common.collect.Lists;
  */
 public final class SqlShowTags extends SqlVersionBase {
   public static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("SHOW_TAGS", SqlKind.OTHER) {
-      @Override
-      public SqlCall createCall(
-        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-        Preconditions.checkArgument(
-          operands.length == 1, "SqlShowTags.createCall() has to get 1 operand!");
-        return new SqlShowTags(pos, (SqlIdentifier) operands[0]);
-      }
-    };
+      new SqlSpecialOperator("SHOW_TAGS", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 1, "SqlShowTags.createCall() has to get 1 operand!");
+          return new SqlShowTags(pos, (SqlIdentifier) operands[0]);
+        }
+      };
 
   public SqlShowTags(SqlParserPos pos, SqlIdentifier sourceName) {
     super(pos, sourceName);
@@ -82,12 +80,11 @@ public final class SqlShowTags extends SqlVersionBase {
   public SqlDirectHandler<?> toDirectHandler(QueryContext context) {
     try {
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.ShowTagsHandler");
-      final Constructor<?> ctor = cl.getConstructor(Catalog.class, OptionResolver.class, UserSession.class);
+      final Constructor<?> ctor =
+          cl.getConstructor(Catalog.class, OptionResolver.class, UserSession.class);
 
-      return (SqlDirectHandler<?>) ctor.newInstance(
-        context.getCatalog(),
-        context.getOptions(),
-        context.getSession());
+      return (SqlDirectHandler<?>)
+          ctor.newInstance(context.getCatalog(), context.getOptions(), context.getSession());
     } catch (ClassNotFoundException e) {
       throw UserException.unsupportedError(e)
           .message("SHOW TAGS action is not supported.")

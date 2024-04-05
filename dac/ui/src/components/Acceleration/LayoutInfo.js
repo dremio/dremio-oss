@@ -24,14 +24,12 @@ import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
 import "@app/uiTheme/less/commonModifiers.less";
-import Footprint from "./Footprint";
-import ValidityIndicator from "./ValidityIndicator";
+import Footprint from "@app/components/Acceleration/Footprint";
 import Status from "./Status";
 
 export default class LayoutInfo extends Component {
   static propTypes = {
     layout: PropTypes.instanceOf(Immutable.Map),
-    showValidity: PropTypes.bool,
     overrideTextMessage: PropTypes.string,
     className: PropTypes.any,
   };
@@ -54,13 +52,6 @@ export default class LayoutInfo extends Component {
 
     return (
       <div className={`LayoutInfo__main ${this.props.className}`}>
-        {this.props.showValidity && (
-          <div style={{ marginRight, height: 20 }}>
-            <ValidityIndicator
-              isValid={reflection && reflection.hasValidMaterialization}
-            />
-          </div>
-        )}
         <div className={"LayoutInfo__status"}>
           <Link to={jobsURL} style={{ height: 24 }}>
             <Status reflection={this.props.layout} />

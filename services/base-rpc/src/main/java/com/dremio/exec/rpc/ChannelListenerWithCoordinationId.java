@@ -19,16 +19,16 @@ import io.netty.channel.ChannelFutureListener;
 
 public interface ChannelListenerWithCoordinationId extends ChannelFutureListener {
   /**
-   * Uniquely identifies a channel operation (e.g request id) so that it can be correlated with other related
-   * operations (e.g response for a given request).
+   * Uniquely identifies a channel operation (e.g request id) so that it can be correlated with
+   * other related operations (e.g response for a given request).
    *
    * @return an integer that uniquely identifies this operation.
    */
   int getCoordinationId();
 
   /**
-   * Handles cases where the listener has started, but the channel operation did not start and the listener
-   * was not yet attached to the channel operation.
+   * Handles cases where the listener has started, but the channel operation did not start and the
+   * listener was not yet attached to the channel operation.
    */
   void opNotStarted();
 }

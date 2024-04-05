@@ -18,6 +18,8 @@ package com.dremio.plugins.elastic.execution;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import org.apache.arrow.vector.complex.writer.Float8Writer;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,20 +27,13 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-
-/**
- * Test the WriteHolders subclasses
- */
+/** Test the WriteHolders subclasses */
 @RunWith(MockitoJUnitRunner.class)
 public class WriteHoldersTest {
   private static final double DOUBLE_VALUE = 1.36331;
   private WriteHolders.DoubleWriteHolder doubleWriteHolder;
-  @Mock
-  private Float8Writer float8Writer;
-  @Mock
-  private JsonParser jsonParser;
+  @Mock private Float8Writer float8Writer;
+  @Mock private JsonParser jsonParser;
 
   @Before
   public void setup() throws Exception {

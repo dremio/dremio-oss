@@ -36,7 +36,7 @@ const getHashOfString = (str: string): number => {
 };
 
 const useHashedColorClass = (
-  initials: AvatarProps["initials"]
+  initials: AvatarProps["initials"],
 ): string | undefined =>
   useMemo(() => {
     if (!initials) {
@@ -59,7 +59,7 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>((props, ref) => {
             "dremio-avatar--image": image,
           },
           colorClass,
-          className
+          className,
         )}
       >
         {image || initials || null}

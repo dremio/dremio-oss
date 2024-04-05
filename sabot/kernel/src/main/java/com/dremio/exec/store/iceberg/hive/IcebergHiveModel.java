@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.store.iceberg.hive;
 
-import javax.annotation.Nullable;
-
-import org.apache.iceberg.TableOperations;
-import org.apache.iceberg.io.FileIO;
-
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
@@ -27,10 +22,11 @@ import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.sabot.exec.context.OperatorContext;
+import javax.annotation.Nullable;
+import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.io.FileIO;
 
-/**
- * Entry point for Hive catalog based Iceberg tables
- */
+/** Entry point for Hive catalog based Iceberg tables */
 public class IcebergHiveModel extends IcebergBaseModel {
 
   private final SupportsIcebergRootPointer plugin;
@@ -39,13 +35,12 @@ public class IcebergHiveModel extends IcebergBaseModel {
   public static final String HIVE = "hive";
 
   public IcebergHiveModel(
-    String namespace,
-    String tableName,
-    FileIO fileIO,
-    String queryUserName,
-    OperatorContext operatorContext,
-    SupportsIcebergMutablePlugin plugin
-  ) {
+      String namespace,
+      String tableName,
+      FileIO fileIO,
+      String queryUserName,
+      OperatorContext operatorContext,
+      SupportsIcebergMutablePlugin plugin) {
     super(namespace, plugin.getFsConfCopy(), fileIO, operatorContext, null, plugin);
     this.queryUserName = queryUserName;
     this.plugin = plugin;
@@ -54,12 +49,14 @@ public class IcebergHiveModel extends IcebergBaseModel {
 
   @Override
   protected IcebergCommand getIcebergCommand(
-    IcebergTableIdentifier tableIdentifier,
-    @Nullable IcebergCommitOrigin commitOrigin
-  ) {
-    TableOperations tableOperations = plugin.createIcebergTableOperations(fileIO, queryUserName, tableIdentifier);
-    return new IcebergHiveCommand(configuration,
-      ((IcebergHiveTableIdentifier)tableIdentifier).getTableFolder(), tableOperations, currentQueryId());
+      IcebergTableIdentifier tableIdentifier, @Nullable IcebergCommitOrigin commitOrigin) {
+    TableOperations tableOperations =
+        plugin.createIcebergTableOperations(fileIO, queryUserName, tableIdentifier);
+    return new IcebergHiveCommand(
+        configuration,
+        ((IcebergHiveTableIdentifier) tableIdentifier).getTableFolder(),
+        tableOperations,
+        currentQueryId());
   }
 
   @Override

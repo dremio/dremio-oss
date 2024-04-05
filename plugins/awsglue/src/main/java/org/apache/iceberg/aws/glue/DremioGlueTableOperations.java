@@ -16,35 +16,42 @@
 package org.apache.iceberg.aws.glue;
 
 import java.util.Map;
-
 import org.apache.iceberg.LockManager;
 import org.apache.iceberg.aws.AwsProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.FileIO;
-
 import software.amazon.awssdk.services.glue.GlueClient;
 
-/**
- * Glue table operations
- */
+/** Glue table operations */
 public class DremioGlueTableOperations extends GlueTableOperations {
 
-    private final FileIO dremioFileIO;
+  private final FileIO dremioFileIO;
 
-    public DremioGlueTableOperations(GlueClient glue, LockManager lockManager,
-                                     String catalogName, Map<String, String> properties,
-                                     FileIO fileIO, TableIdentifier tableIdentifier) {
-        super(glue, lockManager, catalogName, new AwsProperties(properties), properties, null, tableIdentifier);
-        this.dremioFileIO = fileIO;
-    }
+  public DremioGlueTableOperations(
+      GlueClient glue,
+      LockManager lockManager,
+      String catalogName,
+      Map<String, String> properties,
+      FileIO fileIO,
+      TableIdentifier tableIdentifier) {
+    super(
+        glue,
+        lockManager,
+        catalogName,
+        new AwsProperties(properties),
+        properties,
+        null,
+        tableIdentifier);
+    this.dremioFileIO = fileIO;
+  }
 
-    @Override
-    public FileIO io() {
-        // After https://github.com/apache/iceberg/pull/5756,
-        // `FileIO` is constructed in the parent class using catalog properties and hadoop conf.
-        // `DremioFileIO` cannot be constructed without a `Plugin` in the parent class.
-        // Hence, by default construct `S3FileIO` (as io-impl is not configured)
-        // and override it with `DremioFileIO`.
-        return dremioFileIO;
-    }
+  @Override
+  public FileIO io() {
+    // After https://github.com/apache/iceberg/pull/5756,
+    // `FileIO` is constructed in the parent class using catalog properties and hadoop conf.
+    // `DremioFileIO` cannot be constructed without a `Plugin` in the parent class.
+    // Hence, by default construct `S3FileIO` (as io-impl is not configured)
+    // and override it with `DremioFileIO`.
+    return dremioFileIO;
+  }
 }

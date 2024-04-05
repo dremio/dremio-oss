@@ -70,7 +70,7 @@ PageSummary.propTypes = {
     PropTypes.shape({
       label: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
       value: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
-    })
+    }),
   ),
   title: PropTypes.string,
   classes: PropTypes.shape({

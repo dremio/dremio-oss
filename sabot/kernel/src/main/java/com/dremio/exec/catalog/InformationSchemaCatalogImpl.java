@@ -20,17 +20,6 @@ import static com.dremio.datastore.indexed.IndexKey.LOWER_CASE_SUFFIX;
 import static com.dremio.exec.ExecConstants.VERSIONED_INFOSCHEMA_ENABLED;
 import static com.dremio.exec.util.InformationSchemaCatalogUtil.getEscapeCharacter;
 
-import java.security.AccessControlException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
@@ -56,10 +45,18 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.protobuf.ByteString;
+import java.security.AccessControlException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-/**
- * Implementation of {@link InformationSchemaCatalog} that relies on namespace.
- */
+/** Implementation of {@link InformationSchemaCatalog} that relies on namespace. */
 class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
   private static final String DEFAULT_CATALOG_NAME = "DREMIO";
@@ -68,75 +65,85 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
   // Schemata are all entities in namespace that are not DATASET type.
   // TODO(DX-9909): cannot use a NOT filter
-  private static final SearchTypes.SearchQuery SCHEMATA_FILTER = SearchQueryUtils.or(
-    SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.FOLDER.getNumber()),
-    SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.HOME.getNumber()),
-    SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.SOURCE.getNumber()),
-    SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.SPACE.getNumber())
-  );
+  private static final SearchTypes.SearchQuery SCHEMATA_FILTER =
+      SearchQueryUtils.or(
+          SearchQueryUtils.newTermQuery(
+              NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.FOLDER.getNumber()),
+          SearchQueryUtils.newTermQuery(
+              NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.HOME.getNumber()),
+          SearchQueryUtils.newTermQuery(
+              NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.SOURCE.getNumber()),
+          SearchQueryUtils.newTermQuery(
+              NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.SPACE.getNumber()));
 
   private static final SearchTypes.SearchQuery DATASET_FILTER =
-    SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.DATASET.getNumber());
+      SearchQueryUtils.newTermQuery(
+          NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.DATASET.getNumber());
 
   private static final Predicate<Map.Entry<NamespaceKey, NameSpaceContainer>> IS_NOT_INTERNAL =
-    entry -> !entry.getKey().getRoot().startsWith("__");
+      entry -> !entry.getKey().getRoot().startsWith("__");
 
   private static final ImmutableSet<String> SYSTEM_FIELDS =
-    ImmutableSet.of(IncrementalUpdateUtils.UPDATE_COLUMN);
+      ImmutableSet.of(IncrementalUpdateUtils.UPDATE_COLUMN);
 
   private final NamespaceService userNamespace;
   private PluginRetriever pluginRetriever;
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InformationSchemaCatalogImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(InformationSchemaCatalogImpl.class);
 
   private OptionManager options;
 
-  public InformationSchemaCatalogImpl(NamespaceService userNamespace, PluginRetriever pluginRetriever, OptionManager options) {
+  public InformationSchemaCatalogImpl(
+      NamespaceService userNamespace, PluginRetriever pluginRetriever, OptionManager options) {
     this.userNamespace = userNamespace;
     this.pluginRetriever = pluginRetriever;
     this.options = options;
   }
 
   private static LegacyFindByCondition getCondition(SearchQuery searchQuery) {
-    return searchQuery == null ? null : new LegacyFindByCondition().setCondition(toSearchQuery(searchQuery));
+    return searchQuery == null
+        ? null
+        : new LegacyFindByCondition().setCondition(toSearchQuery(searchQuery));
   }
 
   private static SearchTypes.SearchQuery toSearchQuery(SearchQuery searchQuery) {
     switch (searchQuery.getQueryCase()) {
-    case EQUALS:
-      switch (searchQuery.getEquals().getValueCase()) {
-      case INTVALUE:
-        return SearchQueryUtils.newTermQuery(searchQuery.getEquals().getField(),
-          searchQuery.getEquals().getIntValue());
-      case STRINGVALUE:
-        return SearchQueryUtils.newTermQuery(searchQuery.getEquals().getField(),
-          searchQuery.getEquals().getStringValue());
-      case VALUE_NOT_SET:
+      case EQUALS:
+        switch (searchQuery.getEquals().getValueCase()) {
+          case INTVALUE:
+            return SearchQueryUtils.newTermQuery(
+                searchQuery.getEquals().getField(), searchQuery.getEquals().getIntValue());
+          case STRINGVALUE:
+            return SearchQueryUtils.newTermQuery(
+                searchQuery.getEquals().getField(), searchQuery.getEquals().getStringValue());
+          case VALUE_NOT_SET:
+          default:
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", searchQuery.getEquals().getValueCase()));
+        }
+      case AND:
+        return SearchQueryUtils.and(
+            searchQuery.getAnd().getClausesList().stream()
+                .map(InformationSchemaCatalogImpl::toSearchQuery)
+                .collect(Collectors.toList()));
+      case OR:
+        return SearchQueryUtils.or(
+            searchQuery.getOr().getClausesList().stream()
+                .map(InformationSchemaCatalogImpl::toSearchQuery)
+                .collect(Collectors.toList()));
+      case LIKE:
+        final String escape =
+            searchQuery.getLike().getEscape().isEmpty() ? null : searchQuery.getLike().getEscape();
+        return getLikeQuery(
+            searchQuery.getLike().getField(),
+            searchQuery.getLike().getPattern(),
+            escape,
+            searchQuery.getLike().getCaseInsensitive());
       default:
-        throw new UnsupportedOperationException(String.format("%s is not supported",
-          searchQuery.getEquals().getValueCase()));
-      }
-    case AND:
-      return SearchQueryUtils.and(searchQuery.getAnd()
-        .getClausesList()
-        .stream()
-        .map(InformationSchemaCatalogImpl::toSearchQuery)
-        .collect(Collectors.toList()));
-    case OR:
-      return SearchQueryUtils.or(searchQuery.getOr()
-        .getClausesList()
-        .stream()
-        .map(InformationSchemaCatalogImpl::toSearchQuery)
-        .collect(Collectors.toList()));
-    case LIKE:
-      final String escape = searchQuery.getLike().getEscape().isEmpty() ? null :
-        searchQuery.getLike().getEscape();
-      return getLikeQuery(searchQuery.getLike().getField(),
-        searchQuery.getLike().getPattern(), escape, searchQuery.getLike().getCaseInsensitive());
-    default:
-    case QUERY_NOT_SET:
-      throw new UnsupportedOperationException(String.format("%s is not supported",
-        searchQuery.getQueryCase()));
+      case QUERY_NOT_SET:
+        throw new UnsupportedOperationException(
+            String.format("%s is not supported", searchQuery.getQueryCase()));
     }
   }
 
@@ -144,16 +151,12 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
    * Converts a SQL like phrase into a similar Lucene WildcardQuery.
    *
    * @param fieldName The field to create the query on.
-   * @param pattern   the expected pattern
-   * @param escape    The Escape character to use.
+   * @param pattern the expected pattern
+   * @param escape The Escape character to use.
    * @return The SearchQuery that matches the Like pattern.
    */
   public static SearchTypes.SearchQuery getLikeQuery(
-    String fieldName,
-    String pattern,
-    String escape,
-    boolean caseInsensitive
-  ) {
+      String fieldName, String pattern, String escape, boolean caseInsensitive) {
     StringBuilder sb = new StringBuilder();
     final char e = getEscapeCharacter(escape);
     boolean escaped = false;
@@ -174,22 +177,22 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
       }
 
       switch (c) {
-        //Percent is treated as wildchar which matches with (empty or any number) characters
+          // Percent is treated as wildchar which matches with (empty or any number) characters
         case '%':
           sb.append("*");
           break;
 
-        //Underscore is treated as wildchar which matches with (only one) any character
+          // Underscore is treated as wildchar which matches with (only one) any character
         case '_':
           sb.append("?");
           break;
 
-        // ESCAPE * if it occurs
+          // ESCAPE * if it occurs
         case '*':
           sb.append("\\*");
           break;
 
-        // ESCAPE ? if it occurs
+          // ESCAPE ? if it occurs
         case '?':
           sb.append("\\?");
           break;
@@ -201,7 +204,8 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     }
 
     if (caseInsensitive) {
-      return SearchQueryUtils.newWildcardQuery(fieldName + LOWER_CASE_SUFFIX, sb.toString().toLowerCase());
+      return SearchQueryUtils.newWildcardQuery(
+          fieldName + LOWER_CASE_SUFFIX, sb.toString().toLowerCase());
     } else {
       return SearchQueryUtils.newWildcardQuery(fieldName, sb.toString());
     }
@@ -216,27 +220,29 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
   @Override
   public Iterator<Catalog> listCatalogs(SearchQuery searchQuery) {
-    return Collections.singleton(Catalog.newBuilder()
-      .setCatalogName(DEFAULT_CATALOG_NAME)
-      .setCatalogDescription(CATALOG_DESCRIPTION)
-      .setCatalogConnect(CATALOG_CONNECT)
-      .build()
-    ).iterator();
+    return Collections.singleton(
+            Catalog.newBuilder()
+                .setCatalogName(DEFAULT_CATALOG_NAME)
+                .setCatalogDescription(CATALOG_DESCRIPTION)
+                .setCatalogConnect(CATALOG_CONNECT)
+                .build())
+        .iterator();
   }
 
   @Override
   public Iterator<Schema> listSchemata(SearchQuery searchQuery) {
-    final Iterator<Schema>[] res = new Iterator[]{Collections.emptyIterator()};
+    final Iterator<Schema>[] res = new Iterator[] {Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
     if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
       versionedPlugins
-        .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
-        .forEach(versionedPlugin -> {
-            Stream<com.dremio.service.catalog.Schema> schemata = versionedPlugin.getAllInformationSchemaSchemataInfo(searchQuery);
-            res[0] = Iterators.concat(res[0], schemata.iterator());
-          }
-        );
+          .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
+          .forEach(
+              versionedPlugin -> {
+                Stream<com.dremio.service.catalog.Schema> schemata =
+                    versionedPlugin.getAllInformationSchemaSchemataInfo(searchQuery);
+                res[0] = Iterators.concat(res[0], schemata.iterator());
+              });
     }
 
     final SearchTypes.SearchQuery query;
@@ -248,21 +254,25 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     }
 
     final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-      userNamespace.find(new LegacyFindByCondition().setCondition(query));
+        userNamespace.find(new LegacyFindByCondition().setCondition(query));
 
     final Set<String> alreadySent = new HashSet<>();
-    return Iterators.concat(res[0],
+    return Iterators.concat(
+        res[0],
         StreamSupport.stream(searchResults.spliterator(), false)
-          .filter(IS_NOT_INTERNAL)
-          .filter(entry -> !alreadySent.contains(entry.getKey().toUnescapedString()))
-          .peek(entry -> alreadySent.add(entry.getKey().toUnescapedString()))
-          .map(entry -> Schema.newBuilder()
-            .setCatalogName(DEFAULT_CATALOG_NAME)
-            .setSchemaName(entry.getKey().toUnescapedString())
-            .setSchemaOwner("<owner>")
-            .setSchemaType(SchemaType.SIMPLE)
-            .setIsMutable(false)
-            .build()).iterator());
+            .filter(IS_NOT_INTERNAL)
+            .filter(entry -> !alreadySent.contains(entry.getKey().toUnescapedString()))
+            .peek(entry -> alreadySent.add(entry.getKey().toUnescapedString()))
+            .map(
+                entry ->
+                    Schema.newBuilder()
+                        .setCatalogName(DEFAULT_CATALOG_NAME)
+                        .setSchemaName(entry.getKey().toUnescapedString())
+                        .setSchemaOwner("<owner>")
+                        .setSchemaType(SchemaType.SIMPLE)
+                        .setIsMutable(false)
+                        .build())
+            .iterator());
   }
 
   @Override
@@ -273,39 +283,43 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
     if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
       versionedPlugins
-        .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
-        .forEach(versionedPlugin -> {
-          Stream<com.dremio.service.catalog.Table> tables = versionedPlugin.getAllInformationSchemaTableInfo(searchQuery);
-          res[0] = Iterators.concat(res[0], tables.iterator());
-        }
-      );
+          .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
+          .forEach(
+              versionedPlugin -> {
+                Stream<com.dremio.service.catalog.Table> tables =
+                    versionedPlugin.getAllInformationSchemaTableInfo(searchQuery);
+                res[0] = Iterators.concat(res[0], tables.iterator());
+              });
     }
 
     final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-      userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
+        userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
 
-    return Iterators.concat(res[0],
-      StreamSupport.stream(searchResults.spliterator(), false)
-      .filter(IS_NOT_INTERNAL)
-      .map(input -> {
-        final String sourceName = input.getKey().getRoot();
+    return Iterators.concat(
+        res[0],
+        StreamSupport.stream(searchResults.spliterator(), false)
+            .filter(IS_NOT_INTERNAL)
+            .map(
+                input -> {
+                  final String sourceName = input.getKey().getRoot();
 
-        final TableType tableType;
-        if (input.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET) {
-          tableType = TableType.VIEW;
-        } else if ("sys".equals(sourceName) || "INFORMATION_SCHEMA".equals(sourceName)) {
-          tableType = TableType.SYSTEM_TABLE;
-        } else {
-          tableType = TableType.TABLE;
-        }
+                  final TableType tableType;
+                  if (input.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET) {
+                    tableType = TableType.VIEW;
+                  } else if ("sys".equals(sourceName) || "INFORMATION_SCHEMA".equals(sourceName)) {
+                    tableType = TableType.SYSTEM_TABLE;
+                  } else {
+                    tableType = TableType.TABLE;
+                  }
 
-        return Table.newBuilder()
-          .setCatalogName(DEFAULT_CATALOG_NAME)
-          .setSchemaName(input.getKey().getParent().toUnescapedString())
-          .setTableName(input.getKey().getName())
-          .setTableType(tableType)
-          .build();
-      }).iterator());
+                  return Table.newBuilder()
+                      .setCatalogName(DEFAULT_CATALOG_NAME)
+                      .setSchemaName(input.getKey().getParent().toUnescapedString())
+                      .setTableName(input.getKey().getName())
+                      .setTableType(tableType)
+                      .build();
+                })
+            .iterator());
   }
 
   @Override
@@ -315,27 +329,33 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
     if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
       versionedPlugins
-        .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
-        .forEach(versionedPlugin -> {
-            Stream<com.dremio.service.catalog.View> views = versionedPlugin.getAllInformationSchemaViewInfo(searchQuery);
-            res[0] = Iterators.concat(res[0], views.iterator());
-          }
-        );
+          .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
+          .forEach(
+              versionedPlugin -> {
+                Stream<com.dremio.service.catalog.View> views =
+                    versionedPlugin.getAllInformationSchemaViewInfo(searchQuery);
+                res[0] = Iterators.concat(res[0], views.iterator());
+              });
     }
 
-      final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
+    final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
         userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
 
-      return Iterators.concat(res[0],
+    return Iterators.concat(
+        res[0],
         StreamSupport.stream(searchResults.spliterator(), false)
-        .filter(IS_NOT_INTERNAL)
-        .filter(entry -> entry.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET)
-        .map(entry -> View.newBuilder()
-          .setCatalogName(DEFAULT_CATALOG_NAME)
-          .setSchemaName(entry.getKey().getParent().toUnescapedString())
-          .setTableName(entry.getKey().getName())
-          .setViewDefinition(entry.getValue().getDataset().getVirtualDataset().getSql())
-          .build()).iterator());
+            .filter(IS_NOT_INTERNAL)
+            .filter(entry -> entry.getValue().getDataset().getType() == DatasetType.VIRTUAL_DATASET)
+            .map(
+                entry ->
+                    View.newBuilder()
+                        .setCatalogName(DEFAULT_CATALOG_NAME)
+                        .setSchemaName(entry.getKey().getParent().toUnescapedString())
+                        .setTableName(entry.getKey().getName())
+                        .setViewDefinition(
+                            entry.getValue().getDataset().getVirtualDataset().getSql())
+                        .build())
+            .iterator());
   }
 
   @Override
@@ -345,43 +365,50 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
 
     if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
       versionedPlugins
-        .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
-        .forEach(versionedPlugin -> {
-            Stream<com.dremio.service.catalog.TableSchema> columns = versionedPlugin.getAllInformationSchemaColumnInfo(searchQuery);
-            res[0] = Iterators.concat(res[0], columns.iterator());
-          }
-        );
+          .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
+          .forEach(
+              versionedPlugin -> {
+                Stream<com.dremio.service.catalog.TableSchema> columns =
+                    versionedPlugin.getAllInformationSchemaColumnInfo(searchQuery);
+                res[0] = Iterators.concat(res[0], columns.iterator());
+              });
     }
 
     final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-      userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
+        userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
 
-   return Iterators.concat(res[0],
-     StreamSupport.stream(searchResults.spliterator(), false)
-       .filter(IS_NOT_INTERNAL)
-       .filter(entry -> DatasetHelper.getSchemaBytes(entry.getValue().getDataset()) != null)
-       .map(entry -> TableSchema.newBuilder()
-         .setCatalogName(DEFAULT_CATALOG_NAME)
-         .setSchemaName(entry.getKey().getParent().toUnescapedString())
-         .setTableName(entry.getKey().getName())
-         .setBatchSchema(rewriteBatchSchema(DatasetHelper.getSchemaBytes(entry.getValue().getDataset())))
-         .build()).iterator());
+    return Iterators.concat(
+        res[0],
+        StreamSupport.stream(searchResults.spliterator(), false)
+            .filter(IS_NOT_INTERNAL)
+            .filter(entry -> DatasetHelper.getSchemaBytes(entry.getValue().getDataset()) != null)
+            .map(
+                entry ->
+                    TableSchema.newBuilder()
+                        .setCatalogName(DEFAULT_CATALOG_NAME)
+                        .setSchemaName(entry.getKey().getParent().toUnescapedString())
+                        .setTableName(entry.getKey().getName())
+                        .setBatchSchema(
+                            rewriteBatchSchema(
+                                DatasetHelper.getSchemaBytes(entry.getValue().getDataset())))
+                        .build())
+            .iterator());
   }
 
   private static ByteString rewriteBatchSchema(io.protostuff.ByteString byteString) {
     final BatchSchema batchSchema = BatchSchema.deserialize(byteString);
-    final BatchSchema rewrittenSchema = new BatchSchema(batchSchema.getFields()
-      .stream()
-      .filter(field -> !SYSTEM_FIELDS.contains(field.getName()))
-      .collect(Collectors.toList())
-    );
+    final BatchSchema rewrittenSchema =
+        new BatchSchema(
+            batchSchema.getFields().stream()
+                .filter(field -> !SYSTEM_FIELDS.contains(field.getName()))
+                .collect(Collectors.toList()));
 
     return ByteString.copyFrom(rewrittenSchema.serialize());
   }
 
   /**
-   * Adds a dataset filter to a given search query. If query is null, return just the
-   * dataset filter.
+   * Adds a dataset filter to a given search query. If query is null, return just the dataset
+   * filter.
    */
   private SearchTypes.SearchQuery addDatasetFilter(SearchQuery searchQuery) {
     if (searchQuery == null) {
@@ -399,9 +426,8 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
       return false;
     } catch (NamespaceException e) {
       throw UserException.validationError(e)
-        .message(
-          "sourceName [%s] not found.",sourceName)
-        .buildSilently();
+          .message("sourceName [%s] not found.", sourceName)
+          .buildSilently();
     }
   }
 }

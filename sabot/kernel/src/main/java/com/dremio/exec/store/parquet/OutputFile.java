@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.io.IOException;
-
-import org.apache.parquet.io.PositionOutputStream;
-
 import com.dremio.io.FSOutputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import java.io.IOException;
+import org.apache.parquet.io.PositionOutputStream;
 
 public final class OutputFile implements org.apache.parquet.io.OutputFile {
   private final FileSystem fs;
@@ -76,14 +74,12 @@ public final class OutputFile implements org.apache.parquet.io.OutputFile {
     @Override
     public void write(int b) throws IOException {
       os.write(b);
-
     }
 
     @Override
     public void write(byte[] b) throws IOException {
       os.write(b);
     }
-
 
     @Override
     public void write(byte[] b, int off, int len) throws IOException {

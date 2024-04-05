@@ -19,13 +19,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-/**
- * Tests to prevent relative path file injection from Zip Files.
- */
+/** Tests to prevent relative path file injection from Zip Files. */
 public class TestNativeLibPluginClassLoader {
   private static Path mockTempDir;
   private static Path mockNestedTempDir;
@@ -48,7 +45,8 @@ public class TestNativeLibPluginClassLoader {
     NativeLibPluginClassLoader.validateZipDirectory(mockTempDir, entry);
     NativeLibPluginClassLoader.validateZipDirectory(mockTempDirWithTrailingSlash, entry);
     NativeLibPluginClassLoader.validateZipDirectory(mockTempDirInPrivateMappedDir, entry);
-    NativeLibPluginClassLoader.validateZipDirectory(mockTempDirInPrivateMappedDirWithTrailingSlash, entry);
+    NativeLibPluginClassLoader.validateZipDirectory(
+        mockTempDirInPrivateMappedDirWithTrailingSlash, entry);
   }
 
   @Test
@@ -57,7 +55,8 @@ public class TestNativeLibPluginClassLoader {
     NativeLibPluginClassLoader.validateZipDirectory(mockTempDir, entry);
     NativeLibPluginClassLoader.validateZipDirectory(mockTempDirWithTrailingSlash, entry);
     NativeLibPluginClassLoader.validateZipDirectory(mockTempDirInPrivateMappedDir, entry);
-    NativeLibPluginClassLoader.validateZipDirectory(mockTempDirInPrivateMappedDirWithTrailingSlash, entry);
+    NativeLibPluginClassLoader.validateZipDirectory(
+        mockTempDirInPrivateMappedDirWithTrailingSlash, entry);
   }
 
   @Test
@@ -88,7 +87,8 @@ public class TestNativeLibPluginClassLoader {
 
   @Test
   public void validateZipDirectoryZipSlipTestUpdirMoreThanNestedCorrectDir() throws IOException {
-    // This expected to pass, because this will eventually resolve to /baseTmpDir/nestedTmpDir/somedir/somefile,
+    // This expected to pass, because this will eventually resolve to
+    // /baseTmpDir/nestedTmpDir/somedir/somefile,
     // which is a legal path within the base directory.
     ZipEntry entry = new ZipEntry("../../../../../baseTmpDir/nestedTmpDir/somedir/somefile");
     NativeLibPluginClassLoader.validateZipDirectory(mockNestedTempDir, entry);
@@ -96,15 +96,19 @@ public class TestNativeLibPluginClassLoader {
 
   @Test
   public void validateZipDirectoryZipSlipTestUpdirMoreThanNestedCorrectDir2() throws IOException {
-    // This expected to pass, because this will eventually resolve to /baseTmpDir/nestedTmpDir/somedir/somefile,
+    // This expected to pass, because this will eventually resolve to
+    // /baseTmpDir/nestedTmpDir/somedir/somefile,
     // which is a legal path within the base directory.
-    ZipEntry entry = new ZipEntry("../../../../../../../../../../../baseTmpDir/nestedTmpDir/somedir/somefile");
+    ZipEntry entry =
+        new ZipEntry("../../../../../../../../../../../baseTmpDir/nestedTmpDir/somedir/somefile");
     NativeLibPluginClassLoader.validateZipDirectory(mockNestedTempDir, entry);
   }
 
   @Test(expected = IOException.class)
-  public void validateZipDirectoryZipSlipTestUpdirMoreThanNestedCorrectDirFinalDirDifferent() throws IOException {
-    // This expected to fail, because this would resolve to /baseTmpDir/nestedTmpDir2/somedir/somefile,
+  public void validateZipDirectoryZipSlipTestUpdirMoreThanNestedCorrectDirFinalDirDifferent()
+      throws IOException {
+    // This expected to fail, because this would resolve to
+    // /baseTmpDir/nestedTmpDir2/somedir/somefile,
     // which differs from /baseTmpDir/nestedTmpDir
     ZipEntry entry = new ZipEntry("../../../../../baseTmpDir/nestedTmpDir2/somedir/somefile");
     NativeLibPluginClassLoader.validateZipDirectory(mockNestedTempDir, entry);

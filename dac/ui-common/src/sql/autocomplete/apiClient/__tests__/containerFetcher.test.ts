@@ -39,7 +39,7 @@ describe("containerFetcher", () => {
       };
       const containerFetcher = new ContainerFetcher(mockAutocompleteApi);
       expect(await containerFetcher.getContainers(["space1"], "", [])).toEqual(
-        containers
+        containers,
       );
     });
 
@@ -69,7 +69,7 @@ describe("containerFetcher", () => {
           isExhaustive: true,
         });
       expect(await containerFetcher.getContainers(["SPACE1"], "", [])).toEqual(
-        containers
+        containers,
       );
     });
 
@@ -99,7 +99,7 @@ describe("containerFetcher", () => {
           isExhaustive: true,
         });
       expect(await containerFetcher.getContainers(["space2"], "", [])).toEqual(
-        []
+        [],
       );
     });
 
@@ -129,7 +129,7 @@ describe("containerFetcher", () => {
           isExhaustive: true,
         });
       expect(
-        await containerFetcher.getContainers(["space1"], "TABLE", [])
+        await containerFetcher.getContainers(["space1"], "TABLE", []),
       ).toEqual(containers);
     });
 
@@ -165,7 +165,7 @@ describe("containerFetcher", () => {
           isExhaustive: true,
         });
       expect(
-        await containerFetcher.getContainers(["space1"], "table12", [])
+        await containerFetcher.getContainers(["space1"], "table12", []),
       ).toEqual(newContainers);
     });
 
@@ -197,8 +197,8 @@ describe("containerFetcher", () => {
           ["space1"],
           "",
           [],
-          new Set([ContainerType.VIRTUAL])
-        )
+          new Set([ContainerType.VIRTUAL]),
+        ),
       ).toEqual([containers[0]]);
       // Change API to return no data to ensure it's not called again
       mockAutocompleteApi.getContainers = () =>
@@ -211,8 +211,8 @@ describe("containerFetcher", () => {
           ["space1"],
           "",
           [],
-          new Set([ContainerType.FUNCTION])
-        )
+          new Set([ContainerType.FUNCTION]),
+        ),
       ).toEqual([containers[1]]);
     });
 
@@ -248,7 +248,7 @@ describe("containerFetcher", () => {
           isExhaustive: true,
         });
       expect(
-        await containerFetcher.getContainers(["folder1"], "", ["space2"])
+        await containerFetcher.getContainers(["folder1"], "", ["space2"]),
       ).toEqual(newContainers);
     });
   });

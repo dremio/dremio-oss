@@ -18,22 +18,20 @@ package com.dremio.service.commandpool;
 import com.dremio.common.util.Closeable;
 
 /**
- * Interface for a releaseable command pool. In addition to the CommandPool, this
- * class provides a method for the caller to release the command pool slot that it
- * is currently using
+ * Interface for a releaseable command pool. In addition to the CommandPool, this class provides a
+ * method for the caller to release the command pool slot that it is currently using
  */
 public interface ReleasableCommandPool extends CommandPool {
   /**
-   * This API is a helper API provided to callers to know if they are holding a
-   * command pool slot
+   * This API is a helper API provided to callers to know if they are holding a command pool slot
    *
    * @return
    */
   boolean amHoldingSlot();
 
   /**
-   * Releases the command pool slot and returns a Closeable that re-acquires the
-   * command pool slot. This is expected to be used in a try-with-resources block
+   * Releases the command pool slot and returns a Closeable that re-acquires the command pool slot.
+   * This is expected to be used in a try-with-resources block
    *
    * @return
    */

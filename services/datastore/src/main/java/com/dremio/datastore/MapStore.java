@@ -15,15 +15,6 @@
  */
 package com.dremio.datastore;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentSkipListMap;
-
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
@@ -35,10 +26,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.primitives.UnsignedBytes;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentSkipListMap;
 
-/**
- * An in memory store for testing purposes.
- */
+/** An in memory store for testing purposes. */
 class MapStore implements ByteStore {
 
   private final ConcurrentSkipListMap<byte[], VersionedEntry> map;
@@ -73,12 +70,11 @@ class MapStore implements ByteStore {
       }
 
       final VersionedEntry that = (VersionedEntry) rhs;
-      return Objects.equals(tag, that.tag) &&
-        Objects.equals(value, that.value);
+      return Objects.equals(tag, that.tag) && Objects.equals(value, that.value);
     }
   }
 
-  public MapStore(String name){
+  public MapStore(String name) {
     this.map = new ConcurrentSkipListMap<>(UnsignedBytes.lexicographicalComparator());
     this.name = name;
   }
@@ -86,17 +82,19 @@ class MapStore implements ByteStore {
   @Override
   public Document<byte[], byte[]> get(byte[] key, GetOption... options) {
     final VersionedEntry entry = map.get(key);
-    return entry == null ? null : new ImmutableDocument.Builder<byte[], byte[]>()
-      .setKey(key)
-      .setValue(entry.getValue().array())
-      .setTag(entry.getTag())
-      .build();
+    return entry == null
+        ? null
+        : new ImmutableDocument.Builder<byte[], byte[]>()
+            .setKey(key)
+            .setValue(entry.getValue().array())
+            .setTag(entry.getTag())
+            .build();
   }
 
   @Override
   public Iterable<Document<byte[], byte[]>> get(List<byte[]> keys, GetOption... options) {
     List<Document<byte[], byte[]>> values = new ArrayList<>();
-    for(byte[] key : keys){
+    for (byte[] key : keys) {
       values.add(get(key, options));
     }
     return values;
@@ -108,10 +106,10 @@ class MapStore implements ByteStore {
     final String newTag = ByteStore.generateTagFromBytes(v);
     map.put(key, new VersionedEntry(newTag, ByteBuffer.wrap(v)));
     return new ImmutableDocument.Builder<byte[], byte[]>()
-      .setKey(key)
-      .setValue(v)
-      .setTag(newTag)
-      .build();
+        .setKey(key)
+        .setValue(v)
+        .setTag(newTag)
+        .build();
   }
 
   @Override
@@ -146,46 +144,51 @@ class MapStore implements ByteStore {
       return toIterableDocs(map);
     }
 
-    return toIterableDocs(map.subMap(find.getStart(), find.isStartInclusive(), find.getEnd(), find.isEndInclusive()));
+    return toIterableDocs(
+        map.subMap(find.getStart(), find.isStartInclusive(), find.getEnd(), find.isEndInclusive()));
   }
 
   @Override
-  public void bulkIncrement(Map<byte[], List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+  public void bulkIncrement(
+      Map<byte[], List<IncrementCounter>> keysToIncrement, IncrementOption option) {
     throw new UnsupportedOperationException("Bulk increment operation is not supported.");
   }
 
   @Override
-  public void bulkDelete(List<byte[]> keysToDelete) {
-    throw new UnsupportedOperationException("Bulk delete operation is not supported.");
+  public void bulkDelete(List<byte[]> keysToDelete, DeleteOption... deleteOptions) {
+    for (byte[] key : keysToDelete) {
+      delete(key, deleteOptions);
+    }
   }
 
-  private static Function<Entry<byte[], VersionedEntry>, Document<byte[], byte[]>> TRANSFORMER = new Function<Entry<byte[], VersionedEntry>, Document<byte[], byte[]>>(){
-
-    @Override
-    public Document<byte[], byte[]> apply(final Entry<byte[], VersionedEntry> input) {
-      return new Document<byte[], byte[]>(){
+  private static Function<Entry<byte[], VersionedEntry>, Document<byte[], byte[]>> TRANSFORMER =
+      new Function<Entry<byte[], VersionedEntry>, Document<byte[], byte[]>>() {
 
         @Override
-        public byte[] getKey() {
-          return input.getKey();
-        }
+        public Document<byte[], byte[]> apply(final Entry<byte[], VersionedEntry> input) {
+          return new Document<byte[], byte[]>() {
 
-        @Override
-        public byte[] getValue() {
-          if(input.getValue() != null){
-            return input.getValue().getValue().array();
-          } else {
-            return null;
-          }
-        }
+            @Override
+            public byte[] getKey() {
+              return input.getKey();
+            }
 
-        @Override
-        public String getTag() {
-          return input.getValue().getTag();
+            @Override
+            public byte[] getValue() {
+              if (input.getValue() != null) {
+                return input.getValue().getValue().array();
+              } else {
+                return null;
+              }
+            }
+
+            @Override
+            public String getTag() {
+              return input.getValue().getTag();
+            }
+          };
         }
       };
-    }};
-
 
   @Override
   public Iterable<Document<byte[], byte[]>> find(FindOption... options) {
@@ -203,7 +206,8 @@ class MapStore implements ByteStore {
   }
 
   @Override
-  public Document<byte[], byte[]> validateAndPut(byte[] key, byte[] newValue, VersionOption.TagInfo versionInfo, PutOption... options) {
+  public Document<byte[], byte[]> validateAndPut(
+      byte[] key, byte[] newValue, VersionOption.TagInfo versionInfo, PutOption... options) {
     Preconditions.checkNotNull(newValue);
     Preconditions.checkNotNull(versionInfo);
     Preconditions.checkArgument(versionInfo.hasCreateOption() || versionInfo.getTag() != null);
@@ -213,33 +217,40 @@ class MapStore implements ByteStore {
 
     // Validity check fails if the CREATE option is used but there is an existing entry,
     // or there's an existing entry and the tag doesn't match.
-    if ((versionInfo.hasCreateOption() && oldEntry != null) || (!versionInfo.hasCreateOption() && oldEntry == null)
-      || (versionInfo.getTag() != null && !versionInfo.getTag().equals(oldEntry.getTag()))) {
+    if ((versionInfo.hasCreateOption() && oldEntry != null)
+        || (!versionInfo.hasCreateOption() && oldEntry == null)
+        || (versionInfo.getTag() != null && !versionInfo.getTag().equals(oldEntry.getTag()))) {
       return null;
     }
 
     final boolean succeeded;
     final String newTag = ByteStore.generateTagFromBytes(newValue);
     if (oldEntry == null) {
-      succeeded = map.putIfAbsent(key, new VersionedEntry(newTag, ByteBuffer.wrap(newValue))) == null;
+      succeeded =
+          map.putIfAbsent(key, new VersionedEntry(newTag, ByteBuffer.wrap(newValue))) == null;
     } else {
       final byte[] oldValue = oldEntry.getValue();
-      succeeded = map.replace(key, new VersionedEntry(oldEntry.getTag(), ByteBuffer.wrap(oldValue)), new VersionedEntry(newTag, ByteBuffer.wrap(newValue)));
+      succeeded =
+          map.replace(
+              key,
+              new VersionedEntry(oldEntry.getTag(), ByteBuffer.wrap(oldValue)),
+              new VersionedEntry(newTag, ByteBuffer.wrap(newValue)));
     }
 
     if (succeeded) {
       return new ImmutableDocument.Builder<byte[], byte[]>()
-        .setKey(key)
-        .setValue(newValue)
-        .setTag(newTag)
-        .build();
+          .setKey(key)
+          .setValue(newValue)
+          .setTag(newTag)
+          .build();
     }
 
     return null;
   }
 
   @Override
-  public boolean validateAndDelete(byte[] key, VersionOption.TagInfo versionInfo, DeleteOption... options) {
+  public boolean validateAndDelete(
+      byte[] key, VersionOption.TagInfo versionInfo, DeleteOption... options) {
     Preconditions.checkNotNull(versionInfo);
     Preconditions.checkArgument(!versionInfo.hasCreateOption());
     Preconditions.checkNotNull(versionInfo.getTag());
@@ -250,7 +261,8 @@ class MapStore implements ByteStore {
       return false;
     }
 
-    return map.remove(key, new VersionedEntry(oldEntry.getTag(), ByteBuffer.wrap(oldEntry.getValue())));
+    return map.remove(
+        key, new VersionedEntry(oldEntry.getTag(), ByteBuffer.wrap(oldEntry.getValue())));
   }
 
   @Override
@@ -277,6 +289,5 @@ class MapStore implements ByteStore {
       sb.append('\n');
       return sb.toString();
     }
-
   }
 }

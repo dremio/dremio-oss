@@ -15,25 +15,20 @@
  */
 package com.dremio.dac.util;
 
-/**
- * Utility class to Invalid Query Error message converter
- */
+/** Utility class to Invalid Query Error message converter */
 public class InvalidQueryErrorConverter {
 
   private static final String NULL_USE = "Illegal use of 'NULL'";
-  private static final String NULL_USE_USER_MSG = "We do not support NULL as a return data type in SELECT. Cast it " +
-    "to a different type.";
+  private static final String NULL_USE_USER_MSG =
+      "We do not support NULL as a return data type in SELECT. Cast it " + "to a different type.";
 
-  /**
-   * Coverts system query error message to user friendly message
-   */
+  /** Coverts system query error message to user friendly message */
   public static String convert(String errorMessage) {
     switch (errorMessage) {
       case NULL_USE:
         return NULL_USE_USER_MSG;
       default:
         return errorMessage;
-
     }
   }
 }

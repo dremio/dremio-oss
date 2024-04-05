@@ -16,20 +16,20 @@
 package com.dremio.service.functions.snippets;
 
 import java.util.Optional;
-
 import org.junit.Assert;
 import org.junit.Test;
 
 public class SnippetTests {
   @Test
   public void tests() {
-    Snippet testSnippet = Snippet.builder()
-      .addChoice("this", "is", "a", "choice")
-      .addPlaceholder("This is a placeholder")
-      .addText("This is a text")
-      .addTabstop()
-      .addVariable(Variable.Type.CLIPBOARD)
-      .build();
+    Snippet testSnippet =
+        Snippet.builder()
+            .addChoice("this", "is", "a", "choice")
+            .addPlaceholder("This is a placeholder")
+            .addText("This is a text")
+            .addTabstop()
+            .addVariable(Variable.Type.CLIPBOARD)
+            .build();
 
     String testSnippetString = testSnippet.toString();
     Optional<Snippet> optionalSnippet = Snippet.tryParse(testSnippetString);

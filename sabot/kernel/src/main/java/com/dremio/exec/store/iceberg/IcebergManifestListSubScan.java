@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.List;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -31,111 +29,129 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.ByteString;
+import java.util.List;
 
-/**
- * Iceberg manifest list subscan POP
- */
+/** Iceberg manifest list subscan POP */
 @JsonTypeName("iceberg-manifestlist-sub-scan")
 public class IcebergManifestListSubScan extends SubScanWithProjection {
 
-    private final StoragePluginId pluginId;
-    private final StoragePluginId datasourcePluginId;
-    private final ByteString extendedProperty;
-    private final List<String> partitionColumns;
-    private final IcebergExtendedProp icebergExtendedProp;
-    private final String location;
-    private final ManifestContentType manifestContent;
+  private final StoragePluginId pluginId;
+  private final StoragePluginId datasourcePluginId;
+  private final ByteString extendedProperty;
+  private final List<String> partitionColumns;
+  private final IcebergExtendedProp icebergExtendedProp;
+  private final String location;
+  private final ManifestContentType manifestContent;
 
-    @JsonIgnore
-    private List<SplitAndPartitionInfo> splits;
+  private final boolean isInternalIcebergScanTableMetadata;
 
-    public IcebergManifestListSubScan(
-            @JsonProperty("props") OpProps props,
-            @JsonProperty("location") String location,
-            @JsonProperty("fullSchema") BatchSchema fullSchema,
-            @JsonProperty("tableSchemaPath") List<String> tablePath,
-            @JsonProperty("pluginId") StoragePluginId pluginId,
-            @JsonProperty("datasourcePluginId") StoragePluginId datasourcePluginId,
-            @JsonProperty("columns") List<SchemaPath> columns,
-            @JsonProperty("partitionColumns") List<String> partitionColumns,
-            @JsonProperty("extendedProperty") ByteString extendedProperty,
-            @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp,
-            @JsonProperty("manifestContent") ManifestContentType manifestContent) {
-        this(props, location, fullSchema, null, tablePath, pluginId, datasourcePluginId,
-                columns, partitionColumns, extendedProperty, icebergExtendedProp, manifestContent);
-    }
+  @JsonIgnore private List<SplitAndPartitionInfo> splits;
 
-    public IcebergManifestListSubScan(
-            OpProps props,
-            String location,
-            BatchSchema fullSchema,
-            List<SplitAndPartitionInfo> splits,
-            List<String> tablePath,
-            StoragePluginId pluginId,
-            StoragePluginId datasourcePluginId,
-            List<SchemaPath> columns,
-            List<String> partitionColumns,
-            ByteString extendedProperty,
-            IcebergExtendedProp icebergExtendedProp,
-            ManifestContentType manifestContent) {
-        super(props, fullSchema, (tablePath == null) ? null : ImmutableList.of(tablePath), columns);
-        this.location = location;
-        this.pluginId = pluginId;
-        this.icebergExtendedProp = icebergExtendedProp;
-        this.extendedProperty = extendedProperty;
-        this.partitionColumns = partitionColumns;
-        this.datasourcePluginId = datasourcePluginId;
-        this.splits = splits;
-        this.manifestContent = manifestContent;
-    }
+  public IcebergManifestListSubScan(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("location") String location,
+      @JsonProperty("fullSchema") BatchSchema fullSchema,
+      @JsonProperty("tableSchemaPath") List<String> tablePath,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("datasourcePluginId") StoragePluginId datasourcePluginId,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("partitionColumns") List<String> partitionColumns,
+      @JsonProperty("extendedProperty") ByteString extendedProperty,
+      @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp,
+      @JsonProperty("manifestContent") ManifestContentType manifestContent,
+      @JsonProperty("isInternalIcebergScanTableMetadata")
+          boolean isInternalIcebergScanTableMetadata) {
+    this(
+        props,
+        location,
+        fullSchema,
+        null,
+        tablePath,
+        pluginId,
+        datasourcePluginId,
+        columns,
+        partitionColumns,
+        extendedProperty,
+        icebergExtendedProp,
+        manifestContent,
+        isInternalIcebergScanTableMetadata);
+  }
 
-    public String getLocation() {
-        return location;
-    }
+  public IcebergManifestListSubScan(
+      OpProps props,
+      String location,
+      BatchSchema fullSchema,
+      List<SplitAndPartitionInfo> splits,
+      List<String> tablePath,
+      StoragePluginId pluginId,
+      StoragePluginId datasourcePluginId,
+      List<SchemaPath> columns,
+      List<String> partitionColumns,
+      ByteString extendedProperty,
+      IcebergExtendedProp icebergExtendedProp,
+      ManifestContentType manifestContent,
+      boolean isInternalIcebergScanTableMetadata) {
+    super(props, fullSchema, (tablePath == null) ? null : ImmutableList.of(tablePath), columns);
+    this.location = location;
+    this.pluginId = pluginId;
+    this.icebergExtendedProp = icebergExtendedProp;
+    this.extendedProperty = extendedProperty;
+    this.partitionColumns = partitionColumns;
+    this.datasourcePluginId = datasourcePluginId;
+    this.splits = splits;
+    this.manifestContent = manifestContent;
+    this.isInternalIcebergScanTableMetadata = isInternalIcebergScanTableMetadata;
+  }
 
-    public List<String> getPartitionColumns() {
-        return partitionColumns;
-    }
+  public String getLocation() {
+    return location;
+  }
 
-    public ByteString getExtendedProperty() {
-        return extendedProperty;
-    }
+  public List<String> getPartitionColumns() {
+    return partitionColumns;
+  }
 
-    public StoragePluginId getPluginId() {
-        return pluginId;
-    }
+  public ByteString getExtendedProperty() {
+    return extendedProperty;
+  }
 
-    public StoragePluginId getDatasourcePluginId() {
-        return datasourcePluginId;
-    }
+  public StoragePluginId getPluginId() {
+    return pluginId;
+  }
 
-    public IcebergExtendedProp getIcebergExtendedProp() {
-        return icebergExtendedProp;
-    }
+  public StoragePluginId getDatasourcePluginId() {
+    return datasourcePluginId;
+  }
 
-    public List<SplitAndPartitionInfo> getSplits() {
-        return splits;
-    }
+  public IcebergExtendedProp getIcebergExtendedProp() {
+    return icebergExtendedProp;
+  }
 
-    public ManifestContentType getManifestContent() {
-      return manifestContent;
-    }
+  public List<SplitAndPartitionInfo> getSplits() {
+    return splits;
+  }
 
-    @Override
-    public int getOperatorType() {
-        return UserBitShared.CoreOperatorType.ICEBERG_SUB_SCAN_VALUE;
-    }
+  public ManifestContentType getManifestContent() {
+    return manifestContent;
+  }
 
+  public boolean getIsInternalIcebergScanTableMetadata() {
+    return isInternalIcebergScanTableMetadata;
+  }
 
-    @Override
-    public void collectMinorSpecificAttrs(MinorDataWriter writer) {
-        SplitNormalizer.write(getProps(), writer, splits);
-    }
+  @Override
+  public int getOperatorType() {
+    return UserBitShared.CoreOperatorType.ICEBERG_SUB_SCAN_VALUE;
+  }
 
-    @Override
-    public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
-        splits = SplitNormalizer.read(getProps(), reader);
-    }
+  @Override
+  public void collectMinorSpecificAttrs(MinorDataWriter writer) {
+    SplitNormalizer.write(getProps(), writer, splits);
+  }
+
+  @Override
+  public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
+    splits = SplitNormalizer.read(getProps(), reader);
+  }
 }

@@ -18,23 +18,6 @@ package com.dremio.dac.explore.join;
 import static com.dremio.common.utils.Protos.listNotNull;
 import static com.dremio.service.job.proto.JobState.COMPLETED;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-
-import javax.inject.Inject;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.explore.model.JoinRecommendation;
 import com.dremio.dac.explore.model.JoinRecommendations;
@@ -57,10 +40,22 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableListMultimap.Builder;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import javax.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * Recommends joins based on job history
- */
+/** Recommends joins based on job history */
 public class JobsBasedRecommender implements JoinRecommender {
   private static final Logger logger = LoggerFactory.getLogger(JobsBasedRecommender.class);
 
@@ -78,7 +73,8 @@ public class JobsBasedRecommender implements JoinRecommender {
   @Override
   public JoinRecommendations recommendJoins(Dataset dataset) {
     try {
-      final List<FieldOrigin> fieldOriginsList = listNotNull(dataset.getDatasetConfig().getFieldOriginsList());
+      final List<FieldOrigin> fieldOriginsList =
+          listNotNull(dataset.getDatasetConfig().getFieldOriginsList());
       if (fieldOriginsList.isEmpty()) {
         // we can't help at this point
         logger.warn("Could not find field origins in the provided dataset: " + dataset);
@@ -103,41 +99,66 @@ public class JobsBasedRecommender implements JoinRecommender {
         for (JobDetails jobDetails : jobsForParent) {
           JobAttempt jobAttempt = JobsProtoUtil.getLastAttempt(jobDetails);
           Long startTime = jobAttempt.getInfo().getStartTime();
-          //startTime of 0 means startTime was initially null
+          // startTime of 0 means startTime was initially null
           if (startTime == 0 || jobAttempt.getState() != COMPLETED) {
             continue;
           }
           long recency = now - startTime;
           JoinAnalysis joinAnalysis = jobAttempt.getInfo().getJoinAnalysis();
 
-          if (joinAnalysis != null && joinAnalysis.getJoinStatsList() != null && joinAnalysis.getJoinTablesList() != null) {
-            Map<Integer, JoinTable> joinTables = FluentIterable.from(joinAnalysis.getJoinTablesList())
-              .uniqueIndex(new Function<JoinTable, Integer>() {
-                @Override
-                public Integer apply(JoinTable joinTable) {
-                  return joinTable.getTableId();
-                }
-              });
+          if (joinAnalysis != null
+              && joinAnalysis.getJoinStatsList() != null
+              && joinAnalysis.getJoinTablesList() != null) {
+            Map<Integer, JoinTable> joinTables =
+                FluentIterable.from(joinAnalysis.getJoinTablesList())
+                    .uniqueIndex(
+                        new Function<JoinTable, Integer>() {
+                          @Override
+                          public Integer apply(JoinTable joinTable) {
+                            return joinTable.getTableId();
+                          }
+                        });
 
             for (final JoinStats join : joinAnalysis.getJoinStatsList()) {
               // ignore if join analysis is missing join conditions
               if (join.getJoinConditionsList() == null || join.getJoinConditionsList().isEmpty()) {
                 continue;
               }
-              final List<String> leftTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getProbeSideTableId()).getTableSchemaPathList();
-              final List<String> rightTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getBuildSideTableId()).getTableSchemaPathList();
+              final List<String> leftTablePathList =
+                  joinTables
+                      .get(join.getJoinConditionsList().get(0).getProbeSideTableId())
+                      .getTableSchemaPathList();
+              final List<String> rightTablePathList =
+                  joinTables
+                      .get(join.getJoinConditionsList().get(0).getBuildSideTableId())
+                      .getTableSchemaPathList();
 
               // if any of the join sides no longer exists in namespace, skip it
-              if (!checkIfExists(existsMap, leftTablePathList) || !checkIfExists(existsMap, rightTablePathList)) {
+              if (!checkIfExists(existsMap, leftTablePathList)
+                  || !checkIfExists(existsMap, rightTablePathList)) {
                 continue;
               }
 
               if (parents.contains(leftTablePathList)) {
-                addJoinReco(refs, recommendations, recency, join, rightTablePathList, leftTablePathList, joinTables);
+                addJoinReco(
+                    refs,
+                    recommendations,
+                    recency,
+                    join,
+                    rightTablePathList,
+                    leftTablePathList,
+                    joinTables);
               }
               // we can add it both ways if both tables are there
               if (parents.contains(rightTablePathList)) {
-                addJoinReco(refs, recommendations, recency, join, leftTablePathList, rightTablePathList, joinTables);
+                addJoinReco(
+                    refs,
+                    recommendations,
+                    recency,
+                    join,
+                    leftTablePathList,
+                    rightTablePathList,
+                    joinTables);
               }
             }
           }
@@ -151,7 +172,8 @@ public class JobsBasedRecommender implements JoinRecommender {
       }
       ImmutableListMultimap<JoinRecommendation, JoinRecoForScoring> index = builder.build();
       List<JoinRecoForScoring> mergedRecommendations = new ArrayList<>();
-      for (Entry<JoinRecommendation, Collection<JoinRecoForScoring>> recos : index.asMap().entrySet()) {
+      for (Entry<JoinRecommendation, Collection<JoinRecoForScoring>> recos :
+          index.asMap().entrySet()) {
         JoinRecommendation key = recos.getKey();
         long recency = Long.MAX_VALUE;
         int jobCount = 0;
@@ -180,7 +202,9 @@ public class JobsBasedRecommender implements JoinRecommender {
     return exists;
   }
 
-  private void indexOrigins(final List<FieldOrigin> fieldOriginsList, Set<List<String>> parents,
+  private void indexOrigins(
+      final List<FieldOrigin> fieldOriginsList,
+      Set<List<String>> parents,
       Map<Origin, String> refs) {
     for (FieldOrigin fieldOrigin : fieldOriginsList) {
       List<Origin> originsList = listNotNull(fieldOrigin.getOriginsList());
@@ -192,7 +216,8 @@ public class JobsBasedRecommender implements JoinRecommender {
         // it has to be straight unchanged
         if (!origin.getDerived()) {
           parents.add(origin.getTableList());
-          // TODO(Julien): if the same column is referred more than once we could recommend all combinations by making refs a multimap
+          // TODO(Julien): if the same column is referred more than once we could recommend all
+          // combinations by making refs a multimap
           refs.put(origin, fieldOrigin.getName());
         }
       }
@@ -200,11 +225,20 @@ public class JobsBasedRecommender implements JoinRecommender {
   }
 
   private void addJoinReco(
-      Map<Origin, String> refs, List<JoinRecoForScoring> recommendations, long recency,
-      JoinStats joinStats, List<String> rightTable, List<String> leftTable, Map<Integer,JoinTable> tableMap) {
+      Map<Origin, String> refs,
+      List<JoinRecoForScoring> recommendations,
+      long recency,
+      JoinStats joinStats,
+      List<String> rightTable,
+      List<String> leftTable,
+      Map<Integer, JoinTable> tableMap) {
     Map<String, String> j = translateConditions(joinStats, refs, leftTable, rightTable, tableMap);
     if (j != null) {
-      recommendations.add(new JoinRecoForScoring(new JoinRecommendation(toJoinType(joinStats.getJoinType()), rightTable, j), 1, recency));
+      recommendations.add(
+          new JoinRecoForScoring(
+              new JoinRecommendation(toJoinType(joinStats.getJoinType()), rightTable, j),
+              1,
+              recency));
     }
   }
 
@@ -212,17 +246,17 @@ public class JobsBasedRecommender implements JoinRecommender {
     if (joinType == null) {
       return null;
     }
-    switch(joinType) {
-    case Inner:
-      return JoinType.Inner;
-    case LeftOuter:
-      return JoinType.LeftOuter;
-    case RightOuter:
-      return JoinType.RightOuter;
-    case FullOuter:
-      return JoinType.FullOuter;
-    default:
-      throw new AssertionError(String.format("Unknown join type: %s", joinType));
+    switch (joinType) {
+      case Inner:
+        return JoinType.Inner;
+      case LeftOuter:
+        return JoinType.LeftOuter;
+      case RightOuter:
+        return JoinType.RightOuter;
+      case FullOuter:
+        return JoinType.FullOuter;
+      default:
+        throw new AssertionError(String.format("Unknown join type: %s", joinType));
     }
   }
 
@@ -234,23 +268,27 @@ public class JobsBasedRecommender implements JoinRecommender {
     return joinRecommendations;
   }
 
-  private Map<String, String> translateConditions(JoinStats stats, Map<Origin,String> refs, List<String> leftTable, List<String> rightTable, Map<Integer,JoinTable> tableMap) {
+  private Map<String, String> translateConditions(
+      JoinStats stats,
+      Map<Origin, String> refs,
+      List<String> leftTable,
+      List<String> rightTable,
+      Map<Integer, JoinTable> tableMap) {
     SortedMap<String, String> joinConditions = new TreeMap<>();
     // translate names if needed
     for (JoinCondition condition : stats.getJoinConditionsList()) {
       String leftColumn;
       String rightColumn;
       // figure out which is which
-      if (
-        leftTable.equals(tableMap.get(condition.getProbeSideTableId()).getTableSchemaPathList()) &&
-          rightTable.equals(tableMap.get(condition.getBuildSideTableId()).getTableSchemaPathList())
-        ) {
+      if (leftTable.equals(tableMap.get(condition.getProbeSideTableId()).getTableSchemaPathList())
+          && rightTable.equals(
+              tableMap.get(condition.getBuildSideTableId()).getTableSchemaPathList())) {
         leftColumn = condition.getProbeSideColumn();
         rightColumn = condition.getBuildSideColumn();
-      } else if (
-        rightTable.equals(tableMap.get(condition.getProbeSideTableId()).getTableSchemaPathList()) &&
-          leftTable.equals(tableMap.get(condition.getBuildSideTableId()).getTableSchemaPathList())
-        ) {
+      } else if (rightTable.equals(
+              tableMap.get(condition.getProbeSideTableId()).getTableSchemaPathList())
+          && leftTable.equals(
+              tableMap.get(condition.getBuildSideTableId()).getTableSchemaPathList())) {
         leftColumn = condition.getBuildSideColumn();
         rightColumn = condition.getProbeSideColumn();
       } else {
@@ -276,10 +314,7 @@ public class JobsBasedRecommender implements JoinRecommender {
     private final int jobCount;
     private final long recency;
 
-    public JoinRecoForScoring(
-        JoinRecommendation joinReco,
-        int jobCount,
-        long recency) {
+    public JoinRecoForScoring(JoinRecommendation joinReco, int jobCount, long recency) {
       this.joinReco = joinReco;
       this.jobCount = jobCount;
       this.recency = recency;
@@ -288,7 +323,7 @@ public class JobsBasedRecommender implements JoinRecommender {
     @Override
     public int compareTo(JoinRecoForScoring other) {
       // we want more
-      int c = - Integer.compare(jobCount, other.jobCount);
+      int c = -Integer.compare(jobCount, other.jobCount);
       if (c != 0) {
         return c;
       }
@@ -298,16 +333,12 @@ public class JobsBasedRecommender implements JoinRecommender {
     }
   }
 
-  /**
-   * Allows simple mocking of dependency
-   */
+  /** Allows simple mocking of dependency */
   interface ParentJobsProvider {
     Iterable<JobDetails> getJobsForParent(List<String> parentDataset);
   }
 
-  /**
-   * Actual dependency
-   */
+  /** Actual dependency */
   private static class JobsServiceParentJobsProvider implements ParentJobsProvider {
     private final JobsService jobsService;
 
@@ -317,12 +348,12 @@ public class JobsBasedRecommender implements JoinRecommender {
 
     @Override
     public Iterable<JobDetails> getJobsForParent(List<String> parentDataset) {
-      JobsWithParentDatasetRequest jobsWithParentDatasetRequest = JobsWithParentDatasetRequest.newBuilder()
-        .setDataset(VersionedDatasetPath.newBuilder().addAllPath(parentDataset))
-        .setLimit(MAX_JOBS)
-        .build();
+      JobsWithParentDatasetRequest jobsWithParentDatasetRequest =
+          JobsWithParentDatasetRequest.newBuilder()
+              .setDataset(VersionedDatasetPath.newBuilder().addAllPath(parentDataset))
+              .setLimit(MAX_JOBS)
+              .build();
       return jobsService.getJobsForParent(jobsWithParentDatasetRequest);
     }
   }
-
 }

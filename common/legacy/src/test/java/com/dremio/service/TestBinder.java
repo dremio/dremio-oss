@@ -16,17 +16,14 @@
 package com.dremio.service;
 
 import javax.inject.Inject;
-
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * A few basic tests of the binder.
- */
+/** A few basic tests of the binder. */
 public class TestBinder {
 
   @Test
-  public void ensureChildLookup(){
+  public void ensureChildLookup() {
     BinderImpl bi = new BinderImpl();
     bi.bindSelf(Family.class);
     Binder inner = bi.newChild();
@@ -34,32 +31,28 @@ public class TestBinder {
     Assert.assertTrue(inner.lookup(Family.class).ok());
   }
 
-  /**
-   * Test class
-   */
+  /** Test class */
   public static class Family {
 
     private Children children;
 
     @Inject
-    public Family(Children children){
+    public Family(Children children) {
       this.children = children;
     }
 
-    public boolean ok(){
+    public boolean ok() {
       return children.ok();
     }
   }
 
-  /**
-   * Test class
-   */
+  /** Test class */
   public static class Children {
 
     @Inject
-    public Children(){}
+    public Children() {}
 
-    public boolean ok(){
+    public boolean ok() {
       return true;
     }
   }

@@ -29,11 +29,16 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.google.common.io.Resources;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.Metrics;
@@ -53,13 +58,6 @@ import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.SchemaConverter;
-import com.dremio.options.OptionManager;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.google.common.io.Resources;
 
 public class ParquetToIcebergStatsConvertorTest {
   private final SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
@@ -96,10 +94,8 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(intBlock());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "id", IntegerType.get()),
-      required(2, "currency", FloatType.get())
-    );
+    Schema schema =
+        new Schema(required(1, "id", IntegerType.get()), required(2, "currency", FloatType.get()));
 
     assertNoMinMax(parquetMetadata, schema);
   }
@@ -111,9 +107,7 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(booleanBlockWithMinMax2());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "eligible", BooleanType.get())
-    );
+    Schema schema = new Schema(required(1, "eligible", BooleanType.get()));
 
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetMetadata, schema);
     assertEquals(0, metrics.lowerBounds().get(1).get(0));
@@ -127,9 +121,7 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(intBlockWithMinMax2());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "id", IntegerType.get())
-    );
+    Schema schema = new Schema(required(1, "id", IntegerType.get()));
 
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetMetadata, schema);
     assertEquals(-1, metrics.lowerBounds().get(1).getInt(0));
@@ -143,9 +135,7 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(floatBlockWithMinMax2());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "currency", FloatType.get())
-    );
+    Schema schema = new Schema(required(1, "currency", FloatType.get()));
 
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetMetadata, schema);
     assertTrue(metrics.lowerBounds().get(1).getFloat(0) == -0.1f);
@@ -159,9 +149,7 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(binaryBlockWithMinMax2());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "data", BinaryType.get())
-    );
+    Schema schema = new Schema(required(1, "data", BinaryType.get()));
 
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetMetadata, schema);
     assertEquals('a', metrics.lowerBounds().get(1).get(0));
@@ -175,10 +163,8 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(floatBlock());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "id", IntegerType.get()),
-      required(2, "currency", FloatType.get())
-    );
+    Schema schema =
+        new Schema(required(1, "id", IntegerType.get()), required(2, "currency", FloatType.get()));
 
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetMetadata, schema);
     assertEquals(-1, metrics.lowerBounds().get(1).getInt(0));
@@ -192,9 +178,7 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(intBlock());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "id", IntegerType.get())
-    );
+    Schema schema = new Schema(required(1, "id", IntegerType.get()));
 
     assertNoMinMax(parquetMetadata, schema);
   }
@@ -206,10 +190,8 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(floatBlockWithMinMax());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "id", IntegerType.get()),
-      required(2, "currency", FloatType.get())
-    );
+    Schema schema =
+        new Schema(required(1, "id", IntegerType.get()), required(2, "currency", FloatType.get()));
 
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetMetadata, schema);
     assertEquals(-1, metrics.lowerBounds().get(1).getInt(0));
@@ -225,10 +207,8 @@ public class ParquetToIcebergStatsConvertorTest {
     blocks.add(intFloatBlockWithMinMax());
 
     ParquetMetadata parquetMetadata = new ParquetMetadata(null, blocks);
-    Schema schema = new Schema(
-      required(1, "id", IntegerType.get()),
-      required(2, "currency", FloatType.get())
-    );
+    Schema schema =
+        new Schema(required(1, "id", IntegerType.get()), required(2, "currency", FloatType.get()));
 
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetMetadata, schema);
     assertEquals(-1, metrics.lowerBounds().get(1).getInt(0));
@@ -241,41 +221,45 @@ public class ParquetToIcebergStatsConvertorTest {
   @Test
   public void testNoMinMaxForParquetFileWithList() throws Exception {
     Path path = new Path(Resources.getResource("parquet/array_int_bigint.parquet").toURI());
-    BatchSchema batchSchema = BatchSchema.newBuilder()
-      .addField(INT.asList().toField("col1"))
-      .addField(BIGINT.asList().toField("col2"))
-      .build();
-    assertNoMinMax(getParquetMetadata(path),  schemaConverter.toIcebergSchema(batchSchema));
+    BatchSchema batchSchema =
+        BatchSchema.newBuilder()
+            .addField(INT.asList().toField("col1"))
+            .addField(BIGINT.asList().toField("col2"))
+            .build();
+    assertNoMinMax(getParquetMetadata(path), schemaConverter.toIcebergSchema(batchSchema));
   }
 
   @Test
   public void testNoMinMaxForParquetFileWithStructOfList() throws Exception {
     Path path = new Path(Resources.getResource("parquet/struct_array_int_bigint.parquet").toURI());
-    BatchSchema batchSchema = BatchSchema.newBuilder()
-      .addField(struct(INT.asList().toField("f1")).toField("col1"))
-      .addField(struct(BIGINT.asList().toField("f2")).toField("col2"))
-      .build();
-    assertNoMinMax(getParquetMetadata(path),  schemaConverter.toIcebergSchema(batchSchema));
+    BatchSchema batchSchema =
+        BatchSchema.newBuilder()
+            .addField(struct(INT.asList().toField("f1")).toField("col1"))
+            .addField(struct(BIGINT.asList().toField("f2")).toField("col2"))
+            .build();
+    assertNoMinMax(getParquetMetadata(path), schemaConverter.toIcebergSchema(batchSchema));
   }
 
   @Test
   public void testNoMinMaxForParquetFileWithStruct() throws Exception {
     Path path = new Path(Resources.getResource("parquet/struct_int_bigint.parquet").toURI());
-    BatchSchema batchSchema = BatchSchema.newBuilder()
-      .addField(struct(INT.toField("f1")).toField("col1"))
-      .addField(struct(BIGINT.toField("f2")).toField("col2"))
-      .build();
-    assertNoMinMax(getParquetMetadata(path),  schemaConverter.toIcebergSchema(batchSchema));
+    BatchSchema batchSchema =
+        BatchSchema.newBuilder()
+            .addField(struct(INT.toField("f1")).toField("col1"))
+            .addField(struct(BIGINT.toField("f2")).toField("col2"))
+            .build();
+    assertNoMinMax(getParquetMetadata(path), schemaConverter.toIcebergSchema(batchSchema));
   }
 
   @Test
   public void testNoMinMaxForParquetFileWithStructOfStruct() throws Exception {
     Path path = new Path(Resources.getResource("parquet/struct_struct_int_bigint.parquet").toURI());
-    BatchSchema batchSchema = BatchSchema.newBuilder()
-      .addField(struct(struct(INT.toField("f1")).toField("f1")).toField("col1"))
-      .addField(struct(struct(BIGINT.toField("f2")).toField("f2")).toField("col2"))
-      .build();
-    assertNoMinMax(getParquetMetadata(path),  schemaConverter.toIcebergSchema(batchSchema));
+    BatchSchema batchSchema =
+        BatchSchema.newBuilder()
+            .addField(struct(struct(INT.toField("f1")).toField("f1")).toField("col1"))
+            .addField(struct(struct(BIGINT.toField("f2")).toField("f2")).toField("col2"))
+            .build();
+    assertNoMinMax(getParquetMetadata(path), schemaConverter.toIcebergSchema(batchSchema));
   }
 
   private ParquetMetadata getParquetMetadata(Path path) throws IOException {
@@ -286,20 +270,32 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     IntStatistics intStatistics = new IntStatistics();
     intStatistics.setMinMax(-1, 1000);
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("id"), INT32, GZIP, new HashSet<>(), intStatistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("id"), INT32, GZIP, new HashSet<>(), intStatistics, 1000, 0, 0, 0, 0));
 
     FloatStatistics floatStatistics = new FloatStatistics();
     floatStatistics.setMinMax(-0.1f, 1000.1f);
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("currency"), FLOAT, GZIP, new HashSet<>(), floatStatistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("currency"),
+            FLOAT,
+            GZIP,
+            new HashSet<>(),
+            floatStatistics,
+            1000,
+            0,
+            0,
+            0,
+            0));
     return blockMetaData;
   }
 
   private BlockMetaData intBlock() {
     BlockMetaData blockMetaData = new BlockMetaData();
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("id"), INT32, GZIP, new HashSet<>(), null,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("id"), INT32, GZIP, new HashSet<>(), null, 1000, 0, 0, 0, 0));
     return blockMetaData;
   }
 
@@ -307,8 +303,9 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     IntStatistics statistics = new IntStatistics();
     statistics.setMinMax(-1, 1000);
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("id"), INT32, GZIP, new HashSet<>(), statistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("id"), INT32, GZIP, new HashSet<>(), statistics, 1000, 0, 0, 0, 0));
     return blockMetaData;
   }
 
@@ -316,8 +313,9 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     IntStatistics statistics = new IntStatistics();
     statistics.setMinMax(0, 10000);
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("id"), INT32, GZIP, new HashSet<>(), statistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("id"), INT32, GZIP, new HashSet<>(), statistics, 1000, 0, 0, 0, 0));
     return blockMetaData;
   }
 
@@ -325,8 +323,9 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     BinaryStatistics statistics = new BinaryStatistics();
     statistics.setMinMaxFromBytes("a".getBytes(), "h".getBytes());
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("data"), BINARY, GZIP, new HashSet<>(), statistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("data"), BINARY, GZIP, new HashSet<>(), statistics, 1000, 0, 0, 0, 0));
     return blockMetaData;
   }
 
@@ -334,8 +333,9 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     BinaryStatistics statistics = new BinaryStatistics();
     statistics.setMinMaxFromBytes("c".getBytes(), "z".getBytes());
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("data"), BINARY, GZIP, new HashSet<>(), statistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("data"), BINARY, GZIP, new HashSet<>(), statistics, 1000, 0, 0, 0, 0));
     return blockMetaData;
   }
 
@@ -343,8 +343,18 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     BooleanStatistics statistics = new BooleanStatistics();
     statistics.setMinMax(false, false);
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("eligible"), BOOLEAN, GZIP, new HashSet<>(), statistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("eligible"),
+            BOOLEAN,
+            GZIP,
+            new HashSet<>(),
+            statistics,
+            1000,
+            0,
+            0,
+            0,
+            0));
     return blockMetaData;
   }
 
@@ -352,15 +362,26 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     BooleanStatistics statistics = new BooleanStatistics();
     statistics.setMinMax(true, true);
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("eligible"), BOOLEAN, GZIP, new HashSet<>(), statistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("eligible"),
+            BOOLEAN,
+            GZIP,
+            new HashSet<>(),
+            statistics,
+            1000,
+            0,
+            0,
+            0,
+            0));
     return blockMetaData;
   }
 
   private BlockMetaData floatBlock() {
     BlockMetaData blockMetaData = new BlockMetaData();
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("currency"), FLOAT, GZIP, new HashSet<>(), null,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("currency"), FLOAT, GZIP, new HashSet<>(), null, 1000, 0, 0, 0, 0));
     return blockMetaData;
   }
 
@@ -368,8 +389,18 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     FloatStatistics statistics = new FloatStatistics();
     statistics.setMinMax(-0.1f, 1000.1f);
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("currency"), FLOAT, GZIP, new HashSet<>(), statistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("currency"),
+            FLOAT,
+            GZIP,
+            new HashSet<>(),
+            statistics,
+            1000,
+            0,
+            0,
+            0,
+            0));
     return blockMetaData;
   }
 
@@ -377,8 +408,18 @@ public class ParquetToIcebergStatsConvertorTest {
     BlockMetaData blockMetaData = new BlockMetaData();
     FloatStatistics statistics = new FloatStatistics();
     statistics.setMinMax(0.1f, 10000.1f);
-    blockMetaData.addColumn(ColumnChunkMetaData.get(ColumnPath.get("currency"), FLOAT, GZIP, new HashSet<>(), statistics,
-      1000, 0, 0, 0, 0));
+    blockMetaData.addColumn(
+        ColumnChunkMetaData.get(
+            ColumnPath.get("currency"),
+            FLOAT,
+            GZIP,
+            new HashSet<>(),
+            statistics,
+            1000,
+            0,
+            0,
+            0,
+            0));
     return blockMetaData;
   }
 

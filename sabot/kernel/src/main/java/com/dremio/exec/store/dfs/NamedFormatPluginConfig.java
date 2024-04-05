@@ -18,7 +18,6 @@ package com.dremio.exec.store.dfs;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-
 @JsonTypeName("named")
 public class NamedFormatPluginConfig implements FormatPluginConfig {
   public String name;
@@ -52,5 +51,4 @@ public class NamedFormatPluginConfig implements FormatPluginConfig {
     }
     return true;
   }
-
 }

@@ -19,12 +19,6 @@ import static com.dremio.dac.model.job.acceleration.UiMapper.toUI;
 import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserialize;
 import static com.google.common.collect.ImmutableList.copyOf;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.calcite.util.Util;
-
 import com.dremio.dac.model.job.acceleration.AccelerationDetailsUI;
 import com.dremio.dac.obfuscate.ObfuscationUtils;
 import com.dremio.dac.resource.JobResource;
@@ -51,12 +45,14 @@ import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
+import com.google.common.base.Strings;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.calcite.util.Util;
 
-/**
- * Job details sent to UI. Derived from {@link JobDetails} except <code>paginationUrl</code>
- */
+/** Job details sent to UI. Derived from {@link JobDetails} except <code>paginationUrl</code> */
 public class JobDetailsUI {
   private final JobId jobId;
   private final boolean snowflakeAccelerated;
@@ -98,47 +94,48 @@ public class JobDetailsUI {
 
   @JsonCreator
   public JobDetailsUI(
-    @JsonProperty("jobId") JobId jobId,
-    @JsonProperty("queryType") QueryType queryType,
-    @JsonProperty("datasetPathList") List<String> datasetPathList,
-    @JsonProperty("parentsList") List<ParentDatasetInfo> parentsList,
-    @JsonProperty("state") JobState state,
-    @JsonProperty("startTime") Long startTime,
-    @JsonProperty("endTime") Long endTime,
-    @JsonProperty("user") String user,
-    @JsonProperty("jobType") RequestType requestType,
-    @JsonProperty("accelerated") boolean isAccelerated,
-    @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
-    @JsonProperty("plansConsidered") Integer plansConsidered,
-    @JsonProperty("timeSpentInPlanning") Long timeSpentInPlanning,
-    @JsonProperty("waitInClient") Long waitInClient,
-    @JsonProperty("dataVolume") Long dataVolume,
-    @JsonProperty("outputRecords") Long outputRecords,
-    @JsonProperty("peakMemory") Long peakMemory,
-    @JsonProperty("tableDatasetProfiles") List<TableDatasetProfile> tableDatasetProfiles,
-    @JsonProperty("fsDatasetProfiles") List<FileSystemDatasetProfile> fsDatasetProfiles,
-    @JsonProperty("topOperations") List<TopOperation> topOperations,
-    @JsonProperty("paginationUrl") String paginationUrl,
-    @JsonProperty("attemptDetails") List<AttemptDetailsUI> attemptDetails,
-    @JsonProperty("attemptsSummary") String attemptsSummary,
-    @JsonProperty("downloadUrl") String downloadUrl,
-    @JsonProperty("failureInfo") JobFailureInfo failureInfo,
-    @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
-    @JsonProperty("sql") String sql,
-    @JsonProperty("description") String description,
-    @JsonProperty("stats") JobStats stats,
-    @JsonProperty("datasetType") DatasetType datasetType,
-    @JsonProperty("datasetVersion") String datasetVersion,
-    @JsonProperty("resultsAvailable") Boolean resultsAvailable,
-    @JsonProperty("materializationFor") MaterializationSummary materializationFor,
-    @JsonProperty("acceleration") AccelerationDetailsUI acceleration,
-    @JsonProperty("resourceScheduling") ResourceSchedulingUI resourceScheduling,
-    @JsonProperty("spilled") boolean spilled,
-    @JsonProperty("spillDetails") SpillJobDetailsUI spillDetails) {
+      @JsonProperty("jobId") JobId jobId,
+      @JsonProperty("queryType") QueryType queryType,
+      @JsonProperty("datasetPathList") List<String> datasetPathList,
+      @JsonProperty("parentsList") List<ParentDatasetInfo> parentsList,
+      @JsonProperty("state") JobState state,
+      @JsonProperty("startTime") Long startTime,
+      @JsonProperty("endTime") Long endTime,
+      @JsonProperty("user") String user,
+      @JsonProperty("jobType") RequestType requestType,
+      @JsonProperty("accelerated") boolean isAccelerated,
+      @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
+      @JsonProperty("plansConsidered") Integer plansConsidered,
+      @JsonProperty("timeSpentInPlanning") Long timeSpentInPlanning,
+      @JsonProperty("waitInClient") Long waitInClient,
+      @JsonProperty("dataVolume") Long dataVolume,
+      @JsonProperty("outputRecords") Long outputRecords,
+      @JsonProperty("peakMemory") Long peakMemory,
+      @JsonProperty("tableDatasetProfiles") List<TableDatasetProfile> tableDatasetProfiles,
+      @JsonProperty("fsDatasetProfiles") List<FileSystemDatasetProfile> fsDatasetProfiles,
+      @JsonProperty("topOperations") List<TopOperation> topOperations,
+      @JsonProperty("paginationUrl") String paginationUrl,
+      @JsonProperty("attemptDetails") List<AttemptDetailsUI> attemptDetails,
+      @JsonProperty("attemptsSummary") String attemptsSummary,
+      @JsonProperty("downloadUrl") String downloadUrl,
+      @JsonProperty("failureInfo") JobFailureInfo failureInfo,
+      @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
+      @JsonProperty("sql") String sql,
+      @JsonProperty("description") String description,
+      @JsonProperty("stats") JobStats stats,
+      @JsonProperty("datasetType") DatasetType datasetType,
+      @JsonProperty("datasetVersion") String datasetVersion,
+      @JsonProperty("resultsAvailable") Boolean resultsAvailable,
+      @JsonProperty("materializationFor") MaterializationSummary materializationFor,
+      @JsonProperty("acceleration") AccelerationDetailsUI acceleration,
+      @JsonProperty("resourceScheduling") ResourceSchedulingUI resourceScheduling,
+      @JsonProperty("spilled") boolean spilled,
+      @JsonProperty("spillDetails") SpillJobDetailsUI spillDetails) {
     this.jobId = jobId;
     this.queryType = queryType;
     this.datasetPathList = datasetPathList;
-    this.parentsList = (parentsList != null) ? parentsList.stream().distinct().collect(Collectors.toList()) : null;
+    this.parentsList =
+        (parentsList != null) ? parentsList.stream().distinct().collect(Collectors.toList()) : null;
     this.state = state;
     this.startTime = startTime;
     this.endTime = endTime;
@@ -176,15 +173,20 @@ public class JobDetailsUI {
 
   @WithSpan
   public static JobDetailsUI of(com.dremio.service.job.JobDetails jobDetails, String currentUser) {
-    final List<JobAttempt> attempts = jobDetails.getAttemptsList().stream()
-      .map(ja -> ObfuscationUtils.obfuscate(ja)) // to be future-proof, obfuscating all attempts, but only when needed.
-      .map(JobsProtoUtil::toStuff)
-      .collect(Collectors.toList());
+    final List<JobAttempt> attempts =
+        jobDetails.getAttemptsList().stream()
+            .map(
+                ja ->
+                    ObfuscationUtils.obfuscate(
+                        ja)) // to be future-proof, obfuscating all attempts, but only when needed.
+            .map(JobsProtoUtil::toStuff)
+            .collect(Collectors.toList());
     final JobAttempt lastJobAttempt = Util.last(attempts);
     final JobInfo jobInfo = lastJobAttempt.getInfo();
     final String username = attempts.get(0).getInfo().getUser();
 
-    final AccelerationDetails accelerationDetails = deserialize(Util.last(attempts).getAccelerationDetails());
+    final AccelerationDetails accelerationDetails =
+        deserialize(Util.last(attempts).getAccelerationDetails());
     final JobId jobId = JobsProtoUtil.toStuff(jobDetails.getJobId());
     return new JobDetailsUI(
         jobId,
@@ -193,15 +195,18 @@ public class JobDetailsUI {
         attempts,
         JobResource.getDownloadURL(jobDetails),
         toJobFailureInfo(jobInfo.getFailureInfo(), jobInfo.getDetailedFailureInfo()),
-        toJobCancellationInfo(lastJobAttempt.getState(), lastJobAttempt.getInfo().getCancellationInfo()),
+        toJobCancellationInfo(
+            lastJobAttempt.getState(), lastJobAttempt.getInfo().getCancellationInfo()),
         lastJobAttempt.getInfo().getDatasetVersion(),
         jobDetails.getHasResults() && currentUser.equals(username),
         accelerationDetails,
         jobInfo.getSpillJobDetails());
   }
 
-  public static JobFailureInfo toJobFailureInfo(String jobFailureInfo, com.dremio.service.job.proto.JobFailureInfo detailedJobFailureInfo) {
-    if (detailedJobFailureInfo == null) {
+  public static JobFailureInfo toJobFailureInfo(
+      String jobFailureInfo, com.dremio.service.job.proto.JobFailureInfo detailedJobFailureInfo) {
+    if (detailedJobFailureInfo == null
+        || Strings.isNullOrEmpty(detailedJobFailureInfo.getMessage())) {
       return new JobFailureInfo(jobFailureInfo, JobFailureType.UNKNOWN, null);
     }
 
@@ -209,21 +214,21 @@ public class JobDetailsUI {
     if (detailedJobFailureInfo.getType() == null) {
       failureType = JobFailureType.UNKNOWN;
     } else {
-      switch(detailedJobFailureInfo.getType()) {
-      case PARSE:
-        failureType = JobFailureType.PARSE;
-        break;
+      switch (detailedJobFailureInfo.getType()) {
+        case PARSE:
+          failureType = JobFailureType.PARSE;
+          break;
 
-      case VALIDATION:
-        failureType = JobFailureType.VALIDATION;
-        break;
+        case VALIDATION:
+          failureType = JobFailureType.VALIDATION;
+          break;
 
-      case EXECUTION:
-        failureType = JobFailureType.EXECUTION;
-        break;
+        case EXECUTION:
+          failureType = JobFailureType.EXECUTION;
+          break;
 
-      default:
-        failureType = JobFailureType.UNKNOWN;
+        default:
+          failureType = JobFailureType.UNKNOWN;
       }
     }
 
@@ -232,7 +237,8 @@ public class JobDetailsUI {
       errors = null;
     } else {
       errors = new ArrayList<>();
-      for(com.dremio.service.job.proto.JobFailureInfo.Error error: detailedJobFailureInfo.getErrorsList()) {
+      for (com.dremio.service.job.proto.JobFailureInfo.Error error :
+          detailedJobFailureInfo.getErrorsList()) {
         errors.add(new QueryError(error.getMessage(), toRange(error)));
       }
     }
@@ -240,14 +246,17 @@ public class JobDetailsUI {
     return new JobFailureInfo(detailedJobFailureInfo.getMessage(), failureType, errors);
   }
 
-  public static JobCancellationInfo toJobCancellationInfo(JobState jobState, com.dremio.service.job.proto.JobCancellationInfo jobCancellationInfo) {
+  public static JobCancellationInfo toJobCancellationInfo(
+      JobState jobState, com.dremio.service.job.proto.JobCancellationInfo jobCancellationInfo) {
     if (jobState != JobState.CANCELED) {
       return null;
     }
 
-    return new JobCancellationInfo(jobCancellationInfo == null ?
-      "Query was cancelled" : //backward compatibility
-      jobCancellationInfo.getMessage());
+    return new JobCancellationInfo(
+        jobCancellationInfo == null
+            ? "Query was cancelled"
+            : // backward compatibility
+            jobCancellationInfo.getMessage());
   }
 
   public static boolean wasSnowflakeAccelerated(AccelerationDetails details) {
@@ -278,22 +287,23 @@ public class JobDetailsUI {
       // Ranges are 1-based and inclusive.
       return new QueryError.Range(startLine, startColumn, endLine, endColumn);
 
-    } catch(NullPointerException e) {
+    } catch (NullPointerException e) {
       return null;
     }
   }
+
   public JobDetailsUI(
-    JobId jobId,
-    JobDetails jobDetails,
-    String paginationUrl,
-    List<JobAttempt> attempts,
-    String downloadUrl,
-    JobFailureInfo failureInfo,
-    JobCancellationInfo cancellationInfo,
-    String datasetVersion,
-    Boolean resultsAvailable,
-    AccelerationDetails accelerationDetails,
-    SpillJobDetails spillDetails) {
+      JobId jobId,
+      JobDetails jobDetails,
+      String paginationUrl,
+      List<JobAttempt> attempts,
+      String downloadUrl,
+      JobFailureInfo failureInfo,
+      JobCancellationInfo cancellationInfo,
+      String datasetVersion,
+      Boolean resultsAvailable,
+      AccelerationDetails accelerationDetails,
+      SpillJobDetails spillDetails) {
     this(
         jobId,
         attempts.get(0).getInfo().getQueryType(),
@@ -301,7 +311,9 @@ public class JobDetailsUI {
         attempts.get(0).getInfo().getParentsList(),
         Util.last(attempts).getState(), // consider the last attempt state as the final job state
         attempts.get(0).getInfo().getStartTime(),
-        Util.last(attempts).getInfo().getFinishTime(), // consider the last attempt finish time as the job finish time
+        Util.last(attempts)
+            .getInfo()
+            .getFinishTime(), // consider the last attempt finish time as the job finish time
         attempts.get(0).getInfo().getUser(),
         attempts.get(0).getInfo().getRequestType(),
         Util.last(attempts).getInfo().getAcceleration() != null,
@@ -322,9 +334,14 @@ public class JobDetailsUI {
         failureInfo,
         cancellationInfo,
         attempts.get(0).getInfo().getSql(),
-        JobsServiceUtil.getJobDescription(attempts.get(0).getInfo().getRequestType(), attempts.get(0).getInfo().getSql(), attempts.get(0).getInfo().getDescription()),
+        JobsServiceUtil.getJobDescription(
+            attempts.get(0).getInfo().getRequestType(),
+            attempts.get(0).getInfo().getSql(),
+            attempts.get(0).getInfo().getDescription()),
         Util.last(attempts).getStats(),
-        DatasetType.VIRTUAL_DATASET, // TODO: return correct result. This is closest since only the ui submits queries and they are using virtual datasets...
+        DatasetType
+            .VIRTUAL_DATASET, // TODO: return correct result. This is closest since only the ui
+        // submits queries and they are using virtual datasets...
         datasetVersion,
         resultsAvailable,
         Util.last(attempts).getInfo().getMaterializationFor(),
@@ -339,22 +356,25 @@ public class JobDetailsUI {
       return null;
     }
     return new ResourceSchedulingUI(
-      resourceSchedulingInfo.getQueueId(),
-      resourceSchedulingInfo.getQueueName(),
-      resourceSchedulingInfo.getRuleId(),
-      resourceSchedulingInfo.getRuleName(),
-      resourceSchedulingInfo.getRuleContent(),
-      resourceSchedulingInfo.getEngineName());
+        resourceSchedulingInfo.getQueueId(),
+        resourceSchedulingInfo.getQueueName(),
+        resourceSchedulingInfo.getRuleId(),
+        resourceSchedulingInfo.getRuleName(),
+        resourceSchedulingInfo.getRuleContent(),
+        resourceSchedulingInfo.getEngineName());
   }
 
   private static SpillJobDetailsUI toSpillUI(final SpillJobDetails spillJobDetails) {
     if (spillJobDetails == null) {
       return null;
     }
-    return new SpillJobDetailsUI(spillJobDetails.getTotalBytesSpilledByHashAgg() > 0,
-                                 spillJobDetails.getTotalBytesSpilledBySort() > 0,
-                                 spillJobDetails.getTotalBytesSpilledByHashJoin() > 0,
-                                 spillJobDetails.getTotalBytesSpilledByHashAgg() + spillJobDetails.getTotalBytesSpilledBySort() + spillJobDetails.getTotalBytesSpilledByHashJoin());
+    return new SpillJobDetailsUI(
+        spillJobDetails.getTotalBytesSpilledByHashAgg() > 0,
+        spillJobDetails.getTotalBytesSpilledBySort() > 0,
+        spillJobDetails.getTotalBytesSpilledByHashJoin() > 0,
+        spillJobDetails.getTotalBytesSpilledByHashAgg()
+            + spillJobDetails.getTotalBytesSpilledBySort()
+            + spillJobDetails.getTotalBytesSpilledByHashJoin());
   }
 
   public JobId getJobId() {

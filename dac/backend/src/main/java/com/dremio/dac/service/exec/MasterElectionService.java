@@ -15,11 +15,6 @@
  */
 package com.dremio.dac.service.exec;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Provider;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.ProcessExit;
 import com.dremio.service.Service;
@@ -27,12 +22,14 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.google.common.base.Preconditions;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Provider;
 
-/**
- * Maintains status of master node using zookeeper.
- */
+/** Maintains status of master node using zookeeper. */
 public class MasterElectionService implements Service {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MasterElectionService.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(MasterElectionService.class);
 
   private static final long INITIAL_WAIT_TIME_MILLIS = TimeUnit.SECONDS.toMillis(5);
 
@@ -48,20 +45,25 @@ public class MasterElectionService implements Service {
   public void start() throws Exception {
     logger.info("Starting MasterElectionService");
     final CountDownLatch elected = new CountDownLatch(1);
-    registrationHandle = clusterCoordinator.get().joinElection("master", new ElectionListener() {
+    registrationHandle =
+        clusterCoordinator
+            .get()
+            .joinElection(
+                "master",
+                new ElectionListener() {
 
-      @Override
-      public void onElected() {
-        elected.countDown();
-      }
+                  @Override
+                  public void onElected() {
+                    elected.countDown();
+                  }
 
-      @Override
-      public void onCancelled() {
-        // Connection has been lost with ZooKeeper or election has been cancelled
-        // Let's abort
-        abort();
-      }
-    });
+                  @Override
+                  public void onCancelled() {
+                    // Connection has been lost with ZooKeeper or election has been cancelled
+                    // Let's abort
+                    abort();
+                  }
+                });
 
     if (!elected.await(INITIAL_WAIT_TIME_MILLIS, TimeUnit.MILLISECONDS)) {
       logger.info("Waiting until being elected as master node");

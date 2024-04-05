@@ -16,12 +16,17 @@
 import { getApiContext } from "../../../contexts/ApiContext";
 import type { paths } from "../../../../apiTypes/sql-runner-session";
 
-type OpenSqlRunnerSessionTabRequest = paths["/sql-runner/session/tabs/{scriptId}"]["put"];
+type OpenSqlRunnerSessionTabRequest =
+  paths["/sql-runner/session/tabs/{scriptId}"]["put"];
 
-export const openSqlRunnerSessionTabUrl = (params: OpenSqlRunnerSessionTabRequest["parameters"]["path"]) =>
+export const openSqlRunnerSessionTabUrl = (
+  params: OpenSqlRunnerSessionTabRequest["parameters"]["path"],
+) =>
   getApiContext().createSonarUrl(`sql-runner/session/tabs/${params.scriptId}`);
 
-export const openSqlRunnerSessionTab = (params: OpenSqlRunnerSessionTabRequest["parameters"]["path"]): Promise<
+export const openSqlRunnerSessionTab = (
+  params: OpenSqlRunnerSessionTabRequest["parameters"]["path"],
+): Promise<
   OpenSqlRunnerSessionTabRequest["responses"]["200"]["content"]["application/json"]
 > =>
   getApiContext()

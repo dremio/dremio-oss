@@ -15,8 +15,6 @@
  */
 package com.dremio.common.logical.data;
 
-
-
 public abstract class AbstractBuilder<T extends LogicalOperator> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractBuilder.class);
 

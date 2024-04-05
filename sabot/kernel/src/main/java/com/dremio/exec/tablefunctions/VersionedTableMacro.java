@@ -15,22 +15,23 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.calcite.schema.TableMacro;
 import org.apache.calcite.schema.TranslatableTable;
 
-import com.dremio.catalog.model.dataset.TableVersionContext;
-
 public abstract class VersionedTableMacro implements TableMacro {
 
-  // This regex pattern matches a sequence of bare or double-quoted identifier segments, separated by a dot.  Within
-  // a quoted identifier, any character is legal, except for \r, \n, and unescaped ".  Quotes can be escaped via
+  // This regex pattern matches a sequence of bare or double-quoted identifier segments, separated
+  // by a dot.  Within
+  // a quoted identifier, any character is legal, except for \r, \n, and unescaped ".  Quotes can be
+  // escaped via
   // two double quotes in sequence - "".  This matches Calcite's identifier parsing.
-  private static final Pattern SPLIT_PATTERN = Pattern.compile("\\G(\\\"(?:[^\\r\\n\"]|\\\"\\\")+\\\"|[^.\"]+)(?:\\.|$)");
+  private static final Pattern SPLIT_PATTERN =
+      Pattern.compile("\\G(\\\"(?:[^\\r\\n\"]|\\\"\\\")+\\\"|[^.\"]+)(?:\\.|$)");
 
   public static List<String> splitTableIdentifier(String tableIdentifier) {
     List<String> result = new ArrayList<>();
@@ -59,5 +60,6 @@ public abstract class VersionedTableMacro implements TableMacro {
     throw new UnsupportedOperationException();
   }
 
-  public abstract TranslatableTable apply(List<? extends Object> arguments, TableVersionContext tableVersionContext);
+  public abstract TranslatableTable apply(
+      List<? extends Object> arguments, TableVersionContext tableVersionContext);
 }

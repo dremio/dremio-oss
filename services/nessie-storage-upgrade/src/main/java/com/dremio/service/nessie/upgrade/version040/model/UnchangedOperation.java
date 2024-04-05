@@ -18,5 +18,4 @@ package com.dremio.service.nessie.upgrade.version040.model;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 @JsonTypeName("UNCHANGED")
-public class UnchangedOperation extends Operation {
-}
+public class UnchangedOperation extends Operation {}

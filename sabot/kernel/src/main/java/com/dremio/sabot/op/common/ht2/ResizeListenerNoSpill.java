@@ -19,5 +19,4 @@ public interface ResizeListenerNoSpill {
   public static ResizeListenerNoSpill NO_OP = newCapacity -> {};
 
   void resized(int newCapacity);
-
 }

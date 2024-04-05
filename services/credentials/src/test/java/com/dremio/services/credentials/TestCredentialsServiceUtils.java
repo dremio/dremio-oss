@@ -19,19 +19,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
+import com.dremio.test.DremioTest;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.junit.Test;
 
-import com.dremio.test.DremioTest;
-
 /**
- * Tests for Credentials Service Utils class:
- * 1) safeURICreate: throws IAE without original string
+ * Tests for Credentials Service Utils class: 1) safeURICreate: throws IAE without original string
  */
 public class TestCredentialsServiceUtils extends DremioTest {
 
@@ -47,6 +45,14 @@ public class TestCredentialsServiceUtils extends DremioTest {
   }
 
   @Test
+  public void testURICreate2() {
+    final String uriString = "1234Secret+Str/ing==";
+    URI uri = URI.create(uriString);
+    assertNull(uri.getScheme());
+    assertEquals(uriString, uri.toString());
+  }
+
+  @Test
   public void testSafeURICreate() {
     final String uriString = "SecretString%.isNotAValidURI";
     try {
@@ -59,19 +65,20 @@ public class TestCredentialsServiceUtils extends DremioTest {
 
   @Test
   public void testURICreateVsSafeURICreate() {
-    Set<String> stringSet = new HashSet<>(Arrays.asList(
-      "data:,Hello%2C%20World!",
-      "data:text/html;base64,validStringForURI",
-      "env:ldap",
-      "file:///tmp/test/file",
-      "secret:1.NotEncryptedContext.SampleOnly",
-      "SecretString.isAValidURI"));
-    for (String uriString:stringSet) {
+    Set<String> stringSet =
+        new HashSet<>(
+            Arrays.asList(
+                "data:,Hello%2C%20World!",
+                "data:text/html;base64,validStringForURI",
+                "env:ldap",
+                "file:///tmp/test/file",
+                "secret:1.NotEncryptedContext.SampleOnly",
+                "SecretString.isAValidURI"));
+    for (String uriString : stringSet) {
       URI uri1 = URI.create(uriString);
       URI uri2 = CredentialsServiceUtils.safeURICreate(uriString);
       assertEquals(uri1, uri2);
       assertEquals(uri2, uri1);
     }
   }
-
 }

@@ -15,21 +15,20 @@
  */
 package com.dremio.exec.util;
 
-
 import org.apache.arrow.memory.ArrowBuf;
 
-/**
- * For making comparisons across different buffers.
- */
+/** For making comparisons across different buffers. */
 public interface ArrowCrossBufComparator {
 
-    /**
-     * Compares item at idx1 at buf1 and idx2 at buf2. The index is not the block position.
-     * @param buf1 Buffer 1
-     * @param idx1 Index against buffer 1
-     * @param buf2 Buffer 2
-     * @param idx2 Index against buffer 2
-     * @return less than 0 if buf1:idx1 is smaller, greater than 0 if buf1:idx1 is larger, 0 if both are equal.
-     */
-    int compare(ArrowBuf buf1, int idx1, ArrowBuf buf2, int idx2);
+  /**
+   * Compares item at idx1 at buf1 and idx2 at buf2. The index is not the block position.
+   *
+   * @param buf1 Buffer 1
+   * @param idx1 Index against buffer 1
+   * @param buf2 Buffer 2
+   * @param idx2 Index against buffer 2
+   * @return less than 0 if buf1:idx1 is smaller, greater than 0 if buf1:idx1 is larger, 0 if both
+   *     are equal.
+   */
+  int compare(ArrowBuf buf1, int idx1, ArrowBuf buf2, int idx2);
 }

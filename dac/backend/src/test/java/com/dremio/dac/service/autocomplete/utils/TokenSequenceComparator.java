@@ -15,24 +15,24 @@
  */
 package com.dremio.dac.service.autocomplete.utils;
 
-import java.util.Comparator;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.Comparator;
 
-/**
- * Comparator for SQL query token sequences
- */
+/** Comparator for SQL query token sequences */
 public final class TokenSequenceComparator implements Comparator<Integer> {
   private final ImmutableList<Integer> lastNMinusOneTokens;
   private final DremioTokenNGramFrequencyTable frequencyTable;
 
   public TokenSequenceComparator(
-    ImmutableList<Integer> partialQuery,
-    DremioTokenNGramFrequencyTable frequencyTable) {
+      ImmutableList<Integer> partialQuery, DremioTokenNGramFrequencyTable frequencyTable) {
     Preconditions.checkNotNull(partialQuery);
     Preconditions.checkNotNull(frequencyTable);
-    partialQuery = ImmutableList.<Integer>builder().add(DremioToken.START_TOKEN.getKind()).addAll(partialQuery).build();
+    partialQuery =
+        ImmutableList.<Integer>builder()
+            .add(DremioToken.START_TOKEN.getKind())
+            .addAll(partialQuery)
+            .build();
     int startIndex = Math.max(partialQuery.size() - frequencyTable.getN() + 1, 0);
     this.lastNMinusOneTokens = partialQuery.subList(startIndex, partialQuery.size());
     this.frequencyTable = frequencyTable;
@@ -44,9 +44,12 @@ public final class TokenSequenceComparator implements Comparator<Integer> {
     Preconditions.checkNotNull(token2);
 
     for (int i = 0; i < lastNMinusOneTokens.size(); i++) {
-      ImmutableList<Integer> prefixChain = lastNMinusOneTokens.subList(i, lastNMinusOneTokens.size());
-      ImmutableList<Integer> nGram1 = ImmutableList.<Integer>builder().addAll(prefixChain).add(token1).build();
-      ImmutableList<Integer> nGram2 = ImmutableList.<Integer>builder().addAll(prefixChain).add(token2).build();
+      ImmutableList<Integer> prefixChain =
+          lastNMinusOneTokens.subList(i, lastNMinusOneTokens.size());
+      ImmutableList<Integer> nGram1 =
+          ImmutableList.<Integer>builder().addAll(prefixChain).add(token1).build();
+      ImmutableList<Integer> nGram2 =
+          ImmutableList.<Integer>builder().addAll(prefixChain).add(token2).build();
 
       int frequency1 = frequencyTable.getFrequency(nGram1);
       int frequency2 = frequencyTable.getFrequency(nGram2);

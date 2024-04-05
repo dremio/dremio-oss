@@ -16,15 +16,12 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.JdbcCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 
-import com.dremio.exec.calcite.logical.JdbcCrel;
-
-/**
- * Converts JdbcCrel into logical.
- */
+/** Converts JdbcCrel into logical. */
 public class JdbcDrule extends ConverterRule {
 
   public static final JdbcDrule INSTANCE = new JdbcDrule();
@@ -36,7 +33,10 @@ public class JdbcDrule extends ConverterRule {
   @Override
   public RelNode convert(RelNode in) {
     JdbcCrel rel = (JdbcCrel) in;
-    return new JdbcCrel(rel.getCluster(), rel.getTraitSet().replace(Rel.LOGICAL),
-            rel.getInput(), rel.getPluginId());
+    return new JdbcCrel(
+        rel.getCluster(),
+        rel.getTraitSet().replace(Rel.LOGICAL),
+        rel.getInput(),
+        rel.getPluginId());
   }
 }

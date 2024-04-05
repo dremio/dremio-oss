@@ -22,18 +22,20 @@ import com.esotericsoftware.kryo.serializers.ExternalizableSerializer;
 
 /**
  * A deserializer for ConnectionConfs that is aware of the SourceConfig associated with it.
- * Generally deserializing a field is independent of the context around the field, however for
- * Hive plugin configurations, in versions older than 4.0.0, the same field value can represent
- * either Hive 2 or Hive 3 connections. Starting with 4.0.0, these are distinct values with different types,
- * but when upgrading from versions lower than 4.0.0, we need to use the SourceConfig to identify the target
- * source type before deserializing the Hive plugin configuration.
+ * Generally deserializing a field is independent of the context around the field, however for Hive
+ * plugin configurations, in versions older than 4.0.0, the same field value can represent either
+ * Hive 2 or Hive 3 connections. Starting with 4.0.0, these are distinct values with different
+ * types, but when upgrading from versions lower than 4.0.0, we need to use the SourceConfig to
+ * identify the target source type before deserializing the Hive plugin configuration.
  */
 public class SourceConfigAwareConnectionConfDeserializer extends ExternalizableSerializer {
   public static final String HIVE2_SOURCE_TYPE = "HIVE";
   public static final String HIVE3_SOURCE_TYPE = "HIVE3";
 
-  private static final String HIVE2_CONF_FQDN = "com.dremio.exec.store.hive.Hive2StoragePluginConfig";
-  private static final String HIVE3_CONF_FQDN = "com.dremio.exec.store.hive.Hive3StoragePluginConfig";
+  private static final String HIVE2_CONF_FQDN =
+      "com.dremio.exec.store.hive.Hive2StoragePluginConfig";
+  private static final String HIVE3_CONF_FQDN =
+      "com.dremio.exec.store.hive.Hive3StoragePluginConfig";
 
   private final SourceConfig config;
 

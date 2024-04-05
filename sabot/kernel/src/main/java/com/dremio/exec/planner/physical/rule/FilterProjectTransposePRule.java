@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.planner.physical.rule;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
-
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.relbuilder.PrelBuilderFactory;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
 
 /**
  * Capture Filter - Project - NLJ pattern and swap Filter and Project
@@ -29,13 +28,17 @@ import com.dremio.exec.planner.physical.relbuilder.PrelBuilderFactory;
  * @link {org.apache.calcite.rel.rules.FilterProjectTransposeRule}
  */
 public class FilterProjectTransposePRule {
-  public static final RelOptRule FILTER_PROJECT_NLJ = FilterProjectTransposeRule.Config.DEFAULT
-    .withRelBuilderFactory(PrelBuilderFactory.INSTANCE)
-    .withOperandSupplier(os1 ->
-      os1.operand(FilterPrel.class).oneInput(os2 ->
-        os2.operand(ProjectPrel.class).oneInput(os3 ->
-          os3.operand(NestedLoopJoinPrel.class).anyInputs())))
-    .as(FilterProjectTransposeRule.Config.class)
-    .toRule();
-
+  public static final RelOptRule FILTER_PROJECT_NLJ =
+      FilterProjectTransposeRule.Config.DEFAULT
+          .withRelBuilderFactory(PrelBuilderFactory.INSTANCE)
+          .withOperandSupplier(
+              os1 ->
+                  os1.operand(FilterPrel.class)
+                      .oneInput(
+                          os2 ->
+                              os2.operand(ProjectPrel.class)
+                                  .oneInput(
+                                      os3 -> os3.operand(NestedLoopJoinPrel.class).anyInputs())))
+          .as(FilterProjectTransposeRule.Config.class)
+          .toRule();
 }

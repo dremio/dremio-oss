@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.calcite.logical;
 
+import com.dremio.exec.planner.common.FlattenRelBase;
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
@@ -25,63 +25,50 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexInputRef;
 
-import com.dremio.exec.planner.common.FlattenRelBase;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Rel that represents flatten operator in Calcite's Convention.NONE
- */
+/** Rel that represents flatten operator in Calcite's Convention.NONE */
 public class FlattenCrel extends FlattenRelBase implements CopyToCluster {
   public FlattenCrel(
-    RelOptCluster cluster,
-    RelTraitSet traits,
-    RelNode child,
-    List<RexInputRef> toFlatten,
-    int numProjectsPushed) {
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      List<RexInputRef> toFlatten,
+      int numProjectsPushed) {
     this(cluster, traits, child, toFlatten, null, numProjectsPushed);
   }
 
   public FlattenCrel(
-    RelOptCluster cluster,
-    RelTraitSet traits,
-    RelNode child,
-    List<RexInputRef> toFlatten,
-    List<String> aliases,
-    int numProjectsPushed) {
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      List<RexInputRef> toFlatten,
+      List<String> aliases,
+      int numProjectsPushed) {
     super(cluster, traits, child, toFlatten, aliases, numProjectsPushed);
     assert this.getConvention() == Convention.NONE;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new FlattenCrel(getCluster(), traitSet, sole(inputs), toFlatten, aliases, numProjectsPushed);
+    return new FlattenCrel(
+        getCluster(), traitSet, sole(inputs), toFlatten, aliases, numProjectsPushed);
   }
 
   @Override
   public FlattenRelBase copy(List<RelNode> inputs, List<RexInputRef> toFlatten) {
-    return new FlattenCrel(getCluster(), getTraitSet(), sole(inputs), toFlatten, aliases, numProjectsPushed);
+    return new FlattenCrel(
+        getCluster(), getTraitSet(), sole(inputs), toFlatten, aliases, numProjectsPushed);
   }
 
   @Override
   public RelNode copyWith(CopyWithCluster copier) {
     final RelNode input = getInput().accept(copier);
     return new FlattenCrel(
-      copier.getCluster(),
-      getTraitSet(),
-      input,
-      toFlatten,
-      aliases,
-      getNumProjectsPushed()
-    );
+        copier.getCluster(), getTraitSet(), input, toFlatten, aliases, getNumProjectsPushed());
   }
 
-  public static FlattenCrel create(RelNode input, int fieldToFlatten, String alias) {
+  public static FlattenCrel create(
+      RelNode input, List<RexInputRef> toFlatten, List<String> alias, int numProjects) {
     return new FlattenCrel(
-      input.getCluster(),
-      input.getTraitSet(),
-      input,
-      ImmutableList.of(input.getCluster().getRexBuilder().makeInputRef(input, fieldToFlatten)),
-      ImmutableList.of(alias),
-      0);
+        input.getCluster(), input.getTraitSet(), input, toFlatten, alias, numProjects);
   }
 }

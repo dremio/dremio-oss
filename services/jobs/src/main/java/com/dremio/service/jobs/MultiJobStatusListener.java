@@ -17,14 +17,12 @@ package com.dremio.service.jobs;
 
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 
-/**
- * Implementation of {@link JobStatusListener} that wraps multiple listeners
- */
+/** Implementation of {@link JobStatusListener} that wraps multiple listeners */
 public class MultiJobStatusListener implements JobStatusListener {
 
   private final JobStatusListener[] listeners;
 
-  public MultiJobStatusListener(JobStatusListener ... listeners) {
+  public MultiJobStatusListener(JobStatusListener... listeners) {
     this.listeners = listeners;
   }
 

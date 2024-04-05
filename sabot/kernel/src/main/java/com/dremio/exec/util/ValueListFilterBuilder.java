@@ -20,261 +20,285 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.Types;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.fn.impl.MurmurHash3;
 import com.dremio.sabot.op.common.ht2.Copier;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.Types;
 
-/**
- * Helps to prepare value list with unique values in a sorted fashion.
- */
-public class ValueListFilterBuilder implements AutoCloseable{
-    // Arranged as hash buckets pointing to a linked list of values. hashBuckets contains hashKey positions,
-    // valueList contains data at index, hashKeyNextIndexes contains next pointer for the data node, -1 otherwise.
-    private ArrowBuf hashBuckets;
-    private ArrowBuf hashKeyNextIndexes;
-    private ArrowBuf valuesList;
-    private BufferAllocator allocator;
+/** Helps to prepare value list with unique values in a sorted fashion. */
+public class ValueListFilterBuilder implements AutoCloseable {
+  // Arranged as hash buckets pointing to a linked list of values. hashBuckets contains hashKey
+  // positions,
+  // valueList contains data at index, hashKeyNextIndexes contains next pointer for the data node,
+  // -1 otherwise.
+  private ArrowBuf hashBuckets;
+  private ArrowBuf hashKeyNextIndexes;
+  private ArrowBuf valuesList;
+  private BufferAllocator allocator;
 
-    protected ValueListFilter valueListFilter;
+  protected ValueListFilter valueListFilter;
 
-    protected int capacity;
-    protected byte blockSize;
-    protected int nextEmptyIndex = 0;
-    private int maxHashBuckets;
-    protected boolean isBoolean;
-    private boolean buildWithBloomFilter;
+  protected int capacity;
+  protected byte blockSize;
+  protected int nextEmptyIndex = 0;
+  private int maxHashBuckets;
+  protected boolean isBoolean;
+  private boolean buildWithBloomFilter;
 
-    protected List<AutoCloseable> closeables = new ArrayList<>();
+  protected List<AutoCloseable> closeables = new ArrayList<>();
 
-    public ValueListFilterBuilder(final BufferAllocator allocator, final int capacity, final byte blockSize,
-                                  final boolean isBoolean, final boolean buildWithBloomFilter) {
-        checkNotNull(allocator, "Allocator is null");
-        checkArgument(capacity > 0, "Invalid capacity");
-        if (isBoolean) {
-            checkArgument(blockSize == 0, "Block size should be zero for boolean fields");
-        } else {
-            checkArgument(blockSize > 0, "Block size should be greater than zero for non-boolean fields");
-        }
-        this.allocator = allocator;
-        this.capacity = capacity;
-        this.maxHashBuckets = capacity;
-        this.blockSize = blockSize;
-        this.isBoolean = isBoolean;
-        this.buildWithBloomFilter = buildWithBloomFilter;
+  public ValueListFilterBuilder(
+      final BufferAllocator allocator,
+      final int capacity,
+      final byte blockSize,
+      final boolean isBoolean,
+      final boolean buildWithBloomFilter) {
+    checkNotNull(allocator, "Allocator is null");
+    checkArgument(capacity > 0, "Invalid capacity");
+    if (isBoolean) {
+      checkArgument(blockSize == 0, "Block size should be zero for boolean fields");
+    } else {
+      checkArgument(blockSize > 0, "Block size should be greater than zero for non-boolean fields");
+    }
+    this.allocator = allocator;
+    this.capacity = capacity;
+    this.maxHashBuckets = capacity;
+    this.blockSize = blockSize;
+    this.isBoolean = isBoolean;
+    this.buildWithBloomFilter = buildWithBloomFilter;
+  }
+
+  public ValueListFilterBuilder(
+      final BufferAllocator allocator,
+      final int capacity,
+      final byte blockSize,
+      final boolean isBoolean) {
+    this(allocator, capacity, blockSize, isBoolean, false);
+  }
+
+  public void setup() {
+    // Indexes are int - 4 bytes
+    final int indexBufByteSize = 4 * capacity;
+    hashBuckets = allocator.buffer(indexBufByteSize);
+    closeables.add(hashBuckets);
+    hashKeyNextIndexes = allocator.buffer(indexBufByteSize);
+    closeables.add(hashKeyNextIndexes);
+
+    // Set no key at all positions.
+    for (int i = 0; i < indexBufByteSize; i += 4) {
+      hashBuckets.setInt(i, -1);
+      hashKeyNextIndexes.setInt(i, -1);
     }
 
-    public ValueListFilterBuilder(final BufferAllocator allocator, final int capacity, final byte blockSize,
-                                  final boolean isBoolean) {
-      this(allocator, capacity, blockSize, isBoolean, false);
+    // Buffer with actual keys
+    final ArrowBuf fullBuffer = allocator.buffer(getValueListFilterSize());
+    fullBuffer.setZero(0, fullBuffer.capacity());
+    this.valueListFilter =
+        buildWithBloomFilter
+            ? new ValueListWithBloomFilter(fullBuffer)
+            : new ValueListFilter(fullBuffer);
+    this.valueListFilter.setBoolField(isBoolean);
+    closeables.add(valueListFilter);
+    this.valuesList = valueListFilter.valOnlyBuf();
+  }
+
+  public boolean insert(final ArrowBuf keyBuf) {
+    checkArgument(
+        !isBoolean, "Insertion for boolean should be done via insertTrue() / insertFalse()");
+    checkArgument(
+        keyBuf.capacity() >= blockSize,
+        "Invalid key size %s. Compatible key size is %s",
+        keyBuf.capacity(),
+        blockSize); // KeyBuf can round up and have extra bytes than the capacity it asked for.
+    final long hashIndex = hash(keyBuf);
+    int keyIndex = hashBuckets.getInt(hashIndex * 4);
+
+    if (keyIndex == -1) {
+      // new entry
+      final int insertedValIndex = insertNewElement(keyBuf);
+      hashBuckets.setInt(hashIndex * 4, insertedValIndex);
+      return true;
     }
 
-    public void setup() {
-        // Indexes are int - 4 bytes
-        final int indexBufByteSize = 4 * capacity;
-        hashBuckets = allocator.buffer(indexBufByteSize);
-        closeables.add(hashBuckets);
-        hashKeyNextIndexes = allocator.buffer(indexBufByteSize);
-        closeables.add(hashKeyNextIndexes);
+    byte[] incomingVal = new byte[blockSize];
+    keyBuf.getBytes(0, incomingVal);
+    byte[] storedVal = new byte[blockSize];
+    // Traverse linked list until key is identified as duplicate or the new value is inserted at the
+    // tail.
+    while (true) {
+      valuesList.getBytes((keyIndex * blockSize), storedVal);
+      if (Arrays.equals(storedVal, incomingVal)) {
+        return false; // duplicate key
+      }
+      int nextValIndex = hashKeyNextIndexes.getInt(keyIndex * 4);
+      if (nextValIndex == -1) {
+        // At tail node, this is a distinct new key.
+        final int insertedValIndex = insertNewElement(keyBuf);
+        hashKeyNextIndexes.setInt(keyIndex * 4, insertedValIndex);
+        return true;
+      }
+      keyIndex = nextValIndex;
+    }
+  }
 
-        // Set no key at all positions.
-        for (int i = 0; i < indexBufByteSize; i += 4) {
-            hashBuckets.setInt(i, -1);
-            hashKeyNextIndexes.setInt(i, -1);
-        }
+  private int insertNewElement(final ArrowBuf keyBuf) {
+    checkState(isNotFull(), "Store is full.");
+    final int insertionIndex = nextEmptyIndex;
+    Copier.copy(
+        keyBuf.memoryAddress(),
+        valuesList.memoryAddress() + (insertionIndex * blockSize),
+        blockSize);
+    nextEmptyIndex++;
+    return insertionIndex;
+  }
 
-        // Buffer with actual keys
-        final ArrowBuf fullBuffer = allocator.buffer(getValueListFilterSize());
-        fullBuffer.setZero(0,fullBuffer.capacity());
-        this.valueListFilter = buildWithBloomFilter ? new ValueListWithBloomFilter(fullBuffer) : new ValueListFilter(fullBuffer);
-        this.valueListFilter.setBoolField(isBoolean);
-        closeables.add(valueListFilter);
-        this.valuesList = valueListFilter.valOnlyBuf();
+  public void insertNull() {
+    this.valueListFilter.setContainsNull(true);
+    checkBooleanCombinationsLeft();
+  }
+
+  public void insertBooleanVal(final boolean val) {
+    checkArgument(isBoolean, "Not a boolean value list.");
+    if (val) {
+      this.valueListFilter.setContainsTrue(true);
+    } else {
+      this.valueListFilter.setContainsFalse(true);
+    }
+    checkBooleanCombinationsLeft();
+  }
+
+  private void checkBooleanCombinationsLeft() {
+    boolean allBooleanCombinationsPresent =
+        this.valueListFilter.isContainsNull()
+            && this.valueListFilter.isContainsFalse()
+            && this.valueListFilter.isContainsTrue()
+            && this.isBoolean;
+    checkState(
+        !allBooleanCombinationsPresent,
+        "Filter has all boolean combinations. " + "Unlikely to filter any entries.");
+  }
+
+  public void setFieldType(Types.MinorType fieldType) {
+    setFieldType(fieldType, (byte) 0, (byte) 0);
+  }
+
+  public ValueListFilterBuilder setFieldType(
+      Types.MinorType fieldType, byte precision, byte scale) {
+    this.valueListFilter.setFieldType(fieldType, precision, scale);
+    return this;
+  }
+
+  public ValueListFilterBuilder setName(String name) {
+    this.valueListFilter.setName(name);
+    return this;
+  }
+
+  public ValueListFilterBuilder setFieldName(String name) {
+    this.valueListFilter.setFieldName(name);
+    return this;
+  }
+
+  public String getFieldName() {
+    return this.valueListFilter.getFieldName();
+  }
+
+  public ValueListFilterBuilder setFixedWidth(boolean isFixedWidth) {
+    this.valueListFilter.setFixedWidth(isFixedWidth);
+    return this;
+  }
+
+  public ValueListFilter build() {
+    this.valueListFilter.setBlockSize(this.blockSize);
+    this.valueListFilter.setValueCount(this.nextEmptyIndex);
+
+    checkNotNull(this.valueListFilter.getName());
+    checkNotNull(this.valueListFilter.getFieldType());
+
+    this.valueListFilter.writeMetaToBuffer();
+    sortValList();
+
+    // After building, it is the responsibility of the caller to manage valueListFilter.
+    closeables.remove(valueListFilter);
+    valueListFilter.buildBloomFilter();
+    return this.valueListFilter;
+  }
+
+  /**
+   * Get quick plain instance for non continuous insertion cases.
+   *
+   * @param allocator
+   * @param blockSize
+   * @param maxElements
+   * @return
+   */
+  public static ValueListFilter buildPlainInstance(
+      BufferAllocator allocator, byte blockSize, long maxElements, boolean isBoolean) {
+    if (isBoolean) {
+      checkArgument(blockSize == 0, "Block size should be zero for boolean fields");
+    } else {
+      checkArgument(blockSize > 0, "Block size should be greater than zero for non-boolean fields");
     }
 
-    public boolean insert(final ArrowBuf keyBuf) {
-        checkArgument(!isBoolean, "Insertion for boolean should be done via insertTrue() / insertFalse()");
-        checkArgument(keyBuf.capacity() >= blockSize, "Invalid key size %s. Compatible key size is %s",
-                keyBuf.capacity(), blockSize); // KeyBuf can round up and have extra bytes than the capacity it asked for.
-        final long hashIndex = hash(keyBuf);
-        int keyIndex = hashBuckets.getInt(hashIndex * 4);
+    long valueBufferSize = isBoolean ? 0 : (maxElements * blockSize);
+    long minRequiredCapacity = valueBufferSize + ValueListFilter.META_SIZE;
+    ValueListFilter valueListFilter = new ValueListFilter(allocator.buffer(minRequiredCapacity));
+    valueListFilter.setBoolField(isBoolean);
+    valueListFilter.setBlockSize(blockSize);
+    return valueListFilter;
+  }
 
-        if (keyIndex == -1) {
-            // new entry
-            final int insertedValIndex = insertNewElement(keyBuf);
-            hashBuckets.setInt(hashIndex * 4, insertedValIndex);
-            return true;
-        }
+  public static ValueListFilter fromBuffer(ArrowBuf arrowBuf) {
+    ValueListFilter valueListFilter = new ValueListFilter(arrowBuf);
+    valueListFilter.initializeMetaFromBuffer();
+    return valueListFilter;
+  }
 
-        byte[] incomingVal = new byte[blockSize];
-        keyBuf.getBytes(0, incomingVal);
-        byte[] storedVal = new byte[blockSize];
-        // Traverse linked list until key is identified as duplicate or the new value is inserted at the tail.
-        while (true) {
-            valuesList.getBytes((keyIndex * blockSize), storedVal);
-            if (Arrays.equals(storedVal, incomingVal)) {
-                return false; // duplicate key
-            }
-            int nextValIndex = hashKeyNextIndexes.getInt(keyIndex * 4);
-            if (nextValIndex == -1) {
-                // At tail node, this is a distinct new key.
-                final int insertedValIndex = insertNewElement(keyBuf);
-                hashKeyNextIndexes.setInt(keyIndex * 4, insertedValIndex);
-                return true;
-            }
-            keyIndex = nextValIndex;
-        }
+  public static ValueListWithBloomFilter fromBufferWithBloomFilter(
+      ArrowBuf arrowBuf, ValueListFilter valueListFilter) {
+    ValueListWithBloomFilter valueListWithBloomFilter = new ValueListWithBloomFilter(arrowBuf);
+    ValueListFilter.copyValueList(valueListFilter, valueListWithBloomFilter);
+    ValueListFilter.copyMetadataBuffer(valueListFilter, valueListWithBloomFilter);
+    valueListWithBloomFilter.initializeMetaFromBuffer();
+    valueListWithBloomFilter.buildBloomFilter();
+    return valueListWithBloomFilter;
+  }
+
+  protected void sortValList() {
+    if (this.valueListFilter.isBoolField()) {
+      return;
     }
 
-    private int insertNewElement(final ArrowBuf keyBuf) {
-        checkState(isNotFull(), "Store is full.");
-        final int insertionIndex = nextEmptyIndex;
-        Copier.copy(keyBuf.memoryAddress(), valuesList.memoryAddress() + (insertionIndex * blockSize), blockSize);
-        nextEmptyIndex++;
-        return insertionIndex;
-    }
+    final ArrowInPlaceMergeSorter sorter =
+        new ArrowInPlaceMergeSorter(valuesList, blockSize, this.valueListFilter.getComparator());
+    sorter.sort(0, this.valueListFilter.getValueCount());
+  }
 
-    public void insertNull() {
-        this.valueListFilter.setContainsNull(true);
-        checkBooleanCombinationsLeft();
-    }
+  private long hash(ArrowBuf key) {
+    return Math.abs(MurmurHash3.murmur3_128(0, key.capacity(), key, 0).getHash1() % maxHashBuckets);
+  }
 
-    public void insertBooleanVal(final boolean val) {
-        checkArgument(isBoolean, "Not a boolean value list.");
-        if (val) {
-            this.valueListFilter.setContainsTrue(true);
-        } else {
-            this.valueListFilter.setContainsFalse(true);
-        }
-        checkBooleanCombinationsLeft();
-    }
+  @VisibleForTesting
+  void overrideMaxBuckets(int maxHashBuckets) {
+    this.maxHashBuckets = maxHashBuckets;
+  }
 
-    private void checkBooleanCombinationsLeft() {
-        boolean allBooleanCombinationsPresent = this.valueListFilter.isContainsNull() && this.valueListFilter.isContainsFalse()
-                && this.valueListFilter.isContainsTrue() && this.isBoolean;
-        checkState(!allBooleanCombinationsPresent, "Filter has all boolean combinations. " +
-                "Unlikely to filter any entries.");
-    }
+  private boolean isNotFull() {
+    return nextEmptyIndex < capacity;
+  }
 
-    public void setFieldType(Types.MinorType fieldType) {
-        setFieldType(fieldType, (byte) 0, (byte) 0);
-    }
+  @Override
+  public void close() throws Exception {
+    AutoCloseables.close(closeables);
+  }
 
-    public ValueListFilterBuilder setFieldType(Types.MinorType fieldType, byte precision, byte scale) {
-        this.valueListFilter.setFieldType(fieldType, precision, scale);
-        return this;
-    }
-
-    public ValueListFilterBuilder setName(String name) {
-        this.valueListFilter.setName(name);
-        return this;
-    }
-
-    public ValueListFilterBuilder setFieldName(String name) {
-        this.valueListFilter.setFieldName(name);
-        return this;
-    }
-
-    public String getFieldName() {
-        return this.valueListFilter.getFieldName();
-    }
-
-    public ValueListFilterBuilder setFixedWidth(boolean isFixedWidth) {
-        this.valueListFilter.setFixedWidth(isFixedWidth);
-        return this;
-    }
-
-    public ValueListFilter build() {
-        this.valueListFilter.setBlockSize(this.blockSize);
-        this.valueListFilter.setValueCount(this.nextEmptyIndex);
-
-        checkNotNull(this.valueListFilter.getName());
-        checkNotNull(this.valueListFilter.getFieldType());
-
-        this.valueListFilter.writeMetaToBuffer();
-        sortValList();
-
-        // After building, it is the responsibility of the caller to manage valueListFilter.
-        closeables.remove(valueListFilter);
-        valueListFilter.buildBloomFilter();
-        return this.valueListFilter;
-    }
-
-    /**
-     * Get quick plain instance for non continuous insertion cases.
-     * @param allocator
-     * @param blockSize
-     * @param maxElements
-     * @return
-     */
-    public static ValueListFilter buildPlainInstance(BufferAllocator allocator, byte blockSize, long maxElements, boolean isBoolean) {
-        if (isBoolean) {
-            checkArgument(blockSize == 0, "Block size should be zero for boolean fields");
-        } else {
-            checkArgument(blockSize > 0, "Block size should be greater than zero for non-boolean fields");
-        }
-
-        long valueBufferSize = isBoolean ? 0 : (maxElements * blockSize);
-        long minRequiredCapacity = valueBufferSize + ValueListFilter.META_SIZE;
-        ValueListFilter valueListFilter = new ValueListFilter(allocator.buffer(minRequiredCapacity));
-        valueListFilter.setBoolField(isBoolean);
-        valueListFilter.setBlockSize(blockSize);
-        return valueListFilter;
-    }
-
-    public static ValueListFilter fromBuffer(ArrowBuf arrowBuf) {
-        ValueListFilter valueListFilter = new ValueListFilter(arrowBuf);
-        valueListFilter.initializeMetaFromBuffer();
-        return valueListFilter;
-    }
-
-    public static ValueListWithBloomFilter fromBufferWithBloomFilter(ArrowBuf arrowBuf, ValueListFilter valueListFilter) {
-      ValueListWithBloomFilter valueListWithBloomFilter = new ValueListWithBloomFilter(arrowBuf);
-      ValueListFilter.copyValueList(valueListFilter, valueListWithBloomFilter);
-      ValueListFilter.copyMetadataBuffer(valueListFilter, valueListWithBloomFilter);
-      valueListWithBloomFilter.initializeMetaFromBuffer();
-      valueListWithBloomFilter.buildBloomFilter();
-      return valueListWithBloomFilter;
-    }
-
-    protected void sortValList() {
-        if (this.valueListFilter.isBoolField()) {
-            return;
-        }
-
-        final ArrowInPlaceMergeSorter sorter = new ArrowInPlaceMergeSorter(valuesList, blockSize,
-                this.valueListFilter.getComparator());
-        sorter.sort(0, this.valueListFilter.getValueCount());
-    }
-
-    private long hash(ArrowBuf key) {
-        return Math.abs(MurmurHash3.murmur3_128(0, key.capacity(), key, 0).getHash1() % maxHashBuckets);
-    }
-
-    @VisibleForTesting
-    void overrideMaxBuckets(int maxHashBuckets) {
-        this.maxHashBuckets = maxHashBuckets;
-    }
-
-    private boolean isNotFull() {
-        return nextEmptyIndex < capacity;
-    }
-
-    @Override
-    public void close() throws Exception {
-        AutoCloseables.close(closeables);
-    }
-
-    protected long getValueListFilterSize() {
-      long size = ValueListFilter.META_SIZE + ((isBoolean) ? 0 : (blockSize * capacity));
-      return buildWithBloomFilter ? size + ValueListFilter.BLOOM_FILTER_SIZE : size;
-    }
+  protected long getValueListFilterSize() {
+    long size = ValueListFilter.META_SIZE + ((isBoolean) ? 0 : (blockSize * capacity));
+    return buildWithBloomFilter ? size + ValueListFilter.BLOOM_FILTER_SIZE : size;
+  }
 }

@@ -19,9 +19,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
 
-/**
- * A Serializer implementation for String
- */
+/** A Serializer implementation for String */
 public final class StringSerializer extends Serializer<String, byte[]> {
 
   public static final StringSerializer INSTANCE = new StringSerializer();

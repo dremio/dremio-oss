@@ -29,15 +29,14 @@ import com.dremio.datastore.Converter;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-/**
- * Transform base class
- */
+/** Transform base class */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CUSTOM, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonTypeIdResolver(EnumTypeIdResolver.class)
 @TypesEnum(types = FromType.class, format = "com.dremio.dac.proto.model.dataset.From%s")
-public abstract class FromBase  {
+public abstract class FromBase {
 
-  public static final Acceptor<FromBase, FromVisitor<?>, From> acceptor = new Acceptor<FromBase, FromVisitor<?>, From>(){};
+  public static final Acceptor<FromBase, FromVisitor<?>, From> acceptor =
+      new Acceptor<FromBase, FromVisitor<?>, From>() {};
 
   public final <T> T accept(FromVisitor<T> visitor) throws VisitorException {
     return acceptor.accept(visitor, this);
@@ -61,8 +60,11 @@ public abstract class FromBase  {
     public T visit(From e) {
       return unwrap(e).accept(this);
     }
+
     public abstract T visit(FromTable table) throws Exception;
+
     public abstract T visit(FromSQL sql) throws Exception;
+
     public abstract T visit(FromSubQuery subQuery) throws Exception;
   }
 

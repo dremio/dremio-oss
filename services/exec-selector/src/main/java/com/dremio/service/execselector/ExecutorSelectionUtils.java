@@ -17,21 +17,19 @@ package com.dremio.service.execselector;
 
 import com.dremio.common.exceptions.UserException;
 
-/**
- * Utilities for Executor selection.
- */
+/** Utilities for Executor selection. */
 public final class ExecutorSelectionUtils {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecutorSelectionUtils.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExecutorSelectionUtils.class);
 
   public static void throwEngineOffline(String queueTag) {
     if (queueTag == null || queueTag.isEmpty()) {
       queueTag = "Default";
     }
     throw UserException.resourceError()
-      .message(String.format("The %s engine is not online.", queueTag))
-      .build(logger);
+        .message(String.format("The %s engine is not online.", queueTag))
+        .build(logger);
   }
 
-  private ExecutorSelectionUtils() {
-  }
+  private ExecutorSelectionUtils() {}
 }

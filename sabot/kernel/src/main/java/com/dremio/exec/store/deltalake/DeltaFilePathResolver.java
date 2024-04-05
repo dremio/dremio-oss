@@ -16,30 +16,31 @@
 
 package com.dremio.exec.store.deltalake;
 
+import com.dremio.io.file.Path;
+import com.dremio.service.namespace.file.proto.FileType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.dremio.io.file.Path;
-import com.dremio.service.namespace.file.proto.FileType;
-
 /**
- * Expects path of _delta_log as metadataDir. Depending on the version and type
- * will return path either commit json or checkpoint parquet pattern (to address multi-part checkpoint).
+ * Expects path of _delta_log as metadataDir. Depending on the version and type will return path
+ * either commit json or checkpoint parquet pattern (to address multi-part checkpoint).
  *
- * Filename generated based on the spec
- * See <a href=https://github.com/delta-io/delta/blob/master/PROTOCOL.md#delta-log-entries">Delta.io spec</a>
+ * <p>Filename generated based on the spec See <a
+ * href=https://github.com/delta-io/delta/blob/master/PROTOCOL.md#delta-log-entries">Delta.io
+ * spec</a>
  */
 public final class DeltaFilePathResolver {
 
-  private DeltaFilePathResolver() {
-  }
+  private DeltaFilePathResolver() {}
 
   public static List<Path> resolve(Path metadataDir, long version, int subparts, FileType type) {
     if (subparts > 1) {
       List<Path> resolvedPathsList = new ArrayList<>(subparts);
       for (int i = 1; i <= subparts; ++i) {
-        String versionWithZeroPadding = String.format("%20s.checkpoint.%10s.%10s.parquet", version, i, subparts).replace(' ', '0');
+        String versionWithZeroPadding =
+            String.format("%20s.checkpoint.%10s.%10s.parquet", version, i, subparts)
+                .replace(' ', '0');
         resolvedPathsList.add(metadataDir.resolve(Path.of(versionWithZeroPadding)));
       }
       return resolvedPathsList;
@@ -53,7 +54,8 @@ public final class DeltaFilePathResolver {
   }
 
   public static Path resolveCheckpointPattern(Path metadataDir, long version) {
-    String versionWithZeroPadding = String.format("%20s.checkpoint*.parquet", version).replace(' ', '0');
+    String versionWithZeroPadding =
+        String.format("%20s.checkpoint*.parquet", version).replace(' ', '0');
     return metadataDir.resolve(Path.of(versionWithZeroPadding));
   }
 

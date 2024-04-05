@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.compile;
 
+import com.dremio.exec.compile.ClassTransformer.ClassNames;
+import com.dremio.exec.exception.ClassTransformationException;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.StringReader;
-
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ClassLoaderIClassLoader;
 import org.codehaus.janino.IClassLoader;
@@ -27,15 +29,11 @@ import org.codehaus.janino.Scanner;
 import org.codehaus.janino.UnitCompiler;
 import org.codehaus.janino.util.ClassFile;
 
-import com.dremio.exec.compile.ClassTransformer.ClassNames;
-import com.dremio.exec.exception.ClassTransformationException;
-import com.google.common.annotations.VisibleForTesting;
-
 public class JaninoClassCompiler extends AbstractClassCompiler {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JaninoClassCompiler.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(JaninoClassCompiler.class);
 
   private IClassLoader compilationClassLoader;
-
 
   public JaninoClassCompiler() {
     this(Thread.currentThread().getContextClassLoader());
@@ -47,16 +45,18 @@ public class JaninoClassCompiler extends AbstractClassCompiler {
   }
 
   @Override
-  protected ClassBytes[] getByteCode(final ClassNames className, final String sourcecode, boolean debug)
+  protected ClassBytes[] getByteCode(
+      final ClassNames className, final String sourcecode, boolean debug)
       throws CompileException, IOException, ClassNotFoundException, ClassTransformationException {
     StringReader reader = new StringReader(sourcecode);
     Scanner scanner = new Scanner((String) null, reader);
-    Java.AbstractCompilationUnit compilationUnit = new Parser(scanner).parseAbstractCompilationUnit();
-    ClassFile[] classFiles = new UnitCompiler(compilationUnit, compilationClassLoader)
-                                  .compileUnit(debug, debug, debug);
+    Java.AbstractCompilationUnit compilationUnit =
+        new Parser(scanner).parseAbstractCompilationUnit();
+    ClassFile[] classFiles =
+        new UnitCompiler(compilationUnit, compilationClassLoader).compileUnit(debug, debug, debug);
 
     ClassBytes[] byteCodes = new ClassBytes[classFiles.length];
-    for(int i = 0; i < classFiles.length; i++){
+    for (int i = 0; i < classFiles.length; i++) {
       ClassFile file = classFiles[i];
       byteCodes[i] = new ClassBytes(file.getThisClassName(), file.toByteArray());
     }
@@ -64,5 +64,7 @@ public class JaninoClassCompiler extends AbstractClassCompiler {
   }
 
   @Override
-  protected org.slf4j.Logger getLogger() { return logger; }
+  protected org.slf4j.Logger getLogger() {
+    return logger;
+  }
 }

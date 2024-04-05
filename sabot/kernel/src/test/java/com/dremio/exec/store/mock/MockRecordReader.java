@@ -19,14 +19,6 @@ import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 import static com.dremio.common.util.MajorTypeHelper.getArrowTypeForMajorType;
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
-import java.util.Map;
-
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.GenerateSampleData;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.exception.SchemaChangeException;
@@ -36,6 +28,12 @@ import com.dremio.exec.store.mock.MockGroupScanPOP.MockColumn;
 import com.dremio.exec.store.mock.MockGroupScanPOP.MockScanEntry;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+import java.util.Map;
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.GenerateSampleData;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 public class MockRecordReader extends AbstractRecordReader {
 
@@ -44,7 +42,6 @@ public class MockRecordReader extends AbstractRecordReader {
   private ValueVector[] valueVectors;
   private int recordsRead;
   private int batchRecordCount;
-
 
   public MockRecordReader(OperatorContext context, MockScanEntry config) {
     super(context, null);
@@ -62,7 +59,8 @@ public class MockRecordReader extends AbstractRecordReader {
 
   private Field getVector(String name, MajorType type, int length) {
     assert context != null : "Context shouldn't be null.";
-    final Field f = new Field(name, new FieldType(true, getArrowTypeForMajorType(type), null), null);
+    final Field f =
+        new Field(name, new FieldType(true, getArrowTypeForMajorType(type), null), null);
     return f;
   }
 
@@ -76,7 +74,9 @@ public class MockRecordReader extends AbstractRecordReader {
       for (int i = 0; i < config.getTypes().length; i++) {
         final MajorType type = config.getTypes()[i].getMajorType();
         final Field field = getVector(config.getTypes()[i].getName(), type, batchRecordCount);
-        final Class<? extends ValueVector> vvClass = (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(getMinorTypeForArrowType(field.getType()));
+        final Class<? extends ValueVector> vvClass =
+            (Class<? extends ValueVector>)
+                TypeHelper.getValueVectorClass(getMinorTypeForArrowType(field.getType()));
         valueVectors[i] = output.addField(field, vvClass);
       }
     } catch (SchemaChangeException e) {
@@ -107,6 +107,5 @@ public class MockRecordReader extends AbstractRecordReader {
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 }

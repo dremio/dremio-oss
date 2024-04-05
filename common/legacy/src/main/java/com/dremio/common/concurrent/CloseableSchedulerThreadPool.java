@@ -15,19 +15,17 @@
  */
 package com.dremio.common.concurrent;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 import org.slf4j.Logger;
 
-import com.google.common.base.Preconditions;
-
-/**
- * AutoCloseable implementation of {@link ScheduledThreadPoolExecutor}
- */
-public class CloseableSchedulerThreadPool extends ScheduledThreadPoolExecutor implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CloseableSchedulerThreadPool.class);
+/** AutoCloseable implementation of {@link ScheduledThreadPoolExecutor} */
+public class CloseableSchedulerThreadPool extends ScheduledThreadPoolExecutor
+    implements AutoCloseable {
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CloseableSchedulerThreadPool.class);
   private final String name;
 
   public CloseableSchedulerThreadPool(String name, int corePoolSize) {

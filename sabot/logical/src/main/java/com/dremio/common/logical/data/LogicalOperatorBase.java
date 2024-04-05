@@ -15,21 +15,20 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-
 import com.dremio.common.graph.GraphVisitor;
 import com.dremio.common.logical.ValidationError;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 
-
-public abstract class LogicalOperatorBase implements LogicalOperator{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LogicalOperatorBase.class);
+public abstract class LogicalOperatorBase implements LogicalOperator {
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(LogicalOperatorBase.class);
 
   private List<LogicalOperator> children = new ArrayList<LogicalOperator>();
 
@@ -41,7 +40,8 @@ public abstract class LogicalOperatorBase implements LogicalOperator{
   }
 
   // The below method was marked as final because .hashCode is
-  // Since .equals and .hashCode have to be implemented in tandem, we want to eliminate the chance only .equals is
+  // Since .equals and .hashCode have to be implemented in tandem, we want to eliminate the chance
+  // only .equals is
   // redefined in a derived class
   @Override
   public final boolean equals(final Object other) {
@@ -49,7 +49,8 @@ public abstract class LogicalOperatorBase implements LogicalOperator{
   }
 
   @Override
-  public void setupAndValidate(List<LogicalOperator> operators, Collection<ValidationError> errors) {
+  public void setupAndValidate(
+      List<LogicalOperator> operators, Collection<ValidationError> errors) {
     // TODO: remove this and implement individually.
   }
 
@@ -90,7 +91,8 @@ public abstract class LogicalOperatorBase implements LogicalOperator{
   }
 
   public static Set<Class<? extends LogicalOperator>> getSubTypes(final ScanResult classpathScan) {
-    final Set<Class<? extends LogicalOperator>> ops = classpathScan.getImplementations(LogicalOperator.class);
+    final Set<Class<? extends LogicalOperator>> ops =
+        classpathScan.getImplementations(LogicalOperator.class);
     logger.debug("Found {} logical operator classes: {}.", ops.size(), ops);
     return ops;
   }

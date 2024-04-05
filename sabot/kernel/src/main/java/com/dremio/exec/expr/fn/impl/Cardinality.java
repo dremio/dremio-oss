@@ -15,27 +15,25 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-
-import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 
 public final class Cardinality {
 
-  @FunctionTemplate(names = {"cardinality", "array_length", "array_size"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(
+      names = {"cardinality", "array_length", "array_size"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class ListCardinality implements SimpleFunction {
-    @Param
-    private FieldReader input;
-    @Output
-    private NullableIntHolder out;
+    @Param private FieldReader input;
+    @Output private NullableIntHolder out;
 
     @Override
-    public void setup() {
-    }
+    public void setup() {}
 
     @Override
     public void eval() {

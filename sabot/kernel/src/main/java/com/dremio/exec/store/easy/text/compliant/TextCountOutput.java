@@ -15,18 +15,18 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
-
+import com.dremio.exec.exception.SchemaChangeException;
 import org.apache.arrow.flatbuf.RecordBatch;
 
-import com.dremio.exec.exception.SchemaChangeException;
-
 /**
- * Simple extension of {@link TextOutput}, to just count the number of records in text file. It outputs column called
- * "count" of boolean type and for each row the value is "true".
+ * Simple extension of {@link TextOutput}, to just count the number of records in text file. It
+ * outputs column called "count" of boolean type and for each row the value is "true".
  */
-public class TextCountOutput extends TextOutput  {
+public class TextCountOutput extends TextOutput {
 
-  private int recordCount = 0; /** int should be enough a batch can have {@link RecordBatch#MAX_BATCH_SIZE} */
+  private int recordCount = 0;
+
+  /** int should be enough a batch can have {@link RecordBatch#MAX_BATCH_SIZE} */
   private boolean fieldOpen = false;
 
   public TextCountOutput() throws SchemaChangeException {
@@ -78,8 +78,7 @@ public class TextCountOutput extends TextOutput  {
   }
 
   @Override
-  public void finishBatch() {
-  }
+  public void finishBatch() {}
 
   @Override
   public boolean rowHasData() {

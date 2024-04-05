@@ -15,9 +15,6 @@
  */
 package com.dremio.sabot.exec.fragment;
 
-import java.io.IOException;
-import java.util.Map;
-
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -36,10 +33,10 @@ import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.dremio.services.jobresults.common.JobResultsTunnel;
 import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.util.Map;
 
-/**
- * Provides tunnels to an execution pipeline.
- */
+/** Provides tunnels to an execution pipeline. */
 class TunnelProviderImpl implements TunnelProvider {
 
   private final Map<NodeEndpoint, AccountingExecTunnel> tunnels = Maps.newHashMap();
@@ -63,9 +60,12 @@ class TunnelProviderImpl implements TunnelProvider {
     super();
     this.accountor = accountor;
     this.statusHandler = statusHandler;
-    final SharedResource resource = resourceGroup.createResource("user", SharedResourceType.SEND_MSG_COORDINATOR);
-    final SendingMonitor monitor = new SendingMonitor(resource, accountor, outstandingRPCsPerTunnel);
-    this.coordTunnel = new AccountingExecToCoordTunnel(tunnel, monitor, monitor.wrap(statusHandler));
+    final SharedResource resource =
+        resourceGroup.createResource("user", SharedResourceType.SEND_MSG_COORDINATOR);
+    final SendingMonitor monitor =
+        new SendingMonitor(resource, accountor, outstandingRPCsPerTunnel);
+    this.coordTunnel =
+        new AccountingExecToCoordTunnel(tunnel, monitor, monitor.wrap(statusHandler));
 
     this.connectionCreator = connectionCreator;
     this.resourceGroup = resourceGroup;
@@ -82,18 +82,24 @@ class TunnelProviderImpl implements TunnelProvider {
   public AccountingExecTunnel getExecTunnel(final NodeEndpoint endpoint) {
     AccountingExecTunnel tunnel = tunnels.get(endpoint);
     if (tunnel == null) {
-      final SharedResource resource = resourceGroup.createResource("send-data-" + endpoint.getAddress(), SharedResourceType.SEND_MSG_DATA);
+      final SharedResource resource =
+          resourceGroup.createResource(
+              "send-data-" + endpoint.getAddress(), SharedResourceType.SEND_MSG_DATA);
       SendingMonitor monitor = new SendingMonitor(resource, accountor, outstandingRPCsPerTunnel);
-      tunnel = new AccountingExecTunnel(connectionCreator.getTunnel(endpoint), monitor, monitor.wrap(statusHandler));
+      tunnel =
+          new AccountingExecTunnel(
+              connectionCreator.getTunnel(endpoint), monitor, monitor.wrap(statusHandler));
       tunnels.put(endpoint, tunnel);
     }
     return tunnel;
   }
 
   @Override
-  public AccountingFileTunnel getFileTunnel(FileStreamManager streamManager, int maxBatchesPerFile) throws IOException {
-    final SharedResource resource = resourceGroup.createResource("writer-file-" + streamManager.getId(),
-      SharedResourceType.SEND_MSG_DATA);
+  public AccountingFileTunnel getFileTunnel(FileStreamManager streamManager, int maxBatchesPerFile)
+      throws IOException {
+    final SharedResource resource =
+        resourceGroup.createResource(
+            "writer-file-" + streamManager.getId(), SharedResourceType.SEND_MSG_DATA);
     final FileTunnel fileTunnel = new FileTunnel(streamManager, maxBatchesPerFile);
     return new AccountingFileTunnel(fileTunnel, cursorManagerFactory, resource);
   }

@@ -17,7 +17,6 @@ package com.dremio.exec.rpc;
 
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
 
 public class Response {
@@ -33,8 +32,4 @@ public class Response {
     this.pBody = pBody;
     this.dBodies = dBodies;
   }
-
-
-
-
 }

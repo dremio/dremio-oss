@@ -20,29 +20,24 @@ import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.File;
-
-import javax.inject.Provider;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.config.DremioConfig;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.collect.ImmutableList;
+import java.io.File;
+import javax.inject.Provider;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-/**
- * Unit test(s) of the SpillService
- */
+/** Unit test(s) of the SpillService */
 public class TestSpillService {
-  @Rule
-  public TemporaryFolder spillParentDir = new TemporaryFolder();
+  @Rule public TemporaryFolder spillParentDir = new TemporaryFolder();
 
   /**
-   * "scheduler service" that allows the test to manually execute the (single) task that is registered with this service
+   * "scheduler service" that allows the test to manually execute the (single) task that is
+   * registered with this service
    */
   public class NoopScheduler implements SchedulerService {
     private Runnable taskToRun;
@@ -52,7 +47,7 @@ public class TestSpillService {
       taskToRun = task;
       return new Cancellable() {
         @Override
-        public void cancel(boolean mayInterruptIfRunning) { }
+        public void cancel(boolean mayInterruptIfRunning) {}
 
         @Override
         public boolean isCancelled() {
@@ -67,12 +62,10 @@ public class TestSpillService {
     }
 
     @Override
-    public void start() {
-    }
+    public void start() {}
 
     @Override
-    public void close() {
-    }
+    public void close() {}
   }
 
   class TestSpillServiceOptions extends DefaultSpillServiceOptions {
@@ -89,23 +82,24 @@ public class TestSpillService {
     }
   }
 
-  /**
-   * Unit test of the spill service's health check
-   */
+  /** Unit test of the spill service's health check */
   @Test
   public void testSpillHealthCheck() throws Exception {
     final DremioConfig config = mock(DremioConfig.class);
     final File spillDir = spillParentDir.newFolder();
-    when(config.getStringList(DremioConfig.SPILLING_PATH_STRING)).thenReturn(ImmutableList.of(spillDir.getPath()));
+    when(config.getStringList(DremioConfig.SPILLING_PATH_STRING))
+        .thenReturn(ImmutableList.of(spillDir.getPath()));
     final NoopScheduler schedulerService = new NoopScheduler();
-    final SpillService spillService = new SpillServiceImpl(config, new TestSpillServiceOptions(),
-      new Provider<SchedulerService>() {
-        @Override
-        public SchedulerService get() {
-          return schedulerService;
-        }
-      }
-    );
+    final SpillService spillService =
+        new SpillServiceImpl(
+            config,
+            new TestSpillServiceOptions(),
+            new Provider<SchedulerService>() {
+              @Override
+              public SchedulerService get() {
+                return schedulerService;
+              }
+            });
 
     assertEquals(null, schedulerService.taskToRun);
     spillService.start();
@@ -119,7 +113,8 @@ public class TestSpillService {
     spillFile11.createNewFile();
     assertEquals(2, spillDir.listFiles().length);
 
-    // Spill sweep should get rid of the sub-directory, since the test option defines sweep threshold as 0
+    // Spill sweep should get rid of the sub-directory, since the test option defines sweep
+    // threshold as 0
     schedulerService.taskToRun.run();
     assertEquals(0, spillDir.listFiles().length);
 

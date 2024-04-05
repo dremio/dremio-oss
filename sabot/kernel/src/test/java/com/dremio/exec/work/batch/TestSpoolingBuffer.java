@@ -21,25 +21,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.protos.ExternalIdHelper;
@@ -62,12 +43,28 @@ import com.dremio.service.spill.DefaultSpillServiceOptions;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.test.AllocatorRule;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Provider;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 public class TestSpoolingBuffer extends ExecTest {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSpoolingBuffer.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestSpoolingBuffer.class);
 
-  @Rule
-  public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
   // Test constants.
   private static final int batchAllocateSize = 1024;
@@ -77,8 +74,7 @@ public class TestSpoolingBuffer extends ExecTest {
   private static final int totalBatches = numIterations * numBatchesToEnqueuePerIteration;
   private static OptionManager options;
 
-  @Rule
-  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setup() throws Exception {
@@ -89,23 +85,43 @@ public class TestSpoolingBuffer extends ExecTest {
   public void testWriteThenRead() throws Exception {
     SharedResource resource = mock(SharedResource.class);
     QueryId queryId = ExternalIdHelper.toQueryId(ExternalIdHelper.generateExternalId());
-    FragmentHandle handle = FragmentHandle.newBuilder().setMajorFragmentId(0).setMinorFragmentId(0).setQueryId(queryId).build();
+    FragmentHandle handle =
+        FragmentHandle.newBuilder()
+            .setMajorFragmentId(0)
+            .setMinorFragmentId(0)
+            .setQueryId(queryId)
+            .build();
     FragmentWorkQueue queue = mock(FragmentWorkQueue.class);
     final ExecutorService executorService = Executors.newFixedThreadPool(1);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-        Runnable work = invocationOnMock.getArgument(0, Runnable.class);
-        executorService.submit(work);
-        return null;
-      }
-    }).when(queue).put(any(Runnable.class));
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Runnable work = invocationOnMock.getArgument(0, Runnable.class);
+                executorService.submit(work);
+                return null;
+              }
+            })
+        .when(queue)
+        .put(any(Runnable.class));
 
     SabotConfig config = SabotConfig.create();
     final SpillService spillService = setupSpillService(config);
 
-    try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
-      SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, options, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
+    try (BufferAllocator spoolingAllocator =
+            allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
+        SpoolingRawBatchBuffer buffer =
+            new SpoolingRawBatchBuffer(
+                resource,
+                config,
+                options,
+                queue,
+                handle,
+                spillService,
+                spoolingAllocator,
+                1,
+                0,
+                0)) {
       buffer.init();
 
       for (int i = 0; i < numBatchesToEnqueuePerIteration; i++) {
@@ -130,34 +146,55 @@ public class TestSpoolingBuffer extends ExecTest {
 
       assertNull(buffer.getNext());
     }
-
   }
 
   @Test
   public void testWriteAndReadInterleaved() throws Exception {
     SharedResource resource = mock(SharedResource.class);
     QueryId queryId = ExternalIdHelper.toQueryId(ExternalIdHelper.generateExternalId());
-    FragmentHandle handle = FragmentHandle.newBuilder().setMajorFragmentId(0).setMinorFragmentId(0).setQueryId(queryId).build();
+    FragmentHandle handle =
+        FragmentHandle.newBuilder()
+            .setMajorFragmentId(0)
+            .setMinorFragmentId(0)
+            .setQueryId(queryId)
+            .build();
     FragmentWorkQueue queue = mock(FragmentWorkQueue.class);
-    // Use ThreadPoolExecutor instead of Executors to be able to specify a BlockingQueue that can tell the count of
-    // active items still pending.  This count is required to be able to wait for the queue to drain before reading
+    // Use ThreadPoolExecutor instead of Executors to be able to specify a BlockingQueue that can
+    // tell the count of
+    // active items still pending.  This count is required to be able to wait for the queue to drain
+    // before reading
     // the buffers in each without shutting down the ExecutorService completely.
-    final ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0L,
-      TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-        Runnable work = invocationOnMock.getArgument(0, Runnable.class);
-        executorService.submit(work);
-        return null;
-      }
-    }).when(queue).put(any(Runnable.class));
+    final ThreadPoolExecutor executorService =
+        new ThreadPoolExecutor(1, 1, 0L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Runnable work = invocationOnMock.getArgument(0, Runnable.class);
+                executorService.submit(work);
+                return null;
+              }
+            })
+        .when(queue)
+        .put(any(Runnable.class));
 
     SabotConfig config = SabotConfig.create();
     final SpillService spillService = setupSpillService(config);
 
-    try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
-         SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, options, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
+    try (BufferAllocator spoolingAllocator =
+            allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
+        SpoolingRawBatchBuffer buffer =
+            new SpoolingRawBatchBuffer(
+                resource,
+                config,
+                options,
+                queue,
+                handle,
+                spillService,
+                spoolingAllocator,
+                1,
+                0,
+                0)) {
       buffer.init();
 
       RawFragmentBatch nextReadBatch;
@@ -165,19 +202,20 @@ public class TestSpoolingBuffer extends ExecTest {
 
       for (int iter = 0; iter < numIterations; iter++) {
         for (int i = 0; i < numBatchesToEnqueuePerIteration; i++) {
-          try (RawFragmentBatch nextEnqueueBatch = newBatch(iter * numBatchesToEnqueuePerIteration + i)) {
+          try (RawFragmentBatch nextEnqueueBatch =
+              newBatch(iter * numBatchesToEnqueuePerIteration + i)) {
             buffer.enqueue(nextEnqueueBatch);
           }
         }
 
         try {
           while (executorService.getQueue().size() != 0) {
-            // Wait for active items in ExecutorService to go to zero so that we are sure that all enqueued buffers
+            // Wait for active items in ExecutorService to go to zero so that we are sure that all
+            // enqueued buffers
             // have been able to finish spooling and sendOk().
             Thread.sleep(100);
           }
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
           Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
           System.out.println("Number of threads: " + threads.size());
           for (Map.Entry<Thread, StackTraceElement[]> thread : threads.entrySet()) {
@@ -190,8 +228,10 @@ public class TestSpoolingBuffer extends ExecTest {
         }
 
         readCount = 0;
-        while (readCount++ < numBatchesToReadPerIteration && (nextReadBatch = buffer.getNext()) != null) {
-          // Read any available batches but not more than half of what were queued in this iteration.
+        while (readCount++ < numBatchesToReadPerIteration
+            && (nextReadBatch = buffer.getNext()) != null) {
+          // Read any available batches but not more than half of what were queued in this
+          // iteration.
           checkBatch(nextReadBatch, nBatches++);
           nextReadBatch.close();
         }
@@ -211,41 +251,63 @@ public class TestSpoolingBuffer extends ExecTest {
       assertNull(buffer.getNext());
       assertEquals(0, allocator.getAllocatedMemory());
     }
-
   }
 
   @Test
   public void testBufferCloseOrdering() throws Exception {
     SharedResource resource = mock(SharedResource.class);
     QueryId queryId = ExternalIdHelper.toQueryId(ExternalIdHelper.generateExternalId());
-    FragmentHandle handle = FragmentHandle.newBuilder().setMajorFragmentId(0).setMinorFragmentId(0).setQueryId(queryId).build();
+    FragmentHandle handle =
+        FragmentHandle.newBuilder()
+            .setMajorFragmentId(0)
+            .setMinorFragmentId(0)
+            .setQueryId(queryId)
+            .build();
     FragmentWorkQueue queue = mock(FragmentWorkQueue.class);
-    // Use ThreadPoolExecutor instead of Executors to be able to specify a BlockingQueue that can tell the count of
-    // active items still pending.  This count is required to be able to wait for the queue to drain before reading
+    // Use ThreadPoolExecutor instead of Executors to be able to specify a BlockingQueue that can
+    // tell the count of
+    // active items still pending.  This count is required to be able to wait for the queue to drain
+    // before reading
     // the buffers in each without shutting down the ExecutorService completely.
-    final ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0L,
-      TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-        Runnable work = invocationOnMock.getArgument(0, Runnable.class);
-        executorService.submit(work);
-        return null;
-      }
-    }).when(queue).put(any(Runnable.class));
+    final ThreadPoolExecutor executorService =
+        new ThreadPoolExecutor(1, 1, 0L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Runnable work = invocationOnMock.getArgument(0, Runnable.class);
+                executorService.submit(work);
+                return null;
+              }
+            })
+        .when(queue)
+        .put(any(Runnable.class));
 
     SabotConfig config = SabotConfig.create();
     final SpillService spillService = setupSpillService(config);
 
-    try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
-      SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, options, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
+    try (BufferAllocator spoolingAllocator =
+            allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
+        SpoolingRawBatchBuffer buffer =
+            new SpoolingRawBatchBuffer(
+                resource,
+                config,
+                options,
+                queue,
+                handle,
+                spillService,
+                spoolingAllocator,
+                1,
+                0,
+                0)) {
       buffer.init();
       RawFragmentBatch nextReadBatch;
       int nBatches = 0, readCount;
 
       for (int iter = 0; iter < numIterations; iter++) {
         for (int i = 0; i < numBatchesToEnqueuePerIteration; i++) {
-          try (RawFragmentBatch nextEnqueueBatch = newBatch(iter * numBatchesToEnqueuePerIteration + i)) {
+          try (RawFragmentBatch nextEnqueueBatch =
+              newBatch(iter * numBatchesToEnqueuePerIteration + i)) {
             buffer.enqueue(nextEnqueueBatch);
             nextEnqueueBatch.sendOk();
           }
@@ -254,7 +316,8 @@ public class TestSpoolingBuffer extends ExecTest {
       try {
         executorService.shutdown();
         if (!executorService.awaitTermination(160, TimeUnit.SECONDS)) {
-          // Throw an exception for the case when this test has not timed out, but awaitTermination has timed out
+          // Throw an exception for the case when this test has not timed out, but awaitTermination
+          // has timed out
           throw new Exception();
         }
       } catch (Exception e) {
@@ -273,7 +336,6 @@ public class TestSpoolingBuffer extends ExecTest {
         throw e;
       }
     }
-
   }
 
   private AckSender ackSender = mock(AckSender.class);
@@ -291,21 +353,29 @@ public class TestSpoolingBuffer extends ExecTest {
 
   private SpillService setupSpillService(SabotConfig config) throws Exception {
     final SchedulerService schedulerService = mock(SchedulerService.class);
-    final CoordinationProtos.NodeEndpoint endpoint = CoordinationProtos.NodeEndpoint.newBuilder()
-      .setAddress("localhost").setFabricPort(1834).build();
+    final CoordinationProtos.NodeEndpoint endpoint =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress("localhost")
+            .setFabricPort(1834)
+            .build();
 
-    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
-      new Provider<SchedulerService>() {
-        @Override
-        public SchedulerService get() {
-          return schedulerService;
-        }
-      }, new Provider<CoordinationProtos.NodeEndpoint>() {
-      @Override
-      public CoordinationProtos.NodeEndpoint get() {
-        return endpoint;
-      }
-    }, null);
+    final SpillService spillService =
+        new SpillServiceImpl(
+            DremioConfig.create(null, config),
+            new DefaultSpillServiceOptions(),
+            new Provider<SchedulerService>() {
+              @Override
+              public SchedulerService get() {
+                return schedulerService;
+              }
+            },
+            new Provider<CoordinationProtos.NodeEndpoint>() {
+              @Override
+              public CoordinationProtos.NodeEndpoint get() {
+                return endpoint;
+              }
+            },
+            null);
     spillService.start();
     return spillService;
   }

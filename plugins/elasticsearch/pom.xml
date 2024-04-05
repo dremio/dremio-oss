@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright (C) 2017-2019 Dremio Corporation
@@ -16,14 +16,12 @@
     limitations under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>24.3.2-202401241821100032-d2d8a497</version>
+    <artifactId>dremio-plugin-parent</artifactId>
+    <version>25.0.0-202404051521110861-ed9515a8</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -48,11 +46,6 @@
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-guava</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-to-slf4j</artifactId>
-      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
@@ -103,12 +96,12 @@
       <artifactId>dremio-sabot-kernel</artifactId>
       <exclusions>
         <exclusion>
-          <artifactId>hadoop-common</artifactId>
           <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
         </exclusion>
         <exclusion>
-          <artifactId>hadoop-client</artifactId>
           <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-client</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -131,7 +124,7 @@
       <artifactId>jts</artifactId>
       <version>1.13</version>
       <scope>test</scope>
-    </dependency>    
+    </dependency>
     <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
@@ -242,17 +235,17 @@
         <executions>
           <execution>
             <id>start-elasticsearch</id>
-            <phase>pre-integration-test</phase>
             <goals>
               <goal>runforked</goal>
             </goals>
+            <phase>pre-integration-test</phase>
           </execution>
           <execution>
             <id>stop-elasticsearch</id>
-            <phase>post-integration-test</phase>
             <goals>
               <goal>stop</goal>
             </goals>
+            <phase>post-integration-test</phase>
           </execution>
         </executions>
       </plugin>

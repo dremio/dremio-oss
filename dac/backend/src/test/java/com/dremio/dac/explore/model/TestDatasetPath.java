@@ -18,9 +18,7 @@ package com.dremio.dac.explore.model;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * DatasetPath tests
- */
+/** DatasetPath tests */
 public class TestDatasetPath {
 
   @Test
@@ -34,6 +32,4 @@ public class TestDatasetPath {
 
     Assert.assertEquals("a.b.c", datasetPath.toPathString());
   }
-
-
 }

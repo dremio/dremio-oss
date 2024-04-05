@@ -15,17 +15,15 @@
  */
 package com.dremio.exec.vector.complex.fn;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.IOException;
 import java.math.BigDecimal;
-
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-
 /**
- * Writes JSON Output that will wrap Binary, Date, Time, Timestamp, Integer, Decimal and Interval types with wrapping
- * maps for better type resolution upon deserialization.
+ * Writes JSON Output that will wrap Binary, Date, Time, Timestamp, Integer, Decimal and Interval
+ * types with wrapping maps for better type resolution upon deserialization.
  */
 public class ExtendedJsonOutput extends BasicJsonOutput {
 
@@ -174,6 +172,4 @@ public class ExtendedJsonOutput extends BasicJsonOutput {
   public void writeIntNull() throws IOException {
     writeBigIntNull();
   }
-
-
 }

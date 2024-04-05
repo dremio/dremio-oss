@@ -16,15 +16,11 @@
 import { transformFromReflectionDetails } from "@app/exports/endpoints/JobsListing/utils";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
 import { renderQueryStateForServer } from "utils/jobsQueryState";
-import Immutable from "immutable";
-import { store } from "@app/store/store";
-import { getExploreState } from "@app/selectors/explore";
 
 export const FETCH_JOBS_LIST_REQUEST = "FETCH_JOBS_LIST_REQUEST";
 export const FETCH_JOBS_LIST_SUCCESS = "FETCH_JOBS_LIST_SUCCESS";
 export const FETCH_JOBS_LIST_FAILURE = "FETCH_JOBS_LIST_FAILURE";
 export const JOBS_LIST_RESET = "JOBS_LIST_RESET";
-export const SAVE_JOB_RESET = "SAVE_JOB_RESET";
 export const FETCH_JOB_DETAILS_BY_ID_REQUEST =
   "FETCH_JOB_DETAILS_BY_ID_REQUEST";
 export const FETCH_JOB_DETAILS_BY_ID_SUCCESS =
@@ -86,90 +82,8 @@ function fetchJobsListAction(queryState, viewId) {
             fetchJobsListActionFailure({
               response,
               meta: { notification: true },
-            })
+            }),
           );
-        }
-      });
-  };
-}
-
-export const resetFilteredJobsList = (tabId) => ({
-  type: JOBS_LIST_RESET,
-  payload: Immutable.List(),
-  meta: { tabId },
-});
-
-export const resetUniqueSavingJob = (tabId) => ({
-  type: SAVE_JOB_RESET,
-  payload: undefined,
-  meta: { tabId },
-});
-
-function fetchFilteredJobsListForExplorePageAction(
-  jobId = "",
-  viewId,
-  replaceIndex,
-  isSaveJob,
-  activeScriptId
-) {
-  const meta = {
-    viewId,
-    isExplorePage: true,
-    replaceIndex,
-    isSaveJob,
-  };
-  return (dispatch) => {
-    return apiUtils
-      .fetch(
-        `jobs-listing/v1.0?detailLevel=1&sort=st&order=ASCENDING&filter=(${encodeURIComponent(
-          `job=="${jobId}"`
-        )
-          .replace(/'/g, "%27")
-          .replace(/"/g, "%22")})`,
-        {},
-        2
-      )
-      .then((response) => {
-        try {
-          return response.json();
-        } catch {
-          // eslint-disable-next-line promise/no-return-wrap
-          return Promise.reject(response);
-        }
-      })
-      .then((payload) => {
-        const curScriptId = getExploreState(store.getState())?.view
-          ?.activeScript?.id;
-        dispatch(
-          fetchJobsListActionSuccess(payload, {
-            ...meta,
-            ...(activeScriptId !== curScriptId && { tabId: activeScriptId }),
-          })
-        );
-        // eslint-disable-next-line promise/no-return-wrap
-        return Promise.resolve(payload);
-      })
-      .catch((response) => {
-        if (response) {
-          return response
-            .json()
-            .then((error) => {
-              const curScriptId = getExploreState(store.getState())?.view
-                ?.activeScript?.id;
-              return dispatch(
-                fetchJobsListActionFailure({
-                  response: error,
-                  meta: {
-                    ...(activeScriptId !== curScriptId && {
-                      tabId: activeScriptId,
-                    }),
-                  },
-                })
-              );
-            })
-            .catch(
-              () => response && dispatch(fetchJobsListActionFailure(response))
-            );
         }
       });
   };
@@ -197,31 +111,11 @@ export function fetchJobsList(queryState, viewId) {
   };
 }
 
-export function fetchFilteredJobsList(
-  jobId,
-  viewId,
-  replaceIndex,
-  isSaveJob,
-  activeScriptId
-) {
-  return (dispatch) => {
-    return dispatch(
-      fetchFilteredJobsListForExplorePageAction(
-        jobId,
-        viewId,
-        replaceIndex,
-        isSaveJob,
-        activeScriptId
-      )
-    );
-  };
-}
-
 function loadJobDetailsAction(
   jobId,
   viewId,
   attempts = 1,
-  skipStartAction = false
+  skipStartAction = false,
 ) {
   const meta = { viewId };
   return (dispatch) => {
@@ -241,7 +135,7 @@ function loadJobDetailsAction(
           ? `/job/${jobId}/reflection/${reflectionId}/details`
           : `jobs-listing/v1.0/${jobId}/jobDetails?${params.toString()}`,
         {},
-        2
+        2,
       )
       .then((response) => {
         try {
@@ -277,7 +171,7 @@ function loadJobDetailsAction(
               return Promise.resolve({ error, status: response.status });
             } else {
               dispatch(
-                loadJobDetailsActionFailure({ response: error }, errorPayload)
+                loadJobDetailsActionFailure({ response: error }, errorPayload),
               );
             }
             return null;
@@ -303,7 +197,7 @@ const loadJobDetailsActionFailure = (response, meta = {}) => ({
 export function loadJobDetails(jobId, viewId, attempts, skipStartAction) {
   return (dispatch) => {
     return dispatch(
-      loadJobDetailsAction(jobId, viewId, attempts, skipStartAction)
+      loadJobDetailsAction(jobId, viewId, attempts, skipStartAction),
     );
   };
 }
@@ -326,7 +220,7 @@ function fetchItemsForFilter(tag, filter = "", limit = "50") {
         return Promise.resolve(payload);
       })
       .catch((payload) =>
-        dispatch(fetchItemsForFilterFailure(payload, { tag }))
+        dispatch(fetchItemsForFilterFailure(payload, { tag })),
       );
   };
 }
@@ -388,7 +282,7 @@ const fetchNextJobList = (href, viewId) => {
           .then((error) => {
             return dispatch(fetchNextJobsFailure({ response: error }));
           })
-          .catch(() => dispatch(fetchNextJobsFailure(response)))
+          .catch(() => dispatch(fetchNextJobsFailure(response))),
       );
   };
 };
@@ -426,7 +320,7 @@ export const fetchJobExecutionDetails =
       const res = await apiUtils.fetch(
         `queryProfile/${jobId}/JobProfile?attempt=${totalAttempts}`,
         {},
-        2
+        2,
       );
       const json = await res.json();
       dispatch(fetchJobExecutionDetailsSuccess(json, meta));
@@ -435,7 +329,7 @@ export const fetchJobExecutionDetails =
       const error = await response.json();
       const failureMeta = { ...meta, ...error };
       dispatch(
-        fetchJobExecutionDetailsFailure({ response: error }, failureMeta)
+        fetchJobExecutionDetailsFailure({ response: error }, failureMeta),
       );
       return error;
     }
@@ -462,7 +356,7 @@ export function fetchJobExecutionOperatorDetails(
   viewId,
   phaseId,
   operatorId,
-  totalAttempts = 1
+  totalAttempts = 1,
 ) {
   const meta = { viewId };
   return (dispatch) => {
@@ -475,7 +369,7 @@ export function fetchJobExecutionOperatorDetails(
       .fetch(
         `queryProfile/${jobId}/JobProfile/OperatorDetails?attempt=${totalAttempts}&phaseId=${phaseId}&operatorId=${operatorId}`,
         {},
-        2
+        2,
       )
       .then((response) => response && response.json())
       .then((payload) => {
@@ -490,13 +384,13 @@ export function fetchJobExecutionOperatorDetails(
             return dispatch(
               fetchJobExecutionOperatorDetailsFailure(
                 { response: { ...error, status: response.status } },
-                meta
-              )
+                meta,
+              ),
             );
           })
           .catch(() =>
-            dispatch(fetchJobExecutionOperatorDetailsFailure(response, meta))
-          )
+            dispatch(fetchJobExecutionOperatorDetailsFailure(response, meta)),
+          ),
       );
   };
 }

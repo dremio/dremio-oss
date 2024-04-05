@@ -15,19 +15,20 @@
  */
 package com.dremio.sabot.exec;
 
+import com.dremio.exec.proto.ExecProtos;
 import java.util.Optional;
 
-import com.dremio.exec.proto.ExecProtos;
-
 /**
- * Provides {@link com.dremio.sabot.exec.fragment.FragmentExecutor} with cancel and early termination messages
+ * Provides {@link com.dremio.sabot.exec.fragment.FragmentExecutor} with cancel and early
+ * termination messages
  */
 public interface EventProvider {
 
   /**
    * retrieves one of the finished receivers and removes it from the internal container
    *
-   * @return finished receiver, null if no early termination message was received since last access to this method
+   * @return finished receiver, null if no early termination message was received since last access
+   *     to this method
    */
   ExecProtos.FragmentHandle pollFinishedReceiver();
 

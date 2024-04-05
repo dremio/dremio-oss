@@ -17,6 +17,9 @@ package com.dremio.common.scanner.persistence;
 
 import static java.lang.String.format;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -28,13 +31,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
-
-/**
- * a class annotation
- */
+/** a class annotation */
 public final class AnnotationDescriptor {
   private static final Pattern CAPITAL_LETTER = Pattern.compile("[A-Z]");
 
@@ -42,7 +39,8 @@ public final class AnnotationDescriptor {
   private final List<AttributeDescriptor> attributes;
   private final Map<String, AttributeDescriptor> attributeMap;
 
-  @JsonCreator public AnnotationDescriptor(
+  @JsonCreator
+  public AnnotationDescriptor(
       @JsonProperty("annotationType") String annotationType,
       @JsonProperty("attributes") List<AttributeDescriptor> attributes) {
     this.annotationType = annotationType;
@@ -77,9 +75,10 @@ public final class AnnotationDescriptor {
   public String getSingleValue(String attributeName, String defaultValue) {
     List<String> values = getValues(attributeName);
     if (values.size() > 1) {
-      throw new IllegalStateException(String.format(
-          "Expected a single value for the attribute named %s but found %d (%s)",
-          attributeName, values.size(), values.toString()));
+      throw new IllegalStateException(
+          String.format(
+              "Expected a single value for the attribute named %s but found %d (%s)",
+              attributeName, values.size(), values.toString()));
     }
     return values.isEmpty() ? defaultValue : values.get(0);
   }
@@ -87,7 +86,8 @@ public final class AnnotationDescriptor {
   public String getSingleValue(String attributeName) {
     String val = getSingleValue(attributeName, null);
     if (val == null) {
-      throw new IllegalStateException(format("Attribute %s not found in %s", attributeName, attributes));
+      throw new IllegalStateException(
+          format("Attribute %s not found in %s", attributeName, attributes));
     }
     return val;
   }
@@ -97,7 +97,8 @@ public final class AnnotationDescriptor {
     return "Annotation[type=" + annotationType + ", attributes=" + attributes + "]";
   }
 
-  static Map<String, AnnotationDescriptor> buildAnnotationsMap(List<AnnotationDescriptor> annotations) {
+  static Map<String, AnnotationDescriptor> buildAnnotationsMap(
+      List<AnnotationDescriptor> annotations) {
     ImmutableMap.Builder<String, AnnotationDescriptor> annMapBuilder = ImmutableMap.builder();
     for (AnnotationDescriptor ann : annotations) {
       annMapBuilder.put(ann.getAnnotationType(), ann);
@@ -110,63 +111,71 @@ public final class AnnotationDescriptor {
     if (!interfc.isInterface()) {
       throw new IllegalArgumentException("only proxying interfaces: " + interfc);
     }
-    return (T)Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[]{ interfc }, ih);
+    return (T) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] {interfc}, ih);
   }
 
   public <T> T getProxy(Class<T> clazz) {
-    return proxy(clazz, new InvocationHandler() {
-      @Override
-      public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        if (args != null && args.length > 0) {
-          // just property methods
-          throw new UnsupportedOperationException(method + " " + Arrays.toString(args));
-        }
-        String attributeName = method.getName();
-        if (!hasAttribute(attributeName)) {
-          return method.getDefaultValue();
-        }
-        Class<?> returnType = method.getReturnType();
-        if (returnType.isArray()) {
-          List<String> values = getValues(attributeName);
-          Class<?> componentType = returnType.getComponentType();
-          Object[] result = (Object[])Array.newInstance(componentType, values.size());
-          for (int i = 0; i < result.length; i++) {
-            String value = values.get(i);
-            result[i] = convertValue(componentType, value);
+    return proxy(
+        clazz,
+        new InvocationHandler() {
+          @Override
+          public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            if (args != null && args.length > 0) {
+              // just property methods
+              throw new UnsupportedOperationException(method + " " + Arrays.toString(args));
+            }
+            String attributeName = method.getName();
+            if (!hasAttribute(attributeName)) {
+              return method.getDefaultValue();
+            }
+            Class<?> returnType = method.getReturnType();
+            if (returnType.isArray()) {
+              List<String> values = getValues(attributeName);
+              Class<?> componentType = returnType.getComponentType();
+              Object[] result = (Object[]) Array.newInstance(componentType, values.size());
+              for (int i = 0; i < result.length; i++) {
+                String value = values.get(i);
+                result[i] = convertValue(componentType, value);
+              }
+              return result;
+            } else {
+              String value = getSingleValue(attributeName, null);
+              return convertValue(returnType, value);
+            }
           }
-          return result;
-        } else {
-          String value = getSingleValue(attributeName, null);
-          return convertValue(returnType, value);
-        }
-      }
 
-      private <U> Object convertValue(Class<U> c, String value) {
-        if (c.equals(String.class)) {
-          return value;
-        } else if (c.isEnum()) {
-          @SuppressWarnings("unchecked")
-          Enum<?> enumValue = Enum.valueOf(c.asSubclass(Enum.class), value);
-          return enumValue;
-        } else if (c.equals(boolean.class)) {
-          return Boolean.valueOf(value);
-        } else if (c.equals(Class.class)) {
-          // we need to replace all periods after the first capital letter with $ since inner classes are stored in bytecode differently than Class.forName() accepts.
-          final Matcher m = CAPITAL_LETTER.matcher(value);
-          if (m.find()) {
-            String prefix = value.substring(0, m.start());
-            String suffix = value.substring(m.start(), value.length());
-            String replacedSuffix = suffix.replace('.', '$');
-            value = prefix + replacedSuffix;
+          private <U> Object convertValue(Class<U> c, String value) {
+            if (c.equals(String.class)) {
+              return value;
+            } else if (c.isEnum()) {
+              @SuppressWarnings("unchecked")
+              Enum<?> enumValue = Enum.valueOf(c.asSubclass(Enum.class), value);
+              return enumValue;
+            } else if (c.equals(boolean.class)) {
+              return Boolean.valueOf(value);
+            } else if (c.equals(Class.class)) {
+              // we need to replace all periods after the first capital letter with $ since inner
+              // classes are stored in bytecode differently than Class.forName() accepts.
+              final Matcher m = CAPITAL_LETTER.matcher(value);
+              if (m.find()) {
+                String prefix = value.substring(0, m.start());
+                String suffix = value.substring(m.start(), value.length());
+                String replacedSuffix = suffix.replace('.', '$');
+                value = prefix + replacedSuffix;
+              }
+              try {
+                return Class.forName(value);
+              } catch (ClassNotFoundException e) {
+                throw new RuntimeException(
+                    "Serialization/deserialization of function annotations failed for type of: "
+                        + c.getName(),
+                    e);
+              }
+            }
+            throw new UnsupportedOperationException(
+                "Serialization/deserialization of function annotations failed for type of: "
+                    + c.getName());
           }
-          try {
-            return Class.forName(value);
-          } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Serialization/deserialization of function annotations failed for type of: " + c.getName(), e);
-          }
-        }
-        throw new UnsupportedOperationException("Serialization/deserialization of function annotations failed for type of: " + c.getName());
-      }
-    });
+        });
   }
 }

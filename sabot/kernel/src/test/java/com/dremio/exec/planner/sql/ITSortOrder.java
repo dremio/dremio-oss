@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.planner.sql;
 
-import org.junit.Test;
-
 import com.dremio.exec.store.iceberg.TestIcebergSortOrder;
+import org.junit.Test;
 
 public class ITSortOrder extends ITDmlQueryBase {
 

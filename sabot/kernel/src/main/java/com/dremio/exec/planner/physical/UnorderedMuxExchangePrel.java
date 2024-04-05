@@ -16,14 +16,6 @@
 
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.UnorderedMuxExchange;
@@ -31,18 +23,32 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import java.io.IOException;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 
 @Options
 public class UnorderedMuxExchangePrel extends ExchangePrel {
 
-  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.receiver.mux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.receiver.mux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.sender.mux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.sender.mux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RECEIVER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.receiver.mux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT =
+      new PositiveLongValidator(
+          "planner.op.receiver.mux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator SENDER_RESERVE =
+      new PositiveLongValidator(
+          "planner.op.sender.mux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT =
+      new PositiveLongValidator("planner.op.sender.mux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final int fragmentsPerNode;
 
-  public UnorderedMuxExchangePrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, int fragmentPerNode) {
+  public UnorderedMuxExchangePrel(
+      RelOptCluster cluster, RelTraitSet traits, RelNode child, int fragmentPerNode) {
     super(cluster, traits, child);
     this.fragmentsPerNode = fragmentPerNode;
   }
@@ -55,7 +61,7 @@ public class UnorderedMuxExchangePrel extends ExchangePrel {
   @Override
   public RelWriter explainTerms(RelWriter rw) {
     return super.explainTerms(rw)
-      .itemIf("fragmentsPerNode", fragmentsPerNode, fragmentsPerNode > 1);
+        .itemIf("fragmentsPerNode", fragmentsPerNode, fragmentsPerNode > 1);
   }
 
   @Override
@@ -65,9 +71,25 @@ public class UnorderedMuxExchangePrel extends ExchangePrel {
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
     final OpProps props = creator.props(this, null, childPOP.getProps().getSchema());
-    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
-    final OpProps senderProps = creator.props(senderOperatorId, this, null, props.getSchema(), SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.01);
-    final OpProps receiverProps = creator.props(this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.01);
+    final int senderOperatorId =
+        OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps =
+        creator.props(
+            senderOperatorId,
+            this,
+            null,
+            props.getSchema(),
+            SENDER_RESERVE,
+            SENDER_LIMIT,
+            props.getCost() * 0.01);
+    final OpProps receiverProps =
+        creator.props(
+            this,
+            null,
+            props.getSchema(),
+            RECEIVER_RESERVE,
+            RECEIVER_LIMIT,
+            props.getCost() * 0.01);
 
     return new UnorderedMuxExchange(
         props,

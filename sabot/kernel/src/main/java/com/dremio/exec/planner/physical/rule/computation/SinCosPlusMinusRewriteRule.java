@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.physical.rule.computation;
 
+import com.dremio.exec.planner.logical.RexRewriter;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -24,11 +25,10 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 
-import com.dremio.exec.planner.logical.RexRewriter;
-
 /**
- * Rewrites expressions like cos(a - b) to a single call, cos_minus(a,b), to make it easier for the Expression pusher
- * detect if a and b are on separate sides of join, and thus the expression should be rewritten using trig identity
+ * Rewrites expressions like cos(a - b) to a single call, cos_minus(a,b), to make it easier for the
+ * Expression pusher detect if a and b are on separate sides of join, and thus the expression should
+ * be rewritten using trig identity
  */
 class SinCosPlusMinusRewriteRule extends RexRewriter.RewriteRule {
 
@@ -39,50 +39,52 @@ class SinCosPlusMinusRewriteRule extends RexRewriter.RewriteRule {
   @Override
   public RexNode rewrite(RexCall call) {
     switch (call.getOperator().getName().toUpperCase()) {
-      case "SIN": {
-        RexNode child = call.getOperands().get(0);
-        if (!(child instanceof RexCall)) {
-          return null;
-        }
-        RexCall childCall = (RexCall) child;
-        switch (child.getKind()) {
-          case PLUS: {
-            return builder.makeCall(SIN_PLUS,
-              childCall.getOperands().get(0),
-              childCall.getOperands().get(1));
+      case "SIN":
+        {
+          RexNode child = call.getOperands().get(0);
+          if (!(child instanceof RexCall)) {
+            return null;
           }
-          case MINUS: {
-            return builder.makeCall(SIN_MINUS,
-              childCall.getOperands().get(0),
-              childCall.getOperands().get(1));
+          RexCall childCall = (RexCall) child;
+          switch (child.getKind()) {
+            case PLUS:
+              {
+                return builder.makeCall(
+                    SIN_PLUS, childCall.getOperands().get(0), childCall.getOperands().get(1));
+              }
+            case MINUS:
+              {
+                return builder.makeCall(
+                    SIN_MINUS, childCall.getOperands().get(0), childCall.getOperands().get(1));
+              }
+            default:
+              break;
           }
-          default:
-            break;
+          break;
         }
-        break;
-      }
-      case "COS": {
-        RexNode child = call.getOperands().get(0);
-        if (!(child instanceof RexCall)) {
-          return null;
-        }
-        RexCall childCall = (RexCall) child;
-        switch (child.getKind()) {
-          case PLUS: {
-            return builder.makeCall(COS_PLUS,
-              childCall.getOperands().get(0),
-              childCall.getOperands().get(1));
+      case "COS":
+        {
+          RexNode child = call.getOperands().get(0);
+          if (!(child instanceof RexCall)) {
+            return null;
           }
-          case MINUS: {
-            return builder.makeCall(COS_MINUS,
-              childCall.getOperands().get(0),
-              childCall.getOperands().get(1));
+          RexCall childCall = (RexCall) child;
+          switch (child.getKind()) {
+            case PLUS:
+              {
+                return builder.makeCall(
+                    COS_PLUS, childCall.getOperands().get(0), childCall.getOperands().get(1));
+              }
+            case MINUS:
+              {
+                return builder.makeCall(
+                    COS_MINUS, childCall.getOperands().get(0), childCall.getOperands().get(1));
+              }
+            default:
+              break;
           }
-          default:
-            break;
+          break;
         }
-        break;
-      }
       default:
         break;
     }
@@ -90,38 +92,38 @@ class SinCosPlusMinusRewriteRule extends RexRewriter.RewriteRule {
   }
 
   public static final SqlFunction SIN_PLUS =
-    new SqlFunction(
-      "SIN_PLUS",
-      SqlKind.OTHER_FUNCTION,
-      ReturnTypes.DOUBLE_NULLABLE,
-      null,
-      OperandTypes.NUMERIC,
-      SqlFunctionCategory.NUMERIC);
+      new SqlFunction(
+          "SIN_PLUS",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.DOUBLE_NULLABLE,
+          null,
+          OperandTypes.NUMERIC,
+          SqlFunctionCategory.NUMERIC);
 
   public static final SqlFunction SIN_MINUS =
-    new SqlFunction(
-      "SIN_MINUS",
-      SqlKind.OTHER_FUNCTION,
-      ReturnTypes.DOUBLE_NULLABLE,
-      null,
-      OperandTypes.NUMERIC,
-      SqlFunctionCategory.NUMERIC);
+      new SqlFunction(
+          "SIN_MINUS",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.DOUBLE_NULLABLE,
+          null,
+          OperandTypes.NUMERIC,
+          SqlFunctionCategory.NUMERIC);
 
   public static final SqlFunction COS_PLUS =
-    new SqlFunction(
-      "COS_PLUS",
-      SqlKind.OTHER_FUNCTION,
-      ReturnTypes.DOUBLE_NULLABLE,
-      null,
-      OperandTypes.NUMERIC,
-      SqlFunctionCategory.NUMERIC);
+      new SqlFunction(
+          "COS_PLUS",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.DOUBLE_NULLABLE,
+          null,
+          OperandTypes.NUMERIC,
+          SqlFunctionCategory.NUMERIC);
 
   public static final SqlFunction COS_MINUS =
-    new SqlFunction(
-      "COS_MINUS",
-      SqlKind.OTHER_FUNCTION,
-      ReturnTypes.DOUBLE_NULLABLE,
-      null,
-      OperandTypes.NUMERIC,
-      SqlFunctionCategory.NUMERIC);
+      new SqlFunction(
+          "COS_MINUS",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.DOUBLE_NULLABLE,
+          null,
+          OperandTypes.NUMERIC,
+          SqlFunctionCategory.NUMERIC);
 }

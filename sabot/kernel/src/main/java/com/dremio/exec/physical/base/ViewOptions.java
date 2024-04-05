@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.physical.base;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.exec.record.BatchSchema;
+import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import com.dremio.catalog.model.ResolvedVersionContext;
-import com.dremio.exec.record.BatchSchema;
-import com.google.common.base.Preconditions;
-
-/**
- * Save properties needed for creating views
- */
+/** Save properties needed for creating views */
 public class ViewOptions {
   private final ResolvedVersionContext version;
   private final BatchSchema batchSchema; // tracks the columns of the table to create from
@@ -45,21 +42,33 @@ public class ViewOptions {
     ALTER_VIEW
   }
 
-  public ResolvedVersionContext getVersion(){
+  public ResolvedVersionContext getVersion() {
     return version;
   }
 
-  public BatchSchema getBatchSchema() { return batchSchema; }
+  public BatchSchema getBatchSchema() {
+    return batchSchema;
+  }
 
-  public ActionType getActionType() { return actionType; }
+  public ActionType getActionType() {
+    return actionType;
+  }
 
-  public boolean isViewCreate() { return actionType == ActionType.CREATE_VIEW; }
+  public boolean isViewCreate() {
+    return actionType == ActionType.CREATE_VIEW;
+  }
 
-  public boolean isViewUpdate() { return actionType == ActionType.UPDATE_VIEW; }
+  public boolean isViewUpdate() {
+    return actionType == ActionType.UPDATE_VIEW;
+  }
 
-  public boolean isViewAlter() { return actionType == ActionType.ALTER_VIEW; }
+  public boolean isViewAlter() {
+    return actionType == ActionType.ALTER_VIEW;
+  }
 
-  public Map<String, String> getProperties() { return properties; }
+  public Map<String, String> getProperties() {
+    return properties;
+  }
 
   @Override
   public boolean equals(Object o) {
@@ -71,9 +80,9 @@ public class ViewOptions {
     }
     ViewOptions that = (ViewOptions) o;
     return Objects.equals(version, that.version)
-      && Objects.equals(batchSchema, that.batchSchema)
-      && actionType == that.actionType
-      && Objects.equals(properties, that.properties);
+        && Objects.equals(batchSchema, that.batchSchema)
+        && actionType == that.actionType
+        && Objects.equals(properties, that.properties);
   }
 
   @Override
@@ -87,16 +96,15 @@ public class ViewOptions {
     private ActionType actionType;
     private Map<String, String> properties;
 
-    public ViewOptionsBuilder() {
-    }
+    public ViewOptionsBuilder() {}
 
-    public ViewOptionsBuilder version(ResolvedVersionContext version){
+    public ViewOptionsBuilder version(ResolvedVersionContext version) {
       Preconditions.checkNotNull(version);
       this.version = version;
       return this;
     }
 
-    public ViewOptionsBuilder batchSchema(BatchSchema schema){
+    public ViewOptionsBuilder batchSchema(BatchSchema schema) {
       Preconditions.checkNotNull(schema);
       this.batchSchema = schema;
       return this;

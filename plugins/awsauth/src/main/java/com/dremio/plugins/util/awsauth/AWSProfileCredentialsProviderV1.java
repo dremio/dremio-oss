@@ -15,15 +15,14 @@
  */
 package com.dremio.plugins.util.awsauth;
 
-import org.apache.hadoop.conf.Configuration;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import org.apache.hadoop.conf.Configuration;
 
 /**
- * Wrapper for ProfileCredentialsProvider from the AWS SDK v1.x.
- * Required so that we can have a constructor that takes a Configuration object.
+ * Wrapper for ProfileCredentialsProvider from the AWS SDK v1.x. Required so that we can have a
+ * constructor that takes a Configuration object.
  */
 public class AWSProfileCredentialsProviderV1 implements AWSCredentialsProvider {
   public static final String AWS_PROFILE_PROPERTY_KEY = "com.dremio.awsProfile";
@@ -36,9 +35,9 @@ public class AWSProfileCredentialsProviderV1 implements AWSCredentialsProvider {
     this.profileCredentialsProvider = new ProfileCredentialsProvider(awsProfile);
     // AWS SDK Periodically check if the file on disk has been modified, configure this as per need.
     // Default value is 5 minutes
-    this.profileCredentialsProvider.setRefreshIntervalNanos(refreshIntervalSeconds*1000_000_000);
-    this.profileCredentialsProvider.setRefreshForceIntervalNanos(2*refreshIntervalSeconds*1000_000_000);
-
+    this.profileCredentialsProvider.setRefreshIntervalNanos(refreshIntervalSeconds * 1000_000_000);
+    this.profileCredentialsProvider.setRefreshForceIntervalNanos(
+        2 * refreshIntervalSeconds * 1000_000_000);
   }
 
   @Override

@@ -17,11 +17,6 @@ package com.dremio.exec.store.text;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
-
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.common.util.FileUtils;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
@@ -31,24 +26,34 @@ import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import java.util.List;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TextRecordReaderTest extends PopUnitTestBase {
 
   @Ignore("DX-3872")
   @Test
   public void testFullExecution() throws Exception {
-    try(ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-        SabotNode bit1 = new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
+    try (ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
+        SabotNode bit1 =
+            new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
         DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       bit1.run();
       client.connect();
-      List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
-          readResourceAsString("/store/text/test.json")
-                      .replace("#{DATA_FILE}", FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().toString()));
+      List<QueryDataBatch> results =
+          client.runQuery(
+              com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
+              readResourceAsString("/store/text/test.json")
+                  .replace(
+                      "#{DATA_FILE}",
+                      FileUtils.getResourceAsFile("/store/text/data/regions.csv")
+                          .toURI()
+                          .toString()));
       int count = 0;
       RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
-      for(QueryDataBatch b : results) {
+      for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {
           count += b.getHeader().getRowCount();
         }
@@ -60,5 +65,4 @@ public class TextRecordReaderTest extends PopUnitTestBase {
       assertEquals(5, count);
     }
   }
-
 }

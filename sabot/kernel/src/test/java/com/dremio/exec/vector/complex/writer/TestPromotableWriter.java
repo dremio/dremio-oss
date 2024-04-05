@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.vector.complex.writer;
 
-import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.store.TestOutputMutator;
 import com.dremio.exec.util.BatchPrinter;
+import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
+import org.junit.Test;
 
 public class TestPromotableWriter extends ExecTest {
 
@@ -59,8 +58,7 @@ public class TestPromotableWriter extends ExecTest {
         {
           w.start();
           writer.struct("struct").list("a").startList();
-          writer.struct("struct").list("a").bigInt()
-              .writeBigInt(3);
+          writer.struct("struct").list("a").bigInt().writeBigInt(3);
           writer.struct("struct").list("a").float4().writeFloat4(4);
           writer.struct("struct").list("a").endList();
           w.end();

@@ -106,10 +106,6 @@ export function oldGetExploreJobId(state) {
   return fullDataset ? fullDataset.getIn(["jobId", "id"], "") : "";
 }
 
-export function getSavingJob(state) {
-  return state.jobs.jobs.get("uniqueSavingJob");
-}
-
 export function getPaginationJobId(state, datasetVersion) {
   const { entities } = state.resources;
   return entities.getIn(["fullDataset", datasetVersion, "jobId", "id"]);
@@ -185,7 +181,7 @@ const makeNewDataset = (context) => {
 
 export const getNewDatasetFromState = createSelector(
   [getQueryContext],
-  makeNewDataset
+  makeNewDataset,
 );
 
 const getInitialDataset = (location, viewState) => {
@@ -221,7 +217,7 @@ const getInitialDataset = (location, viewState) => {
 
 export const getIntialDatasetFromState = createSelector(
   [getLocation, getExploreViewState],
-  getInitialDataset
+  getInitialDataset,
 );
 
 export const getExplorePageDataset = (state, curDataset) => {
@@ -239,7 +235,7 @@ export const getExplorePageDataset = (state, curDataset) => {
       const fullDataset = getEntity(state, curQuery.version, "fullDataset");
       dataset = dataset.set(
         "needsLoad",
-        Boolean(fullDataset && fullDataset.get("error"))
+        Boolean(fullDataset && fullDataset.get("error")),
       );
     } else {
       dataset = getIntialDatasetFromState(state);
@@ -251,7 +247,7 @@ export const getExplorePageDataset = (state, curDataset) => {
   }
   dataset = dataset.set(
     "tipVersion",
-    curQuery.tipVersion || curQuery.version || dataset.get("datasetVersion")
+    curQuery.tipVersion || curQuery.version || dataset.get("datasetVersion"),
   );
 
   return dataset;
@@ -291,17 +287,17 @@ export const getDatasetFromLocation = createSelector(
   [_getDatasetFromLocation],
   (dataset) => {
     return dataset;
-  }
+  },
 );
 
 export const getHistory = createSelector(
   [getHistoryData],
-  (history) => history
+  (history) => history,
 );
 
 export const getHistoryItems = createSelector(
   [getHistoryItemsForHistoryId],
-  (historyItems) => historyItems
+  (historyItems) => historyItems,
 );
 
 export function getCurrentEngine(state) {

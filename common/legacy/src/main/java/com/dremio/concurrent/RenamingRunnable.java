@@ -15,9 +15,7 @@
  */
 package com.dremio.concurrent;
 
-/**
- * A generic runnable that renames thread for debugging convenience.
- */
+/** A generic runnable that renames thread for debugging convenience. */
 public final class RenamingRunnable implements Runnable {
   private final Runnable delegate;
   private final String name;

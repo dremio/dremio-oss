@@ -16,9 +16,6 @@
  */
 package com.dremio.exec.rpc.proxy;
 
-import java.util.List;
-import java.util.RandomAccess;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandler;
@@ -34,35 +31,34 @@ import io.netty.handler.codec.socksx.v5.Socks5Message;
 import io.netty.handler.codec.socksx.v5.Socks5PasswordAuthRequest;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.StringUtil;
+import java.util.List;
+import java.util.RandomAccess;
 
-/**
- * Encodes a client-side {@link Socks5Message} into a {@link ByteBuf}.
- */
+/** Encodes a client-side {@link Socks5Message} into a {@link ByteBuf}. */
 @ChannelHandler.Sharable
 public class DremioSocks5ClientEncoder extends MessageToByteEncoder<Socks5Message> {
 
   public static final DremioSocks5ClientEncoder DEFAULT = new DremioSocks5ClientEncoder();
   private final Socks5AddressEncoder addressEncoder;
-  /**
-   * Creates a new instance with the default {@link Socks5AddressEncoder}.
-   */
+
+  /** Creates a new instance with the default {@link Socks5AddressEncoder}. */
   protected DremioSocks5ClientEncoder() {
     this(Socks5AddressEncoder.DEFAULT);
   }
-  /**
-   * Creates a new instance with the specified {@link Socks5AddressEncoder}.
-   */
+
+  /** Creates a new instance with the specified {@link Socks5AddressEncoder}. */
   public DremioSocks5ClientEncoder(Socks5AddressEncoder addressEncoder) {
     this.addressEncoder = ObjectUtil.checkNotNull(addressEncoder, "addressEncoder");
   }
-  /**
-   * Returns the {@link Socks5AddressEncoder} of this encoder.
-   */
+
+  /** Returns the {@link Socks5AddressEncoder} of this encoder. */
   protected final Socks5AddressEncoder addressEncoder() {
     return addressEncoder;
   }
+
   @Override
-  protected void encode(ChannelHandlerContext ctx, Socks5Message msg, ByteBuf out) throws Exception {
+  protected void encode(ChannelHandlerContext ctx, Socks5Message msg, ByteBuf out)
+      throws Exception {
     if (msg instanceof Socks5InitialRequest) {
       encodeAuthMethodRequest((Socks5InitialRequest) msg, out);
     } else if (msg instanceof Socks5PasswordAuthRequest) {
@@ -73,21 +69,23 @@ public class DremioSocks5ClientEncoder extends MessageToByteEncoder<Socks5Messag
       throw new EncoderException("unsupported message type: " + StringUtil.simpleClassName(msg));
     }
   }
+
   private static void encodeAuthMethodRequest(Socks5InitialRequest msg, ByteBuf out) {
     out.writeByte(msg.version().byteValue());
     final List<Socks5AuthMethod> authMethods = msg.authMethods();
     final int numAuthMethods = authMethods.size();
     out.writeByte(numAuthMethods);
     if (authMethods instanceof RandomAccess) {
-      for (int i = 0; i < numAuthMethods; i ++) {
+      for (int i = 0; i < numAuthMethods; i++) {
         out.writeByte(authMethods.get(i).byteValue());
       }
     } else {
-      for (Socks5AuthMethod a: authMethods) {
+      for (Socks5AuthMethod a : authMethods) {
         out.writeByte(a.byteValue());
       }
     }
   }
+
   private static void encodePasswordAuthRequest(Socks5PasswordAuthRequest msg, ByteBuf out) {
     out.writeByte(0x01);
     final String username = msg.username();
@@ -97,6 +95,7 @@ public class DremioSocks5ClientEncoder extends MessageToByteEncoder<Socks5Messag
     out.writeByte(password.length());
     ByteBufUtil.writeAscii(out, password);
   }
+
   private void encodeCommandRequest(Socks5CommandRequest msg, ByteBuf out) throws Exception {
     out.writeByte(msg.version().byteValue());
     out.writeByte(msg.type().byteValue());

@@ -15,31 +15,33 @@
  */
 package com.dremio.common.exceptions;
 
-import java.util.EnumSet;
-
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
+import java.util.EnumSet;
 
 /**
  * Converts newly added error types to types compatible with the existing C or ODBC clients.
+ *
  * <p>
+ *
  * <ul>
- * <li>{@link ErrorType#JSON_FIELD_CHANGE} to {@link ErrorType#DATA_READ}</li>
- * <li>{@link ErrorType#SCHEMA_CHANGE} to {@link ErrorType#DATA_READ}</li>
- * <li>{@link ErrorType#OUT_OF_MEMORY} to {@link ErrorType#RESOURCE}</li>
- * <li>{@link ErrorType#IO_EXCEPTION} to {@link ErrorType#RESOURCE}</li>
- * <li>{@link ErrorType#CONCURRENT_MODIFICATION} to {@link ErrorType#RESOURCE}</li>
- * <li>{@link ErrorType#INVALID_DATASET_METADATA} to {@link ErrorType#RESOURCE}</li>
- * <li>{@link ErrorType#RESOURCE_TIMEOUT} to {@link ErrorType#RESOURCE}</li>
- * <li>{@link ErrorType#REFLECTION_ERROR} to {@link ErrorType#SYSTEM}</li>
+ *   <li>{@link ErrorType#JSON_FIELD_CHANGE} to {@link ErrorType#DATA_READ}
+ *   <li>{@link ErrorType#SCHEMA_CHANGE} to {@link ErrorType#DATA_READ}
+ *   <li>{@link ErrorType#OUT_OF_MEMORY} to {@link ErrorType#RESOURCE}
+ *   <li>{@link ErrorType#IO_EXCEPTION} to {@link ErrorType#RESOURCE}
+ *   <li>{@link ErrorType#CONCURRENT_MODIFICATION} to {@link ErrorType#RESOURCE}
+ *   <li>{@link ErrorType#INVALID_DATASET_METADATA} to {@link ErrorType#RESOURCE}
+ *   <li>{@link ErrorType#RESOURCE_TIMEOUT} to {@link ErrorType#RESOURCE}
+ *   <li>{@link ErrorType#REFLECTION_ERROR} to {@link ErrorType#SYSTEM}
  * </ul>
  */
 public class ErrorCompatibility {
 
   private static final EnumSet<ErrorType> incompatibleErrorTypes =
-      EnumSet.of(ErrorType.SCHEMA_CHANGE,
+      EnumSet.of(
+          ErrorType.SCHEMA_CHANGE,
           ErrorType.OUT_OF_MEMORY,
           ErrorType.IO_EXCEPTION,
           ErrorType.CONCURRENT_MODIFICATION,
@@ -79,8 +81,10 @@ public class ErrorCompatibility {
 
   /**
    * Goes through all error objects and converts them when necessary
+   *
    * @param result query result
-   * @return new result object if any conversion was done, or the original if no conversion was needed
+   * @return new result object if any conversion was done, or the original if no conversion was
+   *     needed
    */
   public static UserBitShared.QueryResult convertIfNecessary(final QueryResult result) {
     if (result.getErrorCount() == 0) {
@@ -106,5 +110,4 @@ public class ErrorCompatibility {
 
     return resultBuilder.build();
   }
-
 }

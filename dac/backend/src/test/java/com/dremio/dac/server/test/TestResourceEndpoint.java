@@ -15,18 +15,17 @@
  */
 package com.dremio.dac.server.test;
 
+import com.dremio.dac.server.BaseTestServer;
 import org.junit.Test;
 
-import com.dremio.dac.server.BaseTestServer;
-
-/**
- * Make sure the test methods work.
- */
+/** Make sure the test methods work. */
 public class TestResourceEndpoint extends BaseTestServer {
 
   @Test
   public void executeTestCreateAndClearMethod() {
-    expectSuccess(getBuilder(getMasterAPIv2().path("test").path("create")).buildPost(null), Void.class);
-    expectSuccess(getBuilder(getMasterAPIv2().path("test").path("clear")).buildPost(null), Void.class);
+    expectSuccess(
+        getBuilder(getMasterAPIv2().path("test").path("create")).buildPost(null), Void.class);
+    expectSuccess(
+        getBuilder(getMasterAPIv2().path("test").path("clear")).buildPost(null), Void.class);
   }
 }

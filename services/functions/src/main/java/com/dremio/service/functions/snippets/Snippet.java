@@ -15,15 +15,14 @@
  */
 package com.dremio.service.functions.snippets;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.google.common.collect.ImmutableList;
 
 @JsonSerialize(using = SnippetSerializer.class)
 @JsonDeserialize(using = SnippetDeserializer.class)
@@ -40,10 +39,11 @@ public final class Snippet {
 
   @Override
   public String toString() {
-    return String.join("", this.snippetElements
-      .stream()
-      .map(element -> element.toString())
-      .collect(Collectors.toList()));
+    return String.join(
+        "",
+        this.snippetElements.stream()
+            .map(element -> element.toString())
+            .collect(Collectors.toList()));
   }
 
   public static Optional<Snippet> tryParse(String text) {
@@ -72,7 +72,9 @@ public final class Snippet {
     return Optional.of(snippet);
   }
 
-  public static Builder builder() { return new Builder(); }
+  public static Builder builder() {
+    return new Builder();
+  }
 
   public static final class Builder {
     private final List<SnippetElement> snippetElements;
@@ -96,12 +98,13 @@ public final class Snippet {
     }
 
     public Builder addChoice(String choice1, String choice2, String... choices) {
-      Choice choice = new Choice(
-        index++,
-        ImmutableList.<String>builder()
-          .add(choice1, choice2)
-          .addAll(Arrays.stream(choices).collect(Collectors.toList()))
-          .build());
+      Choice choice =
+          new Choice(
+              index++,
+              ImmutableList.<String>builder()
+                  .add(choice1, choice2)
+                  .addAll(Arrays.stream(choices).collect(Collectors.toList()))
+                  .build());
       this.snippetElements.add(choice);
       return this;
     }

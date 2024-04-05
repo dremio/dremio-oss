@@ -15,15 +15,15 @@
  */
 package com.dremio.common.concurrent;
 
+import com.dremio.common.util.Closeable;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 
-import com.dremio.common.util.Closeable;
-
 /**
- * Simple wrapper class that allows Locks to be released via an try-with-resources block. Also ensures idempotence.
+ * Simple wrapper class that allows Locks to be released via an try-with-resources block. Also
+ * ensures idempotence.
  */
 public class AutoCloseableLock implements Closeable {
 
@@ -48,7 +48,8 @@ public class AutoCloseableLock implements Closeable {
 
   private void startOpen() {
     if (singleUse && !closed.compareAndSet(true, false)) {
-      throw new IllegalStateException("Trying to open an already opened lock. AutoCloseableLock allows only one lock count to be held at a time.");
+      throw new IllegalStateException(
+          "Trying to open an already opened lock. AutoCloseableLock allows only one lock count to be held at a time.");
     }
   }
 
@@ -57,16 +58,17 @@ public class AutoCloseableLock implements Closeable {
   }
 
   /**
-   * Acquires the lock if it is free within the given waiting time and the current thread has not been interrupted.
+   * Acquires the lock if it is free within the given waiting time and the current thread has not
+   * been interrupted.
    *
-   * @param time    Time to wait.
-   * @param unit    Unit of time.
+   * @param time Time to wait.
+   * @param unit Unit of time.
    * @return optional AutoCloseableLock
    * @throws InterruptedException
    */
   public Optional<AutoCloseableLock> tryOpen(long time, TimeUnit unit) throws InterruptedException {
     startOpen();
-    if(lock.tryLock(time, unit)) {
+    if (lock.tryLock(time, unit)) {
       return Optional.of(this);
     } else {
       shouldClose();
@@ -74,12 +76,10 @@ public class AutoCloseableLock implements Closeable {
     }
   }
 
-  /**
-   * Close the lock. Will not close the lock if it has already been closed.
-   */
+  /** Close the lock. Will not close the lock if it has already been closed. */
   @Override
   public void close() {
-    if(shouldClose()) {
+    if (shouldClose()) {
       lock.unlock();
     }
   }
@@ -98,5 +98,4 @@ public class AutoCloseableLock implements Closeable {
     lock.lock();
     return ofAlreadyOpen(lock, singleUse);
   }
-
 }

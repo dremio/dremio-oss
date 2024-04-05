@@ -17,9 +17,9 @@ package com.dremio.plugins.dataplane.store;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.stream.Stream;
-
 import org.apache.commons.collections4.set.ListOrderedSet;
 import org.apache.parquet.SemanticVersion;
 import org.junit.jupiter.api.Test;
@@ -27,27 +27,26 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.google.common.collect.Sets;
-
 public class TestSemanticVersion {
 
-  private static final ListOrderedSet<String> orderedVersionsToCompare = ListOrderedSet.listOrderedSet(
-    Arrays.asList(
-      "1.0.0-alpha",
-      "1.0.0-alpha.1",
-      "1.0.0-alpha.beta",
-      "1.0.0-beta",
-      "1.0.0-beta.2",
-      "1.0.0-beta.11",
-      "1.0.0-rc.1",
-      "1.0.0",
-      "2.0.0",
-      "2.1.0",
-      "2.1.1"));
+  private static final ListOrderedSet<String> orderedVersionsToCompare =
+      ListOrderedSet.listOrderedSet(
+          Arrays.asList(
+              "1.0.0-alpha",
+              "1.0.0-alpha.1",
+              "1.0.0-alpha.beta",
+              "1.0.0-beta",
+              "1.0.0-beta.2",
+              "1.0.0-beta.11",
+              "1.0.0-rc.1",
+              "1.0.0",
+              "2.0.0",
+              "2.1.0",
+              "2.1.1"));
 
   private static Stream<Arguments> allPairsOfVersions() {
     return Sets.cartesianProduct(orderedVersionsToCompare, orderedVersionsToCompare).stream()
-      .map(pair -> Arguments.of(pair.get(0), pair.get(1)));
+        .map(pair -> Arguments.of(pair.get(0), pair.get(1)));
   }
 
   @ParameterizedTest(name = "{index} {0} {1}")

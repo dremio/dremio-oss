@@ -18,11 +18,6 @@ package com.dremio.service.reflection.materialization;
 import static com.dremio.service.reflection.ReflectionOptions.CLOUD_CACHING_ENABLED;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
-import java.net.URI;
-import java.util.List;
-
-import javax.inject.Provider;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -38,14 +33,15 @@ import com.dremio.service.coordinator.proto.DataCredentials;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.google.common.collect.ImmutableList;
-
 import io.protostuff.Tag;
+import java.net.URI;
+import java.util.List;
+import javax.inject.Provider;
 
-/**
- * Configuration for the MaterializationStoragePluginConfigOTAS plugin
- */
-@SourceType( value = "ACCELERATION", configurable = false)
-public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<AccelerationStoragePluginConfig, AccelerationStoragePlugin> {
+/** Configuration for the MaterializationStoragePluginConfigOTAS plugin */
+@SourceType(value = "ACCELERATION", configurable = false)
+public class AccelerationStoragePluginConfig
+    extends MayBeDistFileSystemConf<AccelerationStoragePluginConfig, AccelerationStoragePlugin> {
 
   private static final int MAX_CACHE_SPACE_PERCENT = 100;
 
@@ -96,14 +92,19 @@ public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<Acc
 
   @Tag(16)
   public String sharedAccessKey = null;
-  //Tag has been deprecated please do not use.
 
-  public AccelerationStoragePluginConfig() {
-  }
+  // Tag has been deprecated please do not use.
 
-  public AccelerationStoragePluginConfig(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
-                                         boolean enableS3FileStatusCheck, DataCredentials dataCredentials) {
-    if(path.getAuthority() != null) {
+  public AccelerationStoragePluginConfig() {}
+
+  public AccelerationStoragePluginConfig(
+      URI path,
+      boolean enableAsync,
+      boolean enableCaching,
+      int maxCacheSpacePercent,
+      boolean enableS3FileStatusCheck,
+      DataCredentials dataCredentials) {
+    if (path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
       connection = path.getScheme() + ":///";
@@ -134,7 +135,8 @@ public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<Acc
   }
 
   @Override
-  public AccelerationStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public AccelerationStoragePlugin newPlugin(
+      SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new AccelerationStoragePlugin(this, context, name, pluginIdProvider);
   }
 
@@ -168,11 +170,22 @@ public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<Acc
     return SchemaMutability.SYSTEM_TABLE;
   }
 
-  public static SourceConfig create(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
-                                    boolean enableS3FileStatusCheck, DataCredentials dataCredentials) {
+  public static SourceConfig create(
+      URI path,
+      boolean enableAsync,
+      boolean enableCaching,
+      int maxCacheSpacePercent,
+      boolean enableS3FileStatusCheck,
+      DataCredentials dataCredentials) {
     SourceConfig conf = new SourceConfig();
-    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync,
-      enableCaching, maxCacheSpacePercent, enableS3FileStatusCheck, dataCredentials);
+    AccelerationStoragePluginConfig connection =
+        new AccelerationStoragePluginConfig(
+            path,
+            enableAsync,
+            enableCaching,
+            maxCacheSpacePercent,
+            enableS3FileStatusCheck,
+            dataCredentials);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -249,15 +262,17 @@ public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<Acc
       @Override
       public boolean isCachingEnabled(final OptionManager optionManager) {
         if (FileSystemConf.isCloudFileSystemScheme(connection)) {
-          return optionManager.getOption(CLOUD_CACHING_ENABLED) ;
+          return optionManager.getOption(CLOUD_CACHING_ENABLED);
         }
         return enableCaching;
       }
 
       @Override
       public int cacheMaxSpaceLimitPct() {
-        maxCacheSpacePercent = (maxCacheSpacePercent > MAX_CACHE_SPACE_PERCENT) ?
-          MAX_CACHE_SPACE_PERCENT : maxCacheSpacePercent;
+        maxCacheSpacePercent =
+            (maxCacheSpacePercent > MAX_CACHE_SPACE_PERCENT)
+                ? MAX_CACHE_SPACE_PERCENT
+                : maxCacheSpacePercent;
         return maxCacheSpacePercent;
       }
     };

@@ -32,22 +32,25 @@ dist-esm: node_modules .config/.swcrc-esm tsconfig.components.json $(COMPONENTS)
 	pnpm exec tsc --project tsconfig.components.json --emitDeclarationOnly --declaration --declarationMap false --declarationDir dist-esm
 	@touch dist-esm
 
-dist-icons: node_modules $(ICONS)
+dist-icons: node_modules iconmanifest.json $(ICONS)
 	pnpm exec ts-node ./scripts/buildIconSprites.ts
 
 dist-themes: node_modules $(THEMES)
 	node scripts/buildThemes.mjs
 	@touch dist-themes
 
+iconmanifest.json: node_modules $(ICONS)
+	pnpm exec ts-node scripts/writeIconManifest.ts
+
 node_modules: pnpm-lock.yaml
 	pnpm install --frozen-lockfile --prefer-offline
 
 prepare: dist dist-cjs dist-esm dist-icons dist-themes ## Build and package for distribution
 
-storybook: node_modules storybook/node_modules ## Start local Storybook for component development
+storybook: node_modules storybook/node_modules dist-icons ## Start local Storybook for component development
 	@cd storybook && pnpm exec storybook dev -p 6006
 
-storybook/storybook-static: node_modules storybook/node_modules ## Build Storybook for deployment
+storybook/storybook-static: node_modules storybook/node_modules dist-icons ## Build Storybook for deployment
 	@cd storybook && pnpm exec storybook build
 
 storybook/node_modules: storybook/pnpm-lock.yaml

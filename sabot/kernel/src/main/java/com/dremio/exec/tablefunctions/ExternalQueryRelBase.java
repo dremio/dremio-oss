@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -27,22 +31,19 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.cost.DremioCost;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
-
-/**
- * Rel base for ExternalQuery RelNodes
- */
+/** Rel base for ExternalQuery RelNodes */
 public abstract class ExternalQueryRelBase extends AbstractRelNode {
   final BatchSchema batchSchema;
   final String sql;
   final StoragePluginId pluginId;
 
-  ExternalQueryRelBase(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType,
-                       StoragePluginId pluginId, String sql, BatchSchema schema) {
+  ExternalQueryRelBase(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelDataType rowType,
+      StoragePluginId pluginId,
+      String sql,
+      BatchSchema schema) {
     super(cluster, traitSet);
     this.batchSchema = schema;
     this.sql = sql;
@@ -67,19 +68,18 @@ public abstract class ExternalQueryRelBase extends AbstractRelNode {
   }
 
   /**
-   * Subclasses must override copy to avoid problems where duplicate scan operators are
-   * created due to the same (reference-equality) Prel being used multiple times in the plan.
-   * The copy implementation in AbstractRelNode just returns a reference to "this".
+   * Subclasses must override copy to avoid problems where duplicate scan operators are created due
+   * to the same (reference-equality) Prel being used multiple times in the plan. The copy
+   * implementation in AbstractRelNode just returns a reference to "this".
    */
   @Override
   public abstract RelNode copy(RelTraitSet traitSet, List<RelNode> inputs);
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    return planner.getCostFactory().makeCost(
-      DremioCost.BIG_ROW_COUNT,
-      DremioCost.BIG_ROW_COUNT,
-      DremioCost.BIG_ROW_COUNT);
+    return planner
+        .getCostFactory()
+        .makeCost(DremioCost.BIG_ROW_COUNT, DremioCost.BIG_ROW_COUNT, DremioCost.BIG_ROW_COUNT);
   }
 
   @Override
@@ -94,8 +94,6 @@ public abstract class ExternalQueryRelBase extends AbstractRelNode {
 
   @Override
   public final RelWriter explainTerms(RelWriter pw) {
-    return super.explainTerms(pw)
-      .item("source", pluginId.getName())
-      .item("query", sql);
+    return super.explainTerms(pw).item("source", pluginId.getName()).item("query", sql);
   }
 }

@@ -27,10 +27,14 @@ public final class EnhancedFilterJoinExtraction {
   private final RexNode remainingFilterCondition;
   private final JoinRelType simplifiedJoinType;
 
-  public EnhancedFilterJoinExtraction(RexNode inputFilterConditionPruned,
-    RexNode inputJoinConditionPruned, RexNode joinCondition,
-    RexNode leftPushdownPredicate, RexNode rightPushdownPredicate,
-    RexNode remainingFilterCondition, JoinRelType simplifiedJoinType) {
+  public EnhancedFilterJoinExtraction(
+      RexNode inputFilterConditionPruned,
+      RexNode inputJoinConditionPruned,
+      RexNode joinCondition,
+      RexNode leftPushdownPredicate,
+      RexNode rightPushdownPredicate,
+      RexNode remainingFilterCondition,
+      JoinRelType simplifiedJoinType) {
     this.inputFilterConditionPruned = inputFilterConditionPruned;
     this.inputJoinConditionPruned = inputJoinConditionPruned;
     this.joinCondition = joinCondition;
@@ -67,5 +71,4 @@ public final class EnhancedFilterJoinExtraction {
   public JoinRelType getSimplifiedJoinType() {
     return simplifiedJoinType;
   }
-
 }

@@ -15,17 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -39,6 +28,15 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 public class ElasticsearchSample extends SampleRelBase implements ElasticsearchPrel {
 
@@ -46,21 +44,25 @@ public class ElasticsearchSample extends SampleRelBase implements ElasticsearchP
   private final int fetchSize;
   private final StoragePluginId pluginId;
 
-  public ElasticsearchSample(RelOptCluster cluster, RelTraitSet traits, RelNode input, StoragePluginId pluginId) {
+  public ElasticsearchSample(
+      RelOptCluster cluster, RelTraitSet traits, RelNode input, StoragePluginId pluginId) {
     super(cluster, traits, input);
     this.pluginId = pluginId;
     final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(cluster.getPlanner());
-    fetchSize = (int) SampleRelBase.getSampleSizeAndSetMinSampleSize(plannerSettings, SAMPLE_SIZE_DENOMINATOR);
+    fetchSize =
+        (int)
+            SampleRelBase.getSampleSizeAndSetMinSampleSize(
+                plannerSettings, SAMPLE_SIZE_DENOMINATOR);
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
     double cpuCost = DremioCost.COMPARE_CPU_COST * fetchSize;
-    Factory costFactory = (Factory)planner.getCostFactory();
+    Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(fetchSize, cpuCost, 0, 0);
   }
 

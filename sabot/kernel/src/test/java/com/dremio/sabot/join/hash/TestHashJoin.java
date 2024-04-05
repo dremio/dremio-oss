@@ -15,22 +15,22 @@
  */
 package com.dremio.sabot.join.hash;
 
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.config.HashJoinPOP;
 import com.dremio.sabot.join.BaseTestJoin;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
+import java.util.List;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestHashJoin extends BaseTestJoin {
 
   @Override
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
-    return new JoinInfo(HashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, null, type, false, null));
+    return new JoinInfo(
+        HashJoinOperator.class,
+        new HashJoinPOP(PROPS, null, null, conditions, null, type, false, null));
   }
 
   @Ignore("DX-5845")

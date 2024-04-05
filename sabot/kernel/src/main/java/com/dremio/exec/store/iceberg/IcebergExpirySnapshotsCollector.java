@@ -18,12 +18,14 @@ package com.dremio.exec.store.iceberg;
 import static org.apache.iceberg.TableProperties.MAX_REF_AGE_MS;
 import static org.apache.iceberg.TableProperties.MAX_REF_AGE_MS_DEFAULT;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.SnapshotRef;
 import org.apache.iceberg.TableMetadata;
@@ -33,21 +35,16 @@ import org.apache.iceberg.util.SnapshotUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
-/**
- * Collect the snapshots for expiry from Iceberg TableMetadata.
- */
+/** Collect the snapshots for expiry from Iceberg TableMetadata. */
 public class IcebergExpirySnapshotsCollector {
-  private static final Logger LOGGER = LoggerFactory.getLogger(IcebergExpirySnapshotsCollector.class);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(IcebergExpirySnapshotsCollector.class);
   private final TableMetadata tableMetadata;
 
   private List<SnapshotEntry> expiredSnapshots = Lists.newArrayList();
   private final Set<Long> idsToRetain = Sets.newHashSet();
 
-  public IcebergExpirySnapshotsCollector (TableMetadata tableMetadata) {
+  public IcebergExpirySnapshotsCollector(TableMetadata tableMetadata) {
     this.tableMetadata = tableMetadata;
   }
 
@@ -62,13 +59,15 @@ public class IcebergExpirySnapshotsCollector {
       idsToRetain.add(snapshotId);
     }
 
-    idsToRetain.addAll(computeAllBranchSnapshotsToRetain(retainedRefs.values(), olderThanInMillis, retainLast));
+    idsToRetain.addAll(
+        computeAllBranchSnapshotsToRetain(retainedRefs.values(), olderThanInMillis, retainLast));
     idsToRetain.addAll(unreferencedSnapshotsToRetain(retainedRefs.values(), olderThanInMillis));
 
-    expiredSnapshots =  tableMetadata.snapshots().stream()
-      .filter(s -> !idsToRetain.contains(s.snapshotId()))
-      .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
-      .collect(Collectors.toList());
+    expiredSnapshots =
+        tableMetadata.snapshots().stream()
+            .filter(s -> !idsToRetain.contains(s.snapshotId()))
+            .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
+            .collect(Collectors.toList());
 
     return Pair.of(expiredSnapshots, idsToRetain);
   }
@@ -85,7 +84,8 @@ public class IcebergExpirySnapshotsCollector {
 
       Snapshot snapshot = tableMetadata.snapshot(ref.snapshotId());
       long defaultMaxRefAgeMs =
-        PropertyUtil.propertyAsLong(tableMetadata.properties(), MAX_REF_AGE_MS, MAX_REF_AGE_MS_DEFAULT);
+          PropertyUtil.propertyAsLong(
+              tableMetadata.properties(), MAX_REF_AGE_MS, MAX_REF_AGE_MS_DEFAULT);
 
       long maxRefAgeMs = ref.maxRefAgeMs() != null ? ref.maxRefAgeMs() : defaultMaxRefAgeMs;
       if (snapshot != null) {
@@ -102,13 +102,13 @@ public class IcebergExpirySnapshotsCollector {
   }
 
   private Set<Long> computeAllBranchSnapshotsToRetain(
-    Collection<SnapshotRef> refs, long expireSnapshotsOlderThan, int minSnapshotsToKeep) {
+      Collection<SnapshotRef> refs, long expireSnapshotsOlderThan, int minSnapshotsToKeep) {
     Set<Long> branchSnapshotsToRetain = Sets.newHashSet();
     for (SnapshotRef ref : refs) {
       if (ref.isBranch()) {
         branchSnapshotsToRetain.addAll(
-          computeBranchSnapshotsToRetain(
-            ref.snapshotId(), expireSnapshotsOlderThan, minSnapshotsToKeep));
+            computeBranchSnapshotsToRetain(
+                ref.snapshotId(), expireSnapshotsOlderThan, minSnapshotsToKeep));
       }
     }
 
@@ -116,11 +116,11 @@ public class IcebergExpirySnapshotsCollector {
   }
 
   private Set<Long> computeBranchSnapshotsToRetain(
-    long snapshot, long expireSnapshotsOlderThan, int minSnapshotsToKeep) {
+      long snapshot, long expireSnapshotsOlderThan, int minSnapshotsToKeep) {
     Set<Long> idsToRetain = Sets.newHashSet();
     for (Snapshot ancestor : SnapshotUtil.ancestorsOf(snapshot, tableMetadata::snapshot)) {
       if (idsToRetain.size() < minSnapshotsToKeep
-        || ancestor.timestampMillis() >= expireSnapshotsOlderThan) {
+          || ancestor.timestampMillis() >= expireSnapshotsOlderThan) {
         idsToRetain.add(ancestor.snapshotId());
       } else {
         return idsToRetain;
@@ -130,11 +130,13 @@ public class IcebergExpirySnapshotsCollector {
     return idsToRetain;
   }
 
-  private Set<Long> unreferencedSnapshotsToRetain(Collection<SnapshotRef> refs, long expireSnapshotsOlderThan) {
+  private Set<Long> unreferencedSnapshotsToRetain(
+      Collection<SnapshotRef> refs, long expireSnapshotsOlderThan) {
     Set<Long> referencedSnapshots = Sets.newHashSet();
     for (SnapshotRef ref : refs) {
       if (ref.isBranch()) {
-        for (Snapshot snapshot : SnapshotUtil.ancestorsOf(ref.snapshotId(), tableMetadata::snapshot)) {
+        for (Snapshot snapshot :
+            SnapshotUtil.ancestorsOf(ref.snapshotId(), tableMetadata::snapshot)) {
           referencedSnapshots.add(snapshot.snapshotId());
         }
       } else {
@@ -145,8 +147,8 @@ public class IcebergExpirySnapshotsCollector {
     Set<Long> snapshotsToRetain = Sets.newHashSet();
     for (Snapshot snapshot : tableMetadata.snapshots()) {
       if (!referencedSnapshots.contains(snapshot.snapshotId())
-        && // unreferenced
-        snapshot.timestampMillis() >= expireSnapshotsOlderThan) { // not old enough to expire
+          && // unreferenced
+          snapshot.timestampMillis() >= expireSnapshotsOlderThan) { // not old enough to expire
         snapshotsToRetain.add(snapshot.snapshotId());
       }
     }

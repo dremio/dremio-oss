@@ -19,46 +19,41 @@ import static com.dremio.hadoop.security.alias.DremioCredentialProvider.PROTOCOL
 
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.SourceType;
-
 import io.protostuff.Tag;
 
-/**
- * Azure Storage (including datalake v2)
- */
+/** Azure Storage (including datalake v2) */
 @CheckAzureConf
-@SourceType(value = "AZURE_STORAGE", label = "Azure Storage", uiConfig = "azure-storage-layout.json")
+@SourceType(
+    value = "AZURE_STORAGE",
+    label = "Azure Storage",
+    uiConfig = "azure-storage-layout.json")
 public class AzureStorageConf extends AbstractAzureStorageConf {
 
-  /**
-   * Secret Key <-> Azure Key Vault selector for 'Shared Access Key' authenticationType
-   */
+  /** Secret Key <-> Azure Key Vault selector for 'Shared Access Key' authenticationType */
   @Tag(18)
   @DisplayMetadata(label = "Secret Store")
-  public SharedAccessSecretType sharedAccessSecretType = SharedAccessSecretType.SHARED_ACCESS_SECRET_KEY;
+  public SharedAccessSecretType sharedAccessSecretType =
+      SharedAccessSecretType.SHARED_ACCESS_SECRET_KEY;
 
-  /**
-   * Secret Key <-> Azure Key Vault selector for 'Azure Active Directory' authenticationType
-   */
+  /** Secret Key <-> Azure Key Vault selector for 'Azure Active Directory' authenticationType */
   @Tag(19)
   @DisplayMetadata(label = "Application Secret Store")
-  public AzureActiveDirectorySecretType azureADSecretType = AzureActiveDirectorySecretType.AZURE_ACTIVE_DIRECTORY_SECRET_KEY;
+  public AzureActiveDirectorySecretType azureADSecretType =
+      AzureActiveDirectorySecretType.AZURE_ACTIVE_DIRECTORY_SECRET_KEY;
 
-  /**
-   * vault uri for 'Shared Access Key' authenticationType
-   */
+  /** vault uri for 'Shared Access Key' authenticationType */
   @Tag(20)
   @DisplayMetadata()
   public String accessKeyUri;
 
-  /**
-   * vault uri for 'Azure Active Directory' authenticationType
-   */
+  /** vault uri for 'Azure Active Directory' authenticationType */
   @Tag(21)
   @DisplayMetadata()
   public String clientSecretUri;
 
   /**
-   * @return the secret type (Secret Key 'dremio' vs. Azure Vault URI) for Shared Access authentication type
+   * @return the secret type (Secret Key 'dremio' vs. Azure Vault URI) for Shared Access
+   *     authentication type
    */
   @Override
   public SharedAccessSecretType getSharedAccessSecretType() {
@@ -75,7 +70,8 @@ public class AzureStorageConf extends AbstractAzureStorageConf {
   }
 
   /**
-   * @return the secret type (Secret Key 'dremio' vs. Azure Vault URI) for Azure Active Directory authentication type
+   * @return the secret type (Secret Key 'dremio' vs. Azure Vault URI) for Azure Active Directory
+   *     authentication type
    */
   @Override
   public AzureActiveDirectorySecretType getAzureADSecretType() {

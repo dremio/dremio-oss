@@ -24,100 +24,100 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RuntimeFilter;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
 import org.junit.Test;
 
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.RuntimeFilter;
-
-/**
- * Tests for {@link RecordReaderIterator}
- */
+/** Tests for {@link RecordReaderIterator} */
 public class TestRecordReaderIterator {
 
-    @Test
-    public void testFromSingleReader() {
-        RecordReader rr = mock(RecordReader.class);
-        RecordReaderIterator it = RecordReaderIterator.from(rr);
+  @Test
+  public void testFromSingleReader() {
+    RecordReader rr = mock(RecordReader.class);
+    RecordReaderIterator it = RecordReaderIterator.from(rr);
 
-        assertTrue(it.hasNext());
-        assertEquals(rr, it.next());
-        assertFalse(it.hasNext());
+    assertTrue(it.hasNext());
+    assertEquals(rr, it.next());
+    assertFalse(it.hasNext());
+  }
+
+  @Test
+  public void testFromIterator() {
+    List<RecordReader> readers =
+        IntStream.range(0, 10).mapToObj(i -> mock(RecordReader.class)).collect(Collectors.toList());
+    RecordReaderIterator it = RecordReaderIterator.from(readers.iterator());
+
+    for (int i = 0; i < 10; i++) {
+      assertTrue(it.hasNext());
+      assertEquals(readers.get(i), it.next());
+    }
+    assertFalse(it.hasNext());
+  }
+
+  @Test
+  public void testJoinBothIteratorsHaveValues() throws Exception {
+    List<RecordReader> readers1 =
+        IntStream.range(0, 10).mapToObj(i -> mock(RecordReader.class)).collect(Collectors.toList());
+    List<RecordReader> readers2 =
+        IntStream.range(0, 10).mapToObj(i -> mock(RecordReader.class)).collect(Collectors.toList());
+
+    RecordReaderIterator it1 = spy(RecordReaderIterator.from(readers1.iterator()));
+    RecordReaderIterator it2 = spy(RecordReaderIterator.from(readers2.iterator()));
+
+    RecordReaderIterator joinedIt = RecordReaderIterator.join(it1, it2);
+    Set<RecordReader> returnedValues = new HashSet<>();
+    while (joinedIt.hasNext()) {
+      returnedValues.add(joinedIt.next());
     }
 
-    @Test
-    public void testFromIterator() {
-        List<RecordReader> readers = IntStream.range(0, 10).mapToObj(i -> mock(RecordReader.class)).collect(Collectors.toList());
-        RecordReaderIterator it = RecordReaderIterator.from(readers.iterator());
+    Set<RecordReader> expectedValues = new HashSet<>(readers1);
+    expectedValues.addAll(readers2);
+    assertEquals(expectedValues, returnedValues);
 
-        for (int i = 0; i < 10; i++) {
-            assertTrue(it.hasNext());
-            assertEquals(readers.get(i), it.next());
-        }
-        assertFalse(it.hasNext());
+    RuntimeFilter filter = mock(RuntimeFilter.class);
+    joinedIt.addRuntimeFilter(filter);
+
+    verify(it1).addRuntimeFilter(eq(filter));
+    verify(it2).addRuntimeFilter(eq(filter));
+
+    joinedIt.close();
+    verify(it1).close();
+    verify(it2).close();
+  }
+
+  @Test
+  public void testJoinOneIteratorsHaveValues() throws Exception {
+    List<RecordReader> readers1 =
+        IntStream.range(0, 10).mapToObj(i -> mock(RecordReader.class)).collect(Collectors.toList());
+    List<RecordReader> readers2 = Collections.EMPTY_LIST;
+
+    RecordReaderIterator it1 = spy(RecordReaderIterator.from(readers1.iterator()));
+    RecordReaderIterator it2 = spy(RecordReaderIterator.from(readers2.iterator()));
+
+    RecordReaderIterator joinedIt = RecordReaderIterator.join(it1, it2);
+    Set<RecordReader> returnedValues = new HashSet<>();
+    while (joinedIt.hasNext()) {
+      returnedValues.add(joinedIt.next());
     }
 
-    @Test
-    public void testJoinBothIteratorsHaveValues() throws Exception {
-        List<RecordReader> readers1 = IntStream.range(0, 10).mapToObj(i -> mock(RecordReader.class)).collect(Collectors.toList());
-        List<RecordReader> readers2 = IntStream.range(0, 10).mapToObj(i -> mock(RecordReader.class)).collect(Collectors.toList());
+    Set<RecordReader> expectedValues = new HashSet<>(readers1);
+    expectedValues.addAll(readers2);
+    assertEquals(expectedValues, returnedValues);
 
-        RecordReaderIterator it1 = spy(RecordReaderIterator.from(readers1.iterator()));
-        RecordReaderIterator it2 = spy(RecordReaderIterator.from(readers2.iterator()));
+    RuntimeFilter filter = mock(RuntimeFilter.class);
+    joinedIt.addRuntimeFilter(filter);
 
-        RecordReaderIterator joinedIt = RecordReaderIterator.join(it1, it2);
-        Set<RecordReader> returnedValues = new HashSet<>();
-        while(joinedIt.hasNext()) {
-            returnedValues.add(joinedIt.next());
-        }
+    verify(it1).addRuntimeFilter(eq(filter));
+    verify(it2).addRuntimeFilter(eq(filter));
 
-        Set<RecordReader> expectedValues = new HashSet<>(readers1);
-        expectedValues.addAll(readers2);
-        assertEquals(expectedValues, returnedValues);
-
-        RuntimeFilter filter = mock(RuntimeFilter.class);
-        joinedIt.addRuntimeFilter(filter);
-
-        verify(it1).addRuntimeFilter(eq(filter));
-        verify(it2).addRuntimeFilter(eq(filter));
-
-        joinedIt.close();
-        verify(it1).close();
-        verify(it2).close();
-    }
-
-    @Test
-    public void testJoinOneIteratorsHaveValues() throws Exception {
-        List<RecordReader> readers1 = IntStream.range(0, 10).mapToObj(i -> mock(RecordReader.class)).collect(Collectors.toList());
-        List<RecordReader> readers2 = Collections.EMPTY_LIST;
-
-        RecordReaderIterator it1 = spy(RecordReaderIterator.from(readers1.iterator()));
-        RecordReaderIterator it2 = spy(RecordReaderIterator.from(readers2.iterator()));
-
-        RecordReaderIterator joinedIt = RecordReaderIterator.join(it1, it2);
-        Set<RecordReader> returnedValues = new HashSet<>();
-        while(joinedIt.hasNext()) {
-            returnedValues.add(joinedIt.next());
-        }
-
-        Set<RecordReader> expectedValues = new HashSet<>(readers1);
-        expectedValues.addAll(readers2);
-        assertEquals(expectedValues, returnedValues);
-
-        RuntimeFilter filter = mock(RuntimeFilter.class);
-        joinedIt.addRuntimeFilter(filter);
-
-        verify(it1).addRuntimeFilter(eq(filter));
-        verify(it2).addRuntimeFilter(eq(filter));
-
-        joinedIt.close();
-        verify(it1).close();
-        verify(it2).close();
-    }
+    joinedIt.close();
+    verify(it1).close();
+    verify(it2).close();
+  }
 }

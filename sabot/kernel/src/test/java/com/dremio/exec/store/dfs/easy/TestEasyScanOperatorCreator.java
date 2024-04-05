@@ -20,15 +20,14 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.junit.Test;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.Lists;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.junit.Test;
 
 public class TestEasyScanOperatorCreator {
 
@@ -37,41 +36,57 @@ public class TestEasyScanOperatorCreator {
     BatchSchema schema = mock(BatchSchema.class);
     when(schema.iterator())
         .thenReturn(Lists.newArrayList(Field.nullable("a1", new ArrowType.Bool())).iterator());
-    assertTrue(EasyScanOperatorCreator.selectsAllColumns(schema,
-        Lists.<SchemaPath>newArrayList(SchemaPath.getSimplePath("a1"))));
+    assertTrue(
+        EasyScanOperatorCreator.selectsAllColumns(
+            schema, Lists.<SchemaPath>newArrayList(SchemaPath.getSimplePath("a1"))));
   }
 
   @Test
   public void selectionIgnoresIncremental() {
     BatchSchema schema = mock(BatchSchema.class);
     when(schema.iterator())
-        .thenReturn(Lists.newArrayList(Field.nullable("a1", new ArrowType.Bool()),
-            Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Bool())).iterator());
-    assertTrue(EasyScanOperatorCreator.selectsAllColumns(schema,
-      Lists.<SchemaPath>newArrayList(SchemaPath.getSimplePath("a1"))));
+        .thenReturn(
+            Lists.newArrayList(
+                    Field.nullable("a1", new ArrowType.Bool()),
+                    Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Bool()))
+                .iterator());
+    assertTrue(
+        EasyScanOperatorCreator.selectsAllColumns(
+            schema, Lists.<SchemaPath>newArrayList(SchemaPath.getSimplePath("a1"))));
   }
 
   @Test
   public void falseWhenAllColumnsAreNotSelected() {
     BatchSchema schema = mock(BatchSchema.class);
     when(schema.iterator())
-      .thenReturn(Lists.newArrayList(Field.nullable("a1", new ArrowType.Bool()),
-          Field.nullable("a2", new ArrowType.Bool())).iterator());
-    assertFalse(EasyScanOperatorCreator.selectsAllColumns(schema,
-        Lists.<SchemaPath>newArrayList(SchemaPath.getSimplePath("a1"))));
+        .thenReturn(
+            Lists.newArrayList(
+                    Field.nullable("a1", new ArrowType.Bool()),
+                    Field.nullable("a2", new ArrowType.Bool()))
+                .iterator());
+    assertFalse(
+        EasyScanOperatorCreator.selectsAllColumns(
+            schema, Lists.<SchemaPath>newArrayList(SchemaPath.getSimplePath("a1"))));
   }
 
   @Test
   public void falseWhenChildrenAreSelected() {
     BatchSchema schema = mock(BatchSchema.class);
     when(schema.iterator())
-      .thenReturn(Lists.newArrayList(
-          new Field("a1", new FieldType(true, new ArrowType.Struct(), null),
-              Lists.newArrayList(Field.nullable("a2", new ArrowType.Bool()))),
-          Field.nullable("a3", new ArrowType.Bool())).iterator());
-    assertFalse(EasyScanOperatorCreator.selectsAllColumns(schema,
-      Lists.newArrayList(SchemaPath.getSimplePath("a1"), SchemaPath.getCompoundPath("a1", "a2"),
-          SchemaPath.getSimplePath("a3"))));
+        .thenReturn(
+            Lists.newArrayList(
+                    new Field(
+                        "a1",
+                        new FieldType(true, new ArrowType.Struct(), null),
+                        Lists.newArrayList(Field.nullable("a2", new ArrowType.Bool()))),
+                    Field.nullable("a3", new ArrowType.Bool()))
+                .iterator());
+    assertFalse(
+        EasyScanOperatorCreator.selectsAllColumns(
+            schema,
+            Lists.newArrayList(
+                SchemaPath.getSimplePath("a1"),
+                SchemaPath.getCompoundPath("a1", "a2"),
+                SchemaPath.getSimplePath("a3"))));
   }
-
 }

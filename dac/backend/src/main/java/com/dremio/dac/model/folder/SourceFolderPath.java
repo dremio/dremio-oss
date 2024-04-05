@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.model.folder;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
@@ -24,10 +22,9 @@ import com.dremio.dac.model.sources.SourceName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
 
-/**
- * Folder inside source.
- */
+/** Folder inside source. */
 public class SourceFolderPath extends NamespacePath {
   /**
    * Creates a SourceFolderPath from a sourceName and a path component from a URL
@@ -38,7 +35,8 @@ public class SourceFolderPath extends NamespacePath {
    */
   public static SourceFolderPath fromURLPath(SourceName sourceName, String path) {
     Iterable<String> components = Splitter.on('/').omitEmptyStrings().split(path);
-    return new SourceFolderPath(ImmutableList.<String> builder().add(sourceName.getName()).addAll(components).build());
+    return new SourceFolderPath(
+        ImmutableList.<String>builder().add(sourceName.getName()).addAll(components).build());
   }
 
   public SourceFolderPath(RootEntity root, List<FolderName> folderPath, FolderName name) {
@@ -78,12 +76,11 @@ public class SourceFolderPath extends NamespacePath {
   }
 
   public FolderName getFolderName() {
-    return (FolderName)getLeaf();
+    return (FolderName) getLeaf();
   }
 
   @Override
   protected String getDefaultUrlPathType() {
     return "folder";
   }
-
 }

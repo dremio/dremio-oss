@@ -15,16 +15,6 @@
  */
 package com.dremio.service.coordinator;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
 import com.dremio.common.util.DremioVersionUtils;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -33,29 +23,34 @@ import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
 
-/**
- * Product implementation of ExecutorSetService.
- */
+/** Product implementation of ExecutorSetService. */
 public class LocalExecutorSetService implements ExecutorSetService {
   private final Provider<ClusterCoordinator> coordinator;
   private final Provider<OptionManager> optionManagerProvider;
   private ListenableSet executorSet = null;
   private boolean isVersionCheckEnabled = true;
 
-  public LocalExecutorSetService(Provider<ClusterCoordinator> coordinator,
-                                 Provider<OptionManager> optionManagerProvider) {
+  public LocalExecutorSetService(
+      Provider<ClusterCoordinator> coordinator, Provider<OptionManager> optionManagerProvider) {
     this.coordinator = coordinator;
     this.optionManagerProvider = optionManagerProvider;
   }
 
   @Override
-  public void start() {
-  }
+  public void start() {}
 
   @Override
-  public synchronized ListenableSet getExecutorSet(EngineManagementProtos.EngineId engineId,
-                                                   EngineManagementProtos.SubEngineId subEngineId) {
+  public synchronized ListenableSet getExecutorSet(
+      EngineManagementProtos.EngineId engineId, EngineManagementProtos.SubEngineId subEngineId) {
     // executorSet can be assigned in start(), assuming ClusterCoordinator
     // (specially ZKClusterCoordinator) starts before this class starts.
     // But going with "assume the least" principle, assigning executorSet here.
@@ -64,7 +59,8 @@ public class LocalExecutorSetService implements ExecutorSetService {
       if (serviceSet != null) {
         // Read dremio check option at first call to this method.
         // If dremio check option is changed, coordinator needs to be restarted.
-        isVersionCheckEnabled = optionManagerProvider.get().getOption(ExecutorSetService.DREMIO_VERSION_CHECK);
+        isVersionCheckEnabled =
+            optionManagerProvider.get().getOption(ExecutorSetService.DREMIO_VERSION_CHECK);
         executorSet = isVersionCheckEnabled ? filterCompatibleExecutors(serviceSet) : serviceSet;
       }
     }
@@ -73,22 +69,23 @@ public class LocalExecutorSetService implements ExecutorSetService {
 
   @Override
   public Collection<NodeEndpoint> getAllAvailableEndpoints() {
-    if(executorSet != null) {
+    if (executorSet != null) {
       return executorSet.getAvailableEndpoints();
     }
     return Lists.newArrayList();
   }
 
   /**
-   * Returns a new ExecutorSelectionHandle backed by given delegate
-   * but with executors excluded which are running incompatible version of dremio
-   * compared to version of coordinator.
+   * Returns a new ExecutorSelectionHandle backed by given delegate but with executors excluded
+   * which are running incompatible version of dremio compared to version of coordinator.
+   *
    * @param delegate
    * @return
    */
   private ListenableSet filterCompatibleExecutors(ListenableSet delegate) {
     return new ListenableSet() {
-      private Map<NodeStatusListener, NodeStatusListener> innerToForwarderMap =  new ConcurrentHashMap<>();
+      private Map<NodeStatusListener, NodeStatusListener> innerToForwarderMap =
+          new ConcurrentHashMap<>();
 
       @Override
       public Collection<NodeEndpoint> getAvailableEndpoints() {
@@ -97,17 +94,22 @@ public class LocalExecutorSetService implements ExecutorSetService {
 
       @Override
       public void addNodeStatusListener(NodeStatusListener inner) {
-        NodeStatusListener forwarder = new NodeStatusListener() {
-          @Override
-          public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
-            inner.nodesUnregistered(Sets.newHashSet(DremioVersionUtils.getCompatibleNodeEndpoints(unregisteredNodes)));
-          }
+        NodeStatusListener forwarder =
+            new NodeStatusListener() {
+              @Override
+              public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
+                inner.nodesUnregistered(
+                    Sets.newHashSet(
+                        DremioVersionUtils.getCompatibleNodeEndpoints(unregisteredNodes)));
+              }
 
-          @Override
-          public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
-            inner.nodesRegistered(Sets.newHashSet(DremioVersionUtils.getCompatibleNodeEndpoints(registeredNodes)));
-          }
-        };
+              @Override
+              public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
+                inner.nodesRegistered(
+                    Sets.newHashSet(
+                        DremioVersionUtils.getCompatibleNodeEndpoints(registeredNodes)));
+              }
+            };
         delegate.addNodeStatusListener(forwarder);
         innerToForwarderMap.put(inner, forwarder);
       }
@@ -123,14 +125,15 @@ public class LocalExecutorSetService implements ExecutorSetService {
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   @Override
   public Map<EngineManagementProtos.SubEngineId, List<NodeEndpoint>> listAllEnginesExecutors() {
-    if(executorSet != null) {
-      Map<EngineManagementProtos.SubEngineId, List<CoordinationProtos.NodeEndpoint>> executorsGroupedByReplica =
-        executorSet.getAvailableEndpoints().stream().collect(Collectors.groupingBy(w -> w.getSubEngineId()));
+    if (executorSet != null) {
+      Map<EngineManagementProtos.SubEngineId, List<CoordinationProtos.NodeEndpoint>>
+          executorsGroupedByReplica =
+              executorSet.getAvailableEndpoints().stream()
+                  .collect(Collectors.groupingBy(w -> w.getSubEngineId()));
       return executorsGroupedByReplica;
     }
     return Collections.emptyMap();

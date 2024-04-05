@@ -18,6 +18,15 @@ package com.dremio.dac.support;
 import static com.dremio.dac.support.SupportService.DREMIO_LOG_PATH_PROPERTY;
 import static com.dremio.dac.support.SupportService.TEMPORARY_SUPPORT_PATH;
 
+import com.dremio.dac.service.support.CoordinatorLogServiceGrpc;
+import com.dremio.dac.service.support.SupportBundleRPC.Chunk;
+import com.dremio.dac.service.support.SupportBundleRPC.LogRequest;
+import com.dremio.exec.server.SabotContext;
+import com.google.protobuf.ByteString;
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
+import io.grpc.stub.StreamObserver;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -39,24 +48,10 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.UUID;
 import java.util.zip.GZIPOutputStream;
-
 import javax.inject.Provider;
-
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
-
-import com.dremio.dac.service.support.CoordinatorLogServiceGrpc;
-import com.dremio.dac.service.support.SupportBundleRPC.Chunk;
-import com.dremio.dac.service.support.SupportBundleRPC.LogRequest;
-import com.dremio.exec.server.SabotContext;
-import com.google.protobuf.ByteString;
-
-import io.grpc.Status;
-import io.grpc.StatusException;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
-
 
 /**
  * CoordinatorLogService provides the coordinator log file input stream for QueryLogBundleService.
@@ -64,14 +59,16 @@ import io.grpc.stub.StreamObserver;
  */
 public class CoordinatorLogService extends CoordinatorLogServiceGrpc.CoordinatorLogServiceImplBase {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoordinatorLogService.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(CoordinatorLogService.class);
   private static final int BUFFER_SIZE = 4096;
 
   private final Provider<SabotContext> sabotContextProvider;
   private final Provider<SupportService> supportServiceProvider;
 
-  public CoordinatorLogService(Provider<SabotContext> sabotContextProvider,
-                               Provider<SupportService> supportServiceProvider) {
+  public CoordinatorLogService(
+      Provider<SabotContext> sabotContextProvider,
+      Provider<SupportService> supportServiceProvider) {
     this.sabotContextProvider = sabotContextProvider;
     this.supportServiceProvider = supportServiceProvider;
   }
@@ -79,7 +76,8 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
   @Override
   public void getServerLog(LogRequest request, StreamObserver<Chunk> responseObserver) {
     logger.debug("start writing {} over grpc ", request.getType());
-    final Path dremioLogPath = Paths.get(System.getProperty(DREMIO_LOG_PATH_PROPERTY, "/var/log/dremio"));
+    final Path dremioLogPath =
+        Paths.get(System.getProperty(DREMIO_LOG_PATH_PROPERTY, "/var/log/dremio"));
     final long start = request.getStart();
     final long end = request.getEnd();
 
@@ -103,11 +101,18 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     responseObserver.onCompleted();
   }
 
-  private void getServerLog(Path dremioLogPath, StreamObserver<Chunk> responseObserver, long start, long end) {
+  private void getServerLog(
+      Path dremioLogPath, StreamObserver<Chunk> responseObserver, long start, long end) {
     // obtain all needed server gzip log in archive/
-    final File[] allArchiveServerLogFiles = dremioLogPath.resolve("archive").toFile().listFiles(
-      (dir, name) -> name.startsWith("server.") && name.endsWith(".log.gz")
-        && DateTimeUtils.isBetweenDay(name, start, end, DateTimeZone.UTC));
+    final File[] allArchiveServerLogFiles =
+        dremioLogPath
+            .resolve("archive")
+            .toFile()
+            .listFiles(
+                (dir, name) ->
+                    name.startsWith("server.")
+                        && name.endsWith(".log.gz")
+                        && DateTimeUtils.isBetweenDay(name, start, end, DateTimeZone.UTC));
 
     // if there are server logs in archive/, sort them and send their raw stream to response
     if (allArchiveServerLogFiles != null) {
@@ -122,11 +127,18 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     }
   }
 
-  private void getQueriesLog(Path dremioLogPath, StreamObserver<Chunk> responseObserver, long start, long end) {
+  private void getQueriesLog(
+      Path dremioLogPath, StreamObserver<Chunk> responseObserver, long start, long end) {
     // obtain all need query gzip log in archive/
-    final File[] allArchiveQueriesLogFiles = dremioLogPath.resolve("archive").toFile().listFiles(
-      (dir, name) -> name.startsWith("queries.") && name.endsWith(".json.gz")
-        && DateTimeUtils.isBetweenDay(name, start, end, DateTimeZone.UTC));
+    final File[] allArchiveQueriesLogFiles =
+        dremioLogPath
+            .resolve("archive")
+            .toFile()
+            .listFiles(
+                (dir, name) ->
+                    name.startsWith("queries.")
+                        && name.endsWith(".json.gz")
+                        && DateTimeUtils.isBetweenDay(name, start, end, DateTimeZone.UTC));
 
     // if there are queries logs in archive/, sort them and write their raw stream to one zip entry
     if (allArchiveQueriesLogFiles != null) {
@@ -139,14 +151,16 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     if (DateTimeUtils.isToday(end, DateTimeZone.UTC)) {
       compressAPlainTextToResponseObserver(dremioLogPath, "queries.json", responseObserver);
     }
-
   }
 
-  private void getGCLog(Path inputDir, StreamObserver<Chunk> responseObserver, long start, long end) {
+  private void getGCLog(
+      Path inputDir, StreamObserver<Chunk> responseObserver, long start, long end) {
 
-    final Path tempSupportDir = Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+    final Path tempSupportDir =
+        Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
     // write the entire server out to response
-    final File[] allGcLogFiles = inputDir.toFile().listFiles((dir, name) -> name.startsWith("server.gc"));
+    final File[] allGcLogFiles =
+        inputDir.toFile().listFiles((dir, name) -> name.startsWith("server.gc"));
 
     if (allGcLogFiles != null) {
       // sort all gc logs in time order based on filename
@@ -159,7 +173,6 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
       } finally {
         gzipFile.delete();
       }
-
     }
   }
 
@@ -169,22 +182,23 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
   }
 
   /**
-   * Scan a file and select lines for the day(s) that overlap with [startLong, endLong].
-   * Write the content to gzipFile
+   * Scan a file and select lines for the day(s) that overlap with [startLong, endLong]. Write the
+   * content to gzipFile
+   *
    * @param files a list of files in order
    * @param gzipFile
    * @param startLong
    * @param endLong
    */
-  static void filterFilesContentByDayAndCompress(File[] files,
-                                                  File gzipFile,
-                                                  long startLong, long endLong) {
+  static void filterFilesContentByDayAndCompress(
+      File[] files, File gzipFile, long startLong, long endLong) {
 
     final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     final LocalDate start = new DateTime(startLong).toLocalDate();
     final LocalDate end = new DateTime(endLong).toLocalDate();
 
-    try (GZIPOutputStream gzos = new GZIPOutputStream(new BufferedOutputStream(new FileOutputStream(gzipFile)))) {
+    try (GZIPOutputStream gzos =
+        new GZIPOutputStream(new BufferedOutputStream(new FileOutputStream(gzipFile)))) {
       boolean reachedLeftBound = false;
       boolean reachedRightBound = false;
       for (File file : files) {
@@ -192,7 +206,9 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
           break;
         }
         try (BufferedReader archiveGcLogReader = new BufferedReader(new FileReader(file))) {
-          for (String line = archiveGcLogReader.readLine(); line != null; line = archiveGcLogReader.readLine()) {
+          for (String line = archiveGcLogReader.readLine();
+              line != null;
+              line = archiveGcLogReader.readLine()) {
             try {
               Date now = dateFormat.parse(line);
               DateTime nowDateTime = new DateTime(now.getTime());
@@ -200,7 +216,7 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
               if (!reachedLeftBound && !nowLocalDate.isBefore(start)) {
                 reachedLeftBound = true;
               }
-              if (endLong != 0  && nowLocalDate.isAfter(end)) {
+              if (endLong != 0 && nowLocalDate.isAfter(end)) {
                 reachedRightBound = true;
                 break;
               }
@@ -232,10 +248,11 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
   static File compressAPlainText(Path plainFilePath, Path outDir, String outputFilename) {
 
     Path outputGzipPath = outDir.resolve(outputFilename);
-    try (
-      GZIPOutputStream gzos = new GZIPOutputStream(new BufferedOutputStream(new FileOutputStream(outputGzipPath.toFile())));
-      BufferedInputStream fileStream = new BufferedInputStream(new FileInputStream(plainFilePath.toFile()))
-    ) {
+    try (GZIPOutputStream gzos =
+            new GZIPOutputStream(
+                new BufferedOutputStream(new FileOutputStream(outputGzipPath.toFile())));
+        BufferedInputStream fileStream =
+            new BufferedInputStream(new FileInputStream(plainFilePath.toFile()))) {
       // write plain text to a gzip file
       copyFromInputStreamToOutStream(fileStream, gzos);
     } catch (FileNotFoundException e) {
@@ -247,16 +264,16 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     return outputGzipPath.toFile();
   }
 
-  private static void writeAFileToResponseObserver(File file, StreamObserver<Chunk> responseObserver) {
-    try (BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(file))) {
+  private static void writeAFileToResponseObserver(
+      File file, StreamObserver<Chunk> responseObserver) {
+    try (BufferedInputStream bufferedInputStream =
+        new BufferedInputStream(new FileInputStream(file))) {
 
       byte[] buf = new byte[BUFFER_SIZE];
       int len;
       while ((len = bufferedInputStream.read(buf)) > -1) {
-        responseObserver.onNext(Chunk.newBuilder()
-          .setContent(ByteString.copyFrom(buf))
-          .setLength(len)
-          .build());
+        responseObserver.onNext(
+            Chunk.newBuilder().setContent(ByteString.copyFrom(buf)).setLength(len).build());
       }
 
     } catch (Exception e) {
@@ -265,34 +282,44 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
       } else if (e instanceof StatusException) {
         responseObserver.onError((StatusException) e);
       } else {
-        responseObserver.onError(Status.UNKNOWN.withDescription(String.format("Failed to write file %s to gRPC response observer", file.getPath())).withCause(e).asRuntimeException());
+        responseObserver.onError(
+            Status.UNKNOWN
+                .withDescription(
+                    String.format(
+                        "Failed to write file %s to gRPC response observer", file.getPath()))
+                .withCause(e)
+                .asRuntimeException());
       }
     }
   }
 
-  private void compressAPlainTextToResponseObserver(Path inputDir, String inputFileName,
-                                                    StreamObserver<Chunk> responseObserver) {
+  private void compressAPlainTextToResponseObserver(
+      Path inputDir, String inputFileName, StreamObserver<Chunk> responseObserver) {
 
-    final Path tempSupportDir = Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+    final Path tempSupportDir =
+        Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
     final Path inputLogPath = inputDir.resolve(inputFileName);
-    // compress the file at {inputDir}/{inputFileName} and save to {tempSupportDir}/{uuid}_{inputFileName}.gz
-    File gzipFile = compressAPlainText(inputLogPath, tempSupportDir, UUID.randomUUID().toString() + "_" + inputFileName + ".gz");
+    // compress the file at {inputDir}/{inputFileName} and save to
+    // {tempSupportDir}/{uuid}_{inputFileName}.gz
+    File gzipFile =
+        compressAPlainText(
+            inputLogPath,
+            tempSupportDir,
+            UUID.randomUUID().toString() + "_" + inputFileName + ".gz");
     // Copy the compressed file to responseObserver, then delete the compressed file
     try {
       writeAFileToResponseObserver(gzipFile, responseObserver);
     } finally {
       gzipFile.delete();
     }
-
   }
 
-  private static void copyFromInputStreamToOutStream(InputStream input, OutputStream output) throws IOException {
+  private static void copyFromInputStreamToOutStream(InputStream input, OutputStream output)
+      throws IOException {
     byte[] buf = new byte[BUFFER_SIZE];
     int len;
     while ((len = input.read(buf)) > -1) {
       output.write(buf, 0, len);
     }
   }
-
-
 }

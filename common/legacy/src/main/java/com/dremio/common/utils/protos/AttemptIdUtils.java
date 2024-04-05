@@ -15,17 +15,13 @@
  */
 package com.dremio.common.utils.protos;
 
+import com.dremio.exec.proto.UserBitShared.ExternalId;
 import java.util.UUID;
 
-import com.dremio.exec.proto.UserBitShared.ExternalId;
-
-/**
- * Helper class to convert from/to {@code com.dremio.exec.work.AttemptId}
- */
+/** Helper class to convert from/to {@code com.dremio.exec.work.AttemptId} */
 public final class AttemptIdUtils {
 
-  private AttemptIdUtils() {
-  }
+  private AttemptIdUtils() {}
 
   public static String toString(AttemptId attemptId) {
     return QueryIdHelper.getQueryId(attemptId.toQueryId());
@@ -35,10 +31,8 @@ public final class AttemptIdUtils {
     final UUID uuid = UUID.fromString(attemptIdStr);
     final long part1 = uuid.getMostSignificantBits();
     final long part2 = uuid.getLeastSignificantBits();
-    final ExternalId externalId = ExternalId.newBuilder()
-        .setPart1(part1)
-        .setPart2(part2 & ExternalIdHelper.MASK)
-        .build();
+    final ExternalId externalId =
+        ExternalId.newBuilder().setPart1(part1).setPart2(part2 & ExternalIdHelper.MASK).build();
 
     final int attempt = (int) part2 & 0xFF;
     return new AttemptId(externalId, attempt);

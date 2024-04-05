@@ -16,17 +16,16 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.EmptyCrel;
+import com.dremio.exec.planner.common.ScanRelBase;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 
-import com.dremio.exec.calcite.logical.EmptyCrel;
-import com.dremio.exec.planner.common.ScanRelBase;
-
 /**
- * If the underlying table has zero splits, we use
- * {@link EmptyCrel} as the logical {@link org.apache.calcite.rel.RelNode}
- * as opposed to other specific implementations of {@link ScanRelBase}
+ * If the underlying table has zero splits, we use {@link EmptyCrel} as the logical {@link
+ * org.apache.calcite.rel.RelNode} as opposed to other specific implementations of {@link
+ * ScanRelBase}
  */
 public class RemoveEmptyScansRule extends RelOptRule {
   public static final RelOptRule INSTANCE = new RemoveEmptyScansRule();
@@ -39,9 +38,16 @@ public class RemoveEmptyScansRule extends RelOptRule {
   public void onMatch(RelOptRuleCall call) {
     final ScanRelBase scan = call.rel(0);
     if (scan.getTableMetadata().getSplitCount() == 0) {
-      call.transformTo(new EmptyCrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(), scan.getPluginId(),
-                                     scan.getTableMetadata(), scan.getProjectedColumns(),
-                                     scan.getObservedRowcountAdjustment(), scan.getHints()));
+      call.transformTo(
+          new EmptyCrel(
+              scan.getCluster(),
+              scan.getTraitSet(),
+              scan.getTable(),
+              scan.getPluginId(),
+              scan.getTableMetadata(),
+              scan.getProjectedColumns(),
+              scan.getObservedRowcountAdjustment(),
+              scan.getHints()));
     }
   }
 }

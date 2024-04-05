@@ -17,11 +17,12 @@
 :global {
   .pin {
     display: flex;
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     cursor: pointer;
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       opacity: 1;
       svg path {
         fill: var(--dremio--color--link);

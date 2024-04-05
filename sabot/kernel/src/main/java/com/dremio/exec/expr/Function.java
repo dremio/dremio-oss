@@ -15,5 +15,4 @@
  */
 package com.dremio.exec.expr;
 
-public interface Function {
-}
+public interface Function {}

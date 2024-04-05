@@ -15,10 +15,6 @@
  */
 package com.dremio.services.fabric;
 
-import java.util.UUID;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.rpc.RemoteConnection;
 import com.dremio.exec.rpc.RpcBus;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -26,15 +22,14 @@ import com.dremio.services.fabric.api.PhysicalConnection;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.services.fabric.proto.FabricProto.RpcType;
 import com.google.protobuf.MessageLite;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.socket.SocketChannel;
+import java.util.UUID;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * A client > server or server > client connection.
- */
+/** A client > server or server > client connection. */
 class FabricConnection extends RemoteConnection implements PhysicalConnection {
 
   private final RpcBus<RpcType, FabricConnection> bus;
@@ -60,7 +55,7 @@ class FabricConnection extends RemoteConnection implements PhysicalConnection {
     this.identity = identity;
   }
 
-  public FabricIdentity getIdentity(){
+  public FabricIdentity getIdentity() {
     return identity;
   }
 
@@ -74,8 +69,12 @@ class FabricConnection extends RemoteConnection implements PhysicalConnection {
     bus.send(outcomeListener, this, rpcType, protobufBody, clazz, dataBodies);
   }
 
-  public <SEND extends MessageLite, RECEIVE extends MessageLite> void sendUnsafe(RpcOutcomeListener<RECEIVE> outcomeListener,
-      RpcType rpcType, SEND protobufBody, Class<RECEIVE> clazz, ByteBuf... dataBodies) {
+  public <SEND extends MessageLite, RECEIVE extends MessageLite> void sendUnsafe(
+      RpcOutcomeListener<RECEIVE> outcomeListener,
+      RpcType rpcType,
+      SEND protobufBody,
+      Class<RECEIVE> clazz,
+      ByteBuf... dataBodies) {
     bus.send(outcomeListener, this, rpcType, protobufBody, clazz, true, dataBodies);
   }
 
@@ -86,13 +85,15 @@ class FabricConnection extends RemoteConnection implements PhysicalConnection {
 
   @Override
   public void setChannelCloseHandler(ChannelFutureListener closeHandler) {
-    // wrap the passed handler in a proxyCloseHandler so we can later wrap the original handler into another one
+    // wrap the passed handler in a proxyCloseHandler so we can later wrap the original handler into
+    // another one
     proxyCloseHandler = new ProxyCloseHandler(closeHandler);
     super.setChannelCloseHandler(proxyCloseHandler);
   }
 
   public void wrapCloseHandler(FabricConnectionManager.CloseHandlerCreator closeHandlerCreator) {
-    proxyCloseHandler.setHandler(closeHandlerCreator.getHandler(this, proxyCloseHandler.getHandler()));
+    proxyCloseHandler.setHandler(
+        closeHandlerCreator.getHandler(this, proxyCloseHandler.getHandler()));
   }
 
   @Override
@@ -151,7 +152,5 @@ class FabricConnection extends RemoteConnection implements PhysicalConnection {
     public void operationComplete(ChannelFuture future) throws Exception {
       handler.operationComplete(future);
     }
-
   }
-
 }

@@ -18,10 +18,6 @@ package com.dremio.exec.ops;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -34,14 +30,17 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.sabot.rpc.user.UserSession;
+import java.util.List;
+import org.junit.Test;
 
 public class TestQueryContext extends BaseTestQuery {
 
   @Test
   public void testOptionManagerSetup() throws Exception {
     try (final QueryContext queryContext =
-           new QueryContext(session(), getSabotContext(), UserBitShared.QueryId.getDefaultInstance());) {
-      final OptionManagerWrapper  optionManager = (OptionManagerWrapper) queryContext.getOptions();
+        new QueryContext(
+            session(), getSabotContext(), UserBitShared.QueryId.getDefaultInstance()); ) {
+      final OptionManagerWrapper optionManager = (OptionManagerWrapper) queryContext.getOptions();
       final List<OptionManager> optionManagerList = optionManager.getOptionManagers();
       assertEquals(4, optionManagerList.size());
       assertTrue(optionManagerList.get(0) instanceof QueryOptionManager);
@@ -53,12 +52,15 @@ public class TestQueryContext extends BaseTestQuery {
 
   private static UserSession session() {
     return UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
-      .setSupportComplexTypes(true)
-      .build();
+        .withSessionOptionManager(
+            new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+            getSabotContext().getOptionManager())
+        .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+        .withCredentials(
+            UserBitShared.UserCredentials.newBuilder()
+                .setUserName(UserServiceTestImpl.TEST_USER_1)
+                .build())
+        .setSupportComplexTypes(true)
+        .build();
   }
 }

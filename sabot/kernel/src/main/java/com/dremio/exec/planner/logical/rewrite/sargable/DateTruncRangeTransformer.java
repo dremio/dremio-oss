@@ -23,15 +23,16 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
+ *
+ *
  * <pre>
  * Extract each component of a filter expr with SARGableStandardForm for DATE_TRUNC
  * DATE_TRUNC(time_unit LITERAL, column DATE|TIMESTAMP) = rhsNode
  * </pre>
  */
 public class DateTruncRangeTransformer extends RangeTransformer {
-  public DateTruncRangeTransformer(RelOptCluster relOptCluster,
-                                   StandardForm stdForm,
-                                   SqlOperator sqlOperator) {
+  public DateTruncRangeTransformer(
+      RelOptCluster relOptCluster, StandardForm stdForm, SqlOperator sqlOperator) {
     super(relOptCluster, stdForm, sqlOperator);
   }
 
@@ -50,7 +51,8 @@ public class DateTruncRangeTransformer extends RangeTransformer {
     RexNode rhs = super.getRhsNode();
     // Cast string date/time literal to date/time type
     if (SqlTypeName.CHAR_TYPES.contains(rhs.getType().getSqlTypeName())) {
-      return rexBuilder.makeCast(rexBuilder.getTypeFactory().createTypeWithNullability(getReturnType(), false), rhs);
+      return rexBuilder.makeCast(
+          rexBuilder.getTypeFactory().createTypeWithNullability(getReturnType(), false), rhs);
     }
     return rhs;
   }

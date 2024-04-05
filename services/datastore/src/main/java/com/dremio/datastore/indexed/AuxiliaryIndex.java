@@ -20,8 +20,9 @@ import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 
 /**
- * Auxilary index for a KV store.  The auxiliary index uses the same key as the KV store but uses a separate
- * DocumentConverter when building the index.  Allows the store to be searched by the auxiliary index.
+ * Auxilary index for a KV store. The auxiliary index uses the same key as the KV store but uses a
+ * separate DocumentConverter when building the index. Allows the store to be searched by the
+ * auxiliary index.
  *
  * @param <K> - The KV store key
  * @param <V> - The value of the KV store

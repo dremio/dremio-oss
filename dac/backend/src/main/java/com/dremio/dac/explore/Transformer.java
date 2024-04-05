@@ -18,16 +18,8 @@ package com.dremio.dac.explore;
 import static com.dremio.dac.proto.model.dataset.TransformType.join;
 import static com.dremio.dac.proto.model.dataset.TransformType.updateSQL;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.ws.rs.core.SecurityContext;
-
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.TransformBase;
@@ -75,31 +67,42 @@ import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.ws.rs.core.SecurityContext;
+import org.apache.arrow.memory.BufferAllocator;
 
-/**
- * Tool class for applying transformations
- */
+/** Tool class for applying transformations */
 public class Transformer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Transformer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(Transformer.class);
 
   public static final String VALUE_PLACEHOLDER = "value";
 
   private final QueryExecutor executor;
   private final JobsService jobsService;
   private final NamespaceService namespaceService;
-  private final DatasetVersionMutator datasetService;
+  private final DatasetVersionMutator datasetVersionMutator;
   private final SecurityContext securityContext;
-  private final SabotContext context;
+  private final SabotContext sabotContext;
   private final CatalogService catalogService;
 
-  public Transformer(SabotContext context, JobsService jobsService, NamespaceService namespace, DatasetVersionMutator datasetService,
-                     QueryExecutor executor, SecurityContext securityContext, CatalogService catalogService) {
+  public Transformer(
+      SabotContext sabotContext,
+      JobsService jobsService,
+      NamespaceService namespace,
+      DatasetVersionMutator datasetVersionMutator,
+      QueryExecutor executor,
+      SecurityContext securityContext,
+      CatalogService catalogService) {
     this.securityContext = securityContext;
     this.executor = executor;
-    this.datasetService = datasetService;
+    this.datasetVersionMutator = datasetVersionMutator;
     this.jobsService = jobsService;
     this.namespaceService = namespace;
-    this.context = context;
+    this.sabotContext = sabotContext;
     this.catalogService = catalogService;
   }
 
@@ -110,44 +113,39 @@ public class Transformer {
     return transform.accept(new DescribeTransformation());
   }
 
-  private String username(){
+  private String username() {
     return securityContext.getUserPrincipal().getName();
   }
 
   /**
-   * Protobuf removes nulls inside lists: this makes sure to keep null values as they are
-   * by re-adding them after parsing with protobuf. Since replaceNull is not part of protobuf,
-   * this is necessary to parse null filter values (most importantly in replaceExact)
-   * @param transformResult
-   * @param transform
-   * @return
+   * Protobuf removes nulls inside lists: this makes sure to keep null values as they are by
+   * re-adding them after parsing with protobuf. Since replaceNull is not part of protobuf, this is
+   * necessary to parse null filter values (most importantly in replaceExact)
    */
-  private VirtualDatasetState protectAgainstNull(TransformResult transformResult, TransformBase transform) {
+  private VirtualDatasetState protectAgainstNull(
+      TransformResult transformResult, TransformBase transform) {
     VirtualDatasetState vss = transformResult.getNewState();
     if (transform instanceof TransformFilter
-      && FilterType.Value == ((TransformFilter) transform).getFilter().getType()) {
-      List<String> pureFilter = ((TransformFilter) transform).getFilter().getValue().getValuesList();
+        && FilterType.Value == ((TransformFilter) transform).getFilter().getType()) {
+      List<String> pureFilter =
+          ((TransformFilter) transform).getFilter().getValue().getValuesList();
       vss.getFiltersList()
-        .get(vss.getFiltersList().size() - 1)
-        .getFilterDef()
-        .getValue()
-        .setValuesList(pureFilter);
+          .get(vss.getFiltersList().size() - 1)
+          .getFilterDef()
+          .getValue()
+          .setValuesList(pureFilter);
     }
     return vss;
   }
 
-  /**
-   * Reaply the provided operations onto the original dataset and execute it.
-   * @param newVersion
-   * @param operations
-   * @return
-   * @throws NamespaceException
-   * @throws DatasetNotFoundException
-   * @throws DatasetVersionNotFoundException
-   */
-  //TODO (DX-18918: Transformer.editOriginalSql() shouldn't require a JobStatusListener)
-  public DatasetAndData editOriginalSql(DatasetVersion newVersion, List<Transform> operations, QueryType queryType,
-    JobStatusListener listener) throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
+  /** Reaply the provided operations onto the original dataset and execute it. */
+  // TODO (DX-18918: Transformer.editOriginalSql() shouldn't require a JobStatusListener)
+  public DatasetAndData editOriginalSql(
+      DatasetVersion newVersion,
+      List<Transform> operations,
+      QueryType queryType,
+      JobStatusListener listener)
+      throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
 
     // apply transformations bottom up.
     Collections.reverse(operations);
@@ -155,66 +153,102 @@ public class Transformer {
     final Transform firstVersion = operations.get(0);
     if (firstVersion.getType() != TransformType.createFromParent) {
       throw UserException.unsupportedError()
-        .message("Cannot be reapplied because it was not created from a parent dataset")
-        .build(logger);
+          .message("Cannot be reapplied because it was not created from a parent dataset")
+          .build(logger);
     }
     final TransformCreateFromParent firstTransform = firstVersion.getTransformCreateFromParent();
     if (firstTransform.getCreateFrom().getType() != FromType.Table) {
       throw UserException.unsupportedError()
-        .message("Cannot be reapplied because it was not created from a table")
-        .build(logger);
+          .message("Cannot be reapplied because it was not created from a table")
+          .build(logger);
     }
 
-    final DatasetPath headPath = new DatasetPath(firstTransform.getCreateFrom().getTable().getDatasetPath());
+    final DatasetPath headPath =
+        new DatasetPath(firstTransform.getCreateFrom().getTable().getDatasetPath());
     final DatasetConfig headConfig = namespaceService.getDataset(headPath.toNamespaceKey());
-    if(headConfig == null) {
+    if (headConfig == null) {
       throw UserException.unsupportedError()
-        .message("The original dataset you are attempting to edit is no longer available.")
-        .addContext("Original dataset", headPath.toParentPath())
-        .build(logger);
-
+          .message("The original dataset you are attempting to edit is no longer available.")
+          .addContext("Original dataset", headPath.toParentPath())
+          .build(logger);
     }
 
-    //TODO: This should verify the save version matches
-    VirtualDatasetUI headVersion = datasetService.getVersion(headPath, headConfig.getVirtualDataset().getVersion());
+    // TODO: This should verify the save version matches
+    VirtualDatasetUI headVersion =
+        datasetVersionMutator.getVersion(headPath, headConfig.getVirtualDataset().getVersion());
 
-    JobData jobData = executor.runQueryWithListener(new SqlQuery(headVersion.getSql(),
-        headVersion.getState().getContextList(), username()), queryType, headPath, headVersion.getVersion(), listener);
+    JobData jobData =
+        executor.runQueryWithListener(
+            new SqlQuery(headVersion.getSql(), headVersion.getState().getContextList(), username()),
+            queryType,
+            headPath,
+            headVersion.getVersion(),
+            listener);
     return new DatasetAndData(jobData, headVersion);
   }
 
   /**
-   * Apply a transformation without executing a query. This does partial query parsing & planning so that we can acquire the information necessary.
-   * @param newVersion
-   * @param path
-   * @param baseDataset
-   * @param transform
-   * @return
-   * @throws DatasetNotFoundException
-   * @throws NamespaceException
+   * Apply a transformation without executing a query. This does partial query parsing & planning so
+   * that we can acquire the information necessary.
    */
-  public VirtualDatasetUI transformWithExtract(DatasetVersion newVersion, DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform) throws DatasetNotFoundException, NamespaceException{
-    final ExtractTransformActor actor = new ExtractTransformActor(baseDataset.getState(), false, username(), executor);
-    final TransformResult result = transform.accept(actor);
+  public VirtualDatasetUI transformWithExtract(
+      DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform)
+      throws DatasetNotFoundException {
+    VirtualDatasetUI baseDatasetCopy = ProtostuffUtil.copy(baseDataset);
+    ExtractTransformActor actor =
+        new ExtractTransformActor(baseDataset.getState(), false, username(), executor);
+    TransformResult result = transform.accept(actor);
     if (!actor.hasMetadata()) {
       VirtualDatasetState vss = protectAgainstNull(result, transform);
-      actor.getMetadata(new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext));
+      actor.getMetadata(
+          new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext));
     }
-    VirtualDatasetUI dataset = asDataset(newVersion, path, baseDataset, transform, result, actor, catalogService);
+    VirtualDatasetUI dataset =
+        asDataset(
+            DatasetVersion.newVersion(),
+            path,
+            baseDataset,
+            transform,
+            result,
+            actor,
+            catalogService);
 
-    // save the dataset version.
-    datasetService.putVersion(dataset);
+    // Compare if versions are the same as result of the transformation.
+    if (!isSameDatasetVersion(dataset, baseDatasetCopy)) {
+      // Save the new dataset version.
+      datasetVersionMutator.putVersion(dataset, baseDatasetCopy);
+    } else {
+      // Return the same version.
+      dataset = baseDatasetCopy;
+    }
 
     return dataset;
   }
 
+  private static boolean isSameDatasetVersion(VirtualDatasetUI d1, VirtualDatasetUI d2) {
+    // Copy mutable protos.
+    d1 = ProtostuffUtil.copy(d1);
+    d2 = ProtostuffUtil.copy(d2);
+
+    // Clear fields that don't matter for comparison.
+    d1.setLastTransform(null);
+    d1.setPreviousVersion(null);
+    d1.setVersion(null);
+    d2.setLastTransform(null);
+    d2.setPreviousVersion(null);
+    d2.setVersion(null);
+
+    return d1.equals(d2);
+  }
+
   /**
    * Convert a transform result into a dataset.
+   *
    * @param newVersion The new version for the dataset.
    * @param path The path of the dataset.
-   * @param baseDataset The original dataset. It's path could differs from {@code path} parameter. (Start edit a dataset
-   *                    under {@code path} path. Go back in history to aversion, that corresponds to a {@code baseDataset}
-   *                   in other path. Alter a query and preview.
+   * @param baseDataset The original dataset. It's path could differs from {@code path} parameter.
+   *     (Start edit a dataset under {@code path} path. Go back in history to aversion, that
+   *     corresponds to a {@code baseDataset} in other path. Alter a query and preview.
    * @param transform The transformation that was applied
    * @param result The result of the transformation.
    * @param actor The result with metadata information
@@ -230,41 +264,42 @@ public class Transformer {
       TransformActor actor,
       CatalogService catalogService) {
     // here we should take a path from baseDataset, as path could be different
-    baseDataset.setPreviousVersion(new NameDatasetRef(DatasetPath.defaultImpl(baseDataset.getFullPathList()).toString())
-      .setDatasetVersion(baseDataset.getVersion().toString()));
+    baseDataset.setPreviousVersion(
+        new NameDatasetRef(DatasetPath.defaultImpl(baseDataset.getFullPathList()).toString())
+            .setDatasetVersion(baseDataset.getVersion().toString()));
 
     baseDataset.setVersion(newVersion);
     // update a path with actual path
     baseDataset.setFullPathList(path.toPathList());
     baseDataset.setState(protectAgainstNull(result, transform));
     // If the user edited the SQL manually we want to keep the SQL as is
-    // SQLGenerator.generateSQL(result.getNewState()) is functionally equivalent but not exactly the same
+    // SQLGenerator.generateSQL(result.getNewState()) is functionally equivalent but not exactly the
+    // same
     String sql =
-        transform.wrap().getType() == updateSQL ?
-        ((TransformUpdateSQL)transform).getSql() :
-        SQLGenerator.generateSQL(protectAgainstNull(result, transform), isSupportedTransform(transform), catalogService);
+        transform.wrap().getType() == updateSQL
+            ? ((TransformUpdateSQL) transform).getSql()
+            : SQLGenerator.generateSQL(
+                protectAgainstNull(result, transform),
+                isSupportedTransform(transform),
+                catalogService);
     baseDataset.setSql(sql);
     baseDataset.setLastTransform(transform.wrap());
     if (actor != null && actor.hasMetadata()) {
-      DatasetTool.applyQueryMetadata(baseDataset, actor.getParents(), actor.getBatchSchema(), actor.getFieldOrigins(),
-        actor.getGrandParents(), actor.getMetadata());
+      DatasetTool.applyQueryMetadata(
+          baseDataset,
+          actor.getParents(),
+          actor.getBatchSchema(),
+          actor.getFieldOrigins(),
+          actor.getGrandParents(),
+          actor.getMetadata());
     }
     return baseDataset;
   }
 
   /**
-   * Apply a transformation and start a job. Any transformation operations that
-   * require parsing/planning will be done as part of the job. This should
-   * typically be the method used for operations.
-   *
-   * @param newVersion
-   * @param path
-   * @param original
-   * @param transform
-   * @param queryType
-   * @return
-   * @throws DatasetNotFoundException
-   * @throws NamespaceException
+   * Apply a transformation and start a job. Any transformation operations that require
+   * parsing/planning will be done as part of the job. This should typically be the method used for
+   * operations.
    */
   public DatasetAndData transformWithExecute(
       DatasetVersion newVersion,
@@ -273,8 +308,9 @@ public class Transformer {
       TransformBase transform,
       boolean isAsync,
       QueryType queryType)
-          throws DatasetNotFoundException {
-    return this.transformWithExecute(newVersion, path, original, transform, isAsync, queryType, false);
+      throws DatasetNotFoundException {
+    return this.transformWithExecute(
+        newVersion, path, original, transform, isAsync, queryType, false);
   }
 
   /**
@@ -297,9 +333,12 @@ public class Transformer {
       BufferAllocator allocator,
       int limit)
       throws DatasetNotFoundException, NamespaceException {
-    final TransformResultDatasetAndData result = this.transformWithExecute(newVersion, path, original, transform, false, QueryType.UI_PREVIEW, true);
+    final TransformResultDatasetAndData result =
+        this.transformWithExecute(
+            newVersion, path, original, transform, false, QueryType.UI_PREVIEW, true);
     final TransformResult transformResult = result.getTransformResult();
-    final List<String> highlightedColumnNames = Lists.newArrayList(transformResult.getModifiedColumns());
+    final List<String> highlightedColumnNames =
+        Lists.newArrayList(transformResult.getModifiedColumns());
     highlightedColumnNames.addAll(transformResult.getAddedColumns());
 
     JobDataClientUtils.waitForFinalState(jobsService, result.getJobId());
@@ -308,13 +347,10 @@ public class Transformer {
         result.getJobData().truncate(allocator, limit),
         highlightedColumnNames,
         Lists.newArrayList(transformResult.getRemovedColumns()),
-        transformResult.getRowDeletionMarkerColumns()
-    );
+        transformResult.getRowDeletionMarkerColumns());
   }
 
-  /**
-   * DatasetAndData
-   */
+  /** DatasetAndData */
   public static class DatasetAndData {
     private final JobData jobData;
     private final VirtualDatasetUI dataset;
@@ -340,83 +376,113 @@ public class Transformer {
     public VirtualDatasetUI getDataset() {
       return dataset;
     }
-
   }
 
   private TransformResultDatasetAndData transformWithExecute(
-    DatasetVersion newVersion,
-    DatasetPath path,
-    VirtualDatasetUI original,
-    TransformBase transform,
-    boolean isAsync,
-    QueryType queryType,
-    boolean isPreview)
-    throws DatasetNotFoundException {
+      DatasetVersion newVersion,
+      DatasetPath path,
+      VirtualDatasetUI original,
+      TransformBase transform,
+      boolean isAsync,
+      QueryType queryType,
+      boolean isPreview)
+      throws DatasetNotFoundException {
 
     if (isAsync && transform.wrap().getType() == updateSQL) {
-      return updateSQLTransformWithExecuteAsync(newVersion, path, original, transform, queryType, isPreview);
+      return updateSQLTransformWithExecuteAsync(
+          newVersion, path, original, transform, queryType, isPreview);
     }
 
-    final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), isPreview, username(), path, executor);
+    final ExecuteTransformActor actor =
+        new ExecuteTransformActor(
+            queryType, newVersion, original.getState(), isPreview, username(), path, executor);
     final TransformResult transformResult = transform.accept(actor);
     setReferencesInVirtualDatasetUI(original, transform);
     if (!actor.hasMetadata()) {
       VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
-      Map<String, JobsVersionContext> sourceVersionMapping = TransformerUtils.createSourceVersionMapping(transform.getReferencesList());
+      Map<String, JobsVersionContext> sourceVersionMapping =
+          TransformerUtils.createSourceVersionMapping(transform.getReferencesList());
       String sql = SQLGenerator.generateSQL(vss, isSupportedTransform(transform), catalogService);
-      final SqlQuery query = new SqlQuery(sql, vss.getContextList(), securityContext, sourceVersionMapping);
+      final SqlQuery query =
+          new SqlQuery(sql, vss.getContextList(), securityContext, sourceVersionMapping);
       actor.getMetadata(query);
     }
-    final TransformResultDatasetAndData resultToReturn = new TransformResultDatasetAndData(actor.getJobData(),
-      asDataset(newVersion, path, original, transform, transformResult, actor, catalogService), transformResult);
+    final TransformResultDatasetAndData resultToReturn =
+        new TransformResultDatasetAndData(
+            actor.getJobData(),
+            asDataset(
+                newVersion, path, original, transform, transformResult, actor, catalogService),
+            transformResult);
     // save this dataset version.
-    datasetService.putVersion(resultToReturn.getDataset());
+    datasetVersionMutator.putVersion(resultToReturn.getDataset(), original);
 
     return resultToReturn;
   }
 
-  // If isAsync is true and the transform type is updateSQL, we need skip the actor visit and submit the query later
-  // asynchronously.  The reason is that actor executes the query in visit() when the transform type is updateSQL.
+  // If isAsync is true and the transform type is updateSQL, we need skip the actor visit and submit
+  // the query later
+  // asynchronously.  The reason is that actor executes the query in visit() when the transform type
+  // is updateSQL.
   private TransformResultDatasetAndData updateSQLTransformWithExecuteAsync(
-    DatasetVersion newVersion,
-    DatasetPath path,
-    VirtualDatasetUI original,
-    TransformBase transform,
-    QueryType queryType,
-    boolean isPreview)
-    throws DatasetNotFoundException {
+      DatasetVersion newVersion,
+      DatasetPath path,
+      VirtualDatasetUI original,
+      TransformBase transform,
+      QueryType queryType,
+      boolean isPreview)
+      throws DatasetNotFoundException {
 
     Preconditions.checkArgument(transform.wrap().getType() == updateSQL);
-    final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), isPreview, username(), path, executor);
-    final TransformResult transformResult = new TransformResult(
-      new VirtualDatasetState()
-        .setFrom(new From(FromType.SQL).setSql(new FromSQL(transform.wrap().getUpdateSQL().getSql())))
-        .setContextList(transform.wrap().getUpdateSQL().getSqlContextList()));
+    final ExecuteTransformActor actor =
+        new ExecuteTransformActor(
+            queryType, newVersion, original.getState(), isPreview, username(), path, executor);
+    final TransformResult transformResult =
+        new TransformResult(
+            new VirtualDatasetState()
+                .setFrom(
+                    new From(FromType.SQL)
+                        .setSql(new FromSQL(transform.wrap().getUpdateSQL().getSql())))
+                .setContextList(transform.wrap().getUpdateSQL().getSqlContextList()));
     setReferencesInVirtualDatasetUI(original, transform);
-    VirtualDatasetUI dataset = asDataset(newVersion, path, original, transform, transformResult, actor, catalogService);
+    VirtualDatasetUI dataset =
+        asDataset(newVersion, path, original, transform, transformResult, actor, catalogService);
 
     VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
-    Map<String, JobsVersionContext> sourceVersionMapping = TransformerUtils.createSourceVersionMapping(transform.getReferencesList());
+    Map<String, JobsVersionContext> sourceVersionMapping =
+        TransformerUtils.createSourceVersionMapping(transform.getReferencesList());
     String sql = SQLGenerator.generateSQL(vss, isSupportedTransform(transform), catalogService);
 
-    SqlQuery query = new SqlQuery(sql, vss.getContextList(), securityContext, transform.wrap().getUpdateSQL().getEngineName(),
-      transform.wrap().getUpdateSQL().getSessionId(), sourceVersionMapping);
-    AsyncMetadataJobStatusListener.MetaDataListener listener = new AsyncMetadataJobStatusListener.MetaDataListener() {
-      @Override
-      public void metadataCollected(com.dremio.service.jobs.metadata.proto.QueryMetadata metadata) {
-        // save this dataset version.
-        if (actor.hasMetadata()) {
-          DatasetTool.applyQueryMetadata(dataset, actor.getParents(), actor.getBatchSchema(), actor.getFieldOrigins(),
-            actor.getGrandParents(), actor.getMetadata());
-          dataset.setState(QuerySemantics.extract(actor.getMetadata()));
-        }
-        datasetService.putVersion(dataset);
-      }
-    };
+    SqlQuery query =
+        new SqlQuery(
+            sql,
+            vss.getContextList(),
+            securityContext,
+            transform.wrap().getUpdateSQL().getEngineName(),
+            transform.wrap().getUpdateSQL().getSessionId(),
+            sourceVersionMapping);
+    AsyncMetadataJobStatusListener.MetaDataListener listener =
+        new AsyncMetadataJobStatusListener.MetaDataListener() {
+          @Override
+          public void metadataCollected(
+              com.dremio.service.jobs.metadata.proto.QueryMetadata metadata) {
+            // save this dataset version.
+            if (actor.hasMetadata()) {
+              DatasetTool.applyQueryMetadata(
+                  dataset,
+                  actor.getParents(),
+                  actor.getBatchSchema(),
+                  actor.getFieldOrigins(),
+                  actor.getGrandParents(),
+                  actor.getMetadata());
+              dataset.setState(QuerySemantics.extract(actor.getMetadata()));
+            }
+            datasetVersionMutator.putVersion(dataset, original);
+          }
+        };
     actor.getMetadataAsync(query, listener);
 
-    final TransformResultDatasetAndData resultToReturn = new TransformResultDatasetAndData(actor.getJobData(),
-      dataset, transformResult);
+    final TransformResultDatasetAndData resultToReturn =
+        new TransformResultDatasetAndData(actor.getJobData(), dataset, transformResult);
 
     return resultToReturn;
   }
@@ -431,13 +497,13 @@ public class Transformer {
    * @param original
    * @param transform
    */
-  private void setReferencesInVirtualDatasetUI(
-    VirtualDatasetUI original,
-    TransformBase transform) {
+  private void setReferencesInVirtualDatasetUI(VirtualDatasetUI original, TransformBase transform) {
     List<SourceVersionReference> sourceVersionReferenceList = transform.getReferencesList();
 
-    // No need to change reference in case of Join as it might change the original reference where original table is coming from;
-    // Don't change the reference to null as it can be set null by an API call which is not supporting/ setting in-correctly
+    // No need to change reference in case of Join as it might change the original reference where
+    // original table is coming from;
+    // Don't change the reference to null as it can be set null by an API call which is not
+    // supporting/ setting in-correctly
     if (!(transform.wrap().getType() == join) && sourceVersionReferenceList != null) {
       original.setReferencesList(sourceVersionReferenceList);
     }
@@ -446,7 +512,8 @@ public class Transformer {
   private static class TransformResultDatasetAndData extends DatasetAndData {
     private final TransformResult transformResult;
 
-    public TransformResultDatasetAndData(JobData jobData, VirtualDatasetUI dataset, TransformResult transformResult) {
+    public TransformResultDatasetAndData(
+        JobData jobData, VirtualDatasetUI dataset, TransformResult transformResult) {
       super(jobData, dataset);
       this.transformResult = transformResult;
     }
@@ -470,7 +537,7 @@ public class Transformer {
 
     @Override
     protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
-      this.metadata = QueryParser.extract(query, context);
+      this.metadata = QueryParser.extract(query, sabotContext);
       return JobsProtoUtil.toBuf(metadata);
     }
 
@@ -509,7 +576,8 @@ public class Transformer {
   @VisibleForTesting
   class ExecuteTransformActor extends TransformActor {
 
-    private final MetadataCollectingJobStatusListener collector = new MetadataCollectingJobStatusListener();
+    private final MetadataCollectingJobStatusListener collector =
+        new MetadataCollectingJobStatusListener();
     private volatile com.dremio.service.jobs.metadata.proto.QueryMetadata metadata;
     private volatile Optional<BatchSchema> batchSchema;
     private volatile Optional<List<ParentDatasetInfo>> parents;
@@ -534,35 +602,40 @@ public class Transformer {
       this.queryType = queryType;
     }
 
-    private void applyMetadata(com.dremio.service.jobs.metadata.proto.QueryMetadata metadata, SqlQuery query) {
+    private void applyMetadata(
+        com.dremio.service.jobs.metadata.proto.QueryMetadata metadata, SqlQuery query) {
       JobId jobId = null;
       SessionId sessionId = null;
       try {
         jobId = jobData.getJobId();
         sessionId = jobData.getSessionId();
         this.metadata = metadata;
-        final JobDetails jobDetails = jobsService.getJobDetails(
-          JobDetailsRequest.newBuilder()
-            .setJobId(JobsProtoUtil.toBuf(jobId))
-            .setUserName(username())
-            .build());
+        final JobDetails jobDetails =
+            jobsService.getJobDetails(
+                JobDetailsRequest.newBuilder()
+                    .setJobId(JobsProtoUtil.toBuf(jobId))
+                    .setUserName(username())
+                    .build());
         final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
-        this.batchSchema = Optional.ofNullable(jobInfo.getBatchSchema()).map((b) -> BatchSchema.deserialize(b));
+        this.batchSchema =
+            Optional.ofNullable(jobInfo.getBatchSchema()).map((b) -> BatchSchema.deserialize(b));
         this.parents = Optional.ofNullable(jobInfo.getParentsList());
         this.fieldOrigins = Optional.ofNullable(jobInfo.getFieldOriginsList());
         this.grandParents = Optional.ofNullable(jobInfo.getGrandParentsList());
       } catch (UserException e) {
         // If the original query fails, let the user knows about
-        throw DatasetTool.toInvalidQueryException(e, query.getSql(), query.getContext(), null, jobId, sessionId);
+        throw DatasetTool.toInvalidQueryException(
+            e, query.getSql(), query.getContext(), null, jobId, sessionId);
       } catch (JobNotFoundException e) {
         UserException uex = UserException.schemaChangeError(e).buildSilently();
-        throw DatasetTool.toInvalidQueryException(uex, query.getSql(), query.getContext(), null, jobId, sessionId);
+        throw DatasetTool.toInvalidQueryException(
+            uex, query.getSql(), query.getContext(), null, jobId, sessionId);
       }
 
       // If above QueryExecutor finds the query in the job store, QueryMetadata will never be set.
       // In this case, regenerate QueryMetadata below.
       if (this.metadata == null) {
-        final QueryMetadata queryMetadata = QueryParser.extract(query, context);
+        final QueryMetadata queryMetadata = QueryParser.extract(query, sabotContext);
         this.metadata = JobsProtoUtil.toBuf(queryMetadata);
         this.batchSchema = queryMetadata.getBatchSchema();
         this.parents = queryMetadata.getParents();
@@ -577,17 +650,22 @@ public class Transformer {
       return metadata;
     }
 
-    protected void getMetadataAsync(SqlQuery query, AsyncMetadataJobStatusListener.MetaDataListener listener) {
-      AsyncMetadataJobStatusListener.MetaDataListener metadataListener = new AsyncMetadataJobStatusListener.MetaDataListener() {
-        @Override
-        public void metadataCollected(com.dremio.service.jobs.metadata.proto.QueryMetadata metadata) {
-          ExecuteTransformActor.this.applyMetadata(metadata, query);
-        }
-      };
-      AsyncMetadataJobStatusListener asyncListener = new AsyncMetadataJobStatusListener(metadataListener);
+    protected void getMetadataAsync(
+        SqlQuery query, AsyncMetadataJobStatusListener.MetaDataListener listener) {
+      AsyncMetadataJobStatusListener.MetaDataListener metadataListener =
+          new AsyncMetadataJobStatusListener.MetaDataListener() {
+            @Override
+            public void metadataCollected(
+                com.dremio.service.jobs.metadata.proto.QueryMetadata metadata) {
+              ExecuteTransformActor.this.applyMetadata(metadata, query);
+            }
+          };
+      AsyncMetadataJobStatusListener asyncListener =
+          new AsyncMetadataJobStatusListener(metadataListener);
       asyncListener.addMetadataListener(listener);
 
-      this.jobData = executor.runQueryWithListener(query, queryType, path, newVersion, asyncListener);
+      this.jobData =
+          executor.runQueryWithListener(query, queryType, path, newVersion, asyncListener);
     }
 
     @Override
@@ -624,8 +702,5 @@ public class Transformer {
     public JobData getJobData() {
       return jobData;
     }
-
   }
-
-
 }

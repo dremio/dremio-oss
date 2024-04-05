@@ -17,12 +17,15 @@ package com.dremio.exec.store.iceberg;
 
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.google.common.io.Resources;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.AppendFiles;
@@ -42,18 +45,12 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.store.iceberg.model.IcebergModel;
-import com.google.common.io.Resources;
-
 public class TestIcebergTableDrop extends BaseTestQuery {
   private static FileSystem fs;
   private static Configuration conf;
   private Schema schema;
 
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder tempDir = new TemporaryFolder();
 
   @BeforeClass
   public static void init() throws Exception {
@@ -65,25 +62,27 @@ public class TestIcebergTableDrop extends BaseTestQuery {
 
   @Before
   public void setUp() {
-    schema = new Schema(
-      NestedField.optional(1, "n_nationkey", Types.IntegerType.get()),
-      NestedField.optional(2, "n_name", Types.StringType.get()),
-      NestedField.optional(3, "n_regionkey", Types.IntegerType.get()),
-      NestedField.optional(4, "n_comment", Types.StringType.get())
-    );
+    schema =
+        new Schema(
+            NestedField.optional(1, "n_nationkey", Types.IntegerType.get()),
+            NestedField.optional(2, "n_name", Types.StringType.get()),
+            NestedField.optional(3, "n_regionkey", Types.IntegerType.get()),
+            NestedField.optional(4, "n_comment", Types.StringType.get()));
   }
 
   private DataFile createDataFile(File dir, String fileName) throws Exception {
     File dataFile = new File(dir, fileName);
-    URI resource = Resources.getResource(
-      "iceberg/nation/data/00000-1-a9e8d979-a183-40c5-af3d-a338ab62be8b-00000.parquet").toURI();
+    URI resource =
+        Resources.getResource(
+                "iceberg/nation/data/00000-1-a9e8d979-a183-40c5-af3d-a338ab62be8b-00000.parquet")
+            .toURI();
     Files.copy(Paths.get(resource), dataFile.toPath());
 
     return DataFiles.builder(PartitionSpec.builderFor(schema).build())
-      .withInputFile(org.apache.iceberg.Files.localInput(dataFile))
-      .withRecordCount(25)
-      .withFormat(FileFormat.PARQUET)
-      .build();
+        .withInputFile(org.apache.iceberg.Files.localInput(dataFile))
+        .withRecordCount(25)
+        .withFormat(FileFormat.PARQUET)
+        .build();
   }
 
   @Test

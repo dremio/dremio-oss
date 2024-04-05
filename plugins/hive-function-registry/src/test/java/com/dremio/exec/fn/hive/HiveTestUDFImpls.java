@@ -47,8 +47,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectIn
 
 /**
  * Contains test Hive UDF that take a particular data type and return the same data type and value.
- * These test UDFs exercise the code paths in Dremio ObjectInspectors and parsing the return value from Hive UDF
- * for all supported data types in Hive UDF.
+ * These test UDFs exercise the code paths in Dremio ObjectInspectors and parsing the return value
+ * from Hive UDF for all supported data types in Hive UDF.
  */
 public class HiveTestUDFImpls {
   public abstract static class GenericUDFTestBase extends GenericUDF {
@@ -61,7 +61,8 @@ public class HiveTestUDFImpls {
       this(udfName, type, type);
     }
 
-    public GenericUDFTestBase(String udfName, PrimitiveCategory inputType, PrimitiveCategory outputType) {
+    public GenericUDFTestBase(
+        String udfName, PrimitiveCategory inputType, PrimitiveCategory outputType) {
       this.udfName = udfName;
       this.inputType = inputType;
       this.outputType = outputType;
@@ -70,13 +71,17 @@ public class HiveTestUDFImpls {
     @Override
     public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
       if (arguments.length != 1) {
-        throw new UDFArgumentLengthException(String.format("%s needs 1 argument, got %d", udfName, arguments.length));
+        throw new UDFArgumentLengthException(
+            String.format("%s needs 1 argument, got %d", udfName, arguments.length));
       }
 
-      if (arguments[0].getCategory() != Category.PRIMITIVE ||
-          ((PrimitiveObjectInspector) arguments[0]).getPrimitiveCategory() != inputType) {
-        String actual = arguments[0].getCategory() + (arguments[0].getCategory() == Category.PRIMITIVE ?
-            "[" + ((PrimitiveObjectInspector) arguments[0]).getPrimitiveCategory() + "]" : "");
+      if (arguments[0].getCategory() != Category.PRIMITIVE
+          || ((PrimitiveObjectInspector) arguments[0]).getPrimitiveCategory() != inputType) {
+        String actual =
+            arguments[0].getCategory()
+                + (arguments[0].getCategory() == Category.PRIMITIVE
+                    ? "[" + ((PrimitiveObjectInspector) arguments[0]).getPrimitiveCategory() + "]"
+                    : "");
         throw new UDFArgumentException(
             String.format("%s only takes primitive type %s, got %s", udfName, inputType, actual));
       }
@@ -107,50 +112,60 @@ public class HiveTestUDFImpls {
       }
 
       Object input = arguments[0].get();
-      switch(inputType) {
+      switch (inputType) {
         case BOOLEAN:
-          return ((BooleanObjectInspector)argumentOI).get(input) ? Boolean.TRUE : Boolean.FALSE;
+          return ((BooleanObjectInspector) argumentOI).get(input) ? Boolean.TRUE : Boolean.FALSE;
         case BYTE:
-          return ((ByteObjectInspector)argumentOI).get(input);
+          return ((ByteObjectInspector) argumentOI).get(input);
         case SHORT:
-          return ((ShortObjectInspector)argumentOI).get(input);
+          return ((ShortObjectInspector) argumentOI).get(input);
         case INT:
-          return ((IntObjectInspector)argumentOI).get(input);
+          return ((IntObjectInspector) argumentOI).get(input);
         case LONG:
-          return ((LongObjectInspector)argumentOI).get(input);
+          return ((LongObjectInspector) argumentOI).get(input);
         case FLOAT:
-          return ((FloatObjectInspector)argumentOI).get(input);
+          return ((FloatObjectInspector) argumentOI).get(input);
         case DOUBLE:
-          return ((DoubleObjectInspector)argumentOI).get(input);
+          return ((DoubleObjectInspector) argumentOI).get(input);
         case STRING:
-          return PrimitiveObjectInspectorUtils.getString(input, (StringObjectInspector)argumentOI);
+          return PrimitiveObjectInspectorUtils.getString(input, (StringObjectInspector) argumentOI);
         case BINARY:
-          return PrimitiveObjectInspectorUtils.getBinary(input, (BinaryObjectInspector) argumentOI).getBytes();
+          return PrimitiveObjectInspectorUtils.getBinary(input, (BinaryObjectInspector) argumentOI)
+              .getBytes();
         case VARCHAR:
           if (outputType == PrimitiveCategory.CHAR) {
-            HiveVarchar hiveVarchar = PrimitiveObjectInspectorUtils.getHiveVarchar(input, (HiveVarcharObjectInspector) argumentOI);
+            HiveVarchar hiveVarchar =
+                PrimitiveObjectInspectorUtils.getHiveVarchar(
+                    input, (HiveVarcharObjectInspector) argumentOI);
             return new HiveChar(hiveVarchar.getValue(), HiveChar.MAX_CHAR_LENGTH);
           } else {
-            return PrimitiveObjectInspectorUtils.getHiveVarchar(input, (HiveVarcharObjectInspector)argumentOI);
+            return PrimitiveObjectInspectorUtils.getHiveVarchar(
+                input, (HiveVarcharObjectInspector) argumentOI);
           }
         case CHAR:
-          return PrimitiveObjectInspectorUtils.getHiveChar(input, (HiveCharObjectInspector) argumentOI);
+          return PrimitiveObjectInspectorUtils.getHiveChar(
+              input, (HiveCharObjectInspector) argumentOI);
         case DATE:
           return PrimitiveObjectInspectorUtils.getDate(input, (DateObjectInspector) argumentOI);
         case TIMESTAMP:
-          return PrimitiveObjectInspectorUtils.getTimestamp(input, (TimestampObjectInspector) argumentOI);
+          return PrimitiveObjectInspectorUtils.getTimestamp(
+              input, (TimestampObjectInspector) argumentOI);
         case DECIMAL:
           // return type is a HiveVarchar
           HiveDecimal decimalValue =
-              PrimitiveObjectInspectorUtils.getHiveDecimal(input, (HiveDecimalObjectInspector) argumentOI);
+              PrimitiveObjectInspectorUtils.getHiveDecimal(
+                  input, (HiveDecimalObjectInspector) argumentOI);
           return new HiveVarchar(decimalValue.toString(), HiveVarchar.MAX_VARCHAR_LENGTH);
       }
 
-      throw new UnsupportedOperationException(String.format("Unexpected input type '%s' in Test UDF", inputType));
+      throw new UnsupportedOperationException(
+          String.format("Unexpected input type '%s' in Test UDF", inputType));
     }
   }
 
-  @Description(name = "testHiveUDFBOOLEAN", value = "_FUNC_(BOOLEAN) - Tests boolean data as input and output")
+  @Description(
+      name = "testHiveUDFBOOLEAN",
+      value = "_FUNC_(BOOLEAN) - Tests boolean data as input and output")
   public static class GenericUDFTestBOOLEAN extends GenericUDFTestBase {
     public GenericUDFTestBOOLEAN() {
       super("testHiveUDFBOOLEAN", PrimitiveCategory.BOOLEAN);
@@ -158,7 +173,9 @@ public class HiveTestUDFImpls {
   }
 
   // TODO(DRILL-2470) - re-enable the test case for this function in TestSampleHiveUDFs
-  @Description(name = "testHiveUDFBYTE", value = "_FUNC_(BYTE) - Tests byte data as input and output")
+  @Description(
+      name = "testHiveUDFBYTE",
+      value = "_FUNC_(BYTE) - Tests byte data as input and output")
   public static class GenericUDFTestBYTE extends GenericUDFTestBase {
     public GenericUDFTestBYTE() {
       super("testHiveUDFBYTE", PrimitiveCategory.BYTE);
@@ -166,7 +183,9 @@ public class HiveTestUDFImpls {
   }
 
   // TODO(DRILL-2470) - re-enable the test case for this function in TestSampleHiveUDFs
-  @Description(name = "testHiveUDFSHORT", value = "_FUNC_(SHORT) - Tests short data as input and output")
+  @Description(
+      name = "testHiveUDFSHORT",
+      value = "_FUNC_(SHORT) - Tests short data as input and output")
   public static class GenericUDFTestSHORT extends GenericUDFTestBase {
     public GenericUDFTestSHORT() {
       super("testHiveUDFSHORT", PrimitiveCategory.SHORT);
@@ -180,70 +199,90 @@ public class HiveTestUDFImpls {
     }
   }
 
-  @Description(name = "testHiveUDFLONG", value = "_FUNC_(LONG) - Tests long data as input and output")
+  @Description(
+      name = "testHiveUDFLONG",
+      value = "_FUNC_(LONG) - Tests long data as input and output")
   public static class GenericUDFTestLONG extends GenericUDFTestBase {
     public GenericUDFTestLONG() {
       super("testHiveUDFLONG", PrimitiveCategory.LONG);
     }
   }
 
-  @Description(name = "testHiveUDFFLOAT", value = "_FUNC_(FLOAT) - Tests float data as input and output")
+  @Description(
+      name = "testHiveUDFFLOAT",
+      value = "_FUNC_(FLOAT) - Tests float data as input and output")
   public static class GenericUDFTestFLOAT extends GenericUDFTestBase {
     public GenericUDFTestFLOAT() {
       super("testHiveUDFFLOAT", PrimitiveCategory.FLOAT);
     }
   }
 
-  @Description(name = "testHiveUDFDOUBLE", value = "_FUNC_(DOUBLE) - Tests double data as input and output")
+  @Description(
+      name = "testHiveUDFDOUBLE",
+      value = "_FUNC_(DOUBLE) - Tests double data as input and output")
   public static class GenericUDFTestDOUBLE extends GenericUDFTestBase {
     public GenericUDFTestDOUBLE() {
       super("testHiveUDFDOUBLE", PrimitiveCategory.DOUBLE);
     }
   }
 
-  @Description(name = "testHiveUDFVARCHAR", value = "_FUNC_(VARCHAR) - Tests varchar data as input and output")
+  @Description(
+      name = "testHiveUDFVARCHAR",
+      value = "_FUNC_(VARCHAR) - Tests varchar data as input and output")
   public static class GenericUDFTestVARCHAR extends GenericUDFTestBase {
     public GenericUDFTestVARCHAR() {
       super("testHiveUDFVARCHAR", PrimitiveCategory.VARCHAR);
     }
   }
 
-  @Description(name = "testHiveUDFCHAR", value = "_FUNC_(VARCHAR) - Tests varchar data as input and char data as output")
+  @Description(
+      name = "testHiveUDFCHAR",
+      value = "_FUNC_(VARCHAR) - Tests varchar data as input and char data as output")
   public static class GenericUDFTestCHAR extends GenericUDFTestBase {
     public GenericUDFTestCHAR() {
       super("testHiveUDFCHAR", PrimitiveCategory.VARCHAR, PrimitiveCategory.CHAR);
     }
   }
 
-  @Description(name = "testHiveUDFSTRING", value = "_FUNC_(STRING) - Tests string data as input and output")
+  @Description(
+      name = "testHiveUDFSTRING",
+      value = "_FUNC_(STRING) - Tests string data as input and output")
   public static class GenericUDFTestSTRING extends GenericUDFTestBase {
     public GenericUDFTestSTRING() {
       super("testHiveUDFSTRING", PrimitiveCategory.STRING);
     }
   }
 
-  @Description(name = "testHiveUDFBINARY", value = "_FUNC_(BINARY) - Tests binary data as input and output")
+  @Description(
+      name = "testHiveUDFBINARY",
+      value = "_FUNC_(BINARY) - Tests binary data as input and output")
   public static class GenericUDFTestBINARY extends GenericUDFTestBase {
     public GenericUDFTestBINARY() {
       super("testHiveUDFBINARY", PrimitiveCategory.BINARY);
     }
   }
 
-  @Description(name = "testHiveUDFTIMESTAMP", value = "_FUNC_(TIMESTAMP) - Tests timestamp data as input and output")
+  @Description(
+      name = "testHiveUDFTIMESTAMP",
+      value = "_FUNC_(TIMESTAMP) - Tests timestamp data as input and output")
   public static class GenericUDFTestTIMESTAMP extends GenericUDFTestBase {
     public GenericUDFTestTIMESTAMP() {
       super("testHiveUDFTIMESTAMP", PrimitiveCategory.TIMESTAMP);
     }
   }
 
-  @Description(name = "testHiveUDFDATE", value = "_FUNC_(DATE) - Tests date data as input and output")
+  @Description(
+      name = "testHiveUDFDATE",
+      value = "_FUNC_(DATE) - Tests date data as input and output")
   public static class GenericUDFTestDATE extends GenericUDFTestBase {
     public GenericUDFTestDATE() {
       super("testHiveUDFDATE", PrimitiveCategory.DATE);
     }
   }
 
-  @Description(name = "testHiveUDFDECIMAL", value = "_FUNC_(DECIMAL) - Tests decimal data as input and output")
+  @Description(
+      name = "testHiveUDFDECIMAL",
+      value = "_FUNC_(DECIMAL) - Tests decimal data as input and output")
   public static class GenericUDFTestDECIMAL extends GenericUDFTestBase {
     public GenericUDFTestDECIMAL() {
       super("testHiveUDFDECIMAL", PrimitiveCategory.DECIMAL, PrimitiveCategory.VARCHAR);

@@ -19,16 +19,6 @@ import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.util.JsonStringArrayList;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.dac.explore.Recommender.TransformRuleWrapper;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -43,15 +33,23 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Map;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.util.JsonStringArrayList;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
 
 /**
- * Base class for all recommender test classes. Currently it has a utility method to launch queries to
- * generate card samples for recommender rules. Change this to use proper unittest once operator patch is checked-in
+ * Base class for all recommender test classes. Currently it has a utility method to launch queries
+ * to generate card samples for recommender rules. Change this to use proper unittest once operator
+ * patch is checked-in
  */
 public class RecommenderTestBase extends BaseTestServer {
 
-  @ClassRule
-  public static final TemporaryFolder temp = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder temp = new TemporaryFolder();
 
   private static final DatasetPath datasetPath = new DatasetPath("test.dataset");
   private BufferAllocator allocator;
@@ -62,7 +60,11 @@ public class RecommenderTestBase extends BaseTestServer {
   @Before
   public void setupTest() throws Exception {
     HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
-    allocator = l(ContextService.class).get().getAllocator().newChildAllocator("RecommenderTestBase", 0, Long.MAX_VALUE);
+    allocator =
+        l(ContextService.class)
+            .get()
+            .getAllocator()
+            .newChildAllocator("RecommenderTestBase", 0, Long.MAX_VALUE);
     executor = new QueryExecutor(jobsService, l(CatalogService.class), DACSecurityContext.system());
     version = DatasetVersion.newVersion();
   }
@@ -72,14 +74,24 @@ public class RecommenderTestBase extends BaseTestServer {
     allocator.close();
   }
 
-  protected<T> void validate(String dataFile, TransformRuleWrapper<T> ruleWrapper, Object[] functionArgs, List<Object> outputs,
-      List<Boolean> matches, List<List<CardExamplePosition>> highlights) {
+  protected <T> void validate(
+      String dataFile,
+      TransformRuleWrapper<T> ruleWrapper,
+      Object[] functionArgs,
+      List<Object> outputs,
+      List<Boolean> matches,
+      List<List<CardExamplePosition>> highlights) {
     validate(dataFile, ruleWrapper, functionArgs, outputs, matches, highlights, null);
   }
 
-  protected<T> void validate(String dataFile, TransformRuleWrapper<T> ruleWrapper, Object[] functionArgs, List<Object> outputs,
-                             List<Boolean> matches, List<List<CardExamplePosition>> highlights,
-                             String additionalConditions) {
+  protected <T> void validate(
+      String dataFile,
+      TransformRuleWrapper<T> ruleWrapper,
+      Object[] functionArgs,
+      List<Object> outputs,
+      List<Boolean> matches,
+      List<List<CardExamplePosition>> highlights,
+      String additionalConditions) {
     StringBuilder queryB = new StringBuilder();
     queryB.append("SELECT ");
 
@@ -94,18 +106,21 @@ public class RecommenderTestBase extends BaseTestServer {
     }
 
     SqlQuery sqlQuery = new SqlQuery(queryB.toString(), DEFAULT_USERNAME);
-    try (JobDataFragment data = executor.runQueryAndWaitForCompletion(sqlQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version)
-      .truncate(allocator, outputs.size())) {
+    try (JobDataFragment data =
+        executor
+            .runQueryAndWaitForCompletion(sqlQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version)
+            .truncate(allocator, outputs.size())) {
 
       assertEquals(outputs.size(), data.getReturnedRowCount());
-      for(int i = 0; i < data.getReturnedRowCount(); i++) {
+      for (int i = 0; i < data.getReturnedRowCount(); i++) {
         if (outputs.get(i) == null) {
           assertNull(data.extractString("f", i));
         } else {
           assertEquals(outputs.get(i).toString(), data.extractString("f", i));
         }
 
-        final boolean actualMatch = data.extractValue("m", i) != null && (Boolean)data.extractValue("m", i);
+        final boolean actualMatch =
+            data.extractValue("m", i) != null && (Boolean) data.extractValue("m", i);
         assertEquals(matches.get(i).booleanValue(), actualMatch);
 
         if (highlights != null) {
@@ -115,7 +130,7 @@ public class RecommenderTestBase extends BaseTestServer {
           } else {
             List<Map<String, Integer>> poss = (List<Map<String, Integer>>) ex;
             List<CardExamplePosition> positions = Lists.newArrayList();
-            for(Map<String, Integer> pos : poss) {
+            for (Map<String, Integer> pos : poss) {
               positions.add(new CardExamplePosition(pos.get("offset"), pos.get("length")));
             }
 
@@ -125,6 +140,7 @@ public class RecommenderTestBase extends BaseTestServer {
       }
     }
   }
+
   @SafeVarargs
   protected final <T> List<T> list(T... elements) {
     List<T> list = new JsonStringArrayList<>(); // toString is JSON

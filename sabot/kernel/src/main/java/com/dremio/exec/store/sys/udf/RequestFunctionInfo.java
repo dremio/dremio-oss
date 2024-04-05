@@ -20,10 +20,9 @@ import com.dremio.exec.rpc.FutureBitCommand;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 
-/**
- * To get RequestFunctionInfo
- */
-public  class RequestFunctionInfo extends FutureBitCommand<FunctionRPC.FunctionInfoResp, ProxyConnection> {
+/** To get RequestFunctionInfo */
+public class RequestFunctionInfo
+    extends FutureBitCommand<FunctionRPC.FunctionInfoResp, ProxyConnection> {
   private final FunctionRPC.FunctionInfoReq FunctionInfoRequest;
 
   public RequestFunctionInfo(FunctionRPC.FunctionInfoReq FunctionInfoRequest) {
@@ -32,9 +31,13 @@ public  class RequestFunctionInfo extends FutureBitCommand<FunctionRPC.FunctionI
   }
 
   @Override
-  public void doRpcCall(RpcOutcomeListener<FunctionRPC.FunctionInfoResp> outcomeListener, ProxyConnection
-    connection) {
-    connection.send(outcomeListener, FunctionRPC.RpcType.REQ_FUNCTION_INFO, FunctionInfoRequest, FunctionRPC
-      .FunctionInfoResp.class);
+  public void doRpcCall(
+      RpcOutcomeListener<FunctionRPC.FunctionInfoResp> outcomeListener,
+      ProxyConnection connection) {
+    connection.send(
+        outcomeListener,
+        FunctionRPC.RpcType.REQ_FUNCTION_INFO,
+        FunctionInfoRequest,
+        FunctionRPC.FunctionInfoResp.class);
   }
 }

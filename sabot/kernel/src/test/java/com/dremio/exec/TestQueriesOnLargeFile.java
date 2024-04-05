@@ -18,22 +18,21 @@ package com.dremio.exec;
 
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.exec.record.RecordBatchLoader;
+import com.dremio.sabot.rpc.user.QueryDataBatch;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.List;
-
 import org.apache.arrow.vector.BigIntVector;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.record.RecordBatchLoader;
-import com.dremio.sabot.rpc.user.QueryDataBatch;
-
 public class TestQueriesOnLargeFile extends BaseTestQuery {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestQueriesOnLargeFile.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestQueriesOnLargeFile.class);
 
   private static File dataFile = null;
   private static int NUM_RECORDS = 15000;
@@ -54,12 +53,13 @@ public class TestQueriesOnLargeFile extends BaseTestQuery {
 
     PrintWriter printWriter = new PrintWriter(dataFile);
 
-    for (int i=1; i<=NUM_RECORDS; i++) {
+    for (int i = 1; i <= NUM_RECORDS; i++) {
       printWriter.println("{");
       printWriter.println("  \"id\" : " + Math.random() + ",");
-      printWriter.println("  \"summary\" : \"Dremio provides low latency ad-hoc queries to many different data sources, "+
-          "including nested data. Inspired by Google's Dremel, Dremio is designed to scale to 10,000 servers and " +
-          "query petabytes of data in seconds.\"");
+      printWriter.println(
+          "  \"summary\" : \"Dremio provides low latency ad-hoc queries to many different data sources, "
+              + "including nested data. Inspired by Google's Dremel, Dremio is designed to scale to 10,000 servers and "
+              + "query petabytes of data in seconds.\"");
       printWriter.println("}");
     }
 
@@ -68,20 +68,22 @@ public class TestQueriesOnLargeFile extends BaseTestQuery {
 
   @Test
   public void testRead() throws Exception {
-    List<QueryDataBatch> results = testSqlWithResults(
-        String.format("SELECT count(*) FROM dfs.\"%s\"", dataFile.getPath()));
+    List<QueryDataBatch> results =
+        testSqlWithResults(String.format("SELECT count(*) FROM dfs.\"%s\"", dataFile.getPath()));
 
     RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
 
-    for(QueryDataBatch batch : results) {
+    for (QueryDataBatch batch : results) {
       batchLoader.load(batch.getHeader().getDef(), batch.getData());
 
       if (batchLoader.getRecordCount() <= 0) {
         continue;
       }
 
-      BigIntVector countV = batchLoader.getValueAccessorById(BigIntVector.class, 0).getValueVector();
-      assertTrue("Total of "+ NUM_RECORDS + " records expected in count", countV.get(0) == NUM_RECORDS);
+      BigIntVector countV =
+          batchLoader.getValueAccessorById(BigIntVector.class, 0).getValueVector();
+      assertTrue(
+          "Total of " + NUM_RECORDS + " records expected in count", countV.get(0) == NUM_RECORDS);
 
       batchLoader.clear();
       batch.release();
@@ -91,18 +93,22 @@ public class TestQueriesOnLargeFile extends BaseTestQuery {
   @Ignore("DX-3872")
   @Test
   public void testMergingReceiver() throws Exception {
-    String plan = readResourceAsString("/largefiles/merging_receiver_large_data.json")
-      .replace("#{TEST_FILE}", escapeJsonString(dataFile.getPath()));
+    String plan =
+        readResourceAsString("/largefiles/merging_receiver_large_data.json")
+            .replace("#{TEST_FILE}", escapeJsonString(dataFile.getPath()));
     List<QueryDataBatch> results = testPhysicalWithResults(plan);
 
     int recordsInOutput = 0;
-    for(QueryDataBatch batch : results) {
+    for (QueryDataBatch batch : results) {
       recordsInOutput += batch.getHeader().getDef().getRecordCount();
       batch.release();
     }
 
-    assertTrue(String.format("Number of records in output is wrong: expected=%d, actual=%s",
-        NUM_RECORDS, recordsInOutput), NUM_RECORDS == recordsInOutput);
+    assertTrue(
+        String.format(
+            "Number of records in output is wrong: expected=%d, actual=%s",
+            NUM_RECORDS, recordsInOutput),
+        NUM_RECORDS == recordsInOutput);
   }
 
   @AfterClass

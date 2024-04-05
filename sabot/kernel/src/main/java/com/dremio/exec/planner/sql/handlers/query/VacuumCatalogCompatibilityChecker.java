@@ -15,34 +15,43 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import java.lang.reflect.InvocationTargetException;
-
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionManager;
+import java.lang.reflect.InvocationTargetException;
+import org.slf4j.LoggerFactory;
 
 /**
- * Helps in identifying the compatibility of VACUUM CATALOG implementation against different varieties of storage plugins.
+ * Helps in identifying the compatibility of VACUUM CATALOG implementation against different
+ * varieties of storage plugins.
  */
 public interface VacuumCatalogCompatibilityChecker {
 
   /**
-   * Validates if the source is compatible for running VACUUM CATALOG given the support options states.
+   * Validates if the source is compatible for running VACUUM CATALOG given the support options
+   * states.
    */
   void checkCompatibility(StoragePlugin plugin, OptionManager options);
 
   static VacuumCatalogCompatibilityChecker getInstance(ScanResult scanResult) {
-    final VacuumCatalogCompatibilityChecker noOpChecker = (plugin, options) ->
-      LoggerFactory.getLogger(VacuumCatalogCompatibilityChecker.class).warn("Skipped plugin compatibility check");
+    final VacuumCatalogCompatibilityChecker noOpChecker =
+        (plugin, options) ->
+            LoggerFactory.getLogger(VacuumCatalogCompatibilityChecker.class)
+                .warn("Skipped plugin compatibility check");
 
-    return scanResult.getImplementations(VacuumCatalogCompatibilityChecker.class).stream().map(impl -> {
-        try {
-          return impl.getConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-          return noOpChecker;
-        }
-      }).findFirst().orElse(noOpChecker);
+    return scanResult.getImplementations(VacuumCatalogCompatibilityChecker.class).stream()
+        .map(
+            impl -> {
+              try {
+                return impl.getConstructor().newInstance();
+              } catch (InstantiationException
+                  | IllegalAccessException
+                  | InvocationTargetException
+                  | NoSuchMethodException e) {
+                return noOpChecker;
+              }
+            })
+        .findFirst()
+        .orElse(noOpChecker);
   }
 }

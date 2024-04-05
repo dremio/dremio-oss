@@ -20,7 +20,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
@@ -28,42 +27,46 @@ import org.apache.iceberg.StructLike;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Identification of lone file rewrites within partitions
- */
+/** Identification of lone file rewrites within partitions */
 public class IcebergOptimizeSingleFileTracker {
-  private static final Logger LOGGER = LoggerFactory.getLogger(IcebergOptimizeSingleFileTracker.class);
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(IcebergOptimizeSingleFileTracker.class);
 
   private final Map<PartitionInfo, RewritablePartitionFiles> rewriteCandidates = new HashMap<>();
 
   public void consumeAddDataFile(DataFile dataFile) {
     PartitionInfo partitionInfo = new PartitionInfo(dataFile.specId(), dataFile.partition());
-    RewritablePartitionFiles rewriteFiles = rewriteCandidates.computeIfAbsent(partitionInfo, p -> new RewritablePartitionFiles());
+    RewritablePartitionFiles rewriteFiles =
+        rewriteCandidates.computeIfAbsent(partitionInfo, p -> new RewritablePartitionFiles());
     rewriteFiles.consumeAddedFilePath(dataFile);
   }
 
   public void consumeDeletedDataFile(DataFile dataFile) {
     PartitionInfo partitionInfo = new PartitionInfo(dataFile.specId(), dataFile.partition());
-    RewritablePartitionFiles rewriteFiles = rewriteCandidates.computeIfAbsent(partitionInfo, p -> new RewritablePartitionFiles());
+    RewritablePartitionFiles rewriteFiles =
+        rewriteCandidates.computeIfAbsent(partitionInfo, p -> new RewritablePartitionFiles());
     rewriteFiles.consumeDeletedFilePath(dataFile);
   }
 
   public void consumeDeletedDeleteFile(DeleteFile deleteFile) {
     PartitionInfo partitionInfo = new PartitionInfo(deleteFile.specId(), deleteFile.partition());
-    RewritablePartitionFiles rewriteFiles = rewriteCandidates.computeIfAbsent(partitionInfo, p -> new RewritablePartitionFiles());
+    RewritablePartitionFiles rewriteFiles =
+        rewriteCandidates.computeIfAbsent(partitionInfo, p -> new RewritablePartitionFiles());
     rewriteFiles.consumeDeletedFilePath(deleteFile);
   }
 
-  /**
-   * Removes the tracked single file rewrites per partition from the input lists
-   */
-  public Set<String> removeSingleFileChanges(Set<DataFile> addedDataFiles, Set<DataFile> deleteDataFiles) {
+  /** Removes the tracked single file rewrites per partition from the input lists */
+  public Set<String> removeSingleFileChanges(
+      Set<DataFile> addedDataFiles, Set<DataFile> deleteDataFiles) {
     Set<String> skipAddFilePaths = new HashSet<>();
     Set<String> skipDeleteFilePaths = new HashSet<>();
-    rewriteCandidates.entrySet().stream().filter(e -> e.getValue().isSameFileChange()).forEach(e -> {
-      skipAddFilePaths.add(e.getValue().getFirstAddedFilePath());
-      skipDeleteFilePaths.add(e.getValue().getFirstDeletedFilePath());
-    });
+    rewriteCandidates.entrySet().stream()
+        .filter(e -> e.getValue().isSameFileChange())
+        .forEach(
+            e -> {
+              skipAddFilePaths.add(e.getValue().getFirstAddedFilePath());
+              skipDeleteFilePaths.add(e.getValue().getFirstDeletedFilePath());
+            });
 
     LOGGER.debug("Skip Entries: Add: {}, Delete: {}", skipAddFilePaths, skipDeleteFilePaths);
     addedDataFiles.removeIf(d -> skipAddFilePaths.contains(d.path().toString()));
@@ -115,10 +118,10 @@ public class IcebergOptimizeSingleFileTracker {
 
     public boolean isSameFileChange() {
       return !this.hasMultipleFiles()
-        && !this.hasDeletedDeleteFiles
-        && this.getFirstAddedFilePath() != null
-        && this.getFirstDeletedFilePath() != null
-        && this.firstAddedFileRecords == this.firstDeletedFileRecords;
+          && !this.hasDeletedDeleteFiles
+          && this.getFirstAddedFilePath() != null
+          && this.getFirstDeletedFilePath() != null
+          && this.firstAddedFileRecords == this.firstDeletedFileRecords;
     }
   }
 

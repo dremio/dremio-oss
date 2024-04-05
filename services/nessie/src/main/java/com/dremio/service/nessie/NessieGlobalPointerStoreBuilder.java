@@ -15,9 +15,7 @@
  */
 package com.dremio.service.nessie;
 
-/**
- * Creates the GlobalPointer KV store for Nessie.
- */
+/** Creates the GlobalPointer KV store for Nessie. */
 public class NessieGlobalPointerStoreBuilder extends AbstractNessieStoreBuilder {
   public NessieGlobalPointerStoreBuilder() {
     super("global_pointer");

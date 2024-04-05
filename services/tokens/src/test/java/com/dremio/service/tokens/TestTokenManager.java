@@ -23,17 +23,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.net.URI;
-import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
-
-import javax.inject.Provider;
-
-import org.glassfish.jersey.uri.UriComponent;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
@@ -44,10 +33,16 @@ import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import javax.inject.Provider;
+import org.glassfish.jersey.uri.UriComponent;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Test token management.
- */
+/** Test token management. */
 public class TestTokenManager {
 
   private static TokenManagerImpl manager;
@@ -58,41 +53,59 @@ public class TestTokenManager {
 
   @BeforeClass
   public static void startServices() throws Exception {
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionValidatorProvider(mock(OptionValidatorListingImpl.class))
-      .withOptionManager(mock(DefaultOptionManager.class))
-      .withOptionManager(mock(SystemOptionManager.class))
-      .build();
-    when(optionManager.getOption("token.expiration.min")).thenReturn(OptionValue.createOption
-      (OptionValue.Kind.LONG, OptionValue.OptionType.SYSTEM, "token.expiration.min","30"));
-    when(optionManager.getOption("token.release.leadership.ms")).thenReturn(OptionValue.createOption
-      (OptionValue.Kind.LONG, OptionValue.OptionType.SYSTEM, "token.release.leadership.ms","144000000"));
-    when(optionManager.getOption("token.temporary.expiration.sec")).thenReturn(OptionValue.createOption
-      (OptionValue.Kind.LONG, OptionValue.OptionType.SYSTEM, "token.temporary.expiration.sec","5"));
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionValidatorProvider(mock(OptionValidatorListingImpl.class))
+            .withOptionManager(mock(DefaultOptionManager.class))
+            .withOptionManager(mock(SystemOptionManager.class))
+            .build();
+    when(optionManager.getOption("token.expiration.min"))
+        .thenReturn(
+            OptionValue.createOption(
+                OptionValue.Kind.LONG,
+                OptionValue.OptionType.SYSTEM,
+                "token.expiration.min",
+                "30"));
+    when(optionManager.getOption("token.release.leadership.ms"))
+        .thenReturn(
+            OptionValue.createOption(
+                OptionValue.Kind.LONG,
+                OptionValue.OptionType.SYSTEM,
+                "token.release.leadership.ms",
+                "144000000"));
+    when(optionManager.getOption("token.temporary.expiration.sec"))
+        .thenReturn(
+            OptionValue.createOption(
+                OptionValue.Kind.LONG,
+                OptionValue.OptionType.SYSTEM,
+                "token.temporary.expiration.sec",
+                "5"));
 
-    provider =
-        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    provider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     provider.start();
-    manager = new TokenManagerImpl(
-      new Provider<LegacyKVStoreProvider>() {
-        @Override
-        public LegacyKVStoreProvider get() {
-          return provider;
-        }
-      },
-      new Provider<SchedulerService>() {
-        @Override
-        public SchedulerService get() {
-          return mock(SchedulerService.class);
-        }
-      },
-      new Provider<OptionManager>() {
-        @Override
-        public OptionManager get() {
-          return optionManager;
-        }
-      },
-    false, 10, 10);
+    manager =
+        new TokenManagerImpl(
+            new Provider<LegacyKVStoreProvider>() {
+              @Override
+              public LegacyKVStoreProvider get() {
+                return provider;
+              }
+            },
+            new Provider<SchedulerService>() {
+              @Override
+              public SchedulerService get() {
+                return mock(SchedulerService.class);
+              }
+            },
+            new Provider<OptionManager>() {
+              @Override
+              public OptionManager get() {
+                return optionManager;
+              }
+            },
+            false,
+            10,
+            10);
     manager.start();
   }
 
@@ -116,27 +129,37 @@ public class TestTokenManager {
   @Test
   public void validTemporaryToken() throws Exception {
     URI request = new URI("/path?query=test").normalize();
-    final TokenDetails details = manager.createTemporaryToken(username, request.getPath(), UriComponent.decodeQuery(request, true), TimeUnit.SECONDS.toMillis(30));
-    final TokenDetails validateDetails = manager.validateTemporaryToken(details.token, request.getPath(), UriComponent.decodeQuery(request, true));
+    final TokenDetails details =
+        manager.createTemporaryToken(
+            username,
+            request.getPath(),
+            UriComponent.decodeQuery(request, true),
+            TimeUnit.SECONDS.toMillis(30));
+    final TokenDetails validateDetails =
+        manager.validateTemporaryToken(
+            details.token, request.getPath(), UriComponent.decodeQuery(request, true));
     assertEquals(validateDetails.username, username);
     assertNotNull(manager.getTokenStore().get(validateDetails.token));
-    final long actualDuration = validateDetails.expiresAt - manager.getTokenStore().get(validateDetails.token).getIssuedAt();
+    final long actualDuration =
+        validateDetails.expiresAt
+            - manager.getTokenStore().get(validateDetails.token).getIssuedAt();
     assertEquals(actualDuration, TimeUnit.SECONDS.toMillis(5)); // sys option set to 5 sec
   }
 
   @Test
   public void validThirdPartyToken() throws Exception {
-    final TokenDetails details = manager.createThirdPartyToken(
-      username,
-      "",
-      "some-client-id",
-      Arrays.asList("dremio.all", "offline_access"),
-      TimeUnit.HOURS.toMillis(1)
-    );
+    final TokenDetails details =
+        manager.createThirdPartyToken(
+            username,
+            "",
+            "some-client-id",
+            Arrays.asList("dremio.all", "offline_access"),
+            TimeUnit.HOURS.toMillis(1));
     TokenDetails validationResult = manager.validateToken(details.token);
     assertEquals(username, validationResult.username);
     assertEquals("some-client-id", validationResult.clientId);
-    assertTrue(validationResult.expiresAt > System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(59));
+    assertTrue(
+        validationResult.expiresAt > System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(59));
     assertEquals(Arrays.asList("dremio.all", "offline_access"), validationResult.getScopes());
     assertNotNull(manager.getTokenStore().get(details.token));
     assertEquals("some-client-id", details.clientId);
@@ -169,7 +192,8 @@ public class TestTokenManager {
     final long now = System.currentTimeMillis();
     final long expires = now + 1000;
 
-    final TokenDetails details = manager.createToken(username, clientAddress, now, expires, null, null);
+    final TokenDetails details =
+        manager.createToken(username, clientAddress, now, expires, null, null);
     assertEquals(manager.validateToken(details.token).username, username);
     assertTrue(manager.getTokenStore().get(details.token) != null);
 
@@ -192,8 +216,17 @@ public class TestTokenManager {
   @Test
   public void useTemporaryTokenAfterExpiry() throws Exception {
     URI request = new URI("/path?query=test").normalize();
-    final TokenDetails details = manager.createTemporaryToken(username, request.getPath(), UriComponent.decodeQuery(request, true), TimeUnit.SECONDS.toMillis(2));
-    assertEquals(manager.validateTemporaryToken(details.token,  request.getPath(), UriComponent.decodeQuery(request, true)).username, username);
+    final TokenDetails details =
+        manager.createTemporaryToken(
+            username,
+            request.getPath(),
+            UriComponent.decodeQuery(request, true),
+            TimeUnit.SECONDS.toMillis(2));
+    assertEquals(
+        manager.validateTemporaryToken(
+                details.token, request.getPath(), UriComponent.decodeQuery(request, true))
+            .username,
+        username);
     assertNotNull(manager.getTokenStore().get(details.token));
 
     try {
@@ -203,7 +236,8 @@ public class TestTokenManager {
     }
 
     try {
-      manager.validateTemporaryToken(details.token, request.getPath(), UriComponent.decodeQuery(request, true));
+      manager.validateTemporaryToken(
+          details.token, request.getPath(), UriComponent.decodeQuery(request, true));
       fail();
     } catch (IllegalArgumentException e) {
       assertEquals(e.getMessage(), "token expired");
@@ -214,13 +248,13 @@ public class TestTokenManager {
 
   @Test
   public void useThirdPartyTokenAfterExpiry() throws Exception {
-    final TokenDetails details = manager.createThirdPartyToken(
-      username,
-      "",
-      "some-client-id",
-      Arrays.asList("dremio.all", "offline_access"),
-      TimeUnit.SECONDS.toMillis(1)
-    );
+    final TokenDetails details =
+        manager.createThirdPartyToken(
+            username,
+            "",
+            "some-client-id",
+            Arrays.asList("dremio.all", "offline_access"),
+            TimeUnit.SECONDS.toMillis(1));
 
     try {
       Thread.sleep(2000);
@@ -243,7 +277,8 @@ public class TestTokenManager {
     final long now = System.currentTimeMillis();
     final long expires = now + (10 * 1000);
 
-    final TokenDetails details = manager.createToken(username, clientAddress, now, expires, null, null);
+    final TokenDetails details =
+        manager.createToken(username, clientAddress, now, expires, null, null);
     assertEquals(manager.validateToken(details.token).username, username);
     assertTrue(manager.getTokenStore().get(details.token) != null);
 
@@ -264,7 +299,8 @@ public class TestTokenManager {
     final long now = System.currentTimeMillis();
     final long expires = now + (10 * 1000);
 
-    final TokenDetails details = manager.createToken(username, clientAddress, now, expires, null, null);
+    final TokenDetails details =
+        manager.createToken(username, clientAddress, now, expires, null, null);
     assertEquals((long) manager.getTokenStore().get(details.token).getExpiresAt(), expires);
   }
 }

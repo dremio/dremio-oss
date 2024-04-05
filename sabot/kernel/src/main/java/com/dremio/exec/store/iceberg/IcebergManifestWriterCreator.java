@@ -22,13 +22,13 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.writer.WriterOperator;
 
-/**
- * Iceberg manifest writer creator
- */
-public class IcebergManifestWriterCreator  implements SingleInputOperator.Creator<IcebergManifestWriterPOP> {
-    @Override
-    public SingleInputOperator create(OperatorContext context, IcebergManifestWriterPOP operator) throws ExecutionSetupException {
-        RecordWriter recordWriter = new ManifestFileRecordWriter(context, operator);
-        return new WriterOperator(context, operator.getOptions(), recordWriter);
-    }
+/** Iceberg manifest writer creator */
+public class IcebergManifestWriterCreator
+    implements SingleInputOperator.Creator<IcebergManifestWriterPOP> {
+  @Override
+  public SingleInputOperator create(OperatorContext context, IcebergManifestWriterPOP operator)
+      throws ExecutionSetupException {
+    RecordWriter recordWriter = new ManifestFileRecordWriter(context, operator);
+    return new WriterOperator(context, operator.getOptions(), recordWriter);
+  }
 }

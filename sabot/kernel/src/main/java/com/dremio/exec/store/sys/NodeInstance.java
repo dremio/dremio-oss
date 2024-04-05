@@ -15,15 +15,12 @@
  */
 package com.dremio.exec.store.sys;
 
-import org.joda.time.DateTime;
-
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import org.joda.time.DateTime;
 
-/**
- * Node info
- */
+/** Node info */
 public class NodeInstance {
 
   public final String name;
@@ -47,25 +44,24 @@ public class NodeInstance {
 
   @JsonCreator
   public NodeInstance(
-    String name,
-    String hostname,
-    String ip,
-    Integer user_port,
-    Integer fabric_port,
-    Double cpu,
-    Double memory,
-    String status,
-    Boolean is_master,
-    Boolean is_coordinator,
-    Boolean is_executor,
-    String node_tag,
-    String version,
-    DateTime start,
-    Double load,
-    Integer configured_max_width,
-    Integer actual_max_width,
-    Boolean current
-  ) {
+      String name,
+      String hostname,
+      String ip,
+      Integer user_port,
+      Integer fabric_port,
+      Double cpu,
+      Double memory,
+      String status,
+      Boolean is_master,
+      Boolean is_coordinator,
+      Boolean is_executor,
+      String node_tag,
+      String version,
+      DateTime start,
+      Double load,
+      Integer configured_max_width,
+      Integer actual_max_width,
+      Boolean current) {
     this.name = name;
     this.hostname = hostname;
     this.ip = ip;
@@ -86,29 +82,30 @@ public class NodeInstance {
     this.current = current;
   }
 
-  public static NodeInstance fromStats(CoordExecRPC.NodeStats nodeStats, CoordinationProtos.NodeEndpoint ep) {
+  public static NodeInstance fromStats(
+      CoordExecRPC.NodeStats nodeStats, CoordinationProtos.NodeEndpoint ep) {
     final boolean master = ep.getRoles().getMaster();
     final boolean coord = ep.getRoles().getSqlQuery();
     final boolean exec = ep.getRoles().getJavaExecutor();
 
     return new NodeInstance(
-      nodeStats.getName(),
-      nodeStats.getName(),
-      nodeStats.getIp(),
-      ep.getUserPort(),
-      ep.getFabricPort(),
-      nodeStats.getCpu(),
-      nodeStats.getMemory(),
-      nodeStats.getStatus(),
-      master,
-      coord,
-      exec,
-      ep.getNodeTag(),
-      ep.getDremioVersion(),
-      new DateTime(ep.getStartTime()),
-      nodeStats.getLoad(),
-      nodeStats.getConfiguredMaxWidth(),
-      nodeStats.getActualMaxWith(),
-      nodeStats.getCurrent());
+        nodeStats.getName(),
+        nodeStats.getName(),
+        nodeStats.getIp(),
+        ep.getUserPort(),
+        ep.getFabricPort(),
+        nodeStats.getCpu(),
+        nodeStats.getMemory(),
+        nodeStats.getStatus(),
+        master,
+        coord,
+        exec,
+        ep.getNodeTag(),
+        ep.getDremioVersion(),
+        new DateTime(ep.getStartTime()),
+        nodeStats.getLoad(),
+        nodeStats.getConfiguredMaxWidth(),
+        nodeStats.getActualMaxWith(),
+        nodeStats.getCurrent());
   }
 }

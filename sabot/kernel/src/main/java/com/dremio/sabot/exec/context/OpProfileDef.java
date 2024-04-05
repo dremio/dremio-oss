@@ -33,14 +33,15 @@ public class OpProfileDef {
     this(operatorId, operatorType, incomingCount, 0);
   }
 
-  public int getOperatorId(){
+  public int getOperatorId() {
     return operatorId;
   }
 
-  public int getOperatorType(){
+  public int getOperatorType() {
     return operatorType;
   }
-  public int getIncomingCount(){
+
+  public int getIncomingCount() {
     return incomingCount;
   }
 

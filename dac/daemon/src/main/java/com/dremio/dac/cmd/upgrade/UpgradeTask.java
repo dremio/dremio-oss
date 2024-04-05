@@ -15,25 +15,24 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import java.util.List;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import java.util.List;
 
 /**
  * Base implementation for all upgrade tasks
  *
- * For upgrade tasks to be picked up, make sure that the package is searched for
- * by {@code com.dremio.common.scanner.ClassPathScanner}
+ * <p>For upgrade tasks to be picked up, make sure that the package is searched for by {@code
+ * com.dremio.common.scanner.ClassPathScanner}
  *
- * Also, use {@code TestUpgrade} to confirm that the task is detected and order
- * is valid.
+ * <p>Also, use {@code TestUpgrade} to confirm that the task is detected and order is valid.
  */
 public abstract class UpgradeTask {
 
   private final String taskName;
   private final String description;
-  private final List<String> dependencies = Lists.newArrayList(); // list of UUID of the tasks this one depends on
+  private final List<String> dependencies =
+      Lists.newArrayList(); // list of UUID of the tasks this one depends on
 
   protected UpgradeTask(String description, List<String> dependencies) {
     this.description = Preconditions.checkNotNull(description);
@@ -46,9 +45,9 @@ public abstract class UpgradeTask {
   }
 
   /**
-   * Dependencies are expressed as UUIDs and not tasks
-   * as some tasks may not be visible because of module
-   * dependencies
+   * Dependencies are expressed as UUIDs and not tasks as some tasks may not be visible because of
+   * module dependencies
+   *
    * @return list of UUIDs this task depends on
    */
   public List<String> getDependencies() {

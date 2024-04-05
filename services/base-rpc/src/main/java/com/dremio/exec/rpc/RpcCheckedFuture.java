@@ -17,11 +17,10 @@ package com.dremio.exec.rpc;
 
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.ListenableFuture;
-
 import io.netty.buffer.ByteBuf;
 
 class RpcCheckedFuture<T> extends ForwardingListenableFuture.SimpleForwardingListenableFuture<T>
-  implements RpcFuture<T>{
+    implements RpcFuture<T> {
 
   volatile ByteBuf buffer;
 
@@ -40,5 +39,4 @@ class RpcCheckedFuture<T> extends ForwardingListenableFuture.SimpleForwardingLis
   public ByteBuf getBuffer() {
     return buffer;
   }
-
 }

@@ -17,9 +17,7 @@ package com.dremio.exec.store.iceberg.hive;
 
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 
-/**
- * Hive based iceberg table identifier
- */
+/** Hive based iceberg table identifier */
 public class IcebergHiveTableIdentifier implements IcebergTableIdentifier {
   private final String tableFolder;
   private final String namespace;

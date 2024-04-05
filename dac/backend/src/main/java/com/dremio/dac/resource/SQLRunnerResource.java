@@ -15,6 +15,15 @@
  */
 package com.dremio.dac.resource;
 
+import com.dremio.context.RequestContext;
+import com.dremio.context.UserContext;
+import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.model.sqlrunner.SQLRunnerSessionJson;
+import com.dremio.service.sqlrunner.LastTabException;
+import com.dremio.service.sqlrunner.SQLRunnerSession;
+import com.dremio.service.sqlrunner.SQLRunnerSessionService;
+import com.dremio.service.sqlrunner.TabNotFoundException;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -30,26 +39,15 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import com.dremio.context.RequestContext;
-import com.dremio.context.UserContext;
-import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.model.sqlrunner.SQLRunnerSessionJson;
-import com.dremio.service.sqlrunner.LastTabException;
-import com.dremio.service.sqlrunner.SQLRunnerSession;
-import com.dremio.service.sqlrunner.SQLRunnerSessionService;
-import com.dremio.service.sqlrunner.TabNotFoundException;
-
-/**
- * Resource for SQL Runner
- */
+/** Resource for SQL Runner */
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/sql-runner")
 public class SQLRunnerResource {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SQLRunnerResource.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(SQLRunnerResource.class);
   private final SQLRunnerSessionService sqlRunnerSessionService;
 
   @Inject
@@ -72,9 +70,8 @@ public class SQLRunnerResource {
   @Produces(MediaType.APPLICATION_JSON)
   public SQLRunnerSessionJson putSqlRunnerSession(SQLRunnerSessionJson update) {
     final String userId = RequestContext.current().get(UserContext.CTX_KEY).getUserId();
-    SQLRunnerSession updatedSession = new SQLRunnerSession(userId,
-      update.getScriptIds(),
-      update.getCurrentScriptId());
+    SQLRunnerSession updatedSession =
+        new SQLRunnerSession(userId, update.getScriptIds(), update.getCurrentScriptId());
     SQLRunnerSession session = sqlRunnerSessionService.updateSession(updatedSession);
     return new SQLRunnerSessionJson(session);
   }
@@ -83,7 +80,7 @@ public class SQLRunnerResource {
   @Path("session/tabs/{scriptId}")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public SQLRunnerSessionJson putSqlRunnerSessionTab(@PathParam("scriptId")String scriptId) {
+  public SQLRunnerSessionJson putSqlRunnerSessionTab(@PathParam("scriptId") String scriptId) {
     final String userId = RequestContext.current().get(UserContext.CTX_KEY).getUserId();
     SQLRunnerSession session = sqlRunnerSessionService.newTab(userId, scriptId);
     return new SQLRunnerSessionJson(session);
@@ -93,7 +90,7 @@ public class SQLRunnerResource {
   @Path("session/tabs/{scriptId}")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public Response deleteSqlRunnerSessionTab(@PathParam("scriptId")String scriptId) {
+  public Response deleteSqlRunnerSessionTab(@PathParam("scriptId") String scriptId) {
     final String userId = RequestContext.current().get(UserContext.CTX_KEY).getUserId();
     try {
       sqlRunnerSessionService.deleteTab(userId, scriptId);

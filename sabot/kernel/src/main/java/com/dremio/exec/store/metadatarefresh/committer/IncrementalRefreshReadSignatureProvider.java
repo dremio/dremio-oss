@@ -15,38 +15,38 @@
  */
 package com.dremio.exec.store.metadatarefresh.committer;
 
+import com.dremio.exec.store.file.proto.FileProtobuf;
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.google.protobuf.ByteString;
 import java.util.Collection;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import com.dremio.exec.store.file.proto.FileProtobuf;
-import com.dremio.exec.store.iceberg.IcebergPartitionData;
-import com.google.protobuf.ByteString;
-
 /**
- *  Computes read signature in incremental refresh
- *  newReadSignature = oldReadSignature + addedPartitions - deletedPartitions
- *  Updates mtime of all partitions in read signature
+ * Computes read signature in incremental refresh newReadSignature = oldReadSignature +
+ * addedPartitions - deletedPartitions Updates mtime of all partitions in read signature
  */
 public class IncrementalRefreshReadSignatureProvider extends FullRefreshReadSignatureProvider {
 
-  public IncrementalRefreshReadSignatureProvider(ByteString existingReadSignature,
-                                                 final String dataTableRoot, final long queryStartTime,
-                                                 Predicate<String> partitionExists) {
+  public IncrementalRefreshReadSignatureProvider(
+      ByteString existingReadSignature,
+      final String dataTableRoot,
+      final long queryStartTime,
+      Predicate<String> partitionExists) {
     super(dataTableRoot, queryStartTime, partitionExists);
-    FileProtobuf.FileUpdateKey oldReadSignature = decodeReadSignatureByteString(existingReadSignature);
-    oldReadSignature.getCachedEntitiesList()
-      .stream()
-      .map(FileProtobuf.FileSystemCachedEntity::getPath)
-      .forEach(pathsInReadSignature::add);
+    FileProtobuf.FileUpdateKey oldReadSignature =
+        decodeReadSignatureByteString(existingReadSignature);
+    oldReadSignature.getCachedEntitiesList().stream()
+        .map(FileProtobuf.FileSystemCachedEntity::getPath)
+        .forEach(pathsInReadSignature::add);
   }
 
   @Override
   protected void handleDeletedPartitions(Set<IcebergPartitionData> deleted) {
     deleted.stream()
-      .map(fileSystemPartitionToPathMapper)
-      .flatMap(Collection::stream)
-      .filter(doesPartitionExist.negate())
-      .forEach(pathsInReadSignature::remove);
+        .map(fileSystemPartitionToPathMapper)
+        .flatMap(Collection::stream)
+        .filter(doesPartitionExist.negate())
+        .forEach(pathsInReadSignature::remove);
   }
 }

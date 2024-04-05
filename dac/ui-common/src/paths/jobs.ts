@@ -36,13 +36,13 @@ export const jobs = projectBase.extend((params: FilterParams) => {
   return `jobs${searchParamStr ? `?${searchParamStr}` : ""}`;
 });
 export const job = jobs.extend(
-  (params: JobIdParam) => `job/${encodeURIComponent(params.jobId)}`
+  (params: JobIdParam) => `job/${encodeURIComponent(params.jobId)}`,
 );
 export const reflection = jobs.extend(
-  (params: ReflectionParams) => `reflection/${params.reflectionId}`
+  (params: ReflectionParams) => `reflection/${params.reflectionId}`,
 );
 
 /** Old Job  */
 export const jobOld = jobs.extend(
-  (params: OldJobIdParam) => `job/${params.jobid}`
+  (params: OldJobIdParam) => `job/${params.jobid}`,
 );

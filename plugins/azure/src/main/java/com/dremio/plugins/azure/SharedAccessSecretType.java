@@ -15,13 +15,10 @@
  */
 package com.dremio.plugins.azure;
 
-
 import com.dremio.exec.catalog.conf.DisplayMetadata;
-
 import io.protostuff.Tag;
 
 public enum SharedAccessSecretType {
-
   @Tag(1)
   @DisplayMetadata(label = "Dremio")
   SHARED_ACCESS_SECRET_KEY,

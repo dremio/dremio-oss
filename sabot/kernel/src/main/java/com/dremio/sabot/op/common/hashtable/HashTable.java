@@ -15,52 +15,53 @@
  */
 package com.dremio.sabot.op.common.hashtable;
 
-import org.apache.arrow.memory.BufferAllocator;
-
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
+import org.apache.arrow.memory.BufferAllocator;
 
 public interface HashTable extends AutoCloseable {
 
   public static TemplateClassDefinition<HashTable> TEMPLATE_DEFINITION =
       new TemplateClassDefinition<HashTable>(HashTable.class, HashTableTemplate.class);
 
-  /**
-   * The initial default capacity of the hash table (in terms of number of buckets).
-   */
+  /** The initial default capacity of the hash table (in terms of number of buckets). */
   public static final int DEFAULT_INITIAL_CAPACITY = 1 << 16;
 
-  /**
-   * The maximum capacity of the hash table (in terms of number of buckets).
-   */
+  /** The maximum capacity of the hash table (in terms of number of buckets). */
   public static final int MAXIMUM_CAPACITY = 1 << 30;
 
-  /**
-   * The default load factor of a hash table.
-   */
+  /** The default load factor of a hash table. */
   public static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
   // Build side batch record link. Each link is 6 bytes.
   // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
   int BUILD_RECORD_LINK_SIZE = FieldBufferCopier.BUILD_RECORD_LINK_SIZE;
 
-  public static enum PutStatus {KEY_PRESENT, KEY_ADDED, PUT_FAILED;}
+  public static enum PutStatus {
+    KEY_PRESENT,
+    KEY_ADDED,
+    PUT_FAILED;
+  }
 
-  /**
-   * The batch size used for internal batch holders
-   */
+  /** The batch size used for internal batch holders */
   public static final int BATCH_SIZE = Character.MAX_VALUE + 1;
+
   public static final int BATCH_MASK = 0x0000FFFF;
 
   /** Variable width vector size in bytes */
   public static final int VARIABLE_WIDTH_VECTOR_SIZE = 50 * BATCH_SIZE;
 
-  void setup(HashTableConfig htConfig, FunctionContext context, BufferAllocator allocator,
-      VectorAccessible incomingBuild, VectorAccessible incomingProbe,
-      VectorAccessible outgoing, VectorContainer htContainerOrig,
+  void setup(
+      HashTableConfig htConfig,
+      FunctionContext context,
+      BufferAllocator allocator,
+      VectorAccessible incomingBuild,
+      VectorAccessible incomingProbe,
+      VectorAccessible outgoing,
+      VectorContainer htContainerOrig,
       BatchAddedListener listener);
 
   int put(int incomingRowIdx);
@@ -79,8 +80,9 @@ public interface HashTable extends AutoCloseable {
     public void batchAdded();
   }
 
-  BatchAddedListener NOOP_LISTENER = new BatchAddedListener(){
-    @Override
-    public void batchAdded() {
-    }};
+  BatchAddedListener NOOP_LISTENER =
+      new BatchAddedListener() {
+        @Override
+        public void batchAdded() {}
+      };
 }

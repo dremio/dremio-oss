@@ -164,7 +164,8 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
         .build();
 
       metadataAccumulator.accumulateReaderType(DeltaHiveInputFormat.class);
-      metadataAccumulator.setTableLocation(DeltaHiveInputFormat.getLocation(tableMetadata.getTable(), optionManager));
+      metadataAccumulator.setTableLocation(
+          DeltaHiveInputFormat.getLocation(tableMetadata.getTable()));
       metadataAccumulator.setNotAllFSBasedPartitions();
       return;
     } else if (null == partitions) {

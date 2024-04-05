@@ -103,10 +103,6 @@ const Reflection = (props) => {
                       <span className="reflection-content__dataHeader">
                         <div className="reflection-content__dataLabel">
                           {jobsUtils.getReflectionsLink(item, location)}
-                          <span className="reflection-content__dataLabel__algbric">
-                            {item.get("reflectionMatchingType") ===
-                              "ALGEBRAIC" && "[AlgMatch]"}
-                          </span>
                         </div>
                         <div className="reflection-content__dataLabelSubscription">
                           {item.get("reflectionDatasetPath")}
@@ -140,17 +136,10 @@ const Reflection = (props) => {
                       <span className="reflection-content__dataHeader">
                         <div className="reflection-content__dataLabel">
                           {jobsUtils.getReflectionsLink(item, location)}
-                          <span className="reflection-content__dataLabel__algbric">
-                            {item.get("reflectionMatchingType") ===
-                              "ALGEBRAIC" && "[AlgMatch]"}
-                          </span>
                         </div>
                         <div className="reflection-content__dataLabelSubscription">
                           {item.get("reflectionDatasetPath")}
                         </div>
-                      </span>
-                      <span className="reflection-content__dataHeaderContent">
-                        {formatMessage({ id: "Reflections.DidNotCoverQuery" })}
                       </span>
                     </div>
                   </div>

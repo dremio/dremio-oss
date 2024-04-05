@@ -15,12 +15,17 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.complex.ListVector;
@@ -31,20 +36,14 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Preconditions;
-
 /**
- * Class is responsible for generating record batches for text file inputs. We generate
- * a record batch with a single vector of type repeated varchar vector. Each record is a single
- * value within the vector containing all the fields in the record as individual array elements.
+ * Class is responsible for generating record batches for text file inputs. We generate a record
+ * batch with a single vector of type repeated varchar vector. Each record is a single value within
+ * the vector containing all the fields in the record as individual array elements.
  */
 class RepeatedVarCharOutput extends TextOutput {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RepeatedVarCharOutput.class);
+  static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(RepeatedVarCharOutput.class);
 
   private static final String COL_NAME = "columns";
   static final SchemaPath COLUMNS = SchemaPath.getSimplePath("columns");
@@ -84,15 +83,21 @@ class RepeatedVarCharOutput extends TextOutput {
   private int charLengthOffset;
 
   /**
-   * We initialize and add the repeated varchar vector to the record batch in this
-   * constructor. Perform some sanity checks if the selected columns are valid or not.
-   * @param outputMutator  Used to create/modify schema in the record batch
-   * @param columns  List of columns selected in the query
-   * @param isStarQuery  boolean to indicate if all fields are selected or not
+   * We initialize and add the repeated varchar vector to the record batch in this constructor.
+   * Perform some sanity checks if the selected columns are valid or not.
+   *
+   * @param outputMutator Used to create/modify schema in the record batch
+   * @param columns List of columns selected in the query
+   * @param isStarQuery boolean to indicate if all fields are selected or not
    * @param sizeLimit Maximum size for an individual field
    * @throws SchemaChangeException
    */
-  public RepeatedVarCharOutput(OutputMutator outputMutator, Collection<SchemaPath> columns, boolean isStarQuery, int sizeLimit) throws SchemaChangeException {
+  public RepeatedVarCharOutput(
+      OutputMutator outputMutator,
+      Collection<SchemaPath> columns,
+      boolean isStarQuery,
+      int sizeLimit)
+      throws SchemaChangeException {
     super(sizeLimit);
 
     this.output = outputMutator;
@@ -107,12 +112,16 @@ class RepeatedVarCharOutput extends TextOutput {
         for (SchemaPath path : columns) {
           assert path.getRootSegment().isNamed() : "root segment should be named";
           pathStr = path.getRootSegment().getPath();
-          Preconditions.checkArgument(pathStr.equals(COL_NAME) || ("*".equals(pathStr) && path.getRootSegment().getChild() == null),
-              String.format("Selected column '%s' must have name 'columns' or must be plain '*'", pathStr));
+          Preconditions.checkArgument(
+              pathStr.equals(COL_NAME)
+                  || ("*".equals(pathStr) && path.getRootSegment().getChild() == null),
+              String.format(
+                  "Selected column '%s' must have name 'columns' or must be plain '*'", pathStr));
 
           if (path.getRootSegment().getChild() != null) {
-            Preconditions.checkArgument(path.getRootSegment().getChild().isArray(),
-              String.format("Selected column '%s' must be an array index", pathStr));
+            Preconditions.checkArgument(
+                path.getRootSegment().getChild().isArray(),
+                String.format("Selected column '%s' must be an array index", pathStr));
             int index = path.getRootSegment().getChild().getArraySegment().getOptionalIndex();
             columnIds.add(index);
           }
@@ -134,10 +143,7 @@ class RepeatedVarCharOutput extends TextOutput {
     }
   }
 
-  /**
-   * Start a new record batch. Resets all the offsets and pointers that
-   * store buffer addresses
-   */
+  /** Start a new record batch. Resets all the offsets and pointers that store buffer addresses */
   @Override
   public void startBatch() {
     this.fieldOpen = false;
@@ -147,7 +153,8 @@ class RepeatedVarCharOutput extends TextOutput {
   }
 
   private void expandTmpBufIfNecessary() {
-    FieldSizeLimitExceptionHelper.checkSizeLimit(charLengthOffset+1, maxCellLimit, fieldIndex, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(
+        charLengthOffset + 1, maxCellLimit, fieldIndex, logger);
     if (charLengthOffset < tmpBuf.capacity()) {
       return;
     }
@@ -209,7 +216,7 @@ class RepeatedVarCharOutput extends TextOutput {
   @Override
   public void finishRecord() {
     if (hasData) {
-      if(fieldOpen) {
+      if (fieldOpen) {
         endField();
       }
       listWriter.endList();
@@ -220,7 +227,6 @@ class RepeatedVarCharOutput extends TextOutput {
 
     batchIndex++;
     recordCount++;
-
   }
 
   @Override
@@ -229,23 +235,27 @@ class RepeatedVarCharOutput extends TextOutput {
   }
 
   /**
-   * This method is a helper method added for DRILL-951
-   * TextRecordReader to call this method to get field names out
+   * This method is a helper method added for DRILL-951 TextRecordReader to call this method to get
+   * field names out
+   *
    * @return array of field data strings
    */
-  public String [] getTextOutput () throws ExecutionSetupException {
+  public String[] getTextOutput() throws ExecutionSetupException {
     if (recordCount == 0 || fieldIndex == -1) {
       return null;
     }
 
-    int retSize = fieldIndex+1;
-    String [] out = new String [retSize];
+    int retSize = fieldIndex + 1;
+    String[] out = new String[retSize];
 
     try {
-      ListVector listVector = output.addField(new Field(COL_NAME, new FieldType(true, MinorType.LIST.getType(), null), null), ListVector.class);
-      List outputlist = (List) listVector.getObject((int)(recordCount-1));
+      ListVector listVector =
+          output.addField(
+              new Field(COL_NAME, new FieldType(true, MinorType.LIST.getType(), null), null),
+              ListVector.class);
+      List outputlist = (List) listVector.getObject((int) (recordCount - 1));
 
-      for (int i=0; i<retSize; i++){
+      for (int i = 0; i < retSize; i++) {
         out[i] = ((Text) outputlist.get(i)).toString();
       }
       return out;

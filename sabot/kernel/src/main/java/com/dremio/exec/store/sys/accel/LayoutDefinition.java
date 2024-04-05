@@ -15,16 +15,18 @@
  */
 package com.dremio.exec.store.sys.accel;
 
-import java.util.List;
-
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndGranularity;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndMeasures;
+import java.util.List;
 
 public class LayoutDefinition {
 
-  public static enum Type {AGGREGATE, RAW};
+  public static enum Type {
+    AGGREGATE,
+    RAW
+  };
 
   private final Type type;
   private final List<String> display;
@@ -38,15 +40,16 @@ public class LayoutDefinition {
   private final String name;
 
   public LayoutDefinition(
-    String name, Type type,
-    List<String> display,
-    List<NameAndGranularity> dimension,
-    List<NameAndMeasures> measure,
-    List<String> sort,
-    List<String> distribution,
-    List<PartitionTransform> partition,
-    Boolean arrowCachingEnabled,
-    PartitionDistributionStrategy partitionDistributionStrategy) {
+      String name,
+      Type type,
+      List<String> display,
+      List<NameAndGranularity> dimension,
+      List<NameAndMeasures> measure,
+      List<String> sort,
+      List<String> distribution,
+      List<PartitionTransform> partition,
+      Boolean arrowCachingEnabled,
+      PartitionDistributionStrategy partitionDistributionStrategy) {
     super();
     this.name = name;
     this.type = type;
@@ -68,40 +71,35 @@ public class LayoutDefinition {
     return type;
   }
 
-
   public List<String> getDisplay() {
     return display;
   }
-
 
   public List<NameAndGranularity> getDimension() {
     return dimension;
   }
 
-
   public List<NameAndMeasures> getMeasure() {
     return measure;
   }
-
 
   public List<String> getSort() {
     return sort;
   }
 
-
   public List<String> getDistribution() {
     return distribution;
   }
-
 
   public List<PartitionTransform> getPartition() {
     return partition;
   }
 
-  public Boolean getArrowCachingEnabled() { return arrowCachingEnabled; }
+  public Boolean getArrowCachingEnabled() {
+    return arrowCachingEnabled;
+  }
 
   public PartitionDistributionStrategy getPartitionDistributionStrategy() {
     return partitionDistributionStrategy;
   }
-
 }

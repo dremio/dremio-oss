@@ -15,6 +15,9 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
+import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;
+import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
+import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.BaseVariableWidthVector;
@@ -23,20 +26,16 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.datasketches.hll.HllSketch;
 import org.apache.datasketches.hll.Union;
 
-import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;
-import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-
-import io.netty.util.internal.PlatformDependent;
-
-
 public class NdvAccumulatorsNoSpill {
 
-  private NdvAccumulatorsNoSpill(){};
+  private NdvAccumulatorsNoSpill() {}
+  ;
 
   public static class IntNdvAccumulatorsNoSpill extends BaseNdvAccumulatorNoSpill {
     private static final int WIDTH = 4;
 
-    public IntNdvAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public IntNdvAccumulatorsNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -44,20 +43,25 @@ public class NdvAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
 
-        //incoming record is null, skip it
+        // incoming record is null, skip it
         if (bitVal == 0) {
           continue;
         }
 
         final int newVal = PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH));
 
-        //get the proper chunk from the ordinal
+        // get the proper chunk from the ordinal
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -71,7 +75,8 @@ public class NdvAccumulatorsNoSpill {
 
   public static class VarLenNdvAccumulatorsNoSpill extends BaseNdvAccumulatorNoSpill {
 
-    public VarLenNdvAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public VarLenNdvAccumulatorsNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -79,47 +84,55 @@ public class NdvAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
 
       final ArrowBuf inputOffsetBuf = getInput().getOffsetBuffer();
       final ArrowBuf inputBuf = getInput().getDataBuffer();
 
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
 
-        //incoming record is null, skip it
+        // incoming record is null, skip it
         if (bitVal == 0) {
           continue;
         }
 
-        //get the proper chunk from the ordinal
+        // get the proper chunk from the ordinal
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
-        //System.out.println("record idx: " + incomingIndex + " ordinal: " + tableIndex);
+        // System.out.println("record idx: " + incomingIndex + " ordinal: " + tableIndex);
         final int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         final int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
         final HllAccumHolder ah = this.accumulators[chunkIndex];
         final HllSketch sketch = ah.getAccumSketch(chunkOffset);
 
-        //get the offset of incoming record
-        final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
-        final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
+        // get the offset of incoming record
+        final int startOffset =
+            inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
+        final int endOffset =
+            inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
         final int len = endOffset - startOffset;
         byte[] bytes = new byte[len];
         inputBuf.getBytes(startOffset, bytes);
 
-        //apply the update
+        // apply the update
         sketch.update(bytes);
-      } //for
-    } //accumulate
+      } // for
+    } // accumulate
   }
 
   public static class FloatNdvAccumulatorNoSpill extends BaseNdvAccumulatorNoSpill {
     private static final int WIDTH = 4;
 
-    public FloatNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public FloatNdvAccumulatorNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -127,20 +140,26 @@ public class NdvAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
 
-        //incoming record is null, skip it
+        // incoming record is null, skip it
         if (bitVal == 0) {
           continue;
         }
 
-        final float newVal = Float.intBitsToFloat(PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH)));
+        final float newVal =
+            Float.intBitsToFloat(PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH)));
 
-        //get the proper chunk from the ordinal
+        // get the proper chunk from the ordinal
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -156,7 +175,8 @@ public class NdvAccumulatorsNoSpill {
 
     private static final int WIDTH = 8;
 
-    public BigIntNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public BigIntNdvAccumulatorNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -164,20 +184,25 @@ public class NdvAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
 
-        //incoming record is null, skip it
+        // incoming record is null, skip it
         if (bitVal == 0) {
           continue;
         }
 
         final long newVal = PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH));
 
-        //get the proper chunk from the ordinal
+        // get the proper chunk from the ordinal
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -193,7 +218,8 @@ public class NdvAccumulatorsNoSpill {
   public static class DoubleNdvAccumulatorNoSpill extends BaseNdvAccumulatorNoSpill {
     private static final int WIDTH = 8;
 
-    public DoubleNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public DoubleNdvAccumulatorNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -201,20 +227,27 @@ public class NdvAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
 
-        //incoming record is null, skip it
+        // incoming record is null, skip it
         if (bitVal == 0) {
           continue;
         }
 
-        final double newVal = Double.longBitsToDouble(PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH)));
+        final double newVal =
+            Double.longBitsToDouble(
+                PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH)));
 
-        //get the proper chunk from the ordinal
+        // get the proper chunk from the ordinal
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -227,50 +260,12 @@ public class NdvAccumulatorsNoSpill {
   }
 
   public static class DecimalNdvAccumulatorNoSpill extends BaseNdvAccumulatorNoSpill {
-    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
-    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_ORDINAL = 4; // int ordinal #s
+    private static final int WIDTH_INPUT = 16; // decimal inputs
     byte[] valBuf = new byte[WIDTH_INPUT];
 
-    public DecimalNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
-      super(input, output, bufferManager, reduceNdvHeap);
-    }
-
-    @Override
-    public void accumulate(final long memoryAddr, final int count) {
-      final long maxAddr = memoryAddr + count * WIDTH_ORDINAL;
-      FieldVector inputVector = getInput();
-      final long incomingBit = inputVector.getValidityBufferAddress();
-      final long incomingValue = inputVector.getDataBufferAddress();
-      final int scale = ((DecimalVector)inputVector).getScale();
-
-      int incomingIndex = 0;
-      for (long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-
-        //incoming record is null, skip it
-        if (bitVal == 0) {
-          continue;
-        }
-
-        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
-
-        //get the proper chunk from the ordinal
-        final int tableIndex = PlatformDependent.getInt(ordinalAddr);
-        int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
-        int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
-
-        final HllAccumHolder ah = this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
-        sketch.update(newVal.doubleValue());
-      }
-    }
-  }
-
-  public static class DecimalNdvAccumulatorNoSpillV2 extends BaseNdvAccumulatorNoSpill {
-    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
-    private static final int WIDTH_INPUT = 16;      // decimal inputs
-
-    public DecimalNdvAccumulatorNoSpillV2(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public DecimalNdvAccumulatorNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -283,9 +278,61 @@ public class NdvAccumulatorsNoSpill {
       final int scale = ((DecimalVector) inputVector).getScale();
 
       int incomingIndex = 0;
-      for (long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
+
+        // incoming record is null, skip it
+        if (bitVal == 0) {
+          continue;
+        }
+
+        java.math.BigDecimal newVal =
+            DecimalAccumulatorUtils.getBigDecimal(
+                incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+
+        // get the proper chunk from the ordinal
+        final int tableIndex = PlatformDependent.getInt(ordinalAddr);
+        int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
+        int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
+
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
+        sketch.update(newVal.doubleValue());
+      }
+    }
+  }
+
+  public static class DecimalNdvAccumulatorNoSpillV2 extends BaseNdvAccumulatorNoSpill {
+    private static final int WIDTH_ORDINAL = 4; // int ordinal #s
+    private static final int WIDTH_INPUT = 16; // decimal inputs
+
+    public DecimalNdvAccumulatorNoSpillV2(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
+    }
+
+    @Override
+    public void accumulate(final long memoryAddr, final int count) {
+      final long maxAddr = memoryAddr + count * WIDTH_ORDINAL;
+      FieldVector inputVector = getInput();
+      final long incomingBit = inputVector.getValidityBufferAddress();
+      final long incomingValue = inputVector.getDataBufferAddress();
+      final int scale = ((DecimalVector) inputVector).getScale();
+
+      int incomingIndex = 0;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
         /* get the corresponding data from input vector -- source data for accumulation */
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
         // without if we would need to do a multiply which is slow.
         if (bitVal == 0) {
           continue;
@@ -302,17 +349,18 @@ public class NdvAccumulatorsNoSpill {
         inputVector.getDataBuffer().getBytes(incomingIndex * WIDTH_INPUT, bytes);
 
         sketch.update(bytes);
-      } //for
+      } // for
     }
   }
 
   public static class BitNdvAccumulatorNoSpill extends BaseNdvAccumulatorNoSpill {
-    private static final int WIDTH_LONG = 8;        // operations done on long boundaries
-    private static final int BITS_PER_LONG_SHIFT = 6;  // (1<<6) bits per long
-    private static final int BITS_PER_LONG = (1<<BITS_PER_LONG_SHIFT);
-    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
+    private static final int WIDTH_LONG = 8; // operations done on long boundaries
+    private static final int BITS_PER_LONG_SHIFT = 6; // (1<<6) bits per long
+    private static final int BITS_PER_LONG = (1 << BITS_PER_LONG_SHIFT);
+    private static final int WIDTH_ORDINAL = 4; // int ordinal #s
 
-    public BitNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public BitNdvAccumulatorNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -321,35 +369,41 @@ public class NdvAccumulatorsNoSpill {
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
       final long incomingValue = inputVector.getDataBufferAddress();
-      final long numWords = (count + (BITS_PER_LONG-1)) >>> BITS_PER_LONG_SHIFT; // rounded up number of words that cover 'count' bits
+      final long numWords =
+          (count + (BITS_PER_LONG - 1))
+              >>> BITS_PER_LONG_SHIFT; // rounded up number of words that cover 'count' bits
       final long maxInputAddr = incomingValue + numWords * WIDTH_LONG;
       final long maxOrdinalAddr = memoryAddr + count * WIDTH_ORDINAL;
 
       // Like every accumulator, the code below essentially implements:
       //   accumulators[ordinals[i]] += inputs[i]
       // with the only complication that both accumulators and inputs are bits.
-      // There's nothing we can do about the locality of the accumulators, but inputs can be processed a word at a time.
+      // There's nothing we can do about the locality of the accumulators, but inputs can be
+      // processed a word at a time.
       // Algorithm:
       // - get 64 bits worth of inputs, until all inputs exhausted. For each long:
       //   - find the accumulator word it pertains to
       //   - read/update/write the accumulator bit
       // In the code below:
       // - input* refers to the data values in the incoming batch
-      // - ordinal* refers to the temporary table that hashAgg passes in, identifying which hash table entry each input matched to
+      // - ordinal* refers to the temporary table that hashAgg passes in, identifying which hash
+      // table entry each input matched to
       for (long inputAddr = incomingValue, inputBitAddr = incomingBit, batchCount = 0;
-           inputAddr < maxInputAddr;
-           inputAddr += WIDTH_LONG, inputBitAddr += WIDTH_LONG, batchCount++) {
+          inputAddr < maxInputAddr;
+          inputAddr += WIDTH_LONG, inputBitAddr += WIDTH_LONG, batchCount++) {
         final long inputBatch = PlatformDependent.getLong(inputAddr);
         final long inputBits = PlatformDependent.getLong(inputBitAddr);
         long ordinalAddr = memoryAddr + (batchCount << BITS_PER_LONG_SHIFT);
 
-        for (long bitNum = 0; bitNum < BITS_PER_LONG && ordinalAddr < maxOrdinalAddr; bitNum++, ordinalAddr += WIDTH_ORDINAL) {
+        for (long bitNum = 0;
+            bitNum < BITS_PER_LONG && ordinalAddr < maxOrdinalAddr;
+            bitNum++, ordinalAddr += WIDTH_ORDINAL) {
           final int tableIndex = PlatformDependent.getInt(ordinalAddr);
           int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
           int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-          final int inputBitVal = (int)((inputBits >>> bitNum) & 0x01);
-          final int inputVal = (int)((inputBatch >>> bitNum) & 0x01);
+          final int inputBitVal = (int) ((inputBits >>> bitNum) & 0x01);
+          final int inputVal = (int) ((inputBatch >>> bitNum) & 0x01);
           final int minBitUpdateVal = inputBitVal << (chunkOffset & 31);
 
           final HllAccumHolder ah = this.accumulators[chunkIndex];
@@ -362,10 +416,11 @@ public class NdvAccumulatorsNoSpill {
   }
 
   public static class IntervalDayNdvAccumulatorNoSpill extends BaseNdvAccumulatorNoSpill {
-    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
-    private static final int WIDTH_INPUT = 8;       // pair-of-ints inputs
+    private static final int WIDTH_ORDINAL = 4; // int ordinal #s
+    private static final int WIDTH_INPUT = 8; // pair-of-ints inputs
 
-    public IntervalDayNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public IntervalDayNdvAccumulatorNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -377,15 +432,21 @@ public class NdvAccumulatorsNoSpill {
       final long incomingValue = inputVector.getDataBufferAddress();
 
       int incomingIndex = 0;
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
 
-        //incoming record is null, skip it
+        // incoming record is null, skip it
         if (bitVal == 0) {
           continue;
         }
 
-        final long newVal = PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT));
+        final long newVal =
+            PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT));
 
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
@@ -398,10 +459,10 @@ public class NdvAccumulatorsNoSpill {
     }
   }
 
-
   public static class NdvUnionAccumulatorsNoSpill extends BaseNdvUnionAccumulatorNoSpill {
 
-    public NdvUnionAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+    public NdvUnionAccumulatorsNoSpill(
+        FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);
     }
 
@@ -409,42 +470,48 @@ public class NdvAccumulatorsNoSpill {
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
-      final long incomingValue =  getInput().getDataBufferAddress();
+      final long incomingValue = getInput().getDataBufferAddress();
 
       int incomingIndex = 0;
 
       final ArrowBuf inputOffsetBuf = getInput().getOffsetBuffer();
       final ArrowBuf inputBuf = getInput().getDataBuffer();
 
-      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
-        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+      for (long ordinalAddr = memoryAddr;
+          ordinalAddr < maxAddr;
+          ordinalAddr += 4, incomingIndex++) {
+        final int bitVal =
+            (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3)))
+                    >>> (incomingIndex & 7))
+                & 1;
 
-        //incoming record is null, skip it
+        // incoming record is null, skip it
         if (bitVal == 0) {
           continue;
         }
 
-        //get the proper chunk from the ordinal
+        // get the proper chunk from the ordinal
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
-        //System.out.println("record idx: " + incomingIndex + " ordinal: " + tableIndex);
+        // System.out.println("record idx: " + incomingIndex + " ordinal: " + tableIndex);
         final int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         final int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        //get the offset of incoming record
-        final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
-        final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
+        // get the offset of incoming record
+        final int startOffset =
+            inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
+        final int endOffset =
+            inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
         final int len = endOffset - startOffset;
         byte[] bytes = new byte[len];
         inputBuf.getBytes(startOffset, bytes);
         final HllSketch sketch = HllSketch.heapify(bytes);
 
-        //apply the update
+        // apply the update
         final HllUnionAccumHolder ah = this.accumulators[chunkIndex];
         final Union unionSketch = ah.getAccumSketch(chunkOffset);
 
         unionSketch.update(sketch);
-      } //for
-    } //accumulate
+      } // for
+    } // accumulate
   }
-
 }

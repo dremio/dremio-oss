@@ -15,74 +15,59 @@
  */
 package com.dremio.common.dialect.arp.transformer;
 
+import com.dremio.common.rel2sql.DremioRelToSqlConverter;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
-
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 
-import com.dremio.common.rel2sql.DremioRelToSqlConverter;
-
 /**
- * Interface which is used to make adjustments to RexCall or SqlCall nodes
- * to make it easier to pass down to ARP.
+ * Interface which is used to make adjustments to RexCall or SqlCall nodes to make it easier to pass
+ * down to ARP.
  */
 public abstract class CallTransformer {
 
-  /**
-   * Indicates if the given call should be transformed by this.
-   */
+  /** Indicates if the given call should be transformed by this. */
   public abstract boolean matches(RexCall call);
 
-  /**
-   * Indicates if the given operator should be transformed by this.
-   */
+  /** Indicates if the given operator should be transformed by this. */
   public boolean matches(SqlOperator operator) {
     return getCompatibleOperators().contains(operator);
   }
 
-  /**
-   * The set of SqlOperators that match this CallTransformer.
-   */
+  /** The set of SqlOperators that match this CallTransformer. */
   public abstract Set<SqlOperator> getCompatibleOperators();
 
-  /**
-   * Transform the operands for a call that matches this transformer.
-   */
+  /** Transform the operands for a call that matches this transformer. */
   public List<SqlNode> transformSqlOperands(List<SqlNode> operands) {
     return operands;
   }
 
-  /**
-   * Transform the operands for a call that matches this transformer.
-   */
+  /** Transform the operands for a call that matches this transformer. */
   public List<RexNode> transformRexOperands(List<RexNode> operands) {
     return operands;
   }
 
-  /**
-   * Adjust the name for this operator based on its arguments.
-   */
+  /** Adjust the name for this operator based on its arguments. */
   public String adjustNameBasedOnOperands(String operatorName, List<RexNode> operands) {
     return operatorName;
   }
 
-  /**
-   * Adjust the SqlOperator for this operator based on its arguments.
-   */
+  /** Adjust the SqlOperator for this operator based on its arguments. */
   public SqlOperator getAlternateOperator(RexCall call) {
     return call.getOperator();
   }
 
-  /**
-   * Returns an alternate operator that is easier to pushdown.
-   */
-  public Supplier<SqlNode> getAlternateCall(Supplier<SqlNode> originalNodeSupplier,
-                                            DremioRelToSqlConverter.DremioContext context, RexProgram program, RexCall call) {
+  /** Returns an alternate operator that is easier to pushdown. */
+  public Supplier<SqlNode> getAlternateCall(
+      Supplier<SqlNode> originalNodeSupplier,
+      DremioRelToSqlConverter.DremioContext context,
+      RexProgram program,
+      RexCall call) {
     return originalNodeSupplier;
   }
 }

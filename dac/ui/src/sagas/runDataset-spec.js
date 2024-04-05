@@ -49,7 +49,7 @@ describe("runDataset saga", () => {
         jobId,
         false,
         paginationUrl,
-        isRunOrPreview
+        isRunOrPreview,
       );
     });
     const customTest = testWithHooks({
@@ -72,13 +72,13 @@ describe("runDataset saga", () => {
               datasetVersion,
               paginationUrl,
               jobId,
-              isRunOrPreview
+              isRunOrPreview,
             ),
             locationChange: call(explorePageChanged),
-          })
+          }),
         );
         next = gen.next();
-      }
+      },
     );
 
     customTest(
@@ -89,7 +89,7 @@ describe("runDataset saga", () => {
           jobId,
           true,
           paginationUrl,
-          isRunOrPreview
+          isRunOrPreview,
         );
         // get table data
         next = gen.next();
@@ -102,13 +102,13 @@ describe("runDataset saga", () => {
               datasetVersion,
               paginationUrl,
               jobId,
-              isRunOrPreview
+              isRunOrPreview,
             ),
             locationChange: call(explorePageChanged),
-          })
+          }),
         );
         next = gen.next();
-      }
+      },
     );
 
     customTest("should not waitForRunToComplete if has rows", () => {
@@ -125,7 +125,7 @@ describe("runDataset saga", () => {
         race({
           socketOpen: take(WS_CONNECTION_OPEN),
           stop: take(LOGOUT_USER_SUCCESS),
-        })
+        }),
       );
       const socketOpenRaceResult = {
         socketOpen: true,
@@ -133,7 +133,7 @@ describe("runDataset saga", () => {
       // register web socket listener
       next = gen.next(socketOpenRaceResult);
       expect(next.value).to.eql(
-        call([socket, socket.startListenToJobProgress], jobId, true)
+        call([socket, socket.startListenToJobProgress], jobId, true),
       );
       // race between jobCompletion listener and location change listener
       next = gen.next();
@@ -149,7 +149,7 @@ describe("runDataset saga", () => {
       // remove job listener
       next = gen.next(response);
       expect(next.value).to.eql(
-        call([socket, socket.stopListenToJobProgress], jobId)
+        call([socket, socket.stopListenToJobProgress], jobId),
       );
       next = gen.next();
       expect(next.done).to.be.true;
@@ -163,6 +163,7 @@ describe("runDataset saga", () => {
       expect(next.value).to.eql(put(updateHistoryWithJobState(dataset, true)));
       next = gen.next();
       expect(next.value).to.eql(put(updateExploreJobProgress({ state: true })));
+      next = gen.next();
       next = gen.next();
       checkFinallyBlock();
     });

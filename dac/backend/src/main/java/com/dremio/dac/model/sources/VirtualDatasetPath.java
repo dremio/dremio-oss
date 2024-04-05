@@ -15,13 +15,12 @@
  */
 package com.dremio.dac.model.sources;
 
-import java.util.List;
-
 import com.dremio.dac.model.common.LeafEntity;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
 import com.dremio.dac.model.folder.FolderName;
 import com.dremio.file.FileName;
+import java.util.List;
 
 public class VirtualDatasetPath extends NamespacePath {
   public VirtualDatasetPath(SourceName source, List<FolderName> folderPath, FileName fileName) {

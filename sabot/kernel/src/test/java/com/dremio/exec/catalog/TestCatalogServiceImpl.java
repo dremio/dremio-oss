@@ -26,29 +26,6 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-
-import javax.inject.Provider;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.concurrent.CloseableThreadPool;
@@ -109,6 +86,7 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -119,6 +97,7 @@ import com.dremio.service.orphanage.OrphanageImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.SecretsCreator;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
@@ -127,15 +106,36 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 /**
  * Unit tests for {@link CatalogServiceImpl}.
  *
- * NOTE: MetadataSynchronizer does not support prefetch for new datasets. So metadata is refreshed twice in some cases.
- * First time to add the names, and the second time to force refresh.
+ * <p>NOTE: MetadataSynchronizer does not support prefetch for new datasets. So metadata is
+ * refreshed twice in some cases. First time to add the names, and the second time to force refresh.
  */
 public class TestCatalogServiceImpl {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestCatalogServiceImpl.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(TestCatalogServiceImpl.class);
 
   private static final String HOSTNAME = "localhost";
   private static final int THREAD_COUNT = 2;
@@ -161,8 +161,7 @@ public class TestCatalogServiceImpl {
   private CatalogServiceImpl catalogService;
   private String originalCatalogVersion;
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   private final List<DatasetHandle> mockDatasets =
       ImmutableList.of(
@@ -170,8 +169,7 @@ public class TestCatalogServiceImpl {
           newDataset(MOCK_UP + ".fld1.ds12"),
           newDataset(MOCK_UP + ".fld2.fld21.ds211"),
           newDataset(MOCK_UP + ".fld2.ds22"),
-          newDataset(MOCK_UP + ".ds3")
-      );
+          newDataset(MOCK_UP + ".ds3"));
 
   @Before
   public void setup() throws Exception {
@@ -181,8 +179,7 @@ public class TestCatalogServiceImpl {
 
     final SabotContext sabotContext = mock(SabotContext.class);
 
-    storeProvider =
-      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
     namespaceService = new NamespaceServiceImpl(storeProvider, mock(CatalogStatusEvents.class));
 
@@ -190,122 +187,135 @@ public class TestCatalogServiceImpl {
     kvStoreProvider.start();
     orphanage = new OrphanageImpl(kvStoreProvider);
 
-    final Orphanage.Factory orphanageFactory = new Orphanage.Factory() {
-      @Override
-      public Orphanage get() {
-        return orphanage;
-      }
-    };
+    final Orphanage.Factory orphanageFactory =
+        new Orphanage.Factory() {
+          @Override
+          public Orphanage get() {
+            return orphanage;
+          }
+        };
 
-    final NamespaceService.Factory namespaceServiceFactory = new NamespaceService.Factory() {
-      @Override
-      public NamespaceService get(String userName) {
-        return namespaceService;
-      }
+    final NamespaceService.Factory namespaceServiceFactory =
+        new NamespaceService.Factory() {
+          @Override
+          public NamespaceService get(String userName) {
+            return namespaceService;
+          }
 
-      @Override
-      public NamespaceService get(NamespaceIdentity identity) {
-        return namespaceService;
-      }
-    };
+          @Override
+          public NamespaceService get(NamespaceIdentity identity) {
+            return namespaceService;
+          }
+        };
 
-    final ViewCreatorFactory viewCreatorFactory = new ViewCreatorFactory() {
-      @Override
-      public ViewCreator get(String userName) {
-        return mock(ViewCreator.class);
-      }
+    final ViewCreatorFactory viewCreatorFactory =
+        new ViewCreatorFactory() {
+          @Override
+          public ViewCreator get(String userName) {
+            return mock(ViewCreator.class);
+          }
 
-      @Override
-      public void start() throws Exception {
-      }
+          @Override
+          public void start() throws Exception {}
 
-      @Override
-      public void close() throws Exception {
-      }
-    };
-    when(sabotContext.getNamespaceServiceFactory())
-        .thenReturn(namespaceServiceFactory);
-    when(sabotContext.getNamespaceService(anyString()))
-        .thenReturn(namespaceService);
-    when(sabotContext.getOrphanageFactory())
-      .thenReturn(orphanageFactory);
-    when(sabotContext.getViewCreatorFactoryProvider())
-        .thenReturn(() -> viewCreatorFactory);
+          @Override
+          public void close() throws Exception {}
+        };
+    when(sabotContext.getNamespaceServiceFactory()).thenReturn(namespaceServiceFactory);
+    when(sabotContext.getNamespaceService(anyString())).thenReturn(namespaceService);
+    when(sabotContext.getOrphanageFactory()).thenReturn(orphanageFactory);
+    when(sabotContext.getViewCreatorFactoryProvider()).thenReturn(() -> viewCreatorFactory);
 
-    datasetListingService = new DatasetListingServiceImpl(DirectProvider.wrap(namespaceServiceFactory));
-    when(sabotContext.getDatasetListing())
-        .thenReturn(datasetListingService);
+    datasetListingService =
+        new DatasetListingServiceImpl(DirectProvider.wrap(namespaceServiceFactory));
+    when(sabotContext.getDatasetListing()).thenReturn(datasetListingService);
 
-    when(sabotContext.getClasspathScan())
-        .thenReturn(CLASSPATH_SCAN_RESULT);
+    when(sabotContext.getClasspathScan()).thenReturn(CLASSPATH_SCAN_RESULT);
 
-    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(sabotConfig, CLASSPATH_SCAN_RESULT);
-    when(sabotContext.getLpPersistence())
-        .thenReturn(lpp);
-    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    final SystemOptionManager som = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
-      .withOptionManager(som)
-      .build();
+    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
+    when(sabotContext.getLpPersistence()).thenReturn(lpp);
+    final OptionValidatorListing optionValidatorListing =
+        new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    final SystemOptionManager som =
+        new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+            .withOptionManager(som)
+            .build();
 
     som.start();
-    when(sabotContext.getOptionManager())
-        .thenReturn(optionManager);
+    when(sabotContext.getOptionManager()).thenReturn(optionManager);
 
-    when(sabotContext.getKVStoreProvider())
-        .thenReturn(storeProvider);
-    when(sabotContext.getConfig())
-        .thenReturn(DremioTest.DEFAULT_SABOT_CONFIG);
-    when(sabotContext.getDremioConfig())
-      .thenReturn(dremioConfig);
+    when(sabotContext.getKVStoreProvider()).thenReturn(storeProvider);
+    when(sabotContext.getConfig()).thenReturn(DremioTest.DEFAULT_SABOT_CONFIG);
+    when(sabotContext.getDremioConfig()).thenReturn(dremioConfig);
 
     allocator = RootAllocatorFactory.newRoot(sabotConfig);
-    when(sabotContext.getAllocator())
-        .thenReturn(allocator);
+    when(sabotContext.getAllocator()).thenReturn(allocator);
 
     clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-    when(sabotContext.getClusterCoordinator())
-        .thenReturn(clusterCoordinator);
+    when(sabotContext.getClusterCoordinator()).thenReturn(clusterCoordinator);
     when(sabotContext.getExecutors())
-        .thenReturn(clusterCoordinator.getServiceSet(ClusterCoordinator.Role.EXECUTOR)
-            .getAvailableEndpoints());
+        .thenReturn(
+            clusterCoordinator
+                .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
+                .getAvailableEndpoints());
     when(sabotContext.getCoordinators())
-        .thenReturn(clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-            .getAvailableEndpoints());
+        .thenReturn(
+            clusterCoordinator
+                .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                .getAvailableEndpoints());
 
     when(sabotContext.getRoles())
-        .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
-    when(sabotContext.isCoordinator())
-        .thenReturn(true);
+        .thenReturn(
+            Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
+    when(sabotContext.isCoordinator()).thenReturn(true);
 
     when(sabotContext.getCredentialsServiceProvider())
-      .thenReturn(() -> mock(CredentialsService.class));
+        .thenReturn(() -> mock(CredentialsService.class));
+
+    when(sabotContext.getSecretsCreator()).thenReturn(() -> mock(SecretsCreator.class));
 
     pool = new CloseableThreadPool("catalog-test");
-    fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION, MAX_ALLOCATION,
-        TIMEOUT, pool);
+    fabricService =
+        new FabricServiceImpl(
+            HOSTNAME,
+            45678,
+            true,
+            THREAD_COUNT,
+            allocator,
+            RESERVATION,
+            MAX_ALLOCATION,
+            TIMEOUT,
+            pool);
 
     final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
     doNothing().when(broadcaster).communicateChange(any());
 
-    catalogService = new CatalogServiceImpl(
-        () -> sabotContext,
-        () -> new LocalSchedulerService(1),
-        () -> new SystemTablePluginConfigProvider(),
-        null,
-        () -> fabricService,
-        () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
-        () -> allocator,
-        () -> storeProvider,
-        () -> datasetListingService,
-        () -> optionManager,
-        () -> broadcaster,
-        dremioConfig,
-        EnumSet.allOf(ClusterCoordinator.Role.class),
-        () -> new ModifiableLocalSchedulerService(2, "modifiable-scheduler-",
-          ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, () -> optionManager),
-        () -> new VersionedDatasetAdapterFactory());
+    catalogService =
+        new CatalogServiceImpl(
+            () -> sabotContext,
+            () -> new LocalSchedulerService(1),
+            () -> new SystemTablePluginConfigProvider(),
+            null,
+            () -> fabricService,
+            () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            () -> allocator,
+            () -> storeProvider,
+            () -> datasetListingService,
+            () -> optionManager,
+            () -> broadcaster,
+            dremioConfig,
+            EnumSet.allOf(ClusterCoordinator.Role.class),
+            () ->
+                new ModifiableLocalSchedulerService(
+                    2,
+                    "modifiable-scheduler-",
+                    ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES,
+                    () -> optionManager),
+            () -> new VersionedDatasetAdapterFactory(),
+            () -> new CatalogStatusEventsImpl());
     catalogService.start();
 
     mockUpPlugin = new MockUpPlugin();
@@ -314,35 +324,43 @@ public class TestCatalogServiceImpl {
     mockUpBadPlugin = new MockUpBadPlugin();
     mockUpBadKey = new NamespaceKey(MOCK_UP_BAD);
 
-    final SourceConfig mockUpConfig = new SourceConfig()
-        .setName(MOCK_UP)
-        .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY)
-        .setCtime(100L)
-        .setConnectionConf(new MockUpConfig());
+    final SourceConfig mockUpConfig =
+        new SourceConfig()
+            .setName(MOCK_UP)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY)
+            .setCtime(100L)
+            .setConnectionConf(new MockUpConfig());
 
     doMockDatasets(mockUpPlugin, ImmutableList.of());
 
     catalogService.getSystemUserCatalog().createSource(mockUpConfig);
     originalCatalogVersion = mockUpConfig.getTag();
 
-    final SourceConfig mockUpBadConfig = new SourceConfig()
-      .setName(MOCK_UP_BAD)
-      .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY)
-      .setCtime(100L)
-      .setConnectionConf(new MockUpBadConfig());
+    final SourceConfig mockUpBadConfig =
+        new SourceConfig()
+            .setName(MOCK_UP_BAD)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY)
+            .setCtime(100L)
+            .setConnectionConf(new MockUpBadConfig());
     catalogService.getSystemUserCatalog().createSource(mockUpBadConfig);
   }
 
   @After
   public void shutdown() throws Exception {
-    AutoCloseables.close(catalogService /* closes mockUpPlugin as well */, fabricService, pool, clusterCoordinator,
-        allocator, storeProvider);
+    AutoCloseables.close(
+        catalogService /* closes mockUpPlugin as well */,
+        fabricService,
+        pool,
+        clusterCoordinator,
+        allocator,
+        storeProvider);
   }
 
   @Test
   public void refreshSourceMetadata_EmptySource() throws Exception {
     doMockDatasets(mockUpPlugin, ImmutableList.of());
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     // make sure the namespace has no datasets under mockUpKey
     List<NamespaceKey> datasets = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
@@ -354,15 +372,19 @@ public class TestCatalogServiceImpl {
   @Test
   public void refreshSourceMetadata_FirstTime() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin
-    List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
+    List<NamespaceKey> actualDatasetKeys =
+        Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(5, actualDatasetKeys.size());
 
     assertDatasetsAreEqual(mockDatasets, actualDatasetKeys);
-    assertFoldersExist(Lists.newArrayList(MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld21"));
+    assertFoldersExist(
+        Lists.newArrayList(MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld21"));
     assertDatasetSchemasDefined(actualDatasetKeys);
 
     assertNoDatasetsAfterSourceDeletion();
@@ -371,10 +393,13 @@ public class TestCatalogServiceImpl {
   @Test
   public void refreshSourceMetadata_FirstTime_UpdateWithNewDatasets() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
-    List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
+    List<NamespaceKey> actualDatasetKeys =
+        Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(5, actualDatasetKeys.size());
 
     List<DatasetHandle> testDatasets = Lists.newArrayList(mockDatasets);
@@ -384,26 +409,33 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".fld5.ds51"));
 
     doMockDatasets(mockUpPlugin, testDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
-    // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
+    // make sure the namespace has datasets and folders according to the data supplied by plugin in
+    // second request
     actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(9, actualDatasetKeys.size());
 
     assertDatasetsAreEqual(testDatasets, actualDatasetKeys);
-    assertFoldersExist(Lists.newArrayList(MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld21",
-        MOCK_UP + ".fld5"));
+    assertFoldersExist(
+        Lists.newArrayList(
+            MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld21", MOCK_UP + ".fld5"));
     assertDatasetSchemasDefined(actualDatasetKeys);
 
     assertNoDatasetsAfterSourceDeletion();
   }
 
   @Test
-  public void refreshSourceMetadata_FirstTime_MultipleUpdatesWithNewDatasetsDeletedDatasets() throws Exception {
+  public void refreshSourceMetadata_FirstTime_MultipleUpdatesWithNewDatasetsDeletedDatasets()
+      throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     List<DatasetHandle> testDatasets = Lists.newArrayList();
     testDatasets.add(newDataset(MOCK_UP + ".fld1.ds11"));
@@ -413,16 +445,21 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".fld5.ds51"));
 
     doMockDatasets(mockUpPlugin, testDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
-    // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
-    List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
+    // make sure the namespace has datasets and folders according to the data supplied by plugin in
+    // second request
+    List<NamespaceKey> actualDatasetKeys =
+        Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(5, actualDatasetKeys.size());
 
     assertDatasetsAreEqual(testDatasets, actualDatasetKeys);
-    assertFoldersExist(Lists.newArrayList(MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld22",
-        MOCK_UP + ".fld5"));
+    assertFoldersExist(
+        Lists.newArrayList(
+            MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld22", MOCK_UP + ".fld5"));
     assertFoldersDoNotExist(Lists.newArrayList(MOCK_UP + ".fld2.fld21"));
     assertDatasetSchemasDefined(actualDatasetKeys);
 
@@ -437,26 +474,33 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".fld6.ds61"));
 
     doMockDatasets(mockUpPlugin, testDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
-    // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
+    // make sure the namespace has datasets and folders according to the data supplied by plugin in
+    // second request
     actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(7, actualDatasetKeys.size());
 
     assertDatasetsAreEqual(testDatasets, actualDatasetKeys);
-    assertFoldersExist(Lists.newArrayList(MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld5", MOCK_UP + ".fld6"));
+    assertFoldersExist(
+        Lists.newArrayList(
+            MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld5", MOCK_UP + ".fld6"));
     assertFoldersDoNotExist(Lists.newArrayList((MOCK_UP + ".fld2.fld22")));
     assertDatasetSchemasDefined(actualDatasetKeys);
 
     assertNoDatasetsAfterSourceDeletion();
   }
 
-  // Test whether name refresh will get new source dataset names, without refreshing the metadata for the datasets
+  // Test whether name refresh will get new source dataset names, without refreshing the metadata
+  // for the datasets
   @Test
   public void refreshSourceNames() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogServiceImpl.UpdateType.NAMES);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogServiceImpl.UpdateType.NAMES);
 
     assertEquals(5, Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey)).size());
 
@@ -467,14 +511,18 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".ds4"));
     testDatasets.add(newDataset(MOCK_UP + ".fld5.ds51"));
     doMockDatasets(mockUpPlugin, testDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogServiceImpl.UpdateType.NAMES);
+    catalogService.refreshSource(
+        mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogServiceImpl.UpdateType.NAMES);
 
-    // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
-    List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
+    // make sure the namespace has datasets and folders according to the data supplied by plugin in
+    // second request
+    List<NamespaceKey> actualDatasetKeys =
+        Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(10, actualDatasetKeys.size());
     assertDatasetsAreEqual(testDatasets, actualDatasetKeys);
-    assertFoldersExist(Lists.newArrayList(MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld21",
-        MOCK_UP + ".fld5"));
+    assertFoldersExist(
+        Lists.newArrayList(
+            MOCK_UP + ".fld1", MOCK_UP + ".fld2", MOCK_UP + ".fld2.fld21", MOCK_UP + ".fld5"));
     assertDatasetSchemasNotDefined(actualDatasetKeys);
 
     assertNoDatasetsAfterSourceDeletion();
@@ -486,18 +534,20 @@ public class TestCatalogServiceImpl {
     String pluginName = MOCK_UP + "testFixFailedStart";
     mockUpPlugin.setThrowAtStart();
 
-    MetadataPolicy rapidRefreshPolicy = new MetadataPolicy()
-        .setAuthTtlMs(1L)
-        .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setNamesRefreshMs(1L)
-        .setDatasetDefinitionRefreshAfterMs(1L)
-        .setDatasetDefinitionExpireAfterMs(1L);
+    MetadataPolicy rapidRefreshPolicy =
+        new MetadataPolicy()
+            .setAuthTtlMs(1L)
+            .setDatasetUpdateMode(UpdateMode.PREFETCH)
+            .setNamesRefreshMs(1L)
+            .setDatasetDefinitionRefreshAfterMs(1L)
+            .setDatasetDefinitionExpireAfterMs(1L);
 
-    final SourceConfig mockUpConfig = new SourceConfig()
-        .setName(pluginName)
-        .setMetadataPolicy(rapidRefreshPolicy)
-        .setCtime(100L)
-        .setConnectionConf(new MockUpConfig());
+    final SourceConfig mockUpConfig =
+        new SourceConfig()
+            .setName(pluginName)
+            .setMetadataPolicy(rapidRefreshPolicy)
+            .setCtime(100L)
+            .setConnectionConf(new MockUpConfig());
 
     boolean testPassed = false;
     try {
@@ -514,12 +564,13 @@ public class TestCatalogServiceImpl {
   @Test
   public void testConcurrencyErrors() throws Exception {
     // different etag
-    SourceConfig mockUpConfig = new SourceConfig()
-        .setName(MOCK_UP)
-        .setCtime(100L)
-        .setTag("4")
-        .setConfigOrdinal(0L)
-        .setConnectionConf(new MockUpConfig());
+    SourceConfig mockUpConfig =
+        new SourceConfig()
+            .setName(MOCK_UP)
+            .setCtime(100L)
+            .setTag("4")
+            .setConfigOrdinal(0L)
+            .setConnectionConf(new MockUpConfig());
 
     boolean testPassed = false;
     try {
@@ -530,12 +581,13 @@ public class TestCatalogServiceImpl {
     assertTrue(testPassed);
 
     // different version
-    mockUpConfig = new SourceConfig()
-        .setName(MOCK_UP)
-        .setCtime(100L)
-        .setTag(originalCatalogVersion)
-        .setConfigOrdinal(2L)
-        .setConnectionConf(new MockUpConfig());
+    mockUpConfig =
+        new SourceConfig()
+            .setName(MOCK_UP)
+            .setCtime(100L)
+            .setTag(originalCatalogVersion)
+            .setConfigOrdinal(2L)
+            .setConnectionConf(new MockUpConfig());
 
     testPassed = false;
     try {
@@ -550,28 +602,35 @@ public class TestCatalogServiceImpl {
   public void testDeleteMissingPlugin() {
     final MissingPluginConf missing = new MissingPluginConf();
     missing.throwOnInvocation = false;
-    SourceConfig missingConfig = new SourceConfig()
-      .setName(MISSING_CONFIG_NAME)
-      .setConnectionConf(missing);
+    SourceConfig missingConfig =
+        new SourceConfig().setName(MISSING_CONFIG_NAME).setConnectionConf(missing);
 
     catalogService.getSystemUserCatalog().createSource(missingConfig);
     catalogService.deleteSource(MISSING_CONFIG_NAME);
 
-    Assert.assertEquals(catalogService.getSourceState(MISSING_CONFIG_NAME), SourceState.badState(String.format("Source %s could not be found. Please verify the source name.", MISSING_CONFIG_NAME), "Unable to find source."));
+    Assert.assertEquals(
+        catalogService.getSourceState(MISSING_CONFIG_NAME),
+        SourceState.badState(
+            String.format(
+                "Source %s could not be found. Please verify the source name.",
+                MISSING_CONFIG_NAME),
+            "Unable to find source."));
   }
 
   @Test
   public void refreshMissingPlugin() throws Exception {
     final MissingPluginConf missing = new MissingPluginConf();
     missing.throwOnInvocation = false;
-    SourceConfig missingConfig = new SourceConfig()
-      .setName(MISSING_CONFIG_NAME)
-      .setConnectionConf(missing);
+    SourceConfig missingConfig =
+        new SourceConfig().setName(MISSING_CONFIG_NAME).setConnectionConf(missing);
 
     catalogService.getSystemUserCatalog().createSource(missingConfig);
 
-    assertFalse(catalogService.refreshSource(new NamespaceKey(MISSING_CONFIG_NAME),
-      CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL));
+    assertFalse(
+        catalogService.refreshSource(
+            new NamespaceKey(MISSING_CONFIG_NAME),
+            CatalogService.REFRESH_EVERYTHING_NOW,
+            CatalogServiceImpl.UpdateType.FULL));
   }
 
   @Test
@@ -583,10 +642,11 @@ public class TestCatalogServiceImpl {
 
     AtomicBoolean test = new AtomicBoolean(false);
 
-    Runnable runnable = () -> {
-      catalogService.getStorageRules(mock, PlannerPhase.RELATIONAL_PLANNING);
-      test.set(true);
-    };
+    Runnable runnable =
+        () -> {
+          catalogService.getStorageRules(mock, PlannerPhase.RELATIONAL_PLANNING);
+          test.set(true);
+        };
 
     Thread thread = new Thread(runnable);
     // we get the writelock and run code in a different thread that should not use a readlock
@@ -598,14 +658,14 @@ public class TestCatalogServiceImpl {
     assertTrue(test.get());
   }
 
-  private abstract static class DatasetImpl implements DatasetTypeHandle, DatasetMetadata, PartitionChunkListing {
-  }
+  private abstract static class DatasetImpl
+      implements DatasetTypeHandle, DatasetMetadata, PartitionChunkListing {}
 
   private static DatasetImpl newDataset(final String dsPath) {
     return new DatasetImpl() {
       @Override
       public Iterator<? extends PartitionChunk> iterator() {
-        return Collections.singleton(PartitionChunk.of(DatasetSplit.of(0,0))).iterator();
+        return Collections.singleton(PartitionChunk.of(DatasetSplit.of(0, 0))).iterator();
       }
 
       @Override
@@ -632,14 +692,17 @@ public class TestCatalogServiceImpl {
     };
   }
 
-  private void doMockDatasets(StoragePlugin plugin, final List<DatasetHandle> datasets) throws Exception {
+  private void doMockDatasets(StoragePlugin plugin, final List<DatasetHandle> datasets)
+      throws Exception {
     ((MockUpPlugin) plugin).setDatasets(datasets);
   }
 
-  private static void assertDatasetsAreEqual(List<DatasetHandle> expDatasets, List<NamespaceKey> actualDatasetKeys) {
-    final Set<NamespaceKey> expDatasetKeys = expDatasets.stream()
-        .map(input -> new NamespaceKey(input.getDatasetPath().getComponents()))
-        .collect(Collectors.toSet());
+  private static void assertDatasetsAreEqual(
+      List<DatasetHandle> expDatasets, List<NamespaceKey> actualDatasetKeys) {
+    final Set<NamespaceKey> expDatasetKeys =
+        expDatasets.stream()
+            .map(input -> new NamespaceKey(input.getDatasetPath().getComponents()))
+            .collect(Collectors.toSet());
     assertEquals(expDatasetKeys, Sets.newHashSet(actualDatasetKeys));
   }
 
@@ -656,7 +719,9 @@ public class TestCatalogServiceImpl {
       try {
         namespaceService.getFolder(folderKey); // if the folder doesn't exit we get an exception
         fail();
-      } catch (NamespaceNotFoundException ex) { /* no-op */ }
+      } catch (NamespaceNotFoundException ex) {
+        /* no-op */
+      }
     }
   }
 
@@ -691,7 +756,7 @@ public class TestCatalogServiceImpl {
   public static class MockUpConfig extends ConnectionConf<MockUpConfig, MockUpPlugin> {
     MockUpPlugin plugin;
 
-    MockUpConfig() {
+    public MockUpConfig() {
       this(mockUpPlugin);
     }
 
@@ -700,8 +765,8 @@ public class TestCatalogServiceImpl {
     }
 
     @Override
-    public MockUpPlugin newPlugin(SabotContext context, String name,
-                                  Provider<StoragePluginId> pluginIdProvider) {
+    public MockUpPlugin newPlugin(
+        SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
       return plugin;
     }
   }
@@ -740,8 +805,7 @@ public class TestCatalogServiceImpl {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
 
     @Override
     public void start() {
@@ -760,7 +824,8 @@ public class TestCatalogServiceImpl {
     }
 
     @Override
-    public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+    public Optional<DatasetHandle> getDatasetHandle(
+        EntityPath datasetPath, GetDatasetOption... options) {
       return datasets.stream()
           .filter(dataset -> dataset.getDatasetPath().equals(datasetPath))
           .findFirst();
@@ -770,13 +835,13 @@ public class TestCatalogServiceImpl {
     public DatasetMetadata getDatasetMetadata(
         DatasetHandle datasetHandle,
         PartitionChunkListing chunkListing,
-        GetMetadataOption... options
-    ) {
+        GetMetadataOption... options) {
       return datasetHandle.unwrap(DatasetImpl.class);
     }
 
     @Override
-    public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+    public PartitionChunkListing listPartitionChunks(
+        DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
       return datasetHandle.unwrap(DatasetImpl.class);
     }
 
@@ -795,8 +860,7 @@ public class TestCatalogServiceImpl {
         BytesOutput signature,
         DatasetHandle datasetHandle,
         DatasetMetadata metadata,
-        ValidateMetadataOption... options
-    ) {
+        ValidateMetadataOption... options) {
       return MetadataValidity.INVALID;
     }
   }
@@ -805,8 +869,8 @@ public class TestCatalogServiceImpl {
   public static class MockUpBadConfig extends ConnectionConf<MockUpBadConfig, MockUpBadPlugin> {
 
     @Override
-    public MockUpBadPlugin newPlugin(SabotContext context, String name,
-                                  Provider<StoragePluginId> pluginIdProvider) {
+    public MockUpBadPlugin newPlugin(
+        SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
       return mockUpBadPlugin;
     }
   }
@@ -850,8 +914,7 @@ public class TestCatalogServiceImpl {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
 
     @Override
     public void start() {
@@ -870,23 +933,24 @@ public class TestCatalogServiceImpl {
     }
 
     @Override
-    public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+    public Optional<DatasetHandle> getDatasetHandle(
+        EntityPath datasetPath, GetDatasetOption... options) {
       return datasets.stream()
-        .filter(dataset -> dataset.getDatasetPath().equals(datasetPath))
-        .findFirst();
+          .filter(dataset -> dataset.getDatasetPath().equals(datasetPath))
+          .findFirst();
     }
 
     @Override
     public DatasetMetadata getDatasetMetadata(
-      DatasetHandle datasetHandle,
-      PartitionChunkListing chunkListing,
-      GetMetadataOption... options
-    ) {
+        DatasetHandle datasetHandle,
+        PartitionChunkListing chunkListing,
+        GetMetadataOption... options) {
       return datasetHandle.unwrap(DatasetImpl.class);
     }
 
     @Override
-    public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+    public PartitionChunkListing listPartitionChunks(
+        DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
       return datasetHandle.unwrap(DatasetImpl.class);
     }
 
@@ -902,11 +966,10 @@ public class TestCatalogServiceImpl {
 
     @Override
     public MetadataValidity validateMetadata(
-      BytesOutput signature,
-      DatasetHandle datasetHandle,
-      DatasetMetadata metadata,
-      ValidateMetadataOption... options
-    ) {
+        BytesOutput signature,
+        DatasetHandle datasetHandle,
+        DatasetMetadata metadata,
+        ValidateMetadataOption... options) {
       return MetadataValidity.INVALID;
     }
   }

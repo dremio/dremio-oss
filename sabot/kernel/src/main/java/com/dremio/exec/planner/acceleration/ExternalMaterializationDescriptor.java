@@ -15,64 +15,81 @@
  */
 package com.dremio.exec.planner.acceleration;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.rel.RelNode;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.sql.DremioSqlToRelConverter;
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.planner.sql.ViewExpander;
 import com.dremio.exec.store.CatalogService;
+import java.util.Collections;
+import java.util.List;
+import org.apache.calcite.rel.RelNode;
 
 public class ExternalMaterializationDescriptor extends MaterializationDescriptor {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExternalMaterializationDescriptor.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ExternalMaterializationDescriptor.class);
 
   private final List<String> virtualDatasetPath;
-  public ExternalMaterializationDescriptor(ReflectionInfo reflection,
-                                           String materializationId,
-                                           String version,
-                                           List<String> virtualDatasetPath,
-                                           List<String> physicalDatasetPath,
-                                           CatalogService catalogService) {
-    super(reflection, materializationId, version, Long.MAX_VALUE, null, physicalDatasetPath, 0D, 0,
-        Collections.emptyList(), IncrementalUpdateSettings.NON_INCREMENTAL, null, Long.MIN_VALUE, StrippingFactory.NO_STRIP_VERSION, catalogService);
+
+  public ExternalMaterializationDescriptor(
+      ReflectionInfo reflection,
+      String materializationId,
+      String version,
+      List<String> virtualDatasetPath,
+      List<String> physicalDatasetPath,
+      CatalogService catalogService) {
+    super(
+        reflection,
+        materializationId,
+        version,
+        Long.MAX_VALUE,
+        null,
+        physicalDatasetPath,
+        0D,
+        0,
+        Collections.emptyList(),
+        IncrementalUpdateSettings.NON_INCREMENTAL,
+        null,
+        StrippingFactory.NO_STRIP_VERSION,
+        false,
+        catalogService);
     this.virtualDatasetPath = virtualDatasetPath;
   }
 
   @Override
   public DremioMaterialization getMaterializationFor(SqlConverter converter) {
+    ViewExpander viewExpander = converter.getViewExpander();
+
     String queryPath = PathUtils.constructFullPath(virtualDatasetPath);
     String targetPath = PathUtils.constructFullPath(getPath());
 
-    final RelNode queryRel = DremioSqlToRelConverter.expandView(null, String.format("select * from %s", queryPath), converter).rel;
-    RelNode tableRel = DremioSqlToRelConverter.expandView(null, String.format("select * from %s", targetPath), converter).rel;
+    final RelNode queryRel =
+        viewExpander.stringToRelRootAsSystemUser(String.format("select * from %s", queryPath)).rel;
+    RelNode tableRel =
+        viewExpander.stringToRelRootAsSystemUser(String.format("select * from %s", targetPath)).rel;
 
-    if (!MoreRelOptUtil.areRowTypesEqual(queryRel.getRowType(), tableRel.getRowType(), true, false)) {
+    if (!MoreRelOptUtil.areRowTypesEqual(
+        queryRel.getRowType(), tableRel.getRowType(), true, false)) {
       throw UserException.validationError()
-        .message("External reflection schema does not match Dataset schema")
-        .addContext("Dataset schema", queryRel.getRowType().toString())
-        .addContext("Reflection schema", tableRel.getRowType().toString())
-        .build(logger);
+          .message("External reflection schema does not match Dataset schema")
+          .addContext("Dataset schema", queryRel.getRowType().toString())
+          .addContext("Reflection schema", tableRel.getRowType().toString())
+          .build(logger);
     }
-    if (!MoreRelOptUtil.areRowTypesEqual(queryRel.getRowType(), tableRel.getRowType(), true, true)) {
+    if (!MoreRelOptUtil.areRowTypesEqual(
+        queryRel.getRowType(), tableRel.getRowType(), true, true)) {
       tableRel = MoreRelOptUtil.createCastRel(tableRel, queryRel.getRowType());
     }
     return new DremioMaterialization(
-      tableRel,
-      queryRel,
-      IncrementalUpdateSettings.NON_INCREMENTAL,
-      null,
-      reflection,
-      getMaterializationId(),
-      null,
-      Long.MAX_VALUE,
-      getStrippedPlanHash() == null,
-      StrippingFactory.LATEST_STRIP_VERSION,
-      null
-    );
+        tableRel,
+        queryRel,
+        IncrementalUpdateSettings.NON_INCREMENTAL,
+        null,
+        reflection,
+        getMaterializationId(),
+        null,
+        Long.MAX_VALUE,
+        StrippingFactory.LATEST_STRIP_VERSION,
+        null);
   }
-
 }

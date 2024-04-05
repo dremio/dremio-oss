@@ -15,17 +15,15 @@
  */
 package com.dremio.datastore.generator;
 
-import java.util.Comparator;
-
 import com.dremio.datastore.proto.DummyId;
 import com.dremio.datastore.proto.DummyObj;
 import com.dremio.datastore.proto.enumType;
 import com.google.common.collect.ImmutableList;
+import java.util.Comparator;
 
-/**
- * Used to test protostuff kv store format.
- */
-public class ProtostuffStoreGenerator extends ProtoGeneratorMixin implements DataGenerator<DummyId, DummyObj> {
+/** Used to test protostuff kv store format. */
+public class ProtostuffStoreGenerator extends ProtoGeneratorMixin
+    implements DataGenerator<DummyId, DummyObj> {
 
   private DummyId newDummyId() {
     return new DummyId(getString());
@@ -39,15 +37,15 @@ public class ProtostuffStoreGenerator extends ProtoGeneratorMixin implements Dat
   @Override
   public DummyObj newVal() {
     return new DummyObj(newDummyId())
-      .setFlag(getBool())
-      .setIdListList(ImmutableList.of(newDummyId(), newDummyId(), newDummyId()))
-      .setInt32SeqList(getInt32List())
-      .setInt64SeqList(getInt64List())
-      .setUint32SeqList(getInt32List())
-      .setUint64SeqList(getInt64List())
-      .setFloatSeqList(getFloatList())
-      .setDoubleSeqList(getDoubleList())
-      .setType(getBool() ? enumType.ZERO : enumType.ONE);
+        .setFlag(getBool())
+        .setIdListList(ImmutableList.of(newDummyId(), newDummyId(), newDummyId()))
+        .setInt32SeqList(getInt32List())
+        .setInt64SeqList(getInt64List())
+        .setUint32SeqList(getInt32List())
+        .setUint64SeqList(getInt64List())
+        .setFloatSeqList(getFloatList())
+        .setDoubleSeqList(getDoubleList())
+        .setType(getBool() ? enumType.ZERO : enumType.ONE);
   }
 
   @Override
@@ -60,9 +58,7 @@ public class ProtostuffStoreGenerator extends ProtoGeneratorMixin implements Dat
     return new DummyIdProtostuffComparator();
   }
 
-  /**
-   * Comparator class that compares protostuff DummyId objects.
-   */
+  /** Comparator class that compares protostuff DummyId objects. */
   private static final class DummyIdProtostuffComparator implements Comparator<DummyId> {
     @Override
     public int compare(DummyId o1, DummyId o2) {

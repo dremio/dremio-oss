@@ -15,74 +15,114 @@
  */
 package com.dremio.exec.store.sys.accel;
 
-import java.util.List;
-
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.planner.AccelerationDetailsPopulator;
 import com.dremio.exec.planner.sql.SchemaUtilities;
+import java.util.List;
 
 public interface AccelerationManager {
   void dropAcceleration(List<String> path, boolean raiseErrorIfNotFound);
-  void addLayout(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition definition, ReflectionContext reflectionContext);
-  void addExternalReflection(String name, List<String> table, List<String> targetTable, ReflectionContext reflectionContext);
-  void dropLayout(SchemaUtilities.TableWithPath tableWithPath, String layoutId, ReflectionContext reflectionContext);
-  void toggleAcceleration(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition.Type type, boolean enable, ReflectionContext reflectionContext);
+
+  void addLayout(
+      SchemaUtilities.TableWithPath tableWithPath,
+      LayoutDefinition definition,
+      ReflectionContext reflectionContext);
+
+  void addExternalReflection(
+      String name,
+      List<String> table,
+      List<String> targetTable,
+      ReflectionContext reflectionContext);
+
+  void dropLayout(
+      SchemaUtilities.TableWithPath tableWithPath,
+      String layoutId,
+      ReflectionContext reflectionContext);
+
+  void toggleAcceleration(
+      SchemaUtilities.TableWithPath tableWithPath,
+      LayoutDefinition.Type type,
+      boolean enable,
+      ReflectionContext reflectionContext);
+
   void replanlayout(String layoutId);
+
   <T> T unwrap(Class<T> clazz);
 
   ExcludedReflectionsProvider getExcludedReflectionsProvider();
 
   AccelerationDetailsPopulator newPopulator();
 
-  AccelerationManager NO_OP = new AccelerationManager() {
-    @Override
-    public void dropAcceleration(List<String> path, boolean raiseErrorIfNotFound) {
-      throw new UnsupportedOperationException("AccelerationManager.dropAcceleration() called on a non-coordinator node");
-    }
+  AccelerationManager NO_OP =
+      new AccelerationManager() {
+        @Override
+        public void dropAcceleration(List<String> path, boolean raiseErrorIfNotFound) {
+          throw new UnsupportedOperationException(
+              "AccelerationManager.dropAcceleration() called on a non-coordinator node");
+        }
 
-    @Override
-    public void addLayout(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition definition, ReflectionContext reflectionContext) {
-      throw new UnsupportedOperationException("AccelerationManager.addLayout() called on a non-coordinator node");
-    }
+        @Override
+        public void addLayout(
+            SchemaUtilities.TableWithPath tableWithPath,
+            LayoutDefinition definition,
+            ReflectionContext reflectionContext) {
+          throw new UnsupportedOperationException(
+              "AccelerationManager.addLayout() called on a non-coordinator node");
+        }
 
-    @Override
-    public void addExternalReflection(String name, List<String> table, List<String> targetTable, ReflectionContext reflectionContext) {
-      throw new UnsupportedOperationException("AccelerationManager.addExternalReflection() called on a non-coordinator node");
-    }
+        @Override
+        public void addExternalReflection(
+            String name,
+            List<String> table,
+            List<String> targetTable,
+            ReflectionContext reflectionContext) {
+          throw new UnsupportedOperationException(
+              "AccelerationManager.addExternalReflection() called on a non-coordinator node");
+        }
 
-    @Override
-    public void dropLayout(SchemaUtilities.TableWithPath tableWithPath, String layoutId, ReflectionContext reflectionContext) {
-      throw new UnsupportedOperationException("AccelerationManager.dropLayout() called on a non-coordinator node");
-    }
+        @Override
+        public void dropLayout(
+            SchemaUtilities.TableWithPath tableWithPath,
+            String layoutId,
+            ReflectionContext reflectionContext) {
+          throw new UnsupportedOperationException(
+              "AccelerationManager.dropLayout() called on a non-coordinator node");
+        }
 
-    @Override
-    public void toggleAcceleration(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition.Type type, boolean enable, ReflectionContext reflectionContext) {
-      throw new UnsupportedOperationException("AccelerationManager.toggleAcceleration() called on a non-coordinator node");
-    }
+        @Override
+        public void toggleAcceleration(
+            SchemaUtilities.TableWithPath tableWithPath,
+            LayoutDefinition.Type type,
+            boolean enable,
+            ReflectionContext reflectionContext) {
+          throw new UnsupportedOperationException(
+              "AccelerationManager.toggleAcceleration() called on a non-coordinator node");
+        }
 
-    @Override
-    public void replanlayout(String layoutId) {
-      throw new UnsupportedOperationException("AccelerationManager.replanlayout() called on a non-coordinator node");
-    }
+        @Override
+        public void replanlayout(String layoutId) {
+          throw new UnsupportedOperationException(
+              "AccelerationManager.replanlayout() called on a non-coordinator node");
+        }
 
-    @Override
-    public ExcludedReflectionsProvider getExcludedReflectionsProvider() {
-      throw new UnsupportedOperationException("AccelerationManager.getExcludedReflectionsProvider() called on a non-coordinator node");
-    }
+        @Override
+        public ExcludedReflectionsProvider getExcludedReflectionsProvider() {
+          throw new UnsupportedOperationException(
+              "AccelerationManager.getExcludedReflectionsProvider() called on a non-coordinator node");
+        }
 
-    @Override
-    public AccelerationDetailsPopulator newPopulator() {
-      return AccelerationDetailsPopulator.NO_OP;
-    }
+        @Override
+        public AccelerationDetailsPopulator newPopulator() {
+          return AccelerationDetailsPopulator.NO_OP;
+        }
 
-    @Override
-    public <T> T unwrap(Class<T> clazz) {
-      return null;
-    }
-  };
+        @Override
+        public <T> T unwrap(Class<T> clazz) {
+          return null;
+        }
+      };
 
-  /**
-   * Provides excluded reflections lookup.
-   */
+  /** Provides excluded reflections lookup. */
   public interface ExcludedReflectionsProvider {
     List<String> getExcludedReflections(String rId);
   }

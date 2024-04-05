@@ -19,10 +19,15 @@ import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.runners.Parameterized.Parameters;
 
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.stream.IntStream;
-
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.types.Types;
 import org.junit.Before;
@@ -31,19 +36,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
-import com.dremio.exec.store.iceberg.model.IcebergCommandType;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
-
 @RunWith(Parameterized.class)
 public class TestCopyJobHistoryTableMetadata {
 
   private static final String PLUGIN_NAME = "__testPlugin";
   private static final String PLUGIN_PATH = "/path/to/plugin/testPlugin";
   private SystemIcebergTableMetadata tableMetadata;
+
   @Parameter(0)
   public int schemaVersion;
 
@@ -51,17 +50,19 @@ public class TestCopyJobHistoryTableMetadata {
   public static Collection<Object[]> parameters() {
     Collection<Object[]> testParams = new ArrayList<>();
     // add more schema versions if needed
-    testParams.add(new Object[]{1});
+    testParams.add(new Object[] {1});
     return testParams;
   }
 
   @Before
   public void setup() {
-    tableMetadata = new CopyJobHistoryTableMetadata(schemaVersion,
-      CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion),
-      PLUGIN_NAME,
-      PLUGIN_PATH,
-      COPY_JOB_HISTORY_TABLE_NAME);
+    tableMetadata =
+        new CopyJobHistoryTableMetadata(
+            schemaVersion,
+            CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion),
+            PLUGIN_NAME,
+            PLUGIN_PATH,
+            COPY_JOB_HISTORY_TABLE_NAME);
   }
 
   @Test
@@ -95,21 +96,26 @@ public class TestCopyJobHistoryTableMetadata {
     assertThat(batchSchema).isNotNull();
     if (schemaVersion == 1) {
       assertThat(batchSchema.getFieldCount()).isEqualTo(10);
-      assertThat(IntStream.range(0, batchSchema.getFieldCount())
-        .allMatch(i -> batchSchema.getColumn(i).getName().equals(schema.findColumnName(i + 1)))).isTrue();
+      assertThat(
+              IntStream.range(0, batchSchema.getFieldCount())
+                  .allMatch(
+                      i -> batchSchema.getColumn(i).getName().equals(schema.findColumnName(i + 1))))
+          .isTrue();
     }
   }
 
   @Test
   public void testGetTableLocation() {
-    assertThat(tableMetadata.getTableLocation()).isEqualTo("/path/to/plugin/testPlugin/" + COPY_JOB_HISTORY_TABLE_NAME);
+    assertThat(tableMetadata.getTableLocation())
+        .isEqualTo("/path/to/plugin/testPlugin/" + COPY_JOB_HISTORY_TABLE_NAME);
   }
 
   @Test
   public void testGetNamespaceKey() {
     NamespaceKey namespaceKey = tableMetadata.getNamespaceKey();
     assertThat(namespaceKey).isNotNull();
-    assertThat(namespaceKey).isEqualTo(new NamespaceKey(ImmutableList.of(PLUGIN_NAME, tableMetadata.getTableName())));
+    assertThat(namespaceKey)
+        .isEqualTo(new NamespaceKey(ImmutableList.of(PLUGIN_NAME, tableMetadata.getTableName())));
   }
 
   @Test

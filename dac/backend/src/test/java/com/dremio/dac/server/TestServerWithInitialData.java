@@ -24,11 +24,6 @@ import static javax.ws.rs.client.Entity.entity;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.ExtractPreviewReq;
@@ -61,10 +56,11 @@ import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.JobState;
+import java.io.File;
+import java.util.List;
+import org.junit.Test;
 
-/**
- * Server test with initial data
- */
+/** Server test with initial data */
 public class TestServerWithInitialData extends BaseTestServer {
 
   private static boolean populated = false;
@@ -77,7 +73,8 @@ public class TestServerWithInitialData extends BaseTestServer {
     }
   }
 
-  private InitialPreviewResponse transformAndValidate(DatasetUI versionedDataset, TransformBase transform) {
+  private InitialPreviewResponse transformAndValidate(
+      DatasetUI versionedDataset, TransformBase transform) {
     InitialPreviewResponse transformResponse = transform(versionedDataset, transform);
 
     String initialResults = transformResponse.getData().toString();
@@ -101,8 +98,12 @@ public class TestServerWithInitialData extends BaseTestServer {
     assertContains("order by b asc", dsTransform1.getSql().toLowerCase());
 
     doc("sort multiple columns");
-    DatasetUI dsTransform2 = transformAndValidate(dsGet,
-        new TransformSorts().setColumnsList(asList(new Order("B", ASC), new Order("A", DESC)))).getDataset();
+    DatasetUI dsTransform2 =
+        transformAndValidate(
+                dsGet,
+                new TransformSorts()
+                    .setColumnsList(asList(new Order("B", ASC), new Order("A", DESC))))
+            .getDataset();
     assertContains("order by b asc, a desc", dsTransform2.getSql().toLowerCase());
   }
 
@@ -125,7 +126,6 @@ public class TestServerWithInitialData extends BaseTestServer {
     doc("sort dataset by B");
     transformAndValidate(dsGet, new TransformSort().setSortedColumnName("age"));
   }
-
 
   @Test
   public void testRenameColExistingDataset() throws Exception {
@@ -151,7 +151,6 @@ public class TestServerWithInitialData extends BaseTestServer {
     transformAndValidate(dsGet, new TransformTrim("a", TrimType.LEFT, "C", false));
     transformAndValidate(dsGet, new TransformTrim("a", TrimType.RIGHT, "C", false));
     populated = false;
-
   }
 
   @Test
@@ -163,14 +162,10 @@ public class TestServerWithInitialData extends BaseTestServer {
     final DatasetUI dsGet = getDataset(datasetPath);
 
     doc("uppercase col a");
-    transformAndValidate(
-        dsGet,
-        new TransformConvertCase("a", ConvertCase.UPPER_CASE, "B", false));
+    transformAndValidate(dsGet, new TransformConvertCase("a", ConvertCase.UPPER_CASE, "B", false));
 
     doc("lowercase col B");
-    transformAndValidate(
-        dsGet,
-        new TransformConvertCase("a", ConvertCase.LOWER_CASE, "B", true));
+    transformAndValidate(dsGet, new TransformConvertCase("a", ConvertCase.LOWER_CASE, "B", true));
 
     populated = false;
   }
@@ -190,27 +185,43 @@ public class TestServerWithInitialData extends BaseTestServer {
     doc("extract preview");
     expectSuccess(
         getBuilder(getAPIv2().path(versionedResourcePath(dsGet) + "/extract_preview"))
-            .buildPost(entity(new ExtractPreviewReq(new Selection("address", "address75", 7, 2), DatasetsUtil.pattern("\\d+", 0, IndexType.INDEX)), JSON)), // => sending
+            .buildPost(
+                entity(
+                    new ExtractPreviewReq(
+                        new Selection("address", "address75", 7, 2),
+                        DatasetsUtil.pattern("\\d+", 0, IndexType.INDEX)),
+                    JSON)), // => sending
         ExtractCard.class);
 
     {
       doc("extract col address");
       String colName = "res";
-      InitialPreviewResponse transformResponse = transformAndValidate(
-          dsGet,
-          new TransformExtract("address", colName, DatasetsUtil.position(new Offset(3, FROM_THE_START), new Offset(6, FROM_THE_START)), false));
+      InitialPreviewResponse transformResponse =
+          transformAndValidate(
+              dsGet,
+              new TransformExtract(
+                  "address",
+                  colName,
+                  DatasetsUtil.position(
+                      new Offset(3, FROM_THE_START), new Offset(6, FROM_THE_START)),
+                  false));
       JobDataFragment data = getData(transformResponse.getPaginationUrl(), 0, 2000);
-      for (int i=0; i<data.getReturnedRowCount(); i++) {
+      for (int i = 0; i < data.getReturnedRowCount(); i++) {
         assertEquals("ress", data.extractString(colName, i));
       }
     }
     {
       doc("extract col address 1 char from the end");
-      InitialPreviewResponse transformResponse = transformAndValidate(
-          dsGet,
-          new TransformExtract("address", "s", DatasetsUtil.position(new Offset(1, FROM_THE_END), new Offset(0, FROM_THE_END)), false));
+      InitialPreviewResponse transformResponse =
+          transformAndValidate(
+              dsGet,
+              new TransformExtract(
+                  "address",
+                  "s",
+                  DatasetsUtil.position(new Offset(1, FROM_THE_END), new Offset(0, FROM_THE_END)),
+                  false));
       JobDataFragment data = getData(transformResponse.getPaginationUrl(), 0, 2000);
-      for (int i=0; i<data.getReturnedRowCount(); i++) {
+      for (int i = 0; i < data.getReturnedRowCount(); i++) {
         String addressValue = data.extractString("address", i);
         String resValue = data.extractString("s", i);
         assertEquals(addressValue, addressValue.substring(addressValue.length() - 2), resValue);
@@ -220,17 +231,20 @@ public class TestServerWithInitialData extends BaseTestServer {
     doc("extract col address pattern");
     transformAndValidate(
         dsGet,
-        new TransformExtract("address", "number", DatasetsUtil.pattern("\\d+", 0, IndexType.INDEX), false));
+        new TransformExtract(
+            "address", "number", DatasetsUtil.pattern("\\d+", 0, IndexType.INDEX), false));
 
     doc("extract col same name");
     transformAndValidate(
         dsGet,
-        new TransformExtract("address", "address", DatasetsUtil.pattern("\\d+", 0, IndexType.INDEX), true));
+        new TransformExtract(
+            "address", "address", DatasetsUtil.pattern("\\d+", 0, IndexType.INDEX), true));
 
     doc("extract col address pattern with non matching pattern");
     transformAndValidate(
         dsGet,
-        new TransformExtract("address", "number", DatasetsUtil.pattern("\\d+12", 0, IndexType.INDEX), false));
+        new TransformExtract(
+            "address", "number", DatasetsUtil.pattern("\\d+12", 0, IndexType.INDEX), false));
   }
 
   @Test
@@ -239,24 +253,21 @@ public class TestServerWithInitialData extends BaseTestServer {
     DatasetUI dataset = createDatasetFromParent("Prod-Sample.ds1").getDataset();
 
     doc("sort dataset by address");
-    transformAndValidate(
-        dataset,
-        new TransformSort().setSortedColumnName("address"));
+    transformAndValidate(dataset, new TransformSort().setSortedColumnName("address"));
 
-    //"{\n\"type\" : \"sort\",\n\"sortedColumnName\" : \"address\"\n}");
+    // "{\n\"type\" : \"sort\",\n\"sortedColumnName\" : \"address\"\n}");
   }
 
   @Test
   public void testCreateUntitledSQL() throws Exception {
     initData();
     DatasetUI dataset =
-        createDatasetFromSQL("Select * from \"Prod-Sample\".ds1 limit 1", asList("Prod-Sample")).getDataset();
+        createDatasetFromSQL("Select * from \"Prod-Sample\".ds1 limit 1", asList("Prod-Sample"))
+            .getDataset();
 
     doc("sort dataset by address");
-    transformAndValidate(
-        dataset,
-        new TransformSort().setSortedColumnName("address"));
-    //"{\n\"type\" : \"sort\",\n\"sortedColumnName\" : \"address\"\n}");
+    transformAndValidate(dataset, new TransformSort().setSortedColumnName("address"));
+    // "{\n\"type\" : \"sort\",\n\"sortedColumnName\" : \"address\"\n}");
   }
 
   @Test
@@ -267,14 +278,15 @@ public class TestServerWithInitialData extends BaseTestServer {
     final DatasetUI dsGet = getDataset(dp);
 
     doc("update SQL");
-    DatasetUI dsTransformed = transformAndValidate(dsGet,
-        new TransformUpdateSQL("select * from \"Sales-Sample\".ds3")
-            .setSqlContextList(dp.toParentPathList())).getDataset();
+    DatasetUI dsTransformed =
+        transformAndValidate(
+                dsGet,
+                new TransformUpdateSQL("select * from \"Sales-Sample\".ds3")
+                    .setSqlContextList(dp.toParentPathList()))
+            .getDataset();
 
     doc("sort dataset by A");
-    transformAndValidate(
-        dsTransformed,
-        new TransformSort().setSortedColumnName("A"));
+    transformAndValidate(dsTransformed, new TransformSort().setSortedColumnName("A"));
   }
 
   @Test
@@ -284,24 +296,28 @@ public class TestServerWithInitialData extends BaseTestServer {
     final DatasetUI dsGet = getDataset(dp);
 
     doc("update SQL");
-    InitialPreviewResponse transformResponse = transformAndValidate(
-        dsGet,
-        new TransformUpdateSQL("select * from \"Sales-Sample\".ds3").setSqlContextList(dp.toParentPathList()));
+    InitialPreviewResponse transformResponse =
+        transformAndValidate(
+            dsGet,
+            new TransformUpdateSQL("select * from \"Sales-Sample\".ds3")
+                .setSqlContextList(dp.toParentPathList()));
 
     List<HistoryItem> historyItems = transformResponse.getHistory().getItems();
     assertEquals(historyItems.toString(), 2, historyItems.size());
     HistoryItem lastHistoryItem = historyItems.get(1);
-    assertEquals(getDatasetVersionPath(transformResponse.getDataset()), lastHistoryItem.getVersionedResourcePath());
+    assertEquals(
+        getDatasetVersionPath(transformResponse.getDataset()),
+        lastHistoryItem.getVersionedResourcePath());
     JobState lastItemState = lastHistoryItem.getState();
 
     // Job is always in completed state.
     assertEquals(JSONUtil.toString(lastHistoryItem), JobState.COMPLETED, lastItemState);
-    assertEquals("SQL Edited to: select * from \"Sales-Sample\".ds3", lastHistoryItem.getTransformDescription());
+    assertEquals(
+        "SQL Edited to: select * from \"Sales-Sample\".ds3",
+        lastHistoryItem.getTransformDescription());
   }
 
-  /**
-   * Test info schema queries on virtual/physical datasets.
-   */
+  /** Test info schema queries on virtual/physical datasets. */
   @Test
   public void infoSchema() throws Exception {
     final NASConf nas = new NASConf();
@@ -309,7 +325,8 @@ public class TestServerWithInitialData extends BaseTestServer {
     SourceUI source = new SourceUI();
     source.setName("testNAS");
     source.setConfig(nas);
-    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+    source.setMetadataPolicy(
+        UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
     final SourceService sourceService = newSourceService();
     sourceService.registerSourceWithRuntime(source);
 
@@ -320,14 +337,17 @@ public class TestServerWithInitialData extends BaseTestServer {
     final DatasetPath datasetPath = new DatasetPath(asList("@" + DEFAULT_USERNAME, "vds1"));
     createDatasetFromSQLAndSave(datasetPath, "SELECT * FROM sys.version", asList("cp"));
 
-    InitialPreviewResponse response = createDatasetFromSQL(
-        "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, CASE TABLE_TYPE WHEN 'VIEW' THEN 'TABLE' ELSE TABLE_TYPE END as TABLE_TYPE " +
-            "FROM INFORMATION_SCHEMA.\"TABLES\" " +
-            "WHERE " +
-            "      TABLE_CATALOG LIKE 'DREMIO' ESCAPE '\\' AND" +
-            "      (TABLE_SCHEMA LIKE 'testNAS.datasets' OR TABLE_SCHEMA LIKE '@" + DEFAULT_USERNAME + "') " +
-            "ORDER BY TABLE_SCHEMA",
-        asList("cp"));
+    InitialPreviewResponse response =
+        createDatasetFromSQL(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, CASE TABLE_TYPE WHEN 'VIEW' THEN 'TABLE' ELSE TABLE_TYPE END as TABLE_TYPE "
+                + "FROM INFORMATION_SCHEMA.\"TABLES\" "
+                + "WHERE "
+                + "      TABLE_CATALOG LIKE 'DREMIO' ESCAPE '\\' AND"
+                + "      (TABLE_SCHEMA LIKE 'testNAS.datasets' OR TABLE_SCHEMA LIKE '@"
+                + DEFAULT_USERNAME
+                + "') "
+                + "ORDER BY TABLE_SCHEMA",
+            asList("cp"));
     assertEquals(2, response.getData().getReturnedRowCount());
     assertEquals("vds1", response.getData().extractString("TABLE_NAME", 0));
     assertEquals("users.json", response.getData().extractString("TABLE_NAME", 1));

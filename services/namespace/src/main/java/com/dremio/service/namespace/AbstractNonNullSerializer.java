@@ -18,9 +18,6 @@ package com.dremio.service.namespace;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-/**
- * Abstract class for serializing only non-nulls in protostuff.
- */
+/** Abstract class for serializing only non-nulls in protostuff. */
 @JsonInclude(Include.NON_NULL)
-public abstract class AbstractNonNullSerializer {
-}
+public abstract class AbstractNonNullSerializer {}

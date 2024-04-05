@@ -15,21 +15,19 @@
  */
 package com.dremio.test.shams;
 
-import java.util.Map;
-
 import com.dremio.options.OptionResolver;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 
-/**
- * Map backed {@link OptionResolver}.
- */
+/** Map backed {@link OptionResolver}. */
 public class ShamOptionResolver implements OptionResolver {
-  public static final OptionResolver DEFAULT_VALUES = new ShamOptionResolver(
-    ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of());
+  public static final OptionResolver DEFAULT_VALUES =
+      new ShamOptionResolver(
+          ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of());
 
   private final Map<BooleanValidator, Boolean> booleanValidators;
   private final Map<DoubleValidator, Double> doubleValidators;

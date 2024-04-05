@@ -23,10 +23,9 @@ import static com.dremio.exec.ExecConstants.SPLIT_ENABLED;
 import static com.dremio.exec.ExecConstants.WORK_THRESHOLD_FOR_SPLIT;
 import static com.dremio.exec.expr.fn.GandivaFunctionRegistry.toLowerCaseSet;
 
-import java.util.Set;
-
 import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
+import java.util.Set;
 
 public class ExpressionSplitterOptionsChangeListener implements OptionChangeListener {
   private final OptionManager optionManager;
@@ -39,7 +38,8 @@ public class ExpressionSplitterOptionsChangeListener implements OptionChangeList
   private volatile double avgWorkThresholdForSplit;
   private volatile boolean splitCachingEnabled;
 
-  public ExpressionSplitterOptionsChangeListener(OptionManager optionManager, ExpressionSplitCache expressionSplitCache) {
+  public ExpressionSplitterOptionsChangeListener(
+      OptionManager optionManager, ExpressionSplitCache expressionSplitCache) {
     this.optionManager = optionManager;
     this.blackListedFunctions = toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS));
     this.codeGenOption = optionManager.getOption(QUERY_EXEC_OPTION);
@@ -57,30 +57,48 @@ public class ExpressionSplitterOptionsChangeListener implements OptionChangeList
     final long newMaxSplitsPerExp = optionManager.getOption(MAX_SPLITS_PER_EXPRESSION);
     final double newAvgWorkThresholdForSplit = optionManager.getOption(WORK_THRESHOLD_FOR_SPLIT);
     final boolean newSplitCachingEnabled = optionManager.getOption(SPLIT_CACHING_ENABLED);
-    final Set<String> newBlackListedFunctions = toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS));
-    if (didValuesChange(newBlackListedFunctions, newCodeGenOption, newIsSplitEnabled, newMaxSplitsPerExp,
-      newAvgWorkThresholdForSplit, newSplitCachingEnabled)) {
+    final Set<String> newBlackListedFunctions =
+        toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS));
+    if (didValuesChange(
+        newBlackListedFunctions,
+        newCodeGenOption,
+        newIsSplitEnabled,
+        newMaxSplitsPerExp,
+        newAvgWorkThresholdForSplit,
+        newSplitCachingEnabled)) {
       expressionSplitCache.invalidateCache();
-      setNewValues(newBlackListedFunctions, newCodeGenOption, newIsSplitEnabled, newMaxSplitsPerExp,
-        newAvgWorkThresholdForSplit, newSplitCachingEnabled);
+      setNewValues(
+          newBlackListedFunctions,
+          newCodeGenOption,
+          newIsSplitEnabled,
+          newMaxSplitsPerExp,
+          newAvgWorkThresholdForSplit,
+          newSplitCachingEnabled);
     }
   }
 
-  private boolean didValuesChange(Set<String> newBlackListedFunctions, String newCodeGenOption,
-                                  boolean newIsSplitEnabled, long newMaxSplitsPerExp,
-                                  double newAvgWorkThresholdForSplit,
-                                  boolean newSplitCachingEnabled) {
+  private boolean didValuesChange(
+      Set<String> newBlackListedFunctions,
+      String newCodeGenOption,
+      boolean newIsSplitEnabled,
+      long newMaxSplitsPerExp,
+      double newAvgWorkThresholdForSplit,
+      boolean newSplitCachingEnabled) {
     return this.isSplitEnabled != newIsSplitEnabled
-      || this.maxSplitsPerExp != newMaxSplitsPerExp
-      || Double.compare(this.avgWorkThresholdForSplit, newAvgWorkThresholdForSplit) != 0
-      || this.splitCachingEnabled != newSplitCachingEnabled
-      || !this.codeGenOption.equals(newCodeGenOption)
-      || !this.blackListedFunctions.equals(newBlackListedFunctions);
+        || this.maxSplitsPerExp != newMaxSplitsPerExp
+        || Double.compare(this.avgWorkThresholdForSplit, newAvgWorkThresholdForSplit) != 0
+        || this.splitCachingEnabled != newSplitCachingEnabled
+        || !this.codeGenOption.equals(newCodeGenOption)
+        || !this.blackListedFunctions.equals(newBlackListedFunctions);
   }
 
-  private void setNewValues(Set<String> newBlackListedFunctions, String newCodeGenOption, boolean newIsSplitEnabled,
-                            long newMaxSplitsPerExp, double newAvgWorkThresholdForSplit,
-                            boolean newSplitCachingEnabled) {
+  private void setNewValues(
+      Set<String> newBlackListedFunctions,
+      String newCodeGenOption,
+      boolean newIsSplitEnabled,
+      long newMaxSplitsPerExp,
+      double newAvgWorkThresholdForSplit,
+      boolean newSplitCachingEnabled) {
     this.blackListedFunctions = newBlackListedFunctions;
     this.codeGenOption = newCodeGenOption;
     this.isSplitEnabled = newIsSplitEnabled;

@@ -15,16 +15,15 @@
  */
 package com.dremio.common.exceptions;
 
+import com.dremio.exec.proto.CoordinationProtos;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import com.dremio.exec.proto.CoordinationProtos;
-import com.google.common.collect.ImmutableList;
-
 /**
- * Holds context information about a UserException. We can add structured context information that will added
- * to the error message displayed to the client.
+ * Holds context information about a UserException. We can add structured context information that
+ * will added to the error message displayed to the client.
  */
 class UserExceptionContext {
 
@@ -40,6 +39,7 @@ class UserExceptionContext {
 
   /**
    * adds a string to the bottom of the context list
+   *
    * @param context context string
    */
   void add(String context) {
@@ -48,6 +48,7 @@ class UserExceptionContext {
 
   /**
    * add NodeEndpoint identity to the context.
+   *
    * <p>if the context already has a NodeEndpoint identity, the new identity will be ignored
    *
    * @param endpoint node endpoint identity
@@ -60,6 +61,7 @@ class UserExceptionContext {
 
   /**
    * adds a sring value to the bottom of the context list
+   *
    * @param context context name
    * @param value context value
    */
@@ -69,6 +71,7 @@ class UserExceptionContext {
 
   /**
    * adds a long value to the bottom of the context list
+   *
    * @param context context name
    * @param value context value
    */
@@ -78,6 +81,7 @@ class UserExceptionContext {
 
   /**
    * adds a double to the bottom of the context list
+   *
    * @param context context name
    * @param value context value
    */
@@ -87,6 +91,7 @@ class UserExceptionContext {
 
   /**
    * pushes a string to the top of the context list
+   *
    * @param context context string
    */
   void push(String context) {
@@ -95,6 +100,7 @@ class UserExceptionContext {
 
   /**
    * pushes a string value to the top of the context list
+   *
    * @param context context name
    * @param value context value
    */
@@ -104,6 +110,7 @@ class UserExceptionContext {
 
   /**
    * pushes a long value to the top of the context list
+   *
    * @param context context name
    * @param value context value
    */
@@ -113,6 +120,7 @@ class UserExceptionContext {
 
   /**
    * adds a double at the top of the context list
+   *
    * @param context context name
    * @param value context value
    */
@@ -130,6 +138,7 @@ class UserExceptionContext {
 
   /**
    * generate a context message
+   *
    * @return string containing all context information concatenated
    */
   String generateContextMessage(boolean includeErrorIdAndIdentity) {
@@ -144,17 +153,14 @@ class UserExceptionContext {
       sb.append("\n[Error Id: ");
       sb.append(errorId).append(" ");
       if (endpoint != null) {
-        sb.append("on ")
-            .append(endpoint.getAddress())
-            .append(":")
-            .append(endpoint.getUserPort());
+        sb.append("on ").append(endpoint.getAddress()).append(":").append(endpoint.getUserPort());
       }
       sb.append("]");
     }
     return sb.toString();
   }
 
-  List<String> getContextAsStrings(){
+  List<String> getContextAsStrings() {
     return ImmutableList.copyOf(contextList);
   }
 }

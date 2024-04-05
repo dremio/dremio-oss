@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.common.JdbcRelBase;
 import java.util.List;
-
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.planner.common.JdbcRelBase;
 
 public class JdbcRel extends JdbcRelBase implements Rel, CopyToCluster {
 
@@ -39,10 +37,6 @@ public class JdbcRel extends JdbcRelBase implements Rel, CopyToCluster {
   @Override
   public RelNode copyWith(CopyWithCluster copier) {
     final RelNode copiedSubTree = getSubTree().accept(copier);
-    return new JdbcRel(
-      copier.getCluster(),
-      getTraitSet(),
-      copiedSubTree
-    );
+    return new JdbcRel(copier.getCluster(), getTraitSet(), copiedSubTree);
   }
 }

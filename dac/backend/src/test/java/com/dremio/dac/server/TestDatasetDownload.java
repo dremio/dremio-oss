@@ -18,20 +18,6 @@ package com.dremio.dac.server;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.core.Response;
-
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.DownloadFormat;
@@ -46,10 +32,19 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.core.Response;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-/**
- * Download dataset tests.
- */
+/** Download dataset tests. */
 public class TestDatasetDownload extends BaseTestServer {
 
   private static VirtualDatasetUI dsg1;
@@ -65,7 +60,9 @@ public class TestDatasetDownload extends BaseTestServer {
 
   @Test
   public void testDownloadJsonRest() throws Exception {
-    InitialPreviewResponse initialPreviewResponse = createDatasetFromSQL( String.format("select * from %s", dsg1DatasetPath), Collections.emptyList());
+    InitialPreviewResponse initialPreviewResponse =
+        createDatasetFromSQL(
+            String.format("select * from %s", dsg1DatasetPath), Collections.emptyList());
 
     Response response = download(initialPreviewResponse.getJobId(), DownloadFormat.JSON);
 
@@ -74,7 +71,9 @@ public class TestDatasetDownload extends BaseTestServer {
 
   @Test
   public void testDownloadCsvRest() throws Exception {
-    InitialPreviewResponse initialPreviewResponse = createDatasetFromSQL( String.format("select * from %s", dsg1DatasetPath), Collections.emptyList());
+    InitialPreviewResponse initialPreviewResponse =
+        createDatasetFromSQL(
+            String.format("select * from %s", dsg1DatasetPath), Collections.emptyList());
 
     Response response = download(initialPreviewResponse.getJobId(), DownloadFormat.CSV);
 
@@ -84,7 +83,8 @@ public class TestDatasetDownload extends BaseTestServer {
   @Test // DX-6142 & DX-9432
   public void testDownloadWithLimitInDatasetSql() throws Exception {
     final DatasetPath dsPath = new DatasetPath("DG.testDS");
-    InitialPreviewResponse initialPreviewResponse = createDatasetFromSQL("select * from DG.dsg1 LIMIT 10 --- comment", asList("cp"));
+    InitialPreviewResponse initialPreviewResponse =
+        createDatasetFromSQL("select * from DG.dsg1 LIMIT 10 --- comment", asList("cp"));
 
     Response response = download(initialPreviewResponse.getJobId(), DownloadFormat.CSV);
 
@@ -92,40 +92,44 @@ public class TestDatasetDownload extends BaseTestServer {
     assertEquals(10, downloadedData.size());
     for (int i = 0; i < 10; ++i) {
       assertEquals("user" + i, downloadedData.get(i).getUser());
-      assertEquals(i%25, downloadedData.get(i).getAge());
+      assertEquals(i % 25, downloadedData.get(i).getAge());
       assertEquals("address" + i, downloadedData.get(i).getAddress());
     }
   }
 
-  //I do not know how to catch a job in a new flow
-//  @Test
-//  public void cancelledDownloadJob() throws Exception {
-//    final DatasetPath dsPath = new DatasetPath("DG.testDS2");
-//    InitialPreviewResponse initialPreviewResponse = createDatasetFromSQL("select * from DG.dsg1 --- comment", asList("cp"));
-//
-//    l(JobsService.class).getJob(GetJobRequest.newBuilder()
-//      .setJobId(initialPreviewResponse.getJobId())
-//      .setUserName(SampleDataPopulator.DEFAULT_USER_NAME)
-//      .build()).getData().loadIfNecessary(); // wait for job completion
-//
-//    getDownloadInvocation(initialPreviewResponse.getJobId(), DownloadFormat.CSV).submit();
-//    final JobSummary job = TestJobResultsDownload.getLastDownloadJob(SampleDataPopulator.DEFAULT_USER_NAME, l(JobsService.class));
-//
-//    l(JobsService.class).cancel(SampleDataPopulator.DEFAULT_USER_NAME, job.getJobId(), "because I can");
-//
-//
-//    GetJobRequest request = GetJobRequest.newBuilder()
-//      .setJobId(job.getJobId())
-//      .build();
-//    if (l(JobsService.class).getJob(request).getJobAttempt().getState() == JobState.CANCELED) {
-//      try {
-//        download(job.getJobId(), DownloadFormat.CSV);
-//        fail();
-//      } catch (Exception e) {
-//        assertTrue(e instanceof FileNotFoundException);
-//      }
-//    }
-//  }
+  // I do not know how to catch a job in a new flow
+  //  @Test
+  //  public void cancelledDownloadJob() throws Exception {
+  //    final DatasetPath dsPath = new DatasetPath("DG.testDS2");
+  //    InitialPreviewResponse initialPreviewResponse = createDatasetFromSQL("select * from DG.dsg1
+  // --- comment", asList("cp"));
+  //
+  //    l(JobsService.class).getJob(GetJobRequest.newBuilder()
+  //      .setJobId(initialPreviewResponse.getJobId())
+  //      .setUserName(SampleDataPopulator.DEFAULT_USER_NAME)
+  //      .build()).getData().loadIfNecessary(); // wait for job completion
+  //
+  //    getDownloadInvocation(initialPreviewResponse.getJobId(), DownloadFormat.CSV).submit();
+  //    final JobSummary job =
+  // TestJobResultsDownload.getLastDownloadJob(SampleDataPopulator.DEFAULT_USER_NAME,
+  // l(JobsService.class));
+  //
+  //    l(JobsService.class).cancel(SampleDataPopulator.DEFAULT_USER_NAME, job.getJobId(), "because
+  // I can");
+  //
+  //
+  //    GetJobRequest request = GetJobRequest.newBuilder()
+  //      .setJobId(job.getJobId())
+  //      .build();
+  //    if (l(JobsService.class).getJob(request).getJobAttempt().getState() == JobState.CANCELED) {
+  //      try {
+  //        download(job.getJobId(), DownloadFormat.CSV);
+  //        fail();
+  //      } catch (Exception e) {
+  //        assertTrue(e instanceof FileNotFoundException);
+  //      }
+  //    }
+  //  }
 
   @Test
   public void testDownloadWithRelativeDatasetPath() throws Exception {
@@ -141,8 +145,10 @@ public class TestDatasetDownload extends BaseTestServer {
 
     final DatasetPath dsPath = new DatasetPath("mySpace.folder.testVDS");
 
-    DatasetUI ds = createDatasetFromSQLAndSave(dsPath,"select * from DG.dsg1 LIMIT 10", asList("cp"));
-    InitialPreviewResponse initialPreviewResponse = createDatasetFromSQL("select * from testVDS", path);
+    DatasetUI ds =
+        createDatasetFromSQLAndSave(dsPath, "select * from DG.dsg1 LIMIT 10", asList("cp"));
+    InitialPreviewResponse initialPreviewResponse =
+        createDatasetFromSQL("select * from testVDS", path);
 
     Response response = download(initialPreviewResponse.getJobId(), DownloadFormat.CSV);
 
@@ -150,7 +156,7 @@ public class TestDatasetDownload extends BaseTestServer {
     assertEquals(10, downloadedData.size());
     for (int i = 0; i < 10; ++i) {
       assertEquals("user" + i, downloadedData.get(i).getUser());
-      assertEquals(i%25, downloadedData.get(i).getAge());
+      assertEquals(i % 25, downloadedData.get(i).getAge());
       assertEquals("address" + i, downloadedData.get(i).getAddress());
     }
   }
@@ -160,16 +166,18 @@ public class TestDatasetDownload extends BaseTestServer {
   }
 
   private Invocation getDownloadInvocation(JobId jobId, DownloadFormat downloadFormat) {
-    return getBuilder(getAPIv2()
-      .path("job")
-      .path(jobId.getId())
-      .path("download")
-      .queryParam("downloadFormat", downloadFormat))
-      .buildGet();
+    return getBuilder(
+            getAPIv2()
+                .path("job")
+                .path(jobId.getId())
+                .path("download")
+                .queryParam("downloadFormat", downloadFormat))
+        .buildGet();
   }
 
   private List<TestData> readDataJson(Response response) throws IOException {
-    BufferedReader reader = new BufferedReader(new InputStreamReader((InputStream)response.getEntity()));
+    BufferedReader reader =
+        new BufferedReader(new InputStreamReader((InputStream) response.getEntity()));
     String line;
     List<TestData> testData = Lists.newArrayList();
     ObjectMapper objectMapper = new ObjectMapper();
@@ -180,7 +188,8 @@ public class TestDatasetDownload extends BaseTestServer {
   }
 
   private List<TestData> readDataCsv(Response response) throws IOException {
-    BufferedReader reader = new BufferedReader(new InputStreamReader((InputStream)response.getEntity()));
+    BufferedReader reader =
+        new BufferedReader(new InputStreamReader((InputStream) response.getEntity()));
     String line;
     List<TestData> testData = Lists.newArrayList();
     int i = 0;
@@ -188,7 +197,7 @@ public class TestDatasetDownload extends BaseTestServer {
       if (i++ == 0) {
         continue;
       }
-      String []tokens = line.split(",");
+      String[] tokens = line.split(",");
       testData.add(new TestData(tokens[0], tokens[2], Integer.parseInt(tokens[1])));
     }
     return testData;
@@ -196,25 +205,23 @@ public class TestDatasetDownload extends BaseTestServer {
 
   private void validateAllRows(List<TestData> testData) throws Exception {
     for (int i = 0; i < 100; ++i) {
-     assertEquals("user" + i, testData.get(i).getUser());
-      assertEquals(i%25, testData.get(i).getAge());
+      assertEquals("user" + i, testData.get(i).getUser());
+      assertEquals(i % 25, testData.get(i).getAge());
       assertEquals("address" + i, testData.get(i).getAddress());
     }
   }
 
-  /**
-   * Test data from dsg1 dataset composed of user, age and address
-   */
+  /** Test data from dsg1 dataset composed of user, age and address */
   private static final class TestData {
     private final String user;
     private final String address;
-    private final  int age;
+    private final int age;
 
     @JsonCreator
     public TestData(
-      @JsonProperty("user") String user,
-      @JsonProperty("address") String address,
-      @JsonProperty("age") int age) {
+        @JsonProperty("user") String user,
+        @JsonProperty("address") String address,
+        @JsonProperty("age") int age) {
       this.user = user;
       this.address = address;
       this.age = age;
@@ -232,5 +239,4 @@ public class TestDatasetDownload extends BaseTestServer {
       return age;
     }
   }
-
 }

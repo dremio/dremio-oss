@@ -23,7 +23,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.Callable;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,27 +34,22 @@ public class TestMetricsInstrumenter {
   private static final String SERVICE_NAME = "serviceName";
   private static final String OPERATION_NAME = "operationName";
   private static final String TIME_METRIC_NAME =
-    Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.TIME_METRIC_SUFFIX);
+      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.TIME_METRIC_SUFFIX);
   private static final String COUNT_METRIC_NAME =
-    Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.COUNT_METRIC_SUFFIX);
+      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.COUNT_METRIC_SUFFIX);
   private static final String ERROR_METRIC_NAME =
-    Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.ERROR_METRIC_SUFFIX);
+      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.ERROR_METRIC_SUFFIX);
   private static final String EXPECTED_CALLABLE_RESULT = "cookie";
 
-  @Mock
-  private Counter counter;
+  @Mock private Counter counter;
 
-  @Mock
-  private Counter errorCounter;
+  @Mock private Counter errorCounter;
 
-  @Mock
-  private Timer timer;
+  @Mock private Timer timer;
 
-  @Mock
-  private Timer.TimerContext timerContext;
+  @Mock private Timer.TimerContext timerContext;
 
-  @Mock
-  private MetricsProvider mockProvider;
+  @Mock private MetricsProvider mockProvider;
 
   private MetricsInstrumenter metrics;
 
@@ -117,32 +111,39 @@ public class TestMetricsInstrumenter {
 
   @Test
   public void givenAFailingRunMetricsAreLogged() {
-    Runnable failingOperation = () -> { throw new DummyRuntimeException(); };
+    Runnable failingOperation =
+        () -> {
+          throw new DummyRuntimeException();
+        };
 
     assertThatThrownBy(() -> metrics.log(OPERATION_NAME, failingOperation))
-      .isInstanceOf(DummyRuntimeException.class);
+        .isInstanceOf(DummyRuntimeException.class);
 
     assertErrorMetricsLogged();
   }
 
   @Test
   public void givenAFailingCallMetricsAreLogged() {
-    Callable<String> failingOperation = () -> {
-      throw new DummyRuntimeException();
-    };
+    Callable<String> failingOperation =
+        () -> {
+          throw new DummyRuntimeException();
+        };
 
     assertThatThrownBy(() -> metrics.log(OPERATION_NAME, failingOperation))
-      .isInstanceOf(DummyRuntimeException.class);
+        .isInstanceOf(DummyRuntimeException.class);
 
     assertErrorMetricsLogged();
   }
 
   @Test
   public void canLogFailingOperationWithCheckedException() {
-    Callable<String> failingOperation = () -> { throw new DummyCheckedException(); };
+    Callable<String> failingOperation =
+        () -> {
+          throw new DummyCheckedException();
+        };
 
     assertThatThrownBy(() -> metrics.log(OPERATION_NAME, failingOperation))
-      .hasCause(new DummyCheckedException());
+        .hasCause(new DummyCheckedException());
 
     assertErrorMetricsLogged();
   }
@@ -176,11 +177,7 @@ public class TestMetricsInstrumenter {
     }
   }
 
-  private static final class DummyRuntimeException extends RuntimeException {
+  private static final class DummyRuntimeException extends RuntimeException {}
 
-  }
-
-  private static final class DummyCheckedException extends Exception {
-
-  }
+  private static final class DummyCheckedException extends Exception {}
 }

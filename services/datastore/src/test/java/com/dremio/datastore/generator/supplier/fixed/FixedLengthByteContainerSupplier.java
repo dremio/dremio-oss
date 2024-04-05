@@ -15,13 +15,10 @@
  */
 package com.dremio.datastore.generator.supplier.fixed;
 
+import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
 import java.nio.charset.StandardCharsets;
 
-import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
-
-/**
- * Supplier that generates ByteContainer with fixed-length byte[].
- */
+/** Supplier that generates ByteContainer with fixed-length byte[]. */
 public class FixedLengthByteContainerSupplier extends FixedLengthSupplier<ByteContainer> {
   public FixedLengthByteContainerSupplier(String prefix) {
     super(prefix);

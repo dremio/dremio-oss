@@ -15,15 +15,15 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Objects;
-
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.logical.data.NamedExpression;
+import java.util.Objects;
 
 public class ExpAndCodeGenEngineHolder {
 
   private final NamedExpression namedExpression;
-  //The below field   expressionSplitter is used once and we can make it null after that and also it is not used in the equals method,
+  // The below field   expressionSplitter is used once and we can make it null after that and also
+  // it is not used in the equals method,
   // hence keeping it non final and mutable, but rest of the fields are and should be immutable
   private ExpressionSplitter expressionSplitter;
 
@@ -41,11 +41,16 @@ public class ExpAndCodeGenEngineHolder {
     return codeGenOption;
   }
 
-  public ExpAndCodeGenEngineHolder(NamedExpression namedExpression, SupportedEngines.CodeGenOption codeGenOption, ExpressionSplitter expressionSplitter) {
-    //the expression we store in cache shouldn't be annotated with CodeGenContextInfo
-    if(namedExpression.getExpr() instanceof CodeGenContext) {
-      this.namedExpression = new NamedExpression(CodeGenerationContextRemover.removeCodeGenContext
-        (namedExpression.getExpr()), namedExpression.getRef());
+  public ExpAndCodeGenEngineHolder(
+      NamedExpression namedExpression,
+      SupportedEngines.CodeGenOption codeGenOption,
+      ExpressionSplitter expressionSplitter) {
+    // the expression we store in cache shouldn't be annotated with CodeGenContextInfo
+    if (namedExpression.getExpr() instanceof CodeGenContext) {
+      this.namedExpression =
+          new NamedExpression(
+              CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr()),
+              namedExpression.getRef());
     } else {
       this.namedExpression = namedExpression;
     }
@@ -62,15 +67,16 @@ public class ExpAndCodeGenEngineHolder {
       return false;
     }
     ExpAndCodeGenEngineHolder that = (ExpAndCodeGenEngineHolder) o;
-    return this.codeGenOption == that.codeGenOption &&
-      this.namedExpression.getExpr().accept(new EqualityVisitor(), that.namedExpression.getExpr());
+    return this.codeGenOption == that.codeGenOption
+        && this.namedExpression
+            .getExpr()
+            .accept(new EqualityVisitor(), that.namedExpression.getExpr());
   }
-
-
 
   @Override
   public int hashCode() {
-    return Objects.hash(codeGenOption) + this.namedExpression.getExpr().accept(new HashVisitor(), null);
+    return Objects.hash(codeGenOption)
+        + this.namedExpression.getExpr().accept(new HashVisitor(), null);
   }
 
   public void setExpressionSplitter(ExpressionSplitter expressionSplitter) {

@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.calcite.logical.VacuumTableCrel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.calcite.logical.VacuumTableCrel;
-
-/**
- * Planner rule, Applicable for VACUUM command only.
- */
+/** Planner rule, Applicable for VACUUM command only. */
 public class VacuumTableRule extends RelOptRule {
 
   public static final RelOptRule INSTANCE = new VacuumTableRule();
@@ -37,14 +34,15 @@ public class VacuumTableRule extends RelOptRule {
   public void onMatch(RelOptRuleCall call) {
     final VacuumTableCrel vacuumTableCrel = call.rel(0);
     final RelNode input = vacuumTableCrel.getInput();
-    //Set traits with Logical convention, Else it won't fetch the best plan.
+    // Set traits with Logical convention, Else it won't fetch the best plan.
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(new VacuumTableRel(
-      vacuumTableCrel.getCluster(),
-      vacuumTableCrel.getTraitSet().plus(Rel.LOGICAL),
-      convertedInput,
-      vacuumTableCrel.getTable(),
-      vacuumTableCrel.getCreateTableEntry(),
-      vacuumTableCrel.getVacuumOptions()));
+    call.transformTo(
+        new VacuumTableRel(
+            vacuumTableCrel.getCluster(),
+            vacuumTableCrel.getTraitSet().plus(Rel.LOGICAL),
+            convertedInput,
+            vacuumTableCrel.getTable(),
+            vacuumTableCrel.getCreateTableEntry(),
+            vacuumTableCrel.getVacuumOptions()));
   }
 }

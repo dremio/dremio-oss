@@ -17,35 +17,28 @@ package com.dremio.service.reflection.refresh;
 
 import static com.dremio.service.reflection.ReflectionUtils.removeUpdateColumn;
 
-import java.util.Optional;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttle;
-
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.ops.SnapshotDiffContext;
-import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.MaterializationShuttle;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
+import com.dremio.exec.planner.logical.EmptyRel;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
-import com.dremio.service.Pointer;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.IncrementalUpdateServiceUtils;
-import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionUtils;
@@ -54,11 +47,19 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.proto.RefreshDecision;
+import com.dremio.service.reflection.refresh.ReflectionPlanGenerator.NonIncrementalRefreshFunctionEventHandler;
+import com.dremio.service.reflection.refresh.ReflectionPlanGenerator.RefreshDecisionWrapper;
+import com.dremio.service.reflection.store.DependenciesStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Preconditions;
+import io.protostuff.ByteString;
+import java.util.Optional;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttle;
 
 class ReflectionPlanNormalizer implements RelTransformer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionPlanNormalizer.class);
+  private static final org.slf4j.Logger logger =
+      org.slf4j.LoggerFactory.getLogger(ReflectionPlanNormalizer.class);
 
   private final SqlHandlerConfig sqlHandlerConfig;
   private final ReflectionGoal goal;
@@ -68,26 +69,28 @@ class ReflectionPlanNormalizer implements RelTransformer {
   private final SabotConfig config;
   private final ReflectionSettings reflectionSettings;
   private final MaterializationStore materializationStore;
+  private final DependenciesStore dependenciesStore;
   private final OptionManager optionManager;
   private final boolean forceFullUpdate;
-  private final int stripVersion;
-  private final boolean isRebuildPlan;
-
-  private RefreshDecision refreshDecision;
-  private SnapshotDiffContext snapshotDiffContext = SnapshotDiffContext.NO_SNAPSHOT_DIFF;
+  private final boolean matchingPlanOnly;
+  private ByteString matchingPlanBytes;
+  private RefreshDecisionWrapper refreshDecisionWrapper;
+  private NonIncrementalRefreshFunctionEventHandler nonIncrementalRefreshFunctionEventHandler;
 
   public ReflectionPlanNormalizer(
-    SqlHandlerConfig sqlHandlerConfig,
-    ReflectionGoal goal,
-    ReflectionEntry entry,
-    Materialization materialization,
-    CatalogService catalogService,
-    SabotConfig config,
-    ReflectionSettings reflectionSettings,
-    MaterializationStore materializationStore,
-    boolean forceFullUpdate,
-    int stripVersion,
-    boolean isRebuildPlan) {
+      SqlHandlerConfig sqlHandlerConfig,
+      ReflectionGoal goal,
+      ReflectionEntry entry,
+      Materialization materialization,
+      CatalogService catalogService,
+      SabotConfig config,
+      ReflectionSettings reflectionSettings,
+      MaterializationStore materializationStore,
+      DependenciesStore dependenciesStore,
+      boolean forceFullUpdate,
+      boolean matchingPlanOnly,
+      RefreshDecisionWrapper noDefaultReflectionDecisionWrapper,
+      NonIncrementalRefreshFunctionEventHandler nonIncrementalRefreshFunctionEventHandler) {
     this.sqlHandlerConfig = sqlHandlerConfig;
     this.goal = goal;
     this.entry = entry;
@@ -96,102 +99,147 @@ class ReflectionPlanNormalizer implements RelTransformer {
     this.config = config;
     this.reflectionSettings = reflectionSettings;
     this.materializationStore = materializationStore;
+    this.dependenciesStore = dependenciesStore;
     this.optionManager = sqlHandlerConfig.getContext().getOptions();
     this.forceFullUpdate = forceFullUpdate;
-    this.stripVersion = stripVersion;
-    this.isRebuildPlan = isRebuildPlan;
+    this.matchingPlanOnly = matchingPlanOnly;
+    this.refreshDecisionWrapper = noDefaultReflectionDecisionWrapper;
+    this.nonIncrementalRefreshFunctionEventHandler = nonIncrementalRefreshFunctionEventHandler;
   }
 
-  public RefreshDecision getRefreshDecision() {
-    return refreshDecision;
+  public RefreshDecisionWrapper getRefreshDecisionWrapper() {
+    return refreshDecisionWrapper;
   }
 
-  private static UserBitShared.ReflectionType mapReflectionType(ReflectionType type){
-    switch(type) {
-    case AGGREGATION:
-      return UserBitShared.ReflectionType.AGG;
-    case EXTERNAL:
-      return UserBitShared.ReflectionType.EXTERNAL;
-    case RAW:
-      return UserBitShared.ReflectionType.RAW;
-    default:
-      throw new IllegalStateException(type.name());
+  private static UserBitShared.ReflectionType mapReflectionType(ReflectionType type) {
+    switch (type) {
+      case AGGREGATION:
+        return UserBitShared.ReflectionType.AGG;
+      case EXTERNAL:
+        return UserBitShared.ReflectionType.EXTERNAL;
+      case RAW:
+        return UserBitShared.ReflectionType.RAW;
+      default:
+        throw new IllegalStateException(type.name());
     }
   }
 
   @Override
   public RelNode transform(RelNode relNode) {
-    // before we evaluate for reflections, we should review the tree to determine if there are any invalid nodes in the plan for reflection purposes.
-    if(!ExpansionNode.findNodes(relNode, r -> r.isContextSensitive()).isEmpty()) {
-      throw UserException.validationError()
-        .message("Reflection could not be created as it uses context-sensitive functions. "
-            + "Functions like IS_MEMBER, USER, etc. cannot be used in reflections since "
-            + "they require context to complete.")
-        .build(logger);
-    }
-
     final RelNode datasetPlan = removeUpdateColumn(relNode);
-    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
-    DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, goal.getDatasetId());
+    DatasetConfig datasetConfig =
+        CatalogUtil.getDatasetConfig(
+            sqlHandlerConfig.getContext().getCatalog(), goal.getDatasetId());
     if (datasetConfig == null) {
-      throw new IllegalStateException(String.format("Dataset %s not found for %s", goal.getDatasetId(), ReflectionUtils.getId(goal)));
+      throw new IllegalStateException(
+          String.format(
+              "Dataset %s not found for %s", goal.getDatasetId(), ReflectionUtils.getId(goal)));
     }
     final ReflectionExpander expander = new ReflectionExpander(datasetPlan, datasetConfig);
-    final RelNode plan = expander.expand(goal);
+    // Expanded to include the reflection's display or dimension fields
+    final RelNode expandedPlan = expander.expand(goal);
+
+    final boolean isLegacy =
+        optionManager != null && optionManager.getOption(PlannerSettings.LEGACY_SERIALIZER_ENABLED);
+    final RelSerializerFactory serializerFactory =
+        isLegacy
+            ? RelSerializerFactory.getLegacyPlanningFactory(
+                config, sqlHandlerConfig.getScanResult())
+            : RelSerializerFactory.getPlanningFactory(config, sqlHandlerConfig.getScanResult());
+    final LogicalPlanSerializer serializer =
+        serializerFactory.getSerializer(
+            expandedPlan.getCluster(),
+            DremioCompositeSqlOperatorTable.create(
+                sqlHandlerConfig.getContext().getFunctionRegistry()));
+    matchingPlanBytes = ByteString.copyFrom(serializer.serializeToBytes(expandedPlan));
+    if (matchingPlanOnly) {
+      return new EmptyRel(
+          expandedPlan.getCluster(),
+          expandedPlan.getTraitSet(),
+          expandedPlan.getRowType(),
+          CalciteArrowHelper.fromCalciteRowType(expandedPlan.getRowType()));
+    }
 
     // we serialize the plan before normalization so we can recreate later.
     // we also store the plan with expansion nodes.
     final StrippingFactory factory = new StrippingFactory(optionManager, config);
 
-    // normalize a tree without expansion nodes.
-    RelNode strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), false, StrippingFactory.LATEST_STRIP_VERSION).getNormalized();
+    // normalize expanded plan to produce what we want to actually materialize
+    RelNode strippedPlan =
+        factory
+            .strip(
+                expandedPlan,
+                mapReflectionType(goal.getType()),
+                false,
+                StrippingFactory.LATEST_STRIP_VERSION)
+            .getNormalized();
 
-    // if we detect that the plan is in fact incrementally updateable after stripping and normalizing, we want to strip again with isIncremental flag set to true
-    // to get the proper stripping
-    ReflectionService service = sqlHandlerConfig.getContext().getAccelerationManager().unwrap(ReflectionService.class);
+    // if we detect that the plan is in fact incrementally updatable, we want to strip again with
+    // isIncremental flag set to true to get the proper stripping (such as removing top level
+    // projects)
+    ReflectionService service =
+        sqlHandlerConfig.getContext().getAccelerationManager().unwrap(ReflectionService.class);
 
-    if (IncrementalUpdateServiceUtils.extractRefreshDetails(strippedPlan, reflectionSettings, service, optionManager, isRebuildPlan, entry).getRefreshMethod() == RefreshMethod.INCREMENTAL) {
-      strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), true, stripVersion).getNormalized();
+    if (IncrementalUpdateServiceUtils.extractRefreshDetails(
+                strippedPlan,
+                reflectionSettings,
+                service,
+                optionManager,
+                config,
+                nonIncrementalRefreshFunctionEventHandler.isEventReceived())
+            .getRefreshMethod()
+        == RefreshMethod.INCREMENTAL) {
+      strippedPlan =
+          factory
+              .strip(
+                  expandedPlan,
+                  mapReflectionType(goal.getType()),
+                  true,
+                  StrippingFactory.LATEST_STRIP_VERSION)
+              .getNormalized();
     }
 
-    Iterable<DremioTable> requestedTables = sqlHandlerConfig.getContext().getCatalog().getAllRequestedTables();
+    Iterable<DremioTable> requestedTables =
+        sqlHandlerConfig.getContext().getCatalog().getAllRequestedTables();
 
-    final boolean strictRefresh = optionManager != null && optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH);
-    final boolean isLegacy = optionManager != null && optionManager.getOption(PlannerSettings.LEGACY_SERIALIZER_ENABLED);
-    final RelSerializerFactory serializerFactory =
-      isLegacy ?
-        RelSerializerFactory.getLegacyPlanningFactory(config, sqlHandlerConfig.getScanResult()) :
-        RelSerializerFactory.getPlanningFactory(config, sqlHandlerConfig.getScanResult());
+    if (this.refreshDecisionWrapper == null) {
+      this.refreshDecisionWrapper =
+          RefreshDecisionMaker.getRefreshDecision(
+              entry,
+              materialization,
+              reflectionSettings,
+              catalogService,
+              materializationStore,
+              dependenciesStore,
+              matchingPlanBytes,
+              expandedPlan,
+              strippedPlan,
+              requestedTables,
+              forceFullUpdate,
+              service,
+              optionManager,
+              sqlHandlerConfig,
+              config,
+              nonIncrementalRefreshFunctionEventHandler.isEventReceived());
+    }
 
+    final RefreshDecision refreshDecision = refreshDecisionWrapper.getRefreshDecision();
+    if (refreshDecision.getNoOpRefresh()) {
+      return new EmptyRel(
+          expandedPlan.getCluster(),
+          expandedPlan.getTraitSet(),
+          expandedPlan.getRowType(),
+          CalciteArrowHelper.fromCalciteRowType(expandedPlan.getRowType()));
+    }
+    if (isIncremental(refreshDecision) && !isSnapshotBased(refreshDecision)) {
+      strippedPlan = strippedPlan.accept(getIncremental(refreshDecision));
+    }
 
-    final Pointer<SnapshotDiffContext> snapshotDiffContextPointer = new Pointer<>();
-    this.refreshDecision = RefreshDecisionMaker.getRefreshDecision(
-      entry,
-      materialization,
-      reflectionSettings,
-      catalogService,
-      materializationStore,
-      plan,
-      strippedPlan,
-      requestedTables,
-      serializerFactory,
-      strictRefresh,
-      forceFullUpdate,
-      sqlHandlerConfig.getContext().getFunctionRegistry(),
-      service,
-      optionManager,
-      snapshotDiffContextPointer,
-      sqlHandlerConfig,
-      isRebuildPlan);
-    this.snapshotDiffContext = snapshotDiffContextPointer.value;
-    if (!isRebuildPlan) {
-      if (isIncremental(refreshDecision) && !isSnapshotBased(refreshDecision)) {
-        strippedPlan = strippedPlan.accept(getIncremental(refreshDecision));
-      }
-
-      if (isSnapshotBased(refreshDecision) && !refreshDecision.getInitialRefresh()) {
-        strippedPlan = strippedPlan.accept(new IncrementalUpdateUtils.AddSnapshotDiffContextShuttle(snapshotDiffContextPointer.value));
-      }
+    if (isSnapshotBased(refreshDecision) && !refreshDecision.getInitialRefresh()) {
+      strippedPlan =
+          strippedPlan.accept(
+              new IncrementalUpdateUtils.AddSnapshotDiffContextShuttle(
+                  refreshDecisionWrapper.getSnapshotDiffContext()));
     }
 
     return strippedPlan;
@@ -201,22 +249,26 @@ class ReflectionPlanNormalizer implements RelTransformer {
     return decision.getAccelerationSettings().getMethod() == RefreshMethod.INCREMENTAL;
   }
 
-  private static boolean isSnapshotBased (RefreshDecision decision) {
+  private static boolean isSnapshotBased(RefreshDecision decision) {
     return decision.getAccelerationSettings().getSnapshotBased();
   }
 
   private static RelShuttle getIncremental(RefreshDecision decision) {
     Preconditions.checkArgument(isIncremental(decision) && !isSnapshotBased(decision));
-    return getShuttle(decision.getAccelerationSettings(), decision.getInitialRefresh(), decision.getUpdateId());
+    return getShuttle(
+        decision.getAccelerationSettings(), decision.getInitialRefresh(), decision.getUpdateId());
   }
 
-  private static RelShuttle getShuttle(AccelerationSettings settings, boolean isInitialRefresh, UpdateId updateId) {
+  private static RelShuttle getShuttle(
+      AccelerationSettings settings, boolean isInitialRefresh, UpdateId updateId) {
     return new MaterializationShuttle(
-        Optional.ofNullable(settings.getRefreshField()).orElse(IncrementalUpdateUtils.UPDATE_COLUMN), isInitialRefresh, updateId);
+        Optional.ofNullable(settings.getRefreshField())
+            .orElse(IncrementalUpdateUtils.UPDATE_COLUMN),
+        isInitialRefresh,
+        updateId);
   }
 
-  public SnapshotDiffContext getSnapshotDiffContext() {
-    return snapshotDiffContext;
+  public ByteString getMatchingPlanBytes() {
+    return matchingPlanBytes;
   }
-
 }

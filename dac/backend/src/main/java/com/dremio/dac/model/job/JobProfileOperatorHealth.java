@@ -15,13 +15,10 @@
  */
 package com.dremio.dac.model.job;
 
+import com.dremio.service.jobAnalysis.proto.ThreadData;
 import java.util.List;
 
-import com.dremio.service.jobAnalysis.proto.ThreadData;
-
-/**
- * class for Operator Health information
- */
+/** class for Operator Health information */
 public class JobProfileOperatorHealth {
   private Boolean isSkewedOnRecordsProcessed;
   private Boolean isSkewedOnProcessingTime;
@@ -29,61 +26,52 @@ public class JobProfileOperatorHealth {
   private Boolean isThreadsParallelizationProper;
   private List<ThreadData> operatorInformationPerThread;
 
-  public JobProfileOperatorHealth()
-  {
+  public JobProfileOperatorHealth() {}
 
-  }
-
-  public Boolean getIsSkewedOnRecordsProcessed()
-  {
+  public Boolean getIsSkewedOnRecordsProcessed() {
     return isSkewedOnRecordsProcessed;
   }
 
-  public JobProfileOperatorHealth setIsSkewedOnRecordsProcessed(Boolean isSkewedOnRecordsProcessed)
-  {
+  public JobProfileOperatorHealth setIsSkewedOnRecordsProcessed(
+      Boolean isSkewedOnRecordsProcessed) {
     this.isSkewedOnRecordsProcessed = isSkewedOnRecordsProcessed;
     return this;
   }
 
-  public Boolean getIsSkewedOnProcessingTime()
-  {
+  public Boolean getIsSkewedOnProcessingTime() {
     return isSkewedOnProcessingTime;
   }
 
-  public JobProfileOperatorHealth setIsSkewedOnProcessingTime(Boolean isSkewedOnProcessingTime)
-  {
+  public JobProfileOperatorHealth setIsSkewedOnProcessingTime(Boolean isSkewedOnProcessingTime) {
     this.isSkewedOnProcessingTime = isSkewedOnProcessingTime;
     return this;
   }
 
-  public Boolean getIsSkewedOnPeakMemory()
-  {
+  public Boolean getIsSkewedOnPeakMemory() {
     return isSkewedOnPeakMemory;
   }
 
-  public JobProfileOperatorHealth setIsSkewedOnPeakMemory(Boolean isSkewedOnPeakMemory)
-  {
+  public JobProfileOperatorHealth setIsSkewedOnPeakMemory(Boolean isSkewedOnPeakMemory) {
     this.isSkewedOnPeakMemory = isSkewedOnPeakMemory;
     return this;
   }
 
-  public Boolean getIsThreadsParallelizationProper()
-  {
+  public Boolean getIsThreadsParallelizationProper() {
     return isThreadsParallelizationProper;
   }
 
-  public JobProfileOperatorHealth setIsThreadsParallelizationProper(Boolean isThreadsParallelizationProper)
-  {
+  public JobProfileOperatorHealth setIsThreadsParallelizationProper(
+      Boolean isThreadsParallelizationProper) {
     this.isThreadsParallelizationProper = isThreadsParallelizationProper;
     return this;
   }
 
-  public List<ThreadData> getOperatorInformationPerThreadList()
-  {
+  public List<ThreadData> getOperatorInformationPerThreadList() {
     return operatorInformationPerThread;
   }
 
-  public JobProfileOperatorHealth setOperatorInformationPerThreadList(List<ThreadData> operatorInformationPerThread) {
+  public JobProfileOperatorHealth setOperatorInformationPerThreadList(
+      List<ThreadData> operatorInformationPerThread) {
     this.operatorInformationPerThread = operatorInformationPerThread;
     return this;
   }

@@ -35,21 +35,19 @@ import { formContext } from "uiTheme/radium/typography";
 
 import SettingHeader from "@app/components/SettingHeader";
 import ViewStateWrapper from "@app/components/ViewStateWrapper";
-import SimpleButton from "@app/components/Buttons/SimpleButton";
 import TextField from "@app/components/Fields/TextField";
 import ApiUtils from "@app/utils/apiUtils/apiUtils";
 import SupportAccess, {
   RESERVED as SUPPORT_ACCESS_RESERVED,
 } from "@inject/pages/AdminPage/subpages/SupportAccess";
 import FormUnsavedRouteLeave from "@app/components/Forms/FormUnsavedRouteLeave";
-
+import { Button } from "dremio-ui-lib/components";
 import SettingsMicroForm from "./SettingsMicroForm";
 import { LABELS, LABELS_IN_SECTIONS } from "./settingsConfig";
 import InternalSupportEmail, {
   RESERVED as INTERNAL_SUPPORT_RESERVED,
 } from "./InternalSupportEmail";
 import { clearCachedSupportFlags } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
-import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
 
 import "./Support.less";
 
@@ -253,16 +251,15 @@ export class Support extends PureComponent {
           placeholder={laDeprecated("Support Key")}
           data-qa="support-key-search"
         />
-        <SimpleButton
-          buttonStyle="secondary"
-          className={clsx(classes["secondaryButtonPsuedoClasses"])}
+        <Button
+          type="submit"
+          variant="secondary"
           data-qa="support-key-search-btn"
-          submitting={this.state.getSettingInProgress}
-          style={{ display: "inline-block", marginLeft: "6px" }}
-          showSpinnerAndText={false}
+          pending={this.state.getSettingInProgress}
+          className="mx-1"
         >
           {laDeprecated("Show")}
-        </SimpleButton>
+        </Button>
       </form>
     );
 

@@ -25,8 +25,10 @@ public class JoinCondition {
   private final LogicalExpression right;
 
   @JsonCreator
-  public JoinCondition(@JsonProperty("relationship") String relationship,
-      @JsonProperty("left") LogicalExpression left, @JsonProperty("right") LogicalExpression right) {
+  public JoinCondition(
+      @JsonProperty("relationship") String relationship,
+      @JsonProperty("left") LogicalExpression left,
+      @JsonProperty("right") LogicalExpression right) {
     super();
     this.relationship = relationship;
     this.left = left;
@@ -45,8 +47,7 @@ public class JoinCondition {
     return right;
   }
 
-  public JoinCondition flip(){
+  public JoinCondition flip() {
     return new JoinCondition(relationship, right, left);
   }
-
 }

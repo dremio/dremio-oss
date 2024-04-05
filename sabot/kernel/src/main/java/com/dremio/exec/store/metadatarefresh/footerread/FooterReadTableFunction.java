@@ -15,25 +15,6 @@
  */
 package com.dremio.exec.store.metadatarefresh.footerread;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.DataFiles;
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.PartitionSpec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
@@ -63,6 +44,23 @@ import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.PartitionSpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FooterReadTableFunction extends AbstractTableFunction {
 
@@ -95,12 +93,16 @@ public class FooterReadTableFunction extends AbstractTableFunction {
   private int maxSchemaWidth = 0;
   private int numberOfRowGroupsRead = 0;
 
-  public FooterReadTableFunction(FragmentExecutionContext fec, OperatorContext context,
-                                 OpProps props, TableFunctionConfig functionConfig)  {
+  public FooterReadTableFunction(
+      FragmentExecutionContext fec,
+      OperatorContext context,
+      OpProps props,
+      TableFunctionConfig functionConfig) {
     super(context, functionConfig);
     this.fec = fec;
     this.props = props;
-    FooterReaderTableFunctionContext functionContext = (FooterReaderTableFunctionContext) functionConfig.getFunctionContext();
+    FooterReaderTableFunctionContext functionContext =
+        (FooterReaderTableFunctionContext) functionConfig.getFunctionContext();
     fileType = functionContext.getFileType();
     this.tableName = PathUtils.constructFullPath(functionContext.getTablePath().get(0));
     this.operatorStats = context.getStats();
@@ -134,23 +136,50 @@ public class FooterReadTableFunction extends AbstractTableFunction {
     super.setup(accessible);
 
     // input vectors
-    this.pathVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH);
-    this.fileSizeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_SIZE);
-    this.mtimeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.MODIFICATION_TIME);
-    this.partitionDataVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.PARTITION_INFO);
-    this.isDeletedFile = (BitVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.IS_DELETED_FILE);
+    this.pathVector =
+        (VarCharVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH);
+    this.fileSizeVector =
+        (BigIntVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_SIZE);
+    this.mtimeVector =
+        (BigIntVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.MODIFICATION_TIME);
+    this.partitionDataVector =
+        (VarBinaryVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.PARTITION_INFO);
+    this.isDeletedFile =
+        (BitVector)
+            VectorUtil.getVectorFromSchemaPath(
+                incoming, MetadataRefreshExecConstants.IS_DELETED_FILE);
 
     // output vectors
-    this.mtimeOutputVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.MODIFICATION_TIME);
-    this.dataFileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
-    this.operationTypeVector = (IntVector) VectorUtil.getVectorFromSchemaPath(outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.OPERATION_TYPE);
+    this.mtimeOutputVector =
+        (BigIntVector)
+            VectorUtil.getVectorFromSchemaPath(
+                outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.MODIFICATION_TIME);
+    this.dataFileVector =
+        (VarBinaryVector)
+            VectorUtil.getVectorFromSchemaPath(
+                outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
+    this.operationTypeVector =
+        (IntVector)
+            VectorUtil.getVectorFromSchemaPath(
+                outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.OPERATION_TYPE);
     setFileSchemaVector();
 
     return outgoing;
   }
 
   public void setFileSchemaVector() {
-    this.fileSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+    this.fileSchemaVector =
+        (VarBinaryVector)
+            VectorUtil.getVectorFromSchemaPath(
+                outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
   }
 
   @Override
@@ -170,21 +199,25 @@ public class FooterReadTableFunction extends AbstractTableFunction {
       Optional<IcebergPartitionData> partitionData = getPartitionDataFromInput();
       String path = new String(pathVector.get(currentRow), StandardCharsets.UTF_8);
       boolean isAddedFile = !isDeletedFile.getObject(currentRow);
-      long fileSize =  100;
-      long recordCount =  100;
-      long mTime =  -1;
-      BatchSchema fileSchema =  BatchSchema.EMPTY;
-      FileFormat fileFormat =  getIcebergFileFormat();
+      long fileSize = 100;
+      long recordCount = 100;
+      long mTime = -1;
+      BatchSchema fileSchema = BatchSchema.EMPTY;
+      FileFormat fileFormat = getIcebergFileFormat();
       if (isAddedFile) {
         fileSize = fileSizeVector.get(currentRow);
-        if(fileSize == 0) {
-          return 0; //Ignore 0 size files
+        if (fileSize == 0) {
+          return 0; // Ignore 0 size files
         }
         Footer footer = null;
         try {
-          footer = footerReader(getFS(path)).getFooter(PathUtils.withoutQueryParams(path), fileSize);
+          footer =
+              footerReader(getFS(path)).getFooter(PathUtils.withoutQueryParams(path), fileSize);
         } catch (Exception e) {
-          String msg = String.format("Invalid %s footer in the dataset %s for file %s. Error - %s.", fileType, tableName, new String(pathVector.get(currentRow)), e.getMessage());
+          String msg =
+              String.format(
+                  "Invalid %s footer in the dataset %s for file %s. Error - %s.",
+                  fileType, tableName, new String(pathVector.get(currentRow)), e.getMessage());
           throw UserException.validationError(e).message(msg).buildSilently();
         }
         recordCount = footer.getRowCount();
@@ -193,30 +226,40 @@ public class FooterReadTableFunction extends AbstractTableFunction {
 
         fileSchema = fileSchema.removeNullFields();
         maxSchemaWidth = Math.max(maxSchemaWidth, fileSchema.getFieldCount());
-        if(footer instanceof ParquetFooter) {
+        if (footer instanceof ParquetFooter) {
           ParquetFooter parquetFooter = (ParquetFooter) footer;
           numberOfRowGroupsRead += parquetFooter.getRowGroupCount();
         }
 
-        if (fileSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
-          throw new ColumnCountTooLargeException((int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+        if (fileSchema.getTotalFieldCount()
+            > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
+          throw new ColumnCountTooLargeException(
+              (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
         }
         fileFormat = footer.getFileFormat();
       }
       if (partitionData.isPresent()) {
-        SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).setMapTypeEnabled(context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
-        List<Field> partitionColumns = partitionData.get()
-                .getPartitionType()
-                .fields().stream().map(x -> schemaConverter.fromIcebergColumn(x)).collect(Collectors.toList());
+        SchemaConverter schemaConverter =
+            SchemaConverter.getBuilder()
+                .setTableName(tableName)
+                .setMapTypeEnabled(
+                    context.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
+                .build();
+        List<Field> partitionColumns =
+            partitionData.get().getPartitionType().fields().stream()
+                .map(x -> schemaConverter.fromIcebergColumn(x))
+                .collect(Collectors.toList());
 
         fileSchema = mergePartitionColumns(fileSchema, partitionColumns);
 
-        PartitionSpec icebergPartitionSpec = IcebergUtils.getIcebergPartitionSpec(fileSchema,
-                partitionColumns.stream()
-                        .map(Field::getName)
-                        .collect(Collectors.toList()), null);
+        PartitionSpec icebergPartitionSpec =
+            IcebergUtils.getIcebergPartitionSpec(
+                fileSchema,
+                partitionColumns.stream().map(Field::getName).collect(Collectors.toList()),
+                null);
 
-        dataFile = DataFiles.builder(icebergPartitionSpec)
+        dataFile =
+            DataFiles.builder(icebergPartitionSpec)
                 .withPath(path)
                 .withFormat(fileFormat)
                 .withFileSizeInBytes(fileSize)
@@ -224,7 +267,8 @@ public class FooterReadTableFunction extends AbstractTableFunction {
                 .withPartition(partitionData.get())
                 .build();
       } else {
-        dataFile = DataFiles.builder(PartitionSpec.unpartitioned())
+        dataFile =
+            DataFiles.builder(PartitionSpec.unpartitioned())
                 .withPath(path)
                 .withFormat(fileFormat)
                 .withFileSizeInBytes(fileSize)
@@ -247,22 +291,26 @@ public class FooterReadTableFunction extends AbstractTableFunction {
     return schema.merge(new BatchSchema(partitionColumns));
   }
 
-  private void writeFileToOutput(int startOutIndex, DataFile dateFile, BatchSchema schema, long mtime, boolean isAddedFile) throws IOException {
-    OperationType operationType = isAddedFile ? OperationType.ADD_DATAFILE : OperationType.DELETE_DATAFILE;
+  private void writeFileToOutput(
+      int startOutIndex, DataFile dateFile, BatchSchema schema, long mtime, boolean isAddedFile)
+      throws IOException {
+    OperationType operationType =
+        isAddedFile ? OperationType.ADD_DATAFILE : OperationType.DELETE_DATAFILE;
 
-    final IcebergMetadataInformation dataFileInfo = new IcebergMetadataInformation(IcebergSerDe.serializeDataFile(dateFile));
+    final IcebergMetadataInformation dataFileInfo =
+        new IcebergMetadataInformation(IcebergSerDe.serializeDataFile(dateFile));
     dataFileVector.setSafe(startOutIndex, IcebergSerDe.serializeToByteArray(dataFileInfo));
     operationTypeVector.setSafe(startOutIndex, operationType.value);
 
     writeFileSchemaVector(startOutIndex, schema);
 
-    if(mtime != -1) {
+    if (mtime != -1) {
       mtimeOutputVector.setSafe(startOutIndex, mtime);
     }
   }
 
   protected void writeFileSchemaVector(int index, BatchSchema schema) {
-    if(schema != null) {
+    if (schema != null) {
       fileSchemaVector.setSafe(index, schema.serialize());
     }
   }
@@ -270,8 +318,7 @@ public class FooterReadTableFunction extends AbstractTableFunction {
   protected FooterReader footerReader(FileSystem fs) {
     switch (fileType) {
       case PARQUET:
-        return new ParquetFooterReader(context, functionConfig.getTableSchema(), fs,
-                0,0,true);
+        return new ParquetFooterReader(context, functionConfig.getTableSchema(), fs, 0, 0, true);
       default:
         throw new UnsupportedOperationException(String.format("Unknown file type - %s", fileType));
     }
@@ -301,23 +348,22 @@ public class FooterReadTableFunction extends AbstractTableFunction {
   @Override
   public void closeRow() throws Exception {
     operatorStats.setReadIOStats();
-    if(numberOfRowGroupsRead != 0) {
+    if (numberOfRowGroupsRead != 0) {
       operatorStats.setLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, numberOfRowGroupsRead);
     }
     operatorStats.setLongStat(TableFunctionOperator.Metric.MAX_SCHEMA_WIDTH, maxSchemaWidth);
   }
 
   /**
-   * Calculating size of first row from outgoing vectors
-   * size is in bytes, 8 bytes for mtime
+   * Calculating size of first row from outgoing vectors size is in bytes, 8 bytes for mtime
+   *
    * @return size of first row
    */
   @Override
-  public long getFirstRowSize(){
+  public long getFirstRowSize() {
     long firstRowSize = 8L;
     firstRowSize += fileSchemaVector.get(0).length;
     firstRowSize += dataFileVector.get(0).length;
     return firstRowSize;
   }
-
 }

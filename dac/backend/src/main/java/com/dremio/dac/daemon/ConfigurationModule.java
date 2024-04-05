@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.daemon;
 
-/**
- * Helper class to manage AWS configuration server
- */
+/** Helper class to manage AWS configuration server */
 public interface ConfigurationModule {
   void run() throws Exception;
 }

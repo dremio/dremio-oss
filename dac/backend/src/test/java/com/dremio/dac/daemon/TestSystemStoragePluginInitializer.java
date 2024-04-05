@@ -27,15 +27,6 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.EnumSet;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -74,22 +65,29 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceService.Factory;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.OrphanageImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.SecretsCreator;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import java.util.EnumSet;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
-/**
- * To test SystemStoragePlugins init
- */
+/** To test SystemStoragePlugins init */
 public class TestSystemStoragePluginInitializer {
 
   private static final String HOSTNAME = "localhost";
@@ -111,8 +109,7 @@ public class TestSystemStoragePluginInitializer {
   private FabricService fabricService;
   private CatalogService catalogService;
 
-  @Rule
-  public TemporarySystemProperties properties = new TemporarySystemProperties();
+  @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void setup() throws Exception {
@@ -121,8 +118,7 @@ public class TestSystemStoragePluginInitializer {
     final DremioConfig dremioConfig = DremioConfig.create();
     final SabotContext sabotContext = mock(SabotContext.class);
 
-    storeProvider =
-      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
     namespaceService = new NamespaceServiceImpl(storeProvider, mock(CatalogStatusEvents.class));
 
@@ -130,135 +126,148 @@ public class TestSystemStoragePluginInitializer {
     kvStoreProvider.start();
     orphanage = new OrphanageImpl(kvStoreProvider);
 
-    final Orphanage.Factory orphanageFactory = new Orphanage.Factory() {
-      @Override
-      public Orphanage get() {
-        return orphanage;
-      }
-    };
+    final Orphanage.Factory orphanageFactory =
+        new Orphanage.Factory() {
+          @Override
+          public Orphanage get() {
+            return orphanage;
+          }
+        };
 
-    final NamespaceService.Factory namespaceServiceFactory = new Factory() {
-      @Override
-      public NamespaceService get(String userName) {
-        return namespaceService;
-      }
+    final NamespaceService.Factory namespaceServiceFactory =
+        new Factory() {
+          @Override
+          public NamespaceService get(String userName) {
+            return namespaceService;
+          }
 
-      @Override
-      public NamespaceService get(NamespaceIdentity identity) {
-        return namespaceService;
-      }
-    };
+          @Override
+          public NamespaceService get(NamespaceIdentity identity) {
+            return namespaceService;
+          }
+        };
 
-    final ViewCreatorFactory viewCreatorFactory = new ViewCreatorFactory() {
-      @Override
-      public ViewCreator get(String userName) {
-        return mock(ViewCreator.class);
-      }
+    final ViewCreatorFactory viewCreatorFactory =
+        new ViewCreatorFactory() {
+          @Override
+          public ViewCreator get(String userName) {
+            return mock(ViewCreator.class);
+          }
 
-      @Override
-      public void start() throws Exception {
-      }
+          @Override
+          public void start() throws Exception {}
 
-      @Override
-      public void close() throws Exception {
-      }
-    };
-    when(sabotContext.getNamespaceServiceFactory())
-      .thenReturn(namespaceServiceFactory);
-    when(sabotContext.getNamespaceService(anyString()))
-      .thenReturn(namespaceService);
-    when(sabotContext.getOrphanageFactory())
-      .thenReturn(orphanageFactory);
-    when(sabotContext.getViewCreatorFactoryProvider())
-      .thenReturn(() -> viewCreatorFactory);
+          @Override
+          public void close() throws Exception {}
+        };
+    when(sabotContext.getNamespaceServiceFactory()).thenReturn(namespaceServiceFactory);
+    when(sabotContext.getNamespaceService(anyString())).thenReturn(namespaceService);
+    when(sabotContext.getOrphanageFactory()).thenReturn(orphanageFactory);
+    when(sabotContext.getViewCreatorFactoryProvider()).thenReturn(() -> viewCreatorFactory);
 
-    datasetListingService = new DatasetListingServiceImpl(DirectProvider.wrap(namespaceServiceFactory));
-    when(sabotContext.getDatasetListing())
-      .thenReturn(datasetListingService);
+    datasetListingService =
+        new DatasetListingServiceImpl(DirectProvider.wrap(namespaceServiceFactory));
+    when(sabotContext.getDatasetListing()).thenReturn(datasetListingService);
 
-    when(sabotContext.getClasspathScan())
-      .thenReturn(CLASSPATH_SCAN_RESULT);
+    when(sabotContext.getClasspathScan()).thenReturn(CLASSPATH_SCAN_RESULT);
 
-    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(sabotConfig, CLASSPATH_SCAN_RESULT);
-    when(sabotContext.getLpPersistence())
-      .thenReturn(lpp);
+    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
+    when(sabotContext.getLpPersistence()).thenReturn(lpp);
 
-    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    final SystemOptionManager som = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
-    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
-      .withOptionManager(som)
-      .build();
+    final OptionValidatorListing optionValidatorListing =
+        new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    final SystemOptionManager som =
+        new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    OptionManager optionManager =
+        OptionManagerWrapper.Builder.newBuilder()
+            .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+            .withOptionManager(som)
+            .build();
 
     som.start();
-    when(sabotContext.getOptionManager())
-      .thenReturn(optionManager);
+    when(sabotContext.getOptionManager()).thenReturn(optionManager);
 
-    when(sabotContext.getKVStoreProvider())
-      .thenReturn(storeProvider);
-    when(sabotContext.getConfig())
-      .thenReturn(DremioTest.DEFAULT_SABOT_CONFIG);
-    when(sabotContext.getDremioConfig())
-      .thenReturn(dremioConfig);
+    when(sabotContext.getKVStoreProvider()).thenReturn(storeProvider);
+    when(sabotContext.getConfig()).thenReturn(DremioTest.DEFAULT_SABOT_CONFIG);
+    when(sabotContext.getDremioConfig()).thenReturn(dremioConfig);
 
     allocator = RootAllocatorFactory.newRoot(sabotConfig);
-    when(sabotContext.getAllocator())
-      .thenReturn(allocator);
+    when(sabotContext.getAllocator()).thenReturn(allocator);
 
     clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-    when(sabotContext.getClusterCoordinator())
-      .thenReturn(clusterCoordinator);
+    when(sabotContext.getClusterCoordinator()).thenReturn(clusterCoordinator);
     when(sabotContext.getExecutors())
-      .thenReturn(clusterCoordinator.getServiceSet(ClusterCoordinator.Role.EXECUTOR)
-        .getAvailableEndpoints());
+        .thenReturn(
+            clusterCoordinator
+                .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
+                .getAvailableEndpoints());
     when(sabotContext.getCoordinators())
-      .thenReturn(clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-        .getAvailableEndpoints());
+        .thenReturn(
+            clusterCoordinator
+                .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+                .getAvailableEndpoints());
 
     when(sabotContext.getRoles())
-      .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
-    when(sabotContext.isCoordinator())
-      .thenReturn(true);
+        .thenReturn(
+            Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
+    when(sabotContext.isCoordinator()).thenReturn(true);
 
     when(sabotContext.getCredentialsServiceProvider())
-      .thenReturn(() -> mock(CredentialsService.class));
+        .thenReturn(() -> mock(CredentialsService.class));
 
-    final FileSystemWrapper fileSystemWrapper = (fs, storageId, pluginConf, operatorContext, enableAsync, isMetadataEnabled) -> fs;
-    when(sabotContext.getFileSystemWrapper())
-      .thenReturn(fileSystemWrapper);
+    when(sabotContext.getSecretsCreator()).thenReturn(() -> mock(SecretsCreator.class));
+
+    final FileSystemWrapper fileSystemWrapper =
+        (fs, storageId, pluginConf, operatorContext, enableAsync, isMetadataEnabled) -> fs;
+    when(sabotContext.getFileSystemWrapper()).thenReturn(fileSystemWrapper);
     pool = new CloseableThreadPool("catalog-test");
-    fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,
-        MAX_ALLOCATION, TIMEOUT, pool);
+    fabricService =
+        new FabricServiceImpl(
+            HOSTNAME,
+            45678,
+            true,
+            THREAD_COUNT,
+            allocator,
+            RESERVATION,
+            MAX_ALLOCATION,
+            TIMEOUT,
+            pool);
 
     reader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
     final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
     doNothing().when(broadcaster).communicateChange(any());
 
-    catalogService = new CatalogServiceImpl(
-      () -> sabotContext,
-      () -> new LocalSchedulerService(1),
-      () -> new SystemTablePluginConfigProvider(),
-      () -> new SysFlightPluginConfigProvider(),
-      () -> fabricService,
-      () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
-      () -> allocator,
-      () -> storeProvider,
-      () -> datasetListingService,
-      () -> optionManager,
-      () -> broadcaster,
-      dremioConfig,
-      EnumSet.allOf(ClusterCoordinator.Role.class),
-      () -> new ModifiableLocalSchedulerService(2, "modifiable-scheduler-",
-        ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, () -> optionManager),
-      () -> new VersionedDatasetAdapterFactory());
+    catalogService =
+        new CatalogServiceImpl(
+            () -> sabotContext,
+            () -> new LocalSchedulerService(1),
+            () -> new SystemTablePluginConfigProvider(),
+            () -> new SysFlightPluginConfigProvider(),
+            () -> fabricService,
+            () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            () -> allocator,
+            () -> storeProvider,
+            () -> datasetListingService,
+            () -> optionManager,
+            () -> broadcaster,
+            dremioConfig,
+            EnumSet.allOf(ClusterCoordinator.Role.class),
+            () ->
+                new ModifiableLocalSchedulerService(
+                    2,
+                    "modifiable-scheduler-",
+                    ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES,
+                    () -> optionManager),
+            () -> new VersionedDatasetAdapterFactory(),
+            () -> new CatalogStatusEventsImpl());
     catalogService.start();
   }
 
   @After
   public void shutdown() throws Exception {
-    AutoCloseables.close(catalogService, fabricService, pool, clusterCoordinator,
-      allocator, storeProvider);
+    AutoCloseables.close(
+        catalogService, fabricService, pool, clusterCoordinator, allocator, storeProvider);
   }
 
   @Test
@@ -266,36 +275,38 @@ public class TestSystemStoragePluginInitializer {
 
     SystemStoragePluginInitializer systemInitializer = new SystemStoragePluginInitializer();
 
-    SourceConfig c = new SourceConfig();
+    SourceConfig sourceConfig = new SourceConfig();
     InternalFileConf conf = new InternalFileConf();
     conf.connection = "classpath:///";
     conf.path = "/";
     conf.isInternal = false;
     conf.propertyList = ImmutableList.of(new Property("abc", "bcd"), new Property("def", "123"));
-    c.setName("mytest");
-    c.setConnectionConf(conf);
-    c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+    sourceConfig.setName("mytest");
+    sourceConfig.setConnectionConf(conf);
+    sourceConfig.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
 
-    systemInitializer.createOrUpdateSystemSource(catalogService, namespaceService, c);
+    systemInitializer.createOrUpdateSystemSource(catalogService, namespaceService, sourceConfig);
 
     final CatalogServiceImpl catalog = (CatalogServiceImpl) catalogService;
 
-    SourceConfig updatedC = new SourceConfig();
+    SourceConfig updatedSourceConfig = new SourceConfig();
     InternalFileConf updatedCConf = new InternalFileConf();
     updatedCConf.connection = "file:///";
     updatedCConf.path = "/";
     updatedCConf.isInternal = true;
-    updatedC.setName("mytest");
-    updatedC.setConnectionConf(updatedCConf);
-    updatedC.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    updatedSourceConfig.setName("mytest");
+    updatedSourceConfig.setConnectionConf(updatedCConf);
+    updatedSourceConfig.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
 
     final SourceConfig config = catalog.getManagedSource("mytest").getId().getClonedConfig();
     InternalFileConf decryptedConf = (InternalFileConf) reader.getConnectionConf(config);
 
-    systemInitializer.createOrUpdateSystemSource(catalogService, namespaceService, updatedC);
+    systemInitializer.createOrUpdateSystemSource(
+        catalogService, namespaceService, updatedSourceConfig);
 
     final SourceConfig updatedConfig = catalog.getManagedSource("mytest").getId().getClonedConfig();
-    InternalFileConf decryptedUpdatedConfig = (InternalFileConf) reader.getConnectionConf(updatedConfig);
+    InternalFileConf decryptedUpdatedConfig =
+        (InternalFileConf) reader.getConnectionConf(updatedConfig);
 
     assertNotNull(decryptedConf.getProperties());
     assertEquals(2, decryptedConf.getProperties().size());
@@ -307,27 +318,28 @@ public class TestSystemStoragePluginInitializer {
     assertEquals(decryptedConf.path, decryptedUpdatedConfig.path);
     assertNotEquals(config.getTag(), updatedConfig.getTag());
 
-    SourceConfig updatedC2 = new SourceConfig();
+    SourceConfig updatedSourceConfig2 = new SourceConfig();
     InternalFileConf updatedCConf2 = new InternalFileConf();
     updatedCConf2.connection = "file:///";
     updatedCConf2.path = "/";
     updatedCConf2.isInternal = true;
-    updatedC2.setName("mytest");
-    updatedC2.setConnectionConf(updatedCConf2);
-    updatedC2.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    updatedSourceConfig2.setName("mytest");
+    updatedSourceConfig2.setCtime(updatedConfig.getCtime());
+    updatedSourceConfig2.setConnectionConf(updatedCConf2);
+    updatedSourceConfig2.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
 
-    systemInitializer.createOrUpdateSystemSource(catalogService, namespaceService, updatedC2);
+    systemInitializer.createOrUpdateSystemSource(
+        catalogService, namespaceService, updatedSourceConfig2);
 
-    final SourceConfig updatedConfig2 = catalog.getManagedSource("mytest").getId().getClonedConfig();
+    final SourceConfig updatedConfig2 =
+        catalog.getManagedSource("mytest").getId().getClonedConfig();
 
     InternalFileConf decryptedConf2 = (InternalFileConf) reader.getConnectionConf(updatedConfig2);
     assertTrue(decryptedConf2.getProperties().isEmpty());
 
     assertEquals(updatedConfig.getTag(), updatedConfig2.getTag());
 
-
     catalog.deleteSource("mytest");
     assertNull(catalog.getManagedSource("myTest"));
   }
-
 }

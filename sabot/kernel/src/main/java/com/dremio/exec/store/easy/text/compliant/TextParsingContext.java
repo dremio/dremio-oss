@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
-import java.io.IOException;
-
 import com.univocity.parsers.common.ParsingContext;
+import java.io.IOException;
 
 class TextParsingContext implements ParsingContext {
 
@@ -32,73 +31,55 @@ class TextParsingContext implements ParsingContext {
     this.output = output;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public void stop() {
     stopped = true;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public boolean isStopped() {
     return stopped;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public long currentLine() {
     return input.lineCount();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public long currentChar() {
     return input.charCount();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public int currentColumn() {
     return -1;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public String[] headers() {
-    return new String[]{};
+    return new String[] {};
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public int[] extractedFieldIndexes() {
     return extractedIndexes;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public long currentRecord() {
     return output.getRecordCount();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public String currentParsedContent() {
     try {
@@ -109,8 +90,7 @@ class TextParsingContext implements ParsingContext {
   }
 
   @Override
-  public void skipLines(int lines) {
-  }
+  public void skipLines(int lines) {}
 
   @Override
   public boolean columnsReordered() {

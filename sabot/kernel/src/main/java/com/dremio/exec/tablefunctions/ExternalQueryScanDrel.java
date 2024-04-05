@@ -15,34 +15,30 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.record.BatchSchema;
 import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.record.BatchSchema;
-
-/**
- * Drel implementation of an external query scan.
- */
+/** Drel implementation of an external query scan. */
 public final class ExternalQueryScanDrel extends ExternalQueryRelBase implements Rel {
-  public ExternalQueryScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType,
-                               StoragePluginId pluginId, String sql, BatchSchema schema) {
+  public ExternalQueryScanDrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelDataType rowType,
+      StoragePluginId pluginId,
+      String sql,
+      BatchSchema schema) {
     super(cluster, traitSet, rowType, pluginId, sql, schema);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new ExternalQueryScanDrel(
-      getCluster(),
-      getTraitSet(),
-      getRowType(),
-      pluginId,
-      sql,
-      batchSchema);
+        getCluster(), getTraitSet(), getRowType(), pluginId, sql, batchSchema);
   }
 }

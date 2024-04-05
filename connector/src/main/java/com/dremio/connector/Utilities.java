@@ -18,16 +18,14 @@ package com.dremio.connector;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Contains a set of utility methods.
- */
+/** Contains a set of utility methods. */
 public final class Utilities {
 
   /**
    * Throws if the given list is null or empty.
    *
    * @param list list
-   * @param <T>  type
+   * @param <T> type
    * @return given list
    */
   public static <T> List<T> checkNotNullOrEmpty(List<T> list) {
@@ -43,7 +41,7 @@ public final class Utilities {
    * Returns the last element in the list.
    *
    * @param list list
-   * @param <T>  type
+   * @param <T> type
    * @return last element
    */
   public static <T> T last(List<T> list) {
@@ -51,6 +49,5 @@ public final class Utilities {
   }
 
   // prevent instantiation
-  private Utilities() {
-  }
+  private Utilities() {}
 }

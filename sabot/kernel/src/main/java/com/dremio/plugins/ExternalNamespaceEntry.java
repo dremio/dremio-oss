@@ -15,16 +15,13 @@
  */
 package com.dremio.plugins;
 
-import java.util.List;
-import java.util.Optional;
-
-import javax.annotation.Nullable;
-
-import org.projectnessie.model.Content;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.util.List;
+import java.util.Optional;
+import javax.annotation.Nullable;
+import org.projectnessie.model.Content;
 
 public final class ExternalNamespaceEntry {
   public enum Type {
@@ -35,14 +32,14 @@ public final class ExternalNamespaceEntry {
 
     public Content.Type toNessieContentType() {
       switch (this) {
-      case ICEBERG_TABLE:
-        return Content.Type.ICEBERG_TABLE;
-      case ICEBERG_VIEW:
-        return Content.Type.ICEBERG_VIEW;
-      case FOLDER:
-        return Content.Type.NAMESPACE;
-      default:
-        throw new IllegalArgumentException("toNessieContentType failed: " + this);
+        case ICEBERG_TABLE:
+          return Content.Type.ICEBERG_TABLE;
+        case ICEBERG_VIEW:
+          return Content.Type.ICEBERG_VIEW;
+        case FOLDER:
+          return Content.Type.NAMESPACE;
+        default:
+          throw new IllegalArgumentException("toNessieContentType failed: " + this);
       }
     }
 
@@ -68,12 +65,11 @@ public final class ExternalNamespaceEntry {
   private final @Nullable Optional<NessieContent> nessieContent;
 
   private ExternalNamespaceEntry(
-    Type type,
-    List<String> nameElements,
-    @Nullable String id,
-    @Nullable TableVersionContext tableVersionContext,
-    @Nullable Optional<NessieContent> nessieContent
-  ) {
+      Type type,
+      List<String> nameElements,
+      @Nullable String id,
+      @Nullable TableVersionContext tableVersionContext,
+      @Nullable Optional<NessieContent> nessieContent) {
     Preconditions.checkNotNull(type);
     Preconditions.checkNotNull(nameElements);
     Preconditions.checkArgument(nameElements.size() >= 1);
@@ -91,21 +87,19 @@ public final class ExternalNamespaceEntry {
 
   @VisibleForTesting
   public static ExternalNamespaceEntry of(
-    Type type,
-    List<String> nameElements,
-    @Nullable String id,
-    @Nullable TableVersionContext tableVersionContext
-  ) {
+      Type type,
+      List<String> nameElements,
+      @Nullable String id,
+      @Nullable TableVersionContext tableVersionContext) {
     return of(type, nameElements, id, tableVersionContext, null);
   }
 
   public static ExternalNamespaceEntry of(
-    Type type,
-    List<String> nameElements,
-    @Nullable String id,
-    @Nullable TableVersionContext tableVersionContext,
-    @Nullable Optional<NessieContent> nessieContent
-  ) {
+      Type type,
+      List<String> nameElements,
+      @Nullable String id,
+      @Nullable TableVersionContext tableVersionContext,
+      @Nullable Optional<NessieContent> nessieContent) {
     return new ExternalNamespaceEntry(type, nameElements, id, tableVersionContext, nessieContent);
   }
 
@@ -134,8 +128,8 @@ public final class ExternalNamespaceEntry {
   }
 
   /**
-   * returns null when no content was requested.
-   * returns Optional instance when content was requested.
+   * returns null when no content was requested. returns Optional instance when content was
+   * requested.
    */
   public @Nullable Optional<NessieContent> getNessieContent() {
     return nessieContent;
@@ -143,12 +137,17 @@ public final class ExternalNamespaceEntry {
 
   @Override
   public String toString() {
-    return "ExternalNamespaceEntry{" +
-      "type=" + type +
-      ", nameElements=" + nameElements +
-      ", id=" + id +
-      ", tableVersionContext=" + tableVersionContext +
-      ", nessieContent=" + nessieContent +
-      '}';
+    return "ExternalNamespaceEntry{"
+        + "type="
+        + type
+        + ", nameElements="
+        + nameElements
+        + ", id="
+        + id
+        + ", tableVersionContext="
+        + tableVersionContext
+        + ", nessieContent="
+        + nessieContent
+        + '}';
   }
 }

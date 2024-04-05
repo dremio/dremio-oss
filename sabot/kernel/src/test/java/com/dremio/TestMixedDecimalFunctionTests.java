@@ -16,25 +16,32 @@
 package com.dremio;
 
 import java.math.BigDecimal;
-
 import org.junit.Test;
 
-/**
- * decimal tests that have functions implemented across java and gandiva.
- */
+/** decimal tests that have functions implemented across java and gandiva. */
 public abstract class TestMixedDecimalFunctionTests extends BaseDecimalFunctionTests {
 
   @Test
   public void testDecimalDoubleFunctions() throws Exception {
     testFunctionsCompiledOnly(
-      new Object[][] {
-        {"sqrt(c0)", BigDecimal.valueOf(64, 2), BigDecimal.valueOf(0.8).doubleValue()},
-        {"cos(c0)", BigDecimal.valueOf(64, 1), BigDecimal.valueOf(0.993184918758193).doubleValue()},
-        {"sin(c0)", BigDecimal.valueOf(64, 1), BigDecimal.valueOf(0.116549204850494).doubleValue()},
-        {"tan(c0)", BigDecimal.valueOf(64, 1), BigDecimal.valueOf(0.117348947461082).doubleValue()},
-        {"power(sqrt(c0),2)", BigDecimal.valueOf(64, 2), BigDecimal.valueOf(0.64).doubleValue()},
-      });
+        new Object[][] {
+          {"sqrt(c0)", BigDecimal.valueOf(64, 2), BigDecimal.valueOf(0.8).doubleValue()},
+          {
+            "cos(c0)",
+            BigDecimal.valueOf(64, 1),
+            BigDecimal.valueOf(0.993184918758193).doubleValue()
+          },
+          {
+            "sin(c0)",
+            BigDecimal.valueOf(64, 1),
+            BigDecimal.valueOf(0.116549204850494).doubleValue()
+          },
+          {
+            "tan(c0)",
+            BigDecimal.valueOf(64, 1),
+            BigDecimal.valueOf(0.117348947461082).doubleValue()
+          },
+          {"power(sqrt(c0),2)", BigDecimal.valueOf(64, 2), BigDecimal.valueOf(0.64).doubleValue()},
+        });
   }
-
-
 }

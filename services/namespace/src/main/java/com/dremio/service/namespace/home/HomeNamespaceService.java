@@ -15,18 +15,18 @@
  */
 package com.dremio.service.namespace.home;
 
-import java.util.List;
-
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.space.proto.HomeConfig;
+import java.util.List;
 
-/**
- * Namespace operations for Home Spaces.
- */
+/** Namespace operations for Home Spaces. */
 public interface HomeNamespaceService {
   void addOrUpdateHome(NamespaceKey homePath, HomeConfig homeConfig) throws NamespaceException;
+
   HomeConfig getHome(NamespaceKey homePath) throws NamespaceException;
+
   List<HomeConfig> getHomeSpaces();
+
   void deleteHome(final NamespaceKey homePath, String version) throws NamespaceException;
 }
