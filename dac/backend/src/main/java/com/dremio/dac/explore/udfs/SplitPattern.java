@@ -32,11 +32,13 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
+
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
@@ -45,18 +47,44 @@ import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-/** Functions to split string to list */
+/**
+ * Functions to split string to list
+ */
 public class SplitPattern {
   public static final String REGEXP_SPLIT = "regexp_split";
   public static final String REGEXP_SPLIT_POSITIONS = "regexp_split_positions";
 
   public static List<Match> splitRegex(Matcher matcher, String matchee) {
+    byte[] bytes = matchee.getBytes();
     matcher.reset(matchee);
-    List<Match> matches = new ArrayList<Match>();
+    List<Match> matches = new ArrayList<>();
     while (matcher.find()) {
-      matches.add(PatternMatchUtils.match(matcher));
+      int start = matcher.start();
+      int end = matcher.end();
+      int startByte = bytesToIndex(bytes, start);
+      int endByte = bytesToIndex(bytes, end); //
+      matches.add(new Match(startByte, endByte));
     }
     return matches;
+  }
+
+  /**
+   * this method calculates the real index in which index the match index are in arrow buffer
+   * because if String contains non english characters as ñ or accents, the index returned by match
+   * is not the real index in arrow buffer
+   *
+   * @param bytes array of bytes from arrow buffer
+   * @param index detected from match string
+   * @return index of match in arrow buffer
+   */
+  private static int bytesToIndex(byte[] bytes, int index) {
+    int count = 0;
+    for (int i = 0; i < index; i++) {
+      if ((bytes[i] & 0xC0) != 0x80) {
+        count++;
+      }
+    }
+    return count;
   }
 
   public static boolean range(int start, int end, int length) {
@@ -69,17 +97,17 @@ public class SplitPattern {
 
   public static Matcher initMatcher(NullableVarCharHolder pattern) {
     return Pattern.compile(toStringFromUTF8(pattern.start, pattern.end, pattern.buffer))
-        .matcher("");
+      .matcher("");
   }
 
   public static void split(
-      ListWriter writer,
-      ArrowBuf in,
-      int start,
-      int length,
-      java.util.List<Match> matches,
-      SplitPositionType position,
-      int param) {
+    ListWriter writer,
+    ArrowBuf in,
+    int start,
+    int length,
+    java.util.List<Match> matches,
+    SplitPositionType position,
+    int param) {
     // param can be index in case of positionType == INDEX or maxCount in case of positionType ==
     // ALL
     if (position != SplitPositionType.ALL) {
@@ -124,13 +152,15 @@ public class SplitPattern {
     }
   }
 
-  /** {@link OutputDerivation} for {@link RegexpSplit} */
+  /**
+   * {@link OutputDerivation} for {@link RegexpSplit}
+   */
   public static final class RegexpSplitOutputDerivation implements OutputDerivation {
 
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       return new CompleteType(
-          ArrowType.List.INSTANCE, CompleteType.VARCHAR.toField(ListVector.DATA_VECTOR_NAME));
+        ArrowType.List.INSTANCE, CompleteType.VARCHAR.toField(ListVector.DATA_VECTOR_NAME));
     }
   }
 
@@ -143,13 +173,14 @@ public class SplitPattern {
    * INDEX)
    */
   @FunctionTemplate(
-      name = REGEXP_SPLIT,
-      scope = FunctionScope.SIMPLE,
-      nulls = NullHandling.INTERNAL,
-      derivation = RegexpSplitOutputDerivation.class)
+    name = REGEXP_SPLIT,
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.INTERNAL,
+    derivation = RegexpSplitOutputDerivation.class)
   public static class RegexpSplit implements SimpleFunction {
 
-    @Param private NullableVarCharHolder in;
+    @Param
+    private NullableVarCharHolder in;
 
     @Param(constant = true)
     private NullableVarCharHolder pattern;
@@ -160,12 +191,16 @@ public class SplitPattern {
     @Param(constant = true)
     private NullableIntHolder param;
 
-    @Output private ComplexWriter out;
+    @Output
+    private ComplexWriter out;
 
-    @Workspace private java.util.regex.Matcher matcher;
-    @Workspace private com.dremio.dac.proto.model.dataset.SplitPositionType positionType;
+    @Workspace
+    private java.util.regex.Matcher matcher;
+    @Workspace
+    private com.dremio.dac.proto.model.dataset.SplitPositionType positionType;
 
-    @Inject private FunctionErrorContext errCtx;
+    @Inject
+    private FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -181,20 +216,20 @@ public class SplitPattern {
       }
 
       final int length =
-          com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
-              io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start, in.end, errCtx);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
+          io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start, in.end, errCtx);
       final String v =
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
-              in.start, in.end, in.buffer);
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+          in.start, in.end, in.buffer);
 
       java.util.List<Match> matches =
-          com.dremio.dac.explore.udfs.SplitPattern.splitRegex(matcher, v);
+        com.dremio.dac.explore.udfs.SplitPattern.splitRegex(matcher, v);
 
       org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter writer = out.rootAsList();
       writer.startList();
-      if (matches.size() > 0) {
+      if (!matches.isEmpty()) {
         com.dremio.dac.explore.udfs.SplitPattern.split(
-            writer, in.buffer, in.start, length, matches, positionType, param.value);
+          writer, in.buffer, in.start, length, matches, positionType, param.value);
       } else {
         writer.varChar().writeVarChar(in.start, in.end, in.buffer);
       }
@@ -209,20 +244,23 @@ public class SplitPattern {
    * <p>Parameters: 1. input: input column 2. pattern: delimiter (regex)
    */
   @FunctionTemplate(
-      name = REGEXP_SPLIT_POSITIONS,
-      scope = FunctionScope.SIMPLE,
-      nulls = NullHandling.INTERNAL,
-      derivation = ExampleUDFOutputDerivation.class)
+    name = REGEXP_SPLIT_POSITIONS,
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.INTERNAL,
+    derivation = ExampleUDFOutputDerivation.class)
   public static class SplitExample implements SimpleFunction {
 
-    @Param private NullableVarCharHolder in;
+    @Param
+    private NullableVarCharHolder in;
 
     @Param(constant = true)
     private NullableVarCharHolder pattern;
 
-    @Output private ComplexWriter out;
+    @Output
+    private ComplexWriter out;
 
-    @Workspace private java.util.regex.Matcher matcher;
+    @Workspace
+    private java.util.regex.Matcher matcher;
 
     @Override
     public void setup() {
@@ -237,22 +275,22 @@ public class SplitPattern {
       }
 
       final String inputString =
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
-              in.start, in.end, in.buffer);
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+          in.start, in.end, in.buffer);
 
       java.util.List<com.dremio.dac.explore.PatternMatchUtils.Match> matches =
-          com.dremio.dac.explore.udfs.SplitPattern.splitRegex(matcher, inputString);
+        com.dremio.dac.explore.udfs.SplitPattern.splitRegex(matcher, inputString);
 
-      if (matches.size() > 0) {
+      if (!matches.isEmpty()) {
         com.dremio.dac.proto.model.dataset.CardExamplePosition[] positions =
-            new com.dremio.dac.proto.model.dataset.CardExamplePosition[matches.size()];
+          new com.dremio.dac.proto.model.dataset.CardExamplePosition[matches.size()];
 
         for (int i = 0; i < matches.size(); i++) {
           com.dremio.dac.explore.PatternMatchUtils.Match match =
-              (com.dremio.dac.explore.PatternMatchUtils.Match) matches.get(i);
+            (com.dremio.dac.explore.PatternMatchUtils.Match) matches.get(i);
           positions[i] =
-              new com.dremio.dac.proto.model.dataset.CardExamplePosition(
-                  match.start(), match.end() - match.start());
+            new com.dremio.dac.proto.model.dataset.CardExamplePosition(
+              match.start(), match.end() - match.start());
         }
 
         com.dremio.dac.explore.udfs.DremioUDFUtils.writeCardExample(out, positions);
