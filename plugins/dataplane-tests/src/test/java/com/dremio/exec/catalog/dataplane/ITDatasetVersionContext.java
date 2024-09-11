@@ -41,7 +41,6 @@ import com.dremio.service.job.proto.DataSet;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobs.JobsProtoUtil;
-import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsServiceUtil;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -59,7 +58,7 @@ public class ITDatasetVersionContext extends ITBaseTestVersioned {
 
     final JobId jobId = runQuery(selectStarQuery(tablePath), null);
     final JobDetails jobDetails =
-        l(JobsService.class)
+        getJobsService()
             .getJobDetails(
                 JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     final JobProtobuf.JobInfo jobInfo = jobDetails.getAttempts(0).getInfo();
@@ -89,7 +88,7 @@ public class ITDatasetVersionContext extends ITBaseTestVersioned {
 
     final JobId jobId = runQuery(selectStarQueryWithSpecifier(tablePath, "BRANCH " + testBranch));
     final JobDetails jobDetails =
-        l(JobsService.class)
+        getJobsService()
             .getJobDetails(
                 JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     final JobProtobuf.JobInfo jobInfo = jobDetails.getAttempts(0).getInfo();
@@ -122,7 +121,7 @@ public class ITDatasetVersionContext extends ITBaseTestVersioned {
 
     final JobId jobId = runQuery(selectStarQuery(viewPath), null);
     final JobDetails jobDetails =
-        l(JobsService.class)
+        getJobsService()
             .getJobDetails(
                 JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     final JobProtobuf.JobInfo jobInfo = jobDetails.getAttempts(0).getInfo();
@@ -161,7 +160,7 @@ public class ITDatasetVersionContext extends ITBaseTestVersioned {
     final JobId jobId =
         runQuery(selectStarQueryWithSpecifier(viewPath, "BRANCH " + DEFAULT_BRANCH_NAME), null);
     final JobDetails jobDetails =
-        l(JobsService.class)
+        getJobsService()
             .getJobDetails(
                 JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     final JobProtobuf.JobInfo jobInfo = jobDetails.getAttempts(0).getInfo();
@@ -181,7 +180,7 @@ public class ITDatasetVersionContext extends ITBaseTestVersioned {
   public void testNonVersionedTableVersionContext() throws Exception {
     final JobId jobId = runQuery(joinTpcdsTablesQuery());
     final JobDetails jobDetails =
-        l(JobsService.class)
+        getJobsService()
             .getJobDetails(
                 JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     final JobProtobuf.JobInfo jobInfo = jobDetails.getAttempts(0).getInfo();

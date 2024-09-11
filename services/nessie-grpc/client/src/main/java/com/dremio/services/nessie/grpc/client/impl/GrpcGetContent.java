@@ -54,7 +54,11 @@ final class GrpcGetContent extends BaseGetContentBuilder {
             () ->
                 fromProto(
                     stub.getMultipleContents(
-                        toProto(refName, hashOnRef, request.build().withRequestedKeys(key)))));
+                        toProto(
+                            refName,
+                            hashOnRef,
+                            forWrite,
+                            request.build().withRequestedKeys(key)))));
 
     Content content = multi.toContentsMap().get(key);
     if (content == null) {
@@ -70,6 +74,8 @@ final class GrpcGetContent extends BaseGetContentBuilder {
   @Override
   public GetMultipleContentsResponse getWithResponse() throws NessieNotFoundException {
     return handleNessieNotFoundEx(
-        () -> fromProto(stub.getMultipleContents(toProto(refName, hashOnRef, request.build()))));
+        () ->
+            fromProto(
+                stub.getMultipleContents(toProto(refName, hashOnRef, forWrite, request.build()))));
   }
 }

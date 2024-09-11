@@ -139,7 +139,7 @@ public class TestLocalExchange extends PlanTestBase {
       for (int recordIndex = fileIndex * empNumRecsPerFile;
           recordIndex < (fileIndex + 1) * empNumRecsPerFile;
           recordIndex++) {
-        String record =
+        String rec =
             String.format(
                 "{ \"emp_id\" : %d, \"emp_name\" : \"Employee %d\", \"dept_id\" : %d, \"mng_id\" : %d, \"some_id\" : %d }",
                 recordIndex,
@@ -147,7 +147,7 @@ public class TestLocalExchange extends PlanTestBase {
                 recordIndex % NUM_DEPTS,
                 recordIndex % NUM_MNGRS,
                 recordIndex % NUM_IDS);
-        printWriter.println(record);
+        printWriter.println(rec);
       }
       printWriter.close();
     }
@@ -163,11 +163,11 @@ public class TestLocalExchange extends PlanTestBase {
       for (int recordIndex = fileIndex * deptNumRecsPerFile;
           recordIndex < (fileIndex + 1) * deptNumRecsPerFile;
           recordIndex++) {
-        String record =
+        String rec =
             String.format(
                 "{ \"dept_id\" : %d, \"dept_name\" : \"Department %d\" }",
                 recordIndex, recordIndex);
-        printWriter.println(record);
+        printWriter.println(rec);
       }
       printWriter.close();
     }
@@ -500,13 +500,15 @@ public class TestLocalExchange extends PlanTestBase {
           @Override
           public ExecutorSelectionHandle getExecutors(
               int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
-            return new ExecutorSelectionHandleImpl(sabotContext.getExecutors());
+            return new ExecutorSelectionHandleImpl(
+                sabotContext.getClusterCoordinator().getExecutorEndpoints());
           }
 
           @Override
           public ExecutorSelectionHandle getAllActiveExecutors(
               ExecutorSelectionContext executorSelectionContext) {
-            return new ExecutorSelectionHandleImpl(sabotContext.getExecutors());
+            return new ExecutorSelectionHandleImpl(
+                sabotContext.getClusterCoordinator().getExecutorEndpoints());
           }
 
           @Override

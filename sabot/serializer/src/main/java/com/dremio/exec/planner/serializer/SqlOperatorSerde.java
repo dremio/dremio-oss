@@ -18,6 +18,7 @@ package com.dremio.exec.planner.serializer;
 import com.dremio.plan.serialization.PSqlOperator;
 import com.google.common.base.Preconditions;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlOperandCountRange;
@@ -39,11 +40,10 @@ public final class SqlOperatorSerde {
   }
 
   public SqlOperator fromProto(PSqlOperator o) {
-    try {
-      // We first try to route the call to the legacy serde for backwards compatablity:
-      return legacySqlOperatorSerde.fromProto(o);
-    } catch (Exception ex) {
-      logger.warn("Legacy Operator Serde Failed for: " + o.getName());
+    // Try with the legacy serde and if it fails use the newer one.
+    Optional<SqlOperator> fromProtoLegacy = fromProtoLegacy(o);
+    if (fromProtoLegacy.isPresent()) {
+      return fromProtoLegacy.get();
     }
 
     // These are the cases that the legacy serde could not handle:
@@ -108,12 +108,24 @@ public final class SqlOperatorSerde {
     }
   }
 
-  public PSqlOperator toProto(SqlOperator o) {
+  private Optional<SqlOperator> fromProtoLegacy(PSqlOperator o) {
     try {
-      // We first try to route the call to the legacy serde for backwards compatablity:
-      return legacySqlOperatorSerde.toProto(o);
+      // We first try to route the call to the legacy serde for backwards compatibility:
+      SqlOperator result = legacySqlOperatorSerde.fromProto(o);
+      return Optional.of(result);
     } catch (Exception ex) {
-      logger.warn("Legacy Operator Serde Failed for: " + o.getName());
+      // If we failed to deserialize with the legacy deserializer, then we just try with the newer
+      // one.
+      logger.debug("Legacy Operator Serde failed to deserialize: {}", o.getName(), ex);
+      return Optional.empty();
+    }
+  }
+
+  public PSqlOperator toProto(SqlOperator o) {
+    // Try with the legacy serde and if it fails use the newer one.
+    Optional<PSqlOperator> toProtoLegacy = toProtoLegacy(o);
+    if (toProtoLegacy.isPresent()) {
+      return toProtoLegacy.get();
     }
 
     PSqlOperator.Builder builder = PSqlOperator.newBuilder();
@@ -138,5 +150,18 @@ public final class SqlOperatorSerde {
     }
 
     return builder.build();
+  }
+
+  private Optional<PSqlOperator> toProtoLegacy(SqlOperator o) {
+    try {
+      // We first try to route the call to the legacy serde for backwards compatibility:
+      PSqlOperator result = legacySqlOperatorSerde.toProto(o);
+      return Optional.of(result);
+    } catch (Exception ex) {
+      // If we failed to deserialize with the legacy deserializer, then we just try with the newer
+      // one.
+      logger.debug("Legacy Operator Serde failed to serialize: {}", o.getName(), ex);
+      return Optional.empty();
+    }
   }
 }

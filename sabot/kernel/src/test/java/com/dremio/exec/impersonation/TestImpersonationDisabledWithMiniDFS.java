@@ -18,7 +18,6 @@ package com.dremio.exec.impersonation;
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.common.TestProfileHelper.isMaprProfile;
 
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
@@ -58,9 +57,7 @@ public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation 
         getSabotContext()
             .getNamespaceService(SystemUser.SYSTEM_USERNAME)
             .getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-    ((CatalogServiceImpl) getSabotContext().getCatalogService())
-        .getSystemUserCatalog()
-        .deleteSource(config);
+    getCatalogService().getSystemUserCatalog().deleteSource(config);
     stopMiniDfsCluster();
   }
 

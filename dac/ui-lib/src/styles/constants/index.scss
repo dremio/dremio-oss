@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "./colorConstants.scss";
 @import "./fontConstants.scss";
 
 // Small tablets and large smartphones (landscape view)
@@ -55,7 +54,7 @@ $input-border-radius: 4px;
 
 @mixin input-size {
   height: 30px !important;
-  border: solid 1px $border-color !important;
+  border: solid 1px var(--border--neutral--solid) !important;
   border-radius: 4px !important;
   min-width: 100px !important;
   display: flex !important;
@@ -64,5 +63,5 @@ $input-border-radius: 4px;
   width: 100% !important;
   font-weight: 400 !important;
   font-size: $font !important;
-  background-color: $white !important;
+  background-color: var(--fill--primary) !important;
 }

@@ -95,6 +95,13 @@ public final class PrefixedTokensSearchTests {
         .runTests();
   }
 
+  @Test
+  public void callUdf() {
+    GoldenFileTestBuilder.create(PrefixedTokensSearchTests::executeTest)
+        .add("CALL UDF", new Input("SELECT myudf(1, 2)", 2))
+        .runTests();
+  }
+
   private static final class Input {
     private final String prefix;
     private final int maxDepth;

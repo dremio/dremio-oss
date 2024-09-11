@@ -22,9 +22,11 @@ import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.IcebergViewAttributes;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.users.User;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -57,6 +59,9 @@ public class DatasetSummary {
   private final String lastModifyingUserEmail;
   @JsonISODateTime private final Long createdAt;
   @JsonISODateTime private final Long lastModified;
+  private final String viewSpecVersion;
+  private final Boolean schemaOutdated;
+  private final String viewDialect;
 
   public DatasetSummary(
       @JsonProperty("fullPath") List<String> fullPath,
@@ -74,7 +79,10 @@ public class DatasetSummary {
       @JsonProperty("lastModifyingUserName") String lastModifyingUserName,
       @JsonProperty("lastModifyingUserEmail") String lastModifyingUserEmail,
       @JsonProperty("createdAt") Long createdAt,
-      @JsonProperty("lastModified") Long lastModified) {
+      @JsonProperty("lastModified") Long lastModified,
+      @JsonProperty("viewSpecVersion") String viewSpecVersion,
+      @JsonProperty("schemaOutdated") Boolean schemaOutdated,
+      @JsonProperty("viewDialect") String viewDialect) {
     this.fullPath = fullPath;
     this.jobCount = jobCount;
     this.descendants = descendants;
@@ -91,6 +99,9 @@ public class DatasetSummary {
     this.lastModifyingUserEmail = lastModifyingUserEmail;
     this.createdAt = createdAt;
     this.lastModified = lastModified;
+    this.viewSpecVersion = viewSpecVersion;
+    this.schemaOutdated = schemaOutdated;
+    this.viewDialect = viewDialect;
   }
 
   public static DatasetSummary newInstance(
@@ -107,6 +118,8 @@ public class DatasetSummary {
     DatasetType datasetType = datasetConfig.getType();
     List<Field> fields; // here
     DatasetVersion datasetVersion;
+    String viewSpecVersion = null;
+    String viewDialect = null;
 
     List<com.dremio.dac.model.common.Field> fieldList =
         DatasetsUtil.getFieldsFromDatasetConfig(datasetConfig);
@@ -134,6 +147,11 @@ public class DatasetSummary {
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
       final VirtualDataset virtualDataset = datasetConfig.getVirtualDataset();
       datasetVersion = virtualDataset.getVersion();
+      IcebergViewAttributes icebergViewAttributes =
+          datasetConfig.getVirtualDataset().getIcebergViewAttributes();
+      viewSpecVersion =
+          icebergViewAttributes != null ? icebergViewAttributes.getViewSpecVersion() : null;
+      viewDialect = icebergViewAttributes != null ? icebergViewAttributes.getViewDialect() : null;
     } else {
       datasetVersion = null;
     }
@@ -164,7 +182,10 @@ public class DatasetSummary {
         lastModifyingUserName,
         lastModifyingUserEmail,
         createdAt,
-        lastModified);
+        lastModified,
+        viewSpecVersion,
+        NamespaceUtils.isSchemaOutdated(datasetConfig),
+        viewDialect);
   }
 
   public DatasetVersion getDatasetVersion() {
@@ -229,6 +250,18 @@ public class DatasetSummary {
 
   public Long getLastModified() {
     return lastModified;
+  }
+
+  public String getViewSpecVersion() {
+    return viewSpecVersion;
+  }
+
+  public String getViewDialect() {
+    return viewDialect;
+  }
+
+  public Boolean getSchemaOutdated() {
+    return schemaOutdated;
   }
 
   // links

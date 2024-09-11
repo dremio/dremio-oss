@@ -48,12 +48,16 @@ import org.mockito.stubbing.Answer;
 /** Unit tests for {@code SchedulerService} */
 public class TestLocalSchedulerService {
 
+  private static LocalSchedulerService newLocalSchedulerService(
+      CloseableSchedulerThreadPool executorService) {
+    return new LocalSchedulerService(executorService, null, null, null, false);
+  }
+
   /** Verify that {@code ExecutorService#shutdown()} is called when service is closed */
   @Test
   public void close() throws Exception {
     final CloseableSchedulerThreadPool executorService = mock(CloseableSchedulerThreadPool.class);
-    final LocalSchedulerService service =
-        new LocalSchedulerService(executorService, null, null, null, false);
+    final LocalSchedulerService service = newLocalSchedulerService(executorService);
 
     service.close();
 
@@ -62,7 +66,7 @@ public class TestLocalSchedulerService {
 
   /** Verify that threads created by the thread factory are daemon threads */
   @Test
-  public void newThread() {
+  public void newThread() throws Exception {
     LocalSchedulerService service = new LocalSchedulerService(1);
     final Runnable runnable = mock(Runnable.class);
     final Thread thread = service.getExecutorService().getThreadFactory().newThread(runnable);
@@ -70,6 +74,8 @@ public class TestLocalSchedulerService {
     assertTrue("thread should be a daemon thread", thread.isDaemon());
     assertTrue(
         "thread name should start with scheduler-", thread.getName().startsWith("scheduler-"));
+
+    service.close();
   }
 
   private final class MockScheduledFuture<V> implements ScheduledFuture<V>, Callable<V> {
@@ -176,9 +182,7 @@ public class TestLocalSchedulerService {
           }
         };
 
-    @SuppressWarnings("resource")
-    final SchedulerService service =
-        new LocalSchedulerService(executorService, null, null, null, false);
+    final SchedulerService service = newLocalSchedulerService(executorService);
     @SuppressWarnings("unused")
     final Cancellable cancellable =
         service.schedule(Schedule.Builder.everyHours(1).build(), runnable);
@@ -196,6 +200,8 @@ public class TestLocalSchedulerService {
         "1st future delay should be shorted than 2nd future delay",
         futures.get(0).compareTo(futures.get(1)) < 0);
     assertEquals(1, runCount.get());
+
+    service.close();
   }
 
   /** Verify that cancelling before the task is run prevent it to run when executing */
@@ -233,9 +239,7 @@ public class TestLocalSchedulerService {
           }
         };
 
-    @SuppressWarnings("resource")
-    final SchedulerService service =
-        new LocalSchedulerService(executorService, null, null, null, false);
+    final SchedulerService service = newLocalSchedulerService(executorService);
     final Cancellable cancellable =
         service.schedule(Schedule.Builder.everyHours(1).build(), runnable);
     cancellable.cancel(true);
@@ -255,6 +259,8 @@ public class TestLocalSchedulerService {
     assertEquals(1, futures.size());
     assertTrue("1st future should be completed", futures.get(0).isDone());
     assertEquals(0, runCount.get());
+
+    service.close();
   }
 
   /** Verify that cancelling before the task is run prevent it to reschedule itself */
@@ -298,9 +304,7 @@ public class TestLocalSchedulerService {
           }
         };
 
-    @SuppressWarnings("resource")
-    final SchedulerService service =
-        new LocalSchedulerService(executorService, null, null, null, false);
+    final SchedulerService service = newLocalSchedulerService(executorService);
     final Cancellable cancellable =
         service.schedule(Schedule.Builder.everyHours(1).build(), runnable);
 
@@ -336,6 +340,8 @@ public class TestLocalSchedulerService {
     assertTrue("Cancellable should have been cancelled", cancellable.isCancelled());
     assertEquals(1, futures.size());
     assertTrue("1st future should be completed", futures.get(0).isDone());
+
+    service.close();
   }
 
   /** Verify that cancelling a long run task is possible when losing leadership */
@@ -391,9 +397,7 @@ public class TestLocalSchedulerService {
           }
         };
 
-    @SuppressWarnings("resource")
-    final LocalSchedulerService service =
-        new LocalSchedulerService(executorService, null, null, null, false);
+    final LocalSchedulerService service = newLocalSchedulerService(executorService);
     final Cancellable cancellable1 =
         service.schedule(Schedule.Builder.everyHours(1).build(), runnable1);
     final Cancellable cancellable2 =
@@ -431,5 +435,7 @@ public class TestLocalSchedulerService {
     // onLeadershipLost sets cancellable to false again
     assertTrue("Cancellable1 should have been cancelled", !cancellable1.isCancelled());
     assertTrue("Cancellable2 should have been cancelled", !cancellable2.isCancelled());
+
+    service.close();
   }
 }

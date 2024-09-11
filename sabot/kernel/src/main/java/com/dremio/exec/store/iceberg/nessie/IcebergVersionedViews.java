@@ -31,12 +31,14 @@ public interface IcebergVersionedViews {
    * @param properties Version property genie-id of the operation, as well as table properties such
    *     as owner, table type, common view flag etc.
    * @param version The version to use.
+   * @param pathSanitizer To calculate the correct path based on the viewKey.
    */
   void create(
       List<String> viewKey,
       ViewDefinition viewDefinition,
       Map<String, String> properties,
-      ResolvedVersionContext version);
+      ResolvedVersionContext version,
+      IcebergNessieFilePathSanitizer pathSanitizer);
 
   /**
    * Replaces a view.
@@ -46,12 +48,14 @@ public interface IcebergVersionedViews {
    * @param properties Version property genie-id of the operation, as well as table properties such
    *     as owner, table type, common view flag etc.
    * @param version The version to use.
+   * @param pathSanitizer To calculate the correct path based on the viewKey.
    */
   void replace(
       List<String> viewKey,
       ViewDefinition viewDefinition,
       Map<String, String> properties,
-      ResolvedVersionContext version);
+      ResolvedVersionContext version,
+      IcebergNessieFilePathSanitizer pathSanitizer);
 
   /**
    * Loads a view by name.

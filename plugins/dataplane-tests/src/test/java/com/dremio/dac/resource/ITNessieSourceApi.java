@@ -15,23 +15,19 @@
  */
 package com.dremio.dac.resource;
 
-import static com.dremio.exec.ExecConstants.NESSIE_SOURCE_API;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.ALTERNATIVE_BUCKET_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.BUCKET_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
-import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
-import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.dac.server.BaseTestServerJunit5;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.options.OptionValue;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.plugins.dataplane.store.NessiePluginConfig;
 import com.dremio.plugins.s3.store.S3FileSystem;
@@ -61,6 +57,7 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.projectnessie.client.NessieClientBuilder;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.ext.NessieApiVersion;
 import org.projectnessie.client.ext.NessieApiVersions;
@@ -68,7 +65,6 @@ import org.projectnessie.client.ext.NessieClientCustomizer;
 import org.projectnessie.client.ext.NessieClientFactory;
 import org.projectnessie.client.ext.NessieClientResolver;
 import org.projectnessie.client.ext.NessieClientUri;
-import org.projectnessie.client.http.HttpClientBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.jaxrs.tests.AbstractRelativeReferences;
 import org.projectnessie.jaxrs.tests.BaseTestNessieRest;
@@ -124,30 +120,22 @@ public class ITNessieSourceApi extends BaseTestServerJunit5 {
 
   protected static void setUpNessie() {
     nessieClient =
-        HttpClientBuilder.builder()
+        NessieClientBuilder.createClientBuilder("HTTP", null)
             .withUri(createNessieURIString())
             .fromConfig(Collections.singletonMap("nessie.force-url-connection-client", "true")::get)
             .build(NessieApiV2.class);
   }
 
   protected static void setUpDataplanePlugin() {
-    getSabotContext()
-        .getOptionManager()
-        .setOption(OptionValue.createBoolean(SYSTEM, NESSIE_PLUGIN_ENABLED.getOptionName(), true));
-    getSabotContext()
-        .getOptionManager()
-        .setOption(OptionValue.createBoolean(SYSTEM, NESSIE_SOURCE_API.getOptionName(), true));
-
-    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
-
     SourceConfig sourceConfig =
         new SourceConfig()
             .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
             .setName(DATAPLANE_PLUGIN_NAME)
             .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-    catalogImpl.getSystemUserCatalog().createSource(sourceConfig);
-    dataplanePlugin = catalogImpl.getSystemUserCatalog().getSource(DATAPLANE_PLUGIN_NAME);
-    catalog = catalogImpl.getSystemUserCatalog();
+
+    catalog = getCatalogService().getSystemUserCatalog();
+    catalog.createSource(sourceConfig);
+    dataplanePlugin = catalog.getSource(DATAPLANE_PLUGIN_NAME);
 
     namespaceService = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
   }
@@ -157,6 +145,8 @@ public class ITNessieSourceApi extends BaseTestServerJunit5 {
     nessiePluginConfig.nessieEndpoint = createNessieURIString();
     nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
     nessiePluginConfig.secure = false;
+    nessiePluginConfig.credentialType =
+        AWSAuthenticationType.ACCESS_KEY; // Unused, just needs to be set
     nessiePluginConfig.awsAccessKey = "foo"; // Unused, just needs to be set
     nessiePluginConfig.awsAccessSecret = SecretRef.of("bar"); // Unused, just needs to be set
     nessiePluginConfig.awsRootPath = bucket;
@@ -292,7 +282,7 @@ public class ITNessieSourceApi extends BaseTestServerJunit5 {
       @NotNull
       @Override
       public NessieApiV2 make(NessieClientCustomizer customizer) {
-        return HttpClientBuilder.builder()
+        return NessieClientBuilder.createClientBuilder("HTTP", null)
             .withUri(nessieUri)
             .withApiCompatibilityCheck(
                 false) // Nessie API proxy in the source does not have the /config endpoint

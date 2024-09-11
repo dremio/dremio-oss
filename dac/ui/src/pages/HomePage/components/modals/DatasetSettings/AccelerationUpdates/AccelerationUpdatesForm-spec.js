@@ -37,6 +37,8 @@ describe("AccelerationUpdatesForm", () => {
         DataFreshnessSection.defaultFormValuePolicyType(),
       accelerationRefreshSchedule:
         DataFreshnessSection.defaultFormValueRefreshSchedule(),
+      accelerationRefreshOnDataChanges:
+        DataFreshnessSection.defaultFormValueRefreshOnTableChanges(),
     };
     minimalProps = {
       ...minimalFormProps(fieldNames),
@@ -212,6 +214,8 @@ describe("AccelerationUpdatesForm", () => {
           DataFreshnessSection.defaultFormValuePolicyType(),
         accelerationRefreshSchedule:
           DataFreshnessSection.defaultFormValueRefreshSchedule(),
+        accelerationRefreshOnDataChanges:
+          DataFreshnessSection.defaultFormValueRefreshOnTableChanges(),
       };
       expect(instance.mapFormValues(commonProps.values)).to.be.eql(
         expectedValues,

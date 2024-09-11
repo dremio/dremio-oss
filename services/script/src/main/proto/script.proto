@@ -30,7 +30,7 @@ message Script {
   string name = 2; // name of a script
 
   uint64 created_at = 3; // time when script was created
-  string created_by = 4; // username who created script this wont be updated
+  string created_by = 4; // user who created script this wont be updated
 
   string description = 5; // description about script, required??
 
@@ -40,8 +40,10 @@ message Script {
   repeated string context = 8; // context of script
   string content = 9; // content of script
 
-  repeated com.dremio.dac.proto.model.dataset.SourceVersionReference references = 10; // source version preferences
+  repeated com.dremio.dac.proto.model.dataset.SourceVersionReference references = 10; // source version preferences. not used any more.
   repeated string jobIds = 11;
+
+  string owned_by = 12; // user who owns the script. default to created_by. Old scripts will not have this field but will be indexed to the default value, i.e. created_by.
 }
 
 message ScriptRequest {
@@ -52,6 +54,12 @@ message ScriptRequest {
   repeated com.dremio.dac.proto.model.dataset.SourceVersionReference references = 5;
   string sessionId = 6;
   repeated string jobIds = 11;
+  string owner = 12;
+  bool isContentUpdated = 13;
+  bool isContextUpdated = 14;
+  bool isDescriptionUpdated = 15;
+  bool isReferencesUpdated = 16;
+  bool isJobIdsUpdated = 17;
 }
 
 message ScriptWithPrivileges {
@@ -61,5 +69,10 @@ message ScriptWithPrivileges {
 
 message ScriptListWithPrivileges {
   repeated ScriptWithPrivileges scripts = 1;
+  uint64 total_scripts = 2;
+}
+
+message AccessibleScriptList {
+  repeated Script scripts = 1;
   uint64 total_scripts = 2;
 }

@@ -43,7 +43,7 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
 
   private final SqlTableVersionSpec sqlTableVersionSpec;
 
-  // Default Dml Write.Merge.Mode TableProperty in Dremio for now.
+  /** The DML mode for write operations. Default in dremio (for now) is COPY_ON_WRITE */
   private RowLevelOperationMode dmlWriteMode = RowLevelOperationMode.COPY_ON_WRITE;
 
   public static final SqlSpecialOperator OPERATOR =
@@ -88,11 +88,6 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
   @Override
   public SqlNode getTargetTable() {
     return extendedTargetTable == null ? super.getTargetTable() : extendedTargetTable;
-  }
-
-  @Override
-  public SqlNode getTargetTableWithoutExtendedCols() {
-    return super.getTargetTable();
   }
 
   @Override

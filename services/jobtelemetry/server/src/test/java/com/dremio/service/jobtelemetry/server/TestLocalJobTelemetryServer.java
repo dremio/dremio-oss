@@ -19,7 +19,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.concurrent.ContextMigratingExecutorService;
+import com.dremio.common.concurrent.CloseableThreadPool;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
@@ -36,7 +37,6 @@ import com.dremio.service.jobtelemetry.PutPlanningProfileRequest;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
-import java.util.concurrent.Executors;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,6 +49,7 @@ public class TestLocalJobTelemetryServer {
       new SimpleGrpcServerBuilderFactory(TracerFacade.INSTANCE);
   private final GrpcTracerFacade tracer = new GrpcTracerFacade(TracerFacade.INSTANCE);
 
+  private LegacyKVStoreProvider kvStoreProvider;
   private LocalJobTelemetryServer server;
   private JobTelemetryClient client;
 
@@ -57,13 +58,14 @@ public class TestLocalJobTelemetryServer {
     final CoordinationProtos.NodeEndpoint node =
         CoordinationProtos.NodeEndpoint.newBuilder().setFabricPort(30).build();
 
+    kvStoreProvider = TempLegacyKVStoreProviderCreator.create();
     server =
         new LocalJobTelemetryServer(
             grpcServerBuilderFactory,
-            DirectProvider.wrap(TempLegacyKVStoreProviderCreator.create()),
+            DirectProvider.wrap(kvStoreProvider),
             DirectProvider.wrap(node),
             tracer,
-            new ContextMigratingExecutorService(Executors.newCachedThreadPool()));
+            CloseableThreadPool::newCachedThreadPool);
     server.start();
 
     client = new JobTelemetryClient(grpcChannelBuilderFactory, DirectProvider.wrap(node));
@@ -72,7 +74,7 @@ public class TestLocalJobTelemetryServer {
 
   @After
   public void tearDown() throws Exception {
-    AutoCloseables.close(server, client);
+    AutoCloseables.close(client, server, kvStoreProvider);
   }
 
   @Test

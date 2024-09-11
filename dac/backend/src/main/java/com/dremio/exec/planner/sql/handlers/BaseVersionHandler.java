@@ -25,6 +25,7 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionResolver;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 
 /** Base class for show handlers, create folder handler. */
@@ -44,6 +45,12 @@ public abstract class BaseVersionHandler<T> implements SqlDirectHandler<T> {
 
   protected void checkFeatureEnabled(String message) {
     if (!optionResolver.getOption(ExecConstants.ENABLE_USE_VERSION_SYNTAX)) {
+      throw UserException.unsupportedError().message(message).buildSilently();
+    }
+  }
+
+  protected void requireFeatureFlag(String message, TypeValidators.BooleanValidator typeValidator) {
+    if (!optionResolver.getOption(typeValidator)) {
       throw UserException.unsupportedError().message(message).buildSilently();
     }
   }

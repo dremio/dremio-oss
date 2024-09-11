@@ -36,5 +36,9 @@ export default function (input) {
     getProvision(props, clusterType, VIEW_ID, pollAgain) {
       return props.loadProvision(null, VIEW_ID).then(pollAgain, pollAgain);
     },
+
+    renderModalContent() {
+      return null;
+    },
   });
 }

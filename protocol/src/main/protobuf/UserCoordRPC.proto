@@ -477,6 +477,49 @@ message PreparedStatement {
    * clients need to submit this object in RunQuery message.
    */
   optional PreparedStatementHandle server_handle = 2;
+  /*
+   * Dynamic Parameters info of the given prepared statement
+   */
+  repeated ResultColumnMetadata parameters = 3;
+}
+
+/*
+ * It contains parameter values set by user on a prepared statement.
+ * It has a field for each data type that can be set by the user.
+ * Currently we support only this many data types, but we can extend
+ * this list in the future.
+ */
+message PreparedStatementParameterValue {
+   optional int32 short_value = 1;
+   optional int32 int_value = 2;
+   optional int64 long_value = 3;
+   optional string string_value = 4;
+   optional bool bool_value = 5;
+   optional float float_value = 6;
+   optional double double_value = 7;
+   optional TimeStamp timestamp_value = 8;
+   optional int64 time_value = 9; /* milliseconds for the equivalent time. */
+   optional int64 date_value = 10; /* milliseconds for the equivalent date. */
+   optional bytes byte_array_value = 11;
+   optional BigDecimalMsg big_decimal_value = 12;
+   optional bool is_null_value = 13;
+}
+
+/*
+ * Serialized version of BigDecimal data type in Java.
+ */
+message BigDecimalMsg {
+  optional int32 scale = 1;
+  optional int32 precision = 2;
+  optional bytes value = 3;
+}
+
+/*
+ * Message to store nano and milli seconds to represent timestamp.
+ */
+message TimeStamp {
+  optional int64 seconds = 1;
+  optional int32 nanos = 2;
 }
 
 /*
@@ -771,4 +814,9 @@ message RunQuery {
   optional string description = 1010;
   
   optional string query_label = 1011;
+
+  /*
+   * The list of all the parameter values set by user for the given prepared statement.
+   */
+  repeated PreparedStatementParameterValue parameters = 1012;
 }

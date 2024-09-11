@@ -32,23 +32,16 @@
 }
 
 .dremio-card {
-  background-color: var(--bg--default);
-  color: var(--color--default);
   @extend .border;
   @extend .border-solid;
-  @extend .border-foreground;
 
   &__header {
-    border-block-end: 1px solid var(--color--neutral--50);
+    border-block-end: 1px solid var(--border--color);
   }
 }
 
-.dremio-dark .dremio-card {
-  @extend .border;
-  @extend .border-solid;
-  @extend .border-foreground;
-
-  &__header {
-    border-block-end: 1px solid var(--color--neutral--600);
+.dremio-card--no-body-padding {
+  .dremio-card__body {
+    padding: 0;
   }
 }

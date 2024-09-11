@@ -36,6 +36,7 @@ import com.dremio.exec.planner.physical.UnionExchangePrel;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
@@ -99,7 +100,7 @@ public class TestRelMdRowCount {
     final OptionValidatorListing optionValidatorListing =
         new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
     SystemOptionManager som =
-        new SystemOptionManager(
+        new SystemOptionManagerImpl(
             optionValidatorListing,
             new LogicalPlanPersistence(DremioTest.CLASSPATH_SCAN_RESULT),
             () -> storeProvider,

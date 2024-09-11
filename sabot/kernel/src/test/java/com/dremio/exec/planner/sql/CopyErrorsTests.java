@@ -25,7 +25,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.Describer;
 import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
@@ -213,7 +212,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
       // Only targetTableName is specified, so jobId2 should be picked for being the most recent
       // Testing for type coercion errors + header/no column match errors
       if (FileFormat.CSV.equals(fileFormat)) {
-        new TestBuilder(allocator)
+        testBuilder()
             .sqlQuery(getCopyErrorsQuery(targetTableName, null))
             .unOrdered()
             .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -262,7 +261,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
                     + rejectedFiles.get(2))
             .go();
       } else {
-        new TestBuilder(allocator)
+        testBuilder()
             .sqlQuery(getCopyErrorsQuery(targetTableName, null))
             .unOrdered()
             .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -311,7 +310,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
             syntaxErrorFiles,
             new HashMap<>(),
             fileFormat.name());
-        new TestBuilder(allocator)
+        testBuilder()
             .sqlQuery(getCopyErrorsQuery(targetTableName, jobId3))
             .unOrdered()
             .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -321,15 +320,14 @@ public class CopyErrorsTests extends ITCopyIntoBase {
                 3L,
                 1L,
                 null,
-                "Unexpected character ('\"' (code 34)): was expecting comma to separate Object entries\n"
-                    + " at [Source: (com.dremio.exec.store.dfs.LoggedFileSystem$LoggedFSInputStream); line: 3, column: 4]")
+                "Unexpected character ('\"' (code 34)): was expecting comma to separate Object entries")
             .go();
       }
 
       // CSV or Non-fileformat specific tests
       if (FileFormat.CSV.equals(fileFormat)) {
         // A (correct) JobId specified
-        new TestBuilder(allocator)
+        testBuilder()
             .sqlQuery(getCopyErrorsQuery(targetTableName, jobId))
             .unOrdered()
             .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -348,7 +346,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
             assertThrows(
                 RpcException.class,
                 () ->
-                    new TestBuilder(allocator)
+                    testBuilder()
                         .sqlQuery(
                             getCopyErrorsQuery(
                                 targetTableName, "00000000-0000-0000-0000-000000000000"))
@@ -369,7 +367,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
             rejectedFiles.subList(3, 4),
             ImmutableMap.of(CopyIntoTableContext.FormatOption.EXTRACT_HEADER, false),
             fileFormat.name());
-        new TestBuilder(allocator)
+        testBuilder()
             .sqlQuery(getCopyErrorsQuery(targetTableName, jobId3))
             .unOrdered()
             .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -410,7 +408,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
             quoteRejectedFiles,
             new HashMap<>(),
             fileFormat.name());
-        new TestBuilder(allocator)
+        testBuilder()
             .sqlQuery(getCopyErrorsQuery(quoteTestTable, jobId4))
             .unOrdered()
             .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -434,7 +432,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
         // limit)
         try (AutoCloseable autoCloseable =
             setSystemOptionWithAutoReset("limits.single_field_size_bytes", "300")) {
-          new TestBuilder(allocator)
+          testBuilder()
               .sqlQuery(getCopyErrorsQuery(quoteTestTable, jobId4))
               .unOrdered()
               .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -486,7 +484,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
         new HashMap<>(),
         "json");
 
-    new TestBuilder(allocator)
+    testBuilder()
         .sqlQuery(getCopyErrorsQuery(targetTableName, jobId))
         .unOrdered()
         .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -546,7 +544,7 @@ public class CopyErrorsTests extends ITCopyIntoBase {
           new HashMap<>(),
           "json");
 
-      new TestBuilder(allocator)
+      testBuilder()
           .sqlQuery(getCopyErrorsQuery(targetTableName, jobId))
           .unOrdered()
           .baselineColumns(COPY_ERRORS_TABLEFUNCTION_COLUMN_NAMES)
@@ -599,36 +597,119 @@ public class CopyErrorsTests extends ITCopyIntoBase {
 
     final ImmutableList.Builder<Map<String, Object>> recordBuilder = ImmutableList.builder();
     recordBuilder.add(
-        ImmutableMap.of(
-            "`job_id`",
-            jobId,
-            "`file_name`",
-            rejectedFiles.get(3),
-            "`error`",
-            "Failed to read data from parquet file in rowgroup 1 between the rows 0 and 3968"));
+        new HashMap<>() {
+          {
+            put("`job_id`", jobId);
+            put("`file_name`", rejectedFiles.get(3));
+            put("`error`", "Failed to read data from parquet file in rowgroup 1");
+            put("`line_number`", null);
+          }
+        });
     recordBuilder.add(
-        ImmutableMap.of(
-            "`job_id`",
-            jobId,
-            "`file_name`",
-            rejectedFiles.get(2),
-            "`error`",
-            "The file "
-                + rejectedFiles.get(2)
-                + " is not in Parquet format. Please check the size and format of the files you are promoting and select the format from the dropdown box accordingly."));
+        new HashMap<>() {
+          {
+            put("`job_id`", jobId);
+            put("`file_name`", rejectedFiles.get(2));
+            put("`error`", "The file " + rejectedFiles.get(2) + " is not in Parquet format.");
+            put("`line_number`", null);
+          }
+        });
     recordBuilder.add(
-        ImmutableMap.of(
-            "`job_id`",
-            jobId,
-            "`file_name`",
-            rejectedFiles.get(0),
-            "`error`",
-            "Failed to cast the string not an age to int32_t in rowgroup 0 between the rows 0 and 3968"));
-    new TestBuilder(allocator)
-        .sqlQuery(getCopyErrorsQuery(targetTableName, jobId, "job_id", "file_name", "error"))
+        new HashMap<>() {
+          {
+            put("`job_id`", jobId);
+            put("`file_name`", rejectedFiles.get(0));
+            put(
+                "`error`",
+                "Failure while attempting to cast value 'not an age' to Integer. in rowgroup 0");
+            put("`line_number`", 2L);
+          }
+        });
+    testBuilder()
+        .sqlQuery(
+            getCopyErrorsQuery(
+                targetTableName, jobId, "job_id", "file_name", "error", "line_number"))
         .unOrdered()
         .baselineRecords(recordBuilder.build())
         .go();
+
+    dropTable(targetTableName);
+  }
+
+  @Test
+  public void testParquetValidationWithComlexTypes() throws Exception {
+    String targetTableName = "parquet_complex_test";
+    ImmutableList<Pair<String, String>> colNameTypePairs =
+        ImmutableList.of(
+            Pair.of("id", "int"),
+            Pair.of(
+                "s",
+                "STRUCT<id INT, city VARCHAR, positions LIST<STRUCT<lon DOUBLE, lat DOUBLE>>>"));
+
+    final String[] inputFileNames = new String[] {"struct_coercion_error.parquet"};
+    File inputFilesLocation = createTempLocation();
+    File[] inputFiles =
+        createTableAndGenerateSourceFiles(
+            targetTableName,
+            colNameTypePairs,
+            inputFileNames,
+            inputFilesLocation,
+            FileFormat.PARQUET);
+    List<String> rejectedFiles =
+        Arrays.stream(inputFiles).map(File::getAbsolutePath).collect(Collectors.toList());
+
+    String jobId = "1b06239f-c613-dee4-d9b6-5f79e0098921";
+    addJobAndFileHistoryEntry(
+        jobId,
+        targetTableName,
+        inputFilesLocation.getName(),
+        rejectedFiles,
+        new HashMap<>(),
+        "parquet");
+
+    ImmutableList.Builder<Map<String, Object>> recordBuilder = ImmutableList.builder();
+    recordBuilder.add(
+        new HashMap<>() {
+          {
+            put("`job_id`", jobId);
+            put("`file_name`", rejectedFiles.get(0));
+            put(
+                "`error`",
+                "Failure while attempting to cast value 'three' to Integer. in rowgroup 0");
+            put("`line_number`", 3L);
+          }
+        });
+    testBuilder()
+        .sqlQuery(
+            getCopyErrorsQuery(
+                targetTableName, jobId, "job_id", "file_name", "error", "line_number"))
+        .unOrdered()
+        .baselineRecords(recordBuilder.build())
+        .go();
+
+    try (AutoCloseable autoCloseable =
+        setSystemOptionWithAutoReset(
+            "dremio.copy.into.errors_first_error_of_record_only", "false")) {
+      recordBuilder = ImmutableList.builder();
+      recordBuilder.add(
+          new HashMap<>() {
+            {
+              put("`job_id`", jobId);
+              put("`file_name`", rejectedFiles.get(0));
+              put(
+                  "`error`",
+                  "Failure while attempting to cast value 'three' to Integer., Failure while attempting to cast value 'thirty' to Integer., For input string: \"forty\" in rowgroup 0");
+              put("`line_number`", 3L);
+            }
+          });
+      testBuilder()
+          .sqlQuery(
+              getCopyErrorsQuery(
+                  targetTableName, jobId, "job_id", "file_name", "error", "line_number"))
+          .unOrdered()
+          .baselineRecords(recordBuilder.build())
+          .go();
+    }
 
     dropTable(targetTableName);
   }

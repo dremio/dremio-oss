@@ -29,7 +29,10 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import java.util.Set;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public class LogicalPlanPersistence {
   private ObjectMapper mapper;
 
@@ -37,6 +40,7 @@ public class LogicalPlanPersistence {
     return mapper;
   }
 
+  @Inject
   public LogicalPlanPersistence(ScanResult scanResult) {
     mapper = new ObjectMapper();
 

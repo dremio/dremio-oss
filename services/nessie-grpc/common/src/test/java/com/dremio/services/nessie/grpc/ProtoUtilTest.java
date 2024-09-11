@@ -40,7 +40,6 @@ import com.dremio.services.nessie.grpc.api.CommitLogRequest;
 import com.dremio.services.nessie.grpc.api.CommitLogResponse;
 import com.dremio.services.nessie.grpc.api.CommitOperation;
 import com.dremio.services.nessie.grpc.api.CommitOps;
-import com.dremio.services.nessie.grpc.api.ContentRequest;
 import com.dremio.services.nessie.grpc.api.DiffRequest;
 import com.dremio.services.nessie.grpc.api.DiffResponse;
 import com.dremio.services.nessie.grpc.api.EntriesRequest;
@@ -137,6 +136,7 @@ import org.projectnessie.model.RefLogResponse.RefLogResponseEntry;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.ReferenceMetadata;
 import org.projectnessie.model.Tag;
+import org.projectnessie.model.UDF;
 
 /** Tests for {@link ProtoUtil} */
 public class ProtoUtilTest {
@@ -346,12 +346,20 @@ public class ProtoUtilTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("IcebergView must be non-null");
 
+    //noinspection deprecation
     IcebergView icebergView =
         IcebergView.of("test.me.txt", 42, 42, "dialect", "SELECT foo FROM bar");
     assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
 
+    //noinspection deprecation
     icebergView =
         IcebergView.of("test-id", "test.me.txt", 42, 42, "dialect", "SELECT foo FROM bar");
+    assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
+
+    icebergView = IcebergView.of("test-id", "test.me.txt", 42, 42);
+    assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
+
+    icebergView = IcebergView.of("test.me.txt", 42, 42);
     assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
   }
 
@@ -864,46 +872,24 @@ public class ProtoUtilTest {
   }
 
   @Test
-  public void contentRequestConversion() {
-    assertThatThrownBy(() -> toProto((ContentKey) null, "ref", null))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("ContentKey must be non-null");
-
-    ContentKey key = ContentKey.of("test.me.txt");
-    String ref = "main";
-    String hashOnRef = "x";
-    ContentRequest request = toProto(key, ref, null);
-    assertThat(request.getContentKey()).isEqualTo(toProto(key));
-    assertThat(request.getRef()).isEqualTo(ref);
-    assertThat(request.getHashOnRef()).isEmpty();
-
-    request = toProto(key, ref, hashOnRef);
-    assertThat(request.getContentKey()).isEqualTo(toProto(key));
-    assertThat(request.getRef()).isEqualTo(ref);
-    assertThat(request.getHashOnRef()).isEqualTo(hashOnRef);
-
-    request = toProto(key, null, hashOnRef);
-    assertThat(request.getContentKey()).isEqualTo(toProto(key));
-    assertThat(request.getRef()).isEqualTo(Detached.REF_NAME);
-    assertThat(request.getHashOnRef()).isEqualTo(hashOnRef);
-  }
-
-  @Test
   public void multipleContentsRequestConversion() {
     String ref = "main";
     String hashOnRef = "x";
     ContentKey key = ContentKey.of("test.me.txt");
-    MultipleContentsRequest request = toProto(ref, null, GetMultipleContentsRequest.of(key));
+    MultipleContentsRequest request = toProto(ref, null, false, GetMultipleContentsRequest.of(key));
+    assertThat(request.getForWrite()).isFalse();
     assertThat(request.getRef()).isEqualTo(ref);
     assertThat(request.getHashOnRef()).isEmpty();
     assertThat(request.getRequestedKeysList()).containsExactly(toProto(key));
 
-    request = toProto(ref, hashOnRef, GetMultipleContentsRequest.of(key));
+    request = toProto(ref, hashOnRef, true, GetMultipleContentsRequest.of(key));
+    assertThat(request.getForWrite()).isTrue();
     assertThat(request.getRef()).isEqualTo(ref);
     assertThat(request.getHashOnRef()).isEqualTo(hashOnRef);
     assertThat(request.getRequestedKeysList()).containsExactly(toProto(key));
 
-    request = toProto(null, hashOnRef, GetMultipleContentsRequest.of(key));
+    request = toProto(null, hashOnRef, false, GetMultipleContentsRequest.of(key));
+    assertThat(request.getForWrite()).isFalse();
     assertThat(request.getRef()).isEqualTo("");
     assertThat(request.getHashOnRef()).isEqualTo(hashOnRef);
     assertThat(request.getRequestedKeysList()).containsExactly(toProto(key));
@@ -1203,6 +1189,24 @@ public class ProtoUtilTest {
             .build();
 
     assertThat(fromProto(toProto(params))).isEqualTo(params);
+  }
+
+  @Test
+  public void udfConversion() {
+    //noinspection ConstantConditions
+    assertThatThrownBy(() -> toProto((UDF) null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("UDF must be non-null");
+    //noinspection ConstantConditions
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.Udf) null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("UDF must be non-null");
+
+    UDF udf = UDF.udf("metadataLocation", "versionId", "signatureId");
+    assertThat(fromProto(toProto(udf))).isEqualTo(udf);
+
+    udf = UDF.udf("id", "metadataLocation", "versionId", "signatureId");
+    assertThat(fromProto(toProto(udf))).isEqualTo(udf);
   }
 
   @Test

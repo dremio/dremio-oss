@@ -160,7 +160,7 @@ public class TestConcatFunctions extends BaseTestQuery {
         testSqlWithResults(
             String.format(
                 "SELECT %s FROM cp.\"/parquet/alltypes.json\"", String.join(", ", colNames)));
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
     for (QueryDataBatch batch : allTypesStringData) {
       if (batch.getData() != null) {
         loader.load(batch.getHeader().getDef(), batch.getData());

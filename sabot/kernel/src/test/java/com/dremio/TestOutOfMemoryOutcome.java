@@ -45,7 +45,7 @@ public class TestOutOfMemoryOutcome extends BaseTestQuery {
   private void testSingleMode(String fileName) throws Exception {
     test(SINGLE_MODE);
 
-    CoordinationProtos.NodeEndpoint endpoint = nodes[0].getContext().getEndpoint();
+    CoordinationProtos.NodeEndpoint endpoint = nodes[0].getEndpoint();
     String controlsString =
         "{\"injections\":[{"
             + "\"address\":\""

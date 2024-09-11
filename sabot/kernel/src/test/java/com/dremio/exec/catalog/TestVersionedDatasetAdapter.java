@@ -33,10 +33,8 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.VersionedDatasetHandle;
+import com.dremio.exec.store.iceberg.IcebergViewMetadata;
 import com.dremio.exec.store.iceberg.ViewHandle;
-import com.dremio.exec.store.iceberg.viewdepoc.Version;
-import com.dremio.exec.store.iceberg.viewdepoc.ViewDefinition;
-import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
@@ -146,18 +144,16 @@ public class TestVersionedDatasetAdapter {
     when(resolvedVersionContext.getType()).thenReturn(ResolvedVersionContext.Type.BRANCH);
     when(resolvedVersionContext.getRefName()).thenReturn("mybranch");
 
-    ViewDefinition viewDefinition = mock(ViewDefinition.class);
-    when(viewDefinition.schema()).thenReturn(new org.apache.iceberg.Schema());
-
-    ViewVersionMetadata viewVersionMetadata = mock(ViewVersionMetadata.class);
-    when(viewVersionMetadata.definition()).thenReturn(viewDefinition);
-    when(viewVersionMetadata.currentVersion()).thenReturn(mock(Version.class));
+    IcebergViewMetadata icebergViewMetadata = mock(IcebergViewMetadata.class);
+    when(icebergViewMetadata.getSchema()).thenReturn(new org.apache.iceberg.Schema());
+    when(icebergViewMetadata.getFormatVersion())
+        .thenReturn(IcebergViewMetadata.SupportedIcebergViewSpecVersion.V1);
 
     ViewHandle viewHandle = mock(ViewHandle.class);
     when(viewHandle.getType()).thenReturn(VersionedPlugin.EntityType.ICEBERG_VIEW);
     when(viewHandle.getContentId()).thenReturn(UUID.randomUUID().toString());
     when(viewHandle.getDatasetPath()).thenReturn(new EntityPath(tableKey));
-    when(viewHandle.getViewVersionMetadata()).thenReturn(viewVersionMetadata);
+    when(viewHandle.getIcebergViewMetadata()).thenReturn(icebergViewMetadata);
 
     DatasetHandle datasetHandle = mock(DatasetHandle.class);
     when(datasetHandle.unwrap(any())).thenReturn(viewHandle);

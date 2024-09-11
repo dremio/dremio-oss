@@ -23,7 +23,6 @@ import com.dremio.exec.proto.CoordExecRPC.ActiveQueriesOnForeman;
 import com.dremio.exec.proto.CoordExecRPC.ActiveQueryList;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators.AdminBooleanValidator;
@@ -31,6 +30,7 @@ import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.service.Service;
 import com.dremio.service.activequerylistservice.ActiveQueryListServiceGrpc;
 import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.scheduler.Cancellable;
@@ -68,7 +68,7 @@ public class ActiveQueryListService
   private Provider<NodeEndpoint> nodeEndpointProvider;
   private Provider<ExecutorSetService> executorSetServiceProvider;
   private Provider<MaestroService> maestroServiceProvider;
-  private Provider<SabotContext> sabotContextProvider;
+  private Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private Provider<ConduitProvider> conduitProviderProvider;
   private Provider<OptionManager> optionManagerProvider;
   private boolean isDistributedMaster;
@@ -81,7 +81,7 @@ public class ActiveQueryListService
       Provider<NodeEndpoint> nodeEndpointProvider,
       Provider<ExecutorSetService> executorSetServiceProvider,
       Provider<MaestroService> maestroServiceProvider,
-      Provider<SabotContext> sabotContextProvider,
+      Provider<ClusterCoordinator> clusterCoordinatorProvider,
       Provider<ConduitProvider> conduitProviderProvider,
       Provider<OptionManager> optionManagerProvider,
       boolean isDistributedMaster) {
@@ -90,7 +90,7 @@ public class ActiveQueryListService
     this.nodeEndpointProvider = nodeEndpointProvider;
     this.executorSetServiceProvider = executorSetServiceProvider;
     this.maestroServiceProvider = maestroServiceProvider;
-    this.sabotContextProvider = sabotContextProvider;
+    this.clusterCoordinatorProvider = clusterCoordinatorProvider;
     this.conduitProviderProvider = conduitProviderProvider;
     this.optionManagerProvider = optionManagerProvider;
     this.isDistributedMaster = isDistributedMaster;
@@ -192,7 +192,7 @@ public class ActiveQueryListService
         final NodeEndpoint localCoordinator =
             EndpointHelper.getMinimalEndpoint(nodeEndpointProvider.get());
         Collection<NodeEndpoint> remoteCoordinators =
-            sabotContextProvider.get().getCoordinators().stream()
+            clusterCoordinatorProvider.get().getCoordinatorEndpoints().stream()
                 .filter(x -> !localCoordinator.equals(EndpointHelper.getMinimalEndpoint(x)))
                 .collect(Collectors.toList());
 

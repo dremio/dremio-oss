@@ -18,14 +18,24 @@ import { define, SVGUseAdapter } from "smart-icon";
 
 /**
  * Globally defines the `<dremio-icon>` custom element and configures runtime icon path resolution
- * @param iconsRoot The base HTTP path for the icons/ folder at runtime
+ * @param spritePath The HTTP path for the icon spritesheet at runtime
  */
-export const configureDremioIcon = (iconsRoot: string): void => {
+export const configureDremioIcon = (spritePath: string): void => {
   define("dremio-icon", {
     adapter: SVGUseAdapter,
     aliases: {
       "interface/select-expand": "interface/caretDown",
+      "job-state/job-completed": "job-state/completed",
     },
-    resolvePath: (name) => `${iconsRoot}/${name}.svg#${name}`,
+    resolvePath: (name) => `#${name}`,
   });
+  fetch(spritePath as string)
+    .then((res) => res.text())
+    .then((svg) => {
+      globalThis.document.body.insertAdjacentHTML("beforeend", svg);
+      return;
+    })
+    .catch((e) => {
+      console.error(e);
+    });
 };

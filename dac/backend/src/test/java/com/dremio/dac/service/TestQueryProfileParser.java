@@ -29,6 +29,7 @@ import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.VersionedDatasetPath;
+import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobProtobuf;
@@ -77,11 +78,12 @@ public class TestQueryProfileParser extends BaseTestServer {
         JobDetailsRequest.newBuilder().setJobId(jobs.get(0).getJobId()).build();
     final com.dremio.service.job.JobDetails job =
         l(JobsService.class).getJobDetails(jobDetailsRequest);
-    final JobDetails jobDetails = JobsProtoUtil.getLastAttempt(job).getDetails();
+    final JobAttempt lastJobAttempt = JobsProtoUtil.getLastAttempt(job);
+    final JobDetails jobDetails = lastJobAttempt.getDetails();
     final JobStats jobStats = JobsProtoUtil.getLastAttempt(job).getStats();
 
     assertEquals(1, jobDetails.getTableDatasetProfilesList().size());
-    assertEquals(1000, (long) jobDetails.getOutputRecords()); // leaf limit is 10k
+    assertEquals(1000, (long) lastJobAttempt.getStats().getOutputRecords()); // leaf limit is 10k
     assertEquals(16250, (long) jobDetails.getDataVolume());
 
     assertEquals(16250, (long) jobStats.getOutputBytes());

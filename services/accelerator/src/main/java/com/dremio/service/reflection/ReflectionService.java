@@ -17,9 +17,11 @@ package com.dremio.service.reflection;
 
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.exec.store.sys.accel.AccelerationListManager.ReflectionLineageInfo;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.Service;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
+import com.dremio.service.reflection.analysis.ReflectionSuggester.ReflectionSuggestionType;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
@@ -27,7 +29,6 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -48,6 +49,8 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   ExcludedReflectionsProvider getExcludedReflectionsProvider();
 
+  void saveEntry(ReflectionEntry reflectionEntry);
+
   @Override
   Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId);
 
@@ -58,9 +61,6 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
   /** wakes up the reflection manager if it isn't already running. */
   Future<?> wakeupManager(String reason);
 
-  @VisibleForTesting
-  Iterable<DependencyEntry> getDependencies(ReflectionId reflectionId);
-
   Iterator<AccelerationListManager.DependencyInfo> getReflectionDependencies();
 
   Optional<Materialization> getMaterialization(MaterializationId materializationId);
@@ -70,6 +70,8 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
   Provider<CacheViewer> getCacheViewerProvider();
 
   Optional<ReflectionManager> getReflectionManager();
+
+  void addDatasetRemovedListener(DatasetRemovedHandler listener);
 
   /** Admin action to clean reflection collections to get reflection management healthy */
   void clean();
@@ -141,6 +143,9 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
+    public void saveEntry(ReflectionEntry reflectionEntry) {}
+
+    @Override
     public Optional<ReflectionGoal> getGoal(ReflectionId reflectionId) {
       return Optional.empty();
     }
@@ -176,11 +181,6 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     public void clean() {}
 
     @Override
-    public Iterable<DependencyEntry> getDependencies(ReflectionId reflectionId) {
-      return Collections.emptyList();
-    }
-
-    @Override
     public Iterator<AccelerationListManager.DependencyInfo> getReflectionDependencies() {
       throw new UnsupportedOperationException("getReflectionDependencies");
     }
@@ -196,7 +196,8 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public List<ReflectionGoal> getRecommendedReflections(String datasetId) {
+    public List<ReflectionGoal> getRecommendedReflections(
+        String datasetId, ReflectionSuggestionType type) {
       return Collections.emptyList();
     }
 
@@ -242,6 +243,14 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     public Optional<ReflectionManager> getReflectionManager() {
       return Optional.empty();
     }
+
+    @Override
+    public Iterator<ReflectionLineageInfo> getReflectionLineage(ReflectionGoal reflectionGoal) {
+      throw new UnsupportedOperationException("getReflectionLineage");
+    }
+
+    @Override
+    public void addDatasetRemovedListener(DatasetRemovedHandler listener) {}
   }
 
   /** Reflection related entity not found. */

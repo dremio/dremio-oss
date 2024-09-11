@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-enum Themes {
+export enum Themes {
   LIGHT = "dremio-light",
   DARK = "dremio-dark",
+  HIGH_CONTRAST_LIGHT = "dremio-high-contrast-light",
+  SYSTEM_AUTO = "dremio-auto-system",
 }
 
 const THEME_STORAGE_KEY = "theme";
 
 const DEFAULT_THEME = Themes.LIGHT;
 
-const getTheme = (): Themes => {
+export const getTheme = (): Themes => {
   const theme = global.localStorage.getItem(THEME_STORAGE_KEY);
 
   if (!theme || !Object.values(Themes).includes(theme as Themes)) {

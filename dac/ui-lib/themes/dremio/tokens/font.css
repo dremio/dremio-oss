@@ -16,6 +16,15 @@
 
 :root {
   --font-family--default: "Inter", sans-serif;
+}
+@supports (font-variation-settings: normal) {
+  :root {
+    --font-family--default: "InterVariable", sans-serif;
+    font-optical-sizing: auto;
+  }
+}
+
+:root {
   --font-family--mono: "Fira Code", monospace;
 
   /* @deprecated */

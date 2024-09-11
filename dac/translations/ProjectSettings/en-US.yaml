@@ -1,0 +1,17 @@
+---
+ProjectSettings.BIApplications.Title: BI Applications
+ProjectSettings.EngineRouting.Title: Engine routing
+ProjectSettings.GeneralInformation.Title: General information
+ProjectSettings.Monitor.CatalogUsage.MostQueriedDatasets.Title: Top 10 most queried datasets
+ProjectSettings.Monitor.CatalogUsage.MostQueriedFolders.Title: Top 10 most queried spaces / folders
+ProjectSettings.Monitor.CatalogUsage.Title: Catalog usage
+ProjectSettings.Monitor.Jobs.JobCountOverTime.Title: Job count over time
+ProjectSettings.Monitor.Jobs.JobsPerQueue.Title: Job count per queue
+ProjectSettings.Monitor.Jobs.LongestRunningJobs.Title: Top 10 longest running jobs
+ProjectSettings.Monitor.Jobs.MostActiveUsers.Title: Top 10 most active users
+ProjectSettings.Monitor.Jobs.PhaseTimeConsumed.Title: "% of time consumed for each phase"
+ProjectSettings.Monitor.Jobs.Title: Jobs
+ProjectSettings.Monitor.Title: Monitor
+ProjectSettings.Preferences.Title: Preferences
+ProjectSettings.ProjectStorage.Title: Project storage
+ProjectSettings.Reflections.Title: Reflections

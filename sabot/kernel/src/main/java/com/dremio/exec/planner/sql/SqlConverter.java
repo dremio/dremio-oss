@@ -129,7 +129,8 @@ public class SqlConverter {
         new ConvertletTable(
             settings.getOptions().getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS));
     AutoVDSFixer autoVDSFixer =
-        new AutoVDSFixer(context.getCatalog(), settings.getOptions(), session);
+        new AutoVDSFixer(
+            context.getCatalog(), settings.getOptions(), session, context.getWorkloadType());
 
     // There is a circular dependency of:
     //  expansionSqlValidatorAndToRelContextBuilderFactory -> viewExpander -> ToRelContext -> ...

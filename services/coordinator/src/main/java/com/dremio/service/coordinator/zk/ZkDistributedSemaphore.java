@@ -95,8 +95,8 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
   }
 
   @Override
-  public DistributedLease acquire(int permits, long time, TimeUnit unit) throws Exception {
-    Collection<Lease> leases = semaphore.acquire(permits, time, unit);
+  public DistributedLease acquire(int numPermits, long time, TimeUnit unit) throws Exception {
+    Collection<Lease> leases = semaphore.acquire(numPermits, time, unit);
     if (leases != null) {
       return new LeasesHolder(leases);
     }

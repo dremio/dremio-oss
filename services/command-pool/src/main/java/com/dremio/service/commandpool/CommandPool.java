@@ -40,7 +40,8 @@ public interface CommandPool extends Service {
   enum Priority {
     LOW,
     MEDIUM,
-    HIGH
+    HIGH,
+    VERY_HIGH
   }
 
   /** Tasks submitted to the command pool need to implement this interface. */

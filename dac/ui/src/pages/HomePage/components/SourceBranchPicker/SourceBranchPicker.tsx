@@ -25,13 +25,13 @@ import {
 import { connect } from "react-redux";
 import { useEffect, useMemo, useRef } from "react";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
-import FontIcon from "@app/components/Icon/FontIcon";
 import { getRootEntityLinkUrl } from "@app/selectors/home";
 import BranchPicker from "../BranchPicker/BranchPicker";
 import { getEndpointFromSource } from "@app/utils/nessieUtils";
 import { ARCTIC, NESSIE } from "@app/constants/sourceTypes";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { Spinner } from "dremio-ui-lib/components";
 
 type ConnectedProps = {
   nessie: NessieRootState;
@@ -68,17 +68,17 @@ function SourceBranchPicker({
     source.type === NESSIE
       ? commonPaths.nessieSource.link(pathProps)
       : source.type === ARCTIC
-      ? commonPaths.arcticSource.link(pathProps)
-      : undefined;
+        ? commonPaths.arcticSource.link(pathProps)
+        : undefined;
   const context = useMemo(
     () =>
       createNessieContext(
         { id: source.id, name: source.name, endpoint },
         nessie,
         prefix,
-        baseUrl
+        baseUrl,
       ),
-    [source.id, source.name, endpoint, prefix, nessie, baseUrl]
+    [source.id, source.name, endpoint, prefix, nessie, baseUrl],
   );
 
   const stateKey = `${prefix}${source.name}`;
@@ -89,12 +89,7 @@ function SourceBranchPicker({
 
   const isLoading = isDefaultReferenceLoading(nessie[stateKey]);
   if (isLoading) {
-    return (
-      <FontIcon
-        type="Loader spinner"
-        theme={{ Container: { marginTop: 2 }, Icon: { width: 15, height: 15 } }}
-      />
-    );
+    return <Spinner />;
   }
 
   return (
@@ -112,7 +107,7 @@ function SourceBranchPicker({
 }
 const mapStateToProps = (
   state: any,
-  { source, redirect = true }: SourceBranchPickerProps
+  { source, redirect = true }: SourceBranchPickerProps,
 ) => {
   return {
     nessie: state.nessie,

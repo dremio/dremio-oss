@@ -15,14 +15,20 @@
  */
 package com.dremio.exec.catalog.conf;
 
+import static com.dremio.exec.catalog.conf.ConnectionConf.USE_EXISTING_SECRET_VALUE;
+
 import com.dremio.services.credentials.CredentialsException;
+import com.dremio.services.credentials.SecretsCreator;
+import com.google.common.base.Strings;
+import java.net.URI;
+import java.util.Optional;
 
 /**
  * The primary, default SecretRef. Custom Protostuff ser/de logic is provided by {@link
  * SecretRefImplDelegate}. Secrets retrieved from SecretRefProto must be resolved with
  * CredentialsService.
  */
-public class SecretRefImpl extends AbstractSecretRef {
+public class SecretRefImpl extends AbstractSecretRef implements Encryptable {
 
   public SecretRefImpl(String secret) {
     super(secret);
@@ -38,5 +44,20 @@ public class SecretRefImpl extends AbstractSecretRef {
     } catch (CredentialsException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * @param secretsCreator a SecretCreator that wil always encrypt the password by the system
+   * @return true if any secret(s) have been encrypted. False if no plain-text secret to encrypt and
+   *     no error occurs.
+   */
+  @Override
+  public synchronized boolean encrypt(SecretsCreator secretsCreator) throws CredentialsException {
+    if (Strings.isNullOrEmpty(secret) || USE_EXISTING_SECRET_VALUE.equals(secret)) {
+      return false;
+    }
+    final Optional<URI> encrypted = secretsCreator.encrypt(secret);
+    encrypted.ifPresent(value -> this.secret = value.toString());
+    return encrypted.isPresent();
   }
 }

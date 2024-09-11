@@ -57,6 +57,8 @@ public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
   private final int maxParallelizationWidth;
   private final StoragePluginId storagePluginId;
   private final BatchSchema batchSchema;
+  private final String fsScheme;
+  private final String schemeVariate;
 
   public NessieCommitsScanPrel(
       RelOptCluster cluster,
@@ -66,7 +68,9 @@ public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
       String user,
       StoragePluginId storagePluginId,
       long estimatedRows,
-      int maxParallelizationWidth) {
+      int maxParallelizationWidth,
+      String fsScheme,
+      String schemeVariate) {
     super(cluster, traitSet);
     this.batchSchema = batchSchema;
     this.relDataType = VacuumOutputSchema.getRowType(batchSchema, cluster.getTypeFactory());
@@ -75,6 +79,8 @@ public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
     this.estimatedRows = estimatedRows;
     this.maxParallelizationWidth = maxParallelizationWidth;
     this.user = user;
+    this.fsScheme = fsScheme;
+    this.schemeVariate = schemeVariate;
   }
 
   public RelDataType getRelDataType() {
@@ -114,7 +120,9 @@ public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
         storagePluginId,
         SchemaUtilities.allColPaths(batchSchema),
         snapshotsScanOptions,
-        maxParallelizationWidth);
+        maxParallelizationWidth,
+        fsScheme,
+        schemeVariate);
   }
 
   @Override
@@ -127,7 +135,9 @@ public class NessieCommitsScanPrel extends AbstractRelNode implements LeafPrel {
         user,
         storagePluginId,
         estimatedRows,
-        maxParallelizationWidth);
+        maxParallelizationWidth,
+        fsScheme,
+        schemeVariate);
   }
 
   @Override

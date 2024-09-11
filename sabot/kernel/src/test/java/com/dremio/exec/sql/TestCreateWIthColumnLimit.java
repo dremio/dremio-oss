@@ -84,7 +84,7 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
   @Test
   public void columnLimitExceededCreateEmpty() throws Exception {
     final String tableName = "columnLimit4";
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       String createCommandSql =
           "create table " + TEMP_SCHEMA + "." + tableName + "(id int, id1 int, id2 int)";
       test(createCommandSql);

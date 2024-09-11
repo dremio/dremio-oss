@@ -76,4 +76,12 @@ public interface ScriptStore extends Service {
    * @return
    */
   long getCountByCondition(SearchTypes.SearchQuery condition);
+
+  /**
+   * Check if the script with script id {@code scriptId} exists
+   *
+   * @param scriptId
+   * @return
+   */
+  boolean contains(String scriptId);
 }

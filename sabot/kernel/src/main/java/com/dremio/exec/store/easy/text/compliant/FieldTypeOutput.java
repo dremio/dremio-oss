@@ -33,15 +33,13 @@ abstract class FieldTypeOutput extends TextOutput {
   // track which field is getting appended
   protected int currentFieldIndex = -1;
   // track chars within field
-  protected int currentDataPointer = 0;
+  private int currentDataPointer = 0;
   // track if field is still getting appended
   protected boolean fieldOpen = false;
-  // holds chars for a field
-  protected final byte[] fieldBytes;
 
   protected boolean collect = true;
   protected boolean rowHasData = false;
-  protected int recordCount = 0;
+  int recordCount = 0;
   protected int maxField = 0;
   protected boolean isValidationMode = false;
 
@@ -55,7 +53,6 @@ abstract class FieldTypeOutput extends TextOutput {
     super(sizeLimit);
     this.selectedFields = new boolean[totalFields];
     this.vectors = new ValueVector[totalFields];
-    this.fieldBytes = new byte[sizeLimit];
   }
 
   /** Start a new record batch. Resets all pointers */
@@ -80,6 +77,7 @@ abstract class FieldTypeOutput extends TextOutput {
   public void startField(int index) {
     currentFieldIndex = index;
     currentDataPointer = 0;
+    rowHasData = false;
     fieldOpen = true;
     collect = selectedFields[index];
     currentVector = vectors[index];
@@ -93,7 +91,8 @@ abstract class FieldTypeOutput extends TextOutput {
 
     FieldSizeLimitExceptionHelper.checkSizeLimit(
         currentDataPointer + 1, maxCellLimit, currentFieldIndex, logger);
-    fieldBytes[currentDataPointer++] = data;
+    appendByte(currentDataPointer, data);
+    currentDataPointer++;
     rowHasData = true;
   }
 
@@ -105,18 +104,15 @@ abstract class FieldTypeOutput extends TextOutput {
 
     if (collect) {
       assert isValidationMode || currentVector != null;
-      writeValueInCurrentVector(recordCount, fieldBytes, 0, currentDataPointer);
-    }
-
-    if (currentDataPointer > 0) {
-      this.rowHasData = true;
+      writeValueInCurrentVector(recordCount, currentDataPointer);
     }
 
     return currentFieldIndex < maxField;
   }
 
-  protected abstract void writeValueInCurrentVector(
-      int index, byte[] fieldBytes, int startIndex, int endIndex);
+  protected abstract void appendByte(int currentIndex, byte b);
+
+  protected abstract void writeValueInCurrentVector(int index, int endIndex);
 
   @Override
   public boolean endEmptyField() {

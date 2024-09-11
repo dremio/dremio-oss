@@ -16,15 +16,20 @@
 .dremio-daterangepicker {
   :global(.rdrNextPrevButton) {
     background: transparent;
-    &:hover {
-      background: var(--color--neutral--50);
+    &:hover,
+    &:focus-visible {
+      background: var(--fill--secondary);
     }
   }
 
   :global(.rdrMonthPicker select),
   :global(.rdrYearPicker select) {
     font-weight: 600;
-    color: var(--color--neutral--900);
+    color: var(--text--primary);
+    &:hover,
+    &:focus-visible {
+      background: var(--fill--secondary);
+    }
   }
 
   :global(.rdrDateDisplayWrapper),
@@ -33,11 +38,22 @@
   }
 
   :global(.rdrCalendarWrapper) {
+    background: var(--fill--popover);
     width: 100%;
+  }
+  :global(.rdrDayDisabled) {
+    background: var(--fill--popover);
+  }
+  :global(.rdrDayDisabled .rdrDayNumber span) {
+    color: var(--text--disabled);
+  }
+
+  :global(.rdrDayNumber span) {
+    color: var(--text--primary);
   }
 
   :global(.rdrDayToday .rdrDayNumber span:after) {
-    background: var(--color--neutral--900) !important;
+    background: var(--color--neutral--800) !important;
     height: 1px;
     width: 13px;
     bottom: 5px;
@@ -47,7 +63,7 @@
   :global(.rdrDay:not(.rdrDayPassive) .rdrStartEdge ~ .rdrDayNumber span),
   :global(.rdrDay:not(.rdrDayPassive) .rdrEndEdge ~ .rdrDayNumber span),
   :global(.rdrDay:not(.rdrDayPassive) .rdrSelected ~ .rdrDayNumber span) {
-    color: var(--color--neutral--900) !important;
+    color: var(--text--primary) !important;
   }
 
   :global(.rdrMonth) {

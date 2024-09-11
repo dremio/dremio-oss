@@ -26,7 +26,7 @@ import org.junit.rules.TestRule;
 
 public class TestTpchDistributed extends BaseTestQuery {
 
-  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(60, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(20, TimeUnit.SECONDS);
 
   @Rule public TemporarySystemProperties properties = new TemporarySystemProperties();
 

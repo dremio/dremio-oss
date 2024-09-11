@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.api;
 
-import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static org.junit.Assert.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -32,8 +31,6 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.options.OptionValue;
-import com.dremio.service.sqlrunner.SQLRunnerOptions;
 import com.dremio.service.sqlrunner.proto.SQLRunnerSessionProto;
 import com.dremio.service.sqlrunner.store.SQLRunnerSessionStore;
 import com.dremio.service.sqlrunner.store.SQLRunnerSessionStoreImpl;
@@ -69,12 +66,6 @@ public class TestSQLRunnerResource extends BaseTestServer {
 
     sqlRunnerSessionStore = new SQLRunnerSessionStoreImpl(() -> kvStoreProvider);
     sqlRunnerSessionStore.start();
-
-    getSabotContext()
-        .getOptionManager()
-        .setOption(
-            OptionValue.createBoolean(
-                SYSTEM, SQLRunnerOptions.SQLRUNNER_TABS.getOptionName(), true));
   }
 
   @Test
@@ -286,7 +277,7 @@ public class TestSQLRunnerResource extends BaseTestServer {
   }
 
   private void createUser(String userName) throws Exception {
-    final UserService userService = getSabotContext().getUserService();
+    final UserService userService = getUserService();
     final User user =
         SimpleUser.newBuilder()
             .setUserName(userName)
@@ -323,10 +314,10 @@ public class TestSQLRunnerResource extends BaseTestServer {
             Lists.newArrayList(),
             Lists.newArrayList());
 
-    ScriptData screatedScript =
+    ScriptData createdScript =
         expectSuccess(
             getBuilder(getAPIv2().path(SCRIPTS_PATH)).buildPost(Entity.json(scriptData)),
             ScriptData.class);
-    return screatedScript.getId();
+    return createdScript.getId();
   }
 }

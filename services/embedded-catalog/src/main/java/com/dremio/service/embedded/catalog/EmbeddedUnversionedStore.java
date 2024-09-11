@@ -16,9 +16,11 @@
 package com.dremio.service.embedded.catalog;
 
 import static com.dremio.service.embedded.catalog.EmbeddedPointerStore.asNamespaceId;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.dremio.datastore.api.KVStoreProvider;
 import com.google.common.base.Suppliers;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 import javax.inject.Provider;
 import org.jetbrains.annotations.NotNull;
 import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.Conflict;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
@@ -112,6 +115,7 @@ public class EmbeddedUnversionedStore implements VersionStore {
     try {
       commitSemaphore.acquire();
       try {
+        checkOperationsForConflicts(operations);
         commitUnversioned(operations);
       } finally {
         commitSemaphore.release();
@@ -127,39 +131,59 @@ public class EmbeddedUnversionedStore implements VersionStore {
         .build();
   }
 
-  private void commitUnversioned(@NotNull List<Operation> operations) {
+  private void checkOperationsForConflicts(List<Operation> operations)
+      throws ReferenceConflictException {
+    List<Conflict> conflicts = new ArrayList<>();
     for (Operation op : operations) {
       ContentKey key = op.getKey();
+      String msgPrefix = "Key '" + key + "' ";
       if (op instanceof Put) {
         Content value = ((Put) op).getValue();
-
         if (value instanceof IcebergTable) {
           // detect and fail concurrent changes
           Content previous = store.get().get(key);
           if (previous == null) {
             if (value.getId() != null) {
-              throw new IllegalArgumentException("Cannot update a non-existing table for " + key);
+              conflicts.add(
+                  Conflict.conflict(
+                      Conflict.ConflictType.KEY_DOES_NOT_EXIST,
+                      key,
+                      msgPrefix + "Cannot update a non-existing table"));
             }
           } else {
             if (value.getId() == null) {
-              throw new IllegalArgumentException("Table already exists for " + key);
-            }
-
-            String oldId = previous.getId();
-            if (oldId != null && !oldId.equals(value.getId())) {
-              throw new IllegalArgumentException(
-                  "Previous Table ID mismatch for "
-                      + key
-                      + ", expected: "
-                      + oldId
-                      + ", got: "
-                      + value.getId());
+              conflicts.add(
+                  Conflict.conflict(
+                      Conflict.ConflictType.KEY_EXISTS, key, msgPrefix + "Table already exists"));
+            } else {
+              String oldId = previous.getId();
+              if (oldId != null && !oldId.equals(value.getId())) {
+                conflicts.add(
+                    Conflict.conflict(
+                        Conflict.ConflictType.CONTENT_ID_DIFFERS,
+                        key,
+                        msgPrefix
+                            + "Table content ID mismatch - expected: "
+                            + value.getId()
+                            + ", found: "
+                            + oldId));
+              }
             }
           }
         }
+      }
+    }
+    if (!conflicts.isEmpty()) {
+      throw new ReferenceConflictException(conflicts);
+    }
+  }
 
+  private void commitUnversioned(List<Operation> operations) {
+    for (Operation op : operations) {
+      ContentKey key = op.getKey();
+      if (op instanceof Put) {
+        Content value = ((Put) op).getValue();
         store.get().put(key, value);
-
       } else if (op instanceof Delete) {
         store.get().delete(key);
       }
@@ -167,14 +191,16 @@ public class EmbeddedUnversionedStore implements VersionStore {
   }
 
   @Override
-  public ContentResult getValue(Ref ref, ContentKey key) throws ReferenceNotFoundException {
-    return getValues(ref, Collections.singletonList(key)).get(key);
+  public ContentResult getValue(Ref ref, ContentKey key, boolean returnNotFound)
+      throws ReferenceNotFoundException {
+    return getValues(ref, Collections.singletonList(key), returnNotFound).get(key);
   }
 
   @Override
-  public Map<ContentKey, ContentResult> getValues(Ref ref, Collection<ContentKey> keys)
-      throws ReferenceNotFoundException {
-
+  public Map<ContentKey, ContentResult> getValues(
+      Ref ref, Collection<ContentKey> keys, boolean returnNotFound) {
+    // Note: `returnNotFound` is not supported due to lack of "Embedded" use cases for it.
+    checkArgument(!returnNotFound, "returnNotFound==true is not supported for embedded use cases.");
     Map<ContentKey, ContentResult> result = new HashMap<>();
     keys.forEach(
         key -> {

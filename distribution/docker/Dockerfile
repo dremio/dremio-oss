@@ -31,8 +31,8 @@ RUN \
   && mkdir -p /var/log/dremio \
   && mkdir -p /opt/dremio/data \
   \
-  && groupadd --system dremio \
-  && useradd --base-dir /var/lib/dremio --system --gid dremio dremio \
+  && groupadd --system dremio --gid 999 \
+  && useradd --base-dir /var/lib/dremio --system --uid 999 --gid dremio dremio \
   && chown -R dremio:dremio /opt/dremio/data \
   && chown -R dremio:dremio /var/run/dremio \
   && chown -R dremio:dremio /var/log/dremio \

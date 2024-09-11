@@ -17,11 +17,13 @@ package com.dremio.plugins;
 
 import com.dremio.exec.catalog.VersionedPlugin.EntityType;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.model.IcebergView;
+import org.projectnessie.model.UDF;
 
 public final class NessieContent {
   private final List<String> catalogKey;
@@ -82,6 +84,8 @@ public final class NessieContent {
       return EntityType.ICEBERG_VIEW;
     } else if (Content.Type.NAMESPACE.equals(contentType)) {
       return EntityType.FOLDER;
+    } else if (Content.Type.UDF.equals(contentType)) {
+      return EntityType.UDF;
     } else {
       throw new IllegalStateException("Unsupported contentType: " + contentType);
     }
@@ -91,6 +95,7 @@ public final class NessieContent {
     if (content instanceof IcebergView) {
       return ((IcebergView) content).getDialect();
     }
+
     return null;
   }
 
@@ -101,7 +106,47 @@ public final class NessieContent {
     } else if (content instanceof IcebergView) {
       IcebergView icebergView = (IcebergView) content;
       return icebergView.getMetadataLocation();
+    } else if (content instanceof UDF) {
+      UDF udf = (UDF) content;
+      return udf.getMetadataLocation();
     }
+
     return null;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        Objects.hash(catalogKey.toArray()), contentId, entityType, metadataLocation, viewDialect);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof NessieContent)) {
+      return false;
+    }
+    NessieContent other = (NessieContent) obj;
+    if (this.entityType != other.entityType) {
+      return false;
+    }
+    if (!this.contentId.equals(other.contentId)) {
+      return false;
+    }
+    if (!this.catalogKey.equals(other.catalogKey)) {
+      return false;
+    }
+    if ((this.metadataLocation == null) ^ (other.metadataLocation == null)) {
+      return false;
+    }
+    if (this.metadataLocation != null && !this.metadataLocation.equals(other.metadataLocation)) {
+      return false;
+    }
+    if ((this.viewDialect == null) ^ (other.viewDialect == null)) {
+      return false;
+    }
+    if (this.viewDialect != null && !this.viewDialect.equals(other.viewDialect)) {
+      return false;
+    }
+    return true;
   }
 }

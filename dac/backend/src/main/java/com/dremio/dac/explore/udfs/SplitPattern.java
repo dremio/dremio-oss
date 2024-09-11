@@ -19,7 +19,6 @@ import static com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.dac.explore.PatternMatchUtils;
 import com.dremio.dac.explore.PatternMatchUtils.Match;
 import com.dremio.dac.explore.udfs.DremioUDFUtils.ExampleUDFOutputDerivation;
 import com.dremio.dac.proto.model.dataset.SplitPositionType;
@@ -51,12 +50,53 @@ public class SplitPattern {
   public static final String REGEXP_SPLIT_POSITIONS = "regexp_split_positions";
 
   public static List<Match> splitRegex(Matcher matcher, String matchee) {
+    byte[] bytes = matchee.getBytes();
     matcher.reset(matchee);
-    List<Match> matches = new ArrayList<Match>();
+    List<Match> matches = new ArrayList<>();
+    int endCharIndex = 0;
+    int endByteIndex = 0;
     while (matcher.find()) {
-      matches.add(PatternMatchUtils.match(matcher));
+      int startCharIndex = matcher.start();
+      // calculate length of characters between start and end of match
+      int charLength = matchee.codePointCount(endCharIndex, startCharIndex);
+      // for first match, calculate startByteIndex from 0 to startCharIndex, for other matches, no
+      // need to calculate from beginning, because we already have byteIndex from previous match,
+      // so we can calculate from there
+      // end of previous match to start of current match, and startByteIndex will be endByteIndex of
+      // previous match
+      int startByteIndex = toBytesIndex(bytes, charLength, endByteIndex);
+      endCharIndex = matcher.end();
+      // we real byte index for start position of match, so we need to calculate byte index between
+      // start and end.
+      charLength = matchee.codePointCount(startCharIndex, endCharIndex);
+      endByteIndex = toBytesIndex(bytes, charLength, startByteIndex);
+      matches.add(new Match(startByteIndex, endByteIndex));
     }
     return matches;
+  }
+
+  /**
+   * This method will calculate real index in byte array for match, because String value could
+   * contain non english characters (Unicode) as á or accents (that has 2 bytes length), the index
+   * returned by match is not the real index in byte array. The bit mask 0xc0 is 11 00 00 00 so what
+   * the AND is doing is extracting only the top two bits. This is then compared to 0x80 (binary 10
+   * 00 00 00)- check to see if the top two bits of the value are equal to 10. In UTF-8, all bytes
+   * that begin with the bit pattern 10 are subsequent bytes of a multi-byte sequence - in other
+   * words, this check is this byte is related for a new char or for previous one.
+   *
+   * @param bytes array of bytes from arrow buffer
+   * @param length length of characters to check
+   * @param startByteIndex index of byte in arrow buffer where check should start
+   * @return byte index of match in arrow buffer
+   */
+  private static int toBytesIndex(byte[] bytes, int length, int startByteIndex) {
+    int bIndex = startByteIndex;
+    for (int i = 0; i < length; i++) {
+      do {
+        bIndex++;
+      } while (bIndex < bytes.length && (bytes[bIndex] & 0xC0) == 0x80);
+    }
+    return bIndex;
   }
 
   public static boolean range(int start, int end, int length) {
@@ -180,9 +220,7 @@ public class SplitPattern {
         return;
       }
 
-      final int length =
-          com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
-              io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start, in.end, errCtx);
+      final int length = in.end - in.start;
       final String v =
           com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
               in.start, in.end, in.buffer);

@@ -16,13 +16,23 @@
 package com.dremio.exec.catalog;
 
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import javax.annotation.concurrent.ThreadSafe;
 
+/**
+ * For collecting and logging table metadata access statistics to query profiles.
+ *
+ * <p>This class is thread-safe since there can be multiple concurrent writers for bulk catalog
+ * access.
+ */
+@ThreadSafe
 public class MetadataStatsCollector {
-  private final List<PlanPhaseProfile> planPhaseProfiles = Lists.newArrayList();
+  private final ConcurrentLinkedQueue<PlanPhaseProfile> planPhaseProfiles =
+      new ConcurrentLinkedQueue<>();
 
-  void addDatasetStat(String datasetPath, String type, long millisTaken) {
+  public void addDatasetStat(String datasetPath, String type, long millisTaken) {
     planPhaseProfiles.add(
         PlanPhaseProfile.newBuilder()
             .setPhaseName(String.format("%s: %s", datasetPath, type))
@@ -31,6 +41,6 @@ public class MetadataStatsCollector {
   }
 
   public List<PlanPhaseProfile> getPlanPhaseProfiles() {
-    return planPhaseProfiles;
+    return planPhaseProfiles.stream().collect(ImmutableList.toImmutableList());
   }
 }

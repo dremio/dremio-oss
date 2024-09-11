@@ -38,7 +38,7 @@ function fetchSourceData(href) {
           LOAD_SOURCE_SUCCESS,
           sourceSchema,
           meta,
-          uiPropsForEntity
+          uiPropsForEntity,
         ),
         { type: LOAD_SOURCE_FAILURE, meta },
       ],

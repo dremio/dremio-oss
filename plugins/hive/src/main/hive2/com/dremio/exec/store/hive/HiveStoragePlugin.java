@@ -24,7 +24,11 @@ import static com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils.metadat
 import static java.lang.Math.toIntExact;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.common.concurrent.ContextAwareCompletableFuture;
+import com.dremio.common.concurrent.bulk.BulkRequest;
+import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
@@ -42,6 +46,7 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.EntityPathWithOptions;
 import com.dremio.connector.metadata.ExtendedPropertyOption;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
@@ -58,6 +63,7 @@ import com.dremio.connector.metadata.options.MetadataVerifyRequest;
 import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.AlterTableOption;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.RollbackOption;
@@ -80,6 +86,7 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
+import com.dremio.exec.store.BulkSourceMetadata;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -95,6 +102,7 @@ import com.dremio.exec.store.dfs.DropColumn;
 import com.dremio.exec.store.dfs.DropPrimaryKey;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.hive.deltalake.DeltaHiveInputFormat;
 import com.dremio.exec.store.hive.exec.AsyncReaderUtils;
 import com.dremio.exec.store.hive.exec.HadoopFsCacheWrapperPluginClassLoader;
@@ -146,6 +154,7 @@ import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
 import com.dremio.exec.store.parquet.ParquetScanTableFunction;
 import com.dremio.exec.store.parquet.ParquetSplitCreator;
 import com.dremio.exec.store.parquet.ScanTableFunction;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
@@ -242,7 +251,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
         SupportsImpersonation,
         SupportsIcebergMutablePlugin,
         HadoopFsSupplierProviderPluginClassLoader,
-        SupportsMetadataVerify {
+        SupportsMetadataVerify,
+        BulkSourceMetadata {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(HiveStoragePlugin.class);
 
@@ -252,7 +262,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
   private final SabotConfig sabotConfig;
   private final DremioConfig dremioConfig;
 
-  private HiveClient processUserMetastoreClient;
+  private volatile HiveClient processUserMetastoreClient;
   private final boolean storageImpersonationEnabled;
   private final boolean metastoreImpersonationEnabled;
   private final boolean isCoordinator;
@@ -512,7 +522,14 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
       BatchSchema tableSchema,
       List<PartitionProtobuf.PartitionValue> partitionValues) {
     return new HiveDirListingRecordReader(
-        context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, false);
+        context,
+        fs,
+        dirListInputSplit,
+        isRecursive,
+        tableSchema,
+        partitionValues,
+        false,
+        getConfigProperties());
   }
 
   @Override
@@ -619,7 +636,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
   }
 
   @Override
-  public boolean containerExists(EntityPath key) {
+  public boolean containerExists(EntityPath key, GetMetadataOption... options) {
     if (key.size() != 2) {
       return false;
     }
@@ -1786,7 +1803,33 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
   }
 
   @Override
+  public BulkResponse<EntityPathWithOptions, Optional<DatasetHandle>> bulkGetDatasetHandles(
+      BulkRequest<EntityPathWithOptions> requestedDatasets) {
+    MetadataIOPool metadataIOPool = context.getMetadataIOPool();
+    return requestedDatasets.handleRequests(
+        dataset ->
+            ContextAwareCompletableFuture.createFrom(
+                metadataIOPool.execute(
+                    new MetadataIOPool.MetadataTask<>(
+                        "bulk_get_dataset_handles_async",
+                        dataset.entityPath(),
+                        () -> {
+                          try {
+                            return internalGetDatasetHandle(
+                                dataset.entityPath(), dataset.options());
+                          } catch (ConnectorException ex) {
+                            throw new RuntimeException(ex);
+                          }
+                        }))));
+  }
+
+  @Override
   public Optional<DatasetHandle> getDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
+    return internalGetDatasetHandle(datasetPath, options);
+  }
+
+  private Optional<DatasetHandle> internalGetDatasetHandle(
       EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
     if (!HiveMetadataUtils.isValidPathSchema(datasetPath.getComponents())) {
@@ -1799,7 +1842,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
     final boolean tableExists;
     try {
       tableExists =
-          client.tableExists(schemaComponents.getDbName(), schemaComponents.getTableName());
+          client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), false)
+              != null;
     } catch (TException e) {
       String message =
           String.format(
@@ -2134,7 +2178,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
     }
 
     try {
-      processUserMetastoreClient.checkState(false);
+      checkClientState();
       return SourceState.GOOD;
     } catch (Exception ex) {
       logger.debug(
@@ -2149,6 +2193,24 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
           Collections.singletonList(
               new SourceState.Message(
                   MessageLevel.ERROR, "Failure connecting to source: " + ex.getMessage())));
+    }
+  }
+
+  private void checkClientState() throws Exception {
+    try {
+      processUserMetastoreClient.checkState(false);
+    } catch (Exception originalEx) {
+      if (optionManager.getOption(CatalogOptions.RETRY_CONNECTION_ON_FAILURE)) {
+        try (AutoCloseable oldClient = processUserMetastoreClient) {
+          processUserMetastoreClient = createConnectedClient();
+          processUserMetastoreClient.checkState(false);
+          return;
+        } catch (Exception ex) {
+          throw originalEx;
+        }
+      } else {
+        throw originalEx;
+      }
     }
   }
 
@@ -2219,7 +2281,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
 
       clientsByUser =
           CacheBuilder.newBuilder()
-              .expireAfterAccess(10, TimeUnit.MINUTES)
+              .expireAfterAccess(5, TimeUnit.MINUTES)
               .maximumSize(5) // Up to 5 clients for impersonation-enabled.
               .removalListener(
                   new RemovalListener<String, HiveClient>() {
@@ -2416,6 +2478,26 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       return new HiveFooterReaderTableFunction(fec, context, props, functionConfig);
     }
+  }
+
+  @Override
+  public boolean createFunction(
+      CatalogEntityKey key, SchemaConfig schemaConfig, UserDefinedFunction userDefinedFunction) {
+    throw new UnsupportedOperationException(
+        "Hive2 plugin doesn't support function creation via CREATE FUNCTION.");
+  }
+
+  @Override
+  public boolean updateFunction(
+      CatalogEntityKey key, SchemaConfig schemaConfig, UserDefinedFunction userDefinedFunction) {
+    throw new UnsupportedOperationException(
+        "Hive2 plugin doesn't support function update via CREATE OR REPLACE FUNCTION.");
+  }
+
+  @Override
+  public void dropFunction(CatalogEntityKey key, SchemaConfig schemaConfig) {
+    throw new UnsupportedOperationException(
+        "Hive2 plugin doesn't support function drop via DROP FUNCTION.");
   }
 
   protected List<HivePrivilegeObject.HivePrivObjectActionType> getPrivilegeActionTypesForIcebergDml(

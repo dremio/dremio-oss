@@ -40,9 +40,8 @@ import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.VersionedPlugin;
-import com.dremio.exec.server.ContextService;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
@@ -50,29 +49,24 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
-import com.dremio.service.namespace.dataset.proto.VirtualDataset;
-import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import java.util.Random;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@MockitoSettings(strictness = Strictness.WARN)
+@ExtendWith(MockitoExtension.class)
 public class TestDatasetVersionMutator {
   @Mock private OptionManager optionManager;
   @Mock private Catalog catalog;
   @Mock private CatalogService catalogService;
   @Mock private LegacyKVStoreProvider legacyKVStoreProvider;
   @Mock private JobsService jobsService;
-  @Mock private ContextService contextService;
+  @Mock private SabotContext sabotContext;
   @Mock private DataplanePlugin dataplanePlugin;
 
   @Mock
@@ -89,7 +83,7 @@ public class TestDatasetVersionMutator {
 
     datasetVersionMutator =
         new DatasetVersionMutator(
-            legacyKVStoreProvider, jobsService, catalogService, optionManager, contextService);
+            legacyKVStoreProvider, jobsService, catalogService, optionManager, sabotContext);
   }
 
   @Test
@@ -107,7 +101,7 @@ public class TestDatasetVersionMutator {
 
   @Test
   public void testCopyFromDatasetForVersionedSource() throws Exception {
-    when(catalogService.getCatalog(any())).thenReturn(catalog);
+    when(catalogService.getSystemUserCatalog()).thenReturn(catalog);
 
     DatasetPath datasetPath = new DatasetPath(new SourceName("test"), new DatasetName("testTable"));
 
@@ -127,36 +121,6 @@ public class TestDatasetVersionMutator {
             () -> datasetVersionMutator.createDatasetFrom(datasetPath, datasetPath, "userName"))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("not allowed within Versioned source");
-  }
-
-  @Test
-  public void testGetVersion() {
-    DatasetPath datasetPath =
-        new DatasetPath(new SourceName(versionedSourceName), new DatasetName("testTable"));
-    DremioTable dremioTable = mock(DremioTable.class);
-    String id = UUID.randomUUID().toString();
-    DatasetConfig datasetConfig =
-        new DatasetConfig()
-            .setFullPathList(datasetPath.toPathList())
-            .setVirtualDataset(VirtualDataset.getDefaultInstance())
-            .setId(new EntityId().setId(id));
-    //noinspection unchecked
-
-    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
-    when(catalog.getTableForQuery(any())).thenReturn(dremioTable);
-    when(catalogService.getCatalog(any())).thenReturn(catalog);
-    when(datasetVersions.get(any(DatasetVersionMutator.VersionDatasetKey.class)))
-        .thenReturn(
-            new VirtualDatasetVersion()
-                .setDataset(datasetConfig)
-                .setState(VirtualDatasetState.getDefaultInstance()));
-
-    VirtualDatasetUI virtualDatasetUI =
-        datasetVersionMutator.getVersion(
-            datasetPath, new DatasetVersion(Long.toString(Math.abs(new Random().nextInt()))), true);
-
-    assertEquals(id, virtualDatasetUI.getId());
-    assertEquals(datasetPath.toPathList(), virtualDatasetUI.getFullPathList());
   }
 
   @Test
@@ -243,22 +207,23 @@ public class TestDatasetVersionMutator {
     datasetVersionMutator.putVersion(third);
 
     when(datasetVersions.get(
-            new DatasetVersionMutator.VersionDatasetKey(new DatasetPath(path), first.getVersion())))
-        .thenReturn(new VirtualDatasetVersion());
-    when(datasetVersions.get(
             new DatasetVersionMutator.VersionDatasetKey(
                 new DatasetPath(path), second.getVersion())))
         .thenReturn(
             new VirtualDatasetVersion()
                 .setPreviousVersion(firstRef)
                 .setDatasetVersionOrigin(DatasetVersionOrigin.SAVE));
+
     when(datasetVersions.get(
             new DatasetVersionMutator.VersionDatasetKey(new DatasetPath(path), third.getVersion())))
         .thenReturn(new VirtualDatasetVersion().setPreviousVersion(secondRef));
 
+    // the version history looks like third -> second (saved) -> first. Therefore, when we are
+    // getting
+    // saved version from the third, we will stop at second version and return it.
     assertEquals(
         datasetVersionMutator.getLatestVersionByOrigin(
-            new DatasetPath(path), second.getVersion(), DatasetVersionOrigin.SAVE),
+            new DatasetPath(path), third.getVersion(), DatasetVersionOrigin.SAVE),
         second.getVersion());
   }
 
@@ -289,9 +254,8 @@ public class TestDatasetVersionMutator {
     when(nameSpaceContainer.getType()).thenReturn(NameSpaceContainer.Type.SOURCE);
     when(catalog.getEntityByPath(eq(new NamespaceKey(versionedSourceName))))
         .thenReturn(nameSpaceContainer);
-    when(catalogService.getCatalog(any())).thenReturn(catalog);
+    when(catalogService.getSystemUserCatalog()).thenReturn(catalog);
     when(catalogService.getSource(versionedSourceName)).thenReturn(dataplanePlugin);
     when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
-    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
   }
 }

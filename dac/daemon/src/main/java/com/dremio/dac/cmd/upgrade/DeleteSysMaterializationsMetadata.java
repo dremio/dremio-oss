@@ -44,7 +44,7 @@ public class DeleteSysMaterializationsMetadata extends UpgradeTask {
   @Override
   public void upgrade(UpgradeContext context) {
     final NamespaceService namespaceService =
-        new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(context.getKvStoreProvider(), new CatalogStatusEventsImpl());
     try {
       final NamespaceKey key =
           new DatasetPath(ImmutableList.of("sys", "materializations")).toNamespaceKey();

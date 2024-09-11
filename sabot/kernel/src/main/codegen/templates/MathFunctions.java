@@ -297,7 +297,11 @@ public class TrigoMathFunctions{
     }
 
     public void eval() {
+    <#if func.javaFunc?ends_with("(")>
+      out.value = ${func.javaFunc}in.value));
+    <#else>
       out.value = ${func.javaFunc}(in.value);
+    </#if>
     }
   }
  </#list>

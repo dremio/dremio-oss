@@ -48,7 +48,9 @@ public enum IcebergCommitOrigin {
   CREATE_VIEW,
   ALTER_VIEW,
   DROP_VIEW,
-  ;
+  CREATE_UDF,
+  ALTER_UDF,
+  DROP_UDF;
 
   public static IcebergCommitOrigin fromCommandType(IcebergCommandType commandType) {
     switch (commandType) {
@@ -87,6 +89,10 @@ public enum IcebergCommitOrigin {
       case ALTER_VIEW:
       case DROP_VIEW:
         return EntityType.ICEBERG_VIEW;
+      case CREATE_UDF:
+      case ALTER_UDF:
+      case DROP_UDF:
+        return EntityType.UDF;
       default:
         return EntityType.ICEBERG_TABLE;
     }
@@ -98,6 +104,8 @@ public enum IcebergCommitOrigin {
       case DROP_TABLE:
       case CREATE_VIEW:
       case DROP_VIEW:
+      case CREATE_UDF:
+      case DROP_UDF:
         return true;
       default:
         return false;
@@ -107,7 +115,9 @@ public enum IcebergCommitOrigin {
   public String createCommitMessage(String catalogKey, EntityType entityType) {
     Preconditions.checkState(this != READ_ONLY);
     Preconditions.checkArgument(
-        entityType == EntityType.ICEBERG_TABLE || entityType == EntityType.ICEBERG_VIEW,
+        entityType == EntityType.ICEBERG_TABLE
+            || entityType == EntityType.ICEBERG_VIEW
+            || entityType == EntityType.UDF,
         "Unsupported entity type %s for commit origin %s",
         entityType,
         this);

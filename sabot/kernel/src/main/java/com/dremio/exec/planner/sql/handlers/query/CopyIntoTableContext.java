@@ -21,6 +21,7 @@ import com.dremio.common.expression.BasePath;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
+import com.dremio.exec.planner.sql.parser.TableVersionSpec;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
@@ -37,6 +38,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.text.StringEscapeUtils;
@@ -60,6 +64,9 @@ public final class CopyIntoTableContext {
   private Map<IngestionOption, String> ingestionOptions = new HashMap<>();
   private String originalQueryId;
   private final boolean isValidationMode;
+  private String branch;
+  private List<String> mappings;
+  private List<String> transformationColNames;
 
   public CopyIntoTableContext(SqlCopyIntoTable call) {
 
@@ -75,6 +82,15 @@ public final class CopyIntoTableContext {
     validateAndConvertOptions(call.getOptionsList(), call.getOptionsValueList());
 
     this.isValidationMode = false;
+
+    this.branch = validateAndConvertBranch(call.getTableVersionSpec());
+
+    this.mappings = validateAndConvertMappings(call.getMappings());
+
+    this.transformationColNames =
+        call.getTransformationColNames().stream()
+            .map(String::toLowerCase)
+            .collect(Collectors.toList());
   }
 
   // CTOR for copy_errors use case
@@ -94,6 +110,45 @@ public final class CopyIntoTableContext {
     this.filePattern = Optional.empty();
     this.originalQueryId = originalQueryId;
     this.isValidationMode = true;
+  }
+
+  /**
+   * Validates and converts a SqlNodeList representing COPY INTO transformation column mappings into
+   * a list of simple column names (Strings). This method performs the following checks and
+   * transformations: Empty List Check: If the provided mappings list is empty, it returns an empty
+   * list. Identifier Type Check: It ensures all elements in the mappings list are of type
+   * SqlKind.IDENTIFIER. If any element is not an identifier, a {@link UserException} with a
+   * specific error message is thrown. Column Name Extraction: For valid identifiers, it extracts
+   * the simple identifier name using {@link SqlIdentifier#getSimple()} and adds it to a new list.
+   *
+   * @param mappings a SqlNodeList representing the COPY INTO transformation column mappings
+   * @return a list of validated and converted column names (Strings), or empty list if mappings is
+   *     empty
+   * @throws UserException if any element in mappings is not an identifier
+   */
+  private List<String> validateAndConvertMappings(SqlNodeList mappings) {
+    if (mappings == null || SqlNodeList.isEmptyList(mappings)) {
+      return Collections.emptyList();
+    }
+
+    if (mappings.getList().stream().distinct().count() != mappings.size()) {
+      throw UserException.parseError()
+          .message("Duplicate column name in transformation column mapping")
+          .buildSilently();
+    }
+
+    if (!mappings.getList().stream().allMatch(n -> n.getKind().equals(SqlKind.IDENTIFIER))) {
+      throw UserException.parseError()
+          .message("Unrecognized token type in Copy Into transformations column mappings")
+          .buildSilently();
+    }
+    return mappings.getList().stream()
+        .map(n -> ((SqlIdentifier) n).getSimple().toLowerCase())
+        .collect(Collectors.toList());
+  }
+
+  private String validateAndConvertBranch(TableVersionSpec tableVersionSpec) {
+    return tableVersionSpec != null ? tableVersionSpec.getVersionSpecifier().toString() : null;
   }
 
   private void validateAndConvertStorageLocation(String location, boolean filesOrRegexSpecified) {
@@ -349,14 +404,18 @@ public final class CopyIntoTableContext {
         FileTypeSpecificFormatOptions fileTypeSpecificFormatOptions =
             FileTypeSpecificFormatOptions.valueOf(fileFormat.name().toUpperCase());
         if (!fileTypeSpecificFormatOptions.options.contains(option)) {
-          throw UserException.parseError()
-              .message(
-                  "Unsupported format option %s for file type %s. Supported format options are: %s",
-                  option.name(),
-                  fileFormat.name(),
+          String supportedFormatOptions =
+              String.format(
+                  " Supported format options are: %s",
                   fileTypeSpecificFormatOptions.options.stream()
                       .map(Enum::name)
-                      .collect(Collectors.joining(", ")))
+                      .collect(Collectors.joining(", ")));
+          throw UserException.parseError()
+              .message(
+                  "Unsupported format option %s for file type %s.%s",
+                  option.name(),
+                  fileFormat.name(),
+                  fileTypeSpecificFormatOptions.options.isEmpty() ? "" : supportedFormatOptions)
               .buildSilently();
         }
         Object convertedOptionValue = optionValue;
@@ -406,23 +465,22 @@ public final class CopyIntoTableContext {
 
     String queryId =
         valueFromVectorContainerByName(
-                container, CopyJobHistoryTableSchemaProvider.getJobIdColName(schemaVersion))
+                container, CopyJobHistoryTableSchemaProvider.getJobIdColName())
             .toString();
     String storageLocation =
         valueFromVectorContainerByName(
-                container,
-                CopyJobHistoryTableSchemaProvider.getStorageLocationColName(schemaVersion))
+                container, CopyJobHistoryTableSchemaProvider.getStorageLocationColName())
             .toString();
 
     String fileFormatString =
         valueFromVectorContainerByName(
-                container, CopyJobHistoryTableSchemaProvider.getFileFormatColName(schemaVersion))
+                container, CopyJobHistoryTableSchemaProvider.getFileFormatColName())
             .toString();
     FileType fileFormat = fileTypeFromString(fileFormatString);
 
     String formatOptionsJson =
         valueFromVectorContainerByName(
-                container, CopyJobHistoryTableSchemaProvider.getCopyOptionsColName(schemaVersion))
+                container, CopyJobHistoryTableSchemaProvider.getCopyOptionsColName())
             .toString();
     Map<FormatOption, Object> formatOptionsMap =
         CopyIntoFileLoadInfo.Util.getFormatOptions(formatOptionsJson);
@@ -461,6 +519,18 @@ public final class CopyIntoTableContext {
 
   public String getFileNameFromStorageLocation() {
     return fileNameFromStorageLocation;
+  }
+
+  public String getBranch() {
+    return branch;
+  }
+
+  public List<String> getMappings() {
+    return mappings;
+  }
+
+  public List<String> getTransformationColNames() {
+    return transformationColNames;
   }
 
   public enum FileTypeSpecificFormatOptions {
@@ -521,7 +591,9 @@ public final class CopyIntoTableContext {
 
   public enum IngestionOption {
     PIPE_NAME,
-    BATCH_ID
+    PIPE_ID,
+    BATCH_ID,
+    DEDUP_LOOKBACK_PERIOD
   }
 
   public enum OnErrorAction {

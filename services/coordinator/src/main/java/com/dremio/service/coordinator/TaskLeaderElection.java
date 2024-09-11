@@ -17,11 +17,11 @@ package com.dremio.service.coordinator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.telemetry.api.metrics.Counter;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.dremio.telemetry.api.metrics.Timer;
+import com.dremio.telemetry.api.metrics.CounterWithOutcome;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.TimeGauge;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -30,6 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.inject.Provider;
@@ -42,13 +43,20 @@ public class TaskLeaderElection implements AutoCloseable {
 
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(TaskLeaderElection.class);
-  private static final Timer LEADERSHIP_LAST_ELECTED_TIMER =
-      Metrics.newTimer(
-          Metrics.join("TaskLeaderElection", "lastElectedTime"), Metrics.ResetType.NEVER);
-  private static final Counter LEADERSHIP_ELECTION_SUCCESS_COUNTER =
-      Metrics.newCounter(Metrics.join("TaskLeaderElection", "success"), Metrics.ResetType.NEVER);
-  private static final Counter LEADERSHIP_ELECTION_FAILSAFE_COUNTER =
-      Metrics.newCounter(Metrics.join("TaskLeaderElection", "failures"), Metrics.ResetType.NEVER);
+
+  private static final AtomicLong LAST_LEADER_ELECTION = new AtomicLong();
+
+  static {
+    TimeGauge.builder(
+            "task_leader_election.last_elected_time",
+            LAST_LEADER_ELECTION::get,
+            TimeUnit.MILLISECONDS)
+        .description("Timestamp of the last successful leader election")
+        .register(Metrics.globalRegistry);
+  }
+
+  private static final CounterWithOutcome LEADERSHIP_ELECTION_COUNTER =
+      CounterWithOutcome.of("task_leader_election");
 
   private static final long LEADER_UNAVAILABLE_DURATION_SECS = 600; // 10 minutes
 
@@ -206,9 +214,10 @@ public class TaskLeaderElection implements AutoCloseable {
               // and doing other operations
               if (isTaskLeader.compareAndSet(false, true)) {
                 logger.info("onElected Event: Electing Leader for {}", serviceName);
-                LEADERSHIP_LAST_ELECTED_TIMER.update(
-                    System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-                LEADERSHIP_ELECTION_SUCCESS_COUNTER.increment();
+
+                LAST_LEADER_ELECTION.set(System.currentTimeMillis());
+                LEADERSHIP_ELECTION_COUNTER.succeeded();
+
                 // registering node with service
                 nodeEndpointRegistrationHandle = serviceSet.register(currentEndPoint.get());
                 listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipGained);
@@ -377,7 +386,9 @@ public class TaskLeaderElection implements AutoCloseable {
           if (leaderUnavailableDuration >= failSafeLeaderUnavailableDuration) {
             synchronized (electionHandle.synchronizer()) {
               electionHandleClosed = true;
-              LEADERSHIP_ELECTION_FAILSAFE_COUNTER.increment();
+
+              LEADERSHIP_ELECTION_COUNTER.errored();
+
               if (isTaskLeader.compareAndSet(true, false)) {
                 logger.warn(
                     "this is the leader, but looks like leader is not available - closing current election handle and reentering elections for {} as there is no leader for {} secs",

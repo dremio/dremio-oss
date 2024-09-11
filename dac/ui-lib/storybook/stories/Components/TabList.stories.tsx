@@ -27,8 +27,8 @@ const tabsLarge = Array(15)
 export const Large = () => {
   const selectedTab = tabsLarge[0];
   return (
-    <div className="bg-neutral-25 p-1" style={{ height: "500px" }}>
-      <div style={{ border: "1px solid var(--color--neutral--50)" }}>
+    <div className="bg-neutral-50 p-1" style={{ height: "500px" }}>
+      <div style={{ border: "1px solid var(--border--neutral)" }}>
         <TabListWrapper>
           {tabsLarge.map((tab) => (
             <TabListTab
@@ -75,8 +75,8 @@ const tabsSmall = Array(3)
 export const Small = () => {
   const selectedTab = tabsSmall[0];
   return (
-    <div className="bg-neutral-25 p-1" style={{ height: "500px" }}>
-      <div style={{ border: "1px solid var(--color--neutral--50)" }}>
+    <div className="bg-neutral-50 p-1" style={{ height: "500px" }}>
+      <div style={{ border: "1px solid var(--border--neutral)" }}>
         <TabListWrapper>
           {tabsSmall.map((tab) => (
             <TabListTab

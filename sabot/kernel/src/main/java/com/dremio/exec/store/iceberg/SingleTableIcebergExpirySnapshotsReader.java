@@ -26,15 +26,18 @@ import org.apache.iceberg.TableMetadataParser;
 public class SingleTableIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsReader {
 
   private final IcebergProtobuf.IcebergDatasetSplitXAttr splitXAttr;
+  private final String schemeVariate;
 
   public SingleTableIcebergExpirySnapshotsReader(
       OperatorContext context,
       IcebergDatasetSplitXAttr splitXAttr,
       SupportsIcebergMutablePlugin icebergMutablePlugin,
       OpProps props,
-      SnapshotsScanOptions snapshotsScanOptions) {
+      SnapshotsScanOptions snapshotsScanOptions,
+      String schemeVariate) {
     super(context, icebergMutablePlugin, props, snapshotsScanOptions);
     this.splitXAttr = splitXAttr;
+    this.schemeVariate = schemeVariate;
   }
 
   @Override
@@ -72,7 +75,9 @@ public class SingleTableIcebergExpirySnapshotsReader extends IcebergExpirySnapsh
             splitXAttr.getDbName(),
             null,
             io,
-            commitExpiry);
+            commitExpiry,
+            schemeVariate,
+            fs.getScheme());
     noMoreActions = true;
   }
 }

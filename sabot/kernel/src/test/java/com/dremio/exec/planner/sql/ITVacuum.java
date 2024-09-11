@@ -36,182 +36,192 @@ public class ITVacuum extends ITDmlQueryBase {
 
   @Test
   public void testMalformedVacuumQueries() throws Exception {
-    VacuumTests.testMalformedVacuumQueries(SOURCE);
+    ExpireSnapshotsTests.testMalformedVacuumQueries(SOURCE);
   }
 
   @Test
   public void testSimpleExpireOlderThanRetainLastUsingEqual() throws Exception {
-    VacuumTests.testSimpleExpireOlderThanRetainLastUsingEqual(allocator, SOURCE);
+    ExpireSnapshotsTests.testSimpleExpireOlderThanRetainLastUsingEqual(allocator, SOURCE);
   }
 
   @Test
   public void testSimpleExpireOlderThan() throws Exception {
-    VacuumTests.testSimpleExpireOlderThan(allocator, SOURCE);
+    ExpireSnapshotsTests.testSimpleExpireOlderThan(allocator, SOURCE);
   }
 
   @Test
   public void testExpireOlderThan() throws Exception {
-    VacuumTests.testExpireOlderThan(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireOlderThan(allocator, SOURCE);
   }
 
   @Test
   public void testExpireRetainLast() throws Exception {
-    VacuumTests.testExpireRetainLast(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireRetainLast(allocator, SOURCE);
   }
 
   @Test
   public void testRetainLastWithExpireOlderThan() throws Exception {
-    VacuumTests.testRetainLastWithExpireOlderThan(allocator, SOURCE);
+    ExpireSnapshotsTests.testRetainLastWithExpireOlderThan(allocator, SOURCE);
   }
 
   @Test
   public void testExpireDataFilesCleanup() throws Exception {
-    VacuumTests.testExpireDataFilesCleanup(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireDataFilesCleanup(allocator, SOURCE);
   }
 
   @Test
   public void testExpireOlderThanWithRollback() throws Exception {
-    VacuumTests.testExpireOlderThanWithRollback(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireOlderThanWithRollback(allocator, SOURCE);
   }
 
   @Test
   public void testExpireOnTableWithPartitions() throws Exception {
-    VacuumTests.testExpireOnTableWithPartitions(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireOnTableWithPartitions(allocator, SOURCE);
   }
 
   @Test
   public void testExpireOnEmptyTableNoSnapshots() throws Exception {
-    VacuumTests.testExpireOnEmptyTableNoSnapshots(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireOnEmptyTableNoSnapshots(allocator, SOURCE);
   }
 
   @Test
   public void testRetainZeroSnapshots() throws Exception {
-    VacuumTests.testRetainZeroSnapshots(SOURCE);
+    ExpireSnapshotsTests.testRetainZeroSnapshots(SOURCE);
   }
 
   @Test
   public void testInvalidTimestampLiteral() throws Exception {
-    VacuumTests.testInvalidTimestampLiteral(SOURCE);
+    ExpireSnapshotsTests.testInvalidTimestampLiteral(SOURCE);
   }
 
   @Test
   public void testEmptyTimestamp() throws Exception {
-    VacuumTests.testEmptyTimestamp(SOURCE);
+    ExpireSnapshotsTests.testEmptyTimestamp(SOURCE);
   }
 
   @Test
   public void testExpireDatasetRefreshed() throws Exception {
-    VacuumTests.testExpireDatasetRefreshed(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireDatasetRefreshed(allocator, SOURCE);
   }
 
   @Test
   public void testUnparseSqlVacuum() throws Exception {
-    VacuumTests.testUnparseSqlVacuum(SOURCE);
+    ExpireSnapshotsTests.testUnparseSqlVacuum(SOURCE);
   }
 
   @Test
   public void testExpireOnTableOneSnapshot() throws Exception {
-    VacuumTests.testExpireOnTableOneSnapshot(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireOnTableOneSnapshot(allocator, SOURCE);
   }
 
   @Test
   public void testRetainMoreSnapshots() throws Exception {
-    VacuumTests.testRetainMoreSnapshots(allocator, SOURCE);
+    ExpireSnapshotsTests.testRetainMoreSnapshots(allocator, SOURCE);
   }
 
   @Test
   public void testRetainAllSnapshots() throws Exception {
-    VacuumTests.testRetainAllSnapshots(allocator, SOURCE);
+    ExpireSnapshotsTests.testRetainAllSnapshots(allocator, SOURCE);
   }
 
   @Test
   public void testGCDisabled() throws Exception {
-    VacuumTests.testGCDisabled(allocator, SOURCE);
+    ExpireSnapshotsTests.testGCDisabled(allocator, SOURCE);
   }
 
   @Test
   public void testMinSnapshotsTablePropOverride() throws Exception {
-    VacuumTests.testMinSnapshotsTablePropOverride(allocator, SOURCE);
+    ExpireSnapshotsTests.testMinSnapshotsTablePropOverride(allocator, SOURCE);
   }
 
   @Test
   public void testMinSnapshotsAggressiveTablePropOverride() throws Exception {
-    VacuumTests.testMinSnapshotsAggressiveTablePropOverride(allocator, SOURCE);
+    ExpireSnapshotsTests.testMinSnapshotsAggressiveTablePropOverride(allocator, SOURCE);
   }
 
   @Test
   public void testSnapshotAgeTablePropOverride() throws Exception {
-    VacuumTests.testSnapshotAgeTablePropOverride(allocator, SOURCE);
+    ExpireSnapshotsTests.testSnapshotAgeTablePropOverride(allocator, SOURCE);
   }
 
   @Test
   public void testSnapshotAgeAggressiveTablePropOverride() throws Exception {
-    VacuumTests.testSnapshotAgeAggressiveTablePropOverride(allocator, SOURCE);
+    ExpireSnapshotsTests.testSnapshotAgeAggressiveTablePropOverride(allocator, SOURCE);
   }
 
   @Test
   public void testExpireSnapshotsWithTensOfSnapshots() throws Exception {
-    VacuumTests.testExpireSnapshotsWithTensOfSnapshots(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireSnapshotsWithTensOfSnapshots(allocator, SOURCE);
   }
 
   @Test
   public void testExpireSnapshotsOnNonMainBranch() throws Exception {
-    VacuumTests.testExpireSnapshotsOnNonMainBranch(SOURCE, allocator);
+    ExpireSnapshotsTests.testExpireSnapshotsOnNonMainBranch(SOURCE, allocator);
   }
 
   @Test
   public void testExpireSnapshotsOnDifferentBranches() throws Exception {
-    VacuumTests.testExpireSnapshotsOnDifferentBranches(SOURCE, allocator);
+    ExpireSnapshotsTests.testExpireSnapshotsOnDifferentBranches(SOURCE, allocator);
+  }
+
+  @Test
+  public void testVacuumOnExternallyCreatedTable() throws Exception {
+    ExpireSnapshotsTests.testVacuumOnExternallyCreatedTable(allocator, SOURCE);
   }
 
   /** Remove orphan files tests */
   @Test
   public void testMalformedVacuumRemoveOrphanFileQueries() throws Exception {
-    VacuumTests.testMalformedVacuumRemoveOrphanFileQueries(SOURCE);
+    RemoveOrphanFilesTests.testMalformedVacuumRemoveOrphanFileQueries(SOURCE);
   }
 
   @Test
   public void testSimpleRemoveOrphanFiles() throws Exception {
-    VacuumTests.testSimpleRemoveOrphanFiles(allocator, SOURCE);
+    RemoveOrphanFilesTests.testSimpleRemoveOrphanFiles(allocator, SOURCE);
   }
 
   @Test
   public void testSimpleRemoveOrphanFilesUsingEqual() throws Exception {
-    VacuumTests.testSimpleRemoveOrphanFilesUsingEqual(allocator, SOURCE);
+    RemoveOrphanFilesTests.testSimpleRemoveOrphanFilesUsingEqual(allocator, SOURCE);
   }
 
   @Test
   public void testRemoveOrphanFilesNotDeleteValidFiles() throws Exception {
-    VacuumTests.testRemoveOrphanFilesNotDeleteValidFiles(allocator, SOURCE);
+    RemoveOrphanFilesTests.testRemoveOrphanFilesNotDeleteValidFiles(allocator, SOURCE);
   }
 
   @Test
   public void testRemoveOrphanFilesDeleteOrphanFiles() throws Exception {
-    VacuumTests.testRemoveOrphanFilesDeleteOrphanFiles(allocator, SOURCE);
+    RemoveOrphanFilesTests.testRemoveOrphanFilesDeleteOrphanFiles(allocator, SOURCE);
+  }
+
+  @Test
+  public void testRemoveOrphanFilesWithPartitions() throws Exception {
+    RemoveOrphanFilesTests.testRemoveOrphanFilesWithPartitions(allocator, SOURCE);
+  }
+
+  @Test
+  public void testRemoveOrphanFilesUsingDefaultMinFileAge() throws Exception {
+    RemoveOrphanFilesTests.testRemoveOrphanFilesUsingDefaultMinFileAge(allocator, SOURCE);
   }
 
   @Test
   public void testRemoveOrphanFilesInvalidTimestampLiteral() throws Exception {
-    VacuumTests.testRemoveOrphanFilesInvalidTimestampLiteral(SOURCE);
+    RemoveOrphanFilesTests.testRemoveOrphanFilesInvalidTimestampLiteral(SOURCE);
   }
 
   @Test
   public void testRemoveOrphanFilesWithLocationClause() throws Exception {
-    VacuumTests.testRemoveOrphanFilesWithLocationClause(allocator, SOURCE);
+    RemoveOrphanFilesTests.testRemoveOrphanFilesWithLocationClause(allocator, SOURCE);
   }
 
   @Test
   public void testUnparseRemoveOrphanFilesQuery() throws Exception {
-    VacuumTests.testUnparseRemoveOrphanFilesQuery(SOURCE);
-  }
-
-  @Test
-  public void testVacuumOnExternallyCreatedTable() throws Exception {
-    VacuumTests.testVacuumOnExternallyCreatedTable(allocator, SOURCE);
+    RemoveOrphanFilesTests.testUnparseRemoveOrphanFilesQuery(SOURCE);
   }
 
   @Test
   public void testRemoveOrphanFilesHybridlyGeneratedTable() throws Exception {
-    VacuumTests.testRemoveOrphanFilesHybridlyGeneratedTable(allocator, SOURCE);
+    RemoveOrphanFilesTests.testRemoveOrphanFilesHybridlyGeneratedTable(allocator, SOURCE);
   }
 }

@@ -40,6 +40,7 @@ import com.dremio.sabot.rpc.user.UserSession;
 import java.util.List;
 import java.util.Random;
 import org.apache.calcite.sql.SqlNode;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
@@ -58,6 +59,11 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
   @BeforeClass
   public static void beforeClass() {
     context = new QueryContext(session(), getSabotContext(), QueryId.getDefaultInstance());
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    context.close();
   }
 
   @Override

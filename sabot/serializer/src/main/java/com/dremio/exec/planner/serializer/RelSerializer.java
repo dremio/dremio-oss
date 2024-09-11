@@ -19,6 +19,7 @@ import com.dremio.exec.planner.serializer.RelNodeSerde.RelToProto;
 import com.dremio.plan.serialization.PRelDataType;
 import com.dremio.plan.serialization.PRelList;
 import com.dremio.plan.serialization.PRexNode;
+import com.dremio.plan.serialization.PRexWindowBound;
 import com.dremio.plan.serialization.PSqlOperator;
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
@@ -28,6 +29,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlOperator;
 
 class RelSerializer implements RelToProto {
@@ -63,6 +65,11 @@ class RelSerializer implements RelToProto {
   @Override
   public SqlOperatorSerde getSqlOperatorSerde() {
     return sqlOperatorSerde;
+  }
+
+  @Override
+  public PRexWindowBound toProto(RexWindowBound rexWindowBound) {
+    return rex.toProto(rexWindowBound);
   }
 
   @Override

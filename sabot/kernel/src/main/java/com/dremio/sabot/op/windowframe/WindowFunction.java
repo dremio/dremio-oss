@@ -386,19 +386,11 @@ public abstract class WindowFunction {
         final MappingSet eval = new MappingSet("inIndex", "outIndex", mapping, mapping);
 
         cg.setMappingSet(eval);
-        final JExpression currentIndex = JExpr.direct("partition.getCurrentRowInPartition()");
-        final JExpression partitionLength = JExpr.direct("partition.getLength()");
-        final JExpression partitionStart = JExpr.direct("partition.getFirstRowInPartition()");
+        final JExpression remaining = JExpr.direct("partition.getRemaining()");
         /*
-         Next row position must be in the current batch. (currentIndex - partitionStart) is the index of the row in the current batch.
-         (partitionLength - offset) - 1 is the last row position of the partition that should be copied.
+          if remaining rows >= offset that means - value for row will be in same batch
         */
-        JConditional ifCondition =
-            cg.getEvalBlock()
-                ._if(
-                    partitionLength
-                        .minus(JExpr.lit(offset))
-                        .gt(currentIndex.minus(partitionStart)));
+        JConditional ifCondition = cg.getEvalBlock()._if(remaining.gte(JExpr.lit(offset)));
         ifCondition
             ._then()
             .block()
@@ -410,14 +402,23 @@ public abstract class WindowFunction {
 
       {
         final GeneratorMapping mapping =
-            GeneratorMapping.create("setupCopyFromFirst", "copyFromFirst", null, null);
+            GeneratorMapping.create("setupCopyFromNextBatch", "copyFromNextBatch", null, null);
         final MappingSet copyFromFirstMapping =
             new MappingSet("inIndex", "outIndex", mapping, mapping);
 
         cg.setMappingSet(copyFromFirstMapping);
-        cg.getEvalBlock()
-            .directStatement("outIndex = partition.getCurrentRowInPartition() - " + offset + ";");
-        cg.addExpr(writeInputToLead);
+        final JExpression remaining = JExpr.direct("partition.getRemaining()");
+        /*
+          if remaining rows < offset that means - value for row will be in next batch batch
+        */
+        JConditional ifCondition = cg.getEvalBlock()._if(remaining.lt(JExpr.lit(offset)));
+        ifCondition
+            ._then()
+            .block()
+            .directStatement("inIndex =(int)(" + offset + " - partition.getRemaining() - 1);");
+        cg.nestEvalBlock(ifCondition._then());
+        cg.addExpr(writeInputToLead, BlockCreateMode.MERGE);
+        cg.unNestEvalBlock();
       }
     }
 
@@ -540,7 +541,14 @@ public abstract class WindowFunction {
         final MappingSet mappingSet = new MappingSet("inIndex", "outIndex", mapping, mapping);
 
         cg.setMappingSet(mappingSet);
-        cg.addExpr(writeLagToLag);
+        final JExpression currentIndex = JExpr.direct("partition.getCurrentRowInPartition()");
+        final JExpression partitionStart = JExpr.direct("partition.getFirstRowInPartition()");
+        //  (currentIndex - offset) > start of partition, copy value (if exist) from internal holder
+        JConditional ifCondition =
+            cg.getEvalBlock()._if(currentIndex.minus(JExpr.lit(offset)).lt(partitionStart));
+        cg.nestEvalBlock(ifCondition._then());
+        cg.addExpr(writeLagToLag, BlockCreateMode.MERGE);
+        cg.unNestEvalBlock();
       }
 
       {
@@ -564,13 +572,20 @@ public abstract class WindowFunction {
 
       {
         final GeneratorMapping mapping =
-            GeneratorMapping.create("setupCopyToFirst", "copyToFirst", null, null);
+            GeneratorMapping.create("setupCopyToNextBatch", "copyToNextBatch", null, null);
         final MappingSet copyFirstMapping = new MappingSet("inIndex", "outIndex", mapping, mapping);
         cg.setMappingSet(copyFirstMapping);
-        cg.getEvalBlock()
-            .directStatement("inIndex = partition.getCurrentRowInPartition() - " + offset + ";");
 
-        cg.addExpr(writeInputToLag);
+        final JExpression remaining = JExpr.direct("partition.getRemaining()");
+        // if remaining rows less than offset we need to copy these values to internal holder
+        // because they will be used for next batch
+        JConditional ifCondition = cg.getEvalBlock()._if(remaining.lt(JExpr.lit(offset)));
+        JBlock jbThen = ifCondition._then().block();
+        jbThen.directStatement("outIndex = (int) (" + offset + "- partition.getRemaining() - 1);");
+
+        cg.nestEvalBlock(ifCondition._then());
+        cg.addExpr(writeInputToLag, BlockCreateMode.MERGE);
+        cg.unNestEvalBlock();
       }
     }
 

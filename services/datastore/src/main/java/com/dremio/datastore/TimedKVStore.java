@@ -22,16 +22,15 @@ import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.KVStore;
-import com.dremio.telemetry.api.metrics.Histogram;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableMap;
+import com.dremio.telemetry.api.metrics.TimerUtils;
+import io.micrometer.core.instrument.Timer;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 /**
  * Times individual ops in the underlying kvstore.
@@ -42,7 +41,6 @@ import java.util.function.BiFunction;
 public class TimedKVStore<K, V> implements KVStore<K, V> {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(TimedKVStore.class);
-  private static final int OP_LATENCY_THRESHOLD_IN_MS = 200;
 
   private enum Ops {
     get,
@@ -62,79 +60,78 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
   }
 
   private final KVStore<K, V> delegate;
-  private final Map<Ops, Histogram> metrics;
 
   public TimedKVStore(KVStore<K, V> delegate) {
     this.delegate = delegate;
-    this.metrics = registerMetrics();
+  }
+
+  /**
+   * Creates a resource sample with tags for current operation and store name.
+   *
+   * @param op {@link Ops} the operation to create an autoclosable sample for
+   * @return resourceSample {@link Timer.ResourceSample}
+   */
+  private Timer.ResourceSample timed(Ops op) {
+    return TimerUtils.timedHistogram(
+        "kvstore.operations",
+        "Timed KV store operations",
+        Duration.ofMillis(10),
+        "name",
+        delegate.getName(),
+        "op",
+        op.name());
+  }
+
+  /**
+   * @param op {@link Ops} the operation being run
+   * @param operation {@link Supplier} the function to time and run
+   * @return
+   */
+  protected <V> V timedOperation(Ops op, Supplier<V> operation) {
+    return TimerUtils.timedOperation(timed(op), operation);
+  }
+
+  protected void timedOperation(Ops op, Runnable operation) {
+    TimerUtils.timedOperation(timed(op), operation);
   }
 
   public static <K, V> TimedKVStore<K, V> of(KVStore<K, V> delegate) {
     return new TimedKVStore<>(delegate);
   }
 
-  private Map<Ops, Histogram> registerMetrics() {
-    final ImmutableMap.Builder<Ops, Histogram> builder = ImmutableMap.builder();
-    for (Ops op : Ops.values()) {
-      final Histogram hist =
-          Metrics.newHistogram(
-              Metrics.join(getMetricsPrefix(), op.name()), Metrics.ResetType.NEVER);
-      builder.put(op, hist);
-    }
-    return builder.build();
-  }
-
-  protected String getMetricsPrefix() {
-    return Metrics.join("kvstore", delegate.getName());
-  }
-
   @Override
   public Document<K, V> get(K key, GetOption... options) {
-    try (final OpTimer ctx = time(Ops.get)) {
-      return delegate.get(key, options);
-    }
+    return timedOperation(Ops.get, () -> delegate.get(key, options));
   }
 
   @Override
   public Iterable<Document<K, V>> get(List<K> keys, GetOption... options) {
-    try (final OpTimer ctx = time(Ops.getList)) {
-      return delegate.get(keys, options);
-    }
+    return timedOperation(Ops.getList, () -> delegate.get(keys, options));
   }
 
   @Override
   public Document<K, V> put(K key, V value, PutOption... options) {
-    try (final OpTimer ctx = time(Ops.put)) {
-      return delegate.put(key, value, options);
-    }
+    return timedOperation(Ops.put, () -> delegate.put(key, value, options));
   }
 
   @Override
   public void delete(K key, DeleteOption... options) {
-    try (final OpTimer ctx = time(Ops.delete)) {
-      delegate.delete(key, options);
-    }
+    timedOperation(Ops.delete, () -> delegate.delete(key, options));
   }
 
   @Override
   public boolean contains(K key, ContainsOption... options) {
-    try (final OpTimer ctx = time(Ops.contains)) {
-      return delegate.contains(key, options);
-    }
+    return timedOperation(Ops.contains, () -> delegate.contains(key, options));
   }
 
   @Override
   public Iterable<Document<K, V>> find(FindOption... options) {
-    try (final OpTimer ctx = time(Ops.findAll)) {
-      return delegate.find(options);
-    }
+    return timedOperation(Ops.findAll, () -> delegate.find(options));
   }
 
   @Override
   public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption... options) {
-    try (final OpTimer ctx = time(Ops.findByRange)) {
-      return delegate.find(find, options);
-    }
+    return timedOperation(Ops.findByRange, () -> delegate.find(find, options));
   }
 
   @Override
@@ -143,24 +140,20 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
       ExecutorService executor,
       BiFunction<String, V, TenantContext> documentToTenantConverter,
       FindOption... options) {
-    try (final OpTimer ctx = time(Ops.applyForAllTenants)) {
-      delegate.applyForAllTenants(consumer, executor, documentToTenantConverter, options);
-    }
+    timedOperation(
+        Ops.applyForAllTenants,
+        () -> delegate.applyForAllTenants(consumer, executor, documentToTenantConverter, options));
   }
 
   @Override
   public void bulkIncrement(
       Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
-    try (final OpTimer ctx = time(Ops.bulkIncrement)) {
-      delegate.bulkIncrement(keysToIncrement, option);
-    }
+    timedOperation(Ops.bulkIncrement, () -> delegate.bulkIncrement(keysToIncrement, option));
   }
 
   @Override
   public void bulkDelete(List<K> keysToDelete, DeleteOption... deleteOptions) {
-    try (final OpTimer ctx = time(Ops.bulkDelete)) {
-      delegate.bulkDelete(keysToDelete);
-    }
+    timedOperation(Ops.bulkDelete, () -> delegate.bulkDelete(keysToDelete, deleteOptions));
   }
 
   @Override
@@ -171,33 +164,6 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
   @Override
   public KVAdmin getAdmin() {
     return delegate.getAdmin();
-  }
-
-  /** tracks timer metric for the op & logs a warn message if the latency is above a threshold. */
-  protected class OpTimer implements AutoCloseable {
-    private final Stopwatch stopwatch;
-    private final Ops op;
-
-    public OpTimer(Ops op) {
-      this.stopwatch = Stopwatch.createStarted();
-      this.op = op;
-    }
-
-    @Override
-    public void close() {
-      final long elapsedMs = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-      stopwatch.stop();
-      if (elapsedMs > OP_LATENCY_THRESHOLD_IN_MS) {
-        logger.warn("DHL kvstore: {} op: {} took(ms): {}", getName(), op.name(), elapsedMs);
-      }
-
-      // update histogram
-      metrics.get(op).update(elapsedMs);
-    }
-  }
-
-  protected OpTimer time(final Ops op) {
-    return new OpTimer(op);
   }
 
   /**
@@ -221,23 +187,17 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
 
     @Override
     public Iterable<Document<K, V>> find(FindByCondition find, FindOption... options) {
-      try (final OpTimer ctx = time(Ops.findByCondition)) {
-        return indexedStore.find(find, options);
-      }
+      return timedOperation(Ops.findByCondition, () -> indexedStore.find(find, options));
     }
 
     @Override
     public long reindex(FindByCondition findByCondition, FindOption... options) {
-      try (final OpTimer ctx = time(Ops.reindex)) {
-        return indexedStore.reindex(findByCondition, options);
-      }
+      return timedOperation(Ops.reindex, () -> indexedStore.reindex(findByCondition, options));
     }
 
     @Override
     public List<Integer> getCounts(SearchTypes.SearchQuery... conditions) {
-      try (final OpTimer ctx = time(Ops.getCounts)) {
-        return indexedStore.getCounts(conditions);
-      }
+      return timedOperation(Ops.getCounts, () -> indexedStore.getCounts(conditions));
     }
 
     @Override
@@ -247,18 +207,18 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
         ExecutorService executor,
         BiFunction<String, V, TenantContext> tenantContextSupplier,
         FindOption... options) {
-      try (final OpTimer ctx = time(Ops.applyForAllTenants)) {
-        indexedStore.applyForAllTenants(
-            condition, consumer, executor, tenantContextSupplier, options);
-      }
+      timedOperation(
+          Ops.applyForAllTenants,
+          () ->
+              indexedStore.applyForAllTenants(
+                  condition, consumer, executor, tenantContextSupplier, options));
     }
 
     @Override
     public Iterable<Document<K, V>> findOnAllTenants(
         FindByCondition condition, FindOption... options) {
-      try (final OpTimer ctx = time(Ops.findForAllTenants)) {
-        return indexedStore.findOnAllTenants(condition, options);
-      }
+      return timedOperation(
+          Ops.findForAllTenants, () -> indexedStore.findOnAllTenants(condition, options));
     }
 
     @Override

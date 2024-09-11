@@ -34,6 +34,7 @@ import org.antlr.runtime.BitSet;
 import java.util.*;
 import com.dremio.common.expression.*;
 import com.dremio.common.expression.PathSegment.NameSegment;
+import com.dremio.common.expression.PathSegment.ArraySegmentInputRef;
 import com.dremio.common.expression.PathSegment.ArraySegment;
 import com.dremio.common.types.*;
 import com.dremio.common.types.TypeProtos.*;
@@ -337,12 +338,16 @@ pathSegment returns [NameSegment seg]
   ;
 
 nameSegment returns [NameSegment seg]
-  : QuotedIdentifier ( (Period s1=pathSegment) | s2=arraySegment)? {$seg = new NameSegment($QuotedIdentifier.text, ($s1.seg == null ? $s2.seg : $s1.seg) ); }
-  | Identifier ( (Period s1=pathSegment) | s2=arraySegment)? {$seg = new NameSegment($Identifier.text, ($s1.seg == null ? $s2.seg : $s1.seg) ); }
+  : QuotedIdentifier ( (Period s1=pathSegment) | s2=arraySegment | s3=arraySegmentInputRef)? {$seg = new NameSegment($QuotedIdentifier.text, ($s1.seg == null ? $s2.seg  == null ? $s3.seg : $s2.seg : $s1.seg) ); }
+  | Identifier ( (Period s1=pathSegment) | s2=arraySegment | s3=arraySegmentInputRef)? {$seg = new NameSegment($Identifier.text, ($s1.seg == null ? $s2.seg  == null ? $s3.seg : $s2.seg : $s1.seg) ); }
   ;
   
 arraySegment returns [PathSegment seg]
-  :  OBracket Number CBracket ( (Period s1=pathSegment) | s2=arraySegment)? {$seg = new ArraySegment($Number.text, ($s1.seg == null ? $s2.seg : $s1.seg) ); }
+  :  OBracket Number CBracket ( (Period s1=pathSegment) | s2=arraySegment | s3=arraySegmentInputRef)? {$seg = new ArraySegment($Number.text, ($s1.seg == null ? $s2.seg  == null ? $s3.seg : $s2.seg : $s1.seg) ); }
+  ;
+
+arraySegmentInputRef returns [PathSegment seg]
+  :  OBracket Identifier CBracket ( (Period s1=pathSegment) | s2=arraySegment | s3=arraySegmentInputRef)? {$seg = new ArraySegmentInputRef($Identifier.text, ($s1.seg == null ? $s2.seg  == null ? $s3.seg : $s2.seg : $s1.seg) ); }
   ;
 
 inputReference returns [InputReference e]

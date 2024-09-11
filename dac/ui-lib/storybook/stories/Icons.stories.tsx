@@ -14,13 +14,6 @@
  * limitations under the License.
  */
 import icons from "../../iconmanifest.json";
-import IconSpritePath from "../../dist-icons/sprite.svg";
-import { define, SVGUseAdapter } from "smart-icon";
-
-define("dremio-icon-sprite", {
-  adapter: SVGUseAdapter,
-  resolvePath: (name: string) => `${IconSpritePath}#${name}`,
-});
 
 export default {
   title: "Icons",
@@ -36,13 +29,13 @@ const renderIcon = (icon: any) => (
       fontSize: "14px",
       userSelect: "all",
     }}
-    className="flex-col text-center m-1 p-2 bg-neutral-25 items-center dremio-typography-monospace"
+    className="flex-col text-center m-1 p-2 bg-neutral-50 items-center dremio-typography-monospace"
   >
     <dremio-icon
       name={icon.name}
       style={{ width: "24px", height: "24px" }}
     ></dremio-icon>
-    <span style={{ color: "var(--color--neutral--600)" }} className="mt-3">
+    <span style={{ color: "var(--icon--primary)" }} className="mt-3">
       {icon.name}
     </span>
   </li>
@@ -53,36 +46,3 @@ export const Icons = () => (
     {icons.filter((icon) => icon.theme === "dremio").map(renderIcon)}
   </ul>
 );
-
-export const IconsSprite = () => {
-  return (
-    <ul className="flex flex-wrap">
-      {icons
-        .filter((icon) => icon.theme === "sprite")
-        .map((icon) => (
-          <li
-            key={icon.name}
-            style={{
-              display: "inline-flex",
-              width: "200px",
-              textAlign: "center",
-              fontSize: "14px",
-              userSelect: "all",
-            }}
-            className="flex-col text-center m-1 p-2 bg-neutral-25 items-center dremio-typography-monospace"
-          >
-            <dremio-icon-sprite
-              name={icon.name}
-              style={{ width: "24px", height: "24px" }}
-            ></dremio-icon-sprite>
-            <span
-              style={{ color: "var(--color--neutral--600)" }}
-              className="mt-3"
-            >
-              {icon.name}
-            </span>
-          </li>
-        ))}
-    </ul>
-  );
-};

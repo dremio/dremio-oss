@@ -27,7 +27,7 @@
 }
 
 .dremio-tooltip {
-  --dremio-tooltip--background: var(--color--neutral--800);
+  --dremio-tooltip--background: var(--color--neutral--700);
   --dremio-tooltip--border-radius: var(--dremio--radius--05);
   --dremio-tooltip--color: white;
   --dremio-tooltip--line-height: 20px;
@@ -38,6 +38,11 @@
 
   --dremio-tooltip--arrow--background: var(--dremio-tooltip--background);
   --dremio-tooltip--arrow--size: 8px;
+
+  &-rich {
+    --dremio-tooltip--background: white;
+    --dremio-tooltip--color: var(--text--primary);
+  }
 
   transition-duration: 100ms;
   @include dremio-tooltip-hidden;

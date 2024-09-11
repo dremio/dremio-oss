@@ -44,8 +44,8 @@ import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.ops.ReflectionContext;
-import com.dremio.exec.server.ContextService;
-import com.dremio.exec.store.NessieNamespaceNotEmptyException;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.NamespaceNotEmptyException;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.namespace.BoundedDatasetCount;
@@ -98,7 +98,7 @@ public class SourceResource extends BaseResourceWithAllocator {
   private final ConnectionReader connectionReader;
   private final SourceCatalog sourceCatalog;
   private final FormatTools formatTools;
-  private final ContextService context;
+  private final SabotContext sabotContext;
 
   @Inject
   public SourceResource(
@@ -111,7 +111,7 @@ public class SourceResource extends BaseResourceWithAllocator {
       ConnectionReader connectionReader,
       SourceCatalog sourceCatalog,
       FormatTools formatTools,
-      ContextService context,
+      SabotContext sabotContext,
       BufferAllocatorFactory allocatorFactory)
       throws SourceNotFoundException {
     super(allocatorFactory);
@@ -125,7 +125,7 @@ public class SourceResource extends BaseResourceWithAllocator {
     this.connectionReader = connectionReader;
     this.sourceCatalog = sourceCatalog;
     this.formatTools = formatTools;
-    this.context = context;
+    this.sabotContext = sabotContext;
   }
 
   protected SourceUI newSource(SourceConfig config) throws Exception {
@@ -163,10 +163,7 @@ public class SourceResource extends BaseResourceWithAllocator {
               .getReflectionSettings()
               .getReflectionSettings(sourcePath.toNamespaceKey());
       if (settings != null) {
-        source.setAccelerationRefreshPeriod(settings.getRefreshPeriod());
-        source.setAccelerationGracePeriod(settings.getGracePeriod());
-        source.setAccelerationRefreshSchedule(settings.getRefreshSchedule());
-        source.setAccelerationActivePolicyType(settings.getRefreshPolicyType());
+        source.setAccelerationSettings(settings);
       }
       if (includeContents) {
         source.setContents(
@@ -175,7 +172,9 @@ public class SourceResource extends BaseResourceWithAllocator {
                 sourceConfig,
                 securityContext.getUserPrincipal().getName(),
                 refType,
-                refValue));
+                refValue,
+                null,
+                Integer.MAX_VALUE));
       }
       return source;
     } catch (NamespaceNotFoundException nfe) {
@@ -242,7 +241,7 @@ public class SourceResource extends BaseResourceWithAllocator {
     try {
       SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
       sourceService.deleteFolder(folderPath, refType, refValue);
-    } catch (NessieNamespaceNotEmptyException e) {
+    } catch (NamespaceNotEmptyException e) {
       throw UserException.validationError(e).message(e.getErrorCode()).buildSilently();
     }
   }
@@ -264,7 +263,7 @@ public class SourceResource extends BaseResourceWithAllocator {
   }
 
   private boolean useFastPreview() {
-    return context.get().getOptionManager().getOption(FormatTools.FAST_PREVIEW);
+    return sabotContext.getOptionManager().getOption(FormatTools.FAST_PREVIEW);
   }
 
   @GET
@@ -398,7 +397,7 @@ public class SourceResource extends BaseResourceWithAllocator {
           sourceName,
           new PhysicalDatasetPath(filePath),
           version,
-          CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
+          CatalogUtil.getDeleteCallback(sabotContext.getOrphanageFactory().get()));
     } catch (ConcurrentModificationException e) {
       throw ResourceUtil.correctBadVersionErrorMessage(e, "file format", path);
     }
@@ -475,7 +474,7 @@ public class SourceResource extends BaseResourceWithAllocator {
           sourceName,
           new PhysicalDatasetPath(folderPath),
           version,
-          CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
+          CatalogUtil.getDeleteCallback(sabotContext.getOrphanageFactory().get()));
     } catch (ConcurrentModificationException e) {
       throw ResourceUtil.correctBadVersionErrorMessage(e, "folder format", path);
     }

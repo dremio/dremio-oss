@@ -76,7 +76,9 @@ public class TestPositionalDeleteFileReader extends BaseTestOperator {
 
   @AfterClass
   public static void closeTables() throws Exception {
-    table.close();
+    if (table != null) {
+      table.close();
+    }
   }
 
   @Before

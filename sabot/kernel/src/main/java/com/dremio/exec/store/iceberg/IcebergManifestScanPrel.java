@@ -64,7 +64,7 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
       Long survivingRecords,
       ManifestContentType manifestContentType,
       String user,
-      final boolean includeIcebergPartitionInfo) {
+      boolean includeIcebergPartitionInfo) {
     this(
         cluster,
         traitSet,
@@ -81,6 +81,34 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
             false,
             includeIcebergPartitionInfo),
         ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
+        survivingRecords,
+        user,
+        includeIcebergPartitionInfo);
+  }
+
+  /** Scan all manifest types DATE and DELETE, and include all manifest entries. */
+  public IcebergManifestScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelNode child,
+      StoragePluginId storagePluginId,
+      StoragePluginId internalStoragePlugin,
+      List<SchemaPath> projectedCols,
+      BatchSchema schema,
+      RelDataType rowType,
+      Long survivingRecords,
+      String user,
+      boolean includeIcebergPartitionInfo,
+      String schemeVariate) {
+    this(
+        cluster,
+        traitSet,
+        null,
+        child,
+        null,
+        TableFunctionUtil.getAllManifestContentScanTableFunctionConfig(
+            storagePluginId, internalStoragePlugin, projectedCols, schema, schemeVariate),
+        rowType,
         survivingRecords,
         user,
         includeIcebergPartitionInfo);

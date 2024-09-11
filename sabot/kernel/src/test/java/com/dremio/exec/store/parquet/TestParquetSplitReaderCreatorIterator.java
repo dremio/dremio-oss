@@ -16,6 +16,7 @@
 package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS;
+import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS_ARM;
 import static com.dremio.exec.ExecConstants.NUM_SPLITS_TO_PREFETCH;
 import static com.dremio.exec.ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE;
 import static com.dremio.exec.ExecConstants.PREFETCH_READER;
@@ -364,6 +365,7 @@ public class TestParquetSplitReaderCreatorIterator {
     when(optionManager.getOption(NUM_SPLITS_TO_PREFETCH)).thenReturn(numPrefetch);
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
     when(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)).thenReturn("");
+    when(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS_ARM)).thenReturn("");
     when(optionManager.getOption(QUERY_EXEC_OPTION_KEY))
         .thenReturn(
             OptionValue.createString(

@@ -29,7 +29,7 @@ import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import DataFreshnessSection from "components/Forms/DataFreshnessSection";
 import { getSourceNames, getSpaceNames } from "@app/selectors/home";
 import { APIV2Call } from "@app/core/APICall";
-import { AZURE_SAMPLE_SOURCE } from "@app/constants/sourceTypes.js";
+import { AZURE_SAMPLE_SOURCE } from "@app/constants/sourceTypes";
 import VENDORS from "@inject/constants/vendors";
 
 export const ADD_NEW_SOURCE_START = "ADD_NEW_SOURCE_START";
@@ -142,6 +142,7 @@ export function createSampleDbSource(meta) {
       accelerationNeverExpire: false,
       accelerationActivePolicyType: "PERIOD",
       accelerationRefreshSchedule: "0 0 8 * * *",
+      accelerationRefreshOnDataChanges: false,
       metadataPolicy: {
         updateMode: "PREFETCH",
         namesRefreshMillis: 60000,
@@ -189,6 +190,8 @@ export function createSampleSource(meta) {
         DataFreshnessSection.defaultFormValuePolicyType(),
       accelerationRefreshSchedule:
         DataFreshnessSection.defaultFormValueRefreshSchedule(),
+      accelerationRefreshOnDataChanges:
+        DataFreshnessSection.defaultFormValueRefreshOnTableChanges(),
       type: isAzureProject ? AZURE_SAMPLE_SOURCE : "S3",
     };
     return dispatch(postCreateSource(sourceModel, meta, true));

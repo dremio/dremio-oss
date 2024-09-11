@@ -40,7 +40,7 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.iceberg.PartitionSpec;
 
-class PartitionWriteManager {
+public class PartitionWriteManager {
   /**
    * Directory names used when the partition value is null or empty. We need a special value to have
    * a valid directory name (empty strings are not allowed) and a way to differentiate between null

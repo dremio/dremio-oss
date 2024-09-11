@@ -26,16 +26,15 @@ import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -61,7 +60,6 @@ import com.dremio.exec.planner.sql.handlers.PlanLogUtil;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.exec.planner.sql.handlers.commands.HandlerToPreparePlanBase;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
@@ -69,7 +67,6 @@ import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.SchemaConverter;
@@ -160,7 +157,9 @@ public class RefreshHandler implements SqlToPlanHandler {
       final SqlRefreshReflection materialize =
           SqlNodeUtil.unwrap(sqlNode, SqlRefreshReflection.class);
 
-      if (!SystemUser.SYSTEM_USERNAME.equals(config.getContext().getQueryUserName())) {
+      boolean isLogicalExplainOnly = config.getResultMode().equals(ResultMode.LOGICAL);
+      if (!SystemUser.SYSTEM_USERNAME.equals(config.getContext().getQueryUserName())
+          && !isLogicalExplainOnly) {
         throw SqlExceptionHelper.parseError(
                 "User \""
                     + config.getContext().getQueryUserName()
@@ -210,7 +209,7 @@ public class RefreshHandler implements SqlToPlanHandler {
             .build(logger);
       }
 
-      if (materialization.getState() != MaterializationState.RUNNING) {
+      if (materialization.getState() != MaterializationState.RUNNING && !isLogicalExplainOnly) {
         throw UserException.validationError()
             .message(
                 "Materialization in unexpected state for Reflection %s, Materialization %s. State: %s",
@@ -244,7 +243,11 @@ public class RefreshHandler implements SqlToPlanHandler {
               snapshotDiffContextPointer);
       final BatchSchema batchSchema = fromCalciteRowType(initial.getRowType());
       drel = DrelTransformer.convertToDrelMaintainingNames(config, initial);
-
+      if (isLogicalExplainOnly) {
+        // we only want to do logical planning,
+        // there is no point going further in the plan generation
+        return null;
+      }
       // Append the attempt number to the table path
       final UserBitShared.QueryId queryId = config.getContext().getQueryId();
       final AttemptId attemptId = AttemptId.of(queryId);
@@ -467,9 +470,6 @@ public class RefreshHandler implements SqlToPlanHandler {
           .build(logger);
     }
 
-    final MetadataRequestOptions mdRequestOpt =
-        MetadataRequestOptions.of(
-            SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build());
     DremioTable currentReflection = null;
     final String errorMessage =
         "Could not find reflection snapshot to perform incremental update on. Details: latestRefresh path="
@@ -490,7 +490,7 @@ public class RefreshHandler implements SqlToPlanHandler {
           config
               .getContext()
               .getCatalogService()
-              .getCatalog(mdRequestOpt)
+              .getSystemUserCatalog()
               .getTableSnapshot(catalogEntityKey);
     } catch (IllegalArgumentException e) {
       SqlExceptionHelper.parseError(errorMessage, sql, materialize.getReflectionIdPos())
@@ -832,8 +832,7 @@ public class RefreshHandler implements SqlToPlanHandler {
       // First, generate the plan with no DRRs to determine if the refresh method is incremental or
       // full.
       sqlHandlerConfig.getConverter().getSubstitutionProvider().disableDefaultRawReflection();
-      HandlerToPreparePlanBase.RecordingObserver recordingObserver =
-          new HandlerToPreparePlanBase.RecordingObserver();
+      ReflectionRecordingObserver recordingObserver = new ReflectionRecordingObserver();
       SqlHandlerConfig recordingConfig = sqlHandlerConfig.cloneWithNewObserver(recordingObserver);
       ReflectionPlanGenerator planGenerator =
           new ReflectionPlanGenerator(
@@ -897,18 +896,12 @@ public class RefreshHandler implements SqlToPlanHandler {
           noDefaultReflectionDecision.setDisableDefaultReflection(handler.eventReceived);
 
       if (noDefaultReflectionDecision.getAccelerationSettings().getMethod()
-              == RefreshMethod.INCREMENTAL
-          && sqlHandlerConfig
-              .getContext()
-              .getOptions()
-              .getOption(
-                  "reflections.planning.exclude.file_based_incremental.iceberg.accelerations")
-              .getBoolVal()) {
+          == RefreshMethod.INCREMENTAL) {
         sqlHandlerConfig
             .getConverter()
             .getSession()
             .getSubstitutionSettings()
-            .setExcludeFileBasedIncremental(true);
+            .setIncrementalRefresh(true);
       }
 
       // Save the materialization plan without default raw reflections for reflection matching.

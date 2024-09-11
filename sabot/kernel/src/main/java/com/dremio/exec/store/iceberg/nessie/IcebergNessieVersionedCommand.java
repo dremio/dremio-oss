@@ -32,7 +32,7 @@ public class IcebergNessieVersionedCommand extends IcebergBaseCommand {
       UserBitShared.QueryId queryId) {
     super(
         configuration,
-        ((IcebergNessieVersionedTableIdentifier) tableIdentifier).getTableFolder(),
+        ((IcebergNessieVersionedTableIdentifier) tableIdentifier).getTableLocation(),
         tableOperations,
         queryId);
     this.versionedTableOperations = tableOperations;

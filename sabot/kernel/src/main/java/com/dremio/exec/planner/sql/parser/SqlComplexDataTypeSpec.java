@@ -19,6 +19,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.validate.SqlValidator;
 
 /**
  * Extends SqlDataTypeSpec to support complex specs. Facilitates customized deriveType for complex
@@ -28,7 +29,6 @@ public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
 
   public SqlComplexDataTypeSpec(SqlDataTypeSpec spec) {
     super(
-        spec.getCollectionsTypeName(),
         spec.getTypeNameSpec(),
         spec.getTypeNameSpec(),
         spec.getTimeZone(),
@@ -37,15 +37,15 @@ public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
   }
 
   @Override
-  public RelDataType deriveType(RelDataTypeFactory typeFactory) {
+  public RelDataType deriveType(SqlValidator validator) {
     if (this.getTypeName() instanceof SqlTypeNameSpec) {
       // Create type directly if this typeName is a SqlTypeNameSpec.
-      return getDataTypeForComplex(typeFactory);
+      return getDataTypeForComplex(validator.getTypeFactory());
     }
-    return super.deriveType(typeFactory); // DEFAULT
+    return super.deriveType(validator); // DEFAULT
   }
 
-  private RelDataType getDataTypeForComplex(RelDataTypeFactory typeFactory) {
+  public RelDataType getDataTypeForComplex(RelDataTypeFactory typeFactory) {
     RelDataType type =
         createTypeFromTypeNameSpec(typeFactory, (SqlTypeNameSpec) this.getTypeName());
     if (type == null) {
@@ -66,7 +66,7 @@ public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
    */
   private RelDataType createTypeFromTypeNameSpec(
       RelDataTypeFactory typeFactory, SqlTypeNameSpec typeNameSpec) {
-    return typeNameSpec.deriveType(typeFactory);
+    return typeNameSpec.deriveType(new DremioSqlValidator(typeFactory));
   }
 
   private int tryGetPrecision(SqlDataTypeSpec spec) {
@@ -85,5 +85,17 @@ public class SqlComplexDataTypeSpec extends SqlDataTypeSpec {
     }
 
     return -1;
+  }
+
+  /**
+   * Makes sure that the type inside the complex type is valid.
+   *
+   * @return the invalid SqlDataTypeSpec or null when the type is valid.
+   */
+  public SqlDataTypeSpec validateType() {
+    if (this.getTypeName() instanceof ValidatableTypeNameSpec) {
+      return ((ValidatableTypeNameSpec) this.getTypeName()).validateType();
+    }
+    return null;
   }
 }

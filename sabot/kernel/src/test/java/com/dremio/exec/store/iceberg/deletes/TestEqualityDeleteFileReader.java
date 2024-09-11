@@ -30,6 +30,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.op.common.ht2.PivotDef;
@@ -109,7 +110,7 @@ public class TestEqualityDeleteFileReader extends BaseTestEqualityDeleteFilter {
   }
 
   private RecordSet generateExpectedProductIds(int start, int end) {
-    RecordSet.Record[] records = new RecordSet.Record[end - start];
+    RsRecord[] records = new RsRecord[end - start];
     for (int i = start; i < end; i++) {
       records[i - start] = r(i);
     }
@@ -151,7 +152,7 @@ public class TestEqualityDeleteFileReader extends BaseTestEqualityDeleteFilter {
       Path deleteFilePath, long recordCount, List<Integer> equalityIds) throws Exception {
     EqualityDeleteFileReader reader =
         factory.createEqualityDeleteFileReader(
-            context, deleteFilePath, recordCount, equalityIds, PRODUCTS_ICEBERG_FIELDS);
+            context, deleteFilePath, recordCount, equalityIds, PRODUCTS_ICEBERG_FIELDS, null);
     reader.setup();
     return reader;
   }

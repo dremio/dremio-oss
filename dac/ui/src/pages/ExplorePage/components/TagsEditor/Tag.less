@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 @_horizontal-padding: 10px;
 @_button-padding: 4px;
@@ -23,7 +22,7 @@
 
 .hover() {
   &:hover {
-    background: @PALE_BLUE;
+    background: var(--color--brand--50);
   }
 }
 
@@ -54,8 +53,8 @@
   height: 24px;
   display: inline-flex;
   align-items: center;
-  background: @PALE_NAVY;
-  border: 1px solid @SECONDARY_BORDER;
+  background: var(--color--brand--50);
+  border: 1px solid var(--border--neutral);
 }
 
 .deletable .text-wrapper {
@@ -77,12 +76,12 @@
 
   box-sizing: content-box;
   width: 14px; // icon size
-  color: var(--color--neutral--600);
+  color: var(--icon--primary);
   padding-right: @_button-padding;
 
   .hover();
 }
 
 .selected {
-  background: @PALE_GREY;
+  background: var(--fill--tertiary);
 }

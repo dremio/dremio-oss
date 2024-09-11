@@ -16,6 +16,7 @@
 package com.dremio.exec.store.parquet;
 
 import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.SchemaPath;
 import com.google.common.base.Preconditions;
 import java.util.List;
@@ -87,10 +88,10 @@ public class ParquetColumnDefaultResolver implements ParquetColumnResolver {
     PathSegment seg = schemaPath.getRootSegment().getChild();
     while (seg != null) {
       pathBuilder.append(".");
-      if (seg.isArray() || isListChild) {
+      if (seg.getType().equals(PathSegmentType.ARRAY_INDEX) || isListChild) {
         vector = ((ListVector) vector).getDataVector();
         pathBuilder.append("list.element");
-        if (!seg.isArray()) {
+        if (!seg.getType().equals(PathSegmentType.ARRAY_INDEX)) {
           // planner doesn't always send index with list path segment
           isListChild = (vector instanceof ListVector);
           continue;

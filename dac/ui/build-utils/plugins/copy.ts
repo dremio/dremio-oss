@@ -15,22 +15,22 @@
  */
 import { join } from "path";
 import CopyWebpackPlugin from "copy-webpack-plugin";
-import { isProduction } from "../mode";
 import { dremioEdition } from "../version";
 
 export const copy = new CopyWebpackPlugin({
   patterns: [
     {
-      from: `node_modules/monaco-editor/${isProduction ? "min" : "dev"}/vs`,
-      to: "vs",
-    },
-    {
       from: "public",
     },
     dremioEdition === "ee" &&
-      ({
-        from: join(process.env.DREMIO_DYN_LOADER_PATH!, "../public"),
-      } as any),
+    ({
+      from: join(process.env.DREMIO_DYN_LOADER_PATH!, "../public"),
+    } as any),
+    dremioEdition === "DCS" &&
+    ({
+      //@ts-ignore
+      from: join((process.env.DREMIO_DCS_LOADER_PATH || process.env.DREMIO_INJECTION_PATH), "../public"),
+    } as any),
     {
       from: "node_modules/jsplumb/dist/js/jsPlumb-2.1.4-min.js",
       to: "static/js",

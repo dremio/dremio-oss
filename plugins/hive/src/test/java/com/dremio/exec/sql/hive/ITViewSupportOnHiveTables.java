@@ -58,13 +58,13 @@ public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
   public static void generateHive() throws Exception{
     hiveTest = HiveTestDataGenerator.getInstance();
     Objects.requireNonNull(hiveTest);
-    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
+    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getCatalogService());
   }
 
   @AfterClass
   public static void cleanupHiveTestData() {
     if (hiveTest != null) {
-      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
+      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getCatalogService());
     }
   }
 

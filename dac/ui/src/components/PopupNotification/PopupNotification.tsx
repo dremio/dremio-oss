@@ -15,15 +15,13 @@
  */
 
 import { useState } from "react";
-// @ts-ignore
 import ReactDOM from "react-dom";
-import { IconButton, Snackbar } from "@mui/material";
-// @ts-ignore
+import { Snackbar } from "@mui/material";
 import { Tooltip } from "dremio-ui-lib";
-import FontIcon from "../Icon/FontIcon";
 import { POPUP_ICON_TYPES } from "./popupNotificationUtils";
 
 import "./PopupNotification.less";
+import { IconButton } from "dremio-ui-lib/components";
 
 const unmountPopup = (anchorClass?: string) => {
   const container = anchorClass
@@ -77,7 +75,7 @@ export const PopupNotification = (props: PopupNotificationProps) => {
           color="inherit"
           onClick={handleClose}
         >
-          <FontIcon type="XBig" />
+          <dremio-icon name="interface/close-small"></dremio-icon>
         </IconButton>
       }
     />
@@ -85,7 +83,7 @@ export const PopupNotification = (props: PopupNotificationProps) => {
 };
 
 export default function openPopupNotification(
-  renderProps: PopupNotificationProps
+  renderProps: PopupNotificationProps,
 ): void {
   const autoClose = renderProps.autoClose ? renderProps.autoClose : 2000;
   const popup = <PopupNotification {...renderProps} autoClose={autoClose} />;

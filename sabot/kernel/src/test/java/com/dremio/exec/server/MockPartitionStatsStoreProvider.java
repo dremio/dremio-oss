@@ -27,13 +27,17 @@ import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public class MockPartitionStatsStoreProvider<K, V> implements PartitionStatsCacheStoreProvider {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(MockPartitionStatsStoreProvider.class);
 
   private final MockedPartitionStatsStore<K, V> mockedPartitionStatsStore;
 
+  @Inject
   public MockPartitionStatsStoreProvider() {
     mockedPartitionStatsStore = new MockedPartitionStatsStore();
   }
@@ -110,6 +114,11 @@ public class MockPartitionStatsStoreProvider<K, V> implements PartitionStatsCach
     @Override
     public boolean contains(K key) {
       return false;
+    }
+
+    @Override
+    public Iterable<Document<K, V>> find(String pattern, KVStore.GetOption... options) {
+      return null;
     }
   }
 }

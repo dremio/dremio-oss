@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { browserHistory } from "react-router";
 import { useDispatch } from "react-redux";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
@@ -24,8 +24,12 @@ import {
 import { Reference } from "@app/types/nessie";
 import { useNessieContext } from "../../utils/context";
 import { addNotification } from "actions/notification";
+import { setReference } from "@app/actions/nessie/nessie";
 import { ReferenceType } from "@app/services/nessie/client/index";
-
+import {
+  constructVersionedEntityUrl,
+  useVersionedPageContext,
+} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
 import * as classes from "./DeleteTagDialog.module.less";
 
 type DeleteTagDialogProps = {
@@ -41,7 +45,13 @@ function DeleteTagDialog({
   forkFrom,
   refetch,
 }: DeleteTagDialogProps): JSX.Element {
-  const { apiV2 } = useNessieContext();
+  const {
+    baseUrl,
+    apiV2,
+    stateKey,
+    state: { reference, defaultReference },
+  } = useNessieContext();
+  const { isCatalog } = useVersionedPageContext();
   const intl = useIntl();
   const dispatch = useDispatch();
 
@@ -60,12 +70,23 @@ function DeleteTagDialog({
       dispatch(
         addNotification(
           intl.formatMessage(
-            { id: "ArcticCatalog.Tags.DeleteSuccess" },
-            { tag: forkFrom.name }
+            { id: "VersionedEntity.Tags.DeleteSuccess" },
+            { tag: forkFrom.name },
           ),
-          "success"
-        )
+          "success",
+        ),
       );
+      if (reference && forkFrom.name === reference.name) {
+        dispatch(setReference({ reference: defaultReference }, stateKey));
+        browserHistory.push(
+          constructVersionedEntityUrl({
+            type: isCatalog ? "catalog" : "source",
+            baseUrl,
+            tab: "data",
+            namespace: encodeURIComponent(defaultReference.name),
+          }),
+        );
+      }
       refetch?.();
       closeDialog();
     } catch (error: any) {
@@ -80,7 +101,7 @@ function DeleteTagDialog({
       <DialogContent
         className={classes["delete-tag-dialog"]}
         title={intl.formatMessage({
-          id: "ArcticCatalog.Tags.DeleteTag",
+          id: "VersionedEntity.Tags.DeleteTag",
         })}
         actions={
           <>
@@ -95,7 +116,7 @@ function DeleteTagDialog({
       >
         <div className={classes["delete-tag-dialog-body"]}>
           <FormattedMessage
-            id="ArcticCatalog.Tags.DeleteTagConfirm"
+            id="VersionedEntity.Tags.DeleteTagConfirm"
             values={{ tag: forkFrom.name }}
           />
         </div>

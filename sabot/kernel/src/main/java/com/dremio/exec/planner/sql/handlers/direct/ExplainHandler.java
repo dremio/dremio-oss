@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import static com.dremio.exec.planner.physical.PlannerSettings.QUERY_PLAN_CACHE_ENABLED;
+
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
+import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.DeleteHandler;
@@ -24,6 +27,9 @@ import com.dremio.exec.planner.sql.handlers.query.MergeHandler;
 import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.handlers.query.UpdateHandler;
+import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
+import com.dremio.exec.planner.sql.parser.impl.ParseException;
+import com.dremio.options.OptionValue;
 import java.util.Collections;
 import java.util.List;
 import org.apache.calcite.plan.RelOptUtil;
@@ -38,6 +44,8 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
       org.slf4j.LoggerFactory.getLogger(ExplainHandler.class);
 
   private final SqlHandlerConfig config;
+  private Rel logicalPlan;
+  private SqlNode innerNode;
 
   public ExplainHandler(SqlHandlerConfig config) {
     super();
@@ -61,6 +69,17 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
       final ResultMode mode;
       switch (depth) {
         case LOGICAL:
+          // Disable plan cache if we need to get logical plan.
+          // Plan cache only contains the physical plan, so it cannot be used for getting the
+          // logical plan
+          config
+              .getContext()
+              .getOptions()
+              .setOption(
+                  OptionValue.createBoolean(
+                      OptionValue.OptionType.QUERY,
+                      QUERY_PLAN_CACHE_ENABLED.getOptionName(),
+                      false));
           mode = ResultMode.LOGICAL;
           break;
         case PHYSICAL:
@@ -69,9 +88,9 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
         default:
           throw new UnsupportedOperationException("Unknown depth " + depth);
       }
-
+      config.setResultMode(mode);
       // get plan
-      final SqlNode innerNode = node.operand(0);
+      innerNode = node.operand(0);
       SqlToPlanHandler innerNodeHandler;
       switch (innerNode.getKind()) {
           // We currently only support OrderedQueryOrExpr and Insert/Delete/Update/Merge
@@ -89,7 +108,7 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
           break;
           // for OrderedQueryOrExpr such as select, use NormalHandler
         default:
-          innerNodeHandler = new NormalHandler();
+          innerNodeHandler = setupInnerHandlerForDefaultCase();
       }
 
       innerNodeHandler.getPlan(
@@ -98,6 +117,7 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
       String planAsText;
       if (mode == ResultMode.LOGICAL) {
         planAsText = RelOptUtil.toString(innerNodeHandler.getLogicalPlan(), level);
+        this.logicalPlan = innerNodeHandler.getLogicalPlan();
       } else {
         planAsText = innerNodeHandler.getTextPlan();
       }
@@ -105,8 +125,20 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
       Explain explain = new Explain(planAsText);
       return Collections.singletonList(explain);
     } catch (Exception ex) {
+      this.logicalPlan = null;
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
+  }
+
+  protected SqlToPlanHandler setupInnerHandlerForDefaultCase() throws ParseException {
+    if (getInnerNode() instanceof SqlRefreshReflection) {
+      throw new ParseException("Explain operation is not supported for REFRESH REFLECTION");
+    }
+    return new NormalHandler();
+  }
+
+  protected SqlNode getInnerNode() {
+    return innerNode;
   }
 
   public static class Explain {
@@ -116,6 +148,10 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
       super();
       this.text = text;
     }
+  }
+
+  public Rel getLogicalPlan() {
+    return logicalPlan;
   }
 
   @Override

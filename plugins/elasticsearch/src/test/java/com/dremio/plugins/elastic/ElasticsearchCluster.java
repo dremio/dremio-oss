@@ -266,9 +266,9 @@ public class ElasticsearchCluster implements Closeable {
                 hosts,
                 authenticationType,
                 username,
-                password,
+                () -> password,
                 accessKey,
-                accessSecret,
+                () -> accessSecret,
                 regionName,
                 null),
             60000,
@@ -645,7 +645,7 @@ public class ElasticsearchCluster implements Closeable {
 
     json.endObject().endObject().endObject();
     json.close();
-    putMapping.setMapping(baos.toString("UTF-8"));
+    putMapping.setMapping(baos.toString(UTF_8));
     try {
       connection.execute(putMapping, elasticVersionBehaviorProvider.geMajorVersion());
     } catch (Exception e) {
@@ -684,12 +684,12 @@ public class ElasticsearchCluster implements Closeable {
       bulk.add(String.format(BULK_INDEX_TEXT, schema, table));
       json.endObject();
       json.close();
-      bulk.add(entryBaos.toString("UTF-8"));
+      bulk.add(entryBaos.toString(UTF_8));
     }
 
     Result response = getResultWithRetries(bulk);
     if (response.getAsJsonObject().get("errors").getAsBoolean()) {
-      fail(response.toString());
+      fail(response.getAsJsonObject().toString());
     }
 
     // ensure that we wait for any new shards to be initialized.
@@ -800,7 +800,7 @@ public class ElasticsearchCluster implements Closeable {
     json.endObject().endObject().endObject();
     json.close();
 
-    putMapping.setMapping(baos.toString("UTF-8"));
+    putMapping.setMapping(baos.toString(UTF_8));
     elasticVersionBehaviorProvider.executeMapping(connection, putMapping);
   }
 
@@ -1166,7 +1166,7 @@ public class ElasticsearchCluster implements Closeable {
 
       json.endObject();
       json.close();
-      bulk.add(baos.toString("UTF-8"));
+      bulk.add(baos.toString(UTF_8));
     }
 
     Result response = getResultWithRetries(bulk);

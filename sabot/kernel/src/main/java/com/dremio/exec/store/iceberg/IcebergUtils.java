@@ -22,8 +22,12 @@ import static com.dremio.exec.hadoop.DremioHadoopUtils.getContainerName;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.pathWithoutContainer;
 import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
 import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
+import static com.dremio.exec.store.iceberg.model.IcebergBaseCommand.DREMIO_JOB_ID_ICEBERG_PROPERTY;
 import static com.dremio.io.file.Path.AZURE_AUTHORITY_SUFFIX;
+import static com.dremio.io.file.Path.AZURE_FILE_SYSTEM;
 import static com.dremio.io.file.Path.CONTAINER_SEPARATOR;
+import static com.dremio.io.file.Path.GCS_FILE_SYSTEM;
+import static com.dremio.io.file.Path.S3_FILE_SYSTEM;
 import static com.dremio.io.file.Path.SEPARATOR;
 import static com.dremio.io.file.UriSchemes.ADL_SCHEME;
 import static com.dremio.io.file.UriSchemes.AZURE_SCHEME;
@@ -31,6 +35,7 @@ import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
 import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
 import static com.dremio.io.file.UriSchemes.HDFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.MAPRFS_SCHEME;
+import static com.dremio.io.file.UriSchemes.S3A_SCHEME;
 import static com.dremio.io.file.UriSchemes.S3_SCHEME;
 import static com.dremio.io.file.UriSchemes.SCHEME_SEPARATOR;
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
@@ -39,6 +44,7 @@ import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.common.exceptions.IcebergTableNotFoundException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
@@ -58,6 +64,7 @@ import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.CombineSmallFileOptions;
 import com.dremio.exec.physical.base.IcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
@@ -75,6 +82,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
+import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.planner.sql.parser.SqlVacuumTable;
@@ -95,6 +103,7 @@ import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.dfs.PrimaryKeyOperations;
+import com.dremio.exec.store.iceberg.IcebergViewMetadata.SupportedIcebergViewSpecVersion;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
@@ -113,6 +122,7 @@ import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.TableProperties;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -126,6 +136,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.protostuff.ByteString;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -152,6 +163,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
@@ -176,8 +188,10 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.iceberg.DeleteFiles;
 import org.apache.iceberg.DremioIndexByName;
 import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.NullOrder;
@@ -186,9 +200,12 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsFileLocations;
 import org.apache.iceberg.PartitionStatsMetadataUtil;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SnapshotUpdate;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadataParser;
+import org.apache.iceberg.TableMetadataParser.Codec;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Term;
@@ -218,6 +235,24 @@ public class IcebergUtils {
       "view-uuid"; // Only exists in V1 Iceberg view format
   public static final String VIEW_DEFINITION_JSON_KEY =
       "view-definition"; // Only exists in V0 Iceberg view format
+  public static final String READ_POSITIONAL_DELETE_JOIN_MODE_PROPERTY =
+      "dremio.read.positional_delete_join_mode";
+
+  public enum ReadPositionalDeleteJoinMode {
+    BROADCAST("broadcast"),
+    DEFAULT("default");
+
+    public final String value;
+
+    ReadPositionalDeleteJoinMode(String value) {
+      this.value = value;
+    }
+
+    public String value() {
+      return value;
+    }
+  }
+
   public static final Function<RexNode, List<Integer>> getUsedIndices =
       cond -> {
         Set<Integer> usedIndices = new HashSet<>();
@@ -410,14 +445,6 @@ public class IcebergUtils {
       CatalogEntityKey catalogEntityKey,
       SqlOperator sqlOperator,
       boolean shouldErrorIfTableDoesNotExist) {
-    boolean icebergFeatureEnabled = isIcebergFeatureEnabled(config.getContext().getOptions(), null);
-    if (!icebergFeatureEnabled) {
-      throw UserException.unsupportedError()
-          .message(
-              "Please contact customer support for steps to enable "
-                  + "the iceberg tables feature.")
-          .buildSilently();
-    }
     NamespaceKey path = catalogEntityKey.toNamespaceKey();
     StoragePlugin maybeSource =
         getAndValidateSourceForTableManagement(
@@ -430,9 +457,7 @@ public class IcebergUtils {
     DremioTable table = catalog.getTableNoResolve(keyBuilder.build());
     if (table == null) {
       if (shouldErrorIfTableDoesNotExist) {
-        throw UserException.validationError()
-            .message("Table [%s] does not exist.", path)
-            .buildSilently();
+        throw getTableDoesNotExistException(path);
       } else {
         return Optional.of(SimpleCommandResult.successful("Table [%s] does not exist.", path));
       }
@@ -464,14 +489,18 @@ public class IcebergUtils {
       }
     } catch (NullPointerException ex) {
       if (shouldErrorIfTableDoesNotExist) {
-        throw UserException.validationError()
-            .message("Table [%s] does not exist.", path)
-            .buildSilently();
+        throw getTableDoesNotExistException(path);
       } else {
         return Optional.of(SimpleCommandResult.successful("Table [%s] does not exist.", path));
       }
     }
     return Optional.empty();
+  }
+
+  private static UserException getTableDoesNotExistException(final NamespaceKey path) {
+    return UserException.validationError(new IcebergTableNotFoundException(path.toString()))
+        .message("Table [%s] does not exist.", path)
+        .buildSilently();
   }
 
   public static ImmutableDremioFileAttrs getPartitionStatsFileAttrs(
@@ -748,27 +777,77 @@ public class IcebergUtils {
 
   public static String getValidIcebergPath(
       Path path, FileSystemConfigurationAdapter conf, String fsScheme) {
+    return getValidIcebergPath(path, conf, fsScheme, null);
+  }
+
+  public static String getValidIcebergPath(
+      Path path, FileSystemConfigurationAdapter conf, String fsScheme, String schemeVariate) {
+    String pathStr = path.toString();
     try {
-      if (fsScheme == null || path.toUri().getScheme() != null) {
+      if (fsScheme == null
+          || (path.toUri().getScheme() != null
+              && StringUtils.isEmpty(schemeVariate)
+              && pathStr.contains(SCHEME_SEPARATOR))) {
         return path.toString();
       }
-      String modifiedPath = removeLeadingSlash(path.toString());
+      // Remove current scheme info
+      if (path.toUri().getScheme() != null) {
+        pathStr = path.toUri().getPath();
+      }
+      String modifiedPath = removeLeadingSlash(pathStr);
       if (fsScheme.equalsIgnoreCase(
           FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme())) {
         String accountName = conf.get("dremio.azure.account");
         StringBuilder urlBuilder = new StringBuilder();
-        urlBuilder.append(AZURE_SCHEME);
+        // If the scheme from the path is a variant of AzureFileSystem, use the variant.
+        if (schemeVariate != null
+            && !AZURE_SCHEME.equalsIgnoreCase(schemeVariate)
+            && AZURE_FILE_SYSTEM.contains(schemeVariate.toLowerCase(Locale.ROOT))) {
+          urlBuilder.append(schemeVariate.toLowerCase(Locale.ROOT));
+        } else {
+          urlBuilder.append(AZURE_SCHEME);
+        }
         urlBuilder.append(SCHEME_SEPARATOR);
-        urlBuilder.append(getContainerName(path));
-        urlBuilder.append(CONTAINER_SEPARATOR + accountName + AZURE_AUTHORITY_SUFFIX);
-        urlBuilder.append(pathWithoutContainer(path).toString());
+        if (!StringUtils.isEmpty(path.toUri().getAuthority())) {
+          urlBuilder.append(path.toUri().getAuthority());
+          urlBuilder.append(Path.SEPARATOR);
+          urlBuilder.append(modifiedPath);
+        } else {
+          urlBuilder.append(getContainerName(path));
+          urlBuilder.append(CONTAINER_SEPARATOR + accountName + AZURE_AUTHORITY_SUFFIX);
+          urlBuilder.append(pathWithoutContainer(path));
+        }
         return urlBuilder.toString();
       } else if (fsScheme.equalsIgnoreCase(
-          FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme())) {
-        return S3_SCHEME + SCHEME_SEPARATOR + modifiedPath;
+              FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme())
+          || fsScheme.equalsIgnoreCase(S3A_SCHEME)) {
+        StringBuilder urlBuilder = new StringBuilder();
+        // If the scheme from the path is a variant of S3FileSystem, use the variant.
+        final String s3Scheme =
+            schemeVariate != null
+                    && !S3_SCHEME.equalsIgnoreCase(schemeVariate)
+                    && S3_FILE_SYSTEM.contains(schemeVariate.toLowerCase(Locale.ROOT))
+                ? schemeVariate.toLowerCase(Locale.ROOT)
+                : S3_SCHEME;
+        urlBuilder.append(s3Scheme);
+        urlBuilder.append(SCHEME_SEPARATOR);
+        if (!StringUtils.isEmpty(path.toUri().getAuthority())) {
+          urlBuilder.append(path.toUri().getAuthority());
+          urlBuilder.append(Path.SEPARATOR);
+        }
+        urlBuilder.append(modifiedPath);
+        return urlBuilder.toString();
       } else if (fsScheme.equalsIgnoreCase(
           FileSystemConf.CloudFileSystemScheme.GOOGLE_CLOUD_FILE_SYSTEM.getScheme())) {
-        return GCS_SCHEME + SCHEME_SEPARATOR + modifiedPath;
+        StringBuilder urlBuilder = new StringBuilder();
+        urlBuilder.append(GCS_SCHEME);
+        urlBuilder.append(SCHEME_SEPARATOR);
+        if (!StringUtils.isEmpty(path.toUri().getAuthority())) {
+          urlBuilder.append(path.toUri().getAuthority());
+          urlBuilder.append(Path.SEPARATOR);
+        }
+        urlBuilder.append(modifiedPath);
+        return urlBuilder.toString();
       } else if (fsScheme.equalsIgnoreCase(HDFS_SCHEME)) {
         String hdfsEndPoint = conf.get(FS_DEFAULT_NAME_KEY);
         if (hdfsEndPoint == null || !hdfsEndPoint.toLowerCase().startsWith(HDFS_SCHEME)) {
@@ -806,6 +885,62 @@ public class IcebergUtils {
               + path
               + " Error Message : "
               + ex.getMessage());
+    }
+  }
+
+  public static String getIcebergPathAndValidateScheme(
+      String pathStr, Configuration conf, String fsScheme, String schemeVariate) {
+    // Convert the path to Iceberg path with scheme info.
+    // Currently, only RemoveOrphanFiles feature needs the path to be promoted with scheme info.
+    // It needs the path to have the scheme info that matches exactly the pass-in 'schemeVariate'.
+    // Otherwise, it conducts an early stop of running that query.
+    Path path = new Path(pathStr);
+    if (path.toUri().getScheme() != null
+        && pathStr.contains(SCHEME_SEPARATOR)
+        && !StringUtils.isEmpty(fsScheme)
+        && path.toUri().getScheme().equalsIgnoreCase(fsScheme)) {
+      // Path already has valid scheme info.
+      return pathStr;
+    }
+    String pathWithScheme =
+        getValidIcebergPath(
+            path, new HadoopFileSystemConfigurationAdapter(conf), fsScheme, schemeVariate);
+    if (!StringUtils.isEmpty(schemeVariate)) {
+      Preconditions.checkState(
+          pathWithScheme.startsWith(schemeVariate), "Path scheme does not match");
+    }
+    return pathWithScheme;
+  }
+
+  /** Map FS scheme to default FilePath Scheme */
+  public static String getDefaultPathScheme(String fsScheme) {
+    if (fsScheme == null) {
+      return null;
+    }
+    if (fsScheme.equalsIgnoreCase(
+            FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme())
+        || AZURE_FILE_SYSTEM.contains(fsScheme)) {
+      return AZURE_SCHEME;
+    } else if (fsScheme.equalsIgnoreCase(
+            FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme())
+        || S3_FILE_SYSTEM.contains(fsScheme)) {
+      return S3_SCHEME;
+    } else if (fsScheme.equalsIgnoreCase(
+            FileSystemConf.CloudFileSystemScheme.GOOGLE_CLOUD_FILE_SYSTEM.getScheme())
+        || GCS_FILE_SYSTEM.contains(fsScheme)) {
+      return GCS_SCHEME;
+    } else if (fsScheme.equalsIgnoreCase(HDFS_SCHEME)) {
+      return HDFS_SCHEME;
+    } else if (fsScheme.equalsIgnoreCase(FILE_SCHEME)) {
+      return FILE_SCHEME;
+    } else if (fsScheme.equalsIgnoreCase(
+        FileSystemConf.CloudFileSystemScheme.ADL_FILE_SYSTEM_SCHEME.getScheme())) {
+      return ADL_SCHEME;
+    } else if (fsScheme.equalsIgnoreCase(MAPRFS_SCHEME)) {
+      return MAPRFS_SCHEME;
+    } else {
+      logger.warn("No File System scheme matches: {}", fsScheme);
+      return null;
     }
   }
 
@@ -1155,18 +1290,6 @@ public class IcebergUtils {
         .anyMatch(partitionField -> !partitionField.transform().isIdentity());
   }
 
-  public static boolean isIcebergFeatureEnabled(
-      OptionManager options, Map<String, Object> storageOptionsMap) {
-
-    // Iceberg table format will not be used as a storage type explicitly
-    // parquet/arrow/json formats specify in the options
-    if (storageOptionsMap != null) {
-      return false;
-    }
-
-    return true;
-  }
-
   public static void validateIcebergLocalSortIfDeclared(String sql, OptionManager options)
       throws UserException {
     if (LOCALSORT_BY_PATTERN.matcher(sql).find() && !isIcebergSortOrderFeatureEnabled(options)) {
@@ -1178,32 +1301,6 @@ public class IcebergUtils {
 
   public static boolean isIcebergSortOrderFeatureEnabled(OptionManager options) {
     return options.getOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER);
-  }
-
-  public static boolean isIcebergDMLFeatureEnabled(
-      SourceCatalog sourceCatalog,
-      NamespaceKey path,
-      OptionManager options,
-      Map<String, Object> storageOptionsMap) {
-    if (!isIcebergFeatureEnabled(options, storageOptionsMap)) {
-      return false;
-    }
-
-    StoragePlugin storagePlugin = null;
-    try {
-      storagePlugin = sourceCatalog.getSource(path.getRoot());
-    } catch (UserException ignored) {
-    }
-
-    // to avoid existing test failures do not check for additional flags for Versioned and
-    // FileSystem plugins
-    if (storagePlugin == null
-        || storagePlugin.isWrapperFor(VersionedPlugin.class)
-        || storagePlugin.isWrapperFor(FileSystemPlugin.class)) {
-      return true;
-    }
-
-    return options.getOption(ExecConstants.ENABLE_ICEBERG_DML);
   }
 
   public static void validateTablePropertiesRequest(OptionManager options) {
@@ -1286,7 +1383,7 @@ public class IcebergUtils {
     return tableProperties;
   }
 
-  private static Map<String, String> convertListTablePropertiesToMap(
+  public static Map<String, String> convertListTablePropertiesToMap(
       List<TableProperties> tablePropertiesList) {
     Map<String, String> tableProperties = new HashMap<>();
     if (tablePropertiesList == null || tablePropertiesList.size() == 0) {
@@ -1299,12 +1396,46 @@ public class IcebergUtils {
     return tableProperties;
   }
 
+  public static List<TableProperties> convertMapToTablePropertiesList(
+      Map<String, String> tablePropertiesMap) {
+    if (tablePropertiesMap == null || tablePropertiesMap.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<TableProperties> tablePropertiesList = new ArrayList<>();
+    for (Map.Entry<String, String> entry : tablePropertiesMap.entrySet()) {
+      TableProperties tableProperties = new TableProperties();
+      tableProperties.setTablePropertyName(entry.getKey());
+      tableProperties.setTablePropertyValue(entry.getValue());
+      tablePropertiesList.add(tableProperties);
+    }
+    return tablePropertiesList;
+  }
+
   /**
    * We are now getting IcebergCreateTableEntry with versionContext. Previously, we have always used
    * session version as the version context, but now we can also specify version with the sql. if we
    * do not have explicit versionContext, we will be using original code path Else we will be using
    * new code path containing explicit version context.
    */
+  public static CreateTableEntry getIcebergCreateTableEntry(
+      QueryContext context,
+      Catalog catalog,
+      DremioTable table,
+      SqlOperator sqlOperator,
+      OptimizeOptions optimizeOptions) {
+    final NamespaceKey key = table.getPath();
+    return getIcebergCreateTableEntry(
+        context,
+        catalog,
+        table,
+        sqlOperator,
+        optimizeOptions,
+        CatalogUtil.resolveVersionContext(
+            catalog,
+            key.getRoot(),
+            context.getSession().getSessionVersionForSource(key.getRoot())));
+  }
+
   public static CreateTableEntry getIcebergCreateTableEntry(
       SqlHandlerConfig config,
       Catalog catalog,
@@ -1331,6 +1462,17 @@ public class IcebergUtils {
       SqlOperator sqlOperator,
       OptimizeOptions optimizeOptions,
       ResolvedVersionContext resolvedVersionContext) {
+    return getIcebergCreateTableEntry(
+        config.getContext(), catalog, table, sqlOperator, optimizeOptions, resolvedVersionContext);
+  }
+
+  public static CreateTableEntry getIcebergCreateTableEntry(
+      QueryContext context,
+      Catalog catalog,
+      DremioTable table,
+      SqlOperator sqlOperator,
+      OptimizeOptions optimizeOptions,
+      ResolvedVersionContext resolvedVersionContext) {
     final NamespaceKey key = table.getPath();
     final DatasetConfig datasetConfig = table.getDatasetConfig();
     final ReadDefinition readDefinition = datasetConfig.getReadDefinition();
@@ -1338,7 +1480,7 @@ public class IcebergUtils {
     ResolvedVersionContext version = resolvedVersionContext;
     List<String> partitionColumnsList = readDefinition.getPartitionColumnsList();
 
-    String queryId = QueryIdHelper.getQueryId(config.getContext().getQueryId());
+    String queryId = QueryIdHelper.getQueryId(context.getQueryId());
     PhysicalDataset physicalDataset = datasetConfig.getPhysicalDataset();
     BatchSchema batchSchema = table.getSchema();
     Map<String, String> properties =
@@ -1358,33 +1500,40 @@ public class IcebergUtils {
             getCurrentPartitionSpec(physicalDataset, batchSchema, partitionColumnsList),
             getCurrentIcebergSchema(physicalDataset, batchSchema),
             null,
-            getCurrentSortOrder(physicalDataset, config.getContext().getOptions()),
+            getCurrentSortOrder(physicalDataset, context.getOptions()),
             properties,
             FileType.PARQUET);
 
     CombineSmallFileOptions combineSmallFileOptions = null;
     if ((optimizeOptions != null
-            && config
-                .getContext()
+            && context
                 .getOptions()
                 .getOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_OPTIMIZE))
-        || config
-            .getContext()
+        || context
             .getOptions()
             .getOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML)) {
+      Long smallFileSize = null;
+      Long targetFileSizeValue =
+          context
+              .getOptions()
+              .getOption(ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR);
+      if (optimizeOptions != null) {
+        smallFileSize = optimizeOptions.getMinFileSizeBytes();
+        targetFileSizeValue = optimizeOptions.getTargetFileSizeBytes();
+      } else {
+        smallFileSize =
+            Double.valueOf(
+                    context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR)
+                        * context
+                            .getOptions()
+                            .getOption(ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO))
+                .longValue();
+      }
       combineSmallFileOptions =
           CombineSmallFileOptions.builder()
-              .setSmallFileSize(
-                  Double.valueOf(
-                          config
-                                  .getContext()
-                                  .getOptions()
-                                  .getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR)
-                              * config
-                                  .getContext()
-                                  .getOptions()
-                                  .getOption(ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO))
-                      .longValue())
+              .setSmallFileSize(smallFileSize)
+              .setTargetFileSize(targetFileSizeValue)
+              .setIsSingleWriter(true)
               .build();
     }
 
@@ -1409,13 +1558,12 @@ public class IcebergUtils {
 
     final WriterOptions options =
         new WriterOptions(
-                (int) config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT),
+                (int) context.getOptions().getOption(PlannerSettings.RING_COUNT),
                 partitionColumnsList,
                 readDefinition.getSortColumnsList(),
                 Collections.emptyList(),
                 PartitionDistributionStrategy.getPartitionDistributionStrategy(
-                    config
-                        .getContext()
+                    context
                         .getOptions()
                         .getOption(ExecConstants.WRITER_PARTITION_DISTRIBUTION_MODE)),
                 null,
@@ -1424,15 +1572,15 @@ public class IcebergUtils {
                 tableFormatOptionsBuilder.build(),
                 readDefinition.getExtendedProperty(),
                 version,
-                properties)
+                properties,
+                false)
             .withCombineSmallFileOptions(combineSmallFileOptions);
 
     Schema schema = SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema);
-    String sortOrder = getCurrentSortOrder(physicalDataset, config.getContext().getOptions());
+    String sortOrder = getCurrentSortOrder(physicalDataset, context.getOptions());
     List<String> sortColumns =
         getColumnsFromSortOrder(
-            IcebergSerDe.deserializeSortOrderFromJson(schema, sortOrder),
-            config.getContext().getOptions());
+            IcebergSerDe.deserializeSortOrderFromJson(schema, sortOrder), context.getOptions());
     options.setSortColumns(sortColumns);
     BatchSchema writerSchema = getWriterSchema(batchSchema, options);
     icebergTableProps.setFullSchema(writerSchema);
@@ -1455,6 +1603,8 @@ public class IcebergUtils {
             return IcebergCommandType.OPTIMIZE;
           } else if (sqlOperator.getName().equalsIgnoreCase(SqlVacuumTable.OPERATOR.getName())) {
             return IcebergCommandType.VACUUM;
+          } else if (sqlOperator.getName().equalsIgnoreCase(SqlCopyIntoTable.OPERATOR.getName())) {
+            return IcebergCommandType.INSERT;
           }
           throw new UnsupportedOperationException(
               String.format("Unrecoverable Error: Invalid type: %s", sqlOperator.getKind()));
@@ -1484,6 +1634,8 @@ public class IcebergUtils {
             return TableFormatOperation.OPTIMIZE;
           } else if (sqlOperator.getName().equalsIgnoreCase(SqlVacuumTable.OPERATOR.getName())) {
             return TableFormatOperation.VACUUM;
+          } else if (sqlOperator.getName().equalsIgnoreCase(SqlCopyIntoTable.OPERATOR.getName())) {
+            return TableFormatOperation.INSERT;
           }
           throw new UnsupportedOperationException(
               String.format("Unrecoverable Error: Invalid type: %s", sqlOperator.getKind()));
@@ -1568,10 +1720,17 @@ public class IcebergUtils {
       StoragePlugin storagePlugin,
       SabotContext context,
       boolean saveInKvStore) {
-    final IcebergTableIdentifier tableIdentifier = icebergModel.getTableIdentifier(path);
-    final Table icebergTable = icebergModel.getIcebergTable(tableIdentifier);
 
-    final List<String> primaryKey = getPrimaryKeyFromTableMetadata(icebergTable);
+    final List<String> primaryKey;
+    IcebergMetadata icebergMetadata = datasetConfig.getPhysicalDataset().getIcebergMetadata();
+
+    if (icebergMetadata != null) {
+      primaryKey = getPrimaryKeyFromTableProperties(icebergMetadata.getTablePropertiesList());
+    } else {
+      final IcebergTableIdentifier tableIdentifier = icebergModel.getTableIdentifier(path);
+      final Table icebergTable = icebergModel.getIcebergTable(tableIdentifier);
+      primaryKey = getPrimaryKeyFromTableMetadata(icebergTable);
+    }
     // This can happen if the table already had PK in the metadata, and we just promoted this table.
     // The key will not be in the KV store for that.
     // Even if PK is empty, we need to save to KV, so next time we know PK is unset and don't check
@@ -1596,17 +1755,11 @@ public class IcebergUtils {
     return primaryKey;
   }
 
-  public static List<String> getPrimaryKeyFromTableMetadata(Table icebergTable) {
+  private static List<String> getPrimaryKeyFromPropertyValue(String value) {
     ObjectMapper mapper = new ObjectMapper();
     BatchSchema batchSchema;
     try {
-      batchSchema =
-          mapper.readValue(
-              icebergTable
-                  .properties()
-                  .getOrDefault(
-                      PrimaryKeyOperations.DREMIO_PRIMARY_KEY, BatchSchema.EMPTY.toJson()),
-              BatchSchema.class);
+      batchSchema = mapper.readValue(value, BatchSchema.class);
     } catch (JsonProcessingException e) {
       String error = "Unexpected error occurred while deserializing primary keys";
       logger.error(error, e);
@@ -1615,6 +1768,28 @@ public class IcebergUtils {
     return batchSchema.getFields().stream()
         .map(f -> f.getName().toLowerCase(Locale.ROOT))
         .collect(Collectors.toList());
+  }
+
+  public static List<String> getPrimaryKeyFromTableMetadata(Table icebergTable) {
+    return getPrimaryKeyFromPropertyValue(
+        icebergTable
+            .properties()
+            .getOrDefault(PrimaryKeyOperations.DREMIO_PRIMARY_KEY, BatchSchema.EMPTY.toJson()));
+  }
+
+  public static List<String> getPrimaryKeyFromTableProperties(
+      List<TableProperties> tablePropertiesList) {
+    Optional<TableProperties> primaryKeyProperty =
+        tablePropertiesList != null
+            ? tablePropertiesList.stream()
+                .filter(
+                    p -> PrimaryKeyOperations.DREMIO_PRIMARY_KEY.equals(p.getTablePropertyName()))
+                .findFirst()
+            : Optional.empty();
+    return getPrimaryKeyFromPropertyValue(
+        primaryKeyProperty.isPresent()
+            ? primaryKeyProperty.get().getTablePropertyValue()
+            : BatchSchema.EMPTY.toJson());
   }
 
   /**
@@ -1783,6 +1958,13 @@ public class IcebergUtils {
     }
   }
 
+  public static Table getIcebergTable(
+      QueryContext context, NamespaceKey nsKey, SqlOperator operator) {
+    return getIcebergTable(
+        getIcebergCreateTableEntry(
+            context, context.getCatalog(), context.getCatalog().getTable(nsKey), operator, null));
+  }
+
   public static Table getIcebergTable(CreateTableEntry createTableEntry) {
     IcebergTableProps icebergTableProps = createTableEntry.getIcebergTableProps();
     Preconditions.checkState(
@@ -1799,6 +1981,23 @@ public class IcebergUtils {
           plugin.getIcebergModel(icebergTableProps, createTableEntry.getUserName(), null, fileIO);
       return icebergModel.getIcebergTable(
           icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
+    } catch (IOException ex) {
+      throw new UncheckedIOException(ex);
+    }
+  }
+
+  public static FileSystem createFS(CreateTableEntry createTableEntry) {
+    IcebergTableProps icebergTableProps = createTableEntry.getIcebergTableProps();
+    Preconditions.checkState(
+        createTableEntry.getPlugin() instanceof SupportsIcebergMutablePlugin,
+        "Plugin not instance of SupportsIcebergMutablePlugin");
+    SupportsIcebergMutablePlugin plugin =
+        (SupportsIcebergMutablePlugin) createTableEntry.getPlugin();
+
+    try (FileSystem fs =
+        plugin.createFS(
+            icebergTableProps.getTableLocation(), createTableEntry.getUserName(), null)) {
+      return fs;
     } catch (IOException ex) {
       throw new UncheckedIOException(ex);
     }
@@ -1834,39 +2033,40 @@ public class IcebergUtils {
   public static IcebergViewMetadata.SupportedIcebergViewSpecVersion findIcebergViewVersion(
       String metadataLocation, FileIO fileIO) {
     InputFile inputFile = fileIO.newInputFile(metadataLocation);
+    InputStream inputFileStream = null;
+    JsonParser jsonParser = null;
+    Codec codec = Codec.fromFileName(inputFile.location());
+    try {
+      inputFileStream =
+          codec == Codec.GZIP ? new GZIPInputStream(inputFile.newStream()) : inputFile.newStream();
+      JsonFactory jsonFactory = new JsonFactory();
+      jsonParser = jsonFactory.createParser(inputFileStream);
+      return findVersionInJson(jsonParser);
+    } catch (IOException e) {
+      logger.error("Unable to parse view metadata json at : " + metadataLocation, e);
+      return IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN;
+    } finally {
+      try {
+        if (jsonParser != null) {
+          jsonParser.close();
+        }
+        if (inputFileStream != null) {
+          inputFileStream.close();
+        }
+      } catch (Exception e) {
+      }
+    }
+  }
+
+  public static IcebergViewMetadata.SupportedIcebergViewSpecVersion findIcebergViewVersion(
+      String jsonString) {
     JsonParser jsonParser = null;
     try {
       JsonFactory jsonFactory = new JsonFactory();
-      jsonParser = jsonFactory.createParser(inputFile.newStream());
-
-      // Version V0 pattern :
-      // {
-      //   "format-version" : 1,
-      //   ...
-      //   "view-definition" :  { ...}
-      // }
-      // =================================
-      // Version V1 pattern :
-      //   {
-      //  "view-uuid": "fa6506c3-7681-40c8-86dc-e36561f83385",
-      //  "format-version": 1,
-      // ...
-      //  }
-
-      while (jsonParser.nextToken() != null) {
-        if (jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
-          if (Objects.equals(jsonParser.getCurrentName(), VIEW_FORMAT_VERSION_JSON_KEY)
-              && (jsonParser.nextIntValue(-1) == 1)) {
-            return continueCheckingIfV0Version(jsonParser);
-          } else if (Objects.equals(jsonParser.getCurrentName(), VIEW_UUID_JSON_KEY)) {
-            return continueCheckingForIcebergViewVersion(jsonParser);
-          }
-          // Add detection of future versions here.
-        }
-      }
-      return IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN;
+      jsonParser = jsonFactory.createParser(jsonString);
+      return findVersionInJson(jsonParser);
     } catch (IOException e) {
-      logger.debug("Unable to parse view metadata json at : " + metadataLocation);
+      logger.debug("Unable to parse view metadata json", e);
       return IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN;
     } finally {
       try {
@@ -1874,6 +2074,36 @@ public class IcebergUtils {
       } catch (IOException e) {
       }
     }
+  }
+
+  private static SupportedIcebergViewSpecVersion findVersionInJson(JsonParser jsonParser)
+      throws IOException {
+    // Version V0 pattern :
+    // {
+    //   "format-version" : 1,
+    //   ...
+    //   "view-definition" :  { ...}
+    // }
+    // =================================
+    // Version V1 pattern :
+    //   {
+    //  "view-uuid": "fa6506c3-7681-40c8-86dc-e36561f83385",
+    //  "format-version": 1,
+    // ...
+    //  }
+
+    while (jsonParser.nextToken() != null) {
+      if (jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
+        if (Objects.equals(jsonParser.getCurrentName(), VIEW_FORMAT_VERSION_JSON_KEY)
+            && (jsonParser.nextIntValue(-1) == 1)) {
+          return continueCheckingIfV0Version(jsonParser);
+        } else if (Objects.equals(jsonParser.getCurrentName(), VIEW_UUID_JSON_KEY)) {
+          return continueCheckingForIcebergViewVersion(jsonParser);
+        }
+        // Add detection of future versions here.
+      }
+    }
+    return IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN;
   }
 
   // This method can be deprecated when V0 is deprecated
@@ -1924,5 +2154,48 @@ public class IcebergUtils {
             + jsonParser.nextIntValue(-1)
             + "' found in view metadata.json file");
     return IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN;
+  }
+
+  /**
+   * Reverts the files added by snapshot for a given table. Expires snapshots after revert.
+   *
+   * @param table The table for which the snapshot files need to be reverted.
+   * @param tableSnapshot The snapshot to be reverted.
+   * @param queryId The query ID associated with the snapshot reversion.
+   * @throws NullPointerException if the snapshot is null.
+   */
+  public static boolean revertSnapshotFiles(Table table, Snapshot tableSnapshot, String queryId) {
+    Preconditions.checkNotNull(tableSnapshot, "Snapshot is required.");
+    logger.info("Reverting snapshot {} for table {}.", tableSnapshot.snapshotId(), table.name());
+
+    DeleteFiles tableDeleteFiles = table.newDelete();
+    tableSnapshot.addedDataFiles(table.io()).forEach(tableDeleteFiles::deleteFile);
+    stampSnapshotUpdateWithDremioJobId(tableDeleteFiles, queryId);
+
+    tableDeleteFiles.validateFilesExist().commit();
+    table.expireSnapshots().expireSnapshotId(tableSnapshot.snapshotId()).commit();
+    return true;
+  }
+
+  /**
+   * @param snapshotUpdate iceberg table update e.g. AppendFiles, DeleteFiles
+   * @param jobId jobId to be added to update snapshot summary Adds jobId to snapshot summary.
+   */
+  public static void stampSnapshotUpdateWithDremioJobId(
+      SnapshotUpdate snapshotUpdate, String jobId) {
+    Preconditions.checkNotNull(jobId, "JobId is required.");
+    snapshotUpdate.set(DREMIO_JOB_ID_ICEBERG_PROPERTY, jobId);
+  }
+
+  public static final boolean hasEqualityDeletes(TableMetadata tableMetadata) {
+    Preconditions.checkNotNull(tableMetadata, "tableMetadata is required.");
+    ScanStats deleteStats =
+        tableMetadata
+            .getDatasetConfig()
+            .getPhysicalDataset()
+            .getIcebergMetadata()
+            .getEqualityDeleteStats();
+
+    return deleteStats != null && deleteStats.getRecordCount() > 0;
   }
 }

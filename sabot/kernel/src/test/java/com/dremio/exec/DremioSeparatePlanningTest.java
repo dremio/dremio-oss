@@ -197,7 +197,7 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
       fragmentClient.connect(props);
 
       ShowResultsUserResultsListener myListener =
-          new ShowResultsUserResultsListener(getAllocator());
+          new ShowResultsUserResultsListener(getTestAllocator());
       AwaitableUserResultsListener listenerBits = new AwaitableUserResultsListener(myListener);
       fragmentClient.runQuery(
           QueryType.SQL,
@@ -207,9 +207,9 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
       assertEquals(1, row);
       List<Map<String, String>> records = myListener.getRecords();
       assertEquals(1, records.size());
-      Map<String, String> record = records.get(0);
-      assertEquals(2, record.size());
-      Iterator<Entry<String, String>> iter = record.entrySet().iterator();
+      Map<String, String> rec = records.get(0);
+      assertEquals(2, rec.size());
+      Iterator<Entry<String, String>> iter = rec.entrySet().iterator();
       Entry<String, String> entry;
       String host = null;
       String port = null;
@@ -242,7 +242,8 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   }
 
   private void getCombinedResultsHelper(final QueryPlanFragments planFragments) throws Exception {
-    ShowResultsUserResultsListener myListener = new ShowResultsUserResultsListener(getAllocator());
+    ShowResultsUserResultsListener myListener =
+        new ShowResultsUserResultsListener(getTestAllocator());
     AwaitableUserResultsListener listenerBits = new AwaitableUserResultsListener(myListener);
 
     // AwaitableUserResultsListener listener =
@@ -299,15 +300,15 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
           ArrowBuf data = result.getData();
           loader.load(queryHeader.getDef(), data);
           for (int i = 0; i < rows; i++) {
-            Map<String, String> record = Maps.newHashMap();
+            Map<String, String> rec = Maps.newHashMap();
             for (VectorWrapper<?> vw : loader) {
               final String field = vw.getValueVector().getField().getName();
               final ValueVector vv = vw.getValueVector();
               final Object value = i < vv.getValueCount() ? vv.getObject(i) : null;
               final String display = value == null ? null : value.toString();
-              record.put(field, display);
+              rec.put(field, display);
             }
-            records.add(record);
+            records.add(rec);
           }
           loader.clear();
         }

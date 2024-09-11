@@ -13,19 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/components/colors.less";
 @import "~@app/uiTheme/less/mixins.less";
-@import "~@app/uiTheme/less/variables.complex.less";
-@import "~@app/uiTheme/less/color-schema.less";
 
 .search-field {
   input {
     &:hover {
-      border-color: var(--color--neutral--200);
+      border-color: var(--border--hover);
     }
 
     &:focus {
-      border-color: var(--color--brand--300);
+      border-color: var(--border--focused);
       background-color: white;
     }
   }
@@ -36,7 +33,7 @@
   width: 257px !important; // accounts for 240px input width, 16px padding, 1px border
   margin-right: 8px !important;
   padding-right: 16px;
-  border-right: 1px solid var(--color--neutral--50);
+  border-right: 1px solid var(--border--neutral);
 }
 
 .active-wiki-button {
@@ -45,10 +42,10 @@
 }
 
 .panel-icon {
-  color: var(--color--neutral--600) !important;
+  color: var(--icon--primary) !important;
 
   &:hover {
-    color: var(--dremio--color--link) !important;
+    color: var(--icon--hover) !important;
   }
 }
 
@@ -60,7 +57,7 @@
   bottom: 0;
   width: 11px;
   transform: translateX(50%);
-  background: @TABLE_BORDER;
+  background: var(--color--neutral--75);
   cursor: col-resize;
   opacity: 0;
   z-index: 100;
@@ -93,14 +90,14 @@
       text-transform: initial;
       line-height: 20px;
       vertical-align: bottom;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      border-bottom: 1px solid var(--border--neutral);
       font-size: 12px;
       font-weight: 500;
     }
     &--noZebraStripesRows {
       cursor: pointer !important;
-      border-bottom: 1px solid @DARK_200 !important;
-      background: var(--bg--default) !important;
+      border-bottom: 1px solid var(--border--neutral) !important;
+      background: var(--fill--primary) !important;
     }
     .ReactVirtualized__Table__row {
       .fontBody();
@@ -116,7 +113,7 @@
         text-decoration: none;
       }
       &.odd {
-        background-color: #f9f9f9;
+        background-color: var(--fill--secondary);
       }
       .copy-button {
         opacity: 0;
@@ -147,7 +144,7 @@
     }
     .action-wrap {
       justify-content: center;
-      color: var(--dremio--color--icon--main);
+      color: var(--icon--primary);
 
       // Customizes <SettingsBtn> with same style as <IconButton>
       span.main-settings-btn.min-btn.catalog-btn .settings-button {
@@ -167,7 +164,7 @@
         }
 
         &:hover {
-          color: var(--dremio--color--link);
+          color: var(--icon--hover);
         }
       }
     }
@@ -216,14 +213,14 @@
   }
 
   .sharing-row {
-    color: @blue;
+    color: var(--color--brand--300);
   }
 
   .browse-table-viewer-header {
     overflow: hidden;
     height: 48px;
     flex-shrink: 0;
-    border-bottom: 1px solid var(--color--neutral--50);
+    border-bottom: 1px solid var(--border--neutral);
     .copy-button {
       display: none;
     }
@@ -247,7 +244,7 @@
         top: 0;
         bottom: 0;
         width: 1px;
-        background: @border-grey-light;
+        background: var(--color--neutral--150);
       }
     }
 
@@ -257,23 +254,23 @@
   }
   .folder-path {
     cursor: pointer;
-    color: @grey;
+    color: var(--text--faded);
     .last-folder {
-      color: @blue;
+      color: var(--color--brand--300);
     }
   }
   .database-path {
     cursor: pointer;
     .last-folder {
-      color: @blue;
+      color: var(--color--brand--300);
     }
   }
   .table-path {
     cursor: pointer;
   }
   .help-btn {
-    background: @white;
-    border: 1px solid darken(@white, 15%);
+    background: white;
+    border: 1px solid darken(white, 15%);
     border-radius: 4px;
     padding: 1px 5px 2px 5px;
     cursor: pointer;
@@ -285,16 +282,16 @@
       vertical-align: middle;
     }
     &:hover {
-      background: darken(@white, 5%);
+      background: darken(white, 5%);
     }
   }
   .queries-row {
-    color: @blue;
+    color: var(--color--brand--300);
     cursor: pointer;
   }
 
   .request-access-holder {
-    background: @light-blue;
+    background: var(--color--indigo--300);
     padding: 10px;
     button {
       width: auto;
@@ -319,6 +316,7 @@
   .empty-table {
     .empty-message {
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       position: absolute;
@@ -327,17 +325,7 @@
       text-align: center;
       font-size: 32px;
       color: #cbcbcb;
-      background-color: #f8f8f8;
-    }
-    .loader-top {
-      position: absolute;
-      top: 43%;
-      left: 50%;
-    }
-    .loader-bot {
-      position: absolute;
-      top: 53%;
-      left: 50%;
+      background-color: var(--fill--secondary);
     }
     .table {
       margin-bottom: 0;

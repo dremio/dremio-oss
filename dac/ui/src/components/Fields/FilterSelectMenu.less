@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .filterSelectMenu {
@@ -23,17 +22,17 @@
       height: 32px;
       min-width: 160px;
       padding: 4px 2px 4px 8px; // default styling adds a 6px left padding so this accounts for that
-      color: var(--color--neutral--600);
+      color: var(--text--faded);
       border-radius: 4px;
       font-size: 14px !important;
-      border: 1px solid @FIGMA_NEUTRAL_200;
+      border: 1px solid var(--border--neutral--solid);
       display: flex;
       justify-content: space-between;
       cursor: pointer;
 
       &.--filtered {
-        border-color: @FIGMA_PRIMARY_500;
-        background-color: @FIGMA_PRIMARY_100;
+        border-color: var(--border--focused);
+        background-color: var(--fill--primary--hover);
       }
     }
 
@@ -43,7 +42,7 @@
         align-items: center;
 
         &.--filtered {
-          color: @FIGMA_PRIMARY_700;
+          color: var(--text--brand);
         }
       }
     }
@@ -61,7 +60,7 @@
         font-size: 14px;
         font-weight: 600;
         line-height: 20px;
-        border-top: 1px solid var(--color--neutral--50);
+        border-top: 1px solid var(--border--neutral);
       }
     }
 
@@ -69,25 +68,25 @@
       cursor: pointer;
       user-select: none;
       &.--transparent {
-        background-color: @WHITE !important;
+        background-color: var(--fill--primary) !important;
       }
       &:hover {
-        background-color: @FIGMA_PRIMARY_100;
+        background-color: var(--fill--primary--hover);
       }
 
       &.--chosen {
-        background-color: @FIGMA_PRIMARY_150;
+        background-color: var(--fill--primary--selected);
         &:hover {
-          background-color: @FIGMA_PRIMARY_200;
+          background-color: var(--fill--primary--hover);
         }
       }
       &.--disabled {
-        color: @FIGMA_TEXT_DISABLED;
-        background-color: @WHITE;
+        color: var(--text--disabled);
+        background-color: var(--fill--primary);
         &:hover {
-          background-color: @WHITE;
+          background-color: var(--fill--primary);
           &.--chosen {
-            background-color: @WHITE;
+            background-color: var(--fill--primary);
           }
         }
       }
@@ -128,7 +127,7 @@
       height: 100%;
     }
     &__dragTargetHoverCls {
-      border-bottom: 1px solid @FIGMA_PRIMARY_600;
+      border-bottom: 1px solid var(--color--brand--400);
       width: 100%;
     }
   }

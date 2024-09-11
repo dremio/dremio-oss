@@ -16,6 +16,9 @@
 import { proxy } from "./proxy";
 
 export const devServer = {
+  client: {
+    overlay: false,
+  },
   compress: true,
   headers: {
     "Content-Security-Policy":

@@ -17,11 +17,12 @@ package com.dremio.dac.service.source;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -40,6 +41,7 @@ import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderName;
+import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.model.sources.PhysicalDataset;
@@ -51,20 +53,23 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ImmutableVersionedListOptions;
+import com.dremio.exec.catalog.ImmutableVersionedListResponsePage;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.catalog.conf.ConnectionConf;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
+import com.dremio.exec.store.NamespaceAlreadyExistsException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.PDFSConf;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.file.File;
+import com.dremio.options.OptionManager;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.plugins.ExternalNamespaceEntry.Type;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
@@ -139,6 +144,8 @@ public class TestSourceService {
   @Mock private ReflectionAdministrationService.Factory reflectionService;
   @Mock private SecurityContext securityContext;
   @Mock private CatalogService catalogService;
+  @Mock private StoragePlugin storagePlugin;
+  @Mock private Catalog catalog;
   @Mock private ReflectionServiceHelper reflectionServiceHelper;
 
   private SourceService getSourceService() {
@@ -148,7 +155,7 @@ public class TestSourceService {
   private SourceService getSourceService(Clock clock) {
     return new SourceService(
         clock,
-        mock(SabotContext.class),
+        mock(OptionManager.class),
         namespaceService,
         mock(DatasetVersionMutator.class),
         catalogService,
@@ -215,7 +222,7 @@ public class TestSourceService {
 
     // Mock currently stored source.
     SourceConfig currentSourceConfig = ProtostuffUtil.copy(SOURCE_CONFIG);
-    when(namespaceService.getSourceById(eq(currentSourceConfig.getId().getId())))
+    when(namespaceService.getSourceById(eq(currentSourceConfig.getId())))
         .thenReturn(currentSourceConfig);
 
     // Mock updated source.
@@ -251,7 +258,7 @@ public class TestSourceService {
 
     // Mock currently stored source.
     SourceConfig currentSourceConfig = ProtostuffUtil.copy(SOURCE_CONFIG);
-    when(namespaceService.getSourceById(eq(currentSourceConfig.getId().getId())))
+    when(namespaceService.getSourceById(eq(currentSourceConfig.getId())))
         .thenReturn(currentSourceConfig);
 
     // Mock updated one.
@@ -280,6 +287,7 @@ public class TestSourceService {
     when(dataplanePlugin.listEntries(any(), eq(DEFAULT_VERSION_CONTEXT)))
         .thenReturn(DEFAULT_ENTRIES.stream());
     SourceResource sourceResource = makeSourceResource();
+    when(dataplanePlugin.getState()).thenReturn(SourceState.GOOD);
 
     // Act
     NamespaceTree contents =
@@ -324,10 +332,34 @@ public class TestSourceService {
   }
 
   @Test
+  public void testFolderIdForVersionedSources() {
+    String sourceName = "nessieSource";
+    String folderId =
+        "{\"tableKey\":[\"nessie_demo\",\"test\"],"
+            + "\"contentId\":\"4c04aa93-a1c2-40e3-a3cd-63680617dcfb\","
+            + "\"versionContext\":{\"type\":\"BRANCH\",\"value\":\"main\"}}";
+    SourceConfig sourceConfig = SourceConfig.getDefaultInstance();
+    sourceConfig.setId(new EntityId());
+    when(catalogService.getSource(sourceName)).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
+    when(catalogService.getCatalog(any(MetadataRequestOptions.class))).thenReturn(catalog);
+    when(catalog.getSource(anyString())).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(catalog.resolveCatalog(anyMap())).thenReturn(catalog);
+    when(catalog.getDatasetId(any(NamespaceKey.class))).thenReturn(folderId);
+    SourceFolderPath sourceFolderPath = new SourceFolderPath("foo.bar");
+    Folder folder =
+        getSourceService()
+            .createFolder(new SourceName(sourceName), sourceFolderPath, "bar", "BRANCH", "main");
+    assertThat(folder.getId()).isEqualTo(folderId);
+  }
+
+  @Test
   public void testCreateFolderThrownNessieNamespaceAlreadyExistsException() {
     SourceResource sourceResource = makeSourceResource();
 
-    doThrow(NessieNamespaceAlreadyExistsException.class)
+    doThrow(NamespaceAlreadyExistsException.class)
         .doNothing()
         .when(dataplanePlugin)
         .createNamespace(any(), eq(DEFAULT_VERSION_CONTEXT));
@@ -421,6 +453,48 @@ public class TestSourceService {
         .hasMessageContaining("not allowed for Versioned source");
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  public void testListSource_versioned(boolean folderOrSource) throws Exception {
+    when(catalogService.getSource("source")).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
+    if (!folderOrSource) {
+      when(dataplanePlugin.getState()).thenReturn(SourceState.GOOD);
+    }
+
+    // Verify that page token is passed to versioned plugin and the result is passed back.
+    String pageToken = "page-token";
+    String nextPageToken = "next-page-token";
+    int maxResults = 3;
+    when(dataplanePlugin.listEntriesPage(
+            folderOrSource ? ImmutableList.of("folder") : ImmutableList.of(),
+            VersionContext.NOT_SPECIFIED,
+            new ImmutableVersionedListOptions.Builder()
+                .setPageToken(pageToken)
+                .setMaxResultsPerPage(maxResults)
+                .build()))
+        .thenReturn(
+            new ImmutableVersionedListResponsePage.Builder()
+                .setEntries(ImmutableList.of())
+                .setPageToken(nextPageToken)
+                .build());
+    NamespaceTree tree =
+        folderOrSource
+            ? getSourceService()
+                .listFolder(
+                    new SourceName("source"),
+                    new SourceFolderPath(ImmutableList.of("source", "folder")),
+                    null,
+                    pageToken,
+                    maxResults)
+            : getSourceService()
+                .listSource(new SourceName("source"), null, null, pageToken, maxResults);
+    assertThat(tree.getNextPageToken()).isEqualTo(nextPageToken);
+
+    verify(dataplanePlugin, times(1)).listEntriesPage(any(), any(), any());
+  }
+
   @Test
   public void testValidConnectionConfs() {
     testConnectionConfs(validConnectionConfs, true);
@@ -429,6 +503,21 @@ public class TestSourceService {
   @Test
   public void testInvalidConnectionConfs() {
     testConnectionConfs(invalidConnectionConfs, false);
+  }
+
+  @Test
+  public void testUnhealthySourceStateCheck() {
+    String name = "mysource";
+    String userName = "testUser";
+    SourceName versionedSource = new SourceName(name);
+    when(catalogService.getSource(name)).thenReturn(dataplanePlugin);
+    when(dataplanePlugin.getState()).thenReturn(SourceState.DELETED);
+    assertThatThrownBy(
+            () ->
+                getSourceService()
+                    .listSource(versionedSource, null, userName, "BRANCH", "main", null, 10))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Cannot connect to");
   }
 
   private void assertMatchesDefaultEntries(NamespaceTree contents) {
@@ -472,7 +561,7 @@ public class TestSourceService {
         connectionReader,
         mock(SourceCatalog.class),
         mock(FormatTools.class),
-        mock(ContextService.class),
+        mock(SabotContext.class),
         mock(BufferAllocatorFactory.class));
   }
 

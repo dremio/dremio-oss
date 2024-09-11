@@ -65,7 +65,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
   private static final int COUNT = 5;
 
   private BitVector bitVector(String name) {
-    BitVector vec = new BitVector(name, getAllocator());
+    BitVector vec = new BitVector(name, getTestAllocator());
     vec.allocateNew(COUNT);
     vec.set(0, 1);
     vec.set(1, 0);

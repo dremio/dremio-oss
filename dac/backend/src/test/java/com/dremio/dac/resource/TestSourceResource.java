@@ -79,7 +79,7 @@ public class TestSourceResource extends BaseTestServer {
       assertEquals(source.getAccelerationRefreshPeriod(), result.getAccelerationRefreshPeriod());
       assertEquals(source.getAccelerationGracePeriod(), result.getAccelerationGracePeriod());
 
-      newNamespaceService()
+      getNamespaceService()
           .deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
     }
   }
@@ -111,7 +111,7 @@ public class TestSourceResource extends BaseTestServer {
     assertTrue(result.getAllowCrossSourceSelection());
     assertTrue(result.getDisableMetadataValidityCheck());
 
-    newNamespaceService()
+    getNamespaceService()
         .deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
   }
 
@@ -148,7 +148,7 @@ public class TestSourceResource extends BaseTestServer {
         CatalogService.DEFAULT_EXPIRE_MILLIS,
         result.getMetadataPolicy().getDatasetDefinitionExpireAfterMillis());
 
-    newNamespaceService()
+    getNamespaceService()
         .deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
   }
 
@@ -317,13 +317,13 @@ public class TestSourceResource extends BaseTestServer {
   }
 
   private void updateSource(SourceUI source) throws ExecutionSetupException, NamespaceException {
-    newSourceService()
+    getSourceService()
         .updateSource(source.getId(), source.asSourceConfig(), source.getNamespaceAttributes());
   }
 
   private void updateSourceWithoutValidation(SourceUI source)
       throws ExecutionSetupException, NamespaceException {
-    SourceService sourceService = spy(newSourceService());
+    SourceService sourceService = spy(getSourceService());
     doNothing().when(sourceService).validateConnectionConf(any());
     sourceService.updateSource(
         source.getId(), source.asSourceConfig(), source.getNamespaceAttributes());

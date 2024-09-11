@@ -33,7 +33,6 @@
     <execution.hint.file>.local-${project.version}-execution-hints.log</execution.hint.file>
     <tests.heap.size>512m</tests.heap.size>
     <tests.permgen.size>512m</tests.permgen.size>
-    <tests.elasticsearch.api.version>6.2.4</tests.elasticsearch.api.version>
     <tests.elasticsearch.min.port>17000</tests.elasticsearch.min.port>
     <tests.elasticsearch.max.port>17999</tests.elasticsearch.max.port>
   </properties>
@@ -193,9 +192,9 @@
           <perCoreThreadCount>false</perCoreThreadCount>
           <threadCount>1</threadCount>
           <forkCount>1</forkCount>
-          <systemProperties>
+          <systemPropertyVariables>
             <dremio.test.elasticsearch.port>${tests.elasticsearch.httpPort}</dremio.test.elasticsearch.port>
-          </systemProperties>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
       <plugin>
@@ -223,14 +222,9 @@
       <plugin>
         <groupId>com.github.alexcojocaru</groupId>
         <artifactId>elasticsearch-maven-plugin</artifactId>
-        <version>6.23</version>
         <configuration>
-          <version>${tests.elasticsearch.api.version}</version>
-          <clusterName>test</clusterName>
           <transportPort>${tests.elasticsearch.transportPort}</transportPort>
           <httpPort>${tests.elasticsearch.httpPort}</httpPort>
-          <timeout>100</timeout>
-          <skip>${tests.elasticsearch.api.on}</skip>
         </configuration>
         <executions>
           <execution>
@@ -283,44 +277,6 @@
           <scope>test</scope>
         </dependency>
       </dependencies>
-    </profile>
-
-    <!-- Support for different versions of ES -->
-    <profile>
-      <id>elasticsearch-maven-plugin</id>
-      <activation>
-        <property>
-          <!--  disable elastic search plugin if skipTests is set -->
-          <name>skipTests</name>
-        </property>
-      </activation>
-      <properties>
-        <tests.elasticsearch.api.on>true</tests.elasticsearch.api.on>
-      </properties>
-    </profile>
-
-    <profile>
-      <!-- Activate this profile using -Dtests.elasticsearch.api.using6x -->
-      <id>ES-API-6.x</id>
-      <activation>
-        <property>
-          <name>tests.elasticsearch.api.using6x</name>
-        </property>
-      </activation>
-    </profile>
-    <profile>
-      <!-- Activate this profile using -Dtests.elasticsearch.api.using7x -->
-      <id>ES-API-7.x</id>
-      <activation>
-        <property>
-          <name>tests.elasticsearch.api.using7x</name>
-        </property>
-      </activation>
-      <properties>
-        <tests.elasticsearch.api.version>7.10.2</tests.elasticsearch.api.version>
-        <tests.elasticsearch.min.port>18000</tests.elasticsearch.min.port>
-        <tests.elasticsearch.max.port>18999</tests.elasticsearch.max.port>
-      </properties>
     </profile>
   </profiles>
 </project>

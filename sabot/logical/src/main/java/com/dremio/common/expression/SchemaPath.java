@@ -16,7 +16,9 @@
 package com.dremio.common.expression;
 
 import com.dremio.common.expression.PathSegment.ArraySegment;
+import com.dremio.common.expression.PathSegment.ArraySegmentInputRef;
 import com.dremio.common.expression.PathSegment.NameSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.parser.ExprLexer;
 import com.dremio.common.expression.parser.ExprParser;
 import com.dremio.common.expression.parser.ExprParser.parse_return;
@@ -80,7 +82,9 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
   public boolean isSimplePath() {
     PathSegment seg = rootSegment;
     while (seg != null) {
-      if (seg.isArray() && !seg.isLastPath()) {
+      if ((seg.getType().equals(PathSegmentType.ARRAY_INDEX)
+              || seg.getType().equals(PathSegmentType.ARRAY_INDEX_REF))
+          && !seg.isLastPath()) {
         return false;
       }
       seg = seg.getChild();
@@ -103,6 +107,16 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
 
   public SchemaPath getChild(String childPath) {
     NameSegment newRoot = rootSegment.cloneWithNewChild(new NameSegment(childPath));
+    return new SchemaPath(newRoot);
+  }
+
+  public SchemaPath getChild(String childPath, boolean isIndexInputRef) {
+    NameSegment newRoot;
+    if (isIndexInputRef) {
+      newRoot = rootSegment.cloneWithNewChild(new ArraySegmentInputRef(childPath));
+    } else {
+      newRoot = rootSegment.cloneWithNewChild(new NameSegment(childPath));
+    }
     return new SchemaPath(newRoot);
   }
 
@@ -228,7 +242,7 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
     pathValue.append(rootSegment.getNameSegment().getPath());
     PathSegment seg = rootSegment.getChild();
     while (seg != null) {
-      if (seg.isArray()) {
+      if (seg.getType().equals(PathSegmentType.ARRAY_INDEX)) {
         pathValue.append(".list.element");
       } else {
         pathValue.append(".").append(seg.getNameSegment().getPath());

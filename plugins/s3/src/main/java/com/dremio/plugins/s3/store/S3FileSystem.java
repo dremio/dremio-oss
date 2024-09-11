@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 import static com.dremio.exec.ExecConstants.ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK;
 import static com.dremio.exec.ExecConstants.S3_NATIVE_ASYNC_CLIENT;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
@@ -39,6 +40,7 @@ import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
+import com.dremio.io.FSOutputStream;
 import com.dremio.plugins.util.AwsCredentialProviderUtils;
 import com.dremio.plugins.util.CloseableRef;
 import com.dremio.plugins.util.CloseableResource;
@@ -58,6 +60,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -91,6 +96,8 @@ import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3BaseClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
@@ -411,6 +418,44 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         ssecUsed,
         sseCustomerKey,
         "true".equals(options.get(ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK.getOptionName())));
+  }
+
+  @Override
+  public long getTTL(com.dremio.io.file.FileSystem fileSystem, com.dremio.io.file.Path path) {
+    Path hadoopPath = new org.apache.hadoop.fs.Path(path.toString());
+    final String bucket = DremioHadoopUtils.getContainerName(hadoopPath);
+    final String onlyPath =
+        removeLeadingSlash(DremioHadoopUtils.pathWithoutContainer(hadoopPath).toString());
+    HeadObjectRequest reqHeadObject =
+        HeadObjectRequest.builder().bucket(bucket).key(onlyPath).build();
+
+    HeadObjectResponse respHeadObject;
+    try (FSOutputStream fos = fileSystem.create(fileSystem.canonicalizePath(path), true)) {
+      fos.close();
+      // Adding lifecycle rules may take some time for the configuration to be updated.
+      // SyncClient is used to minimize latency.
+      respHeadObject = getSyncClient(bucket).acquireRef().headObject(reqHeadObject);
+      fileSystem.delete(path, false);
+    } catch (Exception ex) {
+      logger.info("Failed to get head object for {}", path, ex);
+      return -1;
+    }
+
+    if (respHeadObject.expiration() == null) {
+      logger.info("No expiration lifecycle rules set for {}", path.getParent());
+      return -1;
+    }
+
+    String[] parts = respHeadObject.expiration().split("\"");
+    if (parts.length != 4) {
+      logger.error("Unexpected expiration metadata:" + respHeadObject.expiration());
+      return -1;
+    }
+
+    logger.info("TTL based on{}{}", parts[2], parts[3]);
+    Instant expireInstant = Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(parts[1]));
+
+    return Duration.between(respHeadObject.lastModified(), expireInstant).toDays();
   }
 
   private CloseableRef<S3Client> getSyncClient(String bucket) throws IOException {
@@ -744,7 +789,14 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   static Optional<String> getStsEndpoint(Configuration conf) {
     return Optional.ofNullable(conf.getTrimmed(Constants.ASSUMED_ROLE_STS_ENDPOINT))
-        .map(s -> "https://" + s);
+        .map(
+            s -> {
+              if (s.startsWith("https://")) {
+                return s;
+              }
+
+              return "https://" + s;
+            });
   }
 
   private static String getHttpScheme(Configuration conf) {

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../../../../components/colors.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -24,8 +23,8 @@
     line-height: 20px;
     position: relative;
     &.visible {
-      background: @light-pink;
-      color: @black;
+      background: var(--fill--danger);
+      color: var(--text--primary);
       padding: 10px;
       display: block;
       border: 1px solid #cc7a78;
@@ -43,7 +42,7 @@
     }
 
     .details-link {
-      color: @blue;
+      color: var(--text--link);
       cursor: pointer;
       margin: 0 0 0 10px;
     }

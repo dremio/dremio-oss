@@ -71,6 +71,9 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     READ_METADATA,
     CREATE_VIEW,
     CREATE_FOLDER,
+    SHOW,
+    EXPORT_DIAGNOSTICS,
+    CREATE_FUNCTION,
     ALL
   }
 

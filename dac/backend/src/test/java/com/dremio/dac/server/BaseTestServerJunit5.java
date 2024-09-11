@@ -20,23 +20,19 @@ import static com.dremio.common.utils.PathUtils.getPathJoiner;
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
-import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.SentinelSecure;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.util.TestTools;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
@@ -44,7 +40,6 @@ import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.dac.daemon.DACModule;
 import com.dremio.dac.daemon.ZkServer;
 import com.dremio.dac.explore.model.CreateFromSQL;
-import com.dremio.dac.explore.model.DataPOJO;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetSearchUIs;
 import com.dremio.dac.explore.model.DatasetUI;
@@ -55,7 +50,6 @@ import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.explore.model.VersionContextReq;
-import com.dremio.dac.explore.model.ViewFieldTypeMixin;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.spaces.HomeName;
@@ -69,28 +63,20 @@ import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
-import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.dac.util.JSONUtil;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
-import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.file.FilePath;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
 import com.dremio.sabot.rpc.user.UserServer;
-import com.dremio.service.Binder;
-import com.dremio.service.BindingProvider;
-import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.job.proto.QueryType;
@@ -102,31 +88,21 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
-import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.Principal;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -135,24 +111,20 @@ import java.util.Properties;
 import java.util.function.Function;
 import javax.inject.Provider;
 import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.SecurityContext;
 import org.apache.arrow.memory.BufferAllocator;
-import org.assertj.core.api.AssertionsForClassTypes;
-import org.assertj.core.api.SoftAssertions;
 import org.eclipse.jetty.http.HttpHeader;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.io.TempDir;
 
+@Tag("dremio-multi-node-tests")
 public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(BaseTestServerJunit5.class);
@@ -160,13 +132,13 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   private static final String NESSIE_PROXY = "nessie-proxy";
   private static final String PUBLIC_API_LOCATION = "api";
   private static final String SCIM_V2_API_LOCATION = "scim/v2";
+  private static final String OAUTH_API_LOCATION = "oauth";
+
+  public static final String USERNAME = SampleDataPopulator.TEST_USER_NAME;
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   protected static final String DEFAULT_PASSWORD = SampleDataPopulator.PASSWORD;
 
-  private PrintWriter docLog;
   private UserLoginSession uls;
-
-  public static final String USERNAME = SampleDataPopulator.TEST_USER_NAME;
 
   private static boolean defaultUser = true;
   private static boolean testApiEnabled = true;
@@ -193,19 +165,11 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     addDefaultUser = enabled;
   }
 
-  protected void doc(String message) {
-    docLog.println("[doc] " + message);
-  }
-
-  protected static boolean isComplexTypeSupport() {
-    return PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal();
-  }
-
   @BeforeEach
   public void resetDefaultUser() {
     if (defaultUser) {
       try {
-        SampleDataPopulator.addDefaultFirstUser(l(UserService.class), newNamespaceService());
+        SampleDataPopulator.addDefaultFirstUser(getUserService(), getNamespaceService());
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -225,27 +189,41 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   private static WebTarget publicAPI;
   private static WebTarget masterPublicAPI;
   private static WebTarget scimV2API;
+  private static WebTarget oAuthApi;
   private static DACDaemon executorDaemon;
   private static DACDaemon currentDremioDaemon;
   private static DACDaemon masterDremioDaemon;
-  private static Binder dremioBinder;
   private static SampleDataPopulator populator;
-  private static boolean executorDaemonClosed = false;
 
   public static void setClient(Client client) {
-    BaseTestServerJunit5.client = client;
+    Preconditions.checkState(BaseTestServerJunit5.client == null);
+    BaseTestServerJunit5.client = Preconditions.checkNotNull(client);
   }
 
   public static void setCurrentDremioDaemon(DACDaemon currentDremioDaemon) {
-    BaseTestServerJunit5.currentDremioDaemon = currentDremioDaemon;
+    Preconditions.checkState(BaseTestServerJunit5.currentDremioDaemon == null);
+    BaseTestServerJunit5.currentDremioDaemon = Preconditions.checkNotNull(currentDremioDaemon);
+  }
+
+  protected static void closeCurrentDremioDaemon() throws Exception {
+    Preconditions.checkNotNull(BaseTestServerJunit5.currentDremioDaemon);
+    try {
+      BaseTestServerJunit5.currentDremioDaemon.close();
+    } finally {
+      BaseTestServerJunit5.currentDremioDaemon = null;
+    }
   }
 
   public static void setMasterDremioDaemon(DACDaemon masterDremioDaemon) {
-    BaseTestServerJunit5.masterDremioDaemon = masterDremioDaemon;
+    Preconditions.checkState(BaseTestServerJunit5.masterDremioDaemon == null);
+    BaseTestServerJunit5.masterDremioDaemon = Preconditions.checkNotNull(masterDremioDaemon);
   }
 
-  public static void setPopulator(SampleDataPopulator populator) {
-    BaseTestServerJunit5.populator = populator;
+  public static void setPopulator(SampleDataPopulator populator) throws Exception {
+    if (BaseTestServerJunit5.populator != null) {
+      BaseTestServerJunit5.populator.close();
+    }
+    BaseTestServerJunit5.populator = Preconditions.checkNotNull(populator);
   }
 
   protected static WebTarget getAPIv2() {
@@ -258,6 +236,10 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
 
   protected static WebTarget getScimAPIv2() {
     return scimV2API;
+  }
+
+  protected static WebTarget getOAuthApi() {
+    return oAuthApi;
   }
 
   protected static WebTarget getMetricsEndpoint() {
@@ -312,63 +294,29 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   @TempDir static File folder2;
   @TempDir static File folder3;
 
-  private static ObjectMapper configureObjectMapper() {
-    ObjectMapper objectMapper = JSONUtil.prettyMapper();
-    JSONUtil.registerStorageTypes(
-        objectMapper,
-        DremioTest.CLASSPATH_SCAN_RESULT,
-        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG));
-    objectMapper
-        .registerModule(
-            new SimpleModule()
-                .addDeserializer(
-                    JobDataFragment.class,
-                    new JsonDeserializer<JobDataFragment>() {
-                      @Override
-                      public JobDataFragment deserialize(
-                          JsonParser jsonParser, DeserializationContext deserializationContext)
-                          throws IOException {
-                        return jsonParser.readValueAs(DataPOJO.class);
-                      }
-                    }))
-        .addMixIn(ViewFieldType.class, ViewFieldTypeMixin.class);
-    objectMapper.setFilterProvider(
-        new SimpleFilterProvider()
-            .addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
-    return objectMapper;
-  }
-
   protected static void initClient() throws Exception {
-    initClient(configureObjectMapper());
+    initClient(newClientObjectMapper());
   }
 
   private static void initClient(ObjectMapper mapper) throws Exception {
-    setBinder(createBinder(currentDremioDaemon.getBindingProvider()));
+    BaseTestServer.addDummySecurityContextForDefaultUser(currentDremioDaemon);
 
     final Path path = new File(folder0.getAbsolutePath() + "/testplugins").toPath();
     if (!Files.exists(path)) {
-      TestUtilities.addDefaultTestPlugins(l(CatalogService.class), path.toString());
+      TestUtilities.addDefaultTestPlugins(getCatalogService(), path.toString());
     }
 
     setPopulator(
         new SampleDataPopulator(
-            l(SabotContext.class),
-            newSourceService(),
-            newDatasetVersionMutator(),
-            l(UserService.class),
-            newNamespaceService(),
+            getSabotContext(),
+            getSourceService(),
+            getDatasetVersionMutator(),
+            getUserService(),
+            getNamespaceService(),
             DEFAULT_USERNAME,
-            l(CollaborationHelper.class)));
+            getCollaborationHelper()));
 
-    final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-    provider.setMapper(mapper);
-
-    client =
-        ClientBuilder.newBuilder()
-            .property(FEATURE_AUTO_DISCOVERY_DISABLE, true)
-            .register(provider)
-            .register(MultiPartFeature.class)
-            .build();
+    client = newClient(mapper);
     rootTarget = client.target("http://localhost:" + currentDremioDaemon.getWebServer().getPort());
     final WebTarget livenessServiceTarget =
         client.target(
@@ -378,6 +326,8 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     nessieProxy = rootTarget.path(NESSIE_PROXY);
     publicAPI = rootTarget.path(PUBLIC_API_LOCATION);
     scimV2API = rootTarget.path(SCIM_V2_API_LOCATION);
+    oAuthApi = rootTarget.path(OAUTH_API_LOCATION);
+
     if (isMultinode()) {
       masterApiV2 =
           client
@@ -393,10 +343,9 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     }
   }
 
-  private static void startCurrentDaemon() throws Exception {
-    currentDremioDaemon.init();
-  }
-
+  /**
+   * Do not call this method directly unless from an "overriden" static "init" method of a subclass
+   */
   @BeforeAll
   public static void init() throws Exception {
     try (TimedBlock b = Timer.time("BaseTestServerJunit5.@BeforeAll")) {
@@ -410,30 +359,38 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
 
   protected static void initializeCluster(
       DACModule dacModule, Function<ObjectMapper, ObjectMapper> mapperUpdate) throws Exception {
-    final String hostname = InetAddress.getLocalHost().getCanonicalHostName();
-    Provider<Integer> jobsPortProvider =
-        () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
+
+    Preconditions.checkState(currentDremioDaemon == null, "Old cluster not stopped properly");
+    Preconditions.checkState(masterDremioDaemon == null, "Old cluster not stopped properly");
+    Preconditions.checkState(executorDaemon == null, "Old cluster not stopped properly");
 
     // Turning on flag for NaaS
     System.setProperty("nessie.source.resource.testing.enabled", "true");
+
+    String rootFolder0 = folder0.getAbsolutePath();
+    String rootFolder1 = folder1.getAbsolutePath();
+    String rootFolder2 = folder2.getAbsolutePath();
+    String rootFolder3 = folder3.getAbsolutePath();
+
+    // we'll share the same file:/// writepath for all nodes. Pdfs causes
+    // problems as it uses static variables so resolution doesn't work in a
+    // single ClassLoader
+    final String distpath = "file://" + rootFolder0;
 
     if (isMultinode()) {
       logger.info("Running tests in multinode mode");
 
       // run all tests on remote coordinator node relying on additional remote executor node
 
-      // we'll share the same file:/// writepath for all nodes. Pdfs causes
-      // problems as it uses static variables so resolution doesn't work in a
-      // single ClassLoader
-      final String distpath = "file://" + folder0.getAbsolutePath();
       // jobsResultsStore stored in <distpath>/results and accelerator store in
       // <distpath>/accelerator, both of which
       // need to exist
-      Files.createDirectories(new File(folder0.getAbsolutePath() + "/results").toPath());
-      Files.createDirectories(new File(folder0.getAbsolutePath() + "/accelerator").toPath());
-      Files.createDirectories(new File(folder0.getAbsolutePath() + "/scratch").toPath());
-      Files.createDirectories(new File(folder0.getAbsolutePath() + "/metadata").toPath());
-      Files.createDirectories(new File(folder0.getAbsolutePath() + "/gandiva").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/results").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/accelerator").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/scratch").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/metadata").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/gandiva").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/system_iceberg_tables").toPath());
 
       // Get a random port
       int port;
@@ -441,6 +398,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
         socket.setReuseAddress(true);
         port = socket.getLocalPort();
       }
+
       // create master node.
       masterDremioDaemon =
           DACDaemon.newDremioDaemon(
@@ -450,7 +408,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
                   .serveUI(false)
                   .jobServerEnabled(true)
                   .inMemoryStorage(inMemoryStorage)
-                  .writePath(folder1.getAbsolutePath())
+                  .writePath(rootFolder1)
                   .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
                   .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
                   .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, port)
@@ -462,8 +420,10 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
               dacModule);
       masterDremioDaemon.init();
 
+      int zkPort = masterDremioDaemon.getInstance(ZkServer.class).getPort();
+      int fabricPort = masterDremioDaemon.getInstance(FabricService.class).getPort() + 1;
+
       // remote coordinator node
-      int zkPort = masterDremioDaemon.getBindingProvider().lookup(ZkServer.class).getPort();
       currentDremioDaemon =
           DACDaemon.newDremioDaemon(
               DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
@@ -473,13 +433,11 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
                   .serveUI(false)
                   .inMemoryStorage(inMemoryStorage)
                   .jobServerEnabled(true)
-                  .writePath(folder2.getAbsolutePath())
+                  .writePath(rootFolder2)
                   .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
                   .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
                   .clusterMode(ClusterMode.DISTRIBUTED)
-                  .localPort(
-                      masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort()
-                          + 1)
+                  .localPort(fabricPort)
                   .isRemote(true)
                   .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
                   .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
@@ -487,7 +445,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
                   .zk("localhost:" + zkPort),
               DremioTest.CLASSPATH_SCAN_RESULT,
               dacModule);
-      startCurrentDaemon();
+      currentDremioDaemon.init();
 
       // remote executor node
       executorDaemon =
@@ -498,21 +456,17 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
                   .serveUI(false)
                   .inMemoryStorage(inMemoryStorage)
                   .with(DremioConfig.ENABLE_COORDINATOR_BOOL, false)
-                  .writePath(folder3.getAbsolutePath())
+                  .writePath(rootFolder3)
                   .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
                   .clusterMode(ClusterMode.DISTRIBUTED)
-                  .localPort(
-                      masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort()
-                          + 1)
+                  .localPort(fabricPort)
                   .isRemote(true)
                   .zk("localhost:" + zkPort),
               DremioTest.CLASSPATH_SCAN_RESULT,
               dacModule);
-      executorDaemonClosed = false;
       executorDaemon.init();
     } else {
       logger.info("Running tests in local mode");
-      final String distpath = "file://" + folder0.getAbsolutePath();
       currentDremioDaemon =
           DACDaemon.newDremioDaemon(
               DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
@@ -521,43 +475,55 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
                   .serveUI(false)
                   .addDefaultUser(addDefaultUser)
                   .inMemoryStorage(inMemoryStorage)
-                  .writePath(folder1.getAbsolutePath())
+                  .writePath(rootFolder1)
                   .with(DremioConfig.METADATA_PATH_STRING, distpath + "/metadata")
                   .with(DremioConfig.ACCELERATOR_PATH_STRING, distpath + "/accelerator")
                   .with(DremioConfig.GANDIVA_CACHE_PATH_STRING, distpath + "/gandiva")
                   .with(
                       DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING,
                       distpath + "/system_iceberg_tables")
+                  .with(DremioConfig.NODE_HISTORY_PATH_STRING, distpath + "/node_history")
                   .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
                   .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
                   .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
                   .clusterMode(DACDaemon.ClusterMode.LOCAL),
               DremioTest.CLASSPATH_SCAN_RESULT,
               dacModule);
-      masterDremioDaemon = null;
-      startCurrentDaemon();
+      currentDremioDaemon.init();
     }
 
-    initClient(mapperUpdate.apply(configureObjectMapper()));
+    initClient(mapperUpdate.apply(newClientObjectMapper()));
   }
 
-  protected static NamespaceService newNamespaceService() {
+  protected static NamespaceService getNamespaceService() {
     return l(NamespaceService.class);
   }
 
-  protected static CatalogService newCatalogService() {
+  protected static CatalogService getCatalogService() {
     return l(CatalogService.class);
   }
 
-  protected static SourceService newSourceService() {
+  protected static SourceService getSourceService() {
     return l(SourceService.class);
   }
 
-  protected static ReflectionServiceHelper newReflectionServiceHelper() {
-    return l(ReflectionServiceHelper.class);
+  protected static UserService getUserService() {
+    return l(UserService.class);
   }
 
-  protected static DatasetVersionMutator newDatasetVersionMutator() {
+  protected static JobsService getJobsService() {
+    return l(JobsService.class);
+  }
+
+  protected static OptionManager getOptionManager() {
+    return l(OptionManager.class);
+  }
+
+  protected static CollaborationHelper getCollaborationHelper() {
+    return l(CollaborationHelper.class);
+  }
+
+  protected static DatasetVersionMutator getDatasetVersionMutator() {
     return l(DatasetVersionMutator.class);
   }
 
@@ -565,171 +531,74 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return l(SabotContext.class);
   }
 
+  protected static DremioRootAllocator getRootAllocator() {
+    BufferAllocator allocator = getSabotContext().getAllocator();
+    if (allocator instanceof DremioRootAllocator) {
+      return (DremioRootAllocator) allocator;
+    }
+    throw new IllegalStateException("Not a DremioRootAllocator: " + allocator.getClass().getName());
+  }
+
   protected static <T> T l(Class<T> clazz) {
-    return dremioBinder.lookup(clazz);
+    return currentDremioDaemon.getInstance(clazz);
   }
 
   protected static <T> Provider<T> p(Class<T> clazz) {
-    return dremioBinder.provider(clazz);
+    return currentDremioDaemon.getProvider(clazz);
+  }
+
+  protected static <T> T lMaster(Class<T> clazz) {
+    if (masterDremioDaemon != null) {
+      return masterDremioDaemon.getInstance(clazz);
+    }
+    return l(clazz);
   }
 
   protected static <T> Provider<T> pMaster(Class<T> clazz) {
     if (masterDremioDaemon != null) {
-      return masterDremioDaemon.getBindingProvider().provider(clazz);
+      return masterDremioDaemon.getProvider(clazz);
     }
-
     return p(clazz);
   }
 
-  protected void deleteSource(String name) {
-    ((CatalogServiceImpl) l(CatalogService.class)).deleteSource(name);
-  }
-
-  protected static void setBinder(Binder binder) {
-    dremioBinder = binder;
-  }
-
-  public static Binder createBinder(BindingProvider dremioBindingProvider) {
-    Binder dremioBinder = dremioBindingProvider.newChild();
-    dremioBinder.bind(
-        SecurityContext.class,
-        new SecurityContext() {
-          @Override
-          public Principal getUserPrincipal() {
-            return new Principal() {
-              @Override
-              public String getName() {
-                return DEFAULT_USERNAME;
-              }
-            };
-          }
-
-          @Override
-          public boolean isUserInRole(String role) {
-            return true; // admin
-          }
-
-          @Override
-          public boolean isSecure() {
-            return true;
-          }
-
-          @Override
-          public String getAuthenticationScheme() {
-            return null;
-          }
-        });
-    SabotContext context = dremioBinder.lookup(SabotContext.class);
-    dremioBinder.bind(OptionManager.class, context.getOptionManager());
-    return dremioBinder;
-  }
-
   protected static void closeExecutorDaemon() throws Exception {
-    if (!executorDaemonClosed) {
+    try {
       executorDaemon.close();
-      executorDaemonClosed = true;
+    } finally {
+      executorDaemon = null;
     }
-  }
-
-  private static int getResourceAllocatorCount() {
-    return l(BufferAllocatorFactory.class).getBaseAllocator().getChildAllocators().size();
-  }
-
-  private static int getQueryPlanningAllocatorCount() {
-    final BufferAllocator queryPlanningAllocator =
-        l(SabotContext.class).getQueryPlanningAllocator();
-    if (queryPlanningAllocator == null) {
-      return 0;
-    }
-    return queryPlanningAllocator.getChildAllocators().size();
-  }
-
-  private static void assertAllocatorsAreClosed() {
-    int resourceAllocatorCount = getResourceAllocatorCount();
-    int queryPlanningAllocatorCount = getQueryPlanningAllocatorCount();
-    SoftAssertions.assertSoftly(
-        softly -> {
-          softly
-              .assertThat(resourceAllocatorCount)
-              .withFailMessage("Not all resource allocators were closed.")
-              .isEqualTo(0);
-          softly
-              .assertThat(queryPlanningAllocatorCount)
-              .withFailMessage(
-                  "Not all query-planning allocators were closed. "
-                      + "There are queries that are still running and have not been cancelled.")
-              .isEqualTo(0);
-        });
   }
 
   @AfterAll
   public static void serverClose() throws Exception {
-    if (dremioBinder == null) {
-      return;
-    }
     try (TimedBlock b = Timer.time("BaseTestServerJunit5.@AfterAll")) {
-      // Prevent new incoming job requests
-      final NodeRegistration nodeRegistration = l(NodeRegistration.class);
-      final ForemenWorkManager foremenWorkManager = l(ForemenWorkManager.class);
-      nodeRegistration.close();
-      foremenWorkManager.close();
 
-      // Drain actively running jobs
-      await()
-          .atMost(Duration.ofSeconds(50))
-          .until(() -> foremenWorkManager.getActiveQueryCount() == 0);
+      if (currentDremioDaemon != null) {
+        BaseTestServer.assertNoRunningQueries(currentDremioDaemon);
+        BaseTestServer.assertAllocatorsAreClosed(currentDremioDaemon);
+      }
 
-      // Fail if any jobs are still running and record query information
-      Assertions.assertEquals(
-          0,
-          foremenWorkManager.getActiveQueryCount(),
-          () -> {
-            final StringBuilder msg = new StringBuilder();
-            msg.append("There are actively running queries that have not finished:\n");
-            foremenWorkManager
-                .getActiveProfiles()
-                .forEach(
-                    profile ->
-                        msg.append("Query ")
-                            .append(QueryIdHelper.getQueryId(profile.getId()))
-                            .append(": ")
-                            .append(profile.getQuery())
-                            .append("\n\n"));
-            return msg.toString();
-          });
-
-      assertAllocatorsAreClosed();
-
-      defaultUser =
-          true; // in case another test disables the default user and forgets to enable it back
+      // in case another test disables the default user and forgets to enable it back
       // again at the end
+      defaultUser = true;
+
       AutoCloseables.close(
-          new AutoCloseable() {
-            @Override
-            public void close() throws Exception {
-              if (dremioClient != null) {
-                // since the client is only created when needed, make sure we don't re-close an old
-                // client.
-                DremioClient localClient = dremioClient;
-                dremioClient = null;
-                localClient.close();
-              }
+          dremioClient,
+          () -> {
+            if (client != null) {
+              client.close();
             }
           },
-          new AutoCloseable() {
-            @Override
-            public void close() throws Exception {
-              if (client != null) {
-                client.close();
-              }
-            }
-          },
-          (executorDaemonClosed ? null : executorDaemon),
+          executorDaemon,
           currentDremioDaemon,
           masterDremioDaemon,
           populator);
-      executorDaemonClosed = true;
+    } finally {
       dremioClient = null;
+      executorDaemon = null;
+      currentDremioDaemon = null;
+      masterDremioDaemon = null;
+      populator = null;
     }
   }
 
@@ -771,14 +640,6 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
                 + apiUrl));
   }
 
-  public static void assertContains(String expectedContains, String string) {
-    assertThat(string).contains(expectedContains);
-  }
-
-  public static void assertNotContains(String expectedNotContains, String string) {
-    assertThat(string).doesNotContain(expectedNotContains);
-  }
-
   protected UserLoginSession getUls() {
     return uls;
   }
@@ -797,17 +658,14 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   }
 
   public static void clearAllDataExceptUser() throws IOException, NamespaceException {
-    @SuppressWarnings("resource")
-    DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
     TestUtilities.clear(
-        daemon.getBindingProvider().lookup(CatalogService.class),
-        daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class),
+        lMaster(CatalogService.class),
+        lMaster(LegacyKVStoreProvider.class),
+        lMaster(KVStoreProvider.class),
         ImmutableList.of(SimpleUserService.USER_STORE),
         ImmutableList.of("cp"));
     if (isMultinode()) {
-      ((CatalogServiceImpl)
-              getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class))
-          .synchronizeSources();
+      ((CatalogServiceImpl) getCatalogService()).synchronizeSources();
     }
   }
 
@@ -815,19 +673,16 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     clearAllDataExceptUser();
     final SpaceConfig foo = new SpaceConfig().setName("spacefoo");
     SpacePath spacePath = new SpacePath(new SpaceName(foo.getName()));
-    newNamespaceService().addOrUpdateSpace(spacePath.toNamespaceKey(), foo);
-    newNamespaceService()
-        .addOrUpdateFolder(
-            new FolderPath("spacefoo.folderbar").toNamespaceKey(),
-            new FolderConfig()
-                .setName("folderbar")
-                .setFullPathList(asList("spacefoo", "folderbar")));
-    newNamespaceService()
-        .addOrUpdateFolder(
-            new FolderPath("spacefoo.folderbar.folderbaz").toNamespaceKey(),
-            new FolderConfig()
-                .setName("folderbaz")
-                .setFullPathList(asList("spacefoo", "folderbar", "folderbaz")));
+    NamespaceService namespaceService = getNamespaceService();
+    namespaceService.addOrUpdateSpace(spacePath.toNamespaceKey(), foo);
+    namespaceService.addOrUpdateFolder(
+        new FolderPath("spacefoo.folderbar").toNamespaceKey(),
+        new FolderConfig().setName("folderbar").setFullPathList(asList("spacefoo", "folderbar")));
+    namespaceService.addOrUpdateFolder(
+        new FolderPath("spacefoo.folderbar.folderbaz").toNamespaceKey(),
+        new FolderConfig()
+            .setName("folderbaz")
+            .setFullPathList(asList("spacefoo", "folderbar", "folderbaz")));
   }
 
   protected DatasetPath getDatasetPath(DatasetUI datasetUI) {
@@ -865,6 +720,31 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
 
   protected DatasetUI getDataset(DatasetPath datasetPath) {
     return expectSuccess(getDatasetInvocation(datasetPath), DatasetUI.class);
+  }
+
+  protected DatasetUI getDatasetWithVersion(
+      DatasetPath datasetPath, String refType, String refValue) {
+    return expectSuccess(
+        getBuilder(
+                getAPIv2()
+                    .path("dataset/" + datasetPath.toString())
+                    .queryParam("refType", refType)
+                    .queryParam("refValue", refValue))
+            .buildGet(),
+        DatasetUI.class);
+  }
+
+  protected NotFoundErrorMessage getDatasetWithVersionExpectError(
+      DatasetPath datasetPath, String refType, String refValue) {
+    return expectError(
+        CLIENT_ERROR,
+        getBuilder(
+                getAPIv2()
+                    .path("dataset/" + datasetPath.toString())
+                    .queryParam("refType", refType)
+                    .queryParam("refValue", refValue))
+            .buildGet(),
+        NotFoundErrorMessage.class);
   }
 
   protected DatasetUI getVersionedDataset(DatasetVersionResourcePath datasetVersionPath) {
@@ -1043,6 +923,20 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return expectSuccess(invocation, DatasetUI.class);
   }
 
+  protected DatasetUI delete(
+      String datasetResourcePath, String savedVersion, String refType, String refValue) {
+    final Invocation invocation =
+        getBuilder(
+                getAPIv2()
+                    .path(datasetResourcePath)
+                    .queryParam("savedTag", savedVersion)
+                    .queryParam("refType", refType)
+                    .queryParam("refValue", refValue))
+            .buildDelete();
+
+    return expectSuccess(invocation, DatasetUI.class);
+  }
+
   protected void saveExpectConflict(DatasetUI datasetUI, String saveVersion) {
     final Invocation invocation =
         getBuilder(
@@ -1156,46 +1050,32 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return new SqlQuery(sql, DEFAULT_USERNAME);
   }
 
-  protected void assertErrorMessage(final GenericErrorMessage error, final String errorMessage) {
-    assertEquals(
-        "error message should be '" + errorMessage + "'", errorMessage, error.getErrorMessage());
-  }
-
-  protected void assertErrorMessage(
-      final GenericErrorMessage error, final String errorMessage, final String expectedMoreInfo) {
-    assertEquals(
-        "error message should be '" + errorMessage + "'", errorMessage, error.getErrorMessage());
-    assertThat(error.getMoreInfo()).contains(expectedMoreInfo);
-  }
-
   protected JobId submitAndWaitUntilSubmitted(JobRequest request, JobStatusListener listener) {
-    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(
-        l(JobsService.class), request, listener);
+    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(getJobsService(), request, listener);
   }
 
   protected JobId submitAndWaitUntilSubmitted(JobRequest request) {
-    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(l(JobsService.class), request);
+    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(getJobsService(), request);
   }
 
   protected JobId submitJobAndWaitUntilCompletion(JobRequest request, JobStatusListener listener) {
-    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
-            l(JobsService.class), request, listener)
+    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(getJobsService(), request, listener)
         .getJobId();
   }
 
   protected boolean submitJobAndCancelOnTimeOut(JobRequest request, long timeOutInMillis)
       throws Exception {
     return JobsServiceTestUtils.submitJobAndCancelOnTimeout(
-        l(JobsService.class), request, timeOutInMillis);
+        getJobsService(), request, timeOutInMillis);
   }
 
   protected static JobId submitJobAndWaitUntilCompletion(JobRequest request) {
-    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request);
+    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(getJobsService(), request);
   }
 
   protected static JobSubmission getJobSubmissionAfterJobCompletion(JobRequest request) {
     return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
-        l(JobsService.class), request, JobStatusListener.NO_OP);
+        getJobsService(), request, JobStatusListener.NO_OP);
   }
 
   protected void runQuery(
@@ -1233,7 +1113,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   }
 
   protected static UserBitShared.QueryProfile getQueryProfile(JobRequest request) throws Exception {
-    return JobsServiceTestUtils.getQueryProfile(l(JobsService.class), request);
+    return JobsServiceTestUtils.getQueryProfile(getJobsService(), request);
   }
 
   protected static void setSystemOption(final OptionValidator option, final String value) {
@@ -1241,21 +1121,11 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
   }
 
   protected static void setSystemOption(String optionName, String optionValue) {
-    JobsServiceTestUtils.setSystemOption(l(JobsService.class), optionName, optionValue);
+    JobsServiceTestUtils.setSystemOption(getJobsService(), optionName, optionValue);
   }
 
   protected static void resetSystemOption(String optionName) {
-    JobsServiceTestUtils.resetSystemOption(l(JobsService.class), optionName);
-  }
-
-  protected static AutoCloseable enableRowCountStat(boolean enableStatAfterTest) {
-    setSystemOption(PlannerSettings.USE_ROW_COUNT_STATISTICS.getOptionName(), "true");
-    setSystemOption(PlannerSettings.USE_STATISTICS.getOptionName(), "false");
-    return () -> {
-      setSystemOption(PlannerSettings.USE_ROW_COUNT_STATISTICS.getOptionName(), "false");
-      setSystemOption(
-          PlannerSettings.USE_STATISTICS.getOptionName(), String.valueOf(enableStatAfterTest));
-    };
+    JobsServiceTestUtils.resetSystemOption(getJobsService(), optionName);
   }
 
   protected static AutoCloseable withSystemOption(String optionName, String optionValue) {
@@ -1279,17 +1149,12 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return queryProfile;
   }
 
-  protected static AutoCloseable enableVersionedViews() {
-    setSystemOption(VERSIONED_VIEW_ENABLED.getOptionName(), "true");
-    return () -> {
-      setSystemOption(
-          VERSIONED_VIEW_ENABLED.getOptionName(),
-          VERSIONED_VIEW_ENABLED.getDefault().getBoolVal().toString());
-    };
-  }
-
   protected static String readResourceAsString(String fileName) {
     return TestTools.readTestResourceAsString(fileName);
+  }
+
+  protected WebTarget getUserApiV2(final String username) {
+    return getAPIv2().path("user/" + username);
   }
 
   protected static JobRequest createNewJobRequestFromSql(String sql) {
@@ -1307,7 +1172,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
         getJobSubmissionAfterJobCompletion(createJobRequestFromSqlAndSessionId(sql, sessionId))
             .getSessionId()
             .getId();
-    AssertionsForClassTypes.assertThat(executedSesssionId).isEqualTo(sessionId);
+    assertThat(executedSesssionId).isEqualTo(sessionId);
   }
 
   protected static String runQueryAndGetSessionId(String sql) {
@@ -1346,6 +1211,18 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
       assertEquals(rows, truncData.getReturnedRowCount());
       assertEquals(columns, truncData.getColumns().size());
     }
+  }
+
+  protected JobDataFragment runQueryAndGetResults(String sql, BufferAllocator allocator)
+      throws JobNotFoundException {
+    return submitJobAndGetData(
+        l(JobsService.class),
+        JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(sql, Collections.emptyList(), DEFAULT_USERNAME))
+            .build(),
+        0,
+        500,
+        allocator);
   }
 
   protected static JobId runQuery(String query) {

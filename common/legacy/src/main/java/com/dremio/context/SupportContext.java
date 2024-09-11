@@ -42,7 +42,8 @@ public class SupportContext implements SerializableContext {
     ORG_DELETE_ROLE("org-delete"),
     CONSISTENCY_FIXER_ROLE("consistency-fixer"),
     DEBUG_ROLE("debug-role"),
-    SUPPORT_KEY_MANAGEMENT_ROLE("support-key-management");
+    SUPPORT_KEY_MANAGEMENT_ROLE("support-key-management"),
+    SECRET_ROTATION_ROLE("secret-rotation");
 
     private final String value;
 

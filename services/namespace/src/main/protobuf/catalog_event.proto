@@ -1,0 +1,52 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+package com.dremio.namespace;
+
+option java_package = "com.dremio.service.namespace";
+option java_outer_classname = "CatalogEventProto";
+
+message CatalogEventMessage {
+  enum CatalogEventType {
+    CATALOG_EVENT_TYPE_UNSPECIFIED = 0;
+
+    CATALOG_EVENT_TYPE_CREATED = 1;
+
+    CATALOG_EVENT_TYPE_UPDATED = 2;
+
+    CATALOG_EVENT_TYPE_DELETED = 3;
+  }
+
+  message VersionContext {
+    // BRANCH, TAG, or COMMIT. This is a string to match Java representation.
+    string ref_type = 1;
+
+    string ref_value = 2;
+  }
+
+  message CatalogEvent {
+    CatalogEventType event_type = 1;
+
+    // Catalog object path components.
+    repeated string path = 2;
+
+    // For versioned entities, it's a reference to a branch, tag, commit.
+    optional VersionContext version_context = 3;
+  }
+
+  repeated CatalogEvent events = 1;
+}

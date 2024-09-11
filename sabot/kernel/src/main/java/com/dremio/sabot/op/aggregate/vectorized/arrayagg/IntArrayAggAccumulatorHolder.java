@@ -19,15 +19,13 @@ package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
 
-public final class IntArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<Integer, IntVector> {
+public final class IntArrayAggAccumulatorHolder extends ArrayAggAccumulatorHolder<Integer> {
   private final IntVector vector;
 
-  public IntArrayAggAccumulatorHolder(
-      final int maxValuesPerBatch, final BufferAllocator allocator) {
-    super(maxValuesPerBatch, allocator);
+  public IntArrayAggAccumulatorHolder(final BufferAllocator allocator, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector = new IntVector("array_agg IntArrayAggAccumulatorHolder", allocator);
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -51,5 +49,18 @@ public final class IntArrayAggAccumulatorHolder
   @Override
   public Integer getItem(int index) {
     return vector.get(index);
+  }
+
+  @Override
+  public double getSizeOfElement(Integer element) {
+    return IntVector.TYPE_WIDTH;
+  }
+
+  @Override
+  public void reAllocIfNeeded(Integer data) {
+    super.reAllocIfNeeded(data);
+    if (numItems + 1 >= vector.getValueCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

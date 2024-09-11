@@ -25,10 +25,12 @@ import static com.dremio.exec.store.SystemSchemas.DATAFILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.DELETE_FILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.FILE_SIZE;
 import static com.dremio.exec.store.SystemSchemas.ICEBERG_METADATA;
+import static com.dremio.exec.store.SystemSchemas.ICEBERG_POS_DELETE_FILE_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.IMPLICIT_SEQUENCE_NUMBER;
 import static com.dremio.exec.store.SystemSchemas.PARTITION_SPEC_ID;
 import static com.dremio.exec.store.SystemSchemas.POS;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getCurrentPartitionSpec;
+import static com.dremio.exec.store.iceberg.IcebergUtils.hasEqualityDeletes;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.SUM;
@@ -324,7 +326,24 @@ public class OptimizePlanGenerator extends TableManagementPlanGenerator {
   ││   IcebergManifestListPrel      │              │IcebergManifestListPrel │  │  │    │IcebergManifestListPrel │ │  │          │  │          │
   │└────────────────────────────────┘              └────────────────────────┘  │  │    └────────────────────────┘ │  └──────────┘  └──────────┘
   └────────────────────────────────────────────────────────────────────────────┘  └───────────────────────────────┘
-  */
+
+   * Plan for OPTIMIZE TABLE operation when table has equality delete files.
+   *
+   * The overall structure is similar but Section *A* will be simpler
+   * The purpose of Section *A* is still to find the DATA file list that needs to be updated. but unlike Positional deletes, equality delete file contains
+   * no data file information, we will simply return all the data files. As the result, Section *A* will looks like:
+                 ▲
+  ┌──────────────│───────────────────┐
+  │              │             *A*   │
+  │┌─────────────┴──────────────────┐│
+  ││  IcebergManifestScanPrel       ││
+  ││    DATA                        ││
+  │└──────────────▲─────────────────┘│
+  │┌──────────────┴─────────────────┐│
+  ││   IcebergManifestListPrel      ││
+  │└────────────────────────────────┘│
+  └──────────────────────────────────┘
+   * */
   private Prel deleteAwareOptimizePlan() throws InvalidRelException {
     return getDataWriterPlan(
         planBuilder.buildDataScanWithSplitGen(
@@ -544,9 +563,26 @@ public class OptimizePlanGenerator extends TableManagementPlanGenerator {
   /** [*A*] from {@link #deleteAwareOptimizePlan} */
   @Override
   protected RelNode buildRemoveSideDataFilePlan() {
-    return subOptimalDataFilesFilter(
-        planBuilder.buildDataManifestScanWithDeleteJoin(
-            aggregateDeleteFiles(planBuilder.buildDeleteFileScan(context))));
+    if (hasEqualityDeletes(tableMetadata)) {
+      // for equality deletes
+      return buildRemoveSideDataFilePlanForEqualityDeletes();
+    } else {
+      // for positional deletes
+      return subOptimalDataFilesFilter(
+          planBuilder.buildDataManifestScanWithDeleteJoin(
+              aggregateDeleteFiles(
+                  planBuilder.buildDeleteFileScan(context, ICEBERG_POS_DELETE_FILE_SCHEMA))));
+    }
+  }
+
+  private RelNode buildRemoveSideDataFilePlanForEqualityDeletes() {
+    return planBuilder.buildManifestRel(
+        new ImmutableManifestScanOptions.Builder()
+            .setIncludesSplitGen(false)
+            .setIncludesIcebergMetadata(true)
+            .setManifestContentType(ManifestContentType.DATA)
+            .build(),
+        false);
   }
 
   /** [*B*] from {@link #deleteAwareOptimizePlan} */

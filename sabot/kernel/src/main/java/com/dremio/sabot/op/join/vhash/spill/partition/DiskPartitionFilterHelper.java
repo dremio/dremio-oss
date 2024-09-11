@@ -45,7 +45,7 @@ public class DiskPartitionFilterHelper {
       Optional<BloomFilter> inputBloomFilter,
       HashTableKeyReader keyReader,
       FixedBlockVector fixed,
-      VariableBlockVector var,
+      VariableBlockVector variable,
       int pivotShift,
       int records,
       ArrowBuf sv2) {
@@ -62,7 +62,7 @@ public class DiskPartitionFilterHelper {
       final ArrowBuf keyHolder = keyReader.getKeyHolder();
       iterateOverRecords(
           fixed,
-          var,
+          variable,
           pivotShift,
           records,
           sv2,
@@ -85,7 +85,7 @@ public class DiskPartitionFilterHelper {
       List<ValueListFilterBuilder> valueListFilterBuilderList,
       PivotDef pivot,
       FixedBlockVector fixed,
-      VariableBlockVector var,
+      VariableBlockVector variable,
       int pivotShift,
       int records,
       ArrowBuf sv2) {
@@ -112,7 +112,7 @@ public class DiskPartitionFilterHelper {
         final ArrowBuf key = keyReader.getKeyValBuf();
         iterateOverRecords(
             fixed,
-            var,
+            variable,
             pivotShift,
             records,
             sv2,
@@ -146,13 +146,13 @@ public class DiskPartitionFilterHelper {
 
   private static void iterateOverRecords(
       FixedBlockVector fixed,
-      VariableBlockVector var,
+      VariableBlockVector variable,
       int pivotShift,
       int records,
       ArrowBuf sv2,
       BiConsumer<Long, Long> consumer) {
     ArrowBuf keyFixed = fixed.getBuf();
-    ArrowBuf keyVar = var == null ? null : var.getBuf();
+    ArrowBuf keyVar = variable == null ? null : variable.getBuf();
     final long keyFixedVectorAddr = keyFixed.memoryAddress();
     final long keyVarVectorAddr = keyVar == null ? 0 : keyVar.memoryAddress();
     final int blockWidth = fixed.getBlockWidth();

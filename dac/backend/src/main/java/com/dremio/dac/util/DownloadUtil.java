@@ -27,7 +27,6 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsProtoUtil;
@@ -61,7 +60,7 @@ public class DownloadUtil {
           QueryType.UI_INTERNAL_PREVIEW,
           QueryType.UI_EXPORT);
 
-  private static ScheduledExecutorService executorService =
+  private static final ScheduledExecutorService executorService =
       Executors.newScheduledThreadPool(
           Integer.parseInt(System.getProperty(DOWNLOAD_POOL_SIZE, "5")),
           r -> new Thread(r, "job-download"));
@@ -74,14 +73,7 @@ public class DownloadUtil {
     this.datasetService = datasetService;
   }
 
-  public ChunkedOutput<byte[]> startChunckedDownload(
-      JobId previewJobId, String currentUser, DownloadFormat downloadFormat, long delay)
-      throws JobNotFoundException {
-
-    // first check that current user has access to preview data
-    final GetJobRequest previewJobRequest =
-        GetJobRequest.newBuilder().setJobId(previewJobId).setUserName(currentUser).build();
-
+  public void checkAccess(JobId previewJobId, String currentUser) throws JobNotFoundException {
     // ensure that we could access to the job.
     final JobDetails previewJobDetails =
         jobsService.getJobDetails(
@@ -89,9 +81,9 @@ public class DownloadUtil {
                 .setJobId(JobsProtoUtil.toBuf(previewJobId))
                 .setUserName(currentUser)
                 .build());
-    final JobInfo previewJobInfo = JobsProtoUtil.getLastAttempt(previewJobDetails).getInfo();
-    final List<String> datasetPath = previewJobInfo.getDatasetPathList();
 
+    // ensure job type is supported for download
+    final JobInfo previewJobInfo = JobsProtoUtil.getLastAttempt(previewJobDetails).getInfo();
     if (!JOB_TYPES_TO_DOWNLOAD.contains(previewJobInfo.getQueryType())) {
       logger.error(
           "Not supported job type: {} for job '{}'. Supported job types are: {}",
@@ -104,12 +96,47 @@ public class DownloadUtil {
                   .collect(Collectors.toList())));
       throw new IllegalArgumentException("Data for the job could not be downloaded");
     }
+  }
 
+  public JobId submitAsyncDownload(
+      JobId previewJobId, String currentUser, DownloadFormat downloadFormat)
+      throws JobNotFoundException {
+    checkAccess(previewJobId, currentUser);
+    JobDetails previewJobDetails =
+        jobsService.getJobDetails(
+            JobDetailsRequest.newBuilder()
+                .setJobId(JobsProtoUtil.toBuf(previewJobId))
+                .setUserName(currentUser)
+                .setSkipProfileInfo(true)
+                .build());
+    final JobInfo previewJobInfo = JobsProtoUtil.getLastAttempt(previewJobDetails).getInfo();
+    final List<String> datasetPath = previewJobInfo.getDatasetPathList();
+    // return job id of downloadJob
+    if (previewJobInfo.getQueryType() != QueryType.UI_EXPORT) {
+      DatasetDownloadManager manager = datasetService.downloadManager();
+      return manager.scheduleDownload(
+          datasetPath,
+          previewJobInfo.getSql(),
+          downloadFormat,
+          previewJobInfo.getContextList(),
+          currentUser,
+          previewJobId);
+    } else {
+      return previewJobId;
+    }
+  }
+
+  public ChunkedOutput<byte[]> startChunckedDownload(
+      JobId previewJobId, String currentUser, DownloadFormat downloadFormat, long delay)
+      throws JobNotFoundException {
+
+    checkAccess(previewJobId, currentUser);
     final ChunkedOutput<byte[]> output = new ChunkedOutput<>(byte[].class);
 
     executorService.schedule(
         () -> {
-          getJobResults(previewJobId, datasetPath, downloadFormat, currentUser, output);
+          triggerInternalJobWaitForCompletionAndGetDownloadFile(
+              previewJobId, downloadFormat, currentUser, output);
         },
         delay,
         TimeUnit.MILLISECONDS);
@@ -117,9 +144,24 @@ public class DownloadUtil {
     return output;
   }
 
-  private void getJobResults(
+  public ChunkedOutput<byte[]> startChunckedDownload(
+      JobDetails downloadJobDetails, String currentUser, long delay) {
+    final ChunkedOutput<byte[]> output = new ChunkedOutput<>(byte[].class);
+    executorService.schedule(
+        () -> {
+          try {
+            getDownloadFile(downloadJobDetails, currentUser, output);
+          } catch (Exception e) {
+            handleException(e, output);
+          }
+        },
+        delay,
+        TimeUnit.MILLISECONDS);
+    return output;
+  }
+
+  private void triggerInternalJobWaitForCompletionAndGetDownloadFile(
       JobId previewJobId,
-      List<String> datasetPath,
       DownloadFormat downloadFormat,
       String currentUser,
       ChunkedOutput<byte[]> output) {
@@ -136,6 +178,7 @@ public class DownloadUtil {
 
       JobDetails downloadJobDetails = previewJobDetails;
       final JobInfo previewJobInfo = JobsProtoUtil.getLastAttempt(previewJobDetails).getInfo();
+      final List<String> datasetPath = previewJobInfo.getDatasetPathList();
 
       if (previewJobInfo.getQueryType() != QueryType.UI_EXPORT) {
         DatasetDownloadManager manager = datasetService.downloadManager();
@@ -159,38 +202,47 @@ public class DownloadUtil {
         downloadJobDetails = jobsService.getJobDetails(jobDetailsRequest);
         checkJobCompletionState(downloadJobDetails);
       }
-
-      final JobAttempt lastAttempt = JobsProtoUtil.getLastAttempt(downloadJobDetails);
-      final DatasetDownloadManager.DownloadDataResponse downloadDataResponse =
-          datasetService.downloadData(
-              lastAttempt.getInfo().getDownloadInfo(),
-              lastAttempt.getInfo().getResultMetadataList(),
-              currentUser);
-
-      try (InputStream input = downloadDataResponse.getInput();
-          ChunkedOutput toClose = output) {
-        byte[] buf = new byte[4096];
-        int bytesRead = input.read(buf);
-        while (bytesRead >= 0) {
-          if (bytesRead < buf.length) {
-            output.write(Arrays.copyOf(buf, bytesRead));
-          } else {
-            output.write(buf);
-          }
-          bytesRead = input.read(buf);
-        }
-      }
+      getDownloadFile(downloadJobDetails, currentUser, output);
     } catch (Exception e) {
-      try {
-        // TODO : https://dremio.atlassian.net/browse/DX-34302
-        // no error propagation on failures.
-        logger.error("Failed downloading the file", e);
-        output.close();
-      } catch (IOException ex) {
-        logger.warn("Failure closing the output.");
-      }
-      throw new WebApplicationException(e);
+      handleException(e, output);
     }
+  }
+
+  public void getDownloadFile(
+      JobDetails downloadJobDetails, String currentUser, ChunkedOutput<byte[]> output)
+      throws IOException {
+    final JobAttempt lastAttempt = JobsProtoUtil.getLastAttempt(downloadJobDetails);
+    final DatasetDownloadManager.DownloadDataResponse downloadDataResponse =
+        datasetService.downloadData(
+            lastAttempt.getInfo().getDownloadInfo(),
+            lastAttempt.getInfo().getResultMetadataList(),
+            currentUser);
+
+    try (InputStream input = downloadDataResponse.getInput();
+        ChunkedOutput<byte[]> toClose = output) {
+      byte[] buf = new byte[4096];
+      int bytesRead = input.read(buf);
+      while (bytesRead >= 0) {
+        if (bytesRead < buf.length) {
+          output.write(Arrays.copyOf(buf, bytesRead));
+        } else {
+          output.write(buf);
+        }
+        bytesRead = input.read(buf);
+      }
+    }
+  }
+
+  private void handleException(Exception e, ChunkedOutput<byte[]> output) {
+    try {
+      // TODO : https://dremio.atlassian.net/browse/DX-34302
+      // no error propagation on failures.
+      logger.error("Failed downloading the file", e);
+      output.close();
+    } catch (IOException ex) {
+      logger.warn("Failure closing the output.");
+    }
+    throw new WebApplicationException(e);
   }
 
   private static void checkJobCompletionState(final JobDetails jobDetails)

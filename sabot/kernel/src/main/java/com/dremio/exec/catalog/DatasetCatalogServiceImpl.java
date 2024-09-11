@@ -22,7 +22,6 @@ import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.PartitionChunkListingImpl;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.catalog.AddOrUpdateDatasetRequest;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc;
 import com.dremio.service.catalog.GetDatasetRequest;
@@ -103,13 +102,7 @@ public class DatasetCatalogServiceImpl
     logger.debug("Request received: {}", request);
     try {
       Preconditions.checkArgument(!request.getDatasetPathList().isEmpty());
-      final DatasetCatalog catalog =
-          catalogServiceProvider
-              .get()
-              .getCatalog(
-                  MetadataRequestOptions.of(
-                      SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-                          .build()));
+      final DatasetCatalog catalog = catalogServiceProvider.get().getSystemUserCatalog();
 
       final NamespaceKey name = new NamespaceKey(request.getDatasetPathList());
 
@@ -395,6 +388,10 @@ public class DatasetCatalogServiceImpl
       fileConfig.setCtime(newFileConfig.getCtime());
     }
 
+    if (newFileConfig.hasFileNameRegex()) {
+      fileConfig.setFileNameRegex(newFileConfig.getFileNameRegex());
+    }
+
     return fileConfig;
   }
 
@@ -463,6 +460,10 @@ public class DatasetCatalogServiceImpl
 
     if (fileConfig.getCtime() != null) {
       newFileConfigBuilder.setCtime(fileConfig.getCtime());
+    }
+
+    if (fileConfig.getFileNameRegex() != null) {
+      newFileConfigBuilder.setFileNameRegex(fileConfig.getFileNameRegex());
     }
 
     return newFileConfigBuilder.build();

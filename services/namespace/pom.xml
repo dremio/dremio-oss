@@ -55,6 +55,16 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-pubsub-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-search</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-scheduler</artifactId>
     </dependency>
     <dependency>
@@ -171,29 +181,6 @@
       <plugin>
         <groupId>com.dremio.tools</groupId>
         <artifactId>dremio-protostuff-maven-plugin</artifactId>
-        <configuration>
-          <protoModules>
-            <protoModule>
-              <source>${project.basedir}/src/main/proto</source>
-              <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
-              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
-              <options>
-                <property>
-                  <name>generate_field_map</name>
-                  <value>true</value>
-                </property>
-                <property>
-                  <name>builder_pattern</name>
-                  <value>true</value>
-                </property>
-                <property>
-                  <name>com.dremio.exec.proto</name>
-                  <value>com.dremio.exec.proto.beans</value>
-                </property>
-              </options>
-            </protoModule>
-          </protoModules>
-        </configuration>
         <executions>
           <execution>
             <id>generate-sources</id>
@@ -201,6 +188,25 @@
               <goal>compile</goal>
             </goals>
             <phase>generate-sources</phase>
+            <configuration>
+              <protoModules>
+                <protoModule>
+                  <source>src/main/proto</source>
+                  <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
+                  <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
+                  <options>
+                    <property>
+                      <name>generate_field_map</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>builder_pattern</name>
+                      <value>true</value>
+                    </property>
+                  </options>
+                </protoModule>
+              </protoModules>
+            </configuration>
           </execution>
         </executions>
       </plugin>

@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store.dfs;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -53,10 +53,12 @@ import org.junit.Test;
 
 /** Tests for {@link SplitGenTableFunction} */
 public class TestEasySplitGenTableFunction extends BaseTestQuery {
-  private static String file1 = "file1.csv";
-  private static String file2 = "file2.csv";
-  private static long file1Length = 1000;
-  private static long file2Length = 1032;
+  private static final String FILE_1 = "file1.csv";
+  private static final String FILE_2 = "file2.csv";
+  private static final String FILE_3 = "file3.csv";
+  private static final long FILE_1_LENGTH = 1000;
+  private static final long FILE_2_LENGTH = 1032;
+  private static final long FILE_3_LENGTH = 211L;
 
   private interface RowHandler {
     void accept(String path, long size, long mtime);
@@ -77,7 +79,7 @@ public class TestEasySplitGenTableFunction extends BaseTestQuery {
         VectorContainer incoming = new VectorContainer()) {
       List<ValueVector> incomingVectors = ImmutableList.of(pathVector, sizeVector, mtimeVector);
       incoming.addCollection(incomingVectors);
-      incomingVectors.stream().forEach(ValueVector::allocateNew);
+      incomingVectors.forEach(ValueVector::allocateNew);
       AtomicInteger counter = new AtomicInteger(0);
       RowHandler incomingRow =
           (path, size, mtime) -> {
@@ -89,9 +91,9 @@ public class TestEasySplitGenTableFunction extends BaseTestQuery {
       EasySplitGenTableFunction tableFunction =
           new EasySplitGenTableFunction(null, getOpCtx(), getConfig());
       long currentTime = System.currentTimeMillis();
-      incomingRow.accept("file1.csv", file1Length, currentTime);
-      incomingRow.accept("file2.csv", file2Length, currentTime);
-      incomingRow.accept("file3.csv", 211L, currentTime);
+      incomingRow.accept(FILE_1, FILE_1_LENGTH, currentTime);
+      incomingRow.accept(FILE_2, FILE_2_LENGTH, currentTime);
+      incomingRow.accept(FILE_3, FILE_3_LENGTH, currentTime);
       incoming.setAllCount(3);
       incoming.buildSchema();
 
@@ -103,14 +105,14 @@ public class TestEasySplitGenTableFunction extends BaseTestQuery {
               VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_INFORMATION);
 
       tableFunction.startRow(0);
-      assertEquals(1, tableFunction.processRow(0, 2));
-      assertEquals(1, outgoingSplits.getValueCount());
-      assertSplit(extractSplit(outgoingSplits, 0), file1, 0L, file1Length);
+      assertThat(tableFunction.processRow(0, 2)).isEqualTo(1);
+      assertThat(outgoingSplits.getValueCount()).isEqualTo(1);
+      assertSplit(extractSplit(outgoingSplits, 0), FILE_1, 0L, FILE_1_LENGTH);
       tableFunction.startRow(1);
-      assertEquals(1, tableFunction.processRow(1, 5));
-      assertEquals(0, tableFunction.processRow(2, 2));
-      assertEquals(2, outgoingSplits.getValueCount());
-      assertSplit(extractSplit(outgoingSplits, 1), file2, 0L, file2Length);
+      assertThat(tableFunction.processRow(1, 5)).isEqualTo(1);
+      assertThat(tableFunction.processRow(2, 2)).isEqualTo(0);
+      assertThat(outgoingSplits.getValueCount()).isEqualTo(2);
+      assertSplit(extractSplit(outgoingSplits, 1), FILE_2, 0L, FILE_2_LENGTH);
       tableFunction.close();
     }
   }
@@ -120,12 +122,16 @@ public class TestEasySplitGenTableFunction extends BaseTestQuery {
 
   private void assertSplit(SplitAndPartitionInfo split, String path, long start, long fileSize)
       throws InvalidProtocolBufferException {
-    EasyProtobuf.EasyDatasetSplitXAttr xAttr =
-        EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(
-            split.getDatasetSplitInfo().getExtendedProperty());
-    assertEquals(path, xAttr.getPath());
-    assertEquals(start, xAttr.getStart());
-    assertEquals(fileSize, xAttr.getLength());
+    EasyProtobuf.EasyDatasetSplitXAttr xAttr = getXAttr(split);
+    assertThat(xAttr.getPath()).isEqualTo(path);
+    assertThat(xAttr.getStart()).isEqualTo(start);
+    assertThat(xAttr.getLength()).isEqualTo(fileSize);
+  }
+
+  private EasyProtobuf.EasyDatasetSplitXAttr getXAttr(SplitAndPartitionInfo split)
+      throws InvalidProtocolBufferException {
+    return EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(
+        split.getDatasetSplitInfo().getExtendedProperty());
   }
 
   private SplitAndPartitionInfo extractSplit(VarBinaryVector splits, int idx)
@@ -151,10 +157,8 @@ public class TestEasySplitGenTableFunction extends BaseTestQuery {
     fc.setLocation("/test");
     when(functionContext.getFormatSettings()).thenReturn(fc);
 
-    TableFunctionConfig config =
-        new TableFunctionConfig(
-            TableFunctionConfig.FunctionType.SPLIT_GENERATION, false, functionContext);
-    return config;
+    return new TableFunctionConfig(
+        TableFunctionConfig.FunctionType.SPLIT_GENERATION, false, functionContext);
   }
 
   private OperatorContext getOpCtx() {
@@ -162,7 +166,7 @@ public class TestEasySplitGenTableFunction extends BaseTestQuery {
     return new OperatorContextImpl(
         sabotContext.getConfig(),
         sabotContext.getDremioConfig(),
-        getAllocator(),
+        getTestAllocator(),
         sabotContext.getOptionManager(),
         10,
         sabotContext.getExpressionSplitCache());

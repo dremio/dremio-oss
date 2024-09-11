@@ -32,13 +32,30 @@ public class CopyIntoTableCrel extends CopyIntoTableRelBase {
       RelOptCluster cluster,
       RelTraitSet traitSet,
       RelOptTable table,
+      RelNode relNode,
       RelDataType rowType,
+      RelDataType transformationsRowType,
       CopyIntoTableContext copyIntoTableContext) {
-    super(Convention.NONE, cluster, traitSet, table, rowType, copyIntoTableContext);
+    super(
+        Convention.NONE,
+        cluster,
+        traitSet,
+        table,
+        relNode,
+        rowType,
+        transformationsRowType,
+        copyIntoTableContext);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new CopyIntoTableCrel(getCluster(), traitSet, getTable(), getRowType(), getContext());
+    return new CopyIntoTableCrel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        getRelNode(),
+        getRowType(),
+        getTransformationsRowType(),
+        getContext());
   }
 }

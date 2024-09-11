@@ -49,6 +49,11 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-pubsub-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-script</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -102,6 +107,19 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-embedded-metadata-pointer</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-node-metrics</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-node-metrics</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -498,7 +516,7 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-systemicebergtablescleaner</artifactId>
+      <artifactId>dremio-services-systemicebergtablesmaintainer</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -541,7 +559,7 @@
             <goals>
               <goal>java</goal>
             </goals>
-            <phase>process-classes</phase>
+            <phase>${buildtimescan.phase}</phase>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <arguments>
@@ -597,30 +615,6 @@
       <plugin>
         <groupId>com.dremio.tools</groupId>
         <artifactId>dremio-protostuff-maven-plugin</artifactId>
-        <configuration>
-          <protoModules>
-            <protoModule>
-              <source>${project.basedir}/src/main/proto</source>
-              <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
-              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
-              <!-- <output>io/protostuff/compiler/java_bean_dac.java.stg</output> -->
-              <options>
-                <property>
-                  <name>generate_field_map</name>
-                  <value>true</value>
-                </property>
-                <property>
-                  <name>builder_pattern</name>
-                  <value>true</value>
-                </property>
-                <property>
-                  <name>com.dremio.exec.proto</name>
-                  <value>com.dremio.exec.proto.beans</value>
-                </property>
-              </options>
-            </protoModule>
-          </protoModules>
-        </configuration>
         <executions>
           <execution>
             <id>generate-sources</id>
@@ -628,6 +622,29 @@
               <goal>compile</goal>
             </goals>
             <phase>generate-sources</phase>
+            <configuration>
+              <protoModules>
+                <protoModule>
+                  <source>src/main/proto</source>
+                  <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
+                  <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
+                  <options>
+                    <property>
+                      <name>generate_field_map</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>builder_pattern</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>com.dremio.exec.proto</name>
+                      <value>com.dremio.exec.proto.beans</value>
+                    </property>
+                  </options>
+                </protoModule>
+              </protoModules>
+            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -703,49 +720,9 @@
         <configuration>
           <systemPropertyVariables>
             <dremio.test.query.printing.silent>true</dremio.test.query.printing.silent>
-            <dremio.service.jobs.over_socket>false</dremio.service.jobs.over_socket>
             <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
-            <services.jobs.port>0</services.jobs.port>
           </systemPropertyVariables>
         </configuration>
-        <!-- Extra executions (on top of default-test) -->
-        <executions>
-          <execution>
-            <id>multinode-test</id>
-            <goals>
-              <goal>test</goal>
-            </goals>
-            <configuration>
-              <reportNameSuffix>multinode</reportNameSuffix>
-              <systemPropertyVariables>
-                <dremio_multinode>true</dremio_multinode>
-                <dremio.service.jobs.over_socket>true</dremio.service.jobs.over_socket>
-              </systemPropertyVariables>
-              <excludes>
-                <exclude>com.dremio.dac.server.TestBackupManager</exclude>
-                <exclude>com.dremio.dac.TestResetPassword</exclude>
-                <exclude>com.dremio.dac.resource.TestBootstrapResource</exclude>
-                <exclude>com.dremio.service.jobs.TestReflectionJob</exclude>
-              </excludes>
-            </configuration>
-          </execution>
-          <execution>
-            <id>jobs-over-socket-test</id>
-            <goals>
-              <goal>test</goal>
-            </goals>
-            <configuration>
-              <reportNameSuffix>remote_jobsservice</reportNameSuffix>
-              <systemPropertyVariables>
-                <dremio.service.jobs.over_socket>true</dremio.service.jobs.over_socket>
-              </systemPropertyVariables>
-              <includes>
-                <include>**/Test*Job*.java</include>
-                <include>**/*Job*Test.java</include>
-              </includes>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
@@ -767,26 +744,30 @@
               <testExcludes>
                 <testExclude>com/dremio/dac/service/admin/TestKVStoreReportService.java</testExclude>
                 <!-- Excluded as these test depend on DataplanePlugin -->
+                <testExclude>com/dremio/dac/api/TestCatalogResource.java</testExclude>
+                <testExclude>com/dremio/dac/api/TestPromotion.java</testExclude>
+                <testExclude>com/dremio/dac/api/TestTableLocationWithUnlimitedSplits.java</testExclude>
+                <testExclude>com/dremio/dac/api/TestViewSchemaLearning.java</testExclude>
                 <testExclude>com/dremio/dac/explore/TestAccelerationSettingsFromAPI.java</testExclude>
-                <testExclude>com/dremio/dac/explore/TestDatasetResource.java</testExclude>
                 <testExclude>com/dremio/dac/resource/TestNessieSourceResource.java</testExclude>
-                <testExclude>com/dremio/dac/service/TestCatalogServiceHelperForVersioned.java</testExclude>
-                <testExclude>com/dremio/dac/service/source/TestSourceService.java</testExclude>
+                <testExclude>com/dremio/dac/service/admin/TestKVStoreReportService.java</testExclude>
                 <testExclude>com/dremio/dac/service/datasets/TestDatasetVersionMutator.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowTagsHandler.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/handlers/TestDropTagHandler.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowLogsHandler.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/handlers/TestUseVersionHandler.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateBranchHandler.java</testExclude>
+                <testExclude>com/dremio/dac/service/source/TestSourceService.java</testExclude>
+                <testExclude>com/dremio/dac/service/TestCatalogServiceHelperForVersioned.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestAssignBranchHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestAssignTagHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateBranchHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateFolderHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateTagHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestDropBranchHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestDropTagHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestMergeBranchHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestShowBranchesHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowLogsHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestShowTablesHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowTagsHandler.java</testExclude>
                 <testExclude>com/dremio/exec/planner/sql/handlers/TestShowViewsHandler.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/handlers/TestDropBranchHandler.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/handlers/TestAssignTagHandler.java</testExclude>
-                <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateFolderHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestUseVersionHandler.java</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -808,6 +789,34 @@
           <scope>test</scope>
         </dependency>
       </dependencies>
+    </profile>
+    <profile>
+      <id>multinode-tests</id>
+      <activation>
+        <property>
+          <name>multinode-tests</name>
+        </property>
+      </activation>
+      <properties>
+        <jacoco.id>jacoco-multinode</jacoco.id>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <!-- modify surefire default execution to only run tests that depend on the "dremio_multinode" property-->
+              <artifactId>maven-surefire-plugin</artifactId>
+              <configuration>
+                <reportNameSuffix>multinode</reportNameSuffix>
+                <groups>dremio-multi-node-tests,com.dremio.dac.server.DremioMultiNodeTests</groups>
+                <systemPropertyVariables>
+                  <dremio_multinode>true</dremio_multinode>
+                </systemPropertyVariables>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
     </profile>
   </profiles>
 </project>

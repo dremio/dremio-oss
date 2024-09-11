@@ -19,6 +19,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -180,20 +181,29 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
   public void batchArrived(final IncomingDataBatch incomingBatch) {
     try {
       incomingBatch.checkAcceptance(allocator);
+      /* Need to convert this into an inject error test case
+      if (logger.isDebugEnabled()) {
+        throw new OutOfMemoryException("OOM Error Simulation");
+      }
+      */
+
     } catch (OutOfMemoryException e) {
       deferredException.addException(
           UserException.memoryError(e)
-              .message(
-                  "Out of memory while receiving incoming message. Message size: %d",
-                  incomingBatch.size())
-              .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator))
+              .setAdditionalExceptionContext(
+                  new OutOfMemoryOrResourceExceptionContext(
+                      OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY,
+                      String.format(
+                          "Out of memory while receiving incoming message. Message size: %d , %s ",
+                          incomingBatch.size(),
+                          MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator))))
               .build(logger));
       return;
     }
 
     // we want to make sure that we only generate local record batch reference in the case that
     // we're not closed.
-    // Otherwise we would leak memory.
+    // Otherwise, we would leak memory.
     try (AutoCloseableLock lock = sharedIncomingBatchLock.open()) {
       if (closed) {
         return;

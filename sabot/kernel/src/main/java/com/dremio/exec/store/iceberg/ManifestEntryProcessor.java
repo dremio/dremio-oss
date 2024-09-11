@@ -17,6 +17,7 @@ package com.dremio.exec.store.iceberg;
 
 import com.dremio.exec.record.VectorAccessible;
 import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.apache.iceberg.PartitionSpec;
@@ -27,6 +28,15 @@ public interface ManifestEntryProcessor extends AutoCloseable {
   void setup(VectorAccessible incoming, VectorAccessible outgoing);
 
   default void initialise(PartitionSpec partitionSpec, int row) {}
+
+  default void initialise(
+      PartitionSpec partitionSpec,
+      int row,
+      Configuration conf,
+      String fsScheme,
+      String pathSchemeVariate) {
+    initialise(partitionSpec, row);
+  }
 
   int processManifestEntry(
       ManifestEntryWrapper<? extends ContentFile<?>> manifestEntry,

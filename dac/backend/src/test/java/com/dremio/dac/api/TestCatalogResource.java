@@ -17,14 +17,23 @@ package com.dremio.dac.api;
 
 import static java.util.Arrays.asList;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
@@ -32,22 +41,28 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.model.common.Field;
 import com.dremio.dac.model.sources.SourceUI;
-import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.BaseTestServerJunit5;
 import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.ValidationErrorMessage;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.util.DatasetsUtil;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.NessieAuthType;
+import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.exec.store.dfs.PDFSConf;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
+import com.dremio.plugins.dataplane.store.NessiePluginConfig;
+import com.dremio.plugins.s3.store.S3FileSystem;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.proto.JobId;
@@ -71,11 +86,18 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.RefreshPolicyType;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
+import com.google.common.hash.Hashing;
+import io.findify.s3mock.S3Mock;
 import java.io.PrintStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -83,48 +105,181 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.rules.TemporaryFolder;
+import org.projectnessie.client.NessieClientBuilder;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.error.NessieConflictException;
+import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.Branch;
+import org.projectnessie.model.Tag;
+import org.projectnessie.tools.compatibility.api.NessieBaseUri;
+import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
+import software.amazon.awssdk.regions.Region;
 
 /** Tests for CatalogResource */
-public class TestCatalogResource extends BaseTestServer {
+@ExtendWith(OlderNessieServersExtension.class)
+public class TestCatalogResource extends BaseTestServerJunit5 {
   private static final String CATALOG_PATH = "/catalog/";
   private static final int SRC_INFORMATION_SCHEMA = 1;
   private static final int SRC_SYS = 2;
   private static final int SRC_EXTERNAL = 3;
 
-  @BeforeClass
-  public static void init() throws Exception {
-    BaseTestServer.init();
+  public static final String BUCKET_NAME = "nessie-source-bucket";
+  private static S3Mock s3Mock;
+  private static int s3Port;
+  private static AmazonS3 s3Client;
+  public static final String NESSIE_SOURCE_NAME = "nessie-source";
 
+  @NessieBaseUri private static URI nessieUri;
+
+  @TempDir private java.nio.file.Path tempDir;
+
+  @BeforeAll
+  public static void setUpClass() throws Exception {
     // setup space
     NamespaceKey key = new NamespaceKey("mySpace");
     SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName("mySpace");
-    newNamespaceService().addOrUpdateSpace(key, spaceConfig);
+    getNamespaceService().addOrUpdateSpace(key, spaceConfig);
+
+    // setup S3 for Nessie
+    setUpS3Fake();
   }
 
-  @AfterClass
-  public static void shutdown() throws Exception {
-    // setup space
+  @AfterAll
+  public static void tearDownClass() throws Exception {
+    // delete space
     NamespaceKey key = new NamespaceKey("mySpace");
-    SpaceConfig space = newNamespaceService().getSpace(key);
-    newNamespaceService().deleteSpace(key, space.getTag());
+    SpaceConfig space = getNamespaceService().getSpace(key);
+    getNamespaceService().deleteSpace(key, space.getTag());
+
+    // clean up S3.
+    if (s3Mock != null) {
+      s3Mock.shutdown();
+      s3Mock = null;
+    }
+  }
+
+  @BeforeEach
+  public void setUp() {
+    s3Client.createBucket(BUCKET_NAME);
+    createNessieSource();
+  }
+
+  @AfterEach
+  public void tearDown() throws Exception {
+    // Nessie and S3.
+    emptyNessieSource();
+    s3Client.deleteBucket(BUCKET_NAME);
+
+    // Namespace.
+    ((CatalogServiceImpl) getCatalogService()).deleteSource("catalog-test");
+    ((CatalogServiceImpl) getCatalogService()).deleteSource(NESSIE_SOURCE_NAME);
+  }
+
+  private void createNessieSource() {
+    Catalog catalog = getCatalogService().getSystemUserCatalog();
+    SourceConfig sourceConfig =
+        new SourceConfig()
+            .setConnectionConf(buildNessiePluginConfig(BUCKET_NAME))
+            .setName(NESSIE_SOURCE_NAME)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+    catalog.createSource(sourceConfig);
+  }
+
+  private void emptyNessieSource() throws Exception {
+    try (NessieApiV2 nessieClient =
+        NessieClientBuilder.createClientBuilder("HTTP", null)
+            .withUri(createNessieURIString())
+            .build(NessieApiV2.class)) {
+      Branch defaultBranch = nessieClient.getDefaultBranch();
+      nessieClient
+          .assignReference()
+          .reference(defaultBranch)
+          .assignTo(
+              Branch.of(
+                  defaultBranch.getName(),
+                  Hashing.sha256().hashString("empty", StandardCharsets.UTF_8).toString()))
+          .assign();
+      nessieClient.getAllReferences().stream()
+          .forEach(
+              ref -> {
+                try {
+                  if (ref instanceof Branch && !ref.getName().equals(defaultBranch.getName())) {
+                    nessieClient.deleteReference().asBranch().reference(ref).delete();
+                  } else if (ref instanceof Tag) {
+                    nessieClient.deleteReference().asTag().reference(ref).delete();
+                  }
+                } catch (NessieConflictException | NessieNotFoundException e) {
+                  throw new RuntimeException(e);
+                }
+              });
+    }
+  }
+
+  private static void setUpS3Fake() {
+    // Start fake S3 storage server.
+    s3Mock = new S3Mock.Builder().withPort(0).withInMemoryBackend().build();
+    s3Port = s3Mock.start().localAddress().getPort();
+
+    // Create bucket.
+    AwsClientBuilder.EndpointConfiguration endpoint =
+        new AwsClientBuilder.EndpointConfiguration(
+            String.format("http://localhost:%d", s3Port), Region.US_EAST_1.toString());
+    s3Client =
+        AmazonS3ClientBuilder.standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(endpoint)
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
+  }
+
+  private static NessiePluginConfig buildNessiePluginConfig(String bucket) {
+    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
+    nessiePluginConfig.nessieEndpoint = createNessieURIString();
+    nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
+    nessiePluginConfig.secure = false;
+    nessiePluginConfig.credentialType =
+        AWSAuthenticationType.ACCESS_KEY; // Unused, just needs to be set
+    nessiePluginConfig.awsAccessKey = "foo"; // Unused, just needs to be set
+    nessiePluginConfig.awsAccessSecret = SecretRef.of("bar"); // Unused, just needs to be set
+    nessiePluginConfig.awsRootPath = bucket;
+
+    // S3Mock settings
+    nessiePluginConfig.propertyList =
+        Arrays.asList(
+            new Property("fs.s3a.endpoint", "localhost:" + s3Port),
+            new Property("fs.s3a.path.style.access", "true"),
+            new Property("fs.s3a.connection.ssl.enabled", "false"),
+            new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
+
+    return nessiePluginConfig;
+  }
+
+  private static String createNessieURIString() {
+    return nessieUri.resolve("api/v2").toString();
   }
 
   @Test
   public void testListTopLevelCatalog() throws Exception {
     // home space always exists
     int topLevelCount =
-        newSourceService().getSources().size() + newNamespaceService().getSpaces().size() + 1;
+        getSourceService().getSources().size() + getNamespaceService().getSpaces().size() + 1;
 
     ResponseList<CatalogItem> items = getRootEntities(null);
 
@@ -151,8 +306,8 @@ public class TestCatalogResource extends BaseTestServer {
     }
 
     assertEquals(homeCount, 1);
-    assertEquals(spaceCount, newNamespaceService().getSpaces().size());
-    assertEquals(sourceCount, 1);
+    assertEquals(spaceCount, getNamespaceService().getSpaces().size());
+    assertEquals(sourceCount, getSourceService().getSources().size());
   }
 
   @Test
@@ -164,7 +319,7 @@ public class TestCatalogResource extends BaseTestServer {
         expectSuccess(
             getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)),
             new GenericType<Space>() {});
-    SpaceConfig spaceConfig = newNamespaceService().getSpace(new NamespaceKey(newSpace.getName()));
+    SpaceConfig spaceConfig = getNamespaceService().getSpace(new NamespaceKey(newSpace.getName()));
 
     assertEquals(space.getId(), spaceConfig.getId().getId());
     assertEquals(space.getName(), spaceConfig.getName());
@@ -190,7 +345,7 @@ public class TestCatalogResource extends BaseTestServer {
         getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(spaceConfig.getId().getId()))
             .buildDelete());
     assertThatThrownBy(
-            () -> newNamespaceService().getSpace(new NamespaceKey(spaceConfig.getName())))
+            () -> getNamespaceService().getSpace(new NamespaceKey(spaceConfig.getName())))
         .isInstanceOf(NamespaceException.class);
   }
 
@@ -205,7 +360,7 @@ public class TestCatalogResource extends BaseTestServer {
               new GenericType<Space>() {});
 
       // no children at this point
-      assertNull(space.getChildren());
+      assertEquals(space.getChildren().size(), 0);
 
       // add a folder
       Folder newFolder = getFolderConfig(Arrays.asList(space.getName(), "myFolder"));
@@ -237,9 +392,9 @@ public class TestCatalogResource extends BaseTestServer {
                 new GenericType<Space>() {});
         assertEquals(space.getChildren().size(), 0);
 
-        newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+        getNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
       } else {
-        newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+        getNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
 
         // delete the folder
         expectError(
@@ -261,7 +416,7 @@ public class TestCatalogResource extends BaseTestServer {
               new GenericType<Space>() {});
 
       // no children at this point
-      assertNull(space.getChildren());
+      assertEquals(space.getChildren().size(), 0);
 
       // add a function
       runQuery("CREATE FUNCTION mySpace123.foo()\n" + "RETURNS int\n" + "RETURN 6");
@@ -282,12 +437,13 @@ public class TestCatalogResource extends BaseTestServer {
                 new GenericType<Space>() {});
         assertEquals(space.getChildren().size(), 0);
 
-        newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+        getNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
       } else {
-        newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+        getNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
         try {
           runQuery("DROP FUNCTION mySpace123.foo");
-          Assert.fail("Should not be able to drop a function when we already dropped the space.");
+          Assertions.fail(
+              "Should not be able to drop a function when we already dropped the space.");
         } catch (UserException ue) {
           // We expect a user exception, since we deleted the space.
         }
@@ -306,8 +462,8 @@ public class TestCatalogResource extends BaseTestServer {
 
     for (CatalogItem item : items.getData()) {
       assertNull(
-          "CatalogItemStats should be empty if datasetCount parameter is not provided",
-          item.getStats());
+          item.getStats(),
+          "CatalogItemStats should be empty if datasetCount parameter is not provided");
     }
 
     checkSpaceDatasetCount(space.getId(), 2);
@@ -320,7 +476,7 @@ public class TestCatalogResource extends BaseTestServer {
 
     checkSpaceDatasetCount(space.getId(), 3);
 
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+    getNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
   private void checkSpaceDatasetCount(String spaceId, int expectedDatasetCount) {
@@ -330,7 +486,7 @@ public class TestCatalogResource extends BaseTestServer {
     Optional<CatalogItem> space =
         items.getData().stream().filter(item -> item.getId().equals(spaceId)).findFirst();
 
-    assertTrue("created space must be returned", space.isPresent());
+    assertTrue(space.isPresent(), "created space must be returned");
     CatalogItemStats stats = space.get().getStats();
     assertNotNull(stats);
     assertEquals(expectedDatasetCount, stats.getDatasetCount());
@@ -444,7 +600,7 @@ public class TestCatalogResource extends BaseTestServer {
     // we currently doesn't allow deserializing of fields so manually check them
     List<Field> fieldsFromDatasetConfig =
         DatasetsUtil.getFieldsFromDatasetConfig(
-            newNamespaceService().findDatasetByUUID(vds.getId()));
+            getNamespaceService().getDatasetById(new EntityId(vds.getId())).get());
     assertEquals(1, fieldsFromDatasetConfig.size());
     assertEquals("version", fieldsFromDatasetConfig.get(0).getName());
 
@@ -456,7 +612,7 @@ public class TestCatalogResource extends BaseTestServer {
             new GenericType<Folder>() {});
     assertEquals(0, folder.getChildren().size());
 
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+    getNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
   @Test
@@ -483,7 +639,7 @@ public class TestCatalogResource extends BaseTestServer {
     }
     file.close();
 
-    newSourceService().registerSourceWithRuntime(source);
+    getSourceService().registerSourceWithRuntime(source);
 
     final DatasetPath path1 = new DatasetPath(ImmutableList.of(sourceName, "myFile.json"));
     final DatasetConfig dataset1 =
@@ -496,7 +652,7 @@ public class TestCatalogResource extends BaseTestServer {
             .setOwner(DEFAULT_USERNAME)
             .setPhysicalDataset(
                 new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
-    p(NamespaceService.class).get().addOrUpdateDataset(path1.toNamespaceKey(), dataset1);
+    l(NamespaceService.class).addOrUpdateDataset(path1.toNamespaceKey(), dataset1);
 
     DatasetPath vdsPath = new DatasetPath(ImmutableList.of("@dremio", "myFile.json"));
     createDatasetFromSQLAndSave(vdsPath, "SELECT * FROM \"myFile.json\"", asList(sourceName));
@@ -521,9 +677,7 @@ public class TestCatalogResource extends BaseTestServer {
     Source newSource2 =
         createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", false));
@@ -552,9 +706,7 @@ public class TestCatalogResource extends BaseTestServer {
     Source newSource2 =
         createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", true));
@@ -599,9 +751,7 @@ public class TestCatalogResource extends BaseTestServer {
                 .buildPut(Entity.json(newSource2)),
             new GenericType<Source>() {});
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", true));
@@ -641,9 +791,7 @@ public class TestCatalogResource extends BaseTestServer {
                 .buildPut(Entity.json(newSource2)),
             new GenericType<Source>() {});
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", true));
@@ -680,9 +828,7 @@ public class TestCatalogResource extends BaseTestServer {
     final String sourceName2 = "src_" + System.currentTimeMillis();
     Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", false));
@@ -708,9 +854,7 @@ public class TestCatalogResource extends BaseTestServer {
     final String sourceName2 = "src_" + System.currentTimeMillis();
     Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", true));
@@ -752,9 +896,7 @@ public class TestCatalogResource extends BaseTestServer {
                 .buildPut(Entity.json(newSource2)),
             new GenericType<Source>() {});
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", true));
@@ -789,9 +931,7 @@ public class TestCatalogResource extends BaseTestServer {
                 .buildPut(Entity.json(newSource2)),
             new GenericType<Source>() {});
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", true));
@@ -826,9 +966,7 @@ public class TestCatalogResource extends BaseTestServer {
     final String sourceName = "src_" + System.currentTimeMillis();
     final Source newSource =
         createDatasetFromSource(sourceName, "myFile.json", SRC_INFORMATION_SCHEMA, null);
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", true));
@@ -850,7 +988,7 @@ public class TestCatalogResource extends BaseTestServer {
         l(JobsService.class)
             .getJobSummary(
                 JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+    assertSame(JobsProtoUtil.toStuff(job.getJobState()), JobState.COMPLETED);
   }
 
   @Test
@@ -858,9 +996,7 @@ public class TestCatalogResource extends BaseTestServer {
 
     final String sourceName = "src_" + System.currentTimeMillis();
     final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_SYS, null);
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 OptionType.SYSTEM, "planner.cross_source_select.disable", true));
@@ -881,7 +1017,7 @@ public class TestCatalogResource extends BaseTestServer {
         l(JobsService.class)
             .getJobSummary(
                 JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+    assertSame(JobsProtoUtil.toStuff(job.getJobState()), JobState.COMPLETED);
   }
 
   private Source createDatasetFromSource(
@@ -935,7 +1071,7 @@ public class TestCatalogResource extends BaseTestServer {
             .setOwner(DEFAULT_USERNAME)
             .setPhysicalDataset(
                 new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
-    p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
+    l(NamespaceService.class).addOrUpdateDataset(path.toNamespaceKey(), dataset);
 
     if (vdsName != null) {
       DatasetPath vdsPath = new DatasetPath(ImmutableList.of("@dremio", vdsName));
@@ -1005,7 +1141,7 @@ public class TestCatalogResource extends BaseTestServer {
             .setOwner(DEFAULT_USERNAME)
             .setPhysicalDataset(
                 new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
-    p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
+    l(NamespaceService.class).addOrUpdateDataset(path.toNamespaceKey(), dataset);
 
     path = new DatasetPath(ImmutableList.of(sourceName1, "zmyFile1.json"));
     dataset =
@@ -1018,15 +1154,13 @@ public class TestCatalogResource extends BaseTestServer {
             .setOwner(DEFAULT_USERNAME)
             .setPhysicalDataset(
                 new PhysicalDataset().setFormatSettings(new FileConfig().setType(FileType.JSON)));
-    p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
+    l(NamespaceService.class).addOrUpdateDataset(path.toNamespaceKey(), dataset);
 
     NamespaceKey datasetKey =
         new DatasetPath(ImmutableList.of(sourceName1, "zmyFile1.json")).toNamespaceKey();
-    DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(datasetKey);
+    DatasetConfig dataset1 = l(NamespaceService.class).getDataset(datasetKey);
 
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(OptionValue.createLong(OptionType.SYSTEM, "dremio.store.dfs.max_files", 1));
 
     java.io.File deleted = new java.io.File(srcFolder.getAbsolutePath(), "zmyFile1.json");
@@ -1036,18 +1170,17 @@ public class TestCatalogResource extends BaseTestServer {
     // dataset from the kv store.
     // If we query "nestedDir", it will be still in the kv store. If we query "zmyFile1.json", it
     // will throw namespace exception.
-    ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService())
+    ((CatalogServiceImpl) getCatalogService())
         .refreshSource(
             new NamespaceKey(sourceName1),
             CatalogService.REFRESH_EVERYTHING_NOW,
             CatalogServiceImpl.UpdateType.FULL);
     dataset1 =
-        p(NamespaceService.class)
-            .get()
+        getNamespaceService()
             .getDataset(
                 new DatasetPath(ImmutableList.of(sourceName1, "nestedDir")).toNamespaceKey());
     assertEquals("nestedDir", dataset1.getName());
-    assertThatThrownBy(() -> p(NamespaceService.class).get().getDataset(datasetKey))
+    assertThatThrownBy(() -> l(NamespaceService.class).getDataset(datasetKey))
         .isInstanceOf(NamespaceException.class);
   }
 
@@ -1079,11 +1212,10 @@ public class TestCatalogResource extends BaseTestServer {
         l(JobsService.class)
             .getJobSummary(
                 JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+    assertSame(JobsProtoUtil.toStuff(job.getJobState()), JobState.COMPLETED);
 
     DatasetConfig dataset1 =
-        p(NamespaceService.class)
-            .get()
+        l(NamespaceService.class)
             .getDataset(
                 new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
     assertEquals("myFile.json", dataset1.getName());
@@ -1105,13 +1237,12 @@ public class TestCatalogResource extends BaseTestServer {
         l(JobsService.class)
             .getJobSummary(
                 JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+    assertSame(JobsProtoUtil.toStuff(job.getJobState()), JobState.COMPLETED);
 
     // Expect to receive an NamespaceException if try to find the deleted metadata in kv store
     assertThatThrownBy(
             () ->
-                p(NamespaceService.class)
-                    .get()
+                getNamespaceService()
                     .getDataset(
                         new DatasetPath(ImmutableList.of(sourceName, "myFile.json"))
                             .toNamespaceKey()))
@@ -1125,14 +1256,13 @@ public class TestCatalogResource extends BaseTestServer {
     final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_EXTERNAL, null);
 
     // Do a full refresh to build complete DatasetConfig before forget metadata
-    ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService())
+    ((CatalogServiceImpl) getCatalogService())
         .refreshSource(
             new NamespaceKey(sourceName),
             CatalogService.REFRESH_EVERYTHING_NOW,
             CatalogServiceImpl.UpdateType.FULL);
     DatasetConfig dataset1 =
-        p(NamespaceService.class)
-            .get()
+        l(NamespaceService.class)
             .getDataset(
                 new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
     assertEquals("myFile.json", dataset1.getName());
@@ -1154,7 +1284,7 @@ public class TestCatalogResource extends BaseTestServer {
         l(JobsService.class)
             .getJobSummary(
                 JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+    assertSame(JobsProtoUtil.toStuff(job.getJobState()), JobState.COMPLETED);
 
     // Expect to receive an UserException if try to forget metadata on the deleted metadata in kv
     // store
@@ -1199,11 +1329,10 @@ public class TestCatalogResource extends BaseTestServer {
         l(JobsService.class)
             .getJobSummary(
                 JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+    assertSame(JobsProtoUtil.toStuff(job.getJobState()), JobState.COMPLETED);
 
     DatasetConfig dataset1 =
-        p(NamespaceService.class)
-            .get()
+        l(NamespaceService.class)
             .getDataset(
                 new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
     assertEquals("myFile.json", dataset1.getName());
@@ -1224,7 +1353,7 @@ public class TestCatalogResource extends BaseTestServer {
         l(JobsService.class)
             .getJobSummary(
                 JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+    assertSame(JobsProtoUtil.toStuff(job.getJobState()), JobState.COMPLETED);
 
     // Emulate NameRefresh to put a shallow metadata into kv store
     DatasetPath path = new DatasetPath(ImmutableList.of(sourceName, "myFile.json"));
@@ -1236,12 +1365,11 @@ public class TestCatalogResource extends BaseTestServer {
             .setName(path.getLeaf().getName())
             .setCreatedAt(System.currentTimeMillis())
             .setTag(null);
-    p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
+    l(NamespaceService.class).addOrUpdateDataset(path.toNamespaceKey(), dataset);
 
     // Expect to find the metadata record when query the kv store
     dataset1 =
-        p(NamespaceService.class)
-            .get()
+        getNamespaceService()
             .getDataset(
                 new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
     assertEquals("myFile.json", dataset1.getName());
@@ -1262,7 +1390,7 @@ public class TestCatalogResource extends BaseTestServer {
         l(JobsService.class)
             .getJobSummary(
                 JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+    assertSame(JobsProtoUtil.toStuff(job.getJobState()), JobState.COMPLETED);
 
     // Expect to receive an NamespaceException if try to find the deleted metadata in kv store
     assertThatThrownBy(
@@ -1295,12 +1423,12 @@ public class TestCatalogResource extends BaseTestServer {
     // verify that the VDS were created with the correct SQL
     for (int i = 1; i <= max; i++) {
       DatasetConfig dataset =
-          newNamespaceService()
+          getNamespaceService()
               .getDataset(new NamespaceKey(Arrays.asList(space.getName(), "vds" + i)));
       assertEquals(dataset.getVirtualDataset().getSql(), "select " + i);
     }
 
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+    getNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
   private Thread createVDSInSpace(String name, String spaceName, String sql) {
@@ -1355,18 +1483,14 @@ public class TestCatalogResource extends BaseTestServer {
 
     Source finalSource = source;
     assertThatThrownBy(
-            () -> newNamespaceService().getSource(new NamespaceKey(finalSource.getName())))
+            () -> getNamespaceService().getSource(new NamespaceKey(finalSource.getName())))
         .isInstanceOf(NamespaceException.class);
   }
 
   @Test
   public void testCreateSourceWithInternalConnectionConfTypes() {
     String location =
-        Path.of(
-                "file:///"
-                    + BaseTestServer.folder1.getRoot().toString()
-                    + "/"
-                    + "testCreateSourceWithInternalConnectionConfTypes/")
+        Path.of("file:///" + tempDir + "/" + "testCreateSourceWithInternalConnectionConfTypes/")
             .toString();
     Set<ConnectionConf<?, ?>> internalConnectionConfs =
         new HashSet<ConnectionConf<?, ?>>() {
@@ -1392,11 +1516,7 @@ public class TestCatalogResource extends BaseTestServer {
   @Test
   public void testUpdateSourceWithInternalConnectionConfTypes() {
     String location =
-        Path.of(
-                "file:///"
-                    + BaseTestServer.folder1.getRoot().toString()
-                    + "/"
-                    + "testUpdateSourceWithInternalConnectionConfTypes/")
+        Path.of("file:///" + tempDir + "/" + "testUpdateSourceWithInternalConnectionConfTypes/")
             .toString();
     Set<ConnectionConf<?, ?>> internalConnectionConfs =
         new HashSet<ConnectionConf<?, ?>>() {
@@ -1428,7 +1548,7 @@ public class TestCatalogResource extends BaseTestServer {
 
     // browse to the json directory
     String id = getFolderIdByName(source.getChildren(), "json");
-    assertNotNull(id, "Failed to find json directory");
+    assertNotNull("Failed to find json directory", id);
 
     // deleting a folder on a source should fail
     expectStatus(
@@ -1446,7 +1566,7 @@ public class TestCatalogResource extends BaseTestServer {
 
     // browse to the json directory
     String id = getFolderIdByName(source.getChildren(), "json");
-    assertNotNull(id, "Failed to find json directory");
+    assertNotNull("Failed to find json directory", id);
 
     // load the json dir
     Folder folder =
@@ -1471,7 +1591,7 @@ public class TestCatalogResource extends BaseTestServer {
       }
     }
 
-    assertNotNull(fileId, "Failed to find numbers.json file");
+    assertNotNull("Failed to find numbers.json file", fileId);
 
     // load the file
     File file =
@@ -1536,7 +1656,7 @@ public class TestCatalogResource extends BaseTestServer {
     // promote a folder that contains several csv files
     // (dac/backend/src/test/resources/datasets/folderdataset)
     String folderId = getFolderIdByName(source.getChildren(), "datasets");
-    assertNotNull(folderId, "Failed to find datasets directory");
+    assertNotNull("Failed to find datasets directory", folderId);
 
     Folder dsFolder =
         expectSuccess(
@@ -1548,7 +1668,7 @@ public class TestCatalogResource extends BaseTestServer {
             new GenericType<Folder>() {});
 
     String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
-    assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
+    assertNotNull("Failed to find folderdataset directory", folderDatasetId);
 
     // we want to use the path that the backend gives us so fetch the full folder
     folder =
@@ -1570,6 +1690,7 @@ public class TestCatalogResource extends BaseTestServer {
             null,
             10800000L,
             RefreshMethod.INCREMENTAL,
+            false,
             false,
             false);
     dataset = createPDS(folder.getPath(), parquetFileConfig, refreshSettings);
@@ -1664,14 +1785,6 @@ public class TestCatalogResource extends BaseTestServer {
     return expectSuccess(
         getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),
         new GenericType<Source>() {});
-  }
-
-  @After
-  public void after() {
-    CatalogServiceImpl catalog = (CatalogServiceImpl) l(CatalogService.class);
-    if (catalog.getManagedSource("catalog-test") != null) {
-      catalog.deleteSource("catalog-test");
-    }
   }
 
   @Test
@@ -1808,19 +1921,17 @@ public class TestCatalogResource extends BaseTestServer {
     // promote a folder that contains several csv files
     // (dac/backend/src/test/resources/datasets/folderdataset)
     final String folderId = getFolderIdByName(source.getChildren(), "datasets");
-    assertNotNull(folderId, "Failed to find datasets directory");
+    assertNotNull("Failed to find datasets directory", folderId);
 
     Folder dsFolder =
         expectSuccess(
             getBuilder(
-                    getPublicAPI(3)
-                        .path(CATALOG_PATH)
-                        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId)))
+                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(folderId)))
                 .buildGet(),
             new GenericType<Folder>() {});
 
     final String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
-    assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
+    assertNotNull("Failed to find folderdataset directory", folderDatasetId);
 
     // we want to use the path that the backend gives us so fetch the full folder
     Folder folder =
@@ -1828,8 +1939,7 @@ public class TestCatalogResource extends BaseTestServer {
             getBuilder(
                     getPublicAPI(3)
                         .path(CATALOG_PATH)
-                        .path(
-                            com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId)))
+                        .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildGet(),
             new GenericType<Folder>() {});
 
@@ -1861,19 +1971,13 @@ public class TestCatalogResource extends BaseTestServer {
         getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
 
     // re-promote the folder by using by-path
-    WebTarget target =
-        getPublicAPI(3)
-            .path(CATALOG_PATH)
-            .path("by-path")
-            .path("catalog-test")
-            .path("datasets")
-            .path("folderdataset");
-
-    folder = expectSuccess(getBuilder(target).buildGet(), new GenericType<Folder>() {});
     dataset = createPDS(folder.getPath(), parquetFileConfig);
     dataset =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId()))
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(folderDatasetId)))
                 .buildPost(Entity.json(dataset)),
             new GenericType<Dataset>() {});
 
@@ -1955,7 +2059,7 @@ public class TestCatalogResource extends BaseTestServer {
 
     // browse to the json directory
     String id = getFolderIdByName(source.getChildren(), "json");
-    assertNotNull(id, "Failed to find json directory");
+    assertNotNull("Failed to find json directory", id);
 
     // load the json dir
     Folder folder =
@@ -1971,7 +2075,7 @@ public class TestCatalogResource extends BaseTestServer {
     // promote a folder that contains several csv files
     // (dac/backend/src/test/resources/datasets/folderdataset)
     String folderId = getFolderIdByName(source.getChildren(), "datasets");
-    assertNotNull(folderId, "Failed to find datasets directory");
+    assertNotNull("Failed to find datasets directory", folderId);
 
     Folder dsFolder =
         expectSuccess(
@@ -1983,7 +2087,7 @@ public class TestCatalogResource extends BaseTestServer {
             new GenericType<Folder>() {});
 
     String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
-    assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
+    assertNotNull("Failed to find folderdataset directory", folderDatasetId);
 
     // we want to use the path that the backend gives us so fetch the full folder
     folder =
@@ -2005,6 +2109,7 @@ public class TestCatalogResource extends BaseTestServer {
             null,
             5000L,
             RefreshMethod.INCREMENTAL,
+            false,
             false,
             false);
 
@@ -2032,7 +2137,15 @@ public class TestCatalogResource extends BaseTestServer {
     // update reflection settings
     refreshSettings =
         new Dataset.RefreshSettings(
-            RefreshPolicyType.PERIOD, null, 500L, null, 500L, RefreshMethod.FULL, true, true);
+            RefreshPolicyType.PERIOD,
+            null,
+            500L,
+            null,
+            500L,
+            RefreshMethod.FULL,
+            true,
+            true,
+            false);
     Dataset newPDS = createPDS(dataset, refreshSettings);
     dataset =
         expectSuccess(
@@ -2057,6 +2170,305 @@ public class TestCatalogResource extends BaseTestServer {
     expectStatus(
         Response.Status.NOT_FOUND,
         getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0,0", "1,0", "0,1", "1,1"})
+  public void testPaginateChildren_namespace(String paginateAndIdOrPath) throws Exception {
+    boolean paginate = paginateAndIdOrPath.split(",")[0].equals("1");
+    boolean byId = paginateAndIdOrPath.split(",")[1].equals("1");
+    NamespaceService namespaceService = getNamespaceService();
+
+    // Create space.
+    NamespaceKey spaceKey = new NamespaceKey("pagination" + paginateAndIdOrPath.replace(',', '_'));
+    SpaceConfig spaceConfig = new SpaceConfig();
+    spaceConfig.setName(spaceKey.getName());
+    namespaceService.addOrUpdateSpace(spaceKey, spaceConfig);
+    String spaceId = namespaceService.getEntityByPath(spaceKey).getSpace().getId().getId();
+
+    // Create folders in the space.
+    List<String> allExpectedChildrenPaths = new ArrayList<>();
+    int numFolders = 20;
+    for (int i = 0; i < numFolders; i++) {
+      String folderName = String.format("folder%03d", i);
+      NamespaceKey folderKey = new NamespaceKey(asList(spaceKey.getName(), folderName));
+      FolderConfig folderConfig =
+          new FolderConfig().setName(folderName).setFullPathList(folderKey.getPathComponents());
+      namespaceService.addOrUpdateFolder(folderKey, folderConfig);
+      allExpectedChildrenPaths.add(String.format("%s.%s", spaceKey.getName(), folderName));
+    }
+
+    // Verify that children were created in KV store.
+    List<NameSpaceContainer> spaceNamespaceChildren =
+        namespaceService.list(spaceKey, null, Integer.MAX_VALUE);
+    assertThat(spaceNamespaceChildren).hasSize(numFolders);
+
+    List<String> allChildrenPaths = new ArrayList<>();
+    if (paginate) {
+      // Paginate over the space.
+      int macChildren = 7;
+      String pageToken = null;
+      do {
+        WebTarget target = getPublicAPI(3).path(CATALOG_PATH);
+        if (byId) {
+          target = target.path(spaceId);
+        } else {
+          target = target.path("by-path").path(spaceKey.getName());
+        }
+        target = target.queryParam("maxChildren", macChildren);
+        if (pageToken != null) {
+          target = target.queryParam("pageToken", pageToken);
+        }
+        Space space = expectSuccess(getBuilder(target).buildGet(), Space.class);
+        assertThat(space.getChildren().size()).isLessThanOrEqualTo(macChildren);
+
+        pageToken = space.getNextPageToken();
+
+        space.getChildren().forEach(c -> allChildrenPaths.add(String.join(".", c.getPath())));
+      } while (pageToken != null);
+    } else {
+      WebTarget target = getPublicAPI(3).path(CATALOG_PATH);
+      if (byId) {
+        target = target.path(spaceId);
+      } else {
+        target = target.path("by-path").path(spaceKey.getName());
+      }
+      Space space = expectSuccess(getBuilder(target).buildGet(), Space.class);
+      space.getChildren().forEach(c -> allChildrenPaths.add(String.join(".", c.getPath())));
+    }
+
+    assertEquals(allChildrenPaths, allExpectedChildrenPaths);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testPaginateChildren_nessieInvalidToken(boolean useInvalidTokenOrPath)
+      throws Exception {
+    NamespaceService namespaceService = getNamespaceService();
+
+    String sourceId =
+        namespaceService
+            .getEntityByPath(new NamespaceKey(NESSIE_SOURCE_NAME))
+            .getSource()
+            .getId()
+            .getId();
+
+    // Create folders in the source.
+    int numFolders = 20;
+    for (int i = 0; i < numFolders; i++) {
+      expectSuccess(
+          getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+              .buildPost(
+                  Entity.json(
+                      new Folder(
+                          null,
+                          asList(NESSIE_SOURCE_NAME, String.format("folder%03d", i)),
+                          null,
+                          null))));
+    }
+
+    // Get page token.
+    Source source =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3).path(CATALOG_PATH).path(sourceId).queryParam("maxChildren", 3))
+                .buildGet(),
+            Source.class);
+    CatalogPageToken catalogPageToken = CatalogPageToken.fromApiToken(source.getNextPageToken());
+
+    // Get an error with invalid token.
+    WebTarget target = getPublicAPI(3).path(CATALOG_PATH).path(sourceId);
+    String pageToken;
+    if (useInvalidTokenOrPath) {
+      pageToken =
+          catalogPageToken.toBuilder()
+              .setVersionContext(VersionContext.ofBranch("main"))
+              .build()
+              .toApiToken();
+    } else {
+      pageToken = catalogPageToken.toBuilder().setPath("abc").build().toApiToken();
+    }
+    String error =
+        expectError(
+            FamilyExpectation.CLIENT_ERROR,
+            getBuilder(target.queryParam("maxChildren", 3).queryParam("pageToken", pageToken))
+                .buildGet(),
+            String.class);
+    assertThat(error)
+        .contains(
+            useInvalidTokenOrPath
+                ? "Passed version [Unspecified version context] does not match previous version [branch main]"
+                : "Passed path [[nessie-source]] does not match previous path [[abc]]");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0,0", "1,0", "0,1", "1,1"})
+  public void testPaginateChildren_nessie(String paginateAndIdOrPath) throws Exception {
+    boolean paginate = paginateAndIdOrPath.split(",")[0].equals("1");
+    boolean byId = paginateAndIdOrPath.split(",")[1].equals("1");
+    NamespaceService namespaceService = getNamespaceService();
+
+    String sourceId =
+        namespaceService
+            .getEntityByPath(new NamespaceKey(NESSIE_SOURCE_NAME))
+            .getSource()
+            .getId()
+            .getId();
+
+    // Create folders in the source.
+    List<String> allExpectedChildrenPaths = new ArrayList<>();
+    int numFolders = 20;
+    for (int i = 0; i < numFolders; i++) {
+      String folderName = String.format("folder%03d", i);
+      expectSuccess(
+          getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+              .buildPost(
+                  Entity.json(
+                      new Folder(null, asList(NESSIE_SOURCE_NAME, folderName), null, null))));
+      allExpectedChildrenPaths.add(String.format("%s.%s", NESSIE_SOURCE_NAME, folderName));
+    }
+
+    // Verify that no children were created in KV store.
+    List<NameSpaceContainer> sourceNamespaceChildren =
+        namespaceService.list(
+            new NamespaceKey(ImmutableList.of(NESSIE_SOURCE_NAME)), null, Integer.MAX_VALUE);
+    assertThat(sourceNamespaceChildren).isEmpty();
+
+    List<String> allChildrenPaths = new ArrayList<>();
+    if (paginate) {
+      // Paginate over the source.
+      int maxChildren = 7;
+      String pageToken = null;
+      do {
+        WebTarget target = getPublicAPI(3).path(CATALOG_PATH);
+        if (byId) {
+          target = target.path(sourceId);
+        } else {
+          target = target.path("by-path").path(NESSIE_SOURCE_NAME);
+        }
+        target = target.queryParam("maxChildren", maxChildren);
+        if (pageToken != null) {
+          target = target.queryParam("pageToken", pageToken);
+        }
+        Source source = expectSuccess(getBuilder(target).buildGet(), Source.class);
+        assertThat(source.getChildren().size()).isLessThanOrEqualTo(maxChildren);
+
+        pageToken = source.getNextPageToken();
+
+        source.getChildren().forEach(c -> allChildrenPaths.add(String.join(".", c.getPath())));
+      } while (pageToken != null);
+    } else {
+      // Don't paginate.
+      WebTarget target = getPublicAPI(3).path(CATALOG_PATH);
+      if (byId) {
+        target = target.path(sourceId);
+      } else {
+        target = target.path("by-path").path(NESSIE_SOURCE_NAME);
+      }
+      Source source = expectSuccess(getBuilder(target).buildGet(), Source.class);
+      source.getChildren().forEach(c -> allChildrenPaths.add(String.join(".", c.getPath())));
+    }
+
+    assertEquals(allChildrenPaths, allExpectedChildrenPaths);
+  }
+
+  /** Tests "by-ids" and "by-paths" endpoints. */
+  @Test
+  public void test_getList() throws Exception {
+    NamespaceService namespaceService = getNamespaceService();
+
+    List<List<String>> entityPaths = new ArrayList<>();
+    List<String> entityIds = new ArrayList<>();
+
+    // Create folders in Nessie.
+    String sourceId =
+        namespaceService
+            .getEntityByPath(new NamespaceKey(NESSIE_SOURCE_NAME))
+            .getSource()
+            .getId()
+            .getId();
+    entityPaths.add(asList(NESSIE_SOURCE_NAME));
+    entityIds.add(sourceId);
+    int numFolders = 5;
+    for (int i = 0; i < numFolders; i++) {
+      String folderName = String.format("folder%03d", i);
+      Folder folder =
+          expectSuccess(
+              getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+                  .buildPost(
+                      Entity.json(
+                          new Folder(null, asList(NESSIE_SOURCE_NAME, folderName), null, null))),
+              new GenericType<>() {});
+      entityPaths.add(asList(NESSIE_SOURCE_NAME, folderName));
+      entityIds.add(folder.getId());
+    }
+
+    // Create space.
+    Space space = createSpace("space");
+    entityPaths.add(asList(space.getName()));
+    entityIds.add(space.getId());
+
+    // Add invalid entity id.
+    String invalidId = UUID.randomUUID().toString();
+    entityIds.add(invalidId);
+    List<String> invalidPath = ImmutableList.of("non-existent");
+    entityPaths.add(invalidPath);
+
+    // Get entities by id.
+    int maxChildren = 2;
+    ResponseList<CatalogEntity> responseListByIds =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path("by-ids")
+                        .queryParam("maxChildren", Integer.toString(maxChildren)))
+                .buildPost(Entity.json(entityIds)),
+            new GenericType<>() {});
+
+    // Get entities by path.
+    ResponseList<CatalogEntity> responseListByPaths =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path("by-paths")
+                        .queryParam("maxChildren", Integer.toString(maxChildren)))
+                .buildPost(Entity.json(entityPaths)),
+            new GenericType<>() {});
+
+    // Verify result.
+    assertThat(
+            responseListByIds.getData().stream()
+                .map(CatalogEntity::getId)
+                .collect(Collectors.toUnmodifiableList()))
+        .isEqualTo(entityIds.subList(0, entityIds.size() - 1));
+    assertThat(responseListByIds.getErrors()).hasSize(1);
+    assertThat(responseListByIds.getErrors().get(0).getErrorMessage())
+        .startsWith(String.format("'%s'", invalidId));
+    assertInstanceOf(Source.class, responseListByIds.getData().get(0));
+    Source source = (Source) responseListByIds.getData().get(0);
+    assertThat(source.getChildren()).hasSize(maxChildren);
+    assertThat(
+            responseListByPaths.getData().stream()
+                .map(CatalogEntity::getId)
+                .collect(Collectors.toUnmodifiableList()))
+        .isEqualTo(entityIds.subList(0, entityIds.size() - 1));
+    assertThat(responseListByPaths.getErrors().get(0).getErrorMessage())
+        .startsWith(String.format("'%s'", invalidPath));
+  }
+
+  @Test
+  public void test_deleteById() {
+    Space space = createSpace("deleteById");
+    String viewName = "view";
+    Dataset dataset =
+        createVDS(Arrays.asList(space.getName(), viewName), "select * from sys.version");
+
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+
+    assertTrue(getNamespaceService().getEntityById(new EntityId(dataset.getId())).isEmpty());
   }
 
   public static String getFolderIdByName(List<CatalogItem> items, String nameToFind) {
@@ -2140,13 +2552,5 @@ public class TestCatalogResource extends BaseTestServer {
     return expectSuccess(
         getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(folder)),
         new GenericType<Folder>() {});
-  }
-
-  private void runQuery(String query) {
-    submitJobAndWaitUntilCompletion(
-        JobRequest.newBuilder()
-            .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-            .setQueryType(QueryType.UI_INTERNAL_RUN)
-            .build());
   }
 }

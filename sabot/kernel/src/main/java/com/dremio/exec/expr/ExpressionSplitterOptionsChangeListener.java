@@ -15,12 +15,7 @@
  */
 package com.dremio.exec.expr;
 
-import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS;
-import static com.dremio.exec.ExecConstants.MAX_SPLITS_PER_EXPRESSION;
-import static com.dremio.exec.ExecConstants.QUERY_EXEC_OPTION;
-import static com.dremio.exec.ExecConstants.SPLIT_CACHING_ENABLED;
-import static com.dremio.exec.ExecConstants.SPLIT_ENABLED;
-import static com.dremio.exec.ExecConstants.WORK_THRESHOLD_FOR_SPLIT;
+import static com.dremio.exec.ExecConstants.*;
 import static com.dremio.exec.expr.fn.GandivaFunctionRegistry.toLowerCaseSet;
 
 import com.dremio.options.OptionChangeListener;
@@ -32,6 +27,7 @@ public class ExpressionSplitterOptionsChangeListener implements OptionChangeList
   private final ExpressionSplitCache expressionSplitCache;
 
   private volatile Set<String> blackListedFunctions;
+  private volatile Set<String> blackListedArmFunctions;
   private volatile String codeGenOption;
   private volatile boolean isSplitEnabled;
   private volatile long maxSplitsPerExp;
@@ -42,6 +38,8 @@ public class ExpressionSplitterOptionsChangeListener implements OptionChangeList
       OptionManager optionManager, ExpressionSplitCache expressionSplitCache) {
     this.optionManager = optionManager;
     this.blackListedFunctions = toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS));
+    this.blackListedArmFunctions =
+        toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS_ARM));
     this.codeGenOption = optionManager.getOption(QUERY_EXEC_OPTION);
     this.isSplitEnabled = optionManager.getOption(SPLIT_ENABLED);
     this.maxSplitsPerExp = optionManager.getOption(MAX_SPLITS_PER_EXPRESSION);
@@ -59,8 +57,11 @@ public class ExpressionSplitterOptionsChangeListener implements OptionChangeList
     final boolean newSplitCachingEnabled = optionManager.getOption(SPLIT_CACHING_ENABLED);
     final Set<String> newBlackListedFunctions =
         toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS));
+    final Set<String> newBlackListedArmFunctions =
+        toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS_ARM));
     if (didValuesChange(
         newBlackListedFunctions,
+        newBlackListedArmFunctions,
         newCodeGenOption,
         newIsSplitEnabled,
         newMaxSplitsPerExp,
@@ -69,6 +70,7 @@ public class ExpressionSplitterOptionsChangeListener implements OptionChangeList
       expressionSplitCache.invalidateCache();
       setNewValues(
           newBlackListedFunctions,
+          newBlackListedArmFunctions,
           newCodeGenOption,
           newIsSplitEnabled,
           newMaxSplitsPerExp,
@@ -79,6 +81,7 @@ public class ExpressionSplitterOptionsChangeListener implements OptionChangeList
 
   private boolean didValuesChange(
       Set<String> newBlackListedFunctions,
+      Set<String> newBlackListedArmFunctions,
       String newCodeGenOption,
       boolean newIsSplitEnabled,
       long newMaxSplitsPerExp,
@@ -89,17 +92,20 @@ public class ExpressionSplitterOptionsChangeListener implements OptionChangeList
         || Double.compare(this.avgWorkThresholdForSplit, newAvgWorkThresholdForSplit) != 0
         || this.splitCachingEnabled != newSplitCachingEnabled
         || !this.codeGenOption.equals(newCodeGenOption)
-        || !this.blackListedFunctions.equals(newBlackListedFunctions);
+        || !this.blackListedFunctions.equals(newBlackListedFunctions)
+        || !this.blackListedArmFunctions.equals(newBlackListedArmFunctions);
   }
 
   private void setNewValues(
       Set<String> newBlackListedFunctions,
+      Set<String> newBlackListedArmFunctions,
       String newCodeGenOption,
       boolean newIsSplitEnabled,
       long newMaxSplitsPerExp,
       double newAvgWorkThresholdForSplit,
       boolean newSplitCachingEnabled) {
     this.blackListedFunctions = newBlackListedFunctions;
+    this.blackListedArmFunctions = newBlackListedArmFunctions;
     this.codeGenOption = newCodeGenOption;
     this.isSplitEnabled = newIsSplitEnabled;
     this.maxSplitsPerExp = newMaxSplitsPerExp;

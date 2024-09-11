@@ -16,7 +16,7 @@
 
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import { APIV2Call } from "@app/core/APICall";
-import moize from "moize";
+// import moize from "moize";
 
 export const getSonarContentsUrl = (params: GetArcticCatalogParams) =>
   new APIV2Call()
@@ -32,14 +32,15 @@ type GetArcticCatalogParams = {
   entityType: string;
 };
 
-export const getSonarContentsResponse = moize.promise(
+// DX-89807: Moize is not invalidating the cancel request from HomeContents.js
+export const getSonarContentsResponse = //moize.promise(
   (params: GetArcticCatalogParams, init?: RequestInit): Promise<any> =>
-    getApiContext().fetch(getSonarContentsUrl(params), init),
-  {
-    isDeepEqual: true,
-    maxAge: 1000,
-  }
-);
+    getApiContext().fetch(getSonarContentsUrl(params), init);
+// {
+//   isDeepEqual: true,
+//   maxAge: 1000,
+// }
+// );
 
 /**
  *
@@ -48,6 +49,6 @@ export const getSonarContentsResponse = moize.promise(
  */
 export const getSonarContents = (
   params: GetArcticCatalogParams,
-  init?: RequestInit
+  init?: RequestInit,
 ): Promise<any> =>
   getSonarContentsResponse(params, init).then((res: any) => res.clone().json());

@@ -155,7 +155,9 @@ public class TestScriptServiceImpl {
             .setDescription("updated Description")
             .clearContext()
             .addAllContext(new ArrayList<>(Arrays.asList("updated", "context")))
+            .setIsContextUpdated(true)
             .setContent("updated content")
+            .setIsContentUpdated(true)
             .build();
 
     runWithUserContext(
@@ -219,7 +221,7 @@ public class TestScriptServiceImpl {
                 runWithUserContext(
                     USER_ID_1, () -> scriptService.getScriptById(script.getScriptId())))
         .isInstanceOf(ScriptNotFoundException.class)
-        .hasMessage(String.format("Script with id or name : %s not found.", script.getScriptId()));
+        .hasMessage(String.format("Script with id %s not found.", script.getScriptId()));
   }
 
   // test 2 scripts cannot have same script name
@@ -239,7 +241,7 @@ public class TestScriptServiceImpl {
             () -> runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest)))
         .isInstanceOf(DuplicateScriptNameException.class)
         .hasMessage(
-            "Cannot reuse the same script name within a project. Please try another script name.");
+            "Cannot reuse the same script name [scriptName] within a project. Please try another script name.");
   }
 
   // test 2 scripts created by different users can't have same name
@@ -260,7 +262,7 @@ public class TestScriptServiceImpl {
             () -> runWithUserContext(USER_ID_1, () -> scriptService.createScript(scriptRequest)))
         .isInstanceOf(DuplicateScriptNameException.class)
         .hasMessage(
-            "Cannot reuse the same script name within a project. Please try another script name.");
+            "Cannot reuse the same script name [scriptName] within a project. Please try another script name.");
   }
 
   // validate max length of name
@@ -392,7 +394,7 @@ public class TestScriptServiceImpl {
                 runWithUserContext(
                     USER_ID_2, () -> scriptService.getScriptById(script.getScriptId())))
         .isInstanceOf(ScriptNotFoundException.class)
-        .hasMessage(String.format("Script with id or name : %s not found.", script.getScriptId()));
+        .hasMessage(String.format("Script with id %s not found.", script.getScriptId()));
   }
 
   @Test

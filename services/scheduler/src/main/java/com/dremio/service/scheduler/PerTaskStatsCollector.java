@@ -18,10 +18,13 @@ package com.dremio.service.scheduler;
 import static com.dremio.service.scheduler.TaskStatsCollector.BASE_METRIC_NAME;
 
 import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.telemetry.api.metrics.Counter;
-import com.dremio.telemetry.api.metrics.Histogram;
-import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.CounterWithOutcome;
+import com.dremio.telemetry.api.metrics.SimpleCounter;
+import com.dremio.telemetry.api.metrics.SimpleDistributionSummary;
+import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import java.util.concurrent.TimeUnit;
 
 /** Collects Per Task stats for the {@code ClusteredSingletonTaskScheduler} */
@@ -29,9 +32,8 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
   // wrapper to a modifiable schedule
   private final PerTaskSchedule schedule;
   // number of schedule modifications so far
-  private final Counter totalScheduleModifications;
-  private final Counter totalSucceededOwnerQueries;
-  private final Counter totalFailedOwnerQueries;
+  private final SimpleCounter totalScheduleModifications;
+  private final CounterWithOutcome ownerQueriesCounter;
   // task slot booking stats
   private final PerTaskBookingCollector bookingStats;
   // task run stats
@@ -43,25 +45,31 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
 
   PerTaskStatsCollector(PerTaskSchedule schedule) {
     this.schedule = schedule;
+    final Tags taskNameTag = getTaskNameTag();
     this.totalScheduleModifications =
-        Metrics.newCounter(getMetricsName("modifications"), Metrics.ResetType.NEVER);
-    this.totalSucceededOwnerQueries =
-        Metrics.newCounter(getMetricsName("owner_queries"), Metrics.ResetType.NEVER);
-    this.totalFailedOwnerQueries =
-        Metrics.newCounter(getMetricsName("failed_owner_queries"), Metrics.ResetType.NEVER);
-    final String perTaskName = getPerTaskName();
-    this.bookingStats = new PerTaskBookingCollector(perTaskName);
-    this.runStats = new PerTaskRunCollector(perTaskName);
-    this.loadStats = new PerTaskLoadCollector(perTaskName);
-    this.recoveryStats = new PerTaskRecoveryCollector(perTaskName);
+        SimpleCounter.of(
+            getMetricsName("modifications"),
+            "Tracks task's schedule modification count",
+            taskNameTag);
+    this.ownerQueriesCounter =
+        CounterWithOutcome.of(
+            getMetricsName("owner_queries"), "Tracks task's get owner node requests", taskNameTag);
+    this.bookingStats = new PerTaskBookingCollector(taskNameTag);
+    this.runStats = new PerTaskRunCollector(taskNameTag);
+    this.loadStats = new PerTaskLoadCollector(taskNameTag);
+    this.recoveryStats = new PerTaskRecoveryCollector(taskNameTag);
   }
 
-  private String getPerTaskName() {
-    return Metrics.join(BASE_METRIC_NAME, schedule.getTaskName());
+  private Tags getTaskNameTag() {
+    return Tags.of(Tag.of("task_name", schedule.getTaskName().toLowerCase()));
   }
 
-  private String getMetricsName(String metricName) {
-    return Metrics.join(getPerTaskName(), metricName);
+  private static String getMetricsName(String metricName) {
+    return Joiner.on(".").join(BASE_METRIC_NAME, "task", metricName);
+  }
+
+  private static String getMetricsNameWithPrefix(String prefix, String metricName) {
+    return Joiner.on(".").join(BASE_METRIC_NAME, "task", prefix, metricName);
   }
 
   @Override
@@ -70,7 +78,7 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
   }
 
   @Override
-  public void bookingAcquired() {
+  public void bookingAcquired(long bookingOwnerSessionId) {
     bookingStats.bookingAcquired();
     runStats.expectRuns();
   }
@@ -79,6 +87,23 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
   public void bookingReleased() {
     bookingStats.bookingReleased();
     runStats.runsUnlikely();
+  }
+
+  @Override
+  public void bookingLost() {
+    bookingStats.bookingLost();
+    runStats.runsUnlikely();
+  }
+
+  @Override
+  public void bookingRechecked() {
+    bookingStats.bookingRechecked();
+  }
+
+  @Override
+  public void bookingRegained() {
+    bookingStats.bookingRegained();
+    runStats.expectRuns();
   }
 
   @Override
@@ -103,17 +128,17 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
 
   @Override
   public void taskOwnerQuery(CoordinationProtos.NodeEndpoint nodeEndpoint) {
-    totalSucceededOwnerQueries.increment();
+    ownerQueriesCounter.succeeded();
   }
 
   @Override
   public void noTaskOwnerFound() {
-    totalFailedOwnerQueries.increment();
+    ownerQueriesCounter.errored();
   }
 
   @Override
   public void taskOwnerQueryFailed() {
-    totalFailedOwnerQueries.increment();
+    ownerQueriesCounter.errored();
   }
 
   @Override
@@ -129,6 +154,16 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
   @Override
   public void removedFromRunSet(long cTime) {
     loadStats.removedFromRunSet(cTime);
+  }
+
+  @Override
+  public void weightShed(int weight) {
+    loadStats.weightShed(weight);
+  }
+
+  @Override
+  public void weightGained(int weight) {
+    loadStats.weightGained(weight);
   }
 
   @Override
@@ -206,23 +241,37 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
   /** Booking stats collection. */
   private static final class PerTaskBookingCollector {
     // number of attempts made to book the slot by this service instance
-    private final Counter totalBookingAttempts;
+    private final SimpleCounter totalBookingAttempts;
     // number of successful attempts to book the slot
-    private final Counter totalAcquiredBookings;
+    private final SimpleCounter totalAcquiredBookings;
     // number of explicit release of booked slot
-    private final Counter totalReleasedBookings;
+    private final SimpleCounter totalReleasedBookings;
+    private final SimpleCounter totalLostBookings;
+    private final SimpleCounter totalRecheckedBookings;
+    private final SimpleCounter totalRegainedBookings;
 
-    private PerTaskBookingCollector(String baseMetricName) {
+    private PerTaskBookingCollector(Tags taskNameTag) {
       totalBookingAttempts =
-          Metrics.newCounter(bookName(baseMetricName, "attempts"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(
+              bookName("attempts"),
+              "Tracks number of booking attempts made to request ownership",
+              taskNameTag);
       totalAcquiredBookings =
-          Metrics.newCounter(bookName(baseMetricName, "acquired"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(bookName("acquired"), "Tracks ownership acquired count", taskNameTag);
       totalReleasedBookings =
-          Metrics.newCounter(bookName(baseMetricName, "released"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(
+              bookName("released"), "Tracks ownership relinquished voluntarily count", taskNameTag);
+      totalLostBookings =
+          SimpleCounter.of(
+              bookName("lost"), "Tracks ownership lost involuntarily count", taskNameTag);
+      totalRecheckedBookings =
+          SimpleCounter.of(bookName("rechecked"), "Tracks ownership rechecked count", taskNameTag);
+      totalRegainedBookings =
+          SimpleCounter.of(bookName("regained"), "Tracks ownership regained count", taskNameTag);
     }
 
-    private static String bookName(String base, String metric) {
-      return Metrics.join(base, "book", metric);
+    private static String bookName(String metricName) {
+      return getMetricsNameWithPrefix("book", metricName);
     }
 
     public void bookingAttempted() {
@@ -237,6 +286,18 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
       totalReleasedBookings.increment();
     }
 
+    public void bookingLost() {
+      totalLostBookings.increment();
+    }
+
+    public void bookingRechecked() {
+      totalRecheckedBookings.increment();
+    }
+
+    public void bookingRegained() {
+      totalRegainedBookings.increment();
+    }
+
     @Override
     public String toString() {
       return "Total Booking Attempts : "
@@ -247,39 +308,47 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
           + System.lineSeparator()
           + "Total Released Bookings : "
           + totalReleasedBookings
+          + System.lineSeparator()
+          + "Total Lost Bookings : "
+          + totalLostBookings
+          + System.lineSeparator()
+          + "Total Rechecked Bookings : "
+          + totalRecheckedBookings
+          + System.lineSeparator()
+          + "Total Regained Bookings : "
+          + totalRegainedBookings
           + System.lineSeparator();
     }
   }
 
   private static final class PerTaskRunCollector {
-    // total successful runs so far on this service instance
-    private final Counter totalSuccessRunsSoFar;
-    // total failed runs so far on this service instance
-    private final Counter totalFailedRunsSoFar;
+    // successful and errored runs so far on this service instance
+    private final CounterWithOutcome runsSoFarCounter;
     // distribution of task run time
-    private final Histogram taskRuntimeMillis;
+    private final SimpleDistributionSummary taskRuntimeMillis;
     // number of times a run was made without booking (this should be 0 always)
-    private final Counter totalContractBreaks;
+    private final SimpleCounter totalContractBreaks;
     // task run time watch, reset after every run
     private final Stopwatch runTimeWatch;
     // whether a run is expected (only if booking is on)
     private volatile boolean runsExpected;
 
-    private PerTaskRunCollector(String baseMetricName) {
-      totalSuccessRunsSoFar =
-          Metrics.newCounter(runName(baseMetricName, "success"), Metrics.ResetType.NEVER);
-      totalFailedRunsSoFar =
-          Metrics.newCounter(runName(baseMetricName, "failed"), Metrics.ResetType.NEVER);
+    private PerTaskRunCollector(Tags taskNameTag) {
+      runsSoFarCounter =
+          CounterWithOutcome.of(runName("so_far"), "Tracks task's actual runs", taskNameTag);
       taskRuntimeMillis =
-          Metrics.newHistogram(runName(baseMetricName, "runtime_ms"), Metrics.ResetType.NEVER);
+          SimpleDistributionSummary.of(runName("runtime_ms"), "Record task's runtime", taskNameTag);
       totalContractBreaks =
-          Metrics.newCounter(runName(baseMetricName, "contract_breaks"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(
+              runName("contract_breaks"),
+              "Tracks runs attempted without a booking (should be zero always)",
+              taskNameTag);
       runTimeWatch = Stopwatch.createUnstarted();
       runsExpected = false;
     }
 
-    private static String runName(String base, String metric) {
-      return Metrics.join(base, "runs", metric);
+    private static String runName(String metric) {
+      return getMetricsNameWithPrefix("runs", metric);
     }
 
     public void expectRuns() {
@@ -300,11 +369,11 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     public void runEnded(boolean success) {
       assert runTimeWatch.isRunning();
       if (success) {
-        totalSuccessRunsSoFar.increment();
+        runsSoFarCounter.succeeded();
       } else {
-        totalFailedRunsSoFar.increment();
+        runsSoFarCounter.errored();
       }
-      taskRuntimeMillis.update(runTimeWatch.elapsed(TimeUnit.MILLISECONDS));
+      taskRuntimeMillis.recordAmount(runTimeWatch.elapsed(TimeUnit.MILLISECONDS));
       runTimeWatch.reset();
     }
 
@@ -316,9 +385,11 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     public String toString() {
       StringBuilder sb = new StringBuilder();
       sb.append("Total Success Runs : ")
-          .append(totalSuccessRunsSoFar)
+          .append(runsSoFarCounter.countSucceeded())
           .append(System.lineSeparator());
-      sb.append("Total Failed Runs : ").append(totalFailedRunsSoFar).append(System.lineSeparator());
+      sb.append("Total Failed Runs : ")
+          .append(runsSoFarCounter.countErrored())
+          .append(System.lineSeparator());
       sb.append("Total Contract Breaks : ")
           .append(totalContractBreaks)
           .append(System.lineSeparator());
@@ -341,28 +412,48 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     // total times this task was added to the run q for other service instances to pick due to load
     // on this
     // service instance
-    private final Counter totalAddedToRunSet;
+    private final SimpleCounter totalAddedToRunSet;
     // total times this task was removed from the run q by this service instance
-    private final Counter totalRemovedFromRunSet;
+    private final SimpleCounter totalRemovedFromRunSet;
     // total time it was in run q before it was picked for running
-    private final Histogram timeInRunSet;
+    private final SimpleDistributionSummary timeInRunSet;
     // total times threshold check indicated high load on this service instance
-    private final Counter totalFailedThresholdChecks;
+    private final SimpleCounter totalFailedThresholdChecks;
+    // total cumulative weight that was shed by the instance for this task
+    private final SimpleCounter weightShed;
+    // total cumulative weight that was gained by the instance for this task
+    private final SimpleCounter weightGained;
 
-    public PerTaskLoadCollector(String baseMetricName) {
+    public PerTaskLoadCollector(Tags taskNameTag) {
       totalAddedToRunSet =
-          Metrics.newCounter(loadName(baseMetricName, "added"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(loadName("added"), "Tracks load shedding requests", taskNameTag);
       totalRemovedFromRunSet =
-          Metrics.newCounter(loadName(baseMetricName, "removed"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(
+              loadName("removed"),
+              "Tracks task ownership accepted count to balance load",
+              taskNameTag);
       timeInRunSet =
-          Metrics.newHistogram(loadName(baseMetricName, "q_time_ms"), Metrics.ResetType.NEVER);
+          SimpleDistributionSummary.of(
+              loadName("q_time_ms"),
+              "Records the amount of time the task was in queue waiting to be load balanced",
+              taskNameTag);
       totalFailedThresholdChecks =
-          Metrics.newCounter(
-              loadName(baseMetricName, "threshold_crossed"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(
+              loadName("threshold_crossed"), "Tracks load threshold crossed count", taskNameTag);
+      weightShed =
+          SimpleCounter.of(
+              loadName("weight_shed"),
+              "Tracks cumulative weight shed by this instance",
+              taskNameTag);
+      weightGained =
+          SimpleCounter.of(
+              loadName("weight_gained"),
+              "Tracks cumulative weight gained by this instance",
+              taskNameTag);
     }
 
-    private static String loadName(String base, String metric) {
-      return Metrics.join(base, "load", metric);
+    private static String loadName(String metric) {
+      return getMetricsNameWithPrefix("load", metric);
     }
 
     public void addedToRunSet() {
@@ -375,7 +466,15 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
 
     public void removedFromRunSet(long cTime) {
       totalRemovedFromRunSet.increment();
-      timeInRunSet.update(System.currentTimeMillis() - cTime);
+      timeInRunSet.recordAmount(System.currentTimeMillis() - cTime);
+    }
+
+    public void weightShed(int weight) {
+      weightShed.increment(weight);
+    }
+
+    public void weightGained(int weight) {
+      weightGained.increment(weight);
     }
 
     @Override
@@ -388,6 +487,12 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
           + System.lineSeparator()
           + "Number of times load threshold was high : "
           + totalFailedThresholdChecks
+          + System.lineSeparator()
+          + "Weight Shed : "
+          + weightShed
+          + System.lineSeparator()
+          + "Weight Gained : "
+          + weightGained
           + System.lineSeparator();
     }
   }
@@ -395,49 +500,45 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
   private static final class PerTaskRecoveryCollector {
     private static final int REJECT_REASONS_SIZE =
         SchedulerEvents.RecoveryRejectReason.values().length;
-    private final Counter totalMonitoringStarted;
-    private final Counter totalMonitoringStopped;
-    private final Counter totalTimesRequested;
-    private final Counter totalTimesRecovered;
-    private final Counter totalAddedToDeathWatch;
-    private final Counter totalRunsOnDeath;
-    private final Counter totalRunsFailedOnDeath;
-    private final Counter[] totalTimesRejected;
+    private final SimpleCounter totalMonitoringStarted;
+    private final SimpleCounter totalMonitoringStopped;
+    private final SimpleCounter totalTimesRequested;
+    private final SimpleCounter totalTimesRecovered;
+    private final SimpleCounter totalAddedToDeathWatch;
+    private final CounterWithOutcome totalRunsOnDeath;
+    private final SimpleCounter[] totalTimesRejected;
 
-    private PerTaskRecoveryCollector(String baseMetricName) {
+    private PerTaskRecoveryCollector(Tags taskNameTag) {
       totalMonitoringStarted =
-          Metrics.newCounter(recoveryName(baseMetricName, "started"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(
+              recoveryName("started"), "Tracks recovery monitoring started count", taskNameTag);
       totalMonitoringStopped =
-          Metrics.newCounter(recoveryName(baseMetricName, "stopped"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(
+              recoveryName("stopped"), "Tracks recovery monitoring stopped count", taskNameTag);
       totalTimesRequested =
-          Metrics.newCounter(recoveryName(baseMetricName, "requested"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(
+              recoveryName("requested"), "Tracks recovery requested count", taskNameTag);
       totalTimesRecovered =
-          Metrics.newCounter(recoveryName(baseMetricName, "recovered"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(recoveryName("recovered"), "Tracks recovered count", taskNameTag);
       totalAddedToDeathWatch =
-          Metrics.newCounter(recoveryName(baseMetricName, "death_watch"), Metrics.ResetType.NEVER);
+          SimpleCounter.of(recoveryName("death_watch"), "Tracks death watch count", taskNameTag);
       totalRunsOnDeath =
-          Metrics.newCounter(
-              recoveryName(baseMetricName, "runs_on_death"), Metrics.ResetType.NEVER);
-      totalRunsFailedOnDeath =
-          Metrics.newCounter(
-              recoveryName(baseMetricName, "runs_failed_on_death"), Metrics.ResetType.NEVER);
-      totalTimesRejected = new Counter[REJECT_REASONS_SIZE];
+          CounterWithOutcome.of(
+              recoveryName("runs_on_death"), "Tracks runs on a node death", taskNameTag);
+      totalTimesRejected = new SimpleCounter[REJECT_REASONS_SIZE];
       final SchedulerEvents.RecoveryRejectReason[] reasons =
           SchedulerEvents.RecoveryRejectReason.values();
       for (int i = 0; i < REJECT_REASONS_SIZE; i++) {
         totalTimesRejected[i] =
-            Metrics.newCounter(
-                recoveryRejectedName(baseMetricName, reasons[i]), Metrics.ResetType.NEVER);
+            SimpleCounter.of(
+                recoveryName("rejected"),
+                "Tracks recovery rejected count",
+                taskNameTag.and(Tag.of("reason", reasons[i].getName().toLowerCase())));
       }
     }
 
-    private static String recoveryName(String base, String metric) {
-      return Metrics.join(base, "recovery_monitor", metric);
-    }
-
-    private static String recoveryRejectedName(
-        String base, SchedulerEvents.RecoveryRejectReason reason) {
-      return Metrics.join(base, "recovery_monitor", "rejected", reason.getName());
+    private static String recoveryName(String metric) {
+      return getMetricsNameWithPrefix("recovery_monitor", metric);
     }
 
     private void recoveryMonitoringStarted() {
@@ -465,11 +566,11 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
     }
 
     public void runOnDeath() {
-      totalRunsOnDeath.increment();
+      totalRunsOnDeath.succeeded();
     }
 
     public void failedToRunOnDeath() {
-      totalRunsFailedOnDeath.increment();
+      totalRunsOnDeath.errored();
     }
 
     @Override
@@ -491,10 +592,10 @@ final class PerTaskStatsCollector implements SchedulerEvents.PerTaskEvents {
               + totalAddedToDeathWatch
               + System.lineSeparator()
               + "Total Runs on death : "
-              + totalRunsOnDeath
+              + totalRunsOnDeath.countSucceeded()
               + System.lineSeparator()
               + "Total Failed Runs on death : "
-              + totalRunsFailedOnDeath
+              + totalRunsOnDeath.countErrored()
               + System.lineSeparator();
       StringBuilder sb = new StringBuilder(ret);
       SchedulerEvents.RecoveryRejectReason[] reasons =

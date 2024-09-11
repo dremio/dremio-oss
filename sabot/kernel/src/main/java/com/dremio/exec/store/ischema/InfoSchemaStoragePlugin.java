@@ -128,7 +128,7 @@ public class InfoSchemaStoragePlugin
   }
 
   @Override
-  public boolean containerExists(EntityPath containerPath) {
+  public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
     return false;
   }
 

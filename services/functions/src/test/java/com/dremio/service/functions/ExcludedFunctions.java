@@ -203,12 +203,12 @@ public final class ExcludedFunctions {
             "LAST_MATCHING_MAP_ENTRY_FOR_KEY",
             "LOCAL_LISTAGG",
             "LISTAGG_MERGE",
-            "PHASE1_ARRAY_AGG",
-            "PHASE2_ARRAY_AGG",
             "ARRAY_SORT",
             "LIST_TO_DELIMITED_STRING",
             "IDENTITY",
-            "NULLABLE")
+            "NULLABLE",
+            "DREMIO_INTERNAL_BUILDMAP",
+            "EMPTY_ARRAY")
         .contains(name);
   }
 

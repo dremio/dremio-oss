@@ -1,0 +1,232 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * Anything reused across themes should go in shared
+ */
+// Semantic Tokens
+@mixin shared {
+  --fill--categorical--0: #095f6b;
+  --text--categorical--0: white;
+
+  --fill--categorical--1: #18c0c0;
+  --text--categorical--1: black;
+
+  --fill--categorical--2: #ed991c;
+  --text--categorical--2: black;
+
+  --fill--categorical--3: #a6245e;
+  --text--categorical--3: white;
+
+  --fill--categorical--4: #004d7e;
+  --text--categorical--4: white;
+
+  --fill--categorical--5: #ca3f32;
+  --text--categorical--5: white;
+
+  --fill--categorical--6: #7bca6e;
+  --text--categorical--6: black;
+
+  --fill--categorical--7: #36712c;
+  --text--categorical--7: white;
+}
+
+@mixin light {
+  @include shared;
+  --fill--primary: white;
+  --fill--primary--hover: var(--color--brand--25);
+  --fill--primary--hover--alt: var(--color--neutral--50);
+  --fill--primary--selected: var(--color--brand--50);
+  --fill--secondary: var(--color--neutral--50);
+  --fill--tertiary: var(--color--neutral--75);
+  --fill--popover: white;
+  --fill--disabled: var(--color--neutral--75);
+
+  --fill--danger: var(--color--danger--50);
+  --fill--danger--solid: var(--color--danger--400);
+  --fill--danger--bold: var(--color--danger--500);
+
+  --fill--warning: var(--color--warning--50);
+  --fill--warning--solid: var(--color--warning--200);
+
+  --fill--success: var(--color--success--50);
+  --fill--success--solid: var(--color--success--300);
+
+  --fill--info: var(--color--info--50);
+  --fill--info--solid: var(--color--info--400);
+
+  --fill--brand: var(--color--brand--25);
+  --fill--brand--solid: var(--color--brand--400);
+  --fill--brand--bold: var(--color--brand--450);
+
+  --fill--chip: var(--color--neutral--75);
+  --hover--chip: var(--color--neutral--100);
+
+  --fill--nav--catalog: var(--color--indigo--700);
+  --hover--nav--catalog: var(--color--indigo--500);
+  --selected--nav--catalog: var(--color--indigo-vivid--500);
+
+  --fill--nav--sonar: var(--color--navy--700);
+  --hover--nav--sonar: var(--color--navy--500);
+  --selected--nav--sonar: var(--color--cyan--400);
+
+  --fill--nav--org: var(--color--cyan--25);
+  --hover--nav--org: var(--color--cyan--100);
+  --selected--nav--org: var(--color--cyan--75);
+
+  --icon--primary: var(--color--neutral--500);
+  --icon--disabled: var(--color--neutral--150);
+  --icon--hover: var(--color--brand--450);
+  --icon--brand: var(--color--brand--450);
+  --icon--nav: white;
+  --icon--nav--org: var(--color--neutral--500);
+
+  --text--primary: var(--color--neutral--800);
+  --text--faded: var(--color--neutral--500);
+  --text--disabled: var(--color--neutral--200);
+  --text--link: var(--color--brand--450);
+  --text--brand: var(--color--brand--450);
+
+  --border--neutral: var(--color--neutral--75);
+  --border--neutral--solid: var(--color--neutral--150);
+  --border--brand--solid: var(--color--brand--450);
+  --border--hover: var(--color--neutral--200);
+  --border--focused: var(--color--brand--400);
+}
+
+@mixin dark {
+  @include shared;
+  --fill--primary: var(--color--neutral--800);
+  --fill--primary--hover: var(--color--brand--700);
+  --fill--primary--hover--alt: var(--color--neutral--500);
+  --fill--primary--selected: var(--color--brand--600);
+  --fill--secondary: var(--color--neutral--700);
+  --fill--tertiary: var(--color--neutral--700);
+  --fill--popover: var(--color--neutral--700);
+  --fill--disabled: var(--color--neutral--700);
+
+  --fill--danger: var(--color--danger--700);
+  --fill--danger--solid: var(--color--danger--300);
+  --fill--danger--bold: var(--color--danger--400);
+
+  --fill--warning: var(--color--warning--900);
+  --fill--warning--solid: var(--color--warning--150);
+
+  --fill--success: var(--color--success--700);
+  --fill--success--solid: var(--color--success--200);
+
+  --fill--info: var(--color--info--700);
+  --fill--info--solid: var(--color--info--300);
+
+  --fill--brand: var(--color--brand--700);
+  --fill--brand--solid: var(--color--brand--250);
+  --fill--brand--bold: var(--color--brand--600);
+
+  --fill--chip: var(--color--neutral--700);
+  --hover--chip: var(--color--neutral--800);
+
+  --fill--nav--catalog: var(--color--neutral--900);
+  --hover--nav--catalog: #3c4168;
+  --selected--nav--catalog: #4e51c6;
+
+  --fill--nav--sonar: var(--color--neutral--900);
+  --hover--nav--sonar: #31464e;
+  --selected--nav--sonar: #2b7b88;
+
+  --fill--nav--org: var(--color--neutral--900);
+  --hover--nav--org: var(--color--neutral--700);
+  --selected--nav--org: var(--color--neutral--500);
+
+  --icon--primary: var(--color--neutral--100);
+  --icon--disabled: var(--color--neutral--500);
+  --icon--hover: var(--color--brand--250);
+  --icon--brand: var(--color--brand--250);
+  --icon--nav: white;
+  --icon--nav--org: white;
+
+  --text--primary: var(--color--neutral--100);
+  --text--faded: var(--color--neutral--150);
+  --text--disabled: var(--color--neutral--500);
+  --text--link: var(--color--brand--250);
+  --text--brand: var(--color--brand--250);
+
+  --border--neutral: var(--color--neutral--700);
+  --border--neutral--solid: var(--color--neutral--500);
+  --border--brand--solid: var(--color--brand--450);
+  --border--hover: var(--color--neutral--300);
+  --border--focused: var(--color--brand--150);
+}
+
+@mixin high_contrast_light {
+  @include shared;
+  --fill--primary: white;
+  --fill--primary--hover: var(--color--brand--25);
+  --fill--primary--hover--alt: var(--color--neutral--75);
+  --fill--primary--selected: var(--color--brand--50);
+  --fill--secondary: var(--color--neutral--50);
+  --fill--popover: white;
+  --fill--disabled: var(--color--neutral--75);
+
+  --fill--danger: var(--color--danger--50);
+  --fill--danger--solid: var(--color--danger--400);
+  --fill--danger--bold: var(--color--danger--500);
+
+  --fill--warning: var(--color--warning--50);
+  --fill--warning--solid: var(--color--warning--200);
+
+  --fill--success: var(--color--success--50);
+  --fill--success--solid: var(--color--success--300);
+
+  --fill--info: var(--color--info--50);
+  --fill--info--solid: var(--color--info--400);
+
+  --fill--brand: var(--color--brand--25);
+  --fill--brand--solid: var(--color--brand--500);
+  --fill--brand--bold: var(--color--brand--600);
+
+  --fill--chip: var(--color--neutral--75);
+  --hover--chip: var(--color--neutral--100);
+
+  --fill--nav--catalog: var(--color--indigo--700);
+  --hover--nav--catalog: var(--color--indigo--500);
+  --selected--nav--catalog: var(--color--indigo-vivid--500);
+
+  --fill--nav--sonar: var(--color--navy--700);
+  --hover--nav--sonar: var(--color--navy--500);
+  --selected--nav--sonar: var(--color--cyan--400);
+
+  --fill--nav--org: var(--color--cyan--25);
+  --hover--nav--org: var(--color--cyan--100);
+  --selected--nav--org: var(--color--cyan--75);
+
+  --icon--primary: var(--color--neutral--500);
+  --icon--disabled: var(--color--neutral--150);
+  --icon--hover: var(--color--brand--450);
+  --icon--brand: var(--color--brand--450);
+  --icon--nav: white;
+  --icon--nav--org: var(--color--neutral--500);
+
+  --text--primary: black;
+  --text--faded: var(--color--neutral--700);
+  --text--disabled: var(--color--neutral--200);
+  --text--link: var(--color--brand--600);
+  --text--brand: var(--color--brand--600);
+
+  --border--neutral: var(--color--neutral--150);
+  --border--neutral--solid: var(--color--neutral--300);
+  --border--brand--solid: var(--color--brand--450);
+  --border--hover: var(--color--neutral--200);
+  --border--focused: var(--color--brand--300);
+}

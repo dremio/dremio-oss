@@ -257,7 +257,9 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper
                 getFS(config),
                 icebergTableProps.getMetadataExpireAfterMs(),
                 icebergTableProps.getIcebergOpType(),
-                icebergTableProps.getFileType());
+                icebergTableProps.getFileType(),
+                config.getTableFormatOptions().getSnapshotId(),
+                icebergTableProps.getErrorOnConcurrentRefresh());
         icebergOpCommitter.updateSchema(currentSchema);
         break;
     }

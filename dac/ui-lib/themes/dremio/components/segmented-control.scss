@@ -21,23 +21,27 @@
   --dremio--segmented-control-option--gap: 0;
 
   &-option {
-    transition: background 75ms ease-in-out, color 75ms ease-in-out;
+    transition:
+      background 75ms ease-in-out,
+      color 75ms ease-in-out;
 
-    --dremio--segmented-control-option--background: var(--color--neutral--25);
+    --dremio--segmented-control-option--background: var(--fill--secondary);
     --dremio--segmented-control-option--border: none;
-    --dremio--segmented-control-option--color: var(--color--neutral--600);
+    --dremio--segmented-control-option--color: var(--icon--primary);
     --dremio--segmented-control-option--font-weight: 600;
     --dremio--segmented-control-option--padding: var(--dremio--spacing--05);
 
     &:hover {
       --dremio--segmented-control-option--background: var(
-        --color--neutral--100
+        --fill--primary--hover
       );
     }
 
     &[aria-pressed="true"] {
-      --dremio--segmented-control-option--background: var(--color--brand--50);
-      --dremio--segmented-control-option--color: var(--dremio--color--link);
+      --dremio--segmented-control-option--background: var(
+        --fill--primary--selected
+      );
+      --dremio--segmented-control-option--color: var(--icon--brand);
     }
   }
 }

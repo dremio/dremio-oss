@@ -40,7 +40,7 @@ public class TestClusterStatsResource extends BaseTestServer {
             getBuilder(getPublicAPI(3).path(PATH)).buildGet(),
             ClusterStatsResource.ClusterStats.class);
     assertNotNull(stats);
-    assertEquals(stats.getSources().size(), newSourceService().getSources().size());
+    assertEquals(stats.getSources().size(), getSourceService().getSources().size());
   }
 
   @Test

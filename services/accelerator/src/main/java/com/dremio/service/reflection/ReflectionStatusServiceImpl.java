@@ -19,7 +19,6 @@ import static com.dremio.common.utils.SqlUtils.quotedCompound;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
 import static com.dremio.service.reflection.ReflectionUtils.getId;
-import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
 
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
@@ -32,7 +31,6 @@ import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
@@ -40,6 +38,7 @@ import com.dremio.exec.util.OptionUtil;
 import com.dremio.options.OptionManager;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import com.dremio.service.accelerator.AccelerationUtils;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.UsedReflections;
 import com.dremio.service.jobs.JobsService;
@@ -72,9 +71,7 @@ import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
 import java.sql.Timestamp;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -93,7 +90,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(ReflectionStatusServiceImpl.class);
 
-  private final Provider<Collection<NodeEndpoint>> nodeEndpointsProvider;
+  private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private final Provider<CatalogService> catalogService;
   private final Provider<JobsService> jobsService;
   private final Provider<CacheViewer> cacheViewer;
@@ -107,10 +104,11 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   private final ReflectionValidator validator;
 
   private static final Joiner JOINER = Joiner.on(", ");
+  private final Provider<ReflectionUtils> reflectionUtils;
 
   @VisibleForTesting
   ReflectionStatusServiceImpl(
-      Provider<Collection<NodeEndpoint>> nodeEndpointsProvider,
+      Provider<ClusterCoordinator> clusterCoordinatorProvider,
       Provider<CacheViewer> cacheViewer,
       ReflectionGoalsStore goalsStore,
       ReflectionEntriesStore entriesStore,
@@ -119,8 +117,9 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
       ReflectionValidator validator,
       Provider<CatalogService> catalogService,
       Provider<JobsService> jobsService,
-      Provider<OptionManager> optionManager) {
-    this.nodeEndpointsProvider = nodeEndpointsProvider;
+      Provider<OptionManager> optionManager,
+      Provider<ReflectionUtils> reflectionUtils) {
+    this.clusterCoordinatorProvider = Preconditions.checkNotNull(clusterCoordinatorProvider);
     this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
     this.goalsStore = Preconditions.checkNotNull(goalsStore, "goals store required");
     this.entriesStore = Preconditions.checkNotNull(entriesStore, "entries store required");
@@ -132,30 +131,29 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "job service required");
     this.optionManager = optionManager;
+    this.reflectionUtils = reflectionUtils;
   }
 
   public ReflectionStatusServiceImpl(
-      Provider<Collection<NodeEndpoint>> nodeEndpointsProvider,
+      Provider<ClusterCoordinator> clusterCoordinatorProvider,
       Provider<CatalogService> catalogService,
       Provider<JobsService> jobsService,
       Provider<LegacyKVStoreProvider> storeProvider,
       Provider<CacheViewer> cacheViewer,
-      Provider<OptionManager> optionManager) {
-    Preconditions.checkNotNull(storeProvider, "kv store provider required");
-    Preconditions.checkNotNull(catalogService, "catalog service required");
-    Preconditions.checkNotNull(jobsService, "job service required");
-    this.nodeEndpointsProvider = nodeEndpointsProvider;
-    this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
-    this.catalogService = catalogService;
-    this.jobsService = jobsService;
-
-    goalsStore = new ReflectionGoalsStore(storeProvider);
-    entriesStore = new ReflectionEntriesStore(storeProvider);
-    materializationStore = new MaterializationStore(storeProvider);
-    externalReflectionStore = new ExternalReflectionStore(storeProvider);
-
-    validator = new ReflectionValidator(catalogService, optionManager);
-    this.optionManager = optionManager;
+      Provider<OptionManager> optionManager,
+      Provider<ReflectionUtils> reflectionUtils) {
+    this(
+        clusterCoordinatorProvider,
+        cacheViewer,
+        new ReflectionGoalsStore(storeProvider),
+        new ReflectionEntriesStore(storeProvider),
+        new MaterializationStore(storeProvider),
+        new ExternalReflectionStore(storeProvider),
+        new ReflectionValidator(catalogService, optionManager),
+        catalogService,
+        jobsService,
+        optionManager,
+        reflectionUtils);
   }
 
   /**
@@ -268,7 +266,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         refreshStatus = REFRESH_STATUS.MANUAL;
         break;
       case ACTIVE:
-        refreshStatus = entry.getDontGiveUp() ? REFRESH_STATUS.MANUAL : REFRESH_STATUS.SCHEDULED;
+        refreshStatus =
+            reflectionUtils.get().getRefreshStatusForActiveReflection(optionManager.get(), entry);
         break;
       default:
         throw new IllegalStateException("Unexpected value: " + entry.getState());
@@ -288,13 +287,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
           Optional.ofNullable(materialization.getLastRefreshDurationMillis()).orElse(-1L);
       expiresAt = Optional.ofNullable(materialization.getExpiration()).orElse(0L);
 
-      final Set<String> activeHosts = getActiveHosts();
-      final long now = System.currentTimeMillis();
-      if (hasMissingPartitions(materialization.getPartitionList(), activeHosts)) {
-        availabilityStatus = AVAILABILITY_STATUS.INCOMPLETE;
-      } else if (expiresAt < now) {
-        availabilityStatus = AVAILABILITY_STATUS.EXPIRED;
-      } else if (cacheViewer.get().isCached(materialization.getId())) {
+      if (cacheViewer.get().isCached(materialization.getId())) {
         availabilityStatus = AVAILABILITY_STATUS.AVAILABLE;
       } else if (optionManager.get().getOption(MATERIALIZATION_CACHE_ENABLED)
           && Optional.ofNullable(materialization.getLastRefreshFinished()).orElse(0L)
@@ -338,10 +331,9 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   }
 
   private Set<String> getActiveHosts() {
-    return Sets.newHashSet(
-        nodeEndpointsProvider.get().stream()
-            .map(CoordinationProtos.NodeEndpoint::getAddress)
-            .collect(Collectors.toList()));
+    return clusterCoordinatorProvider.get().getExecutorEndpoints().stream()
+        .map(CoordinationProtos.NodeEndpoint::getAddress)
+        .collect(Collectors.toSet());
   }
 
   private ExternalReflectionStatus.STATUS computeStatus(ExternalReflection reflection) {
@@ -374,8 +366,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
     // check that we are still able to get a MaterializationDescriptor
     try {
-      if (ReflectionUtils.getMaterializationDescriptor(reflection, catalogService.get(), catalog)
-          == null) {
+      if (ReflectionUtils.getMaterializationDescriptor(reflection, catalog) == null) {
         return ExternalReflectionStatus.STATUS.INVALID;
       }
     } catch (NamespaceException e) {

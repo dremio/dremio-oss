@@ -602,7 +602,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param text Text object with data
    */
   public void set(int index, Text text) {
-    set(index, text.getBytes(), 0, text.getLength());
+    set(index, text.getBytes(), 0, (int) text.getLength());
   }
 
   /**
@@ -613,7 +613,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param text Text object with data
    */
   public void setSafe(int index, Text text) {
-    setSafe(index, text.getBytes(), 0, text.getLength());
+    setSafe(index, text.getBytes(), 0, (int) text.getLength());
   }
 
   /**

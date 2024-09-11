@@ -13,30 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
   .showHideColumn {
-    border-color: @FIGMA_NEUTRAL_200 !important;
-    background-color: @WHITE !important;
+    border-color: var(--border--neutral--solid) !important;
+    background-color: var(--fill--primary) !important;
     cursor: pointer;
     &:hover {
-      background-color: @SECONDARY_150 !important;
+      background-color: var(--fill--secondary) !important;
     }
     &__checkBox {
       border-radius: 2px;
-      background: @WHITE;
-      border: 1.5px solid @FIGMA_NEUTRAL_200;
+      background: white;
+      border: 1.5px solid var(--border--neutral--solid);
       &.--disabled {
         border-radius: 2px;
-        background: @FIGMA_NEUTRAL_200;
-        border: 1.5px solid @FIGMA_NEUTRAL_200;
+        background: var(--color--neutral--150);
+        border: 1.5px solid var(--border--neutral--solid);
       }
     }
 
     &__settingIcon {
       height: 24px;
       width: 24px;
-      color: var(--dremio--color--icon--main);
+      color: var(--icon--primary);
     }
   }
 }

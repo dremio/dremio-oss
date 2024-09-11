@@ -15,10 +15,11 @@
  */
 package com.dremio.service.commandpool;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.concurrent.NamedThreadFactory;
-import com.dremio.telemetry.api.metrics.Metrics;
 import io.opentracing.Tracer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -70,12 +71,9 @@ class BoundCommandPool implements CommandPool {
 
   @Override
   public void start() throws Exception {
-    Metrics.newGauge(
-        Metrics.join("jobs", "command_pool", "active_threads"),
-        () -> executorService.getDelegate().getActiveCount());
-    Metrics.newGauge(
-        Metrics.join("jobs", "command_pool", "queue_size"),
-        () -> executorService.getDelegate().getQueue().size());
+    newGauge(
+        "jobs.command_pool.active_threads", () -> executorService.getDelegate().getActiveCount());
+    newGauge("jobs.command_pool.queue_size", () -> executorService.getDelegate().getQueue().size());
   }
 
   @Override

@@ -152,14 +152,7 @@ public final class PartitionIterator extends AbstractIterator<Partition> {
 
     Preconditions.checkArgument(filteredPartitionNames.size() == 1);
 
-    Map<String, String> originalToDecoded = allPartitionNames.stream().collect(Collectors.toMap(x -> x, x -> {
-      try {
-        return URLDecoder.decode(x, StandardCharsets.UTF_8.toString());
-      } catch (UnsupportedEncodingException e) {
-        logger.debug("Failed to decode partition string {} retrieved from metastore", x);
-        return x;
-      }
-    }));
+    Map<String, String> originalToDecoded = allPartitionNames.stream().collect(Collectors.toMap(x -> x, x -> URLDecoder.decode(x, StandardCharsets.UTF_8)));
 
     List<String> matchedPartitions = new ArrayList<>();
     List<String> matchedPartitionsDecoded = new ArrayList<>();

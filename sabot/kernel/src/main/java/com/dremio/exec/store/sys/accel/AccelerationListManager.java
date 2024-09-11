@@ -549,4 +549,44 @@ public interface AccelerationListManager extends Service {
           refreshInfoProto.getSeriesOrdinal());
     }
   }
+
+  class ReflectionLineageInfo {
+    private final int batchNumber;
+    private final String reflectionId;
+    private final String reflectionName;
+    private final String datasetName;
+
+    public ReflectionLineageInfo(
+        int batchNumber, String reflectionId, String reflectionName, String datasetName) {
+      this.batchNumber = batchNumber;
+      this.reflectionId = reflectionId;
+      this.reflectionName = reflectionName;
+      this.datasetName = datasetName;
+    }
+
+    public ReflectionDescriptionServiceRPC.ListReflectionLineageResponse toProto() {
+      ReflectionDescriptionServiceRPC.ListReflectionLineageResponse.Builder
+          protoReflectionLineageInfo =
+              ReflectionDescriptionServiceRPC.ListReflectionLineageResponse.newBuilder();
+
+      protoReflectionLineageInfo.setBatchNumber(batchNumber);
+
+      if (reflectionId != null) {
+        protoReflectionLineageInfo.setReflectionId(reflectionId);
+      }
+      if (reflectionName != null) {
+        protoReflectionLineageInfo.setReflectionName(reflectionName);
+      }
+
+      if (datasetName != null) {
+        protoReflectionLineageInfo.setDatasetName(datasetName);
+      }
+
+      return protoReflectionLineageInfo.build();
+    }
+
+    public int getBatchNumber() {
+      return batchNumber;
+    }
+  }
 }

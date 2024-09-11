@@ -26,7 +26,7 @@ import io.grpc.stub.MetadataUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.function.Function;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 import org.mockito.Mockito;
 import org.projectnessie.client.api.NessieApi;
 import org.projectnessie.client.api.NessieApiV2;
@@ -37,7 +37,7 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient {
   interface IncompatibleApiInterface extends NessieApi {}
 
   @Test
-  void testIncompatibleApiInterface() {
+  public void testIncompatibleApiInterface() {
     assertThatThrownBy(
             () ->
                 GrpcClientBuilder.builder()

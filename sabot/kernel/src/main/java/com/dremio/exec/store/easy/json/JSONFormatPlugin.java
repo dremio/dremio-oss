@@ -80,6 +80,7 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
     return new JSONRecordReader(
         context,
         splitAttributes.getPath(),
+        splitAttributes.getLength(),
         getFsPlugin().getCompressionCodecFactory(),
         dfs,
         columns);
@@ -97,6 +98,7 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
     return new JSONRecordReader(
         context,
         splitAttributes.getPath(),
+        splitAttributes.getLength(),
         getFsPlugin().getCompressionCodecFactory(),
         dfs,
         columns,

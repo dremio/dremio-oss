@@ -25,7 +25,6 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -39,8 +38,10 @@ import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -98,7 +99,7 @@ public class TestOptimizeHandler extends BaseTestQuery {
   }
 
   @Test
-  public void testV2TableWithDeletes() throws Exception {
+  public void testV2TableWithEqualityDeletesFlagOff() throws Exception {
     IcebergTestTables.Table table = IcebergTestTables.PRODUCTS_WITH_EQ_DELETES.get();
     config
         .getContext()
@@ -109,6 +110,14 @@ public class TestOptimizeHandler extends BaseTestQuery {
                 ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE
                     .getOptionName(),
                 true));
+    config
+        .getContext()
+        .getOptions()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM,
+                ExecConstants.ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE.getOptionName(),
+                false));
     String query = String.format("OPTIMIZE TABLE %s", table.getTableName());
     SqlOptimize sqlOptimize = parseToSqlOptimizeNode(query);
     NamespaceKey path = sqlOptimize.getPath();
@@ -123,12 +132,35 @@ public class TestOptimizeHandler extends BaseTestQuery {
     table.close();
   }
 
+  @Test
+  public void testV2TableWithEqualityDeletesFlagOn() throws Exception {
+    IcebergTestTables.Table table = IcebergTestTables.PRODUCTS_WITH_EQ_DELETES.get();
+    config
+        .getContext()
+        .getOptions()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM,
+                ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE
+                    .getOptionName(),
+                true));
+    config
+        .getContext()
+        .getOptions()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM,
+                ExecConstants.ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE.getOptionName(),
+                true));
+    String query = String.format("OPTIMIZE TABLE %s", table.getTableName());
+    SqlNode sqlOptimize = parseToSqlOptimizeNode(query);
+
+    Assert.assertTrue(sqlOptimize instanceof SqlOptimize);
+    table.close();
+  }
+
   private static SqlOptimize parseToSqlOptimizeNode(String toParse) throws SqlParseException {
-    ParserConfig config =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            255,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255);
     SqlParser parser = SqlParser.create(toParse, config);
     return (SqlOptimize) parser.parseStmt();
   }

@@ -17,7 +17,6 @@ package com.dremio.exec.planner.logical;
 
 import com.dremio.exec.planner.common.TableModifyRelBase;
 import java.util.List;
-import java.util.Set;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -49,7 +48,6 @@ public class TableModifyRel extends TableModifyRelBase implements Rel {
       CreateTableEntry createTableEntry,
       List<String> mergeUpdateColumnList,
       boolean hasSource,
-      Set<String> outdatedTargetColumns,
       RowLevelOperationMode dmlWriteMode) {
     super(
         LOGICAL,
@@ -65,7 +63,6 @@ public class TableModifyRel extends TableModifyRelBase implements Rel {
         createTableEntry,
         mergeUpdateColumnList,
         hasSource,
-        outdatedTargetColumns,
         dmlWriteMode);
   }
 
@@ -84,7 +81,6 @@ public class TableModifyRel extends TableModifyRelBase implements Rel {
         getCreateTableEntry(),
         getMergeUpdateColumnList(),
         hasSource(),
-        getOutdatedTargetColumns(),
         getDmlWriteMode());
   }
 }

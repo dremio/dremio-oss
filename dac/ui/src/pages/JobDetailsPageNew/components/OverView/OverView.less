@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @font-size: 16px;
 @line-height: 20px;
 @font-weight: 600;
 :global {
   .title() {
-    color: @font-color1;
+    color: var(--text--primary);
     font-size: @font-size;
     font-weight: @font-weight;
     line-height: @line-height;
@@ -32,7 +31,7 @@
     &__leftSidePanel {
       flex-basis: 33%;
       flex-direction: column;
-      border-right: 1px solid @SECONDARY_200;
+      border-right: 1px solid var(--border--neutral);
       padding-left: 3px;
       padding-right: 10px;
     }
@@ -56,9 +55,9 @@
     }
   }
   .failureInfo {
-    background-color: @linen;
+    background-color: var(--fill--danger);
     margin: 10px 0px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.0470588);
+    border-bottom: 1px solid var(--border--neutral);
     border-radius: 4px;
     padding: 4px;
 

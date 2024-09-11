@@ -43,7 +43,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.MethodDescriptor;
 import io.grpc.stub.ClientCalls;
 import io.grpc.stub.StreamObserver;
-import java.util.Collection;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.Map;
 import java.util.Queue;
 import javax.inject.Provider;
@@ -56,7 +57,6 @@ public class MaestroForwarderImpl implements MaestroForwarder {
 
   private final Provider<ConduitProvider> conduitProvider;
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpointProvider;
-  private final Provider<Collection<CoordinationProtos.NodeEndpoint>> jobServiceInstances;
   private final BufferAllocator allocator;
   private static final Map<String, StreamObserver> resultForwardingStreams =
       Maps.newConcurrentMap();
@@ -66,13 +66,12 @@ public class MaestroForwarderImpl implements MaestroForwarder {
   public MaestroForwarderImpl(
       final Provider<ConduitProvider> conduitProvider,
       final Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
-      final Provider<Collection<CoordinationProtos.NodeEndpoint>> jobServiceInstances,
-      BufferAllocator maestroForwarderAllocator) {
+      BufferAllocator rootBufferAllocator) {
 
     this.conduitProvider = conduitProvider;
     this.selfEndpointProvider = nodeEndpointProvider;
-    this.jobServiceInstances = jobServiceInstances;
-    this.allocator = maestroForwarderAllocator;
+    this.allocator =
+        rootBufferAllocator.newChildAllocator("maestro-forwarder-service", 0, Long.MAX_VALUE);
   }
 
   @Override
@@ -98,20 +97,27 @@ public class MaestroForwarderImpl implements MaestroForwarder {
   }
 
   @Override
+  @WithSpan
   public void nodeQueryCompleted(NodeQueryCompletion completion) {
+    Span.current()
+        .setAttribute("receiver_coordinator_address", selfEndpointProvider.get().getAddress());
     if (mustForwardRequest(completion.getForeman())) {
+      Span.current().setAttribute("forwarding_required", true);
       logger.debug(
           "Forwarding NodeQueryCompletion request for Query {} from {} to target {}",
           QueryIdHelper.getQueryId(completion.getId()),
           completion.getEndpoint().getAddress(),
           completion.getForeman().getAddress());
-
+      long start = System.currentTimeMillis();
       final ManagedChannel channel =
           conduitProvider.get().getOrCreateChannel(completion.getForeman());
+      Span.current()
+          .setAttribute("conduit_channel_acquire_time_ms", System.currentTimeMillis() - start);
       final MaestroServiceGrpc.MaestroServiceBlockingStub stub =
           MaestroServiceGrpc.newBlockingStub(channel);
       stub.nodeQueryComplete(completion);
     } else {
+      Span.current().setAttribute("message_expired", true);
       logger.warn(
           "A node query completion message arrived post query termination, dropping. Query [{}] from node {}.",
           QueryIdHelper.getQueryId(completion.getId()),

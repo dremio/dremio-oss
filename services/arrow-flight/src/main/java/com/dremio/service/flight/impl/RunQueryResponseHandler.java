@@ -140,10 +140,13 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
     try (final ArrowBuf arrowBuf = allocator.buffer((int) result.getByteCount())) {
       long arrowBufIndex = 0;
       for (ByteBuf byteBuf : result.getBuffers()) {
-        final int readableBytes = byteBuf.readableBytes();
-        arrowBuf.setBytes(arrowBufIndex, byteBuf.nioBuffer());
-        arrowBufIndex += readableBytes;
-        byteBuf.release();
+        try {
+          final int readableBytes = byteBuf.readableBytes();
+          arrowBuf.setBytes(arrowBufIndex, byteBuf.nioBuffer());
+          arrowBufIndex += readableBytes;
+        } finally {
+          byteBuf.release();
+        }
       }
       recordBatchLoader.load(def, arrowBuf);
     }

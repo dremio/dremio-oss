@@ -30,7 +30,7 @@
   <properties>
     <dremio.plugins.path>${project.build.directory}/pf4j-bundles</dremio.plugins.path>
 
-    <test.source.dir>${project.build.directory}/generated-test-sources</test.source.dir>
+    <test.source.dir>${project.build.directory}/generated-test-sources/hive</test.source.dir>
 
     <azure-storage.version>${plugin.hive2.azure-storage.version}</azure-storage.version>
     <azure-datalake.version>${plugin.hive2.azure-datalake.version}</azure-datalake.version>
@@ -44,6 +44,7 @@
     <datanucleus-rdbms.version>${plugin.hive2.datanucleus-rdbms.version}</datanucleus-rdbms.version>
     <datanucleus-jdo.version>${plugin.hive2.datanucleus-jdo.version}</datanucleus-jdo.version>
     <jdo-api.version>${plugin.hive2.jdo-api.version}</jdo-api.version>
+    <surefire.add-opens-args.test>--add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.util.regex=ALL-UNNAMED --add-opens java.base/java.time=ALL-UNNAMED</surefire.add-opens-args.test>
   </properties>
 
   <dependencies>
@@ -80,7 +81,6 @@
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-storage</artifactId>
-      <version>1.88.0</version>
     </dependency>
     <dependency>
       <groupId>com.dremio.contrib</groupId>
@@ -227,7 +227,7 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-native-libraries</artifactId>
-      <version>1.0.1</version>
+      <version>${hadoop.native.libraries.version}</version>
       <classifier>linux</classifier>
       <scope>runtime</scope>
     </dependency>
@@ -1150,15 +1150,17 @@
             </goals>
             <phase>process-sources</phase>
             <configuration>
-              <outputDirectory>${project.build.directory}/generated-sources/src/main</outputDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/hive</outputDirectory>
               <resources>
                 <resource>
                   <directory>${project.basedir}/../../hive/src/main</directory>
                   <includes>
-                    <include>**/*.*</include>
+                    <include>codegen/**</include>
+                    <include>hive2/**</include>
+                    <include>java/**</include>
+                    <include>proto/**</include>
                   </includes>
                   <excludes>
-                    <exclude>**/main/assembly</exclude>
                     <!-- HivePluginOptions is part of the Hive 2 launcher -->
                     <exclude>**/HivePluginOptions.java</exclude>
                   </excludes>
@@ -1184,7 +1186,8 @@
                 <resource>
                   <directory>${project.basedir}/../../hive/src/test</directory>
                   <includes>
-                    <include>**/*.*</include>
+                    <include>hive2/**</include>
+                    <include>java/**</include>
                   </includes>
                   <excludes>
                     <exclude>**/Hive2StoragePluginConfig.java</exclude>
@@ -1275,9 +1278,9 @@
             </goals>
             <phase>process-sources</phase>
             <configuration>
-              <config>${project.build.directory}/generated-sources/src/main/codegen/config.fmpp</config>
+              <config>${project.build.directory}/generated-sources/hive/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources/fmpp</output>
-              <templates>${project.build.directory}/generated-sources/src/main/codegen/templates</templates>
+              <templates>${project.build.directory}/generated-sources/hive/codegen/templates</templates>
             </configuration>
           </execution>
         </executions>
@@ -1292,7 +1295,7 @@
             </goals>
             <phase>process-sources</phase>
             <configuration>
-              <protoSourceRoot>${project.build.directory}/generated-sources/src/main/proto</protoSourceRoot>
+              <protoSourceRoot>${project.build.directory}/generated-sources/hive/proto</protoSourceRoot>
             </configuration>
           </execution>
         </executions>
@@ -1308,10 +1311,8 @@
             <phase>generate-sources</phase>
             <configuration>
               <sources>
-                <source>${project.build.directory}/generated-sources/src/main/java</source>
-                <source>${project.build.directory}/generated-sources/src/main/hive2</source>
-                <source>${project.build.directory}/generated-sources/fmpp</source>
-                <source>${project.build.directory}/generated-sources/protobuf</source>
+                <source>${project.build.directory}/generated-sources/hive/java</source>
+                <source>${project.build.directory}/generated-sources/hive/hive2</source>
               </sources>
             </configuration>
           </execution>
@@ -1506,6 +1507,20 @@
             </exclusion>
           </exclusions>
         </dependency>
+        <!-- Required for IT tests only as Hive3PluginOptions is referenced from Hive3StoragePlugin-->
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive3-plugin-launcher</artifactId>
+          <version>${project.version}</version>
+          <type>jar</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
       </dependencies>
       <build>
         <plugins>
@@ -1580,6 +1595,7 @@
             <configuration>
               <excludes>
                 <exclude>com/dremio/exec/store/hive/GlueAWSCredentialsFactory.java</exclude>
+                <exclude>com/dremio/exec/store/hive/GlueAWSCredentialsProvider.java</exclude>
                 <exclude>com/dremio/plugins/s3/store/STSCredentialProviderV1.java</exclude>
               </excludes>
             </configuration>

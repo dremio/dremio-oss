@@ -30,7 +30,6 @@ import com.dremio.dac.service.exec.MasterStatusListener;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.service.BindingCreator;
-import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.google.common.annotations.VisibleForTesting;
@@ -40,6 +39,7 @@ import java.io.IOException;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import javax.inject.Provider;
 import org.apache.hadoop.security.UserGroupInformation;
 
 /**
@@ -340,11 +340,15 @@ public final class DACDaemon implements AutoCloseable {
     }
   }
 
-  public BindingProvider getBindingProvider() {
-    return registry.getBindingProvider();
-  }
-
   public BindingCreator getBindingCreator() {
     return registry.getBindingCreator();
+  }
+
+  public <T> Provider<T> getProvider(Class<T> iface) {
+    return registry.getBindingProvider().provider(iface);
+  }
+
+  public <T> T getInstance(Class<T> iface) {
+    return registry.getBindingProvider().lookup(iface);
   }
 }

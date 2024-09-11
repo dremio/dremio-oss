@@ -378,6 +378,10 @@ public class Upgrade {
     final DACConfig dacConfig = DACConfig.newConfig();
     final ScanResult classPathScan =
         ClassPathScanner.fromPrescan(dacConfig.getConfig().getSabotConfig());
+    upgrade(dacConfig, classPathScan);
+  }
+
+  public static void upgrade(DACConfig dacConfig, ScanResult classPathScan) {
     try {
       Upgrade upgrade = new Upgrade(dacConfig, classPathScan, true);
       upgrade.run();

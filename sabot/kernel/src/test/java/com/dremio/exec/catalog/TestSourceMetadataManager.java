@@ -18,8 +18,10 @@ package com.dremio.exec.catalog;
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static com.dremio.options.TypeValidators.PositiveLongValidator;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -58,6 +60,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
@@ -69,9 +72,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.stubbing.Answer;
 
@@ -83,7 +86,7 @@ public class TestSourceMetadataManager {
       mock(MetadataRefreshInfoBroadcaster.class);
   private ModifiableSchedulerService modifiableSchedulerService;
 
-  @Before
+  @BeforeEach
   public void setup() {
     optionManager = mock(OptionManager.class);
     when(optionManager.getOption(eq(CatalogOptions.SPLIT_COMPRESSION_TYPE)))
@@ -97,13 +100,13 @@ public class TestSourceMetadataManager {
             1, "modifiable-scheduler-", option, () -> optionManager);
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     AutoCloseables.close(modifiableSchedulerService);
   }
 
   @Test
-  public void deleteUnavailableDataset() throws Exception {
+  public void testRefreshDataset_deleteUnavailableDataset() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     Orphanage orphanage = mock(Orphanage.class);
 
@@ -154,7 +157,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void doNotDeleteUnavailableDataset() throws Exception {
+  public void testRefreshDataset_doNotDeleteUnavailableDataset() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any()))
         .thenReturn(
@@ -199,7 +202,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void deleteUnavailableDatasetWithoutDefinition() throws Exception {
+  public void testRefreshDataset_deleteUnavailableDatasetWithoutDefinition() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     Orphanage orphanage = mock(Orphanage.class);
     when(ns.getDataset(any()))
@@ -246,7 +249,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void doNotDeleteUnavailableDatasetWithoutDefinition() throws Exception {
+  public void testRefreshDataset_doNotDeleteUnavailableDatasetWithoutDefinition() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any()))
         .thenReturn(new DatasetConfig().setFullPathList(ImmutableList.of("one", "two")));
@@ -288,8 +291,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void handleUnavailableSourceDataset() throws Exception {
-
+  public void testRefreshDataset_handleUnavailableSourceDataset() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
 
     doThrow(new NamespaceNotFoundException(new NamespaceKey(""), "not found"))
@@ -330,7 +332,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void checkForceUpdate() throws Exception {
+  public void testRefreshDataset_checkForceUpdate() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any())).thenReturn(null);
 
@@ -391,7 +393,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void dataSetPathCaseSensitivity() throws Exception {
+  public void testRefreshDataset_dataSetPathCaseSensitivity() throws Exception {
     final String qualifier = "inspector";
     final String original = "testPath";
     final String capital = "TESTPATH";
@@ -457,7 +459,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void exceedMaxColumnLimit() throws Exception {
+  public void testRefreshDataset_exceedMaxColumnLimit() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any())).thenReturn(null);
 
@@ -505,7 +507,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void disableCheckMetadataValidity() throws Exception {
+  public void testIsStillValid_disableCheckMetadataValidity() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any())).thenReturn(null);
 
@@ -554,7 +556,7 @@ public class TestSourceMetadataManager {
   }
 
   @Test
-  public void refreshNonexistentDataset() throws Exception {
+  public void testRefreshDataset_refreshNonexistentDataset() throws Exception {
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
     NamespaceService ns = mock(NamespaceService.class);
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
@@ -582,5 +584,42 @@ public class TestSourceMetadataManager {
                     DatasetRetrievalOptions.DEFAULT.toBuilder().build()))
         .isInstanceOf(DatasetNotFoundException.class)
         .hasMessageContaining("Dataset [nonExistentDataset] not found.");
+  }
+
+  @Test
+  public void testRefresh_sourceDoesNotExist() throws Exception {
+    ManagedStoragePlugin.MetadataBridge metadataBridge =
+        mock(ManagedStoragePlugin.MetadataBridge.class);
+    NamespaceService namespaceService = mock(NamespaceService.class);
+    ExtendedStoragePlugin storagePlugin = mock(ExtendedStoragePlugin.class);
+
+    when(storagePlugin.getDatasetHandle(any(), any(), any())).thenReturn(Optional.empty());
+    when(metadataBridge.getMetadata()).thenReturn(storagePlugin);
+    when(metadataBridge.getNamespaceService()).thenReturn(namespaceService);
+
+    NamespaceKey key = new NamespaceKey("testing");
+    when(namespaceService.exists(eq(key), eq(NameSpaceContainer.Type.SOURCE))).thenReturn(false);
+
+    SourceMetadataManager manager =
+        new SourceMetadataManager(
+            key,
+            modifiableSchedulerService,
+            true,
+            mock(LegacyKVStore.class),
+            metadataBridge,
+            optionManager,
+            CatalogServiceMonitor.DEFAULT,
+            () -> broadcaster);
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                manager.refresh(
+                    CatalogServiceImpl.UpdateType.FULL,
+                    new MetadataPolicy()
+                        .setAutoPromoteDatasets(true)
+                        .setDeleteUnavailableDatasets(true),
+                    true));
+    assertThat(e).hasMessage(String.format("Source %s does not exist", key.getName()));
   }
 }

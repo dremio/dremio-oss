@@ -17,23 +17,23 @@ package com.dremio.exec.catalog.namespace;
 
 import com.dremio.catalog.model.CatalogEntityId;
 import com.dremio.datastore.SearchTypes;
-import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import java.util.List;
-import java.util.Map;
 
 /** An interface to abstract NamespaceService away from the architectural layers above Catalog. */
 public interface NamespacePassthrough {
 
   boolean existsById(CatalogEntityId id);
 
-  List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys)
-      throws NamespaceNotFoundException;
+  List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys);
 
   void addOrUpdateDataset(
       NamespaceKey datasetPath, DatasetConfig dataset, NamespaceAttribute... attributes)
@@ -55,6 +55,7 @@ public interface NamespacePassthrough {
 
   List<Integer> getCounts(SearchTypes.SearchQuery... queries) throws NamespaceException;
 
-  Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(
-      LegacyIndexedStore.LegacyFindByCondition condition);
+  Iterable<Document<NamespaceKey, NameSpaceContainer>> find(FindByCondition condition);
+
+  List<NameSpaceContainer> getEntitiesByIds(List<EntityId> ids);
 }

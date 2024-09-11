@@ -77,10 +77,6 @@ public abstract class FlattenRelBase extends SingleRel {
 
   @Override
   protected RelDataType deriveRowType() {
-    if (!PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport()) {
-      return super.deriveRowType();
-    }
-
     RelDataType rowType = input.getRowType();
     List<RelDataTypeField> inputFields = rowType.getFieldList();
     List<RelDataTypeField> outputFields = new ArrayList<>();

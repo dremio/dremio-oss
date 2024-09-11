@@ -43,18 +43,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
 
 @ExtendWith(OlderNessieServersExtension.class)
-@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")
 public class TestContextSettingsInPlanProfile extends ITBaseTestVersioned {
   private BufferAllocator allocator;
 
   @BeforeEach
   public void prepare() throws Exception {
-    allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @AfterEach

@@ -38,6 +38,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) => {
       className={clsx(className, "form-control")}
       style={style}
       {...(wrapperRef && { ref: wrapperRef })}
+      aria-disabled={props.disabled}
     >
       {textPrefix ? (
         <div className="form-control__prefix">{textPrefix}</div>

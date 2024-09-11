@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../components/colors.less";
 @import "~@app/uiTheme/less/mixins.less";
 
 :global {
@@ -21,12 +20,17 @@
 
   .finder-nav-item {
     &:hover,
-    &:focus {
-      background-color: var(--color--brand--25);
+    &:focus,
+    &:focus-within {
+      background-color: var(--fill--primary--hover);
     }
 
     .pin {
       opacity: 0;
+
+      &:focus-visible {
+        opacity: 1;
+      }
     }
 
     &:hover {
@@ -69,11 +73,13 @@
 
       &:hover,
       &:focus {
-        text-decoration: none !important;
+        .EllipsedText {
+          text-decoration: underline !important;
+        }
       }
       &.active {
         font-weight: 600;
-        background-color: var(--color--brand--50);
+        background-color: var(--fill--primary--selected);
       }
     }
 
@@ -112,10 +118,10 @@
 
     .fa {
       &.off {
-        color: @light-red;
+        color: var(--color--red--400);
       }
       &.on {
-        color: @light-green;
+        color: var(--color--green--300);
       }
       &.in-border {
         font-size: 10px;
@@ -135,7 +141,7 @@
 
     .count {
       font-size: 12px;
-      color: var(--dremio--color--text--faded);
+      color: var(--text--faded);
     }
   }
 }

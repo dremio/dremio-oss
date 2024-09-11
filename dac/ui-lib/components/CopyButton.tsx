@@ -17,7 +17,7 @@
 import * as React from "react";
 import { IconButton } from "./IconButton";
 import { CopyContainer } from "./CopyContainer";
-import { type Placement } from "@floating-ui/react-dom-interactions";
+import { type Placement } from "@floating-ui/react";
 
 type Props = {
   contents: string;

@@ -130,7 +130,7 @@ public class FlattenCaseExpressionsVisitor extends StatelessRelShuttleImpl {
           }
         }
         if (foundNestedCase) {
-          return rexBuilder.makeCall(SqlStdOperatorTable.CASE, operands);
+          return rexBuilder.makeCall(call.getType(), SqlStdOperatorTable.CASE, operands);
         }
       }
       return super.visitCall(call);

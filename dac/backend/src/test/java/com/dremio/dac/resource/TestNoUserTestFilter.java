@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.resource;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.GenericErrorMessage;
@@ -46,7 +48,7 @@ public class TestNoUserTestFilter extends BaseTestServer {
               Response.Status.FORBIDDEN,
               getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
               GenericErrorMessage.class);
-      assertErrorMessage(errorMessage, GenericErrorMessage.NO_USER_MSG, "");
+      assertThat(errorMessage.getErrorMessage()).isEqualTo(GenericErrorMessage.NO_USER_MSG);
     }
   }
 }

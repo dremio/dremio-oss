@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.server;
 
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.google.common.collect.ImmutableList;
 import java.util.List;

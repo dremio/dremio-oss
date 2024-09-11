@@ -17,12 +17,17 @@
 package com.dremio.exec.catalog;
 
 import static com.dremio.datastore.indexed.IndexKey.LOWER_CASE_SUFFIX;
+import static com.dremio.exec.ExecConstants.INFO_SCHEMA_FIND_PAGE_SIZE;
 import static com.dremio.exec.ExecConstants.VERSIONED_INFOSCHEMA_ENABLED;
 import static com.dremio.exec.util.InformationSchemaCatalogUtil.getEscapeCharacter;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.context.RequestContext;
+import com.dremio.context.UserContext;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
@@ -37,6 +42,7 @@ import com.dremio.service.catalog.TableType;
 import com.dremio.service.catalog.View;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceIdentity;
 import com.dremio.service.namespace.NamespaceIndexKeys;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -49,7 +55,6 @@ import java.security.AccessControlException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -58,7 +63,6 @@ import java.util.stream.StreamSupport;
 
 /** Implementation of {@link InformationSchemaCatalog} that relies on namespace. */
 class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
-
   private static final String DEFAULT_CATALOG_NAME = "DREMIO";
   private static final String CATALOG_DESCRIPTION = "The internal metadata used by Dremio";
   private static final String CATALOG_CONNECT = "";
@@ -80,25 +84,27 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
       SearchQueryUtils.newTermQuery(
           NamespaceIndexKeys.ENTITY_TYPE, NameSpaceContainer.Type.DATASET.getNumber());
 
-  private static final Predicate<Map.Entry<NamespaceKey, NameSpaceContainer>> IS_NOT_INTERNAL =
+  private static final Predicate<Document<NamespaceKey, NameSpaceContainer>> IS_NOT_INTERNAL =
       entry -> !entry.getKey().getRoot().startsWith("__");
 
   private static final ImmutableSet<String> SYSTEM_FIELDS =
       ImmutableSet.of(IncrementalUpdateUtils.UPDATE_COLUMN);
 
   private final NamespaceService userNamespace;
-  private PluginRetriever pluginRetriever;
+  private final NamespaceIdentity identity;
+  private final PluginRetriever pluginRetriever;
 
-  private static final org.slf4j.Logger logger =
-      org.slf4j.LoggerFactory.getLogger(InformationSchemaCatalogImpl.class);
-
-  private OptionManager options;
+  private final OptionManager optionManager;
 
   public InformationSchemaCatalogImpl(
-      NamespaceService userNamespace, PluginRetriever pluginRetriever, OptionManager options) {
+      NamespaceService userNamespace,
+      PluginRetriever pluginRetriever,
+      OptionManager optionManager,
+      NamespaceIdentity identity) {
     this.userNamespace = userNamespace;
     this.pluginRetriever = pluginRetriever;
-    this.options = options;
+    this.optionManager = optionManager;
+    this.identity = identity;
   }
 
   private static LegacyFindByCondition getCondition(SearchQuery searchQuery) {
@@ -234,14 +240,19 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     final Iterator<Schema>[] res = new Iterator[] {Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
-    if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
+    if (versionedPlugins != null && optionManager.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
       versionedPlugins
           .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
           .forEach(
               versionedPlugin -> {
-                Stream<com.dremio.service.catalog.Schema> schemata =
-                    versionedPlugin.getAllInformationSchemaSchemataInfo(searchQuery);
-                res[0] = Iterators.concat(res[0], schemata.iterator());
+                RequestContext.current()
+                    .with(UserContext.CTX_KEY, new UserContext(identity.getId()))
+                    .run(
+                        () -> {
+                          Stream<com.dremio.service.catalog.Schema> schemata =
+                              versionedPlugin.getAllInformationSchemaSchemataInfo(searchQuery);
+                          res[0] = Iterators.concat(res[0], schemata.iterator());
+                        });
               });
     }
 
@@ -253,8 +264,12 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
       query = SearchQueryUtils.and(toSearchQuery(searchQuery), SCHEMATA_FILTER);
     }
 
-    final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-        userNamespace.find(new LegacyFindByCondition().setCondition(query));
+    final Iterable<Document<NamespaceKey, NameSpaceContainer>> searchResults =
+        userNamespace.find(
+            new ImmutableFindByCondition.Builder()
+                .setCondition(query)
+                .setPageSize((int) optionManager.getOption(INFO_SCHEMA_FIND_PAGE_SIZE))
+                .build());
 
     final Set<String> alreadySent = new HashSet<>();
     return Iterators.concat(
@@ -281,19 +296,28 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     final Iterator[] res = {Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
-    if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
+    if (versionedPlugins != null && optionManager.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
       versionedPlugins
           .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
           .forEach(
               versionedPlugin -> {
-                Stream<com.dremio.service.catalog.Table> tables =
-                    versionedPlugin.getAllInformationSchemaTableInfo(searchQuery);
-                res[0] = Iterators.concat(res[0], tables.iterator());
+                RequestContext.current()
+                    .with(UserContext.CTX_KEY, new UserContext(identity.getId()))
+                    .run(
+                        () -> {
+                          Stream<com.dremio.service.catalog.Table> tables =
+                              versionedPlugin.getAllInformationSchemaTableInfo(searchQuery);
+                          res[0] = Iterators.concat(res[0], tables.iterator());
+                        });
               });
     }
 
-    final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-        userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
+    final Iterable<Document<NamespaceKey, NameSpaceContainer>> searchResults =
+        userNamespace.find(
+            new ImmutableFindByCondition.Builder()
+                .setCondition(addDatasetFilter(searchQuery))
+                .setPageSize((int) optionManager.getOption(INFO_SCHEMA_FIND_PAGE_SIZE))
+                .build());
 
     return Iterators.concat(
         res[0],
@@ -327,19 +351,28 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     final Iterator[] res = {Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
-    if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
+    if (versionedPlugins != null && optionManager.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
       versionedPlugins
           .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
           .forEach(
               versionedPlugin -> {
-                Stream<com.dremio.service.catalog.View> views =
-                    versionedPlugin.getAllInformationSchemaViewInfo(searchQuery);
-                res[0] = Iterators.concat(res[0], views.iterator());
+                RequestContext.current()
+                    .with(UserContext.CTX_KEY, new UserContext(identity.getId()))
+                    .run(
+                        () -> {
+                          Stream<com.dremio.service.catalog.View> views =
+                              versionedPlugin.getAllInformationSchemaViewInfo(searchQuery);
+                          res[0] = Iterators.concat(res[0], views.iterator());
+                        });
               });
     }
 
-    final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-        userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
+    final Iterable<Document<NamespaceKey, NameSpaceContainer>> searchResults =
+        userNamespace.find(
+            new ImmutableFindByCondition.Builder()
+                .setCondition(addDatasetFilter(searchQuery))
+                .setPageSize((int) optionManager.getOption(INFO_SCHEMA_FIND_PAGE_SIZE))
+                .build());
 
     return Iterators.concat(
         res[0],
@@ -363,19 +396,28 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     final Iterator[] res = {Collections.emptyIterator()};
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
-    if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
+    if (versionedPlugins != null && optionManager.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
       versionedPlugins
           .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
           .forEach(
               versionedPlugin -> {
-                Stream<com.dremio.service.catalog.TableSchema> columns =
-                    versionedPlugin.getAllInformationSchemaColumnInfo(searchQuery);
-                res[0] = Iterators.concat(res[0], columns.iterator());
+                RequestContext.current()
+                    .with(UserContext.CTX_KEY, new UserContext(identity.getId()))
+                    .run(
+                        () -> {
+                          Stream<com.dremio.service.catalog.TableSchema> columns =
+                              versionedPlugin.getAllInformationSchemaColumnInfo(searchQuery);
+                          res[0] = Iterators.concat(res[0], columns.iterator());
+                        });
               });
     }
 
-    final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> searchResults =
-        userNamespace.find(new LegacyFindByCondition().setCondition(addDatasetFilter(searchQuery)));
+    final Iterable<Document<NamespaceKey, NameSpaceContainer>> searchResults =
+        userNamespace.find(
+            new ImmutableFindByCondition.Builder()
+                .setCondition(addDatasetFilter(searchQuery))
+                .setPageSize((int) optionManager.getOption(INFO_SCHEMA_FIND_PAGE_SIZE))
+                .build());
 
     return Iterators.concat(
         res[0],

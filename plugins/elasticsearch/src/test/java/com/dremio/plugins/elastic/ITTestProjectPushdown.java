@@ -18,7 +18,6 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.schemaName;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.tableName;
 
-import com.dremio.TestBuilder;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -81,7 +80,7 @@ public class ITTestProjectPushdown extends ElasticBaseTestQuery {
     // this is not needed here and using it actually causes a failure because of the simple way it
     // rewrites
     // queries (looking for elasticsearch and replacing it, a word that appears in this path...)
-    new TestBuilder(allocator)
+    testBuilder()
         .sqlQuery("select stars, review_count from " + PARQUET_TABLE)
         .unOrdered()
         .baselineColumns("stars", "review_count")

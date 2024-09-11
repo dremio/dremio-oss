@@ -256,7 +256,11 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     clear();
     setExecutor(null);
     if (this.root != null) {
-      setRoot(new DisposeRel(this.root.getCluster()));
+      RelOptCluster cluster = this.root.getCluster();
+      // Wiping out RelMetadataCache. It will be holding the RelNodes from the prior
+      // planning phases.
+      cluster.invalidateMetadataQuery();
+      setRoot(new DisposeRel(cluster));
     }
     super.setOriginalRoot(null);
     clear(); // Again for the root we just added

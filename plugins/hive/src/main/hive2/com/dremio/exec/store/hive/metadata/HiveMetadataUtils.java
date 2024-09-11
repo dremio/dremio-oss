@@ -87,6 +87,7 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
+import com.dremio.service.namespace.dataset.proto.TableProperties;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.users.SystemUser;
@@ -726,16 +727,6 @@ public class HiveMetadataUtils {
     long numEqualityDeletes = Long.parseLong(summary.getOrDefault("total-equality-deletes", "0"));
     long numDeleteFiles = Long.parseLong(summary.getOrDefault("total-delete-files", "0"));
 
-    if (numDeleteFiles > 0
-        && !plugin
-            .getSabotContext()
-            .getOptionManager()
-            .getOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN)) {
-      throw UserException.unsupportedError()
-          .message("Iceberg V2 tables with delete files are not supported")
-          .buildSilently();
-    }
-
     if (numEqualityDeletes > 0
         && !plugin
             .getSabotContext()
@@ -757,6 +748,8 @@ public class HiveMetadataUtils {
     byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(specsMap);
     final long snapshotId = snapshot != null ? snapshot.snapshotId() : -1;
     String sortOrderJson = IcebergSerDe.serializeSortOrderAsJson(icebergTable.sortOrder());
+    List<TableProperties> tablePropertiesList =
+        IcebergUtils.convertMapToTablePropertiesList(icebergTable.properties());
 
     IcebergMetadata icebergMetadata =
         new IcebergMetadata()
@@ -766,6 +759,7 @@ public class HiveMetadataUtils {
             .setMetadataFileLocation(metadataLocation)
             .setSnapshotId(snapshotId)
             .setSortOrder(sortOrderJson)
+            .setTablePropertiesList(tablePropertiesList)
             .setDeleteManifestStats(
                 new ScanStats()
                     .setScanFactor(ScanCostFactor.EASY.getFactor())

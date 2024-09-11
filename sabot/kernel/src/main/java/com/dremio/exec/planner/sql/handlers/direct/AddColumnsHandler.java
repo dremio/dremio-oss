@@ -89,7 +89,7 @@ public class AddColumnsHandler extends SimpleDirectHandler {
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
     TableMutationOptions tableMutationOptions =
         TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
-    BatchSchema deltaSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, newColumns, sql);
+    BatchSchema deltaSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(newColumns, sql);
     catalog.addColumns(
         resolvedPath, table.getDatasetConfig(), deltaSchema.getFields(), tableMutationOptions);
 

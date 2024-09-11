@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.server;
 
+import com.dremio.dac.annotations.RestApiServer;
 import com.dremio.dac.daemon.DremioBinder;
 import com.dremio.dac.server.socket.SocketServlet;
 import com.dremio.options.OptionManager;
@@ -69,6 +70,9 @@ public class WebServer implements Service {
 
     /** Power BI DS media type */
     public static final String APPLICATION_PBIDS = "application/pbids";
+
+    /** CSV media type string */
+    public static final String TEXT_CSV = "text/csv";
   }
 
   /** Dremio hostname to use for response (usually match the Host header field). */
@@ -91,36 +95,27 @@ public class WebServer implements Service {
   // resources from the SabotNode can be directly injected into it
   // after the start up completes
   private final SingletonRegistry registry;
-  private final Provider<RestServerV2> restServerProvider;
-  private final Provider<APIServer> apiServerProvider;
-  private final Provider<NessieProxyRestServer> nessieProxyResetServerV2;
+  private final Provider<RestApiServerFactory> restApiServerFactoryProvider;
   private final DremioServer server;
   private final DACConfig config;
   private final Provider<CredentialsService> credentialsServiceProvider;
   private final DremioBinder dremioBinder;
   private final String uiType;
-  private final boolean isInternalUS;
 
   public WebServer(
       SingletonRegistry registry,
       DACConfig config,
       Provider<CredentialsService> credentialsServiceProvider,
-      Provider<RestServerV2> restServer,
-      Provider<APIServer> apiServer,
-      Provider<NessieProxyRestServer> nessieProxyResetServerV2,
+      Provider<RestApiServerFactory> restApiServerFactoryProvider,
       Provider<DremioServer> server,
       DremioBinder dremioBinder,
-      String uiType,
-      boolean isInternalUS) {
+      String uiType) {
     this.registry = registry;
+    this.restApiServerFactoryProvider = restApiServerFactoryProvider;
     this.config = config;
     this.credentialsServiceProvider = credentialsServiceProvider;
-    this.restServerProvider = restServer;
-    this.apiServerProvider = apiServer;
-    this.nessieProxyResetServerV2 = nessieProxyResetServerV2;
     this.dremioBinder = dremioBinder;
     this.uiType = uiType;
-    this.isInternalUS = isInternalUS;
     this.server = server.get();
   }
 
@@ -164,45 +159,30 @@ public class WebServer implements Service {
     wsHolder.setInitOrder(1);
     servletContextHandler.addServlet(wsHolder, "/apiv2/socket");
 
-    // Rest API
-    ResourceConfig restServer = restServerProvider.get();
+    // Rest APIs.
+    int initOrder = 2;
+    for (ResourceConfig restServer : restApiServerFactoryProvider.get().load()) {
+      RestApiServer annotation = restServer.getClass().getAnnotation(RestApiServer.class);
+      if (annotation == null) {
+        throw new RuntimeException(
+            String.format(
+                "Server class %s is not annotated with %s",
+                restServer.getClass(), RestApiServer.class.getName()));
+      }
+      restServer.register(dremioBinder);
+      restServer.register(
+          (DynamicFeature)
+              (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
 
-    restServer.property(RestServerV2.ERROR_STACKTRACE_ENABLE, config.sendStackTraceToClient);
-    restServer.property(RestServerV2.TEST_API_ENABLE, config.allowTestApis);
-    restServer.property(RestServerV2.FIRST_TIME_API_ENABLE, isInternalUS);
-
-    restServer.register(dremioBinder);
-    restServer.register(
-        (DynamicFeature)
-            (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
-
-    final ServletHolder restHolder = new ServletHolder(new ServletContainer(restServer));
-    restHolder.setInitOrder(2);
-    servletContextHandler.addServlet(restHolder, "/apiv2/*");
-
-    // Public API
-    ResourceConfig apiServer = apiServerProvider.get();
-    apiServer.register(dremioBinder);
-    apiServer.register(
-        (DynamicFeature)
-            (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
-
-    final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
-    apiHolder.setInitOrder(3);
-    servletContextHandler.addServlet(apiHolder, "/api/v3/*");
-
-    // Nessie Source REST API
-    ResourceConfig nessieProxyRestServerV2 = nessieProxyResetServerV2.get();
-
-    nessieProxyRestServerV2.register(dremioBinder);
-    nessieProxyRestServerV2.register(
-        (DynamicFeature)
-            (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
-
-    final ServletHolder proxyNessieRestHolder =
-        new ServletHolder(new ServletContainer(nessieProxyRestServerV2));
-    proxyNessieRestHolder.setInitOrder(4);
-    servletContextHandler.addServlet(proxyNessieRestHolder, "/nessie-proxy/*");
+      // Add servlet.
+      ServletHolder restHolder = new ServletHolder(new ServletContainer(restServer));
+      restHolder.setInitOrder(initOrder++);
+      servletContextHandler.addServlet(restHolder, annotation.pathSpec());
+      logger.info(
+          "Added servlet for server class {} at pathSpec {}",
+          restServer.getClass(),
+          annotation.pathSpec());
+    }
   }
 
   public int getPort() {

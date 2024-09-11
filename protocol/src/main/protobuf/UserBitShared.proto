@@ -98,7 +98,18 @@ enum WorkloadType {
   D2D = 15;
 }
 
-message DremioPBError{
+enum DremioExitCodes {
+  SUCCESS = 0;
+  GENERAL_FAILURE = 1;
+  OUT_OF_HEAP_FAILURE = 2;
+  LOST_MASTER_STATUS = 3;
+  SERVICE_START_FAILURE = 4;
+  FATAL_INTERNAL_ERROR = 5;
+  UNCAUGHT_EXCEPTION_HANDLER_EXIT = 6;
+  LOST_ZOOKEEPER_SESSION = 7;
+}
+
+message DremioPBError {
   enum ErrorType {
     /* equivalent to SQLClientInfoException
      * - handshake version error
@@ -225,6 +236,7 @@ message DremioPBError{
      */
     PDFS_RETRIABLE_ERROR = 1022;
   }
+
   optional string error_id = 1; // for debug tracing purposes
   optional NodeEndpoint endpoint = 2;
   optional ErrorType error_type = 3;
@@ -236,6 +248,7 @@ message DremioPBError{
   optional string original_message = 1001;
   repeated string context = 1002;
   optional bytes typeSpecificContext = 1003;
+  optional string error_origin = 1004;
 }
 
 message ExceptionWrapper {
@@ -484,6 +497,7 @@ message DatasetProfile {
   optional bytes batch_schema = 3;
   optional string sql = 4;
   optional bool allow_approx_stats = 5;
+  optional string versionContext = 6;
 }
 
 enum ReflectionType {

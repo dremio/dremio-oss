@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .base {
   cursor: pointer; // todo: use css to make all <label>s cursor:pointer?
@@ -23,11 +22,11 @@
   margin-top: 6px;
 
   :global(.checked) {
-    border: 1px solid @FIGMA_PRIMARY_500;
-    background-color: @FIGMA_PRIMARY_500;
+    border: 1px solid var(--color--brand--300);
+    background-color: var(--color--brand--300);
     color: #fff;
     &:hover {
-      border: 1px solid @FIGMA_PRIMARY_500;
+      border: 1px solid var(--color--brand--300);
     }
   }
 }
@@ -41,7 +40,7 @@
     background-color: #e5e5e5;
     color: #7f8b95;
     &:hover {
-      border-color: @FIGMA_NEUTRAL_200;
+      border-color: var(--border--neutral--solid);
     }
   }
 }
@@ -65,15 +64,11 @@
   margin: 0 8px 0 0;
   vertical-align: text-bottom;
   border-radius: 2px;
-  border: 1.5px solid @FIGMA_NEUTRAL_200;
+  border: 1.5px solid var(--border--neutral--solid);
   &:hover {
-    border: 1.5px solid @FIGMA_NEUTRAL_300;
+    border: 1.5px solid var(--border--hover);
   }
 }
-
-// input:focus ~ .customCheckBox {
-//   outline: 1px dotted @GREY
-// }
 
 .checkbox-standalone {
   .customCheckBox {

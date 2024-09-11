@@ -30,6 +30,8 @@ public class DirListingTableFunctionContext extends TableFunctionContext {
 
   // Extends URL with a version query parameter, based on the last modification time of the table
   private final boolean hasVersion;
+  // File Path Scheme used to enumerate file/sub-dir paths
+  private final String schemeVariate;
 
   public DirListingTableFunctionContext(
       @JsonProperty("schema") BatchSchema fullSchema,
@@ -37,7 +39,8 @@ public class DirListingTableFunctionContext extends TableFunctionContext {
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("allowRecursiveListing") boolean allowRecursiveListing,
-      @JsonProperty("hasVersion") boolean hasVersion) {
+      @JsonProperty("hasVersion") boolean hasVersion,
+      @JsonProperty("schemeVariate") String schemeVariate) {
     super(
         null,
         fullSchema,
@@ -56,6 +59,7 @@ public class DirListingTableFunctionContext extends TableFunctionContext {
         null);
     this.allowRecursiveListing = allowRecursiveListing;
     this.hasVersion = hasVersion;
+    this.schemeVariate = schemeVariate;
   }
 
   @JsonProperty("allowRecursiveListing")
@@ -66,5 +70,10 @@ public class DirListingTableFunctionContext extends TableFunctionContext {
   @JsonProperty("hasVersion")
   public boolean hasVersion() {
     return hasVersion;
+  }
+
+  @JsonProperty("schemeVariate")
+  public String schemeVariate() {
+    return schemeVariate;
   }
 }

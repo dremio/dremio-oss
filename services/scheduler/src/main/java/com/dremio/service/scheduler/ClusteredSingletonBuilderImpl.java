@@ -24,6 +24,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAmount;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 
 /**
  * Builder Implementation to create multi shot {@code Schedule} instances for clustered singleton
@@ -36,6 +37,10 @@ final class ClusteredSingletonBuilderImpl implements ClusteredSingletonBuilder {
   private Function<Schedule, Schedule> scheduleModifier;
   private String taskGroupName;
   private boolean sticky;
+  private IntSupplier weightProvider;
+  private int staggerSeed = 0;
+  private long staggerRange = 0;
+  private TimeUnit staggerUnit;
 
   ClusteredSingletonBuilderImpl(ScheduleBuilderImpl scheduleBuilder, String taskName) {
     this.scheduleBuilder = scheduleBuilder;
@@ -45,6 +50,7 @@ final class ClusteredSingletonBuilderImpl implements ClusteredSingletonBuilder {
     this.scheduleModifier = (x) -> null;
     this.taskGroupName = null;
     this.sticky = false;
+    this.weightProvider = null;
   }
 
   ClusteredSingletonBuilderImpl(Schedule old) {
@@ -66,6 +72,7 @@ final class ClusteredSingletonBuilderImpl implements ClusteredSingletonBuilder {
     this.scheduleModifier = old.getScheduleModifier();
     this.taskGroupName = old.getTaskGroupName();
     this.sticky = old.isSticky();
+    this.weightProvider = old.getWeightProvider();
   }
 
   @Override
@@ -88,6 +95,12 @@ final class ClusteredSingletonBuilderImpl implements ClusteredSingletonBuilder {
   @Override
   public ClusteredSingletonBuilder scheduleModifier(Function<Schedule, Schedule> scheduleModifier) {
     this.scheduleModifier = scheduleModifier;
+    return this;
+  }
+
+  @Override
+  public ClusteredSingletonBuilder withWeightProvider(IntSupplier weightProvider) {
+    this.weightProvider = weightProvider;
     return this;
   }
 
@@ -116,17 +129,35 @@ final class ClusteredSingletonBuilderImpl implements ClusteredSingletonBuilder {
   }
 
   @Override
+  public ClusteredSingletonBuilder staggered(int seed, long staggerRange, TimeUnit timeUnit) {
+    Preconditions.checkArgument(staggerRange > 0, "staggerRange should be a positive number");
+    this.staggerSeed = seed;
+    this.staggerRange = staggerRange;
+    this.staggerUnit = timeUnit;
+    return this;
+  }
+
+  @Override
   public Schedule build() {
-    return new BaseSchedule(
-        scheduleBuilder.getStart(),
-        scheduleBuilder.getAmount(),
-        scheduleBuilder.getAdjuster(),
-        scheduleBuilder.getZoneId(),
-        taskName,
-        scheduledOwnershipRelease,
-        cleanupListener,
-        scheduleModifier,
-        taskGroupName,
-        sticky);
+    Schedule schedule =
+        new BaseSchedule(
+            scheduleBuilder.getStart(),
+            scheduleBuilder.getAmount(),
+            scheduleBuilder.getAdjuster(),
+            scheduleBuilder.getZoneId(),
+            taskName,
+            scheduledOwnershipRelease,
+            cleanupListener,
+            scheduleModifier,
+            taskGroupName,
+            sticky,
+            weightProvider);
+
+    if (staggerRange > 0) {
+      schedule =
+          new StaggeredSchedule(schedule, this.staggerSeed, this.staggerRange, this.staggerUnit);
+    }
+
+    return schedule;
   }
 }

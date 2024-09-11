@@ -104,7 +104,8 @@ public class CodeGenerator<T> {
               definition.getSignature(),
               new EvaluationVisitor(functionContext),
               clazz,
-              model);
+              model,
+              functionContext);
       this.functionContext = functionContext;
     } catch (JClassAlreadyExistsException e) {
       throw new IllegalStateException(e);

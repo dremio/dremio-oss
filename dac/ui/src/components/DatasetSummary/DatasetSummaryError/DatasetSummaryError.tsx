@@ -48,10 +48,13 @@ export const DatasetSummaryError = ({
       onClick={(e) => e.stopPropagation()}
       className={clsx(
         classes["dataset-not-found-summary-container"],
-        isOverlay && classes["dataset-not-found-summary-container__overlay"]
+        isOverlay && classes["dataset-not-found-summary-container__overlay"],
       )}
     >
-      <SummaryItemLabelError iconName={iconName} title={title} />
+      <SummaryItemLabelError
+        iconName={datasetType?.startsWith("entities/") ? datasetType : iconName}
+        title={title}
+      />
       {!is403 ? (
         <>
           <SummarySubHeader subTitle={fullPath} />

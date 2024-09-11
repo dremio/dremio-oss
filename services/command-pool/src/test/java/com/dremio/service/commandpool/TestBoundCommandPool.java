@@ -76,10 +76,12 @@ public class TestBoundCommandPool {
     Assert.assertEquals(0, (int) Futures.getUnchecked(future1));
     Assert.assertEquals(1, (int) Futures.getUnchecked(future2));
     Assert.assertEquals(2, (int) Futures.getUnchecked(future3));
+
+    pool.close();
   }
 
   @Test
-  public void testDifferentPrioritySuppliers() {
+  public void testDifferentPrioritySuppliers() throws Exception {
     // single threaded pool to have a deterministic ordering of execution
     final CommandPool pool = newTestCommandPool();
 
@@ -114,6 +116,8 @@ public class TestBoundCommandPool {
     Assert.assertEquals(2, (int) Futures.getUnchecked(future1));
     Assert.assertEquals(1, (int) Futures.getUnchecked(future2));
     Assert.assertEquals(0, (int) Futures.getUnchecked(future3));
+
+    pool.close();
   }
 
   /** Runnable that starts in a blocked state and can be unblocked */

@@ -30,17 +30,20 @@ public final class ExternalQuery implements TableMacro {
   private static final List<FunctionParameter> FUNCTION_PARAMS =
       new ParameterListBuilder().add(String.class, "query").build();
 
-  private final Function<String, BatchSchema> schemaBuilder;
+  private final Function<ExternalQueryRequest, BatchSchema> schemaBuilder;
   private final Function<BatchSchema, RelDataType> rowTypeBuilder;
   private final StoragePluginId pluginId;
+  private final String queryUser;
 
   public ExternalQuery(
-      Function<String, BatchSchema> schemaBuilder,
+      Function<ExternalQueryRequest, BatchSchema> schemaBuilder,
       Function<BatchSchema, RelDataType> rowTypeBuilder,
-      StoragePluginId pluginId) {
+      StoragePluginId pluginId,
+      String queryUser) {
     this.schemaBuilder = schemaBuilder;
     this.rowTypeBuilder = rowTypeBuilder;
     this.pluginId = pluginId;
+    this.queryUser = queryUser;
   }
 
   @Override
@@ -51,6 +54,28 @@ public final class ExternalQuery implements TableMacro {
   @Override
   public TranslatableTable apply(List<? extends Object> arguments) {
     return ExternalQueryTranslatableTable.create(
-        schemaBuilder, rowTypeBuilder, pluginId, (String) arguments.get(0));
+        schemaBuilder,
+        rowTypeBuilder,
+        pluginId,
+        new ExternalQueryRequest((String) arguments.get(0), queryUser));
+  }
+
+  public static class ExternalQueryRequest {
+
+    private final String query;
+    private final String user;
+
+    public ExternalQueryRequest(String query, String user) {
+      this.query = query;
+      this.user = user;
+    }
+
+    public String getQuery() {
+      return query;
+    }
+
+    public String getUser() {
+      return user;
+    }
   }
 }

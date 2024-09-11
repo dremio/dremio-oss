@@ -322,7 +322,11 @@ public class JobDetailsUI {
         jobDetails.getTimeSpentInPlanning(),
         jobDetails.getWaitInClient(),
         jobDetails.getDataVolume(),
-        jobDetails.getOutputRecords(),
+        Util.last(attempts).getStats() != null
+            ? (Util.last(attempts).getStats().getOutputRecords() != null
+                ? Util.last(attempts).getStats().getOutputRecords()
+                : 0)
+            : 0,
         jobDetails.getPeakMemory(),
         jobDetails.getTableDatasetProfilesList(),
         jobDetails.getFsDatasetProfilesList(),

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-
 :global {
   .merge-branch-dialog {
     width: 600px;
@@ -26,7 +24,7 @@
     }
 
     &-header {
-      border-bottom: 1px solid @SECONDARY_200;
+      border-bottom: 1px solid var(--border--neutral);
       padding: 0 !important;
 
       display: flex;
@@ -46,7 +44,7 @@
     &-body {
       font-size: 14px;
       font-weight: 400;
-      color: var(--dremio--color--text--main);
+      color: var(--text--primary);
 
       &-error {
         color: #f44336;
@@ -58,7 +56,7 @@
     }
 
     &-actions {
-      border-top: 1px solid @SECONDARY_200;
+      border-top: 1px solid var(--border--neutral);
     }
 
     &-select {
@@ -66,7 +64,7 @@
         height: 32px;
         min-height: 32px;
         &:hover {
-          border-color: var(--color--neutral--200);
+          border-color: var(--border--hover);
         }
       }
     }

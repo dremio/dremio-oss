@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.cache;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newTimerResourceSampleSupplier;
+import static com.dremio.telemetry.api.metrics.TimerUtils.timedOperation;
+
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
@@ -23,13 +26,10 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.record.selection.SelectionVector2;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.dremio.telemetry.api.metrics.Metrics.ResetType;
-import com.dremio.telemetry.api.metrics.Timer;
-import com.dremio.telemetry.api.metrics.Timer.TimerContext;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import io.micrometer.core.instrument.Timer;
 import io.netty.util.internal.PlatformDependent;
 import java.io.EOFException;
 import java.io.IOException;
@@ -40,6 +40,7 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -54,10 +55,10 @@ import org.xerial.snappy.Snappy;
  * OutputStream, or can read from an InputStream and construct a new VectorContainer.
  */
 public class VectorAccessibleSerializable extends AbstractStreamSerializable {
-  private static final Timer WRITER_TIMER =
-      Metrics.newTimer(
-          Metrics.join(VectorAccessibleSerializable.class.getName(), "writerTime"),
-          ResetType.NEVER);
+  private static final Supplier<Timer.ResourceSample> WRITER_TIMER =
+      newTimerResourceSampleSupplier(
+          "vector_accessible_serializable.writer_time",
+          "Time taken to serialize a VectorAccessible");
 
   static final int COMPRESSED_LENGTH_BYTES = 4;
   public static final int RAW_CHUNK_SIZE_TO_COMPRESS = 32 * 1024;
@@ -306,53 +307,57 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
   public void writeToStream(OutputStream output) throws IOException {
     Preconditions.checkNotNull(output);
 
-    try (final TimerContext timerContext = WRITER_TIMER.start()) {
-      ArrowBuf[] buffers = new ArrowBuf[batch.getBuffers().length];
-      final ArrowBuf[] incomingBuffers =
-          Arrays.stream(batch.getBuffers())
-              .map(buf -> buf.arrowBuf())
-              .collect(Collectors.toList())
-              .toArray(buffers);
-      final UserBitShared.RecordBatchDef batchDef = batch.getDef();
+    timedOperation(
+        WRITER_TIMER.get(),
+        () -> {
+          try {
+            ArrowBuf[] buffers = new ArrowBuf[batch.getBuffers().length];
+            final ArrowBuf[] incomingBuffers =
+                Arrays.stream(batch.getBuffers())
+                    .map(buf -> buf.arrowBuf())
+                    .collect(Collectors.toList())
+                    .toArray(buffers);
+            final UserBitShared.RecordBatchDef batchDef = batch.getDef();
 
-      /* ArrowBuf associated with the selection vector */
-      ArrowBuf svBuf = null;
-      Integer svCount = null;
+            /* ArrowBuf associated with the selection vector */
+            ArrowBuf svBuf = null;
+            Integer svCount = null;
 
-      if (svMode == BatchSchema.SelectionVectorMode.TWO_BYTE) {
-        svCount = sv2.getCount();
-        svBuf = sv2.getBuffer(); // this calls retain() internally
-      }
+            if (svMode == BatchSchema.SelectionVectorMode.TWO_BYTE) {
+              svCount = sv2.getCount();
+              svBuf = sv2.getBuffer(); // this calls retain() internally
+            }
 
-      /* Write the metadata to the file */
-      batchDef.writeDelimitedTo(output);
+            /* Write the metadata to the file */
+            batchDef.writeDelimitedTo(output);
 
-      /* If we have a selection vector, dump it to file first */
-      if (svBuf != null) {
-        writeBuf(svBuf, output);
-        sv2.setBuffer(svBuf);
-        svBuf.close(); // sv2 now owns the buffer
-        sv2.setRecordCount(svCount);
-      }
+            /* If we have a selection vector, dump it to file first */
+            if (svBuf != null) {
+              writeBuf(svBuf, output);
+              sv2.setBuffer(svBuf);
+              svBuf.close(); // sv2 now owns the buffer
+              sv2.setRecordCount(svCount);
+            }
 
-      /* Dump the array of ByteBuf's associated with the value vectors */
-      for (ArrowBuf buf : incomingBuffers) {
-        /* dump the buffer into the OutputStream */
-        if (useCodec) {
-          /* if we are serializing the spilled data, compress the ArrowBufs */
-          writeCompressedBuf(buf, output);
-        } else {
-          writeBuf(buf, output);
-        }
-      }
+            /* Dump the array of ByteBuf's associated with the value vectors */
+            for (ArrowBuf buf : incomingBuffers) {
+              /* dump the buffer into the OutputStream */
+              if (useCodec) {
+                /* if we are serializing the spilled data, compress the ArrowBufs */
+                writeCompressedBuf(buf, output);
+              } else {
+                writeBuf(buf, output);
+              }
+            }
 
-      output.flush();
+            output.flush();
 
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    } finally {
-      clear();
-    }
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          } finally {
+            clear();
+          }
+        });
   }
 
   public void clear() {

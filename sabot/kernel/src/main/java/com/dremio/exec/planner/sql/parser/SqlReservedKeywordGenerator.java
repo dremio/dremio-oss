@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql.parser;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -50,13 +49,7 @@ public class SqlReservedKeywordGenerator {
       outFile.println();
 
       final SqlAbstractParserImpl.Metadata metadata =
-          SqlParser.create(
-                  "",
-                  new ParserConfig(
-                      Quoting.DOUBLE_QUOTE,
-                      256,
-                      PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()))
-              .getMetadata();
+          SqlParser.create("", new ParserConfig(Quoting.DOUBLE_QUOTE, 256)).getMetadata();
       for (String s : metadata.getTokens()) {
         if (metadata.isKeyword(s) && metadata.isReservedWord(s)) {
           outFile.println(s);

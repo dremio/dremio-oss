@@ -15,21 +15,18 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import static com.dremio.exec.ops.ViewExpansionContext.DefaultReflectionHintBehavior.PLAN_CONTAINS_DISALLOWED_DRR;
-import static com.dremio.exec.ops.ViewExpansionContext.DefaultReflectionHintBehavior.SUCCESS;
-
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
-import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.MaterializationList;
 import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.ValuesRewriteShuttle;
 import com.dremio.exec.planner.normalizer.NormalizerException;
-import com.dremio.exec.planner.normalizer.PreSerializedQuery;
 import com.dremio.exec.planner.normalizer.RelNormalizerTransformer;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.sql.ReflectionHints;
+import com.dremio.exec.planner.sql.ReflectionHintsExtractor;
 import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.sql.UnsupportedQueryPlanVisitor;
 import com.dremio.exec.planner.sql.parser.DmlUtils;
@@ -42,12 +39,9 @@ import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.options.OptionValue;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.calcite.rel.RelNode;
@@ -134,17 +128,13 @@ public class SqlToRelTransformer {
     ConvertedRelNode convertedRelNode =
         validateThenSqlToRel(config, sqlNode, sqlValidatorAndToRelContext);
 
-    final PreSerializedQuery rel =
-        relNormalizerTransformer.transformForCompactAndMaterializations(
-            convertedRelNode.getConvertedNode(),
-            relTransformer,
-            observer,
-            config.getPlannerEventBus());
+    final RelNode rel =
+        relNormalizerTransformer.transformForReflection(
+            convertedRelNode.getConvertedNode(), relTransformer, observer);
 
     return new ConvertedRelNode.Builder()
-        .withRelNode(rel.getPlan())
+        .withRelNode(rel)
         .withValidatedRowType(convertedRelNode.getValidatedRowType())
-        .withNonCacheableFunctionResult(rel.getNonCacheableFunctionDetectorResults())
         .build();
   }
 
@@ -161,15 +151,14 @@ public class SqlToRelTransformer {
         .getObserver()
         .beginState(AttemptObserver.toEvent(UserBitShared.AttemptEvent.State.PLANNING));
 
-    final RelNode relRaw =
+    final RelNode relNode =
         convertSqlToRel(config, sqlValidatorAndToRelContext, validatedTypedSqlNode.getKey());
-    UnsupportedQueryPlanVisitor.checkForUnsupportedQueryPlan(relRaw);
-    List<NamespaceKey> viewIdentifiers = collectViewIdentifiers(relRaw);
-    final RelNode relRawAfterHints =
-        processReflectionHints(
-            config, sqlValidatorAndToRelContext, relRaw, validatedTypedSqlNode.getKey());
+    UnsupportedQueryPlanVisitor.checkForUnsupportedQueryPlan(relNode);
+    List<NamespaceKey> viewIdentifiers = collectViewIdentifiers(relNode);
+    processReflectionHints(config, relNode);
+
     return new ConvertedRelNode.Builder()
-        .withRelNode(relRawAfterHints)
+        .withRelNode(relNode)
         .withValidatedRowType(validatedTypedSqlNode.getValue())
         .withViewIdentifiers(viewIdentifiers)
         .build();
@@ -186,13 +175,12 @@ public class SqlToRelTransformer {
     ConvertedRelNode convertedRelNode =
         validateThenSqlToRel(config, sqlNode, sqlValidatorAndToRelContext);
 
-    final PreSerializedQuery rel =
+    final RelNode rel =
         relNormalizerTransformer.transform(convertedRelNode.getConvertedNode(), observer);
 
     return new ConvertedRelNode.Builder()
-        .withRelNode(rel.getPlan())
+        .withRelNode(rel)
         .withValidatedRowType(convertedRelNode.getValidatedRowType())
-        .withNonCacheableFunctionResult(rel.getNonCacheableFunctionDetectorResults())
         .withViewIdentifiers(convertedRelNode.getViewIdentifiers())
         .build();
   }
@@ -220,7 +208,9 @@ public class SqlToRelTransformer {
       throw new ValidationException("unable to validate sql node", ex);
     }
     final Pair<SqlNode, RelDataType> typedSqlNode =
-        new Pair<>(sqlNodeValidated, sqlValidatorAndToRelContext.getOutputType(sqlNodeValidated));
+        new Pair<>(
+            sqlNodeValidated,
+            sqlValidatorAndToRelContext.getValidator().getValidatedNodeType(sqlNodeValidated));
 
     // Check if the unsupported functionality is used
     UnsupportedOperatorsVisitor visitor =
@@ -262,50 +252,22 @@ public class SqlToRelTransformer {
     return convertible.rel;
   }
 
-  private static RelNode processReflectionHints(
-      SqlHandlerConfig config,
-      SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
-      RelNode relRaw,
-      SqlNode validatedTypedSqlNode) {
-    Set<String> includeReflections = new HashSet<>();
-    Set<String> excludeReflections = new HashSet<>();
-    Set<String> chooseIfMatched = new HashSet<>();
-    Pointer<Optional<Boolean>> noReflections = new Pointer<>(Optional.empty());
+  private static void processReflectionHints(SqlHandlerConfig config, RelNode relRaw) {
+    Pointer<ReflectionHints> reflectionHintsPointer = new Pointer<>(null);
     relRaw.accept(
         new StatelessRelShuttleImpl() {
           private int depth = 0;
 
           @Override
           public RelNode visit(LogicalProject project) {
-            if (!includeReflections.isEmpty()
-                || !excludeReflections.isEmpty()
-                || !chooseIfMatched.isEmpty()
-                || noReflections.value.isPresent()) {
+            if (reflectionHintsPointer.value != null) {
               return project; // Once hints are found, don't recursively look for more
             }
-            project
-                .getHints()
-                .forEach(
-                    hint -> {
-                      if (hint.hintName.equalsIgnoreCase(
-                          DremioHint.CONSIDER_REFLECTIONS.getHintName())) {
-                        includeReflections.addAll(hint.listOptions);
-                      } else if (hint.hintName.equalsIgnoreCase(
-                          DremioHint.EXCLUDE_REFLECTIONS.getHintName())) {
-                        excludeReflections.addAll(hint.listOptions);
-                      } else if (hint.hintName.equalsIgnoreCase(
-                          DremioHint.CHOOSE_REFLECTIONS.getHintName())) {
-                        chooseIfMatched.addAll(hint.listOptions);
-                      } else if (hint.hintName.equalsIgnoreCase(
-                          DremioHint.NO_REFLECTIONS.getHintName())) {
-                        if (hint.listOptions.size() == 1
-                            && "false".equalsIgnoreCase(hint.listOptions.get(0))) {
-                          noReflections.value = Optional.of(false);
-                        } else {
-                          noReflections.value = Optional.of(true);
-                        }
-                      }
-                    });
+
+            if (!project.getHints().isEmpty()) {
+              reflectionHintsPointer.value = ReflectionHintsExtractor.extract(project);
+            }
+
             return super.visit(project);
           }
 
@@ -326,7 +288,15 @@ public class SqlToRelTransformer {
             return this.visitChildren(other);
           }
         });
-    if (!includeReflections.isEmpty()) {
+
+    if (reflectionHintsPointer.value == null) {
+      return;
+    }
+
+    ReflectionHints reflectionHints = reflectionHintsPointer.value;
+
+    if (reflectionHints.getOptionalConsiderReflections().isPresent()) {
+      Set<String> considerReflections = reflectionHints.getOptionalConsiderReflections().get();
       config
           .getContext()
           .getOptions()
@@ -334,9 +304,11 @@ public class SqlToRelTransformer {
               OptionValue.createString(
                   OptionValue.OptionType.QUERY,
                   DremioHint.CONSIDER_REFLECTIONS.getOption().getOptionName(),
-                  String.join(",", includeReflections)));
+                  String.join(",", considerReflections)));
     }
-    if (!excludeReflections.isEmpty()) {
+
+    if (reflectionHints.getOptionalExcludeReflections().isPresent()) {
+      Set<String> excludeReflections = reflectionHints.getOptionalExcludeReflections().get();
       config
           .getContext()
           .getOptions()
@@ -346,7 +318,8 @@ public class SqlToRelTransformer {
                   DremioHint.EXCLUDE_REFLECTIONS.getOption().getOptionName(),
                   String.join(",", excludeReflections)));
     }
-    if (!chooseIfMatched.isEmpty()) {
+    if (reflectionHints.getOptionalChooseIfMatched().isPresent()) {
+      Set<String> chooseIfMatched = reflectionHints.getOptionalChooseIfMatched().get();
       config
           .getContext()
           .getOptions()
@@ -356,42 +329,30 @@ public class SqlToRelTransformer {
                   DremioHint.CHOOSE_REFLECTIONS.getOption().getOptionName(),
                   String.join(",", chooseIfMatched)));
     }
-    noReflections.value.ifPresent(
-        value ->
-            config
-                .getContext()
-                .getOptions()
-                .setOption(
-                    OptionValue.createBoolean(
-                        OptionValue.OptionType.QUERY,
-                        DremioHint.NO_REFLECTIONS.getOption().getOptionName(),
-                        value)));
 
-    final RelNode relRawAfterHints;
-    final ViewExpansionContext vec = config.getConverter().getViewExpansionContext();
-    if (vec.reportDefaultMaterializations(
-            config.getObserver(), relRaw, config.getMaterializations())
-        == PLAN_CONTAINS_DISALLOWED_DRR) {
-      // Reflection hints specified at query level are only known after convert sql to rel.  If a
-      // DRR ends up in the rel
-      // plan that is disallowed by a query level hint, then we need to re-convert.  Note that since
-      // we set the query
-      // level hints back into the query level options, the second re-convert will see these options
-      // and not use the DRR.
-      config.getConverter().getPlannerCatalog().clearConvertedCache();
-      relRawAfterHints =
-          convertSqlToRel(config, sqlValidatorAndToRelContext, validatedTypedSqlNode);
-      Preconditions.checkState(
-          vec.reportDefaultMaterializations(
-                  config.getObserver(), relRawAfterHints, config.getMaterializations())
-              == SUCCESS,
-          "Unable to apply query level reflection hints on default raw reflections"); // Should
-      // never
-      // happen
-    } else {
-      relRawAfterHints = relRaw;
+    if (reflectionHints.getOptionalNoReflections().isPresent()) {
+      boolean noReflections = reflectionHints.getOptionalNoReflections().get();
+      config
+          .getContext()
+          .getOptions()
+          .setOption(
+              OptionValue.createBoolean(
+                  OptionValue.OptionType.QUERY,
+                  DremioHint.NO_REFLECTIONS.getOption().getOptionName(),
+                  noReflections));
     }
-    return relRawAfterHints;
+
+    if (reflectionHints.getOptionalCurrentIcebergDataOnly().isPresent()) {
+      boolean currentIcebergDataOnly = reflectionHints.getOptionalCurrentIcebergDataOnly().get();
+      config
+          .getContext()
+          .getOptions()
+          .setOption(
+              OptionValue.createBoolean(
+                  OptionValue.OptionType.QUERY,
+                  DremioHint.CURRENT_ICEBERG_DATA_ONLY.getOption().getOptionName(),
+                  currentIcebergDataOnly));
+    }
   }
 
   private static List<NamespaceKey> collectViewIdentifiers(RelNode relNode) {

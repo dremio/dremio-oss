@@ -611,7 +611,8 @@ public class TestArrowFileReader extends DremioTest {
             any(),
             any(),
             any(),
-            rejectedRecordCaptor.capture());
+            rejectedRecordCaptor.capture(),
+            any());
     verify(writeStatsListener, times(batches.length)).bytesWritten(bytesWrittenCaptor.capture());
 
     Path path = new Path(dateGenFolder.getRoot().getPath());

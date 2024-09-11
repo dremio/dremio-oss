@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@use "./focus";
 @use "../../utilities/align";
 @use "../../utilities/bg";
 @use "../../utilities/border";
@@ -26,22 +25,27 @@
 
 .form-control {
   @extend .align-baseline;
-  @extend .bg-foreground;
-  @extend .border;
-  @extend .border-gray-100;
-  @extend .border-solid;
   @extend .flex;
   @extend .flex-row;
-  @extend .focus\:focus;
   @extend .h-4;
   @extend .items-center;
   @extend .overflow-hidden;
   @extend .p-05;
   @extend .rounded;
   @extend .w-full;
+
+  background: var(--fill--primary);
+  color: var(--text--primary);
+  border: 1px solid var(--border--neutral--solid);
+
   box-sizing: border-box;
   font-size: inherit;
   outline: none;
+
+  &:focus,
+  &:focus-within {
+    border: 1px solid var(--border--color--focused, var(--border--focused));
+  }
 
   input {
     @extend .border-none;
@@ -50,10 +54,16 @@
     appearance: none;
     background: transparent;
     outline: none;
+
+    &:disabled,
+    &[aria-disabled="true"] {
+      @extend .bg-disabled;
+      cursor: not-allowed;
+    }
   }
 
   &__prefix {
-    background-color: var(--color--neutral--25);
+    background-color: var(--fill--secondary);
     padding-block: 5px;
     margin-inline-start: -4px;
     margin-inline-end: 4px;
@@ -77,7 +87,7 @@
 
     &:checked {
       @extend .bg-brand-300;
-      border: 1px solid var(--color--brand--300);
+      border: 1px solid var(--border--focused);
       &::after {
         background-image: url("data:image/svg+xml;base64,PHN2ZyBpZD0iaW50ZXJmYWNlL2NoZWNrYm94IiB2aWV3Qm94PSIwIDAgMTIgMTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xMC40Njk3IDAuOTY4OTQ2TDMuOTk5NjggNy40Mzg5NUwxLjUyOTY4IDQuOTY4OTVMMS40NDU2OCA0Ljg5NTk1QzEuMjkzNDcgNC43ODQzIDEuMTA0NzYgNC43MzQxNSAwLjkxNzIgNC43NTU1MUMwLjcyOTY0NCA0Ljc3Njg3IDAuNTU3MDQxIDQuODY4MTcgMC40MzM4MzggNS4wMTExOUMwLjMxMDYzNiA1LjE1NDIxIDAuMjQ1ODk3IDUuMzM4NDMgMC4yNTI1NCA1LjUyNzA5QzAuMjU5MTg0IDUuNzE1NzQgMC4zMzY3MjEgNS44OTQ5NSAwLjQ2OTY3OSA2LjAyODk1TDMuNDY5NjggOS4wMjg5NUwzLjU1MzY4IDkuMTAxOTVDMy42OTgxNSA5LjIwODY2IDMuODc2MTIgOS4yNTk5OCA0LjA1NTIzIDkuMjQ2NTlDNC4yMzQzNCA5LjIzMzE5IDQuNDAyNjkgOS4xNTU5NiA0LjUyOTY4IDkuMDI4OTVMMTEuNTI5NyAyLjAyODk1TDExLjYwMjcgMS45NDQ5NUMxMS43MTQzIDEuNzkyNzQgMTEuNzY0NSAxLjYwNDAyIDExLjc0MzEgMS40MTY0N0MxMS43MjE4IDEuMjI4OTEgMTEuNjMwNSAxLjA1NjMxIDExLjQ4NzQgMC45MzMxMDZDMTEuMzQ0NCAwLjgwOTkwNCAxMS4xNjAyIDAuNzQ1MTY0IDEwLjk3MTUgMC43NTE4MDhDMTAuNzgyOSAwLjc1ODQ1MSAxMC42MDM3IDAuODM1OTg5IDEwLjQ2OTcgMC45Njg5NDZaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=");
         background-repeat: no-repeat;
@@ -86,6 +96,27 @@
         position: absolute;
         inset: 10%;
       }
+    }
+
+    &:indeterminate {
+      border: 1.5px solid var(--border--focused);
+      &::after {
+        content: "";
+        display: block;
+        color: white;
+        width: 8px;
+        height: 8px;
+        background-color: var(--color--brand--300);
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    }
+
+    &:checked,
+    &:indeterminate {
+      padding: 0;
     }
   }
 
@@ -110,12 +141,12 @@
     height: 16px;
 
     &:checked {
-      border: 1px solid var(--color--brand--300);
+      border: 1px solid var(--border--focused);
       background: var(--color--brand--300);
     }
 
     &::after {
-      background: white;
+      background: var(--fill--primary);
       content: "";
       position: absolute;
       inset: 100%;
@@ -125,14 +156,5 @@
     &:checked::after {
       inset: 20%;
     }
-  }
-}
-
-.dremio-dark .form-control {
-  background: lch(25% 10 228);
-  border-color: transparent;
-  color: lch(94% 2 252);
-  > * {
-    color: lch(94% 2 252);
   }
 }

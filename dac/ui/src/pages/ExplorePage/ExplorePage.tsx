@@ -17,7 +17,7 @@ import { PureComponent, CSSProperties } from "react";
 import Immutable from "immutable";
 import classNames from "clsx";
 import { connect } from "react-redux";
-import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter.js";
+import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter";
 import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
 import { clearEntities } from "@app/actions/resources/entities";
 import { flexElementAuto } from "@app/uiTheme/less/layout.less";
@@ -128,7 +128,7 @@ export class ExplorePageView extends PureComponent<
           flexElementAuto,
           "dremio-layout-container",
           "--vertical",
-          `-${this.props.pageType}`
+          `-${this.props.pageType}`,
         )}
         style={{ ...dragStyle, cursor }}
       >

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 //@ts-ignore
-import { CopyToClipboard } from "dremio-ui-lib";
 import NessieLink from "@app/pages/NessieHomePage/components/NessieLink/NessieLink";
 import { getShortHash } from "@app/utils/nessieUtils";
 import { useDispatch } from "react-redux";
 import { setReference } from "@app/actions/nessie/nessie";
 import { Reference } from "@app/types/nessie";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { CopyButton } from "dremio-ui-lib/components";
 
 import "./CommitHash.less";
 
@@ -48,8 +48,8 @@ function CommitHash({
             ...branch,
           } as Reference,
         },
-        nessieCtx.stateKey
-      )
+        nessieCtx.stateKey,
+      ),
     );
   };
 
@@ -60,10 +60,11 @@ function CommitHash({
         to={`/commit/${encodeURIComponent(branch.name)}/${hash}`}
         title={hash}
         {...(isDifferentBranch && { onClick: () => switchBranchRef() })}
+        aria-label={`Details for commit ${hash}`}
       >
         {getShortHash(hash)}
       </NessieLink>
-      {enableCopy && <CopyToClipboard tooltipText="Copied" value={hash} />}
+      {enableCopy && <CopyButton contents={hash} />}
     </div>
   );
 }

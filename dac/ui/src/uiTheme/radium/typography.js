@@ -20,13 +20,13 @@ export const bodySmall = {
   fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const formLabel = {
   fontFamily: inter,
   fontWeight: 400,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
   display: "flex",
   alignItems: "center",
   height: "32px",
@@ -36,12 +36,12 @@ export const formDefault = {
   fontFamily: inter,
   fontWeight: 400,
   fontSize: 13,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const formDescription = {
   ...formDefault,
-  color: "var(--dremio--color--text--faded)",
+  color: "var(--text--faded)",
 };
 
 export const formContext = {
@@ -55,28 +55,28 @@ export const formPlaceholder = {
   fontWeight: 400,
   fontStyle: "italic",
   fontSize: 14,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const fixedWidthDefault = {
   fontFamily: "var(--dremio--font-family--monospace)",
   fontWeight: 400,
   fontSize: 12,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const fixedWidthSmall = {
   fontFamily: "var(--dremio--font-family--monospace)",
   fontWeight: 400,
   fontSize: 11,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const fixedWidthBold = {
   fontFamily: "var(--dremio--font-family--monospace)",
   fontWeight: 700,
   fontSize: 11,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const unavailable = {
@@ -90,7 +90,7 @@ export const datasetTitle = {
   fontFamily: inter,
   fontWeight: 500,
   fontSize: 13,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const pathLink = {
@@ -117,7 +117,7 @@ export const pathEnd = {
   fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const keyLabel = {
@@ -131,7 +131,7 @@ export const keyValue = {
   fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
-  color: "var(--dremio--color--text--main)",
+  color: "var(--text--primary)",
 };
 
 export const h2White = {

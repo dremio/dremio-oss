@@ -30,7 +30,7 @@ import java.util.Objects;
 public class LocalSecretCredentialsProvider extends AbstractSimpleCredentialsProvider
     implements CredentialsProvider {
 
-  public static final String SECRET_PROVIDER_SCHEME = "secret";
+  static final String SECRET_PROVIDER_SCHEME = "secret";
 
   private final LocalCipher localSecretsStore;
 
@@ -45,6 +45,11 @@ public class LocalSecretCredentialsProvider extends AbstractSimpleCredentialsPro
       DremioConfig config, CredentialsService credentialsService) {
     super(SECRET_PROVIDER_SCHEME);
     this.localSecretsStore = new LocalCipher(config, credentialsService);
+  }
+
+  @Override
+  public boolean isSupported(URI uri) {
+    return isLocalEncrypted(uri);
   }
 
   @Override
@@ -65,5 +70,9 @@ public class LocalSecretCredentialsProvider extends AbstractSimpleCredentialsPro
     } catch (URISyntaxException e) {
       throw new SecretCredentialsException("Cannot encode secret into an URI");
     }
+  }
+
+  public static boolean isLocalEncrypted(URI uri) {
+    return SECRET_PROVIDER_SCHEME.equalsIgnoreCase(uri.getScheme());
   }
 }

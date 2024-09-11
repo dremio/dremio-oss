@@ -17,13 +17,14 @@ package com.dremio.exec.planner.observer;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.plancache.CachedPlan;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
@@ -37,6 +38,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import java.util.LinkedList;
 import java.util.List;
@@ -52,7 +54,7 @@ public class AttemptObservers implements AttemptObserver {
   private final List<AttemptObserver> observers = new LinkedList<>();
 
   // use #of()
-  private AttemptObservers() {}
+  protected AttemptObservers() {}
 
   @Override
   public void beginState(AttemptEvent event) {
@@ -79,6 +81,13 @@ public class AttemptObservers implements AttemptObserver {
   public void planStart(String rawPlan) {
     for (final AttemptObserver observer : observers) {
       observer.planStart(rawPlan);
+    }
+  }
+
+  @Override
+  public void resourcesPlanned(GroupResourceInformation resourceInformation, long millisTaken) {
+    for (final AttemptObserver observer : observers) {
+      observer.resourcesPlanned(resourceInformation, millisTaken);
     }
   }
 
@@ -111,13 +120,6 @@ public class AttemptObservers implements AttemptObserver {
   public void restoreAccelerationProfileFromCachedPlan(AccelerationProfile accelerationProfile) {
     for (final AttemptObserver observer : observers) {
       observer.restoreAccelerationProfileFromCachedPlan(accelerationProfile);
-    }
-  }
-
-  @Override
-  public void setCacheKey(String cacheKey) {
-    for (final AttemptObserver observer : observers) {
-      observer.setCacheKey(cacheKey);
     }
   }
 
@@ -308,16 +310,16 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void recordsProcessed(long recordCount) {
+  public void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount) {
     for (final AttemptObserver observer : observers) {
-      observer.recordsProcessed(recordCount);
+      observer.recordsOutput(endpoint, recordCount);
     }
   }
 
   @Override
-  public void recordsOutput(long recordCount) {
+  public void outputLimited() {
     for (final AttemptObserver observer : observers) {
-      observer.recordsOutput(recordCount);
+      observer.outputLimited();
     }
   }
 
@@ -397,6 +399,13 @@ public class AttemptObservers implements AttemptObserver {
     }
   }
 
+  @Override
+  public void putProfileFailed() {
+    for (final AttemptObserver observer : observers) {
+      observer.putProfileFailed();
+    }
+  }
+
   /**
    * Add to the collection of observers.
    *
@@ -419,5 +428,9 @@ public class AttemptObservers implements AttemptObserver {
     }
 
     return chain;
+  }
+
+  public List<AttemptObserver> getObservers() {
+    return observers;
   }
 }

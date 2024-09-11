@@ -13,9 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.dremio-light .dremio-tooltip {
+.dremio-light .dremio-tooltip:not(.dremio-tooltip-rich) {
   a,
   .link {
     color: #80dfe3;
+  }
+}
+
+button.link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--text--link);
+  text-decoration: none;
+  outline: 0;
+  cursor: pointer;
+
+  &:hover,
+  &:focus {
+    color: var(--text--link);
+    text-decoration: underline;
   }
 }

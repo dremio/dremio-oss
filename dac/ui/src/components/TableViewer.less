@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
-@_border: 1px solid @TABLE_BORDER;
+@_border: 1px solid var(--border--neutral);
 
 .cell-background() {
-  background: @table-bg;
+  background: transparent;
 }
 
 .cell-reset() {
@@ -64,11 +63,11 @@
     }
 
     .public_fixedDataTableRow_main.public_fixedDataTableRow_even {
-      background: @table-bg-accent;
+      background: var(--fill--secondary);
     }
 
     .public_fixedDataTable_header {
-      background: white;
+      background: var(--fill--primary);
     }
   }
 }

@@ -38,7 +38,7 @@ import org.junit.Test;
 
 public class ITTestDatasetVersionMutator extends BaseTestServer {
 
-  private final DatasetVersionMutator service = newDatasetVersionMutator();
+  private final DatasetVersionMutator service = getDatasetVersionMutator();
   private LegacyKVStoreProvider provider;
 
   @Before

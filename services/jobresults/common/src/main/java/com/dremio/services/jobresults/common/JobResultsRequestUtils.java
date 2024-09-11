@@ -20,6 +20,7 @@ import static io.grpc.MethodDescriptor.generateFullMethodName;
 import com.dremio.service.jobresults.JobResultsResponse;
 import com.dremio.service.jobresults.JobResultsServiceGrpc;
 import io.grpc.MethodDescriptor;
+import io.grpc.protobuf.ProtoUtils;
 import org.apache.arrow.memory.BufferAllocator;
 
 /**
@@ -41,7 +42,7 @@ public class JobResultsRequestUtils {
   }
 
   private static MethodDescriptor.Marshaller<JobResultsResponse> getJobResultsResponseMarshaller() {
-    return io.grpc.protobuf.ProtoUtils.marshaller(JobResultsResponse.getDefaultInstance());
+    return ProtoUtils.marshaller(JobResultsResponse.getDefaultInstance());
   }
 
   private static MethodDescriptor.Marshaller<JobResultsRequestWrapper>

@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.record.BatchSchema;
@@ -116,16 +117,16 @@ public class MaestroObservers implements MaestroObserver {
   }
 
   @Override
-  public void recordsProcessed(long recordCount) {
+  public void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount) {
     for (final MaestroObserver observer : chain) {
-      observer.recordsProcessed(recordCount);
+      observer.recordsOutput(endpoint, recordCount);
     }
   }
 
   @Override
-  public void recordsOutput(long recordCount) {
+  public void outputLimited() {
     for (final MaestroObserver observer : chain) {
-      observer.recordsOutput(recordCount);
+      observer.outputLimited();
     }
   }
 
@@ -154,6 +155,13 @@ public class MaestroObservers implements MaestroObserver {
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
     for (final MaestroObserver observer : chain) {
       observer.resourcesScheduled(resourceSchedulingDecisionInfo);
+    }
+  }
+
+  @Override
+  public void putProfileFailed() {
+    for (final MaestroObserver observer : chain) {
+      observer.putProfileFailed();
     }
   }
 

@@ -241,7 +241,7 @@ public class TestCTASWithOptions extends PlanTestBase {
 
   @Test
   public void parquetWithIcebergEnabled() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       test(
           "CREATE TABLE dfs_test.testParquetWithIcebergEnabled "
               + "STORE AS (type => 'parquet') "

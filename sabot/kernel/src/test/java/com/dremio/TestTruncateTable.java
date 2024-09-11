@@ -46,10 +46,8 @@ public class TestTruncateTable extends PlanTestBase {
   public void tableDoesNotExistShouldThrowError() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String truncSql = "TRUNCATE TABLE " + testSchema + ".truncTable6";
-      try (AutoCloseable c = enableIcebergTables()) {
-        UserExceptionAssert.assertThatThrownBy(() -> test(truncSql))
-            .hasMessageContaining("Table [" + testSchema + ".truncTable6] does not exist.");
-      }
+      UserExceptionAssert.assertThatThrownBy(() -> test(truncSql))
+          .hasMessageContaining("Table [" + testSchema + ".truncTable6] does not exist.");
     }
   }
 
@@ -57,15 +55,13 @@ public class TestTruncateTable extends PlanTestBase {
   public void tableDoesNotExistWithExistenceCheck() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String truncSql = "TRUNCATE TABLE IF EXISTS " + testSchema + ".truncTable6";
-      try (AutoCloseable c = enableIcebergTables()) {
-        testBuilder()
-            .sqlQuery(truncSql)
-            .unOrdered()
-            .baselineColumns("ok", "summary")
-            .baselineValues(true, "Table [" + testSchema + ".truncTable6] does not exist.")
-            .build()
-            .run();
-      }
+      testBuilder()
+          .sqlQuery(truncSql)
+          .unOrdered()
+          .baselineColumns("ok", "summary")
+          .baselineValues(true, "Table [" + testSchema + ".truncTable6] does not exist.")
+          .build()
+          .run();
     }
   }
 
@@ -78,7 +74,7 @@ public class TestTruncateTable extends PlanTestBase {
               + ".truncTable5 as SELECT * FROM INFORMATION_SCHEMA.CATALOGS";
       test(ctas);
       String truncSql = "TRUNCATE TABLE " + TEMP_SCHEMA + ".truncTable5";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
         UserExceptionAssert.assertThatThrownBy(() -> test(truncSql))
             .hasMessageContaining(
                 "Table ["
@@ -109,7 +105,7 @@ public class TestTruncateTable extends PlanTestBase {
   public void truncateEmptyTable() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "truncTable2";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
         String ctas =
             String.format("create table %s.%s(id int, name varchar)", testSchema, tableName);
         test(ctas);
@@ -125,7 +121,7 @@ public class TestTruncateTable extends PlanTestBase {
   public void truncateEmptyWithPathTable() throws Exception {
     String tableName = "truncateEmptyWithPathTable";
     String path = "path";
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       String ctas =
           String.format("CREATE TABLE %s.%s.%s(id INT)", TEMP_SCHEMA_HADOOP, path, tableName);
       test(ctas);
@@ -142,7 +138,7 @@ public class TestTruncateTable extends PlanTestBase {
   public void truncateEmptyWithPathTableWithWrongContext() throws Exception {
     String tableName = "truncateEmptyWithPathTableWithWrongContext";
     String path = "path";
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       String ctas =
           String.format("CREATE TABLE %s.%s.%s(id INT)", TEMP_SCHEMA_HADOOP, path, tableName);
       test(ctas);
@@ -159,7 +155,7 @@ public class TestTruncateTable extends PlanTestBase {
   public void truncateAndSelect() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "truncTable3";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
         String ctas =
             String.format(
                 "create table %s.%s as SELECT * FROM INFORMATION_SCHEMA.CATALOGS",
@@ -196,7 +192,7 @@ public class TestTruncateTable extends PlanTestBase {
   public void truncateInsertSelect() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "truncTable4";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
         String ctas =
             String.format(
                 "create table %s.%s as SELECT * FROM INFORMATION_SCHEMA.CATALOGS",

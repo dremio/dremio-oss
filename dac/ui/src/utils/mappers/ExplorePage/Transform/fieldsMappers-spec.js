@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import fieldsMappers from "./fieldsMappers.js";
+import fieldsMappers from "./fieldsMappers";
 
 describe("fieldsMappers", () => {
   describe("getCommonValues", () => {
@@ -23,7 +23,7 @@ describe("fieldsMappers", () => {
           newFieldName: "newFieldName",
           dropSourceField: true,
         },
-        Immutable.Map({ columnName: "columnName" })
+        Immutable.Map({ columnName: "columnName" }),
       );
       expect(result).to.eql({
         type: "field",
@@ -134,7 +134,7 @@ describe("fieldsMappers", () => {
         fieldsMappers.getSplitPosition({
           position: "All",
           ...values,
-        })
+        }),
       ).to.eql({
         position: "ALL",
         maxFields: 10,
@@ -146,7 +146,7 @@ describe("fieldsMappers", () => {
         fieldsMappers.getSplitPosition({
           position: "Index",
           ...values,
-        })
+        }),
       ).to.eql({
         position: "INDEX",
         index: 1,
@@ -158,7 +158,7 @@ describe("fieldsMappers", () => {
         fieldsMappers.getSplitPosition({
           position: "First",
           ...values,
-        })
+        }),
       ).to.eql({
         position: "FIRST",
       });

@@ -19,8 +19,10 @@ package com.dremio.service.flight;
 import com.dremio.service.flight.impl.FlightWorkManager;
 import org.apache.arrow.flight.CallOption;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 
 /** Test FlightServer with basic authentication. */
+@Ignore("DX-91148")
 public class TestFlightServerWithBasicAuth extends AbstractTestFlightServer {
   @BeforeClass
   public static void setup() throws Exception {

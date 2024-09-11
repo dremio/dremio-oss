@@ -44,7 +44,6 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
@@ -250,12 +249,7 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
                         new RelDataTypeFieldImpl(
                             field.getName(),
                             i.getAndIncrement(),
-                            CalciteArrowHelper.toCalciteType(
-                                field,
-                                typeFactory,
-                                PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT
-                                    .getDefault()
-                                    .getBoolVal()))));
+                            CalciteArrowHelper.toCalciteType(field, typeFactory, true))));
       }
       builder.add(
           new RelDataTypeFieldImpl(

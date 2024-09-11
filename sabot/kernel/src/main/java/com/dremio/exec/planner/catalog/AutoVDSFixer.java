@@ -28,6 +28,7 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
 import io.micrometer.core.instrument.Counter;
@@ -53,13 +54,19 @@ public class AutoVDSFixer {
   private final Catalog catalog;
   private final OptionResolver optionResolver;
   private final UserSession userSession;
+  private final WorkloadType workloadType;
 
   private final Meter.MeterProvider<Counter> counter;
 
-  public AutoVDSFixer(Catalog catalog, OptionResolver optionResolver, UserSession userSession) {
+  public AutoVDSFixer(
+      Catalog catalog,
+      OptionResolver optionResolver,
+      UserSession userSession,
+      WorkloadType workloadType) {
     this.catalog = catalog;
     this.optionResolver = optionResolver;
     this.userSession = userSession;
+    this.workloadType = workloadType;
     counter =
         Counter.builder(PlannerMetrics.createName(PlannerMetrics.PREFIX, VIEW_SCHEMA_LEARNING))
             .description("Counter for view schema learning")
@@ -67,6 +74,12 @@ public class AutoVDSFixer {
   }
 
   public void autoFixVds(ViewTable viewTable, RelRoot root) {
+    if (!workloadType.equals(WorkloadType.UI_PREVIEW)
+        && !workloadType.equals(WorkloadType.UI_RUN)
+        && !workloadType.equals(WorkloadType.UI_DOWNLOAD)
+        && !workloadType.equals(WorkloadType.ACCELERATOR)) {
+      return; // Only UI and Reflection Refresh may auto fix.
+    }
     if (!optionResolver.getOption(PlannerSettings.VDS_AUTO_FIX)
         || viewTable.getView().hasDeclaredFieldNames()) {
       return; // No auto fixing - view schema learning.
@@ -82,7 +95,8 @@ public class AutoVDSFixer {
 
     RelDataType validatedRowType = root.validatedRowType;
     RelDataType viewRowType = viewTable.getView().getRowType(JavaTypeFactoryImpl.INSTANCE);
-    if (MoreRelOptUtil.areRowTypesEqualForViewSchemaLearning(validatedRowType, viewRowType)) {
+    if (!isViewSchemaOutdated(viewTable)
+        && MoreRelOptUtil.areRowTypesEqualForViewSchemaLearning(validatedRowType, viewRowType)) {
       return;
     }
     boolean success = false;
@@ -119,6 +133,7 @@ public class AutoVDSFixer {
             new ViewOptions.ViewOptionsBuilder()
                 .actionType(ViewOptions.ActionType.UPDATE_VIEW)
                 .version(resolvedVersionContext)
+                .icebergViewVersion(optionResolver)
                 .batchSchema(CalciteArrowHelper.fromCalciteRowType(validatedRowType))
                 .build();
       }
@@ -141,5 +156,15 @@ public class AutoVDSFixer {
     } finally {
       PlannerMetrics.withOutcome(counter, success).increment();
     }
+  }
+
+  private static boolean isViewSchemaOutdated(ViewTable viewTable) {
+    if (viewTable == null
+        || viewTable.getDatasetConfig() == null
+        || viewTable.getDatasetConfig().getVirtualDataset() == null
+        || viewTable.getDatasetConfig().getVirtualDataset().getSchemaOutdated() == null) {
+      return false;
+    }
+    return viewTable.getDatasetConfig().getVirtualDataset().getSchemaOutdated();
   }
 }

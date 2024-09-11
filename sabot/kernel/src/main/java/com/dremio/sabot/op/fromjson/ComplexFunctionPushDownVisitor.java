@@ -317,7 +317,11 @@ public abstract class ComplexFunctionPushDownVisitor
         Preconditions.checkArgument(args.size() == 2);
         final RexNode rexNode = args.get(0);
         if (canPushdown(rexNode)) {
-          fieldAccessFunctionList.add(rexNode);
+          if (!fieldAccessFunctionList.contains(rexNode)) {
+            // We don't expect a ton of ITEM/DOT operators,
+            // so performing a lookup in a List should be ok
+            fieldAccessFunctionList.add(rexNode);
+          }
           return call.clone(
               call.getType(),
               ImmutableList.of(
@@ -334,14 +338,24 @@ public abstract class ComplexFunctionPushDownVisitor
     }
 
     private boolean canPushdown(RexNode rexNode) {
-      return
-      // If it's a simple reference to a field, we don't have to push it down.
-      !(rexNode instanceof RexInputRef)
-          &&
-          // If the function argument is last_matching_map_entry_for_key, don't push it down. We
-          // rewrote it for reflection matching purposes.
-          !(rexNode instanceof RexCall
-              && ((RexCall) rexNode).getOperator() == LAST_MATCHING_MAP_ENTRY_FOR_KEY);
+      if (rexNode instanceof RexInputRef) {
+        // If it's a simple reference to a field, we don't have to push it down.
+        return false;
+      }
+      if (rexNode instanceof RexCall) {
+        RexCall rexCall = (RexCall) rexNode;
+        /*
+         * Do not push down if the function argument is:
+         * - LAST_MATCHING_MAP_ENTRY_FOR_KEY operator because we rewrote it for reflection matching purposes.
+         * - ITEM/DOT operator because it will have performance impacts.
+         */
+
+        SqlOperator sqlOperator = rexCall.getOperator();
+        return sqlOperator != LAST_MATCHING_MAP_ENTRY_FOR_KEY
+            && sqlOperator != SqlStdOperatorTable.ITEM
+            && sqlOperator != SqlStdOperatorTable.DOT;
+      }
+      return true;
     }
   }
 

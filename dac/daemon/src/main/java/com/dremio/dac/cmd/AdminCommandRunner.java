@@ -75,6 +75,10 @@ public final class AdminCommandRunner {
       AdminLogger.log(String.format("Failed to run '%s' command: %s", commandName, e.getMessage()));
       throw e;
     }
+
+    // Make sure to successfully start the JVM shutdown process.
+    // This guarantees that any non-daemon thread prevents the shutdown from being started.
+    System.exit(0);
   }
 
   public static void runCommand(String commandName, Class<?> command, String[] commandArgs)

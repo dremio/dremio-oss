@@ -41,7 +41,7 @@ public class ProbeCursor {
       org.slf4j.LoggerFactory.getLogger(ProbeCursor.class);
 
   private final PageListMultimap list;
-  private final ArrowBuf inProbeSV2Buf;
+  private ArrowBuf inProbeSV2Buf;
   private final boolean projectUnmatchedBuild;
   private final boolean projectUnmatchedProbe;
 
@@ -71,7 +71,7 @@ public class ProbeCursor {
     this.inProbeSV2Buf = inProbeSV2Buf;
     this.projectUnmatchedBuild = projectUnmatchedBuild;
     this.projectUnmatchedProbe = projectUnmatchedProbe;
-    this.location = new Location(0, PageListMultimap.TERMINAL);
+    this.location = new Location(0, PageListMultimap.TERMINAL, false, false);
   }
 
   public Stats next(
@@ -90,6 +90,8 @@ public class ProbeCursor {
     assert maxOutputIdx > 0;
     int currentProbeSV2Index = prev.nextProbeSV2Index;
     int currentElementIndex = prev.elementIndex;
+    boolean someRecordsMatched = prev.someRecordsMatched;
+    boolean someRecordsMismatched = prev.someRecordsMismatched;
 
     final ArrowBuf inTableMatchOrdinalBuf = buffers.getInTableMatchOrdinals4B();
     final ArrowBuf outProbeProjectBuf = buffers.getOutProbeProjectOffsets2B();
@@ -107,8 +109,6 @@ public class ProbeCursor {
     final long projectNullKeyOffsetStartAddr = projectNullKeyOffsetBuf.memoryAddress();
 
     int nullKeyCount = 0;
-    boolean someMismatched = false;
-    boolean someMatched = false;
     while (outputRecords < maxOutRecords && currentProbeSV2Index < inRecords) {
       // we're starting a new probe match
       final int indexInBuild =
@@ -153,16 +153,16 @@ public class ProbeCursor {
                 projectBuildOffsetStart + BATCH_INDEX_SIZE,
                 recordIndexInBatch);
             outputRecords++;
-            someMatched = true;
+            someRecordsMatched = true;
           } else {
-            someMismatched = true;
+            someRecordsMismatched = true;
           }
           currentElementIndex =
               PlatformDependent.getInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET);
 
           if (projectUnmatchedBuild) {
             if (currentElementIndex > 0) {
-              if (!someMismatched) {
+              if (!someRecordsMismatched) {
                 // first visit, mark as visited by flipping the sign.
                 PlatformDependent.putInt(
                     elementBufStartAddr + offsetInPage + NEXT_OFFSET, -currentElementIndex);
@@ -171,15 +171,16 @@ public class ProbeCursor {
               // not the first visit, flip the sign of what we just read.
               currentElementIndex = -currentElementIndex;
             }
+            someRecordsMismatched = false;
           }
 
           if (currentElementIndex == TERMINAL) {
-            if (!someMatched) {
+            if (!someRecordsMatched) {
               unMatchedProbeIndex = currentProbeSV2Index;
               unmatchedProbeCount++;
             }
-            someMatched = false;
-            someMismatched = false;
+            someRecordsMatched = false;
+            someRecordsMismatched = false;
           }
         }
         if (currentElementIndex != TERMINAL) {
@@ -223,12 +224,14 @@ public class ProbeCursor {
     if (outputRecords == maxOutRecords && currentProbeSV2Index < inRecords) {
       // batch was full but we have remaining records to process, need to save our position for when
       // we return.
-      location = new Location(currentProbeSV2Index, currentElementIndex);
+      location =
+          new Location(
+              currentProbeSV2Index, currentElementIndex, someRecordsMatched, someRecordsMismatched);
       isPartial = true;
     } else {
       // we need to clear the last saved position and tell the driver that we completed consuming
       // the current batch.
-      location = new Location(0, TERMINAL);
+      location = new Location(0, TERMINAL, false, false);
       isPartial = false;
     }
     return new Stats(outputRecords, nullKeyCount, isPartial);
@@ -238,6 +241,10 @@ public class ProbeCursor {
     return unmatchedProbeCount;
   }
 
+  public void updateSv2(ArrowBuf sv2) {
+    this.inProbeSV2Buf = sv2;
+  }
+
   /**
    * An object to hold the current cursor state. We use an object here to make sure we're replacing
    * the entirety of the mutable cursor state after each next() call.
@@ -245,10 +252,15 @@ public class ProbeCursor {
   static class Location {
     private final int nextProbeSV2Index;
     private final int elementIndex;
+    private final boolean someRecordsMatched;
+    private final boolean someRecordsMismatched;
 
-    public Location(int nextProbeSV2Index, int elementIndex) {
+    public Location(
+        int nextProbeSV2Index, int elementIndex, boolean someMatched, boolean someMismatched) {
       this.nextProbeSV2Index = nextProbeSV2Index;
       this.elementIndex = elementIndex;
+      this.someRecordsMatched = someMatched;
+      this.someRecordsMismatched = someMismatched;
     }
   }
 

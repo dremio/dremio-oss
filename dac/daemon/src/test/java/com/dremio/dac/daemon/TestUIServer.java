@@ -22,16 +22,14 @@ import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
+import com.dremio.dac.server.BaseClientUtils;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.test.DremioTest;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -63,10 +61,7 @@ public class TestUIServer {
                   .serveUI(true),
               DremioTest.CLASSPATH_SCAN_RESULT);
       dremioDaemon.init();
-      JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-      provider.setMapper(JSONUtil.prettyMapper());
-      client =
-          ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
+      client = BaseClientUtils.newClient(JSONUtil.prettyMapper());
       rootTarget = client.target("http://localhost:" + dremioDaemon.getWebServer().getPort());
     }
   }

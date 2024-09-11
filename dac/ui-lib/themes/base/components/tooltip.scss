@@ -42,6 +42,10 @@
     transform-origin: right;
   }
 
+  &--sm {
+    width: 175px;
+  }
+
   &__arrow {
     position: absolute;
     transform: rotate(45deg);

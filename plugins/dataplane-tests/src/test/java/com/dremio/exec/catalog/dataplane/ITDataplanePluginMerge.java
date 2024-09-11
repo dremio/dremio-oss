@@ -15,27 +15,9 @@
  */
 package com.dremio.exec.catalog.dataplane;
 
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtBranchQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtSpecifierQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.dropTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueBranchName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTagName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableWithValuesQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.joinedTableKey;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.mergeByIdQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.selectStarQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useContextQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
@@ -413,6 +395,88 @@ public class ITDataplanePluginMerge extends ITDataplanePluginTestSetup {
   }
 
   @Test
+  public void testMergeUseSelectWithAtWithoutContext() throws Exception {
+    String devBranch = "devBranch";
+    String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
+    String devTable = "devTable";
+    String mainTable = "mainTable";
+    runSQL(createBranchAtSpecifierQuery(devBranch, mainBranch));
+    runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST)));
+    runSQL(useBranchQuery(devBranch));
+
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, devTable));
+    runSQL(
+        String.format(
+            "CREATE table %s.%s at branch %s as select 1,2,3",
+            DATAPLANE_PLUGIN_NAME, mainTable, DEFAULT_BRANCH_NAME));
+
+    runSQL(
+        String.format(
+            "MERGE INTO %s.%s at branch %s as t\n"
+                + "USING (SELECT * FROM %s.%s at branch %s ) AS s\n"
+                + "ON (t.EXPR$0 = s.EXPR$0) WHEN MATCHED THEN UPDATE SET EXPR$2 = 999",
+            DATAPLANE_PLUGIN_NAME,
+            devTable,
+            devBranch,
+            DATAPLANE_PLUGIN_NAME,
+            mainTable,
+            DEFAULT_BRANCH_NAME));
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, mainTable, DEFAULT_BRANCH_NAME)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "2", "3")));
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, devTable, devBranch)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "2", "999")));
+  }
+
+  @Test
+  public void testMergeUseSelectWithSettingToAnotherContext() throws Exception {
+    setupForAnotherPlugin();
+    String devBranch = "devBranch";
+    String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
+    String devTable = "devTable";
+    String mainTable = "mainTable";
+    runSQL(createBranchAtSpecifierQuery(devBranch, mainBranch));
+    runSQL(useBranchQuery(devBranch));
+
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, devTable));
+    runSQL(
+        String.format(
+            "CREATE table %s.%s at branch %s as select 1,2,3",
+            DATAPLANE_PLUGIN_NAME, mainTable, DEFAULT_BRANCH_NAME));
+
+    runSQL(
+        String.format(
+            "MERGE INTO %s.%s at branch %s as t\n"
+                + "USING (SELECT * FROM %s.%s at branch %s ) AS s\n"
+                + "ON (t.EXPR$0 = s.EXPR$0) WHEN MATCHED THEN UPDATE SET EXPR$2 = 999",
+            DATAPLANE_PLUGIN_NAME,
+            devTable,
+            devBranch,
+            DATAPLANE_PLUGIN_NAME,
+            mainTable,
+            DEFAULT_BRANCH_NAME));
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, mainTable, DEFAULT_BRANCH_NAME)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "2", "3")));
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, devTable, devBranch)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "2", "999")));
+  }
+
+  @Test
   public void testMergeUseSelectWithAtRef() throws Exception {
     String devBranch = "devBranch";
     String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
@@ -664,5 +728,113 @@ public class ITDataplanePluginMerge extends ITDataplanePluginTestSetup {
                         DATAPLANE_PLUGIN_NAME,
                         mainTable)))
         .isInstanceOf(UserRemoteException.class);
+  }
+
+  @Test
+  public void testMergeNonVersionedTableIntoVersionedTable() throws Exception {
+    String tableName = "myTable";
+    String tableName2 = "myTable2";
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
+    runSQL(String.format("CREATE table %s.%s as select 1,5,6", TEMP_SCHEMA_HADOOP, tableName2));
+    runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME)));
+    runSQL(
+        String.format(
+            "MERGE INTO %s AT BRANCH %s AS t USING %s.%s AS s ON (t.EXPR$0 = s.EXPR$0)\n"
+                + "  WHEN MATCHED THEN UPDATE SET EXPR$1 = s.EXPR$2",
+            tableName, DEFAULT_BRANCH_NAME, TEMP_SCHEMA_HADOOP, tableName2));
+    assertThat(
+            runSqlWithResults(
+                String.format("select * from %s.%s", DATAPLANE_PLUGIN_NAME, tableName)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "6", "3")));
+    runSQL(dropTableQuery(DATAPLANE_PLUGIN_NAME, List.of(tableName)));
+    runSQL(dropTableQuery(TEMP_SCHEMA_HADOOP, List.of(tableName2)));
+  }
+
+  @Test
+  public void testMergeVersionedTableIntoNonVersionedTable() throws Exception {
+    String tableName = "myTable";
+    String tableName2 = "myTable2";
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", TEMP_SCHEMA_HADOOP, tableName));
+    runSQL(String.format("CREATE table %s.%s as select 1,5,6", DATAPLANE_PLUGIN_NAME, tableName2));
+    runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME)));
+    runSQL(
+        String.format(
+            "MERGE INTO %s.%s AS t USING %s AT BRANCH %s AS s ON (t.EXPR$0 = s.EXPR$0)\n"
+                + "  WHEN MATCHED THEN UPDATE SET EXPR$1 = s.EXPR$2",
+            TEMP_SCHEMA_HADOOP, tableName, tableName2, DEFAULT_BRANCH_NAME));
+    assertThat(
+            runSqlWithResults(String.format("select * from %s.%s", TEMP_SCHEMA_HADOOP, tableName)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "6", "3")));
+    runSQL(dropTableQuery(DATAPLANE_PLUGIN_NAME, List.of(tableName2)));
+    runSQL(dropTableQuery(TEMP_SCHEMA_HADOOP, List.of(tableName)));
+  }
+
+  @Test
+  public void testMergeVersionedTableIntoNonVersionedTableWithoutAtSpecifier() throws Exception {
+    String tableName = "myTable";
+    String tableName2 = "myTable2";
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", TEMP_SCHEMA_HADOOP, tableName));
+    runSQL(String.format("CREATE table %s.%s as select 1,5,6", DATAPLANE_PLUGIN_NAME, tableName2));
+    runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME)));
+    runSQL(
+        String.format(
+            "MERGE INTO %s.%s AS t USING %s AS s ON (t.EXPR$0 = s.EXPR$0)\n"
+                + "  WHEN MATCHED THEN UPDATE SET EXPR$1 = s.EXPR$2",
+            TEMP_SCHEMA_HADOOP, tableName, tableName2));
+    assertThat(
+            runSqlWithResults(String.format("select * from %s.%s", TEMP_SCHEMA_HADOOP, tableName)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "6", "3")));
+    runSQL(dropTableQuery(DATAPLANE_PLUGIN_NAME, List.of(tableName2)));
+    runSQL(dropTableQuery(TEMP_SCHEMA_HADOOP, List.of(tableName)));
+  }
+
+  @Test
+  public void testMergeNonVersionedTableIntoVersionedTableWithoutAtSpecifier() throws Exception {
+    String tableName = "myTable";
+    String tableName2 = "myTable2";
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
+    runSQL(String.format("CREATE table %s.%s as select 1,5,6", TEMP_SCHEMA_HADOOP, tableName2));
+    runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME)));
+    runSQL(
+        String.format(
+            "MERGE INTO %s AS t USING %s.%s AS s ON (t.EXPR$0 = s.EXPR$0)\n"
+                + "  WHEN MATCHED THEN UPDATE SET EXPR$1 = s.EXPR$2",
+            tableName, TEMP_SCHEMA_HADOOP, tableName2));
+    assertThat(
+            runSqlWithResults(
+                String.format("select * from %s.%s", DATAPLANE_PLUGIN_NAME, tableName)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "6", "3")));
+    runSQL(dropTableQuery(DATAPLANE_PLUGIN_NAME, List.of(tableName)));
+    runSQL(dropTableQuery(TEMP_SCHEMA_HADOOP, List.of(tableName2)));
+  }
+
+  @Test
+  public void testMergeNonVersionedTableAtSnapshotIntoVersionedTable() throws Exception {
+    String tableName = "myTable";
+    String tableName2 = "myTable2";
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
+    runSQL(String.format("CREATE table %s.%s as select 1,5,6", TEMP_SCHEMA_HADOOP, tableName2));
+    runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME)));
+
+    // get(1) is the snapshot_id column
+    String snapshotId =
+        runSqlWithResults(
+                String.format(
+                    "SELECT * FROM TABLE( table_history('%s.%s') )",
+                    TEMP_SCHEMA_HADOOP, tableName2))
+            .get(0)
+            .get(1);
+
+    runSQL(
+        String.format(
+            "MERGE INTO %s AS t USING %s.%s AT SNAPSHOT '%s' AS s ON (t.EXPR$0 = s.EXPR$0)\n"
+                + "  WHEN MATCHED THEN UPDATE SET EXPR$1 = s.EXPR$2",
+            tableName, TEMP_SCHEMA_HADOOP, tableName2, snapshotId));
+    assertThat(
+            runSqlWithResults(
+                String.format("select * from %s.%s", DATAPLANE_PLUGIN_NAME, tableName)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "6", "3")));
+    runSQL(dropTableQuery(DATAPLANE_PLUGIN_NAME, List.of(tableName)));
+    runSQL(dropTableQuery(TEMP_SCHEMA_HADOOP, List.of(tableName2)));
   }
 }

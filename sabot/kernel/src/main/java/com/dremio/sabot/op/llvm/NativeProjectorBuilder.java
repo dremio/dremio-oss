@@ -64,8 +64,7 @@ public class NativeProjectorBuilder {
     exprs.add(pairing);
   }
 
-  public NativeProjectEvaluator build(
-      Schema incomingSchema, OperatorStats stats, GandivaSecondaryCacheWithStats secondaryCache)
+  public NativeProjectEvaluator build(Schema incomingSchema, OperatorStats stats)
       throws GandivaException {
     if (exprs.isEmpty()) {
       return NO_OP;
@@ -78,7 +77,6 @@ public class NativeProjectorBuilder {
             functionContext,
             true,
             targetHostCPU,
-            secondaryCache,
             exprComplexityThreshold);
     final NativeProjector projectorWithNoOpt =
         new NativeProjector(
@@ -87,7 +85,6 @@ public class NativeProjectorBuilder {
             functionContext,
             false,
             targetHostCPU,
-            secondaryCache,
             exprComplexityThreshold);
     for (ExprPairing e : exprs) {
       if (e.optimize) {

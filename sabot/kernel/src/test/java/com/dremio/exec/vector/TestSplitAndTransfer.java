@@ -63,6 +63,5 @@ public class TestSplitAndTransfer extends ExecTest {
     }
 
     varCharVector.close();
-    allocator.close();
   }
 }

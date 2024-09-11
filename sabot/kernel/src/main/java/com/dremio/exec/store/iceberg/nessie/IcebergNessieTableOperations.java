@@ -21,17 +21,16 @@ import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.VersionedPlugin.EntityType;
 import com.dremio.exec.store.NoDefaultBranchException;
+import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.options.OptionManager;
 import com.dremio.plugins.NessieClient;
 import com.dremio.plugins.NessieClientImpl;
-import com.dremio.plugins.NessieClientTableMetadata;
 import com.dremio.plugins.NessieContent;
+import com.dremio.plugins.NessieTableAdapter;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.google.common.base.Stopwatch;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.Arrays;
 import java.util.List;
@@ -45,6 +44,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.io.FileIO;
 import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.error.NessieConflictException;
 
 /** Iceberg nessie table operations */
 public class IcebergNessieTableOperations extends BaseMetastoreTableOperations
@@ -172,7 +172,7 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations
           .commitTable(
               nessieTableKey,
               newMetadataLocation,
-              new NessieClientTableMetadata(
+              new NessieTableAdapter(
                   metadata.currentSnapshot().snapshotId(),
                   metadata.currentSchemaId(),
                   metadata.defaultSpecId(),
@@ -188,20 +188,14 @@ public class IcebergNessieTableOperations extends BaseMetastoreTableOperations
         operatorStats.addLongStat(
             WriterCommitterOperator.Metric.ICEBERG_CATALOG_UPDATE_TIME, totalCatalogUpdateTime);
       }
-    } catch (StatusRuntimeException sre) {
-      if (sre.getStatus().getCode() == Status.Code.ABORTED) {
+    } catch (ReferenceConflictException e) {
+      if (e.getCause() instanceof NessieConflictException) {
         logger.debug(
             String.format(
-                "Commit failed: Reference hash is out of date. "
-                    + "Update the reference %s and try again for table %s",
-                reference.getCommitHash(), nessieTableIdentifier));
-        throw new CommitFailedException(
-            sre,
-            "Commit failed: Reference hash is out of date. "
-                + "Update the reference %s and try again",
-            reference.getCommitHash());
+                "Retrying commit for table %s because of conflict exception", nessieTableKey));
+        throw new CommitFailedException(e.getCause());
       } else {
-        throw UserException.dataReadError(sre).build(logger);
+        throw new IllegalStateException(e);
       }
     } finally {
       if (threw) {

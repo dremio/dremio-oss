@@ -19,7 +19,6 @@ import static com.dremio.exec.ExecConstants.TARGET_BATCH_RECORDS_MAX;
 import static com.dremio.exec.ExecConstants.TARGET_BATCH_RECORDS_MIN;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.dremio.TestBuilder;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
@@ -199,13 +198,12 @@ public class TestIcebergSnapshotFunction extends IcebergMetadataTestTable {
             METADATA_TEST_TABLE_NAME,
             IcebergBaseCommand.DREMIO_JOB_ID_ICEBERG_PROPERTY);
 
-    new TestBuilder(allocator)
+    testBuilder()
         .sqlQuery(jobIdPropertyQuery)
         .unOrdered()
         .baselineColumns("operation", "key", "value")
         .baselineValues("append", IcebergBaseCommand.DREMIO_JOB_ID_ICEBERG_PROPERTY, appendJobId)
-        .baselineValues(
-            "overwrite", IcebergBaseCommand.DREMIO_JOB_ID_ICEBERG_PROPERTY, overwriteJobId)
+        .baselineValues("delete", IcebergBaseCommand.DREMIO_JOB_ID_ICEBERG_PROPERTY, overwriteJobId)
         .go();
   }
 

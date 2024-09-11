@@ -25,13 +25,13 @@
     height: 32px;
     font-size: 14px;
     line-height: 20px;
-    border: solid 1px $border-color;
+    border: solid 1px var(--border--neutral--solid);
     display: flex;
     align-items: center;
-    background-color: var(--bg--default);
+    background-color: var(--fill--primary);
 
     &:hover {
-      border: 1px solid $FIGMA_NEUTRAL_300;
+      border: 1px solid var(--border--hover);
 
       .input__numberButtons {
         &.--disabled {
@@ -47,29 +47,29 @@
     }
 
     &:focus {
-      border: 1px solid $FIGMA_PRIMARY_500;
+      border: 1px solid var(--border--focused);
     }
 
     &.--focused {
-      border: 1px solid $FIGMA_PRIMARY_500;
+      border: 1px solid var(--border--focused);
     }
 
     &.--disabled {
-      border-color: $border-color;
-      background-color: $disabled-color;
-      color: $FIGMA_TEXT_DISABLED;
+      border-color: var(--border--neutral--solid);
+      background-color: var(--fill--disabled);
+      color: var(--text--disabled);
 
       input {
-        background-color: $disabled-color;
+        background-color: var(--fill--disabled);
       }
     }
 
     &.--error {
-      border-color: $error-color;
+      border-color: var(--fill--danger--solid);
     }
 
     .input__prefix {
-      background-color: var(--color--neutral--25);
+      background-color: var(--fill--secondary);
       border-top-left-radius: $input-border-radius;
       border-bottom-left-radius: $input-border-radius;
       padding: 0px map-get($map: $gutter-sizes, $key: double);
@@ -85,7 +85,7 @@
       grid-template-columns: repeat(1fr, 2);
 
       &.--focused {
-        background-color: $aliceBlue;
+        background-color: var(--fill--primary--hover);
 
         .input__numberButtons .icon {
           display: block;
@@ -93,7 +93,7 @@
       }
 
       &.--disabled {
-        background-color: $disabled-color;
+        background-color: var(--fill--disabled);
         .input__numberButtons .icon {
           display: none;
         }
@@ -141,7 +141,7 @@
     }
 
     input::placeholder {
-      color: var(--dremio--color--text--disabled);
+      color: var(--text--disabled);
       opacity: 1;
     }
   }

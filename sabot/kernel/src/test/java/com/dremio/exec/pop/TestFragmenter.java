@@ -34,8 +34,7 @@ public class TestFragmenter extends PopUnitTestBase {
   @Test
   public void ensureOneFragment()
       throws FragmentSetupException, IOException, ForemanSetupException {
-    PhysicalPlanReader ppr =
-        PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(CLASSPATH_SCAN_RESULT);
+    PhysicalPlanReader ppr = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader();
     Fragment b = getRootFragment(ppr, "/physical_test1.json");
     assertEquals(1, getFragmentCount(b));
     assertEquals(0, b.getReceivingExchangePairs().size());
@@ -45,8 +44,7 @@ public class TestFragmenter extends PopUnitTestBase {
   @Ignore
   public void ensureThreeFragments()
       throws FragmentSetupException, IOException, ForemanSetupException {
-    PhysicalPlanReader ppr =
-        PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(CLASSPATH_SCAN_RESULT);
+    PhysicalPlanReader ppr = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader();
     Fragment b = getRootFragment(ppr, "/physical_double_exchange.json");
     logger.debug("Fragment SabotNode {}", b);
     assertEquals(3, getFragmentCount(b));

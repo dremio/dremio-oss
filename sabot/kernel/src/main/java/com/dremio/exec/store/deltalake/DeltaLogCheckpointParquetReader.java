@@ -499,8 +499,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       throws Exception {
     try (InputStreamProvider inputStreamProvider =
         createInputStreamProvider(operatorContext, fs, filePath, fileSize, lTime)) {
-      final MutableParquetMetadata footer = inputStreamProvider.getFooter();
-      return footer;
+      return inputStreamProvider.getFooter();
     }
   }
 
@@ -641,7 +640,8 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
               // numRecords is not available
               Path fullFilePath =
                   rootFolder.resolve(new String(pathVector.get(i), StandardCharsets.UTF_8));
-              fullFilePath = Path.of(URLDecoder.decode(fullFilePath.toString(), "UTF-8"));
+              fullFilePath =
+                  Path.of(URLDecoder.decode(fullFilePath.toString(), StandardCharsets.UTF_8));
 
               long numRecords;
               try {
@@ -732,7 +732,10 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
             .setPath(fileAttributes.getPath().toString())
             .setLength(fileAttributes.size())
             .setLastModificationTime(
-                0) // using 0 as the mtime to signify that these splits are immutable
+                fileAttributes
+                    .lastModifiedTime()
+                    .toMillis()) // makes everything go mutable way to handle the case that
+            // checkpoint file get modified
             .build();
 
     int rowGrpIdx = 0;

@@ -75,7 +75,8 @@ public class ManifestScanTableFunctionContext extends CarryForwardAwareTableFunc
       @JsonProperty("constValueCol") String constValCol,
       @JsonProperty("constValue") String constVal,
       @JsonProperty("publishPartitionInfo") boolean publishPartitionInfo,
-      @JsonProperty("includeIcebergPartitionInfo") boolean includeIcebergPartitionInfo) {
+      @JsonProperty("includeIcebergPartitionInfo") boolean includeIcebergPartitionInfo,
+      @JsonProperty("schemeVariate") String schemeVariate) {
     super(
         formatSettings,
         fullSchema,
@@ -94,7 +95,8 @@ public class ManifestScanTableFunctionContext extends CarryForwardAwareTableFunc
         isCarryForwardEnabled,
         inputColMap,
         constValCol,
-        constVal);
+        constVal,
+        schemeVariate);
     this.partitionSpecMap = partitionSpecMap;
     this.icebergSchema = icebergSchema;
     this.jsonPartitionSpecMap = jsonPartitionSpecMap;

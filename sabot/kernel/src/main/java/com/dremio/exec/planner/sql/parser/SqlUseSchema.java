@@ -44,7 +44,6 @@ public class SqlUseSchema extends SqlCall {
   public SqlUseSchema(SqlParserPos pos, SqlIdentifier schema) {
     super(pos);
     this.schema = schema;
-    assert schema != null;
   }
 
   @Override
@@ -63,7 +62,7 @@ public class SqlUseSchema extends SqlCall {
     schema.unparse(writer, leftPrec, rightPrec);
   }
 
-  public List<String> getSchema() {
-    return schema.names;
+  public SqlIdentifier getSchema() {
+    return schema;
   }
 }

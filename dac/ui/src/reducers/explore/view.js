@@ -36,7 +36,9 @@ import {
   SET_UPDATE_SQL_FROM_HISTORY,
   RESET_TABLE_STATE,
   WAIT_FOR_JOB_RESULTS,
-} from "actions/explore/view";
+  SET_EXPLORE_TABLE_LOADING,
+  SET_EDITOR_CONTENTS,
+} from "@app/actions/explore/view";
 import { isLoaded } from "@app/reducers/reducerFactories";
 import { combineReducers } from "redux";
 import {
@@ -44,6 +46,7 @@ import {
   CLEAR_SCRIPT_STATE,
   REPLACE_SCRIPT_CONTENTS,
   REMOVE_TAB_VIEW,
+  SET_TAB_VIEW,
 } from "@app/actions/resources/scripts";
 
 export const EXPLORE_VIEW_ID = "EXPLORE_VIEW_ID";
@@ -245,6 +248,35 @@ const waitingForJobResults = (state = null, action) => {
   }
 };
 
+const isExploreTableLoading = (state = false, action) => {
+  // should clear the loading state on tab change
+  if (hasTabId(action)) return state;
+
+  const { type, isLoading } = action;
+
+  switch (type) {
+    case SET_EXPLORE_TABLE_LOADING:
+      return isLoading;
+    case SET_TAB_VIEW:
+      return false; // reset the loading flag if script changes
+    default:
+      return state;
+  }
+};
+
+const editorContents = (state = null, action) => {
+  if (hasTabId(action)) return state;
+
+  const { type, content } = action;
+
+  switch (type) {
+    case SET_EDITOR_CONTENTS:
+      return content;
+    default:
+      return state;
+  }
+};
+
 const sqlEditorFocusKey = (state = 0, action) => {
   if (hasTabId(action)) return state;
 
@@ -321,4 +353,6 @@ export default combineReducers({
   isDatasetMetadataLoaded: isLoaded(datasetMetadataActions),
   activeScript,
   waitingForJobResults,
+  isExploreTableLoading,
+  editorContents,
 });

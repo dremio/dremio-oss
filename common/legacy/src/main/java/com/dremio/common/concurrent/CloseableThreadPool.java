@@ -15,38 +15,67 @@
  */
 package com.dremio.common.concurrent;
 
-import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Closeable thread pool. This is basically Executors.newCachedThreadPool() but also using a
+ * Closeable thread pool. This is an ThreadPoolExecutor/ExecutorService that is using a
  * NamedThreadFactory and calling awaitTermination on close.
  */
 public class CloseableThreadPool extends ThreadPoolExecutor implements CloseableExecutorService {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(CloseableThreadPool.class);
 
-  public CloseableThreadPool(String name) {
-    super(
-        0,
-        Integer.MAX_VALUE,
-        60L,
-        TimeUnit.SECONDS,
-        new SynchronousQueue<>(),
-        new NamedThreadFactory(name));
+  /**
+   * @see java.util.concurrent.Executors#newSingleThreadExecutor()
+   */
+  public static CloseableThreadPool newSingleThreadExecutor(String name) {
+    return newFixedThreadPool(name, 1);
   }
 
-  public CloseableThreadPool(String name, int corePoolSize, RejectedExecutionHandler handler) {
+  /**
+   * @see java.util.concurrent.Executors#newFixedThreadPool(int)
+   */
+  public static CloseableThreadPool newFixedThreadPool(String name, int fixedPoolSize) {
+    // same params as java.util.concurrent.Executors.newFixedThreadPool
+    return new CloseableThreadPool(
+        name, fixedPoolSize, fixedPoolSize, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+  }
+
+  /**
+   * @see java.util.concurrent.Executors#newCachedThreadPool()
+   */
+  public static CloseableThreadPool newCachedThreadPool(String name) {
+    return new CloseableThreadPool(name);
+  }
+
+  /**
+   * @see java.util.concurrent.Executors#newCachedThreadPool()
+   * @deprecated use {@link #newCachedThreadPool(String)} instead for clarity
+   */
+  @Deprecated
+  public CloseableThreadPool(String name) {
+    // same params as java.util.concurrent.Executors.newCachedThreadPool
+    this(name, 0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>());
+  }
+
+  public CloseableThreadPool(
+      String name,
+      int corePoolSize,
+      int maximumPoolSize,
+      long keepAliveTime,
+      TimeUnit unit,
+      BlockingQueue<Runnable> workQueue) {
     super(
         corePoolSize,
-        corePoolSize,
-        60L,
-        TimeUnit.SECONDS,
-        new SynchronousQueue<>(),
-        new NamedThreadFactory(name),
-        handler);
+        maximumPoolSize,
+        keepAliveTime,
+        unit,
+        workQueue,
+        new NamedThreadFactory(name));
   }
 
   @Override

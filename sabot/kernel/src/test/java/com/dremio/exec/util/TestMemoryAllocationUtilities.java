@@ -18,10 +18,6 @@ package com.dremio.exec.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
-import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -41,18 +37,14 @@ import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators;
 import com.dremio.options.impl.DefaultOptionManager;
-import com.dremio.options.impl.OptionManagerWrapper;
-import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -74,38 +66,18 @@ public class TestMemoryAllocationUtilities extends ExecTest {
   private static final NodeEndpoint N2 = NodeEndpoint.newBuilder().setAddress("n2").build();
 
   private OptionManager options;
-  private SystemOptionManager systemOptionManager;
-  private LegacyKVStoreProvider kvstoreprovider;
   private long adjustReserve;
 
   @Before
   public void setup() throws Exception {
-    kvstoreprovider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
-    kvstoreprovider.start();
     final OptionValidatorListing optionValidatorListing =
         new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    systemOptionManager =
-        new SystemOptionManager(
-            optionValidatorListing,
-            new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT),
-            () -> kvstoreprovider,
-            false);
-    options =
-        OptionManagerWrapper.Builder.newBuilder()
-            .withOptionManager(new DefaultOptionManager(optionValidatorListing))
-            .withOptionManager(systemOptionManager)
-            .build();
-    systemOptionManager.start();
+    options = new DefaultOptionManager(optionValidatorListing);
 
     adjustReserve =
         options.getOption(PlannerSettings.ENABLE_AGGRESSIVE_MEMORY_CALCULATION)
             ? options.getOption(PlannerSettings.ADJUST_RESERVED_WHEN_AGGRESSIVE) * 1024L * 1024L
             : 0L;
-  }
-
-  @After
-  public void teardown() throws Exception {
-    AutoCloseables.close(systemOptionManager, kvstoreprovider);
   }
 
   /**

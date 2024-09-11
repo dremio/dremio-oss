@@ -23,7 +23,6 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.ops.ViewExpansionContext;
-import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
 import com.dremio.exec.planner.catalog.AutoVDSFixer;
@@ -33,7 +32,6 @@ import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserNotFoundException;
-import java.util.Optional;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.sql.SqlNode;
@@ -61,7 +59,7 @@ public class ViewExpander {
         checkNotNull(
             sqlValidatorAndToRelContextBuilderFactory, "sqlValidatorAndToRelContextBuilderFactory");
     this.viewExpansionContext = checkNotNull(viewExpansionContext, "viewExpansionContext");
-    this.substitutionProvider = checkNotNull(substitutionProvider, "substitutionProvider");
+    this.substitutionProvider = substitutionProvider;
     this.viewVersionChecker = checkNotNull(viewVersionChecker, "viewVersionChecker");
   }
 
@@ -165,52 +163,10 @@ public class ViewExpander {
     SqlValidatorAndToRelContext sqlValidatorAndToRelContext = builder.build();
     final SqlNode parsedNode = sqlValidatorAndToRelContext.parse(queryString);
     final SqlNode validatedNode = sqlValidatorAndToRelContext.validate(parsedNode);
-    Optional<RelRoot> defaultReflectionRoot =
-        generateDefaultReflectionRelRoot(viewTable, sqlValidatorAndToRelContext, validatedNode);
-    if (defaultReflectionRoot.isPresent()) {
-      return defaultReflectionRoot.get();
-    }
-
     final RelRoot root = sqlValidatorAndToRelContext.toConvertibleRelRoot(validatedNode, true);
     RelNode expansionNode =
-        ExpansionNode.wrap(viewPath, root.rel, root.validatedRowType, false, versionContext);
+        ExpansionNode.wrap(
+            viewPath, root.rel, root.validatedRowType, false, versionContext, viewTable);
     return RelRoot.of(expansionNode, root.validatedRowType, root.kind);
-  }
-
-  private Optional<RelRoot> generateDefaultReflectionRelRoot(
-      final ViewTable viewTable,
-      final SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
-      final SqlNode validatedNode) {
-    assert viewTable != null;
-
-    final NamespaceKey viewPath = viewTable.getPath();
-    final TableVersionContext versionContext = viewTable.getVersionContext();
-
-    try {
-      Optional<DremioMaterialization> defaultRawMaterialization =
-          substitutionProvider.getDefaultRawMaterialization(viewTable);
-      if (defaultRawMaterialization.isPresent()) {
-        final RelRoot unflattenedRoot =
-            sqlValidatorAndToRelContext.toConvertibleRelRoot(validatedNode, false, false);
-        final RelNode defaultExpansionNode =
-            substitutionProvider.wrapDefaultExpansionNode(
-                viewPath,
-                unflattenedRoot.rel,
-                defaultRawMaterialization.get(),
-                unflattenedRoot.validatedRowType,
-                versionContext,
-                viewExpansionContext);
-        viewExpansionContext.setSubstitutedWithDRR();
-        RelRoot relRootPlus =
-            RelRoot.of(
-                defaultExpansionNode, unflattenedRoot.validatedRowType, unflattenedRoot.kind);
-        return Optional.of(relRootPlus);
-      } else {
-        return Optional.empty();
-      }
-    } catch (RuntimeException e) {
-      LOGGER.warn("Unable to get default raw materialization for {}", viewPath.getSchemaPath(), e);
-      return Optional.empty();
-    }
   }
 }

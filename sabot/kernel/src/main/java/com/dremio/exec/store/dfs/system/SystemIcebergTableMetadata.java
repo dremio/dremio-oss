@@ -27,6 +27,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableProperties;
 
 /**
  * This class represents the metadata for the tables stored by {@link
@@ -34,29 +35,34 @@ import org.apache.iceberg.TableMetadata;
  * location, and other properties of the table.
  */
 public abstract class SystemIcebergTableMetadata {
-
-  private final Schema schema;
+  public static final String SCHEMA_VERSION_PROPERTY = "schema_version";
+  protected Schema schema;
+  protected PartitionSpec partitionSpec;
   private final long schemaVersion;
   private final NamespaceKey namespaceKey;
   private final String tableLocation;
   private final String tableName;
+  private final long commitRetryCount;
 
   /**
    * Constructs an instance of SystemIcebergTableMetadata.
    *
    * @param schemaVersion The version of the schema for the table.
-   * @param schema The iceberg schema of the table.
    * @param pluginName Name of the {@link SystemIcebergTablesStoragePlugin}
    * @param pluginPath Path of the {@link SystemIcebergTablesStoragePlugin}
    * @param tableName Name of the iceberg table.
    */
   public SystemIcebergTableMetadata(
-      long schemaVersion, Schema schema, String pluginName, String pluginPath, String tableName) {
-    this.schema = schema;
+      long schemaVersion,
+      long commitRetryCount,
+      String pluginName,
+      String pluginPath,
+      String tableName) {
     this.namespaceKey = new NamespaceKey(ImmutableList.of(pluginName, tableName));
     this.tableLocation = Path.of(pluginPath).resolve(namespaceKey.getName()).toString();
     this.tableName = tableName;
     this.schemaVersion = schemaVersion;
+    this.commitRetryCount = commitRetryCount;
   }
 
   /**
@@ -75,6 +81,15 @@ public abstract class SystemIcebergTableMetadata {
    */
   public Schema getIcebergSchema() {
     return schema;
+  }
+
+  /**
+   * Get the Iceberg partition spec for the table.
+   *
+   * @return The Iceberg partition specification.
+   */
+  public PartitionSpec getPartitionSpec() {
+    return partitionSpec;
   }
 
   /**
@@ -127,10 +142,15 @@ public abstract class SystemIcebergTableMetadata {
         TableMetadata.buildFromEmpty()
             .addSchema(getIcebergSchema(), getIcebergSchema().highestFieldId())
             .assignUUID()
-            .addPartitionSpec(PartitionSpec.unpartitioned())
+            .addPartitionSpec(partitionSpec)
             .addSortOrder(SortOrder.unsorted())
             .setLocation(getTableLocation())
-            .setProperties(ImmutableMap.of("schema_version", String.valueOf(schemaVersion)))
+            .setProperties(
+                ImmutableMap.of(
+                    SCHEMA_VERSION_PROPERTY,
+                    String.valueOf(schemaVersion),
+                    TableProperties.COMMIT_NUM_RETRIES,
+                    String.valueOf(commitRetryCount)))
             .build();
     return IcebergTableProps.createInstance(
         IcebergCommandType.CREATE, null, null, tableMetadata, null);
@@ -146,7 +166,7 @@ public abstract class SystemIcebergTableMetadata {
     TableMetadata tableMetadata =
         TableMetadata.buildFromEmpty()
             .addSchema(getIcebergSchema(), getIcebergSchema().highestFieldId())
-            .addPartitionSpec(PartitionSpec.unpartitioned())
+            .addPartitionSpec(partitionSpec)
             .addSortOrder(SortOrder.unsorted())
             .setLocation(getTableLocation())
             .build();
@@ -166,7 +186,7 @@ public abstract class SystemIcebergTableMetadata {
    */
   public String getViewQuery() {
     return new SystemIcebergViewQueryBuilder(
-            getSchemaVersion(), getTableName(), getNamespaceKey(), null)
+            getSchemaVersion(), getTableName(), getNamespaceKey(), null, true)
         .getViewQuery();
   }
 }

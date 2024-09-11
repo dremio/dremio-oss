@@ -24,7 +24,6 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotContext;
@@ -49,13 +48,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
-/** Enables ENABLE_ICEBERG_ADVANCED_DML for a local filesystem-based Hadoop source. */
 public class ITDmlQueryBase extends BaseTestQuery {
-  protected ParserConfig parserConfig =
-      new ParserConfig(
-          ParserConfig.QUOTING,
-          100,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  protected ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
   protected static SqlConverter converter;
   protected static SqlDialect DREMIO_DIALECT =
       new SqlDialect(
@@ -105,9 +99,6 @@ public class ITDmlQueryBase extends BaseTestQuery {
 
   @BeforeClass
   public static void beforeClass() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
@@ -115,18 +106,6 @@ public class ITDmlQueryBase extends BaseTestQuery {
 
   @AfterClass
   public static void afterClass() {
-    setSystemOption(
-        ExecConstants.ENABLE_ICEBERG_ADVANCED_DML,
-        ExecConstants.ENABLE_ICEBERG_ADVANCED_DML.getDefault().getBoolVal().toString());
-    setSystemOption(
-        ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE,
-        ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE
-            .getDefault()
-            .getBoolVal()
-            .toString());
-    setSystemOption(
-        ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR,
-        ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR.getDefault().getBoolVal().toString());
     setSystemOption(
         ExecConstants.ENABLE_ICEBERG_VACUUM,
         ExecConstants.ENABLE_ICEBERG_VACUUM.getDefault().getBoolVal().toString());

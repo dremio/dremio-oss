@@ -29,8 +29,8 @@ import org.apache.iceberg.types.Types;
 
 /** Helper class to construct column name to column ID mapping from Iceberg schema */
 public class DremioIndexByName extends TypeUtil.CustomOrderSchemaVisitor<Map<String, Integer>> {
-  private static final Joiner DOT = Joiner.on(".");
-
+  public static final String SEPARATOR = ".";
+  private static final Joiner DOT = Joiner.on(SEPARATOR);
   private final Deque<String> fieldNames = Lists.newLinkedList();
   private final Map<String, Integer> nameToId = Maps.newHashMap();
 

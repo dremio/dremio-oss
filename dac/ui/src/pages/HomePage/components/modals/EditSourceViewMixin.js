@@ -45,6 +45,10 @@ export const mapStateToProps = (state) => {
         createdSource && createdSource.has("accelerationRefreshSchedule")
           ? createdSource.get("accelerationRefreshSchedule")
           : DataFreshnessSection.defaultFormValueRefreshSchedule(),
+      accelerationRefreshOnDataChanges:
+        createdSource && createdSource.has("accelerationRefreshOnDataChanges")
+          ? createdSource.get("accelerationRefreshOnDataChanges")
+          : DataFreshnessSection.defaultFormValueRefreshOnTableChanges(),
       metadataPolicy: MetadataRefresh.mapToFormFields(createdSource),
     },
   };

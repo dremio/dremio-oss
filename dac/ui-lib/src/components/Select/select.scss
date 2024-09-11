@@ -29,17 +29,17 @@
 
     //There was no hover style prior to mui upgrade
     fieldset {
-      border: 1px solid var(--color--neutral--100);
+      border: 1px solid var(--border--neutral--solid);
     }
     &:hover {
       fieldset {
-        border-color: var(--color--neutral--200) !important;
+        border-color: var(--border--hover) !important;
       }
     }
     &:focus,
     &.Mui-focused {
       fieldset {
-        border-color: var(--color--brand--300) !important;
+        border-color: var(--border--focused) !important;
         border-width: 1px !important;
       }
     }
@@ -50,13 +50,13 @@
       &,
       &:hover {
         fieldset {
-          border-color: $border-color !important;
+          border-color: var(--border--neutral--solid) !important;
         }
       }
-      background-color: $disabled-color !important;
-      color: $FIGMA_TEXT_DISABLED !important;
+      background-color: var(--color--neutral--75) !important;
+      color: var(--text--disabled) !important;
       select {
-        background-color: $disabled-color !important;
+        background-color: var(--color--neutral--75) !important;
       }
     }
   }
@@ -67,11 +67,14 @@
 
   .MuiSelect-icon {
     top: unset;
+    svg {
+      fill: var(--icon--primary);
+    }
   }
 
   .MuiInputBase-root {
     display: flex;
-    background-color: $white;
+    background-color: var(--fill--primary);
   }
 
   .MuiInput-underline:before,
@@ -91,7 +94,7 @@
     height: 32px;
     font-size: 14px !important;
     &.--selected {
-      background-color: $iceberg !important;
+      background-color: var(--fill--primary--selected) !important;
     }
   }
 

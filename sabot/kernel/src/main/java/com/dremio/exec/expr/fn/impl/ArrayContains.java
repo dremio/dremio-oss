@@ -51,34 +51,32 @@ public class ArrayContains {
         out.isSet = 0;
         return;
       }
-
-      if (in.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "First parameter to array_contains must be a LIST. Was given: %s",
-                in.getMinorType().toString()));
-      }
       if (!in.reader().getMinorType().equals(value.getMinorType())) {
         throw new UnsupportedOperationException(
             String.format(
                 "List of %s is not comparable with %s",
                 in.reader().getMinorType().toString(), value.getMinorType().toString()));
       }
-      java.util.List<?> inputList = (java.util.List<?>) in.readObject();
-
-      if (inputList.contains(inputValue)) {
-        out.isSet = 1;
-        out.value = 1;
-        return;
+      org.apache.arrow.vector.complex.impl.UnionListReader listReader =
+          (org.apache.arrow.vector.complex.impl.UnionListReader) in;
+      boolean containsNull = false;
+      while (listReader.next()) {
+        if (!listReader.reader().isSet()) {
+          containsNull = true;
+        } else if (com.dremio.exec.expr.fn.impl.array.ArrayHelper.isReaderValueEquals(
+            listReader.reader(), value)) {
+          out.isSet = 1;
+          out.value = 1;
+          return;
+        }
       }
 
-      if (inputList.contains(null)) {
+      if (containsNull) {
         out.isSet = 0;
-        return;
+      } else {
+        out.isSet = 1;
+        out.value = 0;
       }
-
-      out.isSet = 1;
-      out.value = 0;
     }
   }
 }

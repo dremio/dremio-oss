@@ -33,10 +33,15 @@ const daysOfTheWeek = [
 
 type WeekInputProps = {
   name: string;
-  daysOfWeekProp: string[][];
+  daysOfWeekProp?: string[][];
+  disabled?: boolean;
 };
 
-export const WeekInput = ({ name, daysOfWeekProp }: WeekInputProps) => {
+export const WeekInput = ({
+  name,
+  daysOfWeekProp,
+  disabled,
+}: WeekInputProps) => {
   const { formatMessage } = useIntl();
 
   return (
@@ -59,6 +64,7 @@ export const WeekInput = ({ name, daysOfWeekProp }: WeekInputProps) => {
                     size="xs"
                     radius="xs"
                     className={classes["checkbox"]}
+                    disabled={disabled}
                   />
                 ))}
               </Checkbox.Group>

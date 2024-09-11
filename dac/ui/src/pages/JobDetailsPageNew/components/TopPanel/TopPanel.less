@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
   .topPanel {
     height: 64px;
@@ -21,7 +21,7 @@
     align-items: center;
     font-size: 14px;
     line-height: 16px;
-    background-color: @black-russian;
+    background-color: var(--fill--primary);
     &__navigationWrapper {
       display: flex;
       flex-basis: 80%;
@@ -38,7 +38,7 @@
       }
     }
     &__jobs-logo {
-      cursor: pointer;
+      white-space: nowrap;
     }
     &__jobId {
       display: flex;
@@ -49,7 +49,7 @@
     }
 
     &__header {
-      color: @pale-sky;
+      color: var(--color--neutral--300);
     }
 
     &__tab {
@@ -60,14 +60,14 @@
       margin-left: 8px;
       padding: 0px 8px;
       white-space: nowrap;
-      color: @font-color1;
+      color: var(--text--primary);
       &.--unselected {
         height: 56px;
-        border-bottom: 4px solid @TRANSPARENT_COLOR;
+        border-bottom: 4px solid transparent;
       }
       &.--selected {
         height: 56px;
-        border-bottom: 4px solid @bluemine;
+        border-bottom: 4px solid var(--border--brand--solid);
       }
     }
 

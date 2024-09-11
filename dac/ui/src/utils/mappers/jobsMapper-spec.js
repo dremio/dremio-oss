@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import Immutable from "immutable";
-import jobsMapper from "./jobsMapper.js";
+import jobsMapper from "./jobsMapper";
 
 describe("Test jobs mapper", () => {
   describe("job detail mapper", () => {
@@ -64,7 +64,7 @@ describe("Test jobs mapper", () => {
       ];
 
       expect(jobsMapper.mapTableDatasetProfiles(incoming)).to.eql(
-        expectedResult
+        expectedResult,
       );
     });
   });

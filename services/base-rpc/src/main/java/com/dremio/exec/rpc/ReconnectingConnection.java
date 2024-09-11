@@ -15,13 +15,14 @@
  */
 package com.dremio.exec.rpc;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newCounterProvider;
+
 import com.dremio.common.SerializedExecutor;
 import com.dremio.exec.rpc.RpcConnectionHandler.FailureType;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.MessageLite;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
-import io.micrometer.core.instrument.Metrics;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import java.io.Closeable;
@@ -39,10 +40,8 @@ public abstract class ReconnectingConnection<
     implements Closeable {
   private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
-  private static final MeterProvider<Counter> connectionBreakCounter =
-      Counter.builder("rpc.failure")
-          .description("Counts the number of RPC connection breaks")
-          .withRegistry(Metrics.globalRegistry);
+  private static final MeterProvider<Counter> CONNECTION_BREAK_COUNTER =
+      newCounterProvider("rpc.failure", "Counts the number of RPC connection breaks");
 
   /**
    * Amount of time to wait after failing to establishing a connection before establishing again.
@@ -581,7 +580,7 @@ public abstract class ReconnectingConnection<
     public ConnectionFailure(FailureType type, Throwable throwable) {
       this.type = type;
       this.throwable = throwable;
-      connectionBreakCounter.withTags("failure_type", type.name()).increment();
+      CONNECTION_BREAK_COUNTER.withTags("failure_type", type.name()).increment();
     }
 
     /**

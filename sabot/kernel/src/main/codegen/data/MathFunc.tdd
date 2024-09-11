@@ -238,7 +238,7 @@ trigoMathFunctions : [
       {input: "Float8"},
     ]
  },
- {className: "Cot", funcName: "cot", javaFunc : "1.0/java.lang.Math.tan", outputType: "Float8", types: [
+ {className: "Cot", funcName: "cot", javaFunc : "java.lang.Math.tan(Math.PI/2-(", outputType: "Float8", types: [
       {input: "Int"},
       {input: "BigInt"},
       {input: "Float4"},

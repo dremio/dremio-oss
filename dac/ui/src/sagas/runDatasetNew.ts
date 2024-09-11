@@ -254,8 +254,11 @@ export function* handlePendingMetadataFetch(
       }
     }
   } catch (e) {
-    // if a job fails, fetch the correct job failure info using the Jobs API
-    willProceed = yield fetchJobFailureInfo(jobId, curIndex, callback);
+    // DataLoadError occurs when job results fail to fetch due to expired results or invalid call
+    if (!(e instanceof DataLoadError)) {
+      // if a job fails, fetch the correct job failure info using the Jobs API
+      willProceed = yield fetchJobFailureInfo(jobId, curIndex, callback);
+    }
   } finally {
     yield call([socket, socket.stopListenToJobProgress], jobId);
 

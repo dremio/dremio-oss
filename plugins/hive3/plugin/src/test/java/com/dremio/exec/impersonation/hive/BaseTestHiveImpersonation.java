@@ -22,7 +22,6 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 
 import com.dremio.TestBuilder;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.hive.HiveTestBase;
@@ -42,10 +41,19 @@ import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.security.HadoopThriftAuthBridge;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.ql.Driver;
+import org.junit.AfterClass;
 
 public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(BaseTestHiveImpersonation.class);
+
+  // Hive data generation will invoke HS2 functionality, creating a SessionState (a Hive class),
+  // which in turn creates
+  // an UDFClassLoader instance. This will be set as context CL, but sadly upon SessionState.close()
+  // it is not reset...
+  private static final ClassLoader ORIGINAL_CLASS_LOADER =
+      Thread.currentThread().getContextClassLoader();
+
   protected static final String hivePluginName = "hive";
 
   protected static HiveConf hiveConf;
@@ -74,7 +82,8 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
     // Configure metastore persistence db location on local filesystem
     final String dbUrl =
         String.format(
-            "jdbc:derby:;databaseName=%s;create=true", HiveTestBase.createDerbyDB("metastore_db"));
+            "jdbc:derby:;databaseName=%s;create=true",
+            HiveTestBase.createDerbyDB(getTempDir("metastore_db")));
     hiveConf.set(ConfVars.METASTORECONNECTURLKEY.varname, dbUrl);
 
     hiveConf.set(ConfVars.SCRATCHDIR.varname, "file:///" + getTempDir("scratch_dir"));
@@ -91,6 +100,11 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
 
     studentData = getPhysicalFileFromResource("student.txt");
     voterData = getPhysicalFileFromResource("voter.txt");
+  }
+
+  @AfterClass
+  public static void revertContextClassloader() {
+    Thread.currentThread().setContextClassLoader(ORIGINAL_CLASS_LOADER);
   }
 
   protected static void startHiveMetaStore() throws Exception {
@@ -156,9 +170,7 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
     sc.setType(conf.getType());
     sc.setConfig(conf.toBytesString());
     sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
-    ((CatalogServiceImpl) getSabotContext().getCatalogService())
-        .getSystemUserCatalog()
-        .createSource(sc);
+    getCatalogService().getSystemUserCatalog().createSource(sc);
   }
 
   protected void showTablesHelper(final String db, List<String> expectedTables) throws Exception {

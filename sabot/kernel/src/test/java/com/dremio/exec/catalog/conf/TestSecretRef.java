@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog.conf;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -26,8 +27,6 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,8 +36,8 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.credentials.CredentialsServiceUtils;
+import com.dremio.services.credentials.MigrationSecretsCreator;
 import com.dremio.services.credentials.SecretsCreator;
-import com.dremio.services.credentials.SystemSecretCredentialsProvider;
 import com.dremio.test.DremioTest;
 import io.protostuff.ByteString;
 import io.protostuff.LinkedBuffer;
@@ -49,6 +48,7 @@ import io.protostuff.Tag;
 import io.protostuff.runtime.DefaultIdStrategy;
 import io.protostuff.runtime.Delegate;
 import java.net.URI;
+import java.util.Optional;
 import java.util.function.Predicate;
 import javax.inject.Provider;
 import org.junit.Before;
@@ -63,6 +63,8 @@ import org.junit.Test;
 public class TestSecretRef extends DremioTest {
 
   private DefaultIdStrategy idStrategy;
+  private CredentialsService credentialsService;
+  private SecretsCreator secretsCreator;
   private static final String TEST_SOURCE_TYPE = "test-secret-ref-source";
   private static final Predicate<String> IS_NOT_A_URI_FILTER =
       secret -> {
@@ -132,16 +134,17 @@ public class TestSecretRef extends DremioTest {
     SecretRefUnsafeDelegate.register(idStrategy);
     assertTrue(idStrategy.isDelegateRegistered(SecretRef.class));
     assertTrue(idStrategy.isDelegateRegistered(SecretRefUnsafe.class));
+
+    credentialsService = mock(CredentialsService.class);
+    secretsCreator = mock(SecretsCreator.class);
   }
 
   @Test
   public void testEncryptAndLookupBasic() throws Exception {
-    final SecretsCreator secretsCreator = mock(SecretsCreator.class);
-    when(secretsCreator.encrypt(any())).thenReturn(new URI("system:encryptedSecret"));
+    when(secretsCreator.encrypt(any())).thenReturn(Optional.of(new URI("system:encryptedSecret")));
 
     final SecretRefImpl secretRef = new SecretRefImpl("someSecretValue");
-    secretRef.encrypt(secretsCreator, IS_NOT_A_URI_FILTER);
-    verify(secretsCreator, atLeastOnce()).encrypt(any());
+    assertTrue(secretRef.encrypt(secretsCreator));
     assertEquals("system:encryptedSecret", secretRef.getRaw());
 
     final CredentialsService credentialsService = mock(CredentialsService.class);
@@ -154,19 +157,15 @@ public class TestSecretRef extends DremioTest {
 
   @Test
   public void testAlreadyEncryptedOrUri() throws Exception {
-    final SecretsCreator secretsCreator = mock(SecretsCreator.class);
     final SecretRefImpl encryptedSecretRef = new SecretRefImpl("system:alreadyEncrypted");
     final SecretRefImpl uriSecretRef = new SecretRefImpl("file:alreadyUri");
-    encryptedSecretRef.encrypt(secretsCreator, IS_NOT_A_URI_FILTER);
-    uriSecretRef.encrypt(secretsCreator, IS_NOT_A_URI_FILTER);
-
-    verify(secretsCreator, never()).encrypt(any());
+    assertFalse(encryptedSecretRef.encrypt(secretsCreator));
+    assertFalse(uriSecretRef.encrypt(secretsCreator));
   }
 
   @Test
   public void testDoNotEncryptSystemEncryptedSecretAgain() throws Exception {
-    final SecretsCreator secretsCreator = mock(SecretsCreator.class);
-    when(secretsCreator.encrypt(any())).thenReturn(new URI("system:encryptedSecret"));
+    when(secretsCreator.encrypt(any())).thenReturn(Optional.of(new URI("system:encryptedSecret")));
     when(secretsCreator.encrypt(contains("encryptedSecret")))
         .thenThrow(new RuntimeException("Double encryption should not occur."));
     when(secretsCreator.isEncrypted(anyString())).thenReturn(false);
@@ -176,28 +175,9 @@ public class TestSecretRef extends DremioTest {
     final SecretRefImpl plainTextSecretRef = new SecretRefImpl("system:@123");
     final SecretRefImpl fileURISecretRef = new SecretRefImpl("file:alreadyUri");
 
-    Predicate<String> isNotSystemEncryptedFilter =
-        secret -> {
-          String scheme;
-          try {
-            final URI uri = CredentialsServiceUtils.safeURICreate(secret);
-            scheme = uri.getScheme();
-            if (!SystemSecretCredentialsProvider.SECRET_PROVIDER_SCHEME.equals(scheme)) {
-              // Scheme is not system
-              return true;
-            }
-            return !secretsCreator.isEncrypted(uri.getSchemeSpecificPart());
-          } catch (IllegalArgumentException ignored) {
-            // Not a URI
-            return true;
-          }
-        };
-    systemEncryptedSecretRef.encrypt(secretsCreator, isNotSystemEncryptedFilter);
-    verify(secretsCreator, times(0)).encrypt(any());
-    plainTextSecretRef.encrypt(secretsCreator, isNotSystemEncryptedFilter);
-    verify(secretsCreator, times(1)).encrypt(any());
-    fileURISecretRef.encrypt(secretsCreator, isNotSystemEncryptedFilter);
-    verify(secretsCreator, times(2)).encrypt(any());
+    assertFalse(systemEncryptedSecretRef.encrypt(new MigrationSecretsCreator(secretsCreator)));
+    assertTrue(plainTextSecretRef.encrypt(new MigrationSecretsCreator(secretsCreator)));
+    assertTrue(fileURISecretRef.encrypt(new MigrationSecretsCreator(secretsCreator)));
   }
 
   /**
@@ -302,6 +282,95 @@ public class TestSecretRef extends DremioTest {
     assertEquals(
         SecretRef.EXISTING_VALUE, (SecretRef) () -> ConnectionConf.USE_EXISTING_SECRET_VALUE);
     assertNotEquals(SecretRef.EXISTING_VALUE, null);
+  }
+
+  @Test
+  public void testDisplayStringBasic() {
+    assertEquals(SecretRef.EMPTY.get(), SecretRef.getDisplayString(SecretRef.EMPTY));
+    assertEquals(
+        SecretRef.EXISTING_VALUE.get(), SecretRef.getDisplayString(SecretRef.EXISTING_VALUE));
+  }
+
+  @Test
+  public void testDisplayStringPlaintext() {
+    final String somePlaintextSecret = "plaintextSecret";
+    assertEquals(
+        SecretRef.EXISTING_VALUE.get(),
+        SecretRef.getDisplayString(SecretRef.of(somePlaintextSecret)));
+    final String invalidUriSecret = "invalid%.plain/:text//";
+    assertEquals(
+        SecretRef.EXISTING_VALUE.get(), SecretRef.getDisplayString(SecretRef.of(invalidUriSecret)));
+  }
+
+  @Test
+  public void testDisplayStringNotSupportedURI() throws Exception {
+    final CredentialsService credentialsService = mock(CredentialsService.class);
+    when(credentialsService.isSupported(any())).thenReturn(false);
+    final SecretRef secretRef =
+        new SecretRefImpl("unsupported:uri").decorateSecrets(credentialsService);
+    assertEquals(SecretRef.EXISTING_VALUE.get(), SecretRef.getDisplayString(secretRef));
+  }
+
+  @Test
+  public void testDisplayStringEncryptedSecret() {
+    final CredentialsService credentialsService = mock(CredentialsService.class);
+    when(credentialsService.isSupported(any())).thenReturn(true);
+    final String encryptedSecret = "system:encrypted";
+    final SecretRef secretRef =
+        new SecretRefImpl(encryptedSecret).decorateSecrets(credentialsService);
+    assertEquals(SecretRef.EXISTING_VALUE.get(), SecretRef.getDisplayString(secretRef));
+  }
+
+  @Test
+  public void testDisplayStringSupportedURI() throws Exception {
+    final CredentialsService credentialsService = mock(CredentialsService.class);
+    when(credentialsService.isSupported(any())).thenReturn(true);
+    final String supportedURI = "supported:uri";
+    final SecretRef secretRef = new SecretRefImpl(supportedURI).decorateSecrets(credentialsService);
+    assertEquals(supportedURI, SecretRef.getDisplayString(secretRef));
+  }
+
+  @Test
+  public void testGetUriBasic() {
+    assertNull(SecretRef.getURI(SecretRef.EMPTY));
+    assertNull(SecretRef.getURI(SecretRef.EXISTING_VALUE));
+  }
+
+  @Test
+  public void testGetUriPlaintext() {
+    final String somePlaintextSecret = "plaintextSecret";
+    assertNull(SecretRef.getURI(SecretRef.of(somePlaintextSecret)));
+    final String invalidUriSecret = "invalid%.plain/:text//";
+    assertNull(SecretRef.getURI(SecretRef.of(invalidUriSecret)));
+  }
+
+  @Test
+  public void testGetUriSupported() {
+    final String supportedURI = "supported:uri";
+    final CredentialsService credentialsService = mock(CredentialsService.class);
+    when(credentialsService.isSupported(any())).thenReturn(true);
+    final SecretRef secretRef = new SecretRefImpl(supportedURI).decorateSecrets(credentialsService);
+    assertEquals(supportedURI, SecretRef.getURI(secretRef).toString());
+  }
+
+  @Test
+  public void testGetUriNotSupported() {
+    final String notSupportedURI = "notsupported:uri";
+    final CredentialsService credentialsService = mock(CredentialsService.class);
+    when(credentialsService.isSupported(any())).thenReturn(false);
+    final SecretRef secretRef =
+        new SecretRefImpl(notSupportedURI).decorateSecrets(credentialsService);
+    assertNull(SecretRef.getURI(secretRef));
+  }
+
+  @Test
+  public void testGetUriEncryptedSecret() {
+    final String encryptedSecret = "system:encrypted";
+    final CredentialsService credentialsService = mock(CredentialsService.class);
+    when(credentialsService.isSupported(any())).thenReturn(true);
+    final SecretRef secretRef =
+        new SecretRefImpl(encryptedSecret).decorateSecrets(credentialsService);
+    assertEquals(encryptedSecret, SecretRef.getURI(secretRef).toString());
   }
 
   private <T extends ConnectionConf<?, ?>> Schema<T> getSchema(Class<T> clazz) {

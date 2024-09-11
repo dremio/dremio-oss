@@ -44,6 +44,8 @@ public class SourceState {
   public static final SourceState NOT_AVAILABLE =
       SourceState.badState("Source is not currently available.");
 
+  public static final SourceState DELETED = SourceState.badState("Source is deleted");
+
   private final SourceStatus status;
   private final List<Message> messages;
   private final String suggestedUserAction;

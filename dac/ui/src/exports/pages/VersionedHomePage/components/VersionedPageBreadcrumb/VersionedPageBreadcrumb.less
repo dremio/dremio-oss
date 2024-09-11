@@ -1,0 +1,103 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@import "~@app/uiTheme/less/mixins.less";
+
+:global {
+  #nessieBreadcrumb-popper {
+    z-index: 1000;
+
+    .menuContent {
+      border: 1px solid var(--border--neutral);
+      border-radius: var(--dremio--radius--1);
+      padding: var(--dremio--spacing--05);
+      box-shadow: var(--dremio--shadow--bottom);
+      background-color: var(--bg);
+    }
+
+    .menuContent-item {
+      padding: var(--dremio--spacing--05);
+    }
+  }
+
+  .nessieBreadcrumb {
+    font-size: 16px;
+    font-weight: 400;
+    .flex-center;
+    .font-icon {
+      display: flex !important;
+    }
+
+    .MuiBreadcrumbs-separator {
+      margin-left: 4px;
+      margin-right: 4px;
+    }
+
+    &-menuTrigger {
+      cursor: pointer;
+    }
+
+    .MuiBreadcrumbs-root {
+      color: var(--text--primary) !important;
+      font-size: 16px !important;
+      margin-left: 4px;
+    }
+
+    .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+      max-width: 375px;
+      white-space: nowrap;
+      display: inline-block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: top;
+    }
+
+    &-repoIcon {
+      display: flex;
+      color: var(--icon--primary);
+    }
+
+    .MuiBreadcrumbs-separator,
+    span.nessieBreadcrumb-item {
+      font-weight: 600;
+    }
+  }
+
+  @media screen and (max-width: 1692px) {
+    .nessieBreadcrumb {
+      .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+        max-width: 330px;
+      }
+    }
+  }
+
+  @media screen and (max-width: 1550px) {
+    .nessieBreadcrumb {
+      .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+        max-width: 240px;
+      }
+    }
+  }
+
+  .versionedBreadcrumb {
+    font-size: 14px !important;
+
+    .MuiBreadcrumbs-root {
+      font-size: 14px !important;
+      margin-left: 0 !important;
+    }
+  }
+}

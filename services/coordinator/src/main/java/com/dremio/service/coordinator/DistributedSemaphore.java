@@ -33,12 +33,12 @@ public interface DistributedSemaphore {
   /**
    * Try to acquire multiple permits in the semaphore
    *
-   * @param permits the number of permits to acquire, must be a positive integer
+   * @param numPermits the number of permits to acquire, must be a positive integer
    * @param time the duration to wait for the semaphore
    * @param unit the duration unit
    * @return the lease
    */
-  DistributedLease acquire(int permits, long time, TimeUnit unit) throws Exception;
+  DistributedLease acquire(int numPermits, long time, TimeUnit unit) throws Exception;
 
   /**
    * Determine the number of currently outstanding permits.

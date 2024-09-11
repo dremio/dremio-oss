@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import Immutable from "immutable";
-import { HIGHLIGHTED_TABLE, PALE_ORANGE } from "uiTheme/radium/colors";
 
 const columnUIProps = Immutable.Map({
   width: 0,
@@ -23,9 +22,9 @@ const columnUIProps = Immutable.Map({
 
 function getColumnColor(code) {
   const hash = {
-    HIGHLIGHTED: HIGHLIGHTED_TABLE,
-    DELETED: PALE_ORANGE,
-    DELETION_MARKER: PALE_ORANGE,
+    HIGHLIGHTED: "var(--color--brand--100)",
+    DELETED: "var(--color--orange--50)",
+    DELETION_MARKER: "var(--color--orange--50)",
   };
   return hash[code] || "none";
 }
@@ -48,7 +47,7 @@ export function getColumnStatus(response, column) {
 
 export function isRowDeleted(row, columns) {
   const deletedColumns = columns.filter(
-    (column) => column.get("status") === "DELETION_MARKER"
+    (column) => column.get("status") === "DELETION_MARKER",
   );
   return deletedColumns.some((column) => {
     return row.get("row").get(column.get("index")).get("v") === null;

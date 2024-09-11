@@ -37,6 +37,9 @@ signatures:
    -
     call: "SELECT CAST('2021-04-03' AS DATE)"
     result: "2021-04-03"
+   -
+    call: "SELECT CAST('06:42:12.000' AS TIME)"
+    result: "06:42:12.000"
 dremioVersion: "1.0+"
 functionCategories:
  - "CONVERSION"

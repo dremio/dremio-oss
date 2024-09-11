@@ -17,11 +17,14 @@ package com.dremio.dac.cmd;
 
 import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET;
 import static com.dremio.service.namespace.dataset.proto.DatasetType.VIRTUAL_DATASET;
+import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.DATASET;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.IndexedStore;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -30,6 +33,7 @@ import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -58,7 +62,7 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
       NamespaceService namespaceService =
-          new NamespaceServiceImpl(provider.asLegacy(), new CatalogStatusEventsImpl());
+          new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl());
 
       // Add a dataset to home space
       final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath("user1")).toNamespaceKey();
@@ -124,15 +128,31 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
       // orphan dataset
       namespaceService.deleteEntity(sourceKey1);
 
-      int datasetsCount = namespaceService.getDatasets().size();
+      int datasetsCount = getDatasetCount(provider);
 
       // Clean orphan dataset
-      Clean.deleteDatasetOrphans(provider.asLegacy());
+      Clean.deleteDatasetOrphans(provider.asLegacy(), provider);
 
-      int newDatasetsCount = namespaceService.getDatasets().size();
+      int newDatasetsCount = getDatasetCount(provider);
 
       // Verify 1 and only one dataset is cleaned
       assertEquals(1, datasetsCount - newDatasetsCount);
     }
+  }
+
+  private static int getDatasetCount(LocalKVStoreProvider kvStoreProvider) {
+    IndexedStore<String, NameSpaceContainer> namespace =
+        kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+    Iterable<Document<String, NameSpaceContainer>> containerEntries = namespace.find();
+
+    int count = 0;
+    for (final Document<String, NameSpaceContainer> entry : containerEntries) {
+      final NameSpaceContainer container = entry.getValue();
+      if (container.getType() == DATASET) {
+        count++;
+      }
+    }
+
+    return count;
   }
 }

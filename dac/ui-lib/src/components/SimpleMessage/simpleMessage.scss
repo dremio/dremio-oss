@@ -21,26 +21,26 @@
   flex-wrap: nowrap;
   padding: 5px;
   width: 100%;
-  border-bottom: 1px solid $border-color;
+  border-bottom: 1px solid var(--border--neutral--solid);
   border-radius: 1px;
   user-select: text;
   position: relative;
   z-index: 100;
 
   &.--error {
-    background-color: $cinderella;
+    background-color: var(--fill--danger);
   }
 
   &.--info {
-    background-color: $iceberg;
+    background-color: var(--fill--info);
   }
 
   &.--success {
-    background-color: $frost;
+    background-color: var(--fill--success);
   }
 
   &.--warning {
-    background-color: $serenade;
+    background-color: var(--fill--warning);
   }
 
   &__icon {

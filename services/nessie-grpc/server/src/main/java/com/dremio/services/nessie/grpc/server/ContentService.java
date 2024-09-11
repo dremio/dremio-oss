@@ -19,8 +19,6 @@ import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 
-import com.dremio.services.nessie.grpc.api.Content;
-import com.dremio.services.nessie.grpc.api.ContentRequest;
 import com.dremio.services.nessie.grpc.api.ContentServiceGrpc;
 import com.dremio.services.nessie.grpc.api.MultipleContentsRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsResponse;
@@ -40,23 +38,6 @@ public class ContentService extends ContentServiceGrpc.ContentServiceImplBase {
   }
 
   @Override
-  public void getContent(ContentRequest request, StreamObserver<Content> observer) {
-    handle(
-        () ->
-            toProto(
-                bridge
-                    .get()
-                    .getContent(
-                        fromProto(request.getContentKey()),
-                        getRefFromProtoRequest(request.getRef()),
-                        getHashOnRefFromProtoRequest(request.getHashOnRef()),
-                        false // TODO: support withDocumentation
-                        )
-                    .getContent()),
-        observer);
-  }
-
-  @Override
   public void getMultipleContents(
       MultipleContentsRequest request, StreamObserver<MultipleContentsResponse> observer) {
     handle(
@@ -70,8 +51,8 @@ public class ContentService extends ContentServiceGrpc.ContentServiceImplBase {
                       getRefFromProtoRequest(request.getRef()),
                       getHashOnRefFromProtoRequest(request.getHashOnRef()),
                       requestedKeys,
-                      false // TODO: support withDocumentation
-                      ));
+                      false, // TODO: support withDocumentation
+                      request.getForWrite()));
         },
         observer);
   }

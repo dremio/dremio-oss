@@ -25,18 +25,24 @@ import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-public final class BigDecimalArrayAggAccumulator
-    extends BaseArrayAggAccumulator<BigDecimal, DecimalVector> {
+public final class BigDecimalArrayAggAccumulator extends ArrayAggAccumulator<BigDecimal> {
 
   private final byte[] valueBuffer = new byte[DecimalVector.TYPE_WIDTH];
 
   public BigDecimalArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
-      BufferAllocator allocator) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
+      BufferAllocator allocator,
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
+    super(
+        input,
+        transferVector,
+        tempAccumulatorHolder,
+        allocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
   }
 
   @Override
@@ -50,10 +56,10 @@ public final class BigDecimalArrayAggAccumulator
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<BigDecimal, DecimalVector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
+  protected ArrayAggAccumulatorHolder<BigDecimal> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
     return new BigDecimalArrayAggAccumulatorHolder(
-        maxValuesPerBatch, allocator, (DecimalVector) getInput());
+        allocator, (DecimalVector) getInput(), initialCapacity);
   }
 
   @Override

@@ -15,9 +15,14 @@
  */
 package com.dremio.service.namespace.file;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
 
 import com.dremio.common.utils.SqlUtils;
+import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.proto.AvroFileConfig;
 import com.dremio.service.namespace.file.proto.DeltalakeFileConfig;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
@@ -43,6 +48,7 @@ import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 import io.protostuff.Schema;
 import java.util.List;
+import java.util.Objects;
 
 /** Format settings for a file along with the data and transformations. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
@@ -83,10 +89,11 @@ public abstract class FileFormat {
   private String name;
   private String owner;
   private List<String> fullPath;
-  private long ctime;
+  private Long ctime;
   private String version;
   private boolean isFolder = false;
   private String location;
+  private boolean ignoreOtherFileFormats;
 
   @Override
   public String toString() {
@@ -221,12 +228,16 @@ public abstract class FileFormat {
     return fullPath;
   }
 
-  public long getCtime() {
+  public Long getCtime() {
     return ctime;
   }
 
   public String getVersion() {
     return version;
+  }
+
+  public boolean isIgnoreOtherFileFormats() {
+    return ignoreOtherFileFormats;
   }
 
   public void setName(String name) {
@@ -241,7 +252,7 @@ public abstract class FileFormat {
     this.fullPath = fullPath;
   }
 
-  public void setCtime(long ctime) {
+  public void setCtime(Long ctime) {
     this.ctime = ctime;
   }
 
@@ -251,6 +262,10 @@ public abstract class FileFormat {
 
   public void setLocation(String location) {
     this.location = location;
+  }
+
+  public void setIgnoreOtherFileFormats(boolean ignoreOtherFileFormats) {
+    this.ignoreOtherFileFormats = ignoreOtherFileFormats;
   }
 
   @JsonIgnore
@@ -265,6 +280,9 @@ public abstract class FileFormat {
     fc.setType(getFileType());
     fc.setTag(getVersion());
     fc.setLocation(location);
+    if (isIgnoreOtherFileFormats()) {
+      fc.setFileNameRegex(getFileNameRegex(getFileType()));
+    }
     byte[] bytes = ProtobufIOUtil.toByteArray(this, (Schema) getPrivateSchema(), buffer);
     fc.setExtendedConfig(ByteString.copyFrom(bytes));
     fc.setFullPathList(fullPath);
@@ -293,6 +311,47 @@ public abstract class FileFormat {
     return fileFormat;
   }
 
+  public static FileFormat getForDataset(DatasetConfig config) {
+    FileFormat format = null;
+    PhysicalDataset physicalDataset = config.getPhysicalDataset();
+    if (physicalDataset != null) {
+      FileConfig formatSettings = physicalDataset.getFormatSettings();
+
+      if (formatSettings != null) {
+        if (config.getType()
+                == com.dremio.service.namespace.dataset.proto.DatasetType
+                    .PHYSICAL_DATASET_SOURCE_FILE
+            || config.getType()
+                == com.dremio.service.namespace.dataset.proto.DatasetType
+                    .PHYSICAL_DATASET_HOME_FILE) {
+          format = FileFormat.getForFile(formatSettings);
+        } else {
+          format = FileFormat.getForFolder(formatSettings);
+        }
+      } else if (DatasetHelper.isIcebergDataset(config)) {
+        format = FileFormat.getForIceberg(config);
+      }
+    }
+    return format;
+  }
+
+  private static FileFormat getForIceberg(DatasetConfig datasetConfig) {
+    IcebergMetadata icebergMetadata = datasetConfig.getPhysicalDataset().getIcebergMetadata();
+    FileType fileType = icebergMetadata.getFileType();
+    if (fileType == null) {
+      return null;
+    }
+    final Class<? extends FileFormat> fileFormatClass =
+        FileFormatDefinitions.CLASS_TYPES.get(fileType);
+    checkState(fileFormatClass != null, String.format("Unknown FileType: %s", fileType));
+    final Schema<? extends FileFormat> schema = FileFormatDefinitions.SCHEMAS.get(fileFormatClass);
+    final FileFormat fileFormat = schema.newMessage();
+    fileFormat.setCtime(datasetConfig.getCreatedAt());
+    fileFormat.setFullPath(datasetConfig.getFullPathList());
+    fileFormat.setIsFolder(true);
+    return fileFormat;
+  }
+
   private static FileFormat get(FileConfig fileConfig) {
     // TODO (Amit H) Remove after defining classes for tsv, csv, and psv
     FileType fileType = fileConfig.getType();
@@ -315,6 +374,12 @@ public abstract class FileFormat {
     fileFormat.setFullPath(fileConfig.getFullPathList());
     fileFormat.setVersion(fileConfig.getTag());
     fileFormat.setLocation(fileConfig.getLocation());
+    // Let's be future-proof: Set ignoreOtherFileFormats only if the regex is the same as what we
+    // would generate in the other way around
+    if (fileType != null
+        && Objects.equals(fileConfig.getFileNameRegex(), getFileNameRegex(fileType))) {
+      fileFormat.setIgnoreOtherFileFormats(true);
+    }
     return fileFormat;
   }
 
@@ -353,6 +418,14 @@ public abstract class FileFormat {
       throw new IllegalArgumentException("file extension not found for file type " + type);
     }
     return extension;
+  }
+
+  /**
+   * Returns the regular expression matching on a file name based on its extension for the specified
+   * type. For example {@code .*\.parquet} for {@link FileType#PARQUET}.
+   */
+  public static String getFileNameRegex(FileType type) {
+    return ".*\\." + getExtension(type);
   }
 
   public static FileType getFileFormatType(List<String> extensions) {

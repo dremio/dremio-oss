@@ -87,48 +87,46 @@ public class TestIcebergTableDrop extends BaseTestQuery {
 
   @Test
   public void testDropTable() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      Path rootPath = Paths.get(getDfsTestTmpSchemaLocation(), "iceberg", "nation");
-      File tableRoot = rootPath.toFile();
-      IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
-      Files.createDirectories(rootPath);
-      String root = rootPath.toString();
+    Path rootPath = Paths.get(getDfsTestTmpSchemaLocation(), "iceberg", "nation");
+    File tableRoot = rootPath.toFile();
+    IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
+    Files.createDirectories(rootPath);
+    String root = rootPath.toString();
 
-      String tableName = "dfs_test_hadoop.iceberg.nation";
+    String tableName = "dfs_test_hadoop.iceberg.nation";
 
-      HadoopTables tables = new HadoopTables(conf);
-      Table table = tables.create(schema, null, root);
-      IcebergTableInfo tableInfo =
-          new IcebergTableWrapper(getSabotContext(), HadoopFileSystem.get(fs), icebergModel, root)
-              .getTableInfo();
-      assertEquals(tableInfo.getRecordCount(), 0);
+    HadoopTables tables = new HadoopTables(conf);
+    Table table = tables.create(schema, null, root);
+    IcebergTableInfo tableInfo =
+        new IcebergTableWrapper(getSabotContext(), HadoopFileSystem.get(fs), icebergModel, root)
+            .getTableInfo();
+    assertEquals(tableInfo.getRecordCount(), 0);
 
-      // Append some data files.
-      Transaction transaction = table.newTransaction();
-      AppendFiles appendFiles = transaction.newAppend();
-      appendFiles.appendFile(createDataFile(rootPath.toFile(), "d1"));
-      appendFiles.commit();
-      transaction.commitTransaction();
+    // Append some data files.
+    Transaction transaction = table.newTransaction();
+    AppendFiles appendFiles = transaction.newAppend();
+    appendFiles.appendFile(createDataFile(rootPath.toFile(), "d1"));
+    appendFiles.commit();
+    transaction.commitTransaction();
 
-      testBuilder()
-          .sqlQuery("select count(*) c from " + tableName)
-          .unOrdered()
-          .baselineColumns("c")
-          .baselineValues(25L)
-          .build()
-          .run();
+    testBuilder()
+        .sqlQuery("select count(*) c from " + tableName)
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(25L)
+        .build()
+        .run();
 
-      testBuilder()
-          .sqlQuery("DROP TABLE " + tableName)
-          .unOrdered()
-          .baselineColumns("ok", "summary")
-          .baselineValues(true, String.format("Table [%s] dropped", tableName))
-          .build()
-          .run();
+    testBuilder()
+        .sqlQuery("DROP TABLE " + tableName)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, String.format("Table [%s] dropped", tableName))
+        .build()
+        .run();
 
-      errorMsgTestHelper(
-          "select count(*) c from " + tableName,
-          "Object 'nation' not found within 'dfs_test_hadoop.iceberg'");
-    }
+    errorMsgTestHelper(
+        "select count(*) c from " + tableName,
+        "Object 'nation' not found within 'dfs_test_hadoop.iceberg'");
   }
 }

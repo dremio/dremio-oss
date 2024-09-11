@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 
 :global {
@@ -48,14 +47,14 @@
       opacity: 0;
       transition: 300ms ease all;
       padding: 0;
-      color: var(--color--neutral--600) !important;
+      color: var(--icon--primary) !important;
 
       &:hover {
-        color: var(--dremio--color--link) !important;
+        color: var(--icon--hover) !important;
       }
 
       &:disabled {
-        color: var(--dremio--color--icon--dremio--disabled) !important;
+        color: var(--icon--disabled) !important;
       }
     }
 
@@ -66,10 +65,10 @@
       transition: 300ms ease all;
       opacity: 0;
       padding: 0;
-      color: var(--color--neutral--600) !important;
+      color: var(--icon--primary) !important;
 
       &:hover {
-        color: var(--dremio--color--link) !important;
+        color: var(--icon--hover) !important;
       }
     }
 
@@ -98,7 +97,7 @@
         height: 24px;
         min-width: 24px;
         padding: 0;
-        color: var(--dremio--color--icon--main);
+        color: var(--icon--primary);
       }
 
       .font-icon {
@@ -108,11 +107,11 @@
       .searchHeading {
         font-size: 14px;
         font-weight: 400;
-        color: var(--dremio--color--text--main);
+        color: var(--text--primary);
       }
       .searchSubHeading {
         font-size: 12px;
-        color: var(--dremio--color--text--faded);
+        color: var(--text--faded);
       }
     }
     .search-wrapper {
@@ -146,15 +145,10 @@
     }
   }
 
+  //
   .dataset-label-overlay {
-    .font-icon {
-      .icon-type {
-        background-size: initial;
-      }
-      .Loader {
-        height: 24px !important;
-        width: 24px !important;
-      }
+    .dremio-spinner {
+      --dremio--spinner--size: 24px;
     }
 
     .EllipsedText {

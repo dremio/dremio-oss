@@ -18,13 +18,13 @@ import Immutable from "immutable";
 import { RSAA } from "redux-api-middleware";
 
 import { APIV2Call } from "@app/core/APICall";
-import * as Actions from "./home.js";
+import * as Actions from "./home";
 
 describe("home actions", () => {
   describe("test convert to folder", () => {
     it("to passthrough url", () => {
       const apiCall = new APIV2Call().fullpath(
-        "/folder/foo/bar/baz?test=ad./ad"
+        "/folder/foo/bar/baz?test=ad./ad",
       );
 
       const folder = Immutable.fromJS({
@@ -34,7 +34,7 @@ describe("home actions", () => {
       });
 
       expect(
-        Actions.convertFolderToDataset({ folder })((obj) => obj)[RSAA].endpoint
+        Actions.convertFolderToDataset({ folder })((obj) => obj)[RSAA].endpoint,
       ).to.eql(apiCall);
     });
   });
@@ -42,7 +42,7 @@ describe("home actions", () => {
   describe("test remove folder format", () => {
     it("to passthrough url", () => {
       const apiCall = new APIV2Call().fullpath(
-        "/folder/foo/bar/baz?test=ad./ad"
+        "/folder/foo/bar/baz?test=ad./ad",
       );
 
       const dataset = Immutable.fromJS({
@@ -52,7 +52,7 @@ describe("home actions", () => {
       });
 
       expect(
-        Actions.convertDatasetToFolder(dataset)((obj) => obj)[RSAA].endpoint
+        Actions.convertDatasetToFolder(dataset)((obj) => obj)[RSAA].endpoint,
       ).to.eql(apiCall);
     });
   });

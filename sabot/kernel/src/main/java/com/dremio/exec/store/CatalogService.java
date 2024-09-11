@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.VersionedPlugin;
@@ -29,6 +30,7 @@ import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
+import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ConcurrentModificationException;
 import java.util.List;
@@ -164,6 +166,12 @@ public interface CatalogService
    * @return catalog with the given constraints
    */
   Catalog getCatalog(MetadataRequestOptions requestOptions);
+
+  default Catalog getSystemUserCatalog() {
+    return getCatalog(
+        MetadataRequestOptions.of(
+            SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
+  }
 
   /**
    * Determines if a SourceConfig changes metadata impacting properties compared to the existing

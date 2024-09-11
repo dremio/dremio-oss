@@ -15,9 +15,21 @@
  */
 
 .edit-wiki-content {
-  color: var(--dremio--color--link);
-  &:hover {
+  color: var(--text--link);
+  font-weight: 400 !important;
+  height: 17px;
+  min-width: fit-content;
+
+  :global {
+    .dremio-button__content {
+      padding-inline: 0;
+    }
+  }
+
+  &:hover,
+  &:focus {
     cursor: pointer;
     text-decoration: underline;
+    background: none !important;
   }
 }

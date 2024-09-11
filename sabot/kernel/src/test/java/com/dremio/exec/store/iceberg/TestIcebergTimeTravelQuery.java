@@ -15,20 +15,18 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.ArrowDsUtil;
 import com.dremio.TestBuilder;
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.UserExceptionAssert;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -56,11 +54,8 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
 
   @BeforeClass
   public static void initTable() throws Exception {
-    final CatalogServiceImpl catalogService =
-        (CatalogServiceImpl) getSabotContext().getCatalogService();
-    catalog = catalogService.getSystemUserCatalog();
+    catalog = getCatalogService().getSystemUserCatalog();
     createIcebergTable();
-    setSystemOption(ENABLE_ICEBERG_TIME_TRAVEL, "true");
     final BaseTable table = new BaseTable(ops, tableName);
     final List<HistoryEntry> entries = table.history();
     Assert.assertEquals(2, entries.size());
@@ -266,8 +261,7 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
     VersionedDatasetId versionedDatasetId =
         VersionedDatasetId.fromString(snapshotTable.getDatasetConfig().getId().getId());
     DremioTable tableFromDatasetId = catalog.getTable(versionedDatasetId.asString());
-    assertThat(snapshotTable.getDatasetConfig().equals(tableFromDatasetId.getDatasetConfig()))
-        .isTrue();
+    assertThat(snapshotTable.getDatasetConfig()).isEqualTo(tableFromDatasetId.getDatasetConfig());
   }
 
   @Test

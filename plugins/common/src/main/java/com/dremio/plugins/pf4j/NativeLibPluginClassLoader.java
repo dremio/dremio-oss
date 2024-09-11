@@ -19,6 +19,7 @@ import com.dremio.options.OptionResolver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -27,6 +28,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -66,6 +68,8 @@ public class NativeLibPluginClassLoader extends PluginClassLoader {
           .add("sun/")
           .build();
 
+  private static final String DEFAULT_ARCH = "x86_64";
+  private static final Set<String> SUPPORTED_ARCHS = Sets.newHashSet(DEFAULT_ARCH, "aarch64");
   private final Path pluginPath;
   private final List<String> sharedPrefixes;
   private volatile Path tempDirectory;
@@ -111,8 +115,15 @@ public class NativeLibPluginClassLoader extends PluginClassLoader {
 
     // Find the particular library that caller is trying to load.
     final String mappedName = System.mapLibraryName(libname);
+
+    // find current arch
+    String arch = System.getProperty("os.arch");
+    if (!SUPPORTED_ARCHS.contains(arch)) {
+      logger.error("Unsupported architecture: {}, defaulting to {}}", arch, DEFAULT_ARCH);
+      arch = DEFAULT_ARCH;
+    }
     final Path realFile =
-        Paths.get(tempDirectory.toString(), "PF4J-INF", "native-libs", mappedName);
+        Paths.get(tempDirectory.toString(), "PF4J-INF", "native-libs", arch, mappedName);
     if (Files.exists(realFile)) {
       return realFile.toAbsolutePath().toString();
     }
@@ -155,6 +166,8 @@ public class NativeLibPluginClassLoader extends PluginClassLoader {
           // Create any sub-directories the resource might need.
           final Path resourceFullTempDirPath = Paths.get(tempDirectory.toString(), entry.getName());
           try (InputStream libraryStream = pluginAsZip.getInputStream(entry)) {
+            // creates arch dir if not exist yet
+            Files.createDirectories(resourceFullTempDirPath.getParent());
             Files.copy(libraryStream, resourceFullTempDirPath);
           }
         }

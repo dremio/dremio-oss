@@ -33,9 +33,9 @@ import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
 /**
- * Test to check the content of the JDBC driver jar has been shaded properly. Except for
- * com.dremio.jdbc and org.slf4j classes, everything else should be under cdjd. (stands for for
- * com.dremio.jdbc driver) namespace.
+ * Test to check the content of the JDBC driver jar has been shaded properly.
+ *
+ * <p>After shading everything should be under com.dremio.jdbc package
  */
 public class ITValidateShadedJar {
   private static final org.slf4j.Logger LOGGER =
@@ -54,8 +54,7 @@ public class ITValidateShadedJar {
       Timeout.builder().withTimeout(2, TimeUnit.MINUTES).build();
 
   private static final List<String> ALLOWED_PREFIXES =
-      Collections.unmodifiableList(
-          Arrays.asList("com/dremio/jdbc/", "cdjd/", "org/slf4j/", "META-INF/"));
+      Collections.unmodifiableList(Arrays.asList("com/dremio/jdbc/", "META-INF/"));
 
   private static final List<String> ALLOWED_FILES =
       Collections.unmodifiableList(

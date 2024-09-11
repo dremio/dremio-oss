@@ -114,8 +114,7 @@ public class TestCreateTableQueryCleanup {
 
     List<DremioSqlColumnDeclaration> columnDeclarations =
         SqlHandlerUtil.columnDeclarationsFromSqlNodes(SqlNodeList.EMPTY, sql);
-    BatchSchema batchSchema =
-        SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
+    BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(columnDeclarations, sql);
     PartitionSpec partitionSpec =
         IcebergUtils.getIcebergPartitionSpecFromTransforms(batchSchema, new ArrayList<>(), null);
 
@@ -145,7 +144,8 @@ public class TestCreateTableQueryCleanup {
             sqlCreateEmptyTable.isSingleWriter(),
             Long.MAX_VALUE,
             tableFormatOptions,
-            null);
+            null,
+            false);
 
     doThrow(new RuntimeException("createEmptyTable_error"))
         .when(catalog)
@@ -197,8 +197,7 @@ public class TestCreateTableQueryCleanup {
 
     List<DremioSqlColumnDeclaration> columnDeclarations =
         SqlHandlerUtil.columnDeclarationsFromSqlNodes(SqlNodeList.EMPTY, sql);
-    BatchSchema batchSchema =
-        SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
+    BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(columnDeclarations, sql);
     PartitionSpec partitionSpec =
         IcebergUtils.getIcebergPartitionSpecFromTransforms(batchSchema, new ArrayList<>(), null);
 
@@ -230,7 +229,8 @@ public class TestCreateTableQueryCleanup {
             tableFormatOptions,
             null,
             resolvedBranchVersion,
-            null);
+            null,
+            false);
 
     doThrow(new RuntimeException("createEmptyTable_error"))
         .when(catalog)

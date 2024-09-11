@@ -33,7 +33,7 @@ public abstract class ITCopyIntoBase extends ITDmlQueryBase {
   protected static final String CSV_SOURCE_FOLDER_COPY_INTO = "/store/text/copyintosource/";
   protected static final String PARQUET_SOURCE_FOLDER_COPY_INTO = "/store/parquet/copyintosource/";
 
-  protected static File createTempLocation() {
+  public static File createTempLocation() {
     Random random = new Random(System.currentTimeMillis());
     RandomStringGenerator randomStringGenerator =
         new RandomStringGenerator.Builder()
@@ -80,7 +80,7 @@ public abstract class ITCopyIntoBase extends ITDmlQueryBase {
         tableName, colNameTypePairs, new String[] {inputFilName}, destLocation, fileFormat)[0];
   }
 
-  protected static void createTable(
+  public static void createTable(
       String tableName,
       List<Pair<String, String>> colNameTypePairs,
       List<Triple<String, String, String>> partitionDef)
@@ -153,17 +153,24 @@ public abstract class ITCopyIntoBase extends ITDmlQueryBase {
       String source,
       File inputFileLocation,
       String tableName,
+      FileFormat fileFormat,
       String inputFileName,
       CopyIntoTableContext.OnErrorAction onErrorAction)
       throws Exception {
     runCopyIntoOnError(
-        source, inputFileLocation, tableName, new String[] {inputFileName}, onErrorAction);
+        source,
+        inputFileLocation,
+        tableName,
+        fileFormat,
+        new String[] {inputFileName},
+        onErrorAction);
   }
 
   protected static void runCopyIntoOnError(
       String source,
       File inputFilesLocation,
       String tableName,
+      FileFormat fileFormat,
       String[] fileNames,
       CopyIntoTableContext.OnErrorAction onErrorAction)
       throws Exception {
@@ -178,6 +185,7 @@ public abstract class ITCopyIntoBase extends ITDmlQueryBase {
             .append(" FILES(");
     copyIntoQuery.append(serializeFileListForQuery(fileNames));
     copyIntoQuery.append(")");
+    copyIntoQuery.append(" FILE_FORMAT '").append(fileFormat.name()).append("'");
     copyIntoQuery.append(" (").append("ON_ERROR '").append(onErrorAction.name()).append("')");
     test(copyIntoQuery.toString());
   }

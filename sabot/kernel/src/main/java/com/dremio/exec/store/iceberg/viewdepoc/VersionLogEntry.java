@@ -22,7 +22,7 @@ public class VersionLogEntry implements HistoryEntry {
   private final long timestampMillis;
   private final int versionId;
 
-  VersionLogEntry(long timestampMillis, int versionId) {
+  public VersionLogEntry(long timestampMillis, int versionId) {
     this.timestampMillis = timestampMillis;
     this.versionId = versionId;
   }

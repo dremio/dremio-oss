@@ -44,7 +44,7 @@ import supportFlags from "./supportFlags";
 
 import jobs from "./jobs/index";
 import modals from "./modals/index";
-import { passDataBetweenModalTabs } from "./modals/passDataBetweenModalTabs.js";
+import { passDataBetweenModalTabs } from "./modals/passDataBetweenModalTabs";
 
 import serverStatus from "./serverStatus";
 
@@ -124,8 +124,8 @@ const cancelAction = (reducer) => (state, action) => {
         `==> Action ${JSON.stringify(
           group.action,
           null,
-          2
-        )} was cancelled by action ${JSON.stringify(action, null, 2)}`
+          2,
+        )} was cancelled by action ${JSON.stringify(action, null, 2)}`,
       );
       groupAbortController.abort(); // abort fetch request which throws 'AbortError'
     }

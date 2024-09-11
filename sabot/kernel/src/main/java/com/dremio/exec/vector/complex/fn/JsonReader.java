@@ -24,15 +24,20 @@ import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.physical.config.SimpleQueryContext;
 import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.Builder;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
+import com.dremio.exec.physical.config.copyinto.IngestionProperties;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.FileLoadInfo;
+import com.dremio.exec.store.dfs.copyinto.CopyIntoExceptionUtils;
 import com.dremio.exec.store.easy.EasyFormatUtils;
 import com.dremio.exec.store.easy.json.reader.BaseJsonProcessor;
 import com.dremio.exec.tablefunctions.copyerrors.ValidationErrorRowWriter;
@@ -51,10 +56,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.BitSet;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -63,6 +66,7 @@ import org.apache.arrow.vector.complex.impl.PromotableWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.FieldWriter;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -101,18 +105,19 @@ public class JsonReader extends BaseJsonProcessor {
   private final ExtendedFormatOptions extendedFormatOptions;
   private final CopyIntoQueryProperties copyIntoQueryProperties;
   private final SimpleQueryContext queryContext;
+  private final IngestionProperties ingestionProperties;
   private final BatchSchema targetSchema;
   private boolean validCopyIntoFile = false;
   private final boolean trimSpace;
   private final String filePath;
   private long recordsLoadedCount;
   private boolean resetWriterPosition = true;
-  private boolean isValidationMode;
+  private final boolean isValidationMode;
   private final ValidationErrorRowWriter validationErrorWriter;
   private boolean hasErrors = false;
-
-  private final Map<BaseWriter.StructWriter, Map<String, Field>> structWriterToFieldMap =
-      new HashMap<>();
+  private final long processingStartTime;
+  private final long fileSize;
+  private FieldWrapper rootFieldWrapper;
 
   public JsonReader(
       ArrowBuf managedBuf,
@@ -136,10 +141,13 @@ public class JsonReader extends BaseJsonProcessor {
         null,
         null,
         null,
+        null,
         enforceValidJsonDateFormat,
         null,
+        0L,
         false,
-        null);
+        null,
+        0L);
   }
 
   public JsonReader(
@@ -154,12 +162,15 @@ public class JsonReader extends BaseJsonProcessor {
       ExtendedFormatOptions extendedFormatOptions,
       CopyIntoQueryProperties copyIntoQueryProperties,
       SimpleQueryContext queryContext,
+      IngestionProperties ingestionProperties,
       OperatorContext context,
       BatchSchema targetSchema,
       boolean enforceValidJsonDateFormat,
       String filePath,
+      long fileSize,
       boolean isValidationMode,
-      ValidationErrorRowWriter validationErrorWriter) {
+      ValidationErrorRowWriter validationErrorWriter,
+      long processingStartTime) {
     assert Preconditions.checkNotNull(columns).size() > 0
         : "JSON record reader requires at least one column";
     this.targetSchema = targetSchema;
@@ -169,6 +180,9 @@ public class JsonReader extends BaseJsonProcessor {
               .map(Field::getName)
               .map(SchemaPath::getSimplePath)
               .collect(Collectors.toList());
+      this.rootFieldWrapper = new FieldWrapper(targetSchema.getFields());
+    } else {
+      this.rootFieldWrapper = FieldWrapper.EMPTY;
     }
     this.selection = FieldSelection.getFieldSelection(columns);
     this.workingBuffer = new WorkingBuffer(managedBuf);
@@ -187,48 +201,14 @@ public class JsonReader extends BaseJsonProcessor {
     this.extendedFormatOptions = extendedFormatOptions;
     this.copyIntoQueryProperties = copyIntoQueryProperties;
     this.queryContext = queryContext;
+    this.ingestionProperties = ingestionProperties;
     this.context = context;
     this.trimSpace = getTrimSpaceValue();
     this.filePath = filePath;
+    this.fileSize = fileSize;
     this.isValidationMode = isValidationMode;
     this.validationErrorWriter = validationErrorWriter;
-  }
-
-  private Field getField(BaseWriter.StructWriter map, String fieldName, Field originalField) {
-    if (schemaImposedMode) {
-      if (!isValidationMode) {
-        Map<String, Field> stringFieldMap = structWriterToFieldMap.get(map);
-        if (stringFieldMap == null) {
-          stringFieldMap = new HashMap<>();
-          List<Field> children = getChildren(map);
-          for (Field field : children) {
-            stringFieldMap.put(field.getName().toLowerCase(), field);
-          }
-          structWriterToFieldMap.put(map, stringFieldMap);
-        }
-
-        Field field = stringFieldMap.get(fieldName);
-        if (field == null && !stringFieldMap.containsKey(fieldName)) {
-          field = stringFieldMap.get(fieldName.toLowerCase());
-          stringFieldMap.put(fieldName, field);
-        }
-        return field;
-      } else {
-        return findField(
-            originalField == null ? targetSchema.getFields() : originalField.getChildren(),
-            fieldName);
-      }
-    }
-    return null;
-  }
-
-  private Field findField(List<Field> fields, String fieldName) {
-    for (Field field : fields) {
-      if (field.getName().equalsIgnoreCase(fieldName)) {
-        return field;
-      }
-    }
-    return null;
+    this.processingStartTime = processingStartTime;
   }
 
   @Override
@@ -256,7 +236,8 @@ public class JsonReader extends BaseJsonProcessor {
       SchemaPath sp = columns.get(i);
       PathSegment fieldPath = sp.getRootSegment();
       BaseWriter.StructWriter fieldWriter = writer.rootAsStruct();
-      while (fieldPath.getChild() != null && !fieldPath.getChild().isArray()) {
+      while (fieldPath.getChild() != null
+          && !fieldPath.getChild().getType().equals(PathSegmentType.ARRAY_INDEX)) {
         fieldWriter = fieldWriter.struct(fieldPath.getNameSegment().getPath());
         fieldPath = fieldPath.getChild();
       }
@@ -464,7 +445,13 @@ public class JsonReader extends BaseJsonProcessor {
     w.start();
     try {
       if (this.allTextMode || this.schemaImposedMode) {
-        writeStructDataAllText(null, w, this.selection, true, true);
+        if (schemaImposedMode && !isValidationMode) {
+          Field rootField = w.getField();
+          if (rootFieldWrapper == FieldWrapper.EMPTY || rootFieldWrapper.getField() != rootField) {
+            rootFieldWrapper = new FieldWrapper(rootField);
+          }
+        }
+        writeStructDataAllText(rootFieldWrapper, w, this.selection, true, true);
       } else {
         writeStructData(w, this.selection, true);
       }
@@ -476,8 +463,14 @@ public class JsonReader extends BaseJsonProcessor {
   private void writeDataSwitch(ListWriter w) throws IOException {
     w.startList();
     try {
-      if (this.allTextMode) {
-        writeListDataAllText(null, w, this.selection);
+      if (this.allTextMode || this.schemaImposedMode) {
+        if (schemaImposedMode && !isValidationMode) {
+          Field rootField = ((PromotableWriter) w).getField();
+          if (rootFieldWrapper == FieldWrapper.EMPTY || rootFieldWrapper.getField() != rootField) {
+            rootFieldWrapper = new FieldWrapper(rootField);
+          }
+        }
+        writeListDataAllText(rootFieldWrapper, w, this.selection);
       } else {
         writeListData(w, this.selection);
       }
@@ -600,7 +593,7 @@ public class JsonReader extends BaseJsonProcessor {
   }
 
   private void writeStructDataAllText(
-      Field structField,
+      FieldWrapper structField,
       BaseWriter.StructWriter map,
       FieldSelection selection,
       boolean moveForward,
@@ -626,7 +619,7 @@ public class JsonReader extends BaseJsonProcessor {
 
       final String fieldName = parser.getText();
       this.currentFieldName = fieldName;
-      Boolean skipObject = skipObject(structField, fieldName, selection, map);
+      Boolean skipObject = skipObject(structField, fieldName, selection);
       FieldSelection childSelection = selection.getChild(fieldName);
 
       if (skipObject) {
@@ -636,13 +629,13 @@ public class JsonReader extends BaseJsonProcessor {
 
       JsonToken token = parser.nextToken();
 
-      Field originalField = getField(map, fieldName, structField);
+      FieldWrapper originalField = structField.getChild(fieldName);
       if (schemaImposedMode) {
         if (rootStruct) {
           validCopyIntoFile = true;
         }
 
-        String originalName = originalField.getName();
+        String originalName = originalField.getField().getName();
 
         if (!fieldNamesSet.contains(originalName)) {
           fieldNamesSet.add(originalName);
@@ -654,18 +647,14 @@ public class JsonReader extends BaseJsonProcessor {
         }
 
         if (token == JsonToken.START_ARRAY || token == JsonToken.START_OBJECT) {
-          ArrowType type = originalField.getType();
+          ArrowType type = originalField.getField().getType();
           checkForComplexCoercions(type, token, fieldName);
         }
       }
 
       switch (token) {
         case START_ARRAY:
-          startList(
-              schemaImposedMode ? originalField.getChildren().get(0) : null,
-              map,
-              fieldName,
-              childSelection);
+          startList(originalField.getListElement(), map, fieldName, childSelection);
           break;
         case START_OBJECT:
           if (!writeMapDataIfTyped(map, fieldName)) {
@@ -684,7 +673,7 @@ public class JsonReader extends BaseJsonProcessor {
         case VALUE_NUMBER_INT:
         case VALUE_STRING:
           if (schemaImposedMode) {
-            handleStringToType(parser, map, fieldName, originalField.getType());
+            handleStringToType(parser, map, fieldName, originalField.getField().getType());
           } else {
             handleString(parser, map, fieldName);
           }
@@ -702,7 +691,7 @@ public class JsonReader extends BaseJsonProcessor {
   }
 
   private void startStruct(
-      Field field,
+      FieldWrapper field,
       BaseWriter.StructWriter writer,
       String fieldName,
       FieldSelection selection,
@@ -726,7 +715,7 @@ public class JsonReader extends BaseJsonProcessor {
   }
 
   private void startStruct(
-      Field field,
+      FieldWrapper field,
       BaseWriter.ListWriter writer,
       FieldSelection selection,
       boolean moveForward,
@@ -749,7 +738,10 @@ public class JsonReader extends BaseJsonProcessor {
   }
 
   private void startList(
-      Field field, BaseWriter.StructWriter writer, String fieldName, FieldSelection selection)
+      FieldWrapper field,
+      BaseWriter.StructWriter writer,
+      String fieldName,
+      FieldSelection selection)
       throws IOException {
     BaseWriter.ListWriter listWriter = null;
     try {
@@ -767,7 +759,7 @@ public class JsonReader extends BaseJsonProcessor {
     }
   }
 
-  private void startList(Field field, BaseWriter.ListWriter writer, FieldSelection selection)
+  private void startList(FieldWrapper field, BaseWriter.ListWriter writer, FieldSelection selection)
       throws IOException {
     BaseWriter.ListWriter listWriter = null;
     try {
@@ -1076,7 +1068,8 @@ public class JsonReader extends BaseJsonProcessor {
               option),
           exception);
       if (schemaImposedMode && (CONTINUE == option || SKIP_FILE == option)) {
-        writeErrorEvent(writer.rootAsStruct());
+        writeErrorEvent(
+            writer.rootAsStruct(), CopyIntoExceptionUtils.redactException(exception).getMessage());
         parser.close();
         return true;
       }
@@ -1097,7 +1090,10 @@ public class JsonReader extends BaseJsonProcessor {
         lineNumber = (long) ((JsonParseException) exception).getLocation().getLineNr();
       }
       validationErrorWriter.write(
-          fieldName, recordsLoadedCount + 1, lineNumber, exception.getMessage());
+          fieldName,
+          recordsLoadedCount + 1,
+          lineNumber,
+          CopyIntoExceptionUtils.redactException(exception).getMessage());
 
       parser.close();
       return true;
@@ -1111,34 +1107,69 @@ public class JsonReader extends BaseJsonProcessor {
    * CopyIntoFileLoadInfo} and it is serialized to json format.
    *
    * @param structWriter root struct writer, must be not null
+   * @param errorMessage message describing the error
    * @throws IOException if the writing fails for some reason
    */
-  private void writeErrorEvent(BaseWriter.StructWriter structWriter) throws IOException {
+  private void writeErrorEvent(StructWriter structWriter, String errorMessage) throws IOException {
     // when the error was raised we were in the middle of processing a json record, which was
     // already submitted to the
     // root structWriter. Therefore, we have an unfinished record which should be dropped.
     if (structWriter.getPosition() > 0 && resetWriterPosition) {
       structWriter.setPosition(structWriter.getPosition() - 1);
     }
-    long recordsLoadedCount =
+    long recordsCount =
         copyIntoQueryProperties.getOnErrorOption() == SKIP_FILE ? 0L : this.recordsLoadedCount;
+
     String infoJson =
-        FileLoadInfo.Util.getJson(
-            new CopyIntoFileLoadInfo.Builder(
-                    queryContext.getQueryId(),
-                    queryContext.getUserName(),
-                    queryContext.getTableNamespace(),
-                    copyIntoQueryProperties.getStorageLocation(),
-                    filePath,
-                    extendedFormatOptions,
-                    FileType.JSON.name(),
-                    recordsLoadedCount == 0
-                        ? CopyIntoFileLoadInfo.CopyIntoFileState.SKIPPED
-                        : CopyIntoFileLoadInfo.CopyIntoFileState.PARTIALLY_LOADED)
-                .setRecordsLoadedCount(recordsLoadedCount)
-                .setRecordsRejectedCount(1L)
-                .build());
+        getFileLoadInfoJson(
+            recordsCount == 0 ? CopyIntoFileState.SKIPPED : CopyIntoFileState.PARTIALLY_LOADED,
+            recordsCount,
+            1L,
+            errorMessage);
     writeString(infoJson, structWriter, ColumnUtils.COPY_HISTORY_COLUMN_NAME);
+  }
+
+  /**
+   * Generates a JSON representation of file load information.
+   *
+   * @param fileState The state of the file load.
+   * @param recordsLoadedCount The number of records loaded.
+   * @param recordsRejectedCount The number of records rejected.
+   * @param firstErrorMessage The first error message encountered during the file load.
+   * @return A JSON string representing the file load information.
+   */
+  private String getFileLoadInfoJson(
+      CopyIntoFileState fileState,
+      long recordsLoadedCount,
+      long recordsRejectedCount,
+      String firstErrorMessage) {
+    Builder builder =
+        new Builder(
+                queryContext.getQueryId(),
+                queryContext.getUserName(),
+                queryContext.getTableNamespace(),
+                copyIntoQueryProperties.getStorageLocation(),
+                filePath,
+                extendedFormatOptions,
+                FileType.JSON.name(),
+                fileState)
+            .setRecordsLoadedCount(recordsLoadedCount)
+            .setRecordsRejectedCount(recordsRejectedCount)
+            .setBranch(copyIntoQueryProperties.getBranch())
+            .setProcessingStartTime(processingStartTime)
+            .setFileSize(fileSize)
+            .setFirstErrorMessage(firstErrorMessage);
+
+    if (ingestionProperties != null) {
+      builder
+          .setPipeName(ingestionProperties.getPipeName())
+          .setPipeId(ingestionProperties.getPipeId())
+          .setFileNotificationTimestamp(ingestionProperties.getNotificationTimestamp())
+          .setIngestionSourceType(ingestionProperties.getIngestionSourceType())
+          .setRequestId(ingestionProperties.getRequestId());
+    }
+
+    return FileLoadInfo.Util.getJson(builder.build());
   }
 
   @Override
@@ -1148,18 +1179,7 @@ public class JsonReader extends BaseJsonProcessor {
         && copyIntoQueryProperties.shouldRecord(
             CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED)) {
       String infoJson =
-          FileLoadInfo.Util.getJson(
-              new CopyIntoFileLoadInfo.Builder(
-                      queryContext.getQueryId(),
-                      queryContext.getUserName(),
-                      queryContext.getTableNamespace(),
-                      copyIntoQueryProperties.getStorageLocation(),
-                      filePath,
-                      extendedFormatOptions,
-                      FileType.JSON.name(),
-                      CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED)
-                  .setRecordsLoadedCount(recordsLoadedCount)
-                  .build());
+          getFileLoadInfoJson(CopyIntoFileState.FULLY_LOADED, recordsLoadedCount, 0L, null);
       writeString(infoJson, writer.rootAsStruct(), ColumnUtils.COPY_HISTORY_COLUMN_NAME);
       recordsLoadedCount++;
       logger.debug("Recording successful parsing event for {}", filePath);
@@ -1277,7 +1297,8 @@ public class JsonReader extends BaseJsonProcessor {
   }
 
   private void writeListDataAllText(
-      Field listField, BaseWriter.ListWriter list, FieldSelection selection) throws IOException {
+      FieldWrapper listField, BaseWriter.ListWriter list, FieldSelection selection)
+      throws IOException {
     final int originalLeafCount = currentLeafCount;
     int maxArrayLeafCount = 0;
     outside:
@@ -1287,13 +1308,13 @@ public class JsonReader extends BaseJsonProcessor {
       JsonToken token = parser.nextToken();
       if (schemaImposedMode
           && (token == JsonToken.START_ARRAY || token == JsonToken.START_OBJECT)) {
-        ArrowType type = isValidationMode ? listField.getType() : getFieldType(list);
+        ArrowType type = listField.getField().getType();
         checkForComplexCoercions(type, token, "");
       }
 
       switch (token) {
         case START_ARRAY:
-          startList(schemaImposedMode ? listField.getChildren().get(0) : null, list, selection);
+          startList(listField.getListElement(), list, selection);
           break;
         case START_OBJECT:
           if (!writeListDataIfTyped(list)) {
@@ -1312,7 +1333,7 @@ public class JsonReader extends BaseJsonProcessor {
         case VALUE_NUMBER_INT:
         case VALUE_STRING:
           if (schemaImposedMode) {
-            handleStringToType(parser, list, listField.getType());
+            handleStringToType(parser, list, listField.getField().getType());
           } else {
             handleString(parser, list);
           }
@@ -1341,15 +1362,14 @@ public class JsonReader extends BaseJsonProcessor {
     }
   }
 
-  private boolean skipObject(
-      Field field, String fieldName, FieldSelection selection, BaseWriter.StructWriter map)
+  private boolean skipObject(FieldWrapper field, String fieldName, FieldSelection selection)
       throws TransformationException {
     boolean neverValid = selection.getChild(fieldName).isNeverValid();
 
     if (schemaImposedMode) {
-      Field currentField = getField(map, fieldName, field);
+      FieldWrapper currentField = field.getChild(fieldName);
       if (!Objects.isNull(currentField)
-          && CompleteType.MAP.getType().equals(currentField.getType())) {
+          && CompleteType.MAP.getType().equals(currentField.getField().getType())) {
         throw new TransformationException(
             String.format(
                 "'COPY INTO Command' does not support MAP Type. Found Map type field : '%s'. ",
@@ -1360,22 +1380,6 @@ public class JsonReader extends BaseJsonProcessor {
       return currentField == null || neverValid;
     } else {
       return neverValid;
-    }
-  }
-
-  private List<Field> getChildren(BaseWriter.StructWriter map) {
-    if (CompleteType.LIST.getType().equals(map.getField().getType())) {
-      return map.getField().getChildren().get(0).getChildren();
-    } else {
-      return map.getField().getChildren();
-    }
-  }
-
-  private ArrowType getFieldType(BaseWriter.ListWriter writer) {
-    try {
-      return ((PromotableWriter) writer).getField().getChildren().get(0).getType();
-    } catch (Exception e) {
-      throw new RuntimeException("Unable to get field type.", e);
     }
   }
 

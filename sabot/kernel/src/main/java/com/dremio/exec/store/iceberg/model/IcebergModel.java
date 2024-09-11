@@ -30,8 +30,10 @@ import java.util.List;
 import java.util.Map;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.RowLevelOperationMode;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.types.Types;
 
 /** This interface is the entry point to Iceberg tables */
@@ -113,7 +115,9 @@ public interface IcebergModel {
       FileSystem fs,
       Long metadataExpireAfterMs,
       IcebergCommandType icebergOpType,
-      FileType fileType);
+      FileType fileType,
+      Long startingSnapshotId,
+      boolean errorOnConcurrentRefresh);
 
   /**
    * Get Iceberg Op committer for Alter command
@@ -140,7 +144,8 @@ public interface IcebergModel {
       IcebergTableIdentifier tableIdentifier,
       DatasetConfig datasetConfig,
       IcebergCommandType commandType,
-      Long startingSnapshotId);
+      Long snapshotId,
+      RowLevelOperationMode dmlWriteMode);
 
   /**
    * Get Iceberg Op committer for primary key command
@@ -161,6 +166,9 @@ public interface IcebergModel {
       Long snapshotId,
       IcebergTableProps icebergTableProps,
       FileSystem fs);
+
+  /** Utility to register an existing table to the catalog */
+  void registerTable(IcebergTableIdentifier tableIdentifier, TableMetadata tableMetadata);
 
   /**
    * Roll table back to the older snapshot.

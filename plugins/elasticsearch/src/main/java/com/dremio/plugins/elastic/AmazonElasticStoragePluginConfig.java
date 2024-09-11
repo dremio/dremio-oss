@@ -32,7 +32,6 @@ import javax.inject.Provider;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
-import org.apache.commons.lang3.function.Suppliers;
 
 /** Configuration for Amazon OpenSearch (formerly Elasticsearch) Service storage plugin. */
 // Don't change the value of AMAZONELASTIC for backwards compat reasons.
@@ -182,9 +181,9 @@ public class AmazonElasticStoragePluginConfig
     return new ElasticsearchConf(
         hostList,
         "",
-        "",
+        null,
         amazonOSStoragePluginConfig.accessKey,
-        Suppliers.get(amazonOSStoragePluginConfig.accessSecret),
+        amazonOSStoragePluginConfig.accessSecret,
         amazonOSStoragePluginConfig.overwriteRegion ? amazonOSStoragePluginConfig.regionName : "",
         amazonOSStoragePluginConfig.awsProfile,
         authenticationType,

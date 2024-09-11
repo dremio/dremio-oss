@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { BLUE, WHITE, NETURAL_150, NETURAL_200 } from "./colors";
 import { bodySmall } from "./typography";
 
 export const button = {
@@ -39,14 +38,14 @@ export const button = {
 export const primary = {
   ...button,
   color: "#fff",
-  backgroundColor: BLUE,
+  backgroundColor: "var(--color--brand--300)",
   border: "1px solid var(--color--brand--300)",
 };
 
 export const danger = {
   ...button,
   color: "#fff",
-  backgroundColor: "var(--dremio--color--status--error--foreground)",
+  backgroundColor: "var(--fill--danger--solid)",
   border: "none",
 };
 
@@ -59,16 +58,16 @@ export const warn = {
 
 export const outlined = {
   ...button,
-  color: BLUE,
+  color: "var(--color--brand--300)",
   backgroundColor: "inherit",
-  borderColor: BLUE,
+  borderColor: "var(--color--brand--300)",
 };
 
 export const disabled = {
   // todo: DRY with text field
   ...button,
-  color: "#B2B2B2",
-  backgroundColor: NETURAL_150,
+  color: "var(--text--disabled)",
+  backgroundColor: "var(--fill--disabled)",
   border: "none",
   cursor: "default",
 };
@@ -83,7 +82,7 @@ export const submitting = {
     cursor: "default",
   },
   danger: {
-    backgroundColor: "var(--dremio--color--status--delete--background)",
+    backgroundColor: "var(--fill--danger--bold)",
     cursor: "default",
   },
 };
@@ -97,9 +96,9 @@ export const disabledLink = {
 
 export const secondary = {
   ...button,
-  color: "#333",
-  backgroundColor: WHITE,
-  border: `1px solid ${NETURAL_200}`,
+  color: "var(--text--primary)",
+  backgroundColor: "white",
+  border: `1px solid var(--border--neutral--solid)`,
 };
 
 export const inline = {

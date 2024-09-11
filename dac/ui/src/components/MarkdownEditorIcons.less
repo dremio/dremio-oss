@@ -16,9 +16,10 @@
 
 .editor-icon(@iconpath) {
   &::before {
-    background-image: url(@iconpath);
+    -webkit-mask-image: url(@iconpath);
+    mask-image: url(@iconpath);
+    background-color: var(--icon--primary);
     background-size: cover;
-    opacity: 0.65; // simulate color--neutral--600 with opacity
     display: block;
     content: "";
     height: 24px;

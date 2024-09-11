@@ -44,7 +44,7 @@ public class ListAggExpression extends FunctionCall {
           new CompleteType(
               ArrowType.List.INSTANCE,
               Collections.singletonList(Field.nullable("$data$", CompleteType.VARCHAR.getType())));
-    } else if ("ARRAY_AGG".equals(name) || "PHASE1_ARRAY_AGG".equals(name)) {
+    } else if ("ARRAY_AGG".equals(name)) {
       // Hack: Ideally the return type should be the List of type args[0]. However, if arg[0] is
       // ArrowLateType,
       // its size cannot be determined by HashAggMemoryEstimator. Given that HashAggMemoryEstimator
@@ -71,8 +71,6 @@ public class ListAggExpression extends FunctionCall {
       if (!extraExpressions.isEmpty()) {
         throw new UnsupportedOperationException("ARRAY_AGG does not support extra expressions.");
       }
-    } else if ("PHASE2_ARRAY_AGG".equals(name)) {
-      type = args.get(0).getCompleteType();
     } else {
       throw new UnsupportedOperationException("Invalid listagg operator \"" + name + "\"");
     }

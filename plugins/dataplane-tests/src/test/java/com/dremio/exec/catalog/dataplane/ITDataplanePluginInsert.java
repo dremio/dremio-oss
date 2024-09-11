@@ -47,7 +47,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBra
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useCommitQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertIcebergFilesExistAtSubPath;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
@@ -56,6 +56,7 @@ import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class ITDataplanePluginInsert extends ITDataplanePluginTestSetup {
@@ -191,13 +192,18 @@ public class ITDataplanePluginInsert extends ITDataplanePluginTestSetup {
             mainTablePath, new TableVersionContext(TableVersionType.BRANCH, devBranchName), this);
     // switch to branch dev
     // Act and Assert
-    assertQueryThrowsExpectedError(
-        mergeBranchQuery(devBranchName, DEFAULT_BRANCH_NAME),
-        String.format(
-            ("VALIDATION ERROR: Merge branch %s into branch %s failed due to commit conflict on source %s"),
-            devBranchName,
-            DEFAULT_BRANCH_NAME,
-            DATAPLANE_PLUGIN_NAME));
+    Assertions.assertThat(runSqlWithResults(mergeBranchQuery(devBranchName, DEFAULT_BRANCH_NAME)))
+        .matches(row -> row.get(0).get(0).contains("Failed to merge"))
+        .matches(
+            row ->
+                row.get(1)
+                    .get(0)
+                    .contains(
+                        String.format(
+                            ("values of existing and expected content for key '%s.%s.%s' are different"),
+                            mainTablePath.get(0),
+                            mainTablePath.get(1),
+                            mainTablePath.get(2))));
     assertThat(mtime2 > mtime1).isTrue();
     // Drop tables
     runSQL(useBranchQuery(DEFAULT_BRANCH_NAME));

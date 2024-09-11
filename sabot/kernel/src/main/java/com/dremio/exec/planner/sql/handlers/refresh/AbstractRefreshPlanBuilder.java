@@ -33,7 +33,6 @@ import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.physical.base.IcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
-import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
@@ -45,7 +44,6 @@ import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.RoundRobinExchangePrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
@@ -66,11 +64,14 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.dfs.RepairKvstoreFromIcebergMetadata;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPrel;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
+import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA;
 import com.dremio.exec.store.metadatarefresh.RefreshExecTableMetadata;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingScanPrel;
+import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingUtils;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.MetadataProtoUtils;
 import com.dremio.service.namespace.NamespaceException;
@@ -235,9 +236,29 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
   @Override
   public Prel buildPlan() {
     final Prel dirListingPrel = getDataFileListingPrel();
-    final Prel roundRobinExchange = getDirListToFooterReadExchange(dirListingPrel);
-    final Prel footerReadPrel = getFooterReader(roundRobinExchange);
-    final Prel hashToRandomExchange = getHashToRandomExchange(footerReadPrel);
+    final Optional<Prel> fileNameFilteringPrel =
+        sqlNode
+            .getFileNameRegex()
+            .map(
+                regex ->
+                    DirListingUtils.addFileNameRegexFilter(
+                        cluster.getRexBuilder(), dirListingPrel, regex, datasetPath));
+
+    // Use hash to random exchange on the path in case of path filtering to have even distribution
+    int distributionFieldId =
+        dirListingPrel.getRowType().getFieldNames().indexOf(OUTPUT_SCHEMA.FILE_PATH);
+    final Prel dirListToFooterReadExchange =
+        fileNameFilteringPrel
+            .map(
+                filter ->
+                    getHashToRandomExchange(
+                        filter, distributionFieldId, HashPrelUtil.HASH32_FUNCTION_NAME))
+            .orElse(getDirListToFooterReadExchange(dirListingPrel));
+
+    final Prel footerReadPrel = getFooterReader(dirListToFooterReadExchange);
+    final Prel hashToRandomExchange =
+        getHashToRandomExchange(
+            footerReadPrel, 0, HashPrelUtil.DATA_FILE_DISTRIBUTE_HASH_FUNCTION_NAME);
     final Prel writerCommitterPrel = getWriterPrel(hashToRandomExchange);
     return new ScreenPrel(cluster, traitSet, writerCommitterPrel);
   }
@@ -330,10 +351,18 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     IcebergTableProps icebergTableProps = getIcebergTableProps();
     IcebergWriterOptions icebergOptions =
         new ImmutableIcebergWriterOptions.Builder().setIcebergTableProps(icebergTableProps).build();
-    TableFormatWriterOptions tableFormatOptions =
-        new ImmutableTableFormatWriterOptions.Builder()
-            .setIcebergSpecificOptions(icebergOptions)
-            .build();
+    ImmutableTableFormatWriterOptions.Builder tableFormatOptionsBuilder =
+        new ImmutableTableFormatWriterOptions.Builder().setIcebergSpecificOptions(icebergOptions);
+
+    // Add current snapshotId info, as incremental metadata refresh  committers need this info.
+    if (IcebergUtils.isIncrementalRefresh(icebergCommandType)) {
+      tableFormatOptionsBuilder.setSnapshotId(
+          metadataProvider
+              .getDatasetConfig()
+              .getPhysicalDataset()
+              .getIcebergMetadata()
+              .getSnapshotId());
+    }
     final WriterOptions writerOptions =
         new WriterOptions(
             null,
@@ -343,9 +372,10 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
             null,
             false,
             Long.MAX_VALUE,
-            tableFormatOptions,
+            tableFormatOptionsBuilder.build(),
             null,
-            readSignatureEnabled);
+            readSignatureEnabled,
+            false);
     final CreateTableEntry fsCreateTableEntry =
         new CreateParquetTableEntry(
             userName,
@@ -422,6 +452,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     icebergTableProps.setDetectSchema(!plugin.canGetDatasetMetadataInCoordinator());
     icebergTableProps.setMetadataRefresh(true);
     icebergTableProps.setPersistedFullSchema(metadataProvider.getTableSchema());
+    icebergTableProps.setErrorOnConcurrentRefresh(sqlNode.errorOnConcurrentRefresh());
 
     MetadataPolicy metadataPolicy = getMetadataPolicy();
     Long metadataExpireAfterMs = null;
@@ -437,9 +468,10 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     return new RoundRobinExchangePrel(child.getCluster(), relTraitSet, child);
   }
 
-  private Prel getHashToRandomExchange(Prel child) {
+  private Prel getHashToRandomExchange(
+      Prel child, int distributionFieldId, String hashFunctionName) {
     DistributionTrait.DistributionField distributionField =
-        new DistributionTrait.DistributionField(0);
+        new DistributionTrait.DistributionField(distributionFieldId);
     DistributionTrait distributionTrait =
         new DistributionTrait(
             DistributionTrait.DistributionType.HASH_DISTRIBUTED,
@@ -450,7 +482,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
         relTraitSet,
         child,
         distributionTrait.getFields(),
-        HashPrelUtil.DATA_FILE_DISTRIBUTE_HASH_FUNCTION_NAME,
+        hashFunctionName,
         null /* Since we want a project to hash the expression */);
   }
 
@@ -490,14 +522,11 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     final RelDataTypeFactory.FieldInfoBuilder builder =
         new RelDataTypeFactory.FieldInfoBuilder(factory);
     final Map<String, RelDataType> fields = new HashMap<>();
-    final boolean isFullNestedSchemaSupport =
-        PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport();
     for (Field field : outputSchema) {
       if (firstLevelPaths.contains(field.getName())) {
         fields.put(
             field.getName(),
-            CalciteArrowHelper.wrap(CompleteType.fromField(field))
-                .toCalciteType(factory, isFullNestedSchemaSupport));
+            CalciteArrowHelper.wrap(CompleteType.fromField(field)).toCalciteType(factory, true));
       }
     }
 
@@ -646,20 +675,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
   }
 
   public Prel getHashToRandomExchangePrel(Prel child) {
-    DistributionTrait.DistributionField distributionField =
-        new DistributionTrait.DistributionField(0);
-    DistributionTrait distributionTrait =
-        new DistributionTrait(
-            DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-            ImmutableList.of(distributionField));
-    RelTraitSet relTraitSet = traitSet.plus(distributionTrait);
-    return new HashToRandomExchangePrel(
-        cluster,
-        relTraitSet,
-        child,
-        distributionTrait.getFields(),
-        HashPrelUtil.HASH32_FUNCTION_NAME,
-        null /* Since we want a project to hash the expression */);
+    return getHashToRandomExchange(child, 0, HashPrelUtil.HASH32_FUNCTION_NAME);
   }
 
   public static DatasetRetrievalOptions retrievalOptionsForPartitions(

@@ -69,14 +69,15 @@ public interface SupportsExternalQuery {
    *     found in the tableSchemaPath, or the plugin does not support external query table function.
    */
   static Optional<org.apache.calcite.schema.Function> getExternalQueryFunction(
-      Function<String, BatchSchema> schemaBuilder,
+      Function<ExternalQuery.ExternalQueryRequest, BatchSchema> schemaBuilder,
       Function<BatchSchema, RelDataType> rowTypeBuilder,
       StoragePluginId pluginId,
-      List<String> tableSchemaPath) {
+      List<String> tableSchemaPath,
+      String queryUser) {
     Preconditions.checkNotNull(schemaBuilder, "schemaBuilder cannot be null.");
     Preconditions.checkNotNull(rowTypeBuilder, "rowTypeBuilder cannot be null.");
     return (tableSchemaPath.size() == FUNCTION_CALL_NUM_PATHS && isExternalQuery(tableSchemaPath)
-        ? Optional.of(new ExternalQuery(schemaBuilder, rowTypeBuilder, pluginId))
+        ? Optional.of(new ExternalQuery(schemaBuilder, rowTypeBuilder, pluginId, queryUser))
         : Optional.empty());
   }
 

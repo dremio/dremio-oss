@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
@@ -38,12 +37,12 @@
       &:not(.--selected) {
         &:hover,
         &:focus {
-          color: var(--dremio--color--link);
+          color: var(--text--brand);
         }
       }
 
       &.--selected {
-        background-color: @PRIMARY_200;
+        background-color: var(--fill--primary--selected);
         border-radius: 4px;
       }
     }

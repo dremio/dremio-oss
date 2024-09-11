@@ -18,6 +18,7 @@ package com.dremio.exec.planner.serializer;
 import com.dremio.exec.planner.sql.SqlFlattenOperator;
 import com.dremio.plan.serialization.PBigDecimal;
 import com.dremio.plan.serialization.PBoundOption;
+import com.dremio.plan.serialization.POptionality;
 import com.dremio.plan.serialization.PRelList;
 import com.dremio.plan.serialization.PRexCall;
 import com.dremio.plan.serialization.PRexCorrelVariable;
@@ -33,11 +34,17 @@ import com.dremio.plan.serialization.PRexPatternFieldRef;
 import com.dremio.plan.serialization.PRexRangeRef;
 import com.dremio.plan.serialization.PRexSubQuery;
 import com.dremio.plan.serialization.PRexVariable;
+import com.dremio.plan.serialization.PRexWinAggCall;
 import com.dremio.plan.serialization.PRexWindow;
 import com.dremio.plan.serialization.PRexWindowBound;
 import com.dremio.plan.serialization.PRexWindowBoundBounded;
 import com.dremio.plan.serialization.PRexWindowBoundCurrentRow;
 import com.dremio.plan.serialization.PRexWindowBoundUnbounded;
+import com.dremio.plan.serialization.PSqlAggFunction;
+import com.dremio.plan.serialization.PSqlFunction;
+import com.dremio.plan.serialization.PSqlFunctionCategory;
+import com.dremio.plan.serialization.PSqlIdentifier;
+import com.dremio.plan.serialization.PSqlParserPos;
 import com.dremio.plan.serialization.PSymbol;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
@@ -47,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
@@ -64,10 +72,15 @@ import org.apache.calcite.rex.RexVariable;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.rex.RexWindow;
 import org.apache.calcite.rex.RexWindowBound;
+import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.NlsString;
+import org.apache.calcite.util.Optionality;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
@@ -194,6 +207,9 @@ public final class RexSerializer implements RexVisitor<PRexNode> {
 
   @Override
   public PRexNode visitCall(RexCall call) {
+    if (call instanceof RexWinAggCall) {
+      return toProto((RexWinAggCall) call);
+    }
     PRexCall.Builder builder =
         PRexCall.newBuilder()
             .addAllOperands(
@@ -205,6 +221,112 @@ public final class RexSerializer implements RexVisitor<PRexNode> {
       builder.setIndex(((SqlFlattenOperator) op).getIndex());
     }
     return PRexNode.newBuilder().setRexCall(builder).build();
+  }
+
+  public PRexNode toProto(RexWinAggCall rexWinAggCall) {
+    SqlAggFunction sqlAggFunction = (SqlAggFunction) rexWinAggCall.getOperator();
+
+    PRexCall.Builder rexCallBuilder =
+        PRexCall.newBuilder()
+            .addAllOperands(
+                rexWinAggCall.getOperands().stream()
+                    .map(o -> o.accept(this))
+                    .collect(Collectors.toList()))
+            .setDataType(typeSerializer.toProto(rexWinAggCall.getType()))
+            .setSqlOperator(sqlOperatorSerde.toProto(sqlAggFunction));
+
+    PSqlAggFunction.Builder sqlAggFunctionBuilder =
+        PSqlAggFunction.newBuilder()
+            .setSqlFunction(toProto(sqlAggFunction))
+            .setRequiresGroupOrder(toProto(sqlAggFunction.requiresGroupOrder()))
+            .setRequiresOrder(sqlAggFunction.requiresOrder())
+            .setRequiresOver(sqlAggFunction.requiresOver());
+
+    return PRexNode.newBuilder()
+        .setRexWindowAggCall(
+            PRexWinAggCall.newBuilder()
+                .setRexCall(rexCallBuilder)
+                .setSqlAggFunction(sqlAggFunctionBuilder)
+                .setOrdinal(rexWinAggCall.ordinal)
+                .setDistinct(rexWinAggCall.distinct)
+                .setIgnoreNulls(rexWinAggCall.ignoreNulls))
+        .build();
+  }
+
+  private PSqlFunction toProto(SqlAggFunction sqlFunction) {
+    PSqlFunction.Builder builder = PSqlFunction.newBuilder();
+    if (sqlFunction.getParamTypes() != null && !sqlFunction.getParamTypes().isEmpty()) {
+      builder.addAllParamTypes(
+          sqlFunction.getParamTypes().stream()
+              .map(typeSerializer::toProto)
+              .collect(Collectors.toList()));
+    }
+    builder.setFunctionCatagory(toProto(sqlFunction.getFunctionType()));
+    if (sqlFunction.getSqlIdentifier() != null) {
+      builder.setSqlIdentifier(toProto(sqlFunction.getSqlIdentifier()));
+    }
+    return builder.build();
+  }
+
+  private PSqlIdentifier toProto(SqlIdentifier sqlIdentifier) {
+    List<PSqlParserPos> componentPositions = new ArrayList<>();
+    for (int i = 0; i < sqlIdentifier.names.size(); i++) {
+      componentPositions.add(toProto(sqlIdentifier.getComponentParserPosition(i)));
+    }
+    return PSqlIdentifier.newBuilder()
+        .setCollation(typeSerializer.toProto(sqlIdentifier.getCollation()))
+        .addAllNames(sqlIdentifier.names)
+        .addAllComponentPositions(componentPositions)
+        .build();
+  }
+
+  private PSqlParserPos toProto(SqlParserPos sqlParserPos) {
+    return PSqlParserPos.newBuilder()
+        .setLineNumber(sqlParserPos.getLineNum())
+        .setColumnNumber(sqlParserPos.getColumnNum())
+        .setEndLineNumber(sqlParserPos.getEndLineNum())
+        .setEndColumnNumber(sqlParserPos.getEndColumnNum())
+        .build();
+  }
+
+  private POptionality toProto(Optionality optionality) {
+    switch (optionality) {
+      case OPTIONAL:
+        return POptionality.OPTIONAL;
+      case MANDATORY:
+        return POptionality.MANDATORY;
+      case FORBIDDEN:
+        return POptionality.FORBIDDEN;
+      default:
+        return POptionality.IGNORED;
+    }
+  }
+
+  private PSqlFunctionCategory toProto(SqlFunctionCategory sqlFunctionCategory) {
+    switch (sqlFunctionCategory) {
+      case STRING:
+        return PSqlFunctionCategory.STRING;
+      case NUMERIC:
+        return PSqlFunctionCategory.NUMERIC;
+      case TIMEDATE:
+        return PSqlFunctionCategory.TIMEDATE;
+      case SYSTEM:
+        return PSqlFunctionCategory.SYSTEM;
+      case USER_DEFINED_FUNCTION:
+        return PSqlFunctionCategory.USER_DEFINED_FUNCTION;
+      case USER_DEFINED_PROCEDURE:
+        return PSqlFunctionCategory.USER_DEFINED_PROCEDURE;
+      case USER_DEFINED_CONSTRUCTOR:
+        return PSqlFunctionCategory.USER_DEFINED_CONSTRUCTOR;
+      case USER_DEFINED_SPECIFIC_FUNCTION:
+        return PSqlFunctionCategory.USER_DEFINED_SPECIFIC_FUNCTION;
+      case USER_DEFINED_TABLE_FUNCTION:
+        return PSqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION;
+      case USER_DEFINED_TABLE_SPECIFIC_FUNCTION:
+        return PSqlFunctionCategory.USER_DEFINED_TABLE_SPECIFIC_FUNCTION;
+      default:
+        return PSqlFunctionCategory.MATCH_RECOGNIZE;
+    }
   }
 
   @Override
@@ -251,7 +373,7 @@ public final class RexSerializer implements RexVisitor<PRexNode> {
         .build();
   }
 
-  private PRexWindowBound toProto(RexWindowBound bound) {
+  public PRexWindowBound toProto(RexWindowBound bound) {
     if (bound.isCurrentRow()) {
       return PRexWindowBound.newBuilder()
           .setCurrentRow(PRexWindowBoundCurrentRow.newBuilder())

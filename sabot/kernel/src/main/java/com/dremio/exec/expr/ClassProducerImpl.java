@@ -28,7 +28,6 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.BatchSchema;
@@ -36,6 +35,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.EndPointListProvider;
 import com.dremio.exec.store.EndPointListProviderImpl;
 import com.dremio.exec.store.PartitionExplorer;
+import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -256,7 +256,7 @@ public class ClassProducerImpl implements ClassProducer {
 
     @Override
     public PartitionStatsValue getSurvivingRowCountWithPruneFilter(
-        ScanRelBase scan, PruneFilterCondition pruneCondition) {
+        FilterableScan scan, PruneFilterCondition pruneCondition) {
       return null;
     }
   }

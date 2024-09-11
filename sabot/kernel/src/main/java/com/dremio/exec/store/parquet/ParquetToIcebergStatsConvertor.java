@@ -17,7 +17,6 @@ package com.dremio.exec.store.parquet;
 
 import static org.apache.iceberg.types.Conversions.toByteBuffer;
 
-import com.dremio.exec.ExecConstants;
 import com.dremio.sabot.exec.context.OperatorContext;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -69,9 +68,7 @@ public class ParquetToIcebergStatsConvertor {
           missingStats.add(fieldId);
         } else if (!stats.isEmpty()) {
           nullValueCounts.merge(fieldId, stats.getNumNulls(), (x, y) -> y + stats.getNumNulls());
-          boolean icebergMinMaxEnabled =
-              context.getOptions().getOption(ExecConstants.ENABLE_ICEBERG_MIN_MAX);
-          if (icebergMinMaxEnabled && stats.hasNonNullValue()) {
+          if (stats.hasNonNullValue()) {
             updateMin(
                 lowerBounds,
                 fieldId,

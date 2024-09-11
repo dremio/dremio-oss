@@ -347,7 +347,8 @@ public class TestCreateTable extends PlanTestBase {
           String.format(
               "create table %s.%s (point ROW(x INT , y  DECIMAL(38,3)), list ARRAY(BIGINT), listoflist ARRAY(ARRAY(DECIMAL(34,4))), listofstruct ARRAY(ROW(x BIGINT)),"
                   + "structofstruct ROW(x ROW(z INT)), structoflist ROW(x ARRAY(INT)), point2 STRUCT<x : INT,y: INT>, list2 LIST<BIGINT>,listoflist2 LIST<LIST<DECIMAL(34,4)>>,listofstruct2 LIST<STRUCT<x: BIGINT>>,"
-                  + "structofstruct2 STRUCT<x :ROW(z INT)>,  structofstruct3 STRUCT<x :STRUCT<z :INT>>)",
+                  + "structofstruct2 STRUCT<x :ROW(z INT)>,  structofstruct3 STRUCT<x :STRUCT<z :INT>>,"
+                  + "map MAP<BIGINT,BIGINT>, mapOfMap MAP<BIGINT, MAP<BIGINT, BIGINT>>)",
               TEMP_SCHEMA, newTblName);
       test(ctasQuery);
     } finally {

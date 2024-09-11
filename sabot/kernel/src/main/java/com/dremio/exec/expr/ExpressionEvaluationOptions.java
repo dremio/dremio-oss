@@ -20,6 +20,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.GandivaRegistryWrapper;
 import com.dremio.options.OptionManager;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
@@ -41,13 +42,21 @@ public class ExpressionEvaluationOptions {
 
   private final OptionManager options;
   private final Set<String> disabledGandivaFunctions;
+  private final Set<String> disabledArmGandivaFunctions;
   private SupportedEngines.CodeGenOption codeGenOption = SupportedEngines.CodeGenOption.DEFAULT;
+  private boolean trackRecordLevelErrors = false;
 
   public ExpressionEvaluationOptions(OptionManager options) {
     this.options = options;
     String disabledFunctions = options.getOption(ExecConstants.DISABLED_GANDIVA_FUNCTIONS);
+    String disabledArmFunctions = options.getOption(ExecConstants.DISABLED_GANDIVA_FUNCTIONS_ARM);
     this.disabledGandivaFunctions =
         Arrays.stream(disabledFunctions.split(";"))
+            .map(String::toLowerCase)
+            .map(String::trim)
+            .collect(Collectors.toSet());
+    this.disabledArmGandivaFunctions =
+        Arrays.stream(disabledArmFunctions.split(";"))
             .map(String::toLowerCase)
             .map(String::trim)
             .collect(Collectors.toSet());
@@ -85,6 +94,19 @@ public class ExpressionEvaluationOptions {
   }
 
   public Set<String> blacklistedGandivaFunctions() {
-    return disabledGandivaFunctions;
+    Set<String> functions = new HashSet<>(disabledGandivaFunctions);
+
+    if ("aarch64".equals(System.getProperty("os.arch"))) {
+      functions.addAll(disabledArmGandivaFunctions);
+    }
+    return functions;
+  }
+
+  public void setTrackRecordLevelErrors(boolean trackRecordLevelErrors) {
+    this.trackRecordLevelErrors = trackRecordLevelErrors;
+  }
+
+  public boolean isTrackRecordLevelErrors() {
+    return trackRecordLevelErrors;
   }
 }

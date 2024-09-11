@@ -18,9 +18,9 @@ package com.dremio.exec.store.sys;
 import com.dremio.common.VM;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.sabot.exec.context.OperatorContext;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.util.Iterator;
 import java.util.List;
@@ -28,11 +28,9 @@ import java.util.List;
 public class MemoryIterator implements Iterator<Object> {
 
   private boolean beforeFirst = true;
-  private final OperatorContext context;
   private final SabotContext dbContext;
 
-  public MemoryIterator(final SabotContext dbContext, final OperatorContext context) {
-    this.context = context;
+  public MemoryIterator(final SabotContext dbContext) {
     this.dbContext = dbContext;
   }
 
@@ -77,6 +75,16 @@ public class MemoryIterator implements Iterator<Object> {
       }
     }
     throw new IllegalStateException("Unable to find direct buffer bean.  JVM must be too old.");
+  }
+
+  public static MemoryPoolMXBean getMetaspaceBean() {
+    List<MemoryPoolMXBean> memPool = ManagementFactory.getMemoryPoolMXBeans();
+    for (MemoryPoolMXBean b : memPool) {
+      if (b.getName().equals("Metaspace")) {
+        return b;
+      }
+    }
+    throw new IllegalStateException("Unable to find metaspace buffer bean.  JVM must be too old.");
   }
 
   @Override

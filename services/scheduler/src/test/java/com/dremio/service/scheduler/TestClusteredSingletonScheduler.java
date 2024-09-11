@@ -17,6 +17,7 @@ package com.dremio.service.scheduler;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.dremio.test.DremioTest;
 import com.dremio.test.zookeeper.ZkTestServerRule;
@@ -66,6 +67,23 @@ public class TestClusteredSingletonScheduler extends DremioTest {
   }
 
   @Test
+  public void testWeighBasedSchedulingNotSupportedYet() {
+    Schedule testSchedule =
+        Schedule.Builder.everySeconds(1L)
+            .asClusteredSingleton(testName.getMethodName())
+            .withWeightProvider(() -> 1)
+            .withCleanup(() -> {})
+            .build();
+    final AtomicInteger incrementer = new AtomicInteger();
+    try {
+      testClients[0].getSingletonScheduler().schedule(testSchedule, incrementer::incrementAndGet);
+      fail("Weight based scheduling is not supported yet");
+    } catch (IllegalArgumentException e) {
+      Assertions.assertThat(e.getMessage()).contains("not enabled");
+    }
+  }
+
+  @Test
   public void testBasicScheduling() throws Exception {
     assertFalse(
         testClients[0]
@@ -97,6 +115,67 @@ public class TestClusteredSingletonScheduler extends DremioTest {
     // incrementer should be called only once from only one of the schedulers.
     Assert.assertEquals(incrementer.get(), 1);
     Arrays.stream(cancellables).forEach((c) -> c.cancel(true));
+  }
+
+  @Test
+  public void testPeriodicStartNow() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    Schedule testSchedule =
+        Schedule.Builder.everyHours(1)
+            .startingAt(Instant.now())
+            .asClusteredSingleton(testName.getMethodName())
+            .build();
+    Thread.sleep(200);
+    AtomicInteger incrementer = new AtomicInteger();
+    Cancellable[] cancellables = new Cancellable[NUM_TEST_CLIENTS];
+    for (int i = 0; i < NUM_TEST_CLIENTS; i++) {
+      cancellables[i] =
+          testClients[i]
+              .getSingletonScheduler()
+              .schedule(
+                  testSchedule,
+                  () -> {
+                    incrementer.incrementAndGet();
+                    latch.countDown();
+                  });
+    }
+    latch.await();
+    // incrementer should be called only once from only one of the schedulers.
+    Assert.assertEquals(incrementer.get(), 1);
+    Arrays.stream(cancellables).forEach((c) -> c.cancel(true));
+  }
+
+  @Test
+  public void testCleanupCalledOnCancel() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicInteger cleanupCount = new AtomicInteger();
+    Schedule testSchedule =
+        Schedule.Builder.everyHours(1)
+            .startingAt(Instant.now())
+            .asClusteredSingleton(testName.getMethodName())
+            .withCleanup(
+                () -> {
+                  cleanupCount.incrementAndGet();
+                  latch.countDown();
+                })
+            .build();
+    Thread.sleep(200);
+    AtomicInteger incrementer = new AtomicInteger();
+    Cancellable[] cancellables = new Cancellable[NUM_TEST_CLIENTS];
+    for (int i = 0; i < NUM_TEST_CLIENTS; i++) {
+      cancellables[i] =
+          testClients[i]
+              .getSingletonScheduler()
+              .schedule(testSchedule, incrementer::incrementAndGet);
+      Thread.yield();
+      Thread.yield();
+      Thread.yield();
+    }
+    // incrementer should be called only once from only one of the schedulers.
+    Assert.assertEquals(incrementer.get(), 1);
+    Arrays.stream(cancellables).forEach((c) -> c.cancel(true));
+    latch.await();
+    Assert.assertEquals(cleanupCount.get(), 1);
   }
 
   @Test

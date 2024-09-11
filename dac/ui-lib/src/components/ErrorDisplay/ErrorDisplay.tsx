@@ -36,7 +36,7 @@ const narwhalErrorIcon = (
  */
 export const ErrorDisplay: React.FC<ErrorDisplayProps> = (props) => {
   return (
-    <div className="dremio-error-display" role="alert">
+    <div className="dremio-error-display bg-primary" role="alert">
       <div className="dremio-error-display__wrapper">
         <header>
           {narwhalErrorIcon}

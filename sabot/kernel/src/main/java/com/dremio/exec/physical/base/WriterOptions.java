@@ -60,7 +60,8 @@ public class WriterOptions {
           false,
           Long.MAX_VALUE,
           TableFormatWriterOptions.makeDefault(),
-          null);
+          null,
+          false);
 
   private final Integer ringCount;
   private final List<String> partitionColumns;
@@ -80,6 +81,17 @@ public class WriterOptions {
   private final CombineSmallFileOptions combineSmallFileOptions;
   private final Map<String, String> tableProperties;
 
+  /**
+   * Indicates whether the Parquet Writer is operating in a mode specifically tailored for handling
+   * record writes on partitioned tables originating from Merge On Read DML plans.
+   *
+   * <p>This mode ensures that the Merge On Read Parquet Writer aligns its behavior with the plan's
+   * output
+   *
+   * <p>See {@link com.dremio.exec.store.iceberg.IcebergMergeOnReadRowSplitterTableFunction}
+   */
+  private boolean mergeOnReadRowSplitterMode;
+
   public WriterOptions(
       Integer ringCount,
       List<String> partitionColumns,
@@ -87,7 +99,8 @@ public class WriterOptions {
       List<String> distributionColumns,
       PartitionDistributionStrategy partitionDistributionStrategy,
       boolean singleWriter,
-      long recordLimit) {
+      long recordLimit,
+      boolean mergeOnReadRowSplitterMode) {
     this(
         ringCount,
         partitionColumns,
@@ -98,7 +111,8 @@ public class WriterOptions {
         singleWriter,
         recordLimit,
         TableFormatWriterOptions.makeDefault(),
-        null);
+        null,
+        mergeOnReadRowSplitterMode);
   }
 
   public WriterOptions(
@@ -111,7 +125,8 @@ public class WriterOptions {
       long recordLimit,
       TableFormatWriterOptions tableFormatOptions,
       ByteString extendedProperty,
-      boolean readSignatureSupport) {
+      boolean readSignatureSupport,
+      boolean mergeOnReadRowSplitterMode) {
     this(
         ringCount,
         partitionColumns,
@@ -128,37 +143,8 @@ public class WriterOptions {
         readSignatureSupport,
         null,
         null,
-        Collections.emptyMap());
-  }
-
-  public WriterOptions(
-      Integer ringCount,
-      List<String> partitionColumns,
-      List<String> sortColumns,
-      List<String> distributionColumns,
-      PartitionDistributionStrategy partitionDistributionStrategy,
-      String tableLocation,
-      boolean singleWriter,
-      long recordLimit,
-      TableFormatWriterOptions tableFormatOptions,
-      ByteString extendedProperty) {
-    this(
-        ringCount,
-        partitionColumns,
-        sortColumns,
-        distributionColumns,
-        partitionDistributionStrategy,
-        tableLocation,
-        singleWriter,
-        recordLimit,
-        tableFormatOptions,
-        extendedProperty,
-        false,
-        Long.MAX_VALUE,
-        true,
-        null,
-        null,
-        Collections.emptyMap());
+        Collections.emptyMap(),
+        mergeOnReadRowSplitterMode);
   }
 
   public WriterOptions(
@@ -172,7 +158,7 @@ public class WriterOptions {
       long recordLimit,
       TableFormatWriterOptions tableFormatOptions,
       ByteString extendedProperty,
-      Map<String, String> tableProperties) {
+      boolean mergeOnReadRowSplitterMode) {
     this(
         ringCount,
         partitionColumns,
@@ -189,7 +175,41 @@ public class WriterOptions {
         true,
         null,
         null,
-        tableProperties);
+        Collections.emptyMap(),
+        mergeOnReadRowSplitterMode);
+  }
+
+  public WriterOptions(
+      Integer ringCount,
+      List<String> partitionColumns,
+      List<String> sortColumns,
+      List<String> distributionColumns,
+      PartitionDistributionStrategy partitionDistributionStrategy,
+      String tableLocation,
+      boolean singleWriter,
+      long recordLimit,
+      TableFormatWriterOptions tableFormatOptions,
+      ByteString extendedProperty,
+      Map<String, String> tableProperties,
+      boolean mergeOnReadRowSplitterMode) {
+    this(
+        ringCount,
+        partitionColumns,
+        sortColumns,
+        distributionColumns,
+        partitionDistributionStrategy,
+        tableLocation,
+        singleWriter,
+        recordLimit,
+        tableFormatOptions,
+        extendedProperty,
+        false,
+        Long.MAX_VALUE,
+        true,
+        null,
+        null,
+        tableProperties,
+        mergeOnReadRowSplitterMode);
   }
 
   public WriterOptions(
@@ -204,7 +224,8 @@ public class WriterOptions {
       TableFormatWriterOptions tableFormatOptions,
       ByteString extendedProperty,
       ResolvedVersionContext version,
-      Map<String, String> tableProperties) {
+      Map<String, String> tableProperties,
+      boolean mergeOnReadRowSplitterMode) {
     this(
         ringCount,
         partitionColumns,
@@ -221,7 +242,8 @@ public class WriterOptions {
         true,
         version,
         null,
-        tableProperties);
+        tableProperties,
+        mergeOnReadRowSplitterMode);
   }
 
   public WriterOptions(
@@ -235,7 +257,8 @@ public class WriterOptions {
       long recordLimit,
       TableFormatWriterOptions tableFormatOptions,
       ByteString extendedProperty,
-      ResolvedVersionContext version) {
+      ResolvedVersionContext version,
+      boolean mergeOnReadRowSplitterMode) {
     this(
         ringCount,
         partitionColumns,
@@ -252,7 +275,8 @@ public class WriterOptions {
         true,
         version,
         null,
-        Collections.emptyMap());
+        Collections.emptyMap(),
+        mergeOnReadRowSplitterMode);
   }
 
   @JsonCreator
@@ -273,7 +297,8 @@ public class WriterOptions {
       @JsonProperty("readSignatureSupport") Boolean readSignatureSupport,
       @JsonProperty("versionContext") ResolvedVersionContext version,
       @JsonProperty("combineSmallFileOptions") CombineSmallFileOptions combineSmallFileOptions,
-      @JsonProperty("tableProperties") Map<String, String> tableProperties) {
+      @JsonProperty("tableProperties") Map<String, String> tableProperties,
+      @JsonProperty("mergeOnReadRowSplitterMode") boolean mergeOnReadRowSplitterMode) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
     this.sortColumns = sortColumns;
@@ -290,6 +315,7 @@ public class WriterOptions {
     this.tableFormatOptions = tableFormatOptions;
     this.combineSmallFileOptions = combineSmallFileOptions;
     this.tableProperties = tableProperties;
+    this.mergeOnReadRowSplitterMode = mergeOnReadRowSplitterMode;
   }
 
   public CombineSmallFileOptions getCombineSmallFileOptions() {
@@ -378,7 +404,8 @@ public class WriterOptions {
         this.singleWriter,
         recordLimit,
         this.tableFormatOptions,
-        this.extendedProperty);
+        this.extendedProperty,
+        this.mergeOnReadRowSplitterMode);
   }
 
   public long getOutputLimitSize() {
@@ -402,7 +429,8 @@ public class WriterOptions {
         this.readSignatureSupport,
         null,
         null,
-        this.getTableProperties());
+        this.getTableProperties(),
+        this.mergeOnReadRowSplitterMode);
   }
 
   public WriterOptions withOutputLimitSize(long outputLimitSize) {
@@ -422,7 +450,8 @@ public class WriterOptions {
         this.readSignatureSupport,
         null,
         null,
-        this.getTableProperties());
+        this.getTableProperties(),
+        this.mergeOnReadRowSplitterMode);
   }
 
   public WriterOptions withPartitionColumns(List<String> partitionColumns) {
@@ -437,7 +466,8 @@ public class WriterOptions {
         this.recordLimit,
         this.tableFormatOptions,
         this.extendedProperty,
-        this.getTableProperties());
+        this.getTableProperties(),
+        this.mergeOnReadRowSplitterMode);
   }
 
   public WriterOptions withVersion(ResolvedVersionContext version) {
@@ -457,7 +487,8 @@ public class WriterOptions {
         readSignatureSupport,
         Preconditions.checkNotNull(version),
         null,
-        this.getTableProperties());
+        this.getTableProperties(),
+        this.mergeOnReadRowSplitterMode);
   }
 
   public WriterOptions withCombineSmallFileOptions(
@@ -478,7 +509,8 @@ public class WriterOptions {
         readSignatureSupport,
         version,
         combineSmallFileOptions,
-        this.getTableProperties());
+        this.getTableProperties(),
+        this.mergeOnReadRowSplitterMode);
   }
 
   public TableFormatWriterOptions getTableFormatOptions() {
@@ -565,5 +597,13 @@ public class WriterOptions {
 
   public Map<String, String> getTableProperties() {
     return tableProperties;
+  }
+
+  public void enableMergeOnReadRowSplitterMode() {
+    this.mergeOnReadRowSplitterMode = true;
+  }
+
+  public boolean isMergeOnReadRowSplitterMode() {
+    return mergeOnReadRowSplitterMode;
   }
 }

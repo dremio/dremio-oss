@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import clsx from "clsx";
 import * as React from "react";
 import ReactSyntaxHighlighter from "react-syntax-highlighter";
 
@@ -26,6 +27,7 @@ const highlighterStyle = {
 type SyntaxHighlighterProps = {
   language: "sql" | "json";
   children: string;
+  nowrap?: boolean;
   wrapLongLines?: boolean;
 };
 
@@ -34,6 +36,7 @@ export const SyntaxHighlighter = (props: SyntaxHighlighterProps) => (
     language={props.language}
     style={highlighterStyle}
     wrapLongLines={props.wrapLongLines || false}
+    className={clsx({ "syntax-highlighter--nowrap": props.nowrap })}
   >
     {props.children}
   </ReactSyntaxHighlighter>

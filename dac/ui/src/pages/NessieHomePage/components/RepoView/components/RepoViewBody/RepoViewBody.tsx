@@ -16,7 +16,7 @@
 
 import { useContext, useMemo, useState, useEffect } from "react";
 import { intl } from "@app/utils/intl";
-import ArcticTableHeader from "@app/exports/components/ArcticTableHeader/ArcticTableHeader";
+import VersionedPageTableHeader from "@app/exports/pages/VersionedHomePage/components/VersionedPageTableHeader/VersionedPageTableHeader";
 import RepoViewBranchList from "./components/RepoViewBranchList/RepoViewBranchList";
 import NewTagDialog from "../../../NewTagDialog/NewTagDialog";
 import NewBranchDialog from "../../../NewBranchDialog/NewBranchDialog";
@@ -30,7 +30,7 @@ import "./RepoViewBody.less";
 const ONE_ROW_HEIGHT = 82;
 const HEADER_HEIGHT = 38;
 
-function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
+function RepoViewBody({ hideTitle }: { hideTitle?: boolean }): JSX.Element {
   const { allRefs, setAllRefs, defaultRef } = useContext(RepoViewContext);
   const [search, setSearch] = useState("");
   const [defaultReference, setDefaultReference] = useState<any>({});
@@ -40,7 +40,7 @@ function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
       setDefaultReference(
         allRefs[
           allRefs.findIndex((ref: Reference) => ref.name === defaultRef.name)
-        ]
+        ],
       );
     }
   }, [allRefs, defaultRef]);
@@ -155,7 +155,7 @@ function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
 
   return (
     <div className="branch-body">
-      <ArcticTableHeader
+      <VersionedPageTableHeader
         placeholder="BranchPicker.BranchSearchPlaceholder"
         onSearchChange={setSearch}
         name={
@@ -181,9 +181,9 @@ function RepoViewBody({ hideTitle }: { hideTitle: boolean }): JSX.Element {
               ? // rows vs item height + header diff
                 filteredRows.length * ONE_ROW_HEIGHT + HEADER_HEIGHT
               : // Empty state height
-              search !== ""
-              ? ONE_ROW_HEIGHT + HEADER_HEIGHT
-              : 207,
+                search !== ""
+                ? ONE_ROW_HEIGHT + HEADER_HEIGHT
+                : 207,
         }}
       >
         <RepoViewBranchList

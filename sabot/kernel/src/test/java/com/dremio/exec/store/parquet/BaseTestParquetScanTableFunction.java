@@ -38,7 +38,7 @@ import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory.DeleteF
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.BaseTestTableFunction;
-import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -79,7 +79,7 @@ public class BaseTestParquetScanTableFunction extends BaseTestTableFunction {
     when(pluginId.getName()).thenReturn("testplugin");
   }
 
-  protected RecordSet.Record inputRow(
+  protected RsRecord inputRow(
       String path,
       long offset,
       long length,

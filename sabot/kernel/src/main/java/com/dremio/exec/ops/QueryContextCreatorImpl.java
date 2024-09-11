@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.ops;
 
-import com.dremio.exec.planner.PlanCache;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.planner.plancache.LegacyPlanCache;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotQueryContext;
@@ -39,7 +41,7 @@ public class QueryContextCreatorImpl implements QueryContextCreator {
       UserProtos.QueryPriority priority,
       long maxAllocation,
       Predicate<DatasetConfig> datasetValidityChecker,
-      PlanCache planCache,
+      LegacyPlanCache planCache,
       PartitionStatsCache partitionStatsCache) {
     return new QueryContext(
         session,
@@ -50,5 +52,32 @@ public class QueryContextCreatorImpl implements QueryContextCreator {
         datasetValidityChecker,
         planCache,
         partitionStatsCache);
+  }
+
+  @Override
+  public QueryContext createNewQueryContext(
+      UserSession session,
+      UserBitShared.QueryId queryId,
+      UserProtos.QueryPriority priority,
+      long maxAllocation,
+      Predicate<DatasetConfig> datasetValidityChecker,
+      LegacyPlanCache planCache,
+      PartitionStatsCache partitionStatsCache,
+      Catalog catalog) {
+    return new QueryContext(
+        session,
+        sabotQueryContext,
+        queryId,
+        priority,
+        maxAllocation,
+        datasetValidityChecker,
+        planCache,
+        partitionStatsCache) {
+
+      @Override
+      protected Catalog createCatalog(MetadataRequestOptions options) {
+        return catalog;
+      }
+    };
   }
 }

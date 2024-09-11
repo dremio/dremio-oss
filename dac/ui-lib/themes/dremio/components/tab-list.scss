@@ -17,7 +17,7 @@
 @import "../../utilities/scrollbar";
 
 @mixin tabBorder {
-  border-inline-end: 1px solid var(--color--neutral--100);
+  border-inline-end: 1px solid var(--border--neutral--solid);
   content: "";
   position: absolute;
   height: var(--scale-3);
@@ -28,7 +28,7 @@
 
 .tab-list {
   align-items: center;
-  background: var(--bg--default);
+  background: var(--fill--primary);
   display: flex;
   flex-direction: row;
   overflow: hidden;
@@ -49,7 +49,7 @@
   block-size: var(--scale-5);
   border: none;
   border-block: 2px solid transparent;
-  color: var(--color--deemphasized);
+  color: var(--text--faded);
   display: inline-flex;
   flex-shrink: 1;
   flex-grow: 1;
@@ -76,11 +76,11 @@
   }
 
   &:hover .tab-list-tab__label {
-    color: var(--dremio--color--link);
+    color: var(--text--brand);
   }
 
   &[aria-selected="true"] {
-    border-block-end-color: #008489;
+    border-block-end-color: var(--border--brand--solid);
     font-weight: 600;
     letter-spacing: -0.0375em;
   }

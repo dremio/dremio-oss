@@ -98,7 +98,7 @@ public class ElasticConnectionPool implements AutoCloseable {
   }
 
   private volatile ImmutableMap<String, WebTarget> clients;
-  private Client client;
+  private volatile Client client;
   private final List<Host> hosts;
   private final TLSValidationMode sslMode;
   private final String protocol;
@@ -199,6 +199,9 @@ public class ElasticConnectionPool implements AutoCloseable {
         // no TLS/SSL configuration
     }
 
+    if (client != null) {
+      client.close();
+    }
     client = builder.build();
     client.register(GZipEncoder.class);
     client.register(DeflateEncoder.class);

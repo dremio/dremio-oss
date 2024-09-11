@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { BORDER, BACKGROUND } from "./colors";
 
 export const panel = {
   position: "absolute",
-  background: BACKGROUND,
+  background: "var(--color--neutral--50)",
   top: 42,
   bottom: 2,
   right: 0,
   left: "calc(60% - 4px)",
   transform: "translateX(100%)",
-  borderRight: `1px solid ${BORDER}`,
-  borderTop: `1px solid ${BORDER}`,
-  borderBottom: `1px solid ${BORDER}`,
+  borderRight: `1px solid var(--color--neutral--200)`,
+  borderTop: `1px solid var(--color--neutral--200)`,
+  borderBottom: `1px solid var(--color--neutral--200)`,
   display: "flex",
   flexDirection: "column",
   flexWrap: "nowrap",

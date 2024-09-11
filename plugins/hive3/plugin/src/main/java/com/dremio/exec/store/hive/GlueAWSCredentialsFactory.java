@@ -20,7 +20,6 @@ import com.amazonaws.glue.catalog.metastore.AWSCredentialsProviderFactory;
 import com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1;
 import com.dremio.plugins.s3.store.STSCredentialProviderV1;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1;
-import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -36,6 +35,8 @@ public class GlueAWSCredentialsFactory implements AWSCredentialsProviderFactory 
 
   public static final String ACCESS_KEY_PROVIDER =
       "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
+  public static final String GLUE_ACCESS_KEY_PROVIDER =
+      "com.dremio.exec.store.hive.GlueAWSCredentialsProvider";
   public static final String ASSUME_ROLE_PROVIDER =
       "com.dremio.plugins.s3.store.STSCredentialProviderV1";
   public static final String EC2_METADATA_PROVIDER =
@@ -55,12 +56,8 @@ public class GlueAWSCredentialsFactory implements AWSCredentialsProviderFactory 
     logger.debug("aws_credentials_provider:{}", conf.get(Constants.AWS_CREDENTIALS_PROVIDER));
     switch (conf.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
-        try {
-          return new org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider(null, conf);
-        } catch (IOException e) {
-          // TODO: resolve this
-          throw new RuntimeException(e);
-        }
+      case GLUE_ACCESS_KEY_PROVIDER:
+        return new GlueAWSCredentialsProvider(null, conf);
       case EC2_METADATA_PROVIDER:
         return com.amazonaws.auth.InstanceProfileCredentialsProvider.getInstance();
       case DREMIO_ASSUME_ROLE_PROVIDER:

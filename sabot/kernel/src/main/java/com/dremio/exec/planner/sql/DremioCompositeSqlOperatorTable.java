@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.exec.planner.physical.PlannerSettings.EXPERIMENTAL_FUNCTIONS;
+
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.options.OptionResolver;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
@@ -54,8 +57,10 @@ public final class DremioCompositeSqlOperatorTable {
           SqlLibraryOperators.LTRIM,
           SqlLibraryOperators.RTRIM,
           SqlLibraryOperators.SUBSTR, // calcite does not support oracles substring CALCITE-4408
-          SqlLibraryOperators.DECODE // Dremio currently uses hive decode
-          );
+          SqlLibraryOperators.DECODE, // Dremio currently uses hive decode
+          SqlLibraryOperators.REGEXP_REPLACE, // Dremio already has implementation
+          SqlLibraryOperators.TO_DATE, // Dremio already has implementation
+          SqlLibraryOperators.TO_TIMESTAMP); // Dremio already has implementation
 
   /**
    * These are the SqlOperators that are known at compile time. They will later get mixed in with
@@ -100,6 +105,17 @@ public final class DremioCompositeSqlOperatorTable {
             "ARRAY_CONTAINS",
             "ARRAY_REMOVE");
     return create(functionRegistryOperatorTable);
+  }
+
+  public static SqlOperatorTable create(
+      FunctionImplementationRegistry functionImplementationRegistry,
+      OptionResolver optionResolver) {
+    SqlOperatorTable operatorTable = create(functionImplementationRegistry);
+    if (optionResolver != null && !optionResolver.getOption(EXPERIMENTAL_FUNCTIONS)) {
+      operatorTable =
+          FilteredSqlOperatorTable.create(operatorTable, DremioSqlOperatorTable.ARRAY_SORT);
+    }
+    return new IgnoreNullOpNameSqlOperatorTable(operatorTable);
   }
 
   public static SqlOperatorTable create(SqlOperatorTable sqlOperatorTable) {

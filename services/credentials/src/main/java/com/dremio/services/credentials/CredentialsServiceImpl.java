@@ -99,6 +99,19 @@ public final class CredentialsServiceImpl implements CredentialsService {
         "Unable to find a suitable credentials provider for " + scheme);
   }
 
+  @Override
+  public boolean isSupported(URI uri) {
+    if (uri == null) {
+      return false;
+    }
+    for (CredentialsProvider provider : providers) {
+      if (provider.isSupported(uri)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /**
    * Find a credential provider by class
    *

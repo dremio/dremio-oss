@@ -55,18 +55,26 @@ signatures:
     type: CHARACTERS
   returnType: DOUBLE
   sampleCodes:
-  - call: 'SELECT COVAR_POP(trip_distance_mi, fare_amount)
+  - call: 'SELECT COVAR_SAMP(trip_distance_mi, fare_amount)
 
       FROM Samples."samples.dremio.com"."NYC-taxi-trips"
 
       '
     result: 31.70536780565699
-  - call: 'SELECT COVAR_POP(DISTINCT trip_distance_mi, fare_amount)
+  - call: 'SELECT COVAR_SAMP(DISTINCT trip_distance_mi, fare_amount)
 
       FROM Samples."samples.dremio.com"."NYC-taxi-trips"
 
       '
     result: 31.7053678056971
-  - call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi)\n\
+  - call: "SELECT COVAR_SAMP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi)\n\
       FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
     result: 2.442515362986122e-15
+  - call: "SELECT COVAR_SAMP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi ORDER\
+      \ BY pickup_datetime RANGE BETWEEN CURRENT ROW  AND UNBOUNDED FOLLOWING)\n\
+      FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+    result: "EXPR$0\n0.011553165118073803\n0.011548067948254932\n0.011544544525482535"
+  - call: "SELECT COVAR_SAMP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi ORDER\
+       \ BY pickup_datetime ROWS BETWEEN 1 PRECEDING  AND 2 FOLLOWING)\n\
+     FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+    result: "EXPR$0\n0.0\n3.700743415417188E-17\n0.0"

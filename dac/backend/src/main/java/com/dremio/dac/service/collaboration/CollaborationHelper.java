@@ -16,6 +16,7 @@
 package com.dremio.dac.service.collaboration;
 
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
@@ -23,6 +24,7 @@ import com.dremio.dac.proto.model.collaboration.CollaborationWiki;
 import com.dremio.dac.service.search.SearchService;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.Catalog;
@@ -30,7 +32,6 @@ import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
@@ -38,7 +39,9 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
@@ -72,7 +75,7 @@ public class CollaborationHelper {
           + "\n"
           + "This sidebar always shows the wiki for the current source, space or folder you are browsing.\n"
           + "\n"
-          + "When previewing datasets, click on the `Catalog` tab to create a wiki or add labels to that dataset.\n"
+          + "When browsing or previewing datasets, click on the `Open details panel` button to create a wiki or add labels to that dataset.\n"
           + "\n"
           + "**Tip:** You can hide the wiki by clicking on the sidebar icon on upper right hand side.";
 
@@ -110,7 +113,7 @@ public class CollaborationHelper {
       checkVersionedWikiLabelFeatureFlag(versionedDatasetId);
       validateVersionedEntity(versionedDatasetId);
     } else {
-      validateNameSpaceEntity(entityId);
+      validateNameSpaceEntity(new EntityId(entityId), CollaborationEntityType.TAG);
     }
     final Optional<CollaborationTag> tags = tagsStore.getTagsForEntityId(entityId);
     return tags.map(Tags::fromCollaborationTag);
@@ -118,7 +121,7 @@ public class CollaborationHelper {
 
   public void setTags(String entityId, Tags tags) throws NamespaceException {
     Preconditions.checkNotNull(entityId, "Entity id is required.");
-    validateEntity(entityId);
+    validateEntity(entityId, CollaborationEntityType.TAG);
 
     final CollaborationTag collaborationTag = new CollaborationTag();
     collaborationTag.setTagsList(tags.getTags());
@@ -144,11 +147,12 @@ public class CollaborationHelper {
       return wiki.map(Wiki::fromCollaborationWiki);
     }
 
-    NameSpaceContainer container = validateNameSpaceEntity(entityId);
+    NameSpaceContainer container =
+        validateNameSpaceEntity(new EntityId(entityId), CollaborationEntityType.WIKI);
 
     Optional<CollaborationWiki> wiki = getWikiStore().getLatestWikiForEntityId(entityId);
 
-    if (!wiki.isPresent()) {
+    if (wiki.isEmpty()) {
       // check if container has a description and migrate it.
       String description = getDescription(container);
 
@@ -182,7 +186,7 @@ public class CollaborationHelper {
 
   public void setWiki(String entityId, Wiki wiki) throws NamespaceException {
     Preconditions.checkNotNull(entityId, "Entity id is required.");
-    validateEntity(entityId);
+    validateEntity(entityId, CollaborationEntityType.WIKI);
 
     final CollaborationWiki collaborationWiki = new CollaborationWiki();
     collaborationWiki.setText(wiki.getText());
@@ -231,12 +235,12 @@ public class CollaborationHelper {
     getWikiStore().save(collaborationWiki);
   }
 
-  private void validateEntity(String entityId) throws NamespaceException {
+  private void validateEntity(String entityId, CollaborationEntityType type) {
     VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(entityId);
     if (versionedDatasetId != null) {
       validateVersionedEntity(versionedDatasetId);
     } else {
-      validateNameSpaceEntity(entityId);
+      validateNameSpaceEntity(new EntityId(entityId), type);
     }
   }
 
@@ -263,14 +267,19 @@ public class CollaborationHelper {
     }
   }
 
-  private NameSpaceContainer validateNameSpaceEntity(String entityId) throws NamespaceException {
-    final NameSpaceContainer entity = getNamespaceService().getEntityById(entityId);
-    if (entity == null) {
+  private NameSpaceContainer validateNameSpaceEntity(
+      EntityId entityId, CollaborationEntityType type) {
+    Optional<NameSpaceContainer> entity = getNamespaceService().getEntityById(entityId);
+    if (entity.isEmpty()) {
       throw new IllegalArgumentException(
-          String.format("Could not find entity with id [%s].", entityId));
+          String.format("Could not find entity with id [%s].", entityId.getId()));
     }
 
-    return entity;
+    if (type == CollaborationEntityType.TAG && entity.get().getType() != Type.DATASET) {
+      throw new IllegalArgumentException("Labels may only be set on views and tables.");
+    }
+
+    return entity.get();
   }
 
   private void validateVersionedEntity(VersionedDatasetId versionedDatasetId) {
@@ -296,26 +305,23 @@ public class CollaborationHelper {
     checkIfDefaultBranch(versionedDatasetId, catalog);
   }
 
-  public static int pruneOrphans(LegacyKVStoreProvider kvStoreProvider) {
+  public static int pruneOrphans(
+      LegacyKVStoreProvider legacyKVStoreProvider, KVStoreProvider kvStoreProvider) {
     final AtomicInteger results = new AtomicInteger();
     final NamespaceServiceImpl namespaceService =
         new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
 
     // check tags for orphans
-    final CollaborationTagStore tagsStore = new CollaborationTagStore(kvStoreProvider);
+    final CollaborationTagStore tagsStore = new CollaborationTagStore(legacyKVStoreProvider);
     StreamSupport.stream(tagsStore.find().spliterator(), false)
         .filter(
             entry -> {
               if (VersionedDatasetId.isVersionedDatasetId(entry.getValue().getEntityId())) {
                 return false;
               }
-              try {
-                final NameSpaceContainer container =
-                    namespaceService.getEntityById(entry.getValue().getEntityId());
-                return container == null;
-              } catch (NamespaceException e) {
-                return false;
-              }
+              Optional<NameSpaceContainer> container =
+                  namespaceService.getEntityById(new EntityId(entry.getValue().getEntityId()));
+              return container.isEmpty();
             })
         .forEach(
             entry -> {
@@ -324,20 +330,16 @@ public class CollaborationHelper {
             });
 
     // check wikis for orphans
-    final CollaborationWikiStore wikiStore = new CollaborationWikiStore(kvStoreProvider);
+    final CollaborationWikiStore wikiStore = new CollaborationWikiStore(legacyKVStoreProvider);
     StreamSupport.stream(wikiStore.find().spliterator(), false)
         .filter(
             entry -> {
               if (VersionedDatasetId.isVersionedDatasetId(entry.getValue().getEntityId())) {
                 return false;
               }
-              try {
-                final NameSpaceContainer container =
-                    namespaceService.getEntityById(entry.getValue().getEntityId());
-                return container == null;
-              } catch (NamespaceException e) {
-                return false;
-              }
+              final Optional<NameSpaceContainer> container =
+                  namespaceService.getEntityById(new EntityId(entry.getValue().getEntityId()));
+              return container.isEmpty();
             })
         .forEach(
             entry -> {

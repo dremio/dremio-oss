@@ -22,7 +22,6 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.addIdentityPartition
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.addMonthPartition;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.addTruncate2Partition;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.addYearPartition;
-import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.dropBucketPartition;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.insertIntoTable;
 import static com.dremio.exec.planner.sql.OptimizeTests.assertFileCount;
@@ -40,7 +39,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForStringIdentityPartitions(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 25L, allocator); // 5 files per partition
 
@@ -58,7 +58,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForIdentityPartitionsWithLikeExpression(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 25L, allocator); // 5 files per partition
 
@@ -76,7 +77,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForIntegerIdentityPartitions(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator); // 5 files per partition
 
@@ -99,7 +101,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForIntegerIdentityPartitionsWithExpression(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator); // 5 files per partition
 
@@ -122,7 +125,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForTimestampIdentityPartitions(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 
@@ -146,7 +150,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForYearIdentityPartitions(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 
@@ -170,7 +175,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForTwoIdentityPartitions(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator); // 5 files per partition
 
@@ -197,7 +203,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForNonPartition(String SCHEMA, BufferAllocator allocator)
       throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 3, 0, ImmutableSet.of(1))) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 3, 0, ImmutableSet.of(1))) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 25L, allocator); // 5 files per partition
 
@@ -214,7 +221,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForPartitionEvolBucketWithIdentity(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 25L, allocator); // 5 files per partition
 
@@ -253,7 +261,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForPartitionEvolIdentityWithBucket(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 25L, allocator); // 5 files per partition
 
@@ -298,7 +307,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForPartitionEvolBucketToIdentity(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 25L, allocator); // 5 files per partition
 
@@ -338,7 +348,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForPartitionEvolBucketToIdentityWithExpression(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of(1))) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 25L, allocator); // 5 files per partition
 
@@ -385,7 +396,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForPartitionWithInvalidExpression(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 
@@ -428,7 +440,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForTruncatePartitions(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 
@@ -455,7 +468,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForTruncatePartitionWithLike(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 
@@ -482,7 +496,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForYearPartitions(String SCHEMA, BufferAllocator allocator)
       throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 
@@ -506,7 +521,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForYearPartitionsWithEquality(
       String SCHEMA, BufferAllocator allocator) throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 
@@ -530,7 +546,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForMonthPartitions(String SCHEMA, BufferAllocator allocator)
       throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 
@@ -554,7 +571,8 @@ public class OptimizeTestForPartitions extends BaseTestQuery {
 
   public static void testOptimizeTableForDayPartitions(String SCHEMA, BufferAllocator allocator)
       throws Exception {
-    try (DmlQueryTestUtils.Table table = createBasicTable(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
+    try (DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(SCHEMA, 0, 2, 0, ImmutableSet.of())) {
       insertCommits(table, 5);
       assertFileCount(table.fqn, 5L, allocator);
 

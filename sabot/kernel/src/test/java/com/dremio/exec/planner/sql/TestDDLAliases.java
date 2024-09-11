@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.sql;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
@@ -25,11 +24,7 @@ import org.junit.Test;
 public class TestDDLAliases {
 
   private SqlNode parse(String toParse) throws SqlParseException {
-    ParserConfig config =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            255,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255);
     SqlParser parser = SqlParser.create(toParse, config);
     return parser.parseStmt();
   }

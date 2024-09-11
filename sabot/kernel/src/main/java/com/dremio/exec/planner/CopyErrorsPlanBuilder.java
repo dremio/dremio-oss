@@ -24,11 +24,15 @@ import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
+import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.easy.EasyScanTableFunctionPrel;
 import com.dremio.exec.tablefunctions.copyerrors.CopyErrorsCatalogMetadata;
+import com.dremio.exec.util.ColumnUtils;
 import io.protostuff.ByteString;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -48,7 +52,17 @@ public class CopyErrorsPlanBuilder extends CopyIntoTablePlanBuilderBase {
       OptimizerRulesContext context,
       CopyIntoTableContext copyIntoTableContext,
       CopyErrorsCatalogMetadata copyErrorsMetadata) {
-    super(targetTable, rowType, cluster, traitSet, tableMetadata, context, copyIntoTableContext);
+    // TODO: add support for transformations within copy_errors()
+    super(
+        targetTable,
+        null,
+        rowType,
+        null,
+        cluster,
+        traitSet,
+        tableMetadata,
+        context,
+        copyIntoTableContext);
     this.copyErrorsMetadata = copyErrorsMetadata;
   }
 
@@ -59,6 +73,9 @@ public class CopyErrorsPlanBuilder extends CopyIntoTablePlanBuilderBase {
    * <ul>
    *   <li>{@link CopyIntoHistoryExtendedProperties}
    * </ul>
+   *
+   * Marking the target table schema for validation purposes. It is extended by the copy history
+   * column for tracking record level detailed errors during COPY_ERRORS()
    */
   @Override
   protected ByteString getExtendedProperties() {
@@ -66,7 +83,12 @@ public class CopyErrorsPlanBuilder extends CopyIntoTablePlanBuilderBase {
     properties.setProperty(
         CopyIntoExtendedProperties.PropertyKey.COPY_INTO_HISTORY_PROPERTIES,
         new CopyIntoHistoryExtendedProperties(
-            copyIntoTableContext.getOriginalQueryId(), tableMetadata.getSchema()));
+            copyIntoTableContext.getOriginalQueryId(),
+            tableMetadata
+                .getSchema()
+                .addColumn(
+                    Field.nullable(
+                        ColumnUtils.COPY_HISTORY_COLUMN_NAME, ArrowType.Utf8.INSTANCE))));
     return CopyIntoExtendedProperties.Util.getByteString(properties);
   }
 
@@ -77,7 +99,7 @@ public class CopyErrorsPlanBuilder extends CopyIntoTablePlanBuilderBase {
             tableMetadata,
             null,
             copyErrorsMetadata.getSchema(),
-            getSchemaPaths(copyErrorsMetadata.getSchema()),
+            SchemaUtilities.allColPaths(copyErrorsMetadata.getSchema()),
             format,
             extendedFormatOptions,
             storagePluginId,
@@ -105,7 +127,7 @@ public class CopyErrorsPlanBuilder extends CopyIntoTablePlanBuilderBase {
             copyErrorsMetadata.getSchema(),
             sourceLocationNSKey,
             storagePluginId,
-            getSchemaPaths(copyErrorsMetadata.getSchema()),
+            SchemaUtilities.allColPaths(copyErrorsMetadata.getSchema()),
             getExtendedProperties());
 
     TableFunctionConfig scanTableFunctionConfig =

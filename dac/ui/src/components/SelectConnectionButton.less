@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .button-base {
   position: relative;
@@ -21,7 +20,7 @@
   display: flex;
   border: none;
   width: 100%;
-  background-color: white;
+  background-color: var(--fill--primary);
   align-items: center;
   padding: 10px 0;
 }
@@ -30,13 +29,13 @@
 }
 .button-clickable {
   &:hover {
-    background-color: var(--color--brand--25);
+    background-color: var(--fill--primary--hover);
   }
 }
 .connection-label {
   font-size: 14px;
   display: flex;
-  color: var(--dremio--color--text--main);
+  color: var(--text--primary);
   flex: 1;
   align-items: center;
   text-align: left;
@@ -65,7 +64,7 @@
   line-height: 11px;
 }
 .pill-beta {
-  background: @font-color2;
+  background: var(--fill--secondary);
 }
 .pill-community {
   background: green;

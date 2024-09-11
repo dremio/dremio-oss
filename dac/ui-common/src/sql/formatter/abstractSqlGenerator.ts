@@ -102,6 +102,7 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   sqlDropBranch: RuleType.Command,
   sqlDropTag: RuleType.Command,
   sqlMergeBranch: RuleType.Command,
+  getMergeBehavior: RuleType.Command,
   sqlAssignBranch: RuleType.Command,
   sqlAssignTag: RuleType.Command,
   sqlSelect: RuleType.Command,
@@ -217,6 +218,7 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   fieldNameStructTypeCommaList: RuleType.Other,
   rowTypeName: RuleType.Other,
   arrayTypeName: RuleType.Other,
+  mapTypeName: RuleType.Other,
   parseRequiredFilesList: RuleType.Other,
   stringLiteralCommaList: RuleType.Other,
   parseRequiredPartitionList: RuleType.Other,
@@ -378,6 +380,8 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   jsonArrayAggOrderByClause: RuleType.Other,
   nullTreatment: RuleType.Other,
   withinGroup: RuleType.Other,
+  getTableKeys: RuleType.Other,
+  tableKey: RuleType.Other,
 };
 
 // These are tokens that are not considered part of commands (even when directly

@@ -27,7 +27,7 @@ export const Default: StoryFn<typeof Tag> = () => {
   return (
     <div className="dremio-prose">
       <div className="flex gap-05">
-        <Tag className="bg-neutral-50">bg-neutral-50</Tag>
+        <Tag className="bg-neutral-25">bg-neutral-25</Tag>
         <Tag className="bg-brand-subtle">bg-brand-subtle</Tag>
         <Tag className="bg-success-subtle">bg-success-subtle</Tag>
         <Tag className="bg-info-subtle">bg-info-subtle</Tag>
@@ -54,8 +54,8 @@ export const Default: StoryFn<typeof Tag> = () => {
         <Tag className="bg-danger-subtle-border">bg-danger-subtle-border</Tag>
       </div>
       <div className="flex gap-05">
-        <Tag className="bg-neutral-50">
-          bg-neutral-50{" "}
+        <Tag className="bg-neutral-25">
+          bg-neutral-25{" "}
           <IconButton
             tooltip="Delete"
             style={{ margin: "-0.5em" }}

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/variables.less";
 @import "~@app/uiTheme/less/mixins.less";
 
@@ -67,7 +66,7 @@
   }
 
   &:hover {
-    background: @FIGMA_PRIMARY_100;
+    background: var(--fill--primary--hover);
     border-radius: 4px;
 
     .dataset-add {
@@ -78,12 +77,12 @@
 }
 
 .dataset-add {
-  color: var(--dremio--color--icon--main);
+  color: var(--icon--primary);
   opacity: 0;
   transition: 300ms ease all;
 
   &:hover {
-    color: var(--dremio--color--link);
+    color: var(--icon--hover);
   }
 }
 
@@ -101,12 +100,12 @@
   width: 24px;
   height: 24px;
   margin-left: 5px;
-  color: var(--dremio--color--icon--main);
+  color: var(--icon--primary);
 }
 
 .icon {
   width: 24x;
   height: 24px;
   margin-left: 5px;
-  color: var(--dremio--color--icon--main);
+  color: var(--icon--primary);
 }

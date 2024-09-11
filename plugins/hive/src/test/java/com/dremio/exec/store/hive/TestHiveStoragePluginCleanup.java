@@ -28,12 +28,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.google.common.collect.ImmutableList;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Test that HiveStoragePlugin properly gets cleaned up with close().
@@ -46,8 +47,10 @@ public class TestHiveStoragePluginCleanup {
     final HiveConf hiveConf = new HiveConf();
     hiveConf.setBoolVar(HIVE_SERVER2_ENABLE_DOAS, true);
     final SabotContext context = mock(SabotContext.class);
+    final OptionManager optionManager = mock(OptionManager.class);
     when(context.getDremioConfig()).thenReturn(DremioConfig.create());
     when(context.isCoordinator()).thenReturn(true);
+    when(context.getOptionManager()).thenReturn(optionManager);
 
     plugin = new MockHiveStoragePlugin(hiveConf, context, "foo");
     plugin.start();

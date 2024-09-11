@@ -32,10 +32,6 @@ const emptyApp = {
   SSOLogin: "SSO",
 };
 
-export function getProjectContext() {
-  return null;
-}
-
 export function useProjectContext() {
   return null;
 }

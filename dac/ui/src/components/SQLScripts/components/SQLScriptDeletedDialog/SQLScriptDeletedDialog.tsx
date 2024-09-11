@@ -28,13 +28,15 @@ type SQLScriptDeletedDialogProps = {
   isOpen: boolean;
   onCancel: () => void;
   onConfirm: () => void;
-  sqlContent: string;
+  getSqlContent: () => string;
 };
 const SQLScriptDeletedDialog = (
-  props: SQLScriptDeletedDialogProps
+  props: SQLScriptDeletedDialogProps,
 ): React.ReactElement => {
   const { t } = getIntlContext();
-  const { isOpen, onCancel, onConfirm, sqlContent } = props;
+  const { isOpen, onCancel, onConfirm, getSqlContent } = props;
+  const sqlContent = getSqlContent();
+
   return (
     <ModalContainer open={() => {}} isOpen={isOpen} close={() => {}}>
       <DialogContent

@@ -28,6 +28,7 @@ export type QueryStatusType = {
   version?: string;
   statusList: any;
   isCancelDisabled?: boolean;
+  lazyLoad?: boolean;
 };
 
 const allyProps = (index: number) => {
@@ -43,7 +44,7 @@ export const handleOnTabRouting = (
   version: string | undefined,
   location: any = {},
   router: any,
-  isMultiQueryRunning: boolean
+  isMultiQueryRunning: boolean,
 ) => {
   if (isMultiQueryRunning) {
     return;
@@ -77,7 +78,7 @@ export const renderTabs = (
   location: any = {},
   router: any,
   statusList: [],
-  isMultiQueryRunning: boolean
+  isMultiQueryRunning: boolean,
 ) => {
   const tabs: JSX.Element[] = [];
 
@@ -91,7 +92,7 @@ export const renderTabs = (
           undefined,
           location,
           router,
-          isMultiQueryRunning
+          isMultiQueryRunning,
         )
       }
       label={
@@ -103,7 +104,7 @@ export const renderTabs = (
         </div>
       }
       {...allyProps(0)}
-    />
+    />,
   );
 
   for (let i = 1; i <= queryStatuses.length; i++) {
@@ -119,7 +120,7 @@ export const renderTabs = (
             version,
             location,
             router,
-            isMultiQueryRunning
+            isMultiQueryRunning,
           )
         }
         label={
@@ -133,7 +134,7 @@ export const renderTabs = (
           </div>
         }
         {...allyProps(i)}
-      />
+      />,
     );
   }
 

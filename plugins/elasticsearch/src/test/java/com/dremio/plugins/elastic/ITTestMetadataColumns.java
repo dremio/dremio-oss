@@ -59,21 +59,21 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     queryBatch =
         testRunAndReturn(
             QueryType.SQL, "select _id, " + field + " , business_id from " + TABLENAME);
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
     List<Map<String, Object>> records = new ArrayList<>();
     DremioTestWrapper.addToMaterializedResults(records, queryBatch, loader);
 
     boolean first12345 = true;
 
-    for (Map<String, Object> record : records) {
-      String bid = (String) record.get("`business_id`");
-      String id = (String) record.get("`" + ElasticsearchConstants.ID + "`");
+    for (Map<String, Object> rec : records) {
+      String bid = (String) rec.get("`business_id`");
+      String id = (String) rec.get("`" + ElasticsearchConstants.ID + "`");
       String uid =
           elasticVersion == 7
-              ? (String) record.get("`" + ElasticsearchConstants.TYPE + "`")
+              ? (String) rec.get("`" + ElasticsearchConstants.TYPE + "`")
                   + "#"
-                  + (String) record.get("`" + ElasticsearchConstants.ID + "`")
-              : (String) record.get("`" + ElasticsearchConstants.UID + "`");
+                  + (String) rec.get("`" + ElasticsearchConstants.ID + "`")
+              : (String) rec.get("`" + ElasticsearchConstants.UID + "`");
       switch (bid) {
         case "12345":
           if (first12345) {

@@ -42,7 +42,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlQuantifyOperator;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
-public final class UdfConvertlet implements FunctionConvertlet {
+public final class UdfConvertlet extends RexCallConvertlet {
   private final UserDefinedFunctionExpander expander;
 
   public UdfConvertlet(UserDefinedFunctionExpander expander) {
@@ -50,7 +50,7 @@ public final class UdfConvertlet implements FunctionConvertlet {
   }
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     SqlOperator operator = call.getOperator();
     if (!(operator instanceof SqlUserDefinedFunction)) {
       return false;

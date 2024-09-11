@@ -31,8 +31,8 @@ import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableMetadata;
-import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableRecordBuilder;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
+import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableVectorContainerBuilder;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
@@ -117,11 +117,7 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
           .thenReturn(HadoopFileSystem.getLocal(new Configuration()));
       SystemIcebergTableMetadata tableMetadata =
           new CopyJobHistoryTableMetadata(
-              1,
-              CopyJobHistoryTableSchemaProvider.getSchema(1),
-              "fake_plugin_name",
-              "fake_plugin_path",
-              COPY_JOB_HISTORY_TABLE_NAME);
+              2L, 4, "fake_plugin_name", "fake_plugin_path", COPY_JOB_HISTORY_TABLE_NAME);
       when(plugin.getTableMetadata(ImmutableList.of(COPY_JOB_HISTORY_TABLE_NAME)))
           .thenReturn(tableMetadata);
       return plugin;
@@ -138,9 +134,10 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
     SystemIcebergTableRecordWriter recordWriter = getRecordWriter(targetDirPath);
     Path targetFilePath = new Path(targetDirPath, "testFile.parquet");
 
-    recordWriter.write(
-        getContainer(allocator), com.dremio.io.file.Path.of(targetFilePath.toString()));
-    recordWriter.close();
+    try (VectorContainer container = getContainer(allocator)) {
+      recordWriter.write(container, com.dremio.io.file.Path.of(targetFilePath.toString()));
+      recordWriter.close();
+    }
 
     for (FileStatus file : newFs.listStatus(targetDirPath)) {
       assertThat(file.getPath().getName().equals("testFile.parquet")).isTrue();
@@ -162,7 +159,16 @@ public class TestSystemIcebergTableRecordWriter extends BaseTestQuery {
             .setRecordsLoadedCount(2)
             .setRecordsRejectedCount(1)
             .setSnapshotId(12345L)
+            .setBranch("someBranch")
+            .setPipeName("dev-pipe")
+            .setPipeId("d2981263-fb78-4f83-a4e1-27ba02074bae")
+            .setProcessingStartTime(System.currentTimeMillis())
             .build();
-    return CopyJobHistoryTableRecordBuilder.buildVector(allocator, 1, info, 100, 13);
+    VectorContainer container =
+        CopyJobHistoryTableVectorContainerBuilder.initializeContainer(
+            allocator, CopyJobHistoryTableSchemaProvider.getSchema(2L));
+    CopyJobHistoryTableVectorContainerBuilder.writeRecordToContainer(
+        container, info, 100, 13, 0L, 0L);
+    return container;
   }
 }

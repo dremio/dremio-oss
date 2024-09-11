@@ -18,4 +18,16 @@ package com.dremio.exec.planner.sql.handlers;
 public class HandlerUtils {
   protected static final String REFERENCE_ALREADY_EXISTS_MESSAGE =
       "Reference %s already exists in Source %s.";
+
+  // SQL_STATUS string will be used in sql result's "status" column to represent whether the sql has
+  // been succeeded or failed.
+  public static final String SQL_STATUS_SUCCESS = "SUCCESS";
+  public static final String SQL_STATUS_FAILURE = "FAILURE";
+
+  public static String statusCode(boolean success) {
+    if (success) {
+      return SQL_STATUS_SUCCESS;
+    }
+    return SQL_STATUS_FAILURE;
+  }
 }

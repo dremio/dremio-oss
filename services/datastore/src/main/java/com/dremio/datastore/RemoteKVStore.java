@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newTimerResourceSampleSupplier;
+import static com.dremio.telemetry.api.metrics.TimerUtils.timedOperation;
 import static java.lang.String.format;
 
 import com.dremio.datastore.api.Document;
@@ -23,22 +25,22 @@ import com.dremio.datastore.api.ImmutableDocument;
 import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.options.KVStoreOptionUtility;
+import com.dremio.datastore.api.options.MaxResultsOption;
 import com.dremio.datastore.api.options.VersionOption;
 import com.dremio.datastore.indexed.PutRequestDocumentWriter;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.dremio.telemetry.api.metrics.Metrics.ResetType;
-import com.dremio.telemetry.api.metrics.Timer;
-import com.dremio.telemetry.api.metrics.Timer.TimerContext;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
+import io.micrometer.core.instrument.Timer.ResourceSample;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /** Remote KVStore. Caches store id received from master. */
 public class RemoteKVStore<K, V> implements KVStore<K, V> {
@@ -64,7 +66,7 @@ public class RemoteKVStore<K, V> implements KVStore<K, V> {
   private final Converter<V, byte[]> valueConverter;
   private final StoreBuilderHelper<K, V> helper;
 
-  private final Map<Stats, Timer> metrics;
+  private final Map<Stats, Supplier<ResourceSample>> metrics;
 
   @SuppressWarnings("unchecked")
   public RemoteKVStore(DatastoreRpcClient client, String storeId, StoreBuilderHelper<K, V> helper) {
@@ -78,18 +80,20 @@ public class RemoteKVStore<K, V> implements KVStore<K, V> {
     metrics = registerMetrics();
   }
 
-  private Map<Stats, Timer> registerMetrics() {
-    final ImmutableMap.Builder<Stats, Timer> builder = ImmutableMap.builder();
+  private Map<Stats, Supplier<ResourceSample>> registerMetrics() {
+    final ImmutableMap.Builder<Stats, Supplier<ResourceSample>> builder = ImmutableMap.builder();
     for (Stats stat : Stats.values()) {
-      final Timer timer =
-          Metrics.newTimer(Metrics.join(METRIC_PREFIX, stat.name()), ResetType.NEVER);
+      final Supplier<ResourceSample> timer =
+          newTimerResourceSampleSupplier(
+              METRIC_PREFIX + "." + stat.name().toLowerCase(),
+              format("Time taken for %s operation", stat.name()));
       builder.put(stat, timer);
     }
     return builder.build();
   }
 
-  private TimerContext time(Stats stat) {
-    return metrics.get(stat).start();
+  private ResourceSample time(Stats stat) {
+    return metrics.get(stat).get();
   }
 
   private K revertKey(ByteString key) {
@@ -112,12 +116,17 @@ public class RemoteKVStore<K, V> implements KVStore<K, V> {
 
   @Override
   public Document<K, V> get(K key, GetOption... options) {
-    try (TimerContext timer = time(Stats.GET)) {
-      final Document<ByteString, ByteString> document = client.get(storeId, convertKey(key));
-      return convertDocument(document);
-    } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to get from store id: %s", getStoreId()), e);
-    }
+    return timedOperation(
+        time(Stats.GET),
+        () -> {
+          try {
+            final Document<ByteString, ByteString> document = client.get(storeId, convertKey(key));
+            return convertDocument(document);
+          } catch (RpcException e) {
+            throw new DatastoreException(
+                format("Failed to get from store id: %s", getStoreId()), e);
+          }
+        });
   }
 
   public String getStoreId() {
@@ -143,65 +152,85 @@ public class RemoteKVStore<K, V> implements KVStore<K, V> {
 
   @Override
   public Iterable<Document<K, V>> get(List<K> keys, GetOption... options) {
-    try (TimerContext timer = time(Stats.GET_LIST)) {
-      List<ByteString> keyLists = Lists.newArrayList();
-      for (K key : keys) {
-        keyLists.add(convertKey(key));
-      }
-      return Lists.transform(client.get(storeId, keyLists), this::convertDocument);
-    } catch (RpcException e) {
-      throw new DatastoreException(
-          format("Failed to get multiple values from store id: %s", getStoreId()), e);
-    }
+    return timedOperation(
+        time(Stats.GET_LIST),
+        () -> {
+          try {
+            List<ByteString> keyLists = Lists.newArrayList();
+            for (K key : keys) {
+              keyLists.add(convertKey(key));
+            }
+            return Lists.transform(client.get(storeId, keyLists), this::convertDocument);
+          } catch (RpcException e) {
+            throw new DatastoreException(
+                format("Failed to get multiple values from store id: %s", getStoreId()), e);
+          }
+        });
   }
 
   @Override
   public Document<K, V> put(K key, V value, PutOption... options) {
     KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(options);
 
-    final String tag;
     final PutRequestDocumentWriter putRequestDocumentWriter = new PutRequestDocumentWriter();
     if (helper.hasDocumentConverter()) {
       helper.getDocumentConverter().doConvert(putRequestDocumentWriter, key, value);
     }
 
-    try (TimerContext timer = time(Stats.PUT)) {
-      final Optional<PutOption> option = KVStoreOptionUtility.getCreateOrVersionOption(options);
-      if (option.isPresent()) {
-        tag =
-            client.put(
-                storeId,
-                convertKey(key),
-                convertValue(value),
-                putRequestDocumentWriter,
-                option.get());
-      } else {
-        tag = client.put(storeId, convertKey(key), convertValue(value), putRequestDocumentWriter);
-      }
-    } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to put in store id: %s", getStoreId()), e);
-    }
-    return createDocument(key, value, tag);
+    return timedOperation(
+        time(Stats.PUT),
+        () -> {
+          final String tag;
+          try {
+            final Optional<PutOption> option =
+                KVStoreOptionUtility.getCreateOrVersionOption(options);
+            if (option.isPresent()) {
+              tag =
+                  client.put(
+                      storeId,
+                      convertKey(key),
+                      convertValue(value),
+                      putRequestDocumentWriter,
+                      option.get());
+            } else {
+              tag =
+                  client.put(
+                      storeId, convertKey(key), convertValue(value), putRequestDocumentWriter);
+            }
+          } catch (RpcException e) {
+            throw new DatastoreException(format("Failed to put in store id: %s", getStoreId()), e);
+          }
+          return createDocument(key, value, tag);
+        });
   }
 
   @Override
   public boolean contains(K key, ContainsOption... options) {
-    try (TimerContext timer = time(Stats.CONTAINS)) {
-      return client.contains(storeId, convertKey(key));
-    } catch (RpcException e) {
-      throw new DatastoreException(
-          format("Failed to check contains for store id: %s", getStoreId()), e);
-    }
+    return timedOperation(
+        time(Stats.CONTAINS),
+        () -> {
+          try {
+            return client.contains(storeId, convertKey(key));
+          } catch (RpcException e) {
+            throw new DatastoreException(
+                format("Failed to check contains for store id: %s", getStoreId()), e);
+          }
+        });
   }
 
   @Override
   public void delete(K key, DeleteOption... options) {
-    try (TimerContext timer = time(Stats.DELETE)) {
-      final String deleteOptionTag = VersionOption.getTagInfo(options).getTag();
-      client.delete(storeId, convertKey(key), deleteOptionTag);
-    } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to delete from store id: %s", getStoreId()), e);
-    }
+    timedOperation(
+        time(Stats.DELETE),
+        () -> {
+          try {
+            final String deleteOptionTag = VersionOption.getTagInfo(options).getTag();
+            client.delete(storeId, convertKey(key), deleteOptionTag);
+          } catch (RpcException e) {
+            throw new DatastoreException(
+                format("Failed to delete from store id: %s", getStoreId()), e);
+          }
+        });
   }
 
   @Override
@@ -216,12 +245,26 @@ public class RemoteKVStore<K, V> implements KVStore<K, V> {
       request.setEnd(convertKey(find.getEnd())).setIncludeEnd(find.isEndInclusive());
     }
 
-    try (TimerContext timer = time(Stats.FIND_BY_RANGE)) {
-      return Iterables.transform(client.find(request.build()), this::convertDocument);
-    } catch (RpcException e) {
-      throw new DatastoreException(
-          format("Failed to find by range for store id: %s", getStoreId()), e);
+    if (options.length > 0) {
+      Optional<MaxResultsOption> optionalMaxResults =
+          Arrays.stream(options)
+              .filter(option -> option instanceof MaxResultsOption)
+              .map(option -> (MaxResultsOption) option)
+              .findFirst();
+      optionalMaxResults.ifPresent(
+          maxResultsOption -> request.setMaxResults(maxResultsOption.maxResults()));
     }
+
+    return timedOperation(
+        time(Stats.FIND_BY_RANGE),
+        () -> {
+          try {
+            return Iterables.transform(client.find(request.build()), this::convertDocument);
+          } catch (RpcException e) {
+            throw new DatastoreException(
+                format("Failed to find by range for store id: %s", getStoreId()), e);
+          }
+        });
   }
 
   @Override
@@ -239,11 +282,16 @@ public class RemoteKVStore<K, V> implements KVStore<K, V> {
 
   @Override
   public Iterable<Document<K, V>> find(FindOption... options) {
-    try (TimerContext timer = time(Stats.FIND_ALL)) {
-      return Iterables.transform(client.find(storeId), this::convertDocument);
-    } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to find all for store id: %s", getStoreId()), e);
-    }
+    return timedOperation(
+        time(Stats.FIND_ALL),
+        () -> {
+          try {
+            return Iterables.transform(client.find(storeId), this::convertDocument);
+          } catch (RpcException e) {
+            throw new DatastoreException(
+                format("Failed to find all for store id: %s", getStoreId()), e);
+          }
+        });
   }
 
   @Override

@@ -18,9 +18,8 @@ package com.dremio.jdbc.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.dremio.exec.ExecTest;
+import com.dremio.BaseTestQuery;
 import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
-import com.dremio.jdbc.SabotNodeRule;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -34,27 +33,20 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 /** Test of TracingProxyDriver other than loading of driver classes. */
-public class TracingProxyDriverTest extends ExecTest {
-  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
-
+public class TracingProxyDriverTest extends BaseTestQuery {
   private static Driver proxyDriver;
   private static Connection proxyConnection;
 
   @BeforeClass
   public static void setUpTestCase() throws SQLException, ClassNotFoundException {
     Class.forName("com.dremio.jdbc.proxy.TracingProxyDriver");
-    proxyDriver =
-        DriverManager.getDriver(
-            "jdbc:proxy:com.dremio.jdbc.Driver:" + sabotNode.getJDBCConnectionString());
+    proxyDriver = DriverManager.getDriver("jdbc:proxy:com.dremio.jdbc.Driver:" + getJDBCURL());
     proxyConnection =
         DriverManager.getConnection(
-            "jdbc:proxy::" + sabotNode.getJDBCConnectionString(),
-            UserServiceTestImpl.ANONYMOUS,
-            "");
+            "jdbc:proxy::" + getJDBCURL(), UserServiceTestImpl.ANONYMOUS, "");
   }
 
   @Test
@@ -184,8 +176,7 @@ public class TracingProxyDriverTest extends ExecTest {
     proxyDriver.getMinorVersion();
     proxyDriver.jdbcCompliant();
     proxyDriver.getParentLogger();
-    proxyDriver.getPropertyInfo(
-        "jdbc:proxy::" + sabotNode.getJDBCConnectionString(), new Properties());
+    proxyDriver.getPropertyInfo("jdbc:proxy::" + getJDBCURL(), new Properties());
 
     final DatabaseMetaData dbMetaData = proxyConnection.getMetaData();
     assertThat(dbMetaData).isNotNull().isInstanceOf(DatabaseMetaData.class);

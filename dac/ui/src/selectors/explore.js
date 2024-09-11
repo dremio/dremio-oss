@@ -250,6 +250,14 @@ export const getExplorePageDataset = (state, curDataset) => {
     curQuery.tipVersion || curQuery.version || dataset.get("datasetVersion"),
   );
 
+  // workaround for a routing issue where failed jobs in other scripts don't update query path correctly
+  if (!dataset.get("datasetType")) {
+    dataset = dataset.set(
+      "datasetVersion",
+      curQuery.version || dataset.get("datasetVersion"),
+    );
+  }
+
   return dataset;
 };
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { useState, useEffect, useRef } from "react";
-import { connect } from "react-redux";
+import { connect, useDispatch } from "react-redux";
 import { RouteComponentProps, withRouter } from "react-router";
 import { compose } from "redux";
 import { injectIntl, useIntl } from "react-intl";
@@ -40,14 +40,24 @@ import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import jobsUtils from "@app/utils/jobsUtils";
 import { renderContent } from "dyn-load/utils/jobsUtils";
 import socket from "@inject/utils/socket";
-import { GetIsSocketForSingleJob } from "@inject/pages/JobDetailsPageNew/utils";
+import {
+  GetIsSocketForSingleJob,
+  shouldDisableDownload,
+} from "@inject/pages/JobDetailsPageNew/utils";
 import NavCrumbs from "@inject/components/NavCrumbs/NavCrumbs";
 
 import TopPanel from "./components/TopPanel/TopPanel";
 import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
+import { handleCluster } from "./utils";
 
 import { jobDetailsTabs, getIconName } from "dyn-load/utils/jobsUtils";
-import { TabPanel, Tab, TabList, useTabList } from "dremio-ui-lib/components";
+import {
+  TabPanel,
+  Tab,
+  TabList,
+  useTabList,
+  Tooltip,
+} from "dremio-ui-lib/components";
 // @ts-ignore
 import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
 import { store } from "@app/store/store";
@@ -116,13 +126,17 @@ const JobDetailsPage = (
     getJobExecutionOperatorDetails,
     location,
   };
-
+  const dispatch = useDispatch();
   useEffect(() => {
     if (GetIsSocketForSingleJob()) socket.setServerHeartbeat(true);
     return () => {
       if (GetIsSocketForSingleJob()) socket.setServerHeartbeat(false);
     };
   }, []);
+
+  useEffect(() => {
+    handleCluster(dispatch);
+  }, [dispatch]);
 
   //Effect should use latest query string when polling runs
   const loc = useRef<any>();
@@ -280,6 +294,7 @@ const JobDetailsPage = (
   const profileUrl = attemptDetails?.getIn([0, "profileUrl"]);
   const isSingleProfile = attemptDetails?.size === 1;
   const isVisualProfile = currentTab === "Execution";
+  const downloadDisabled = shouldDisableDownload(jobDetails);
 
   return (
     <div style={{ height: "100%" }}>
@@ -308,12 +323,16 @@ const JobDetailsPage = (
                           })}
                         >
                           {jobDetailsTabsForPage.map((id, index) => {
+                            const isDisabled =
+                              downloadDisabled &&
+                              (id === "Profile" || id === "Execution");
                             const { onClick, ...rest } = getTabProps({
                               id,
                               controls: `${id}Panel`,
                             });
-                            return (
+                            const RenderedTab = (
                               <Tab
+                                disabled={isDisabled}
                                 key={`${id}-${index}`}
                                 {...rest}
                                 onClick={() => {
@@ -339,6 +358,22 @@ const JobDetailsPage = (
                                 </div>
                               </Tab>
                             );
+
+                            if (isDisabled) {
+                              return (
+                                <Tooltip
+                                  shouldWrapChildren
+                                  key={`${id}-${index}`}
+                                  content={formatMessage({
+                                    id: "Job.Summary.OutputIncomplete",
+                                  })}
+                                >
+                                  {RenderedTab}
+                                </Tooltip>
+                              );
+                            } else {
+                              return RenderedTab;
+                            }
                           })}
                         </TabList>
                       );

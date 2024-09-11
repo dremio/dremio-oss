@@ -224,7 +224,7 @@ public class TestMetadataRefresh extends BaseTestQuery {
 
     Files.write(root.resolve("f1.json"), "{a:1}".getBytes(), StandardOpenOption.CREATE);
 
-    CatalogServiceImpl catalog = (CatalogServiceImpl) nodes[0].getContext().getCatalogService();
+    CatalogService catalogService = getCatalogService();
     String name = "dfs_test_without_autopromote";
 
     {
@@ -235,7 +235,7 @@ public class TestMetadataRefresh extends BaseTestQuery {
       c.setConnectionConf(conf);
       c.setName(name);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-      catalog.getSystemUserCatalog().createSource(c);
+      catalogService.getSystemUserCatalog().createSource(c);
     }
 
     // wait for source to be created
@@ -310,6 +310,6 @@ public class TestMetadataRefresh extends BaseTestQuery {
     }
 
     // cleanup
-    catalog.deleteSource(name);
+    ((CatalogServiceImpl) catalogService).deleteSource(name);
   }
 }

@@ -160,15 +160,21 @@ public class TestDatasetHashUtils {
    */
   @Test
   public void testParentDatasetBuilderForVersionedDatasets() {
-    when(t1TableMetadata.getVersionContext())
-        .thenReturn(new TableVersionContext(TableVersionType.BRANCH, "etl"));
-    when(v1Node.getVersionContext())
-        .thenReturn(new TableVersionContext(TableVersionType.BRANCH, "etl"));
+    TableVersionContext etlTableVersionContext =
+        new TableVersionContext(TableVersionType.BRANCH, "etl");
+    when(t1TableMetadata.getVersionContext()).thenReturn(etlTableVersionContext);
+    when(v1Node.getVersionContext()).thenReturn(etlTableVersionContext);
     when(catalog.getTableSnapshot(
-            CatalogEntityKey.newBuilder().keyComponents(ImmutableList.of("v1")).build()))
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of("v1"))
+                .tableVersionContext(etlTableVersionContext)
+                .build()))
         .thenReturn(v1Table);
     when(catalog.getTableSnapshot(
-            CatalogEntityKey.newBuilder().keyComponents(ImmutableList.of("t1")).build()))
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of("t1"))
+                .tableVersionContext(etlTableVersionContext)
+                .build()))
         .thenReturn(t1Table);
 
     DatasetHashUtils.ParentDatasetBuilder builder =
@@ -177,19 +183,16 @@ public class TestDatasetHashUtils {
         builder.getParents(SubstitutionUtils.VersionedPath.of(v2Config.getFullPathList(), null));
     assertEquals(1, parents.size());
     assertEquals(
-        SubstitutionUtils.VersionedPath.of(
-            ImmutableList.of("v1"), new TableVersionContext(TableVersionType.BRANCH, "etl")),
+        SubstitutionUtils.VersionedPath.of(ImmutableList.of("v1"), etlTableVersionContext),
         parents.get(0).left);
     assertEquals(v1Config, parents.get(0).right);
 
     parents =
         builder.getParents(
-            SubstitutionUtils.VersionedPath.of(
-                ImmutableList.of("v1"), new TableVersionContext(TableVersionType.BRANCH, "etl")));
+            SubstitutionUtils.VersionedPath.of(ImmutableList.of("v1"), etlTableVersionContext));
     assertEquals(1, parents.size());
     assertEquals(
-        SubstitutionUtils.VersionedPath.of(
-            ImmutableList.of("t1"), new TableVersionContext(TableVersionType.BRANCH, "etl")),
+        SubstitutionUtils.VersionedPath.of(ImmutableList.of("t1"), etlTableVersionContext),
         parents.get(0).left);
     assertEquals(t1Config, parents.get(0).right);
   }

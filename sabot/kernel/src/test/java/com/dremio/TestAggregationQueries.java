@@ -88,4 +88,29 @@ public class TestAggregationQueries extends PlanTestBase {
         .baselineValues(5369.521895151171)
         .go();
   }
+
+  @Test
+  public void testAggJoinPushdown() throws Exception {
+    testNoResult("use cp.tpch");
+    String query =
+        "select l_orderkey, count(*) cnt from \"lineitem.parquet\" join \"orders.parquet\"\n"
+            + "on l_orderkey = o_orderkey\n"
+            + "group by l_orderkey";
+    testPlanMatchingPatterns(query, new String[] {"(?s)Join.*Agg.*Agg"});
+  }
+
+  @Test
+  public void testAggJoinPushdownSumDecimal() throws Exception {
+    testNoResult("use cp.tpch");
+    String queryTemplate =
+        "with lineitem as (select l_orderkey, cast(l_extendedprice as DECIMAL(%d,%d)) l_extendedprice\n"
+            + "   from cp.tpch.\"lineitem.parquet\")\n"
+            + "select l_orderkey, sum(l_extendedprice) rev from lineitem join \"orders.parquet\"\n"
+            + "on l_orderkey = o_orderkey\n"
+            + "group by l_orderkey";
+    testPlanMatchingPatterns(
+        String.format(queryTemplate, 10, 5), new String[] {"(?s)Join.*Agg.*Agg"});
+    testPlanMatchingPatterns(
+        String.format(queryTemplate, 38, 10), new String[] {"(?s)Agg.*Join"}, "(?s)Join.*Agg.*Agg");
+  }
 }

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 
 :global {
@@ -39,7 +38,7 @@
   .commitEntry {
     height: 100%;
     padding: 8px 12px;
-    border-bottom: 1px solid @SECONDARY_200;
+    border-bottom: 1px solid var(--border--neutral);
 
     position: relative;
 
@@ -48,10 +47,10 @@
     &:not(.disabled) {
       &:hover,
       &:focus {
-        background-color: @aqua-spring;
+        background-color: var(--fill--primary--hover);
       }
       &.isSelected {
-        background-color: @PRIMARY_200;
+        background-color: var(--fill--primary--selected);
       }
     }
 
@@ -100,6 +99,7 @@
 
     .commitEntryHash {
       z-index: 1;
+      padding-top: 2px;
     }
 
     &-userInfo {

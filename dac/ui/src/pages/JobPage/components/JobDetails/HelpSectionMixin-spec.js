@@ -58,10 +58,22 @@ describe("HelpSectionMixin", () => {
       config.supportEmailTo = "";
     });
 
-    it("should return email and download if config.supportEmailTo is defined", () => {
+    it("should return email if config.supportEmailTo is defined", () => {
       config.supportEmailTo = "foo@bar.com";
-      const expectedTabs = ["email", "download"];
-      expect(instance.getButtons().keySeq().toJS()).to.be.eql(expectedTabs);
+      expect(instance.getButtons().keySeq().toJS()).to.be.eql(["email"]);
+    });
+
+    it("should not return email if config.supportEmailTo is undefined", () => {
+      expect(instance.getButtons().keySeq().toJS()).to.be.eql([]);
+    });
+
+    it("should return download if support keys are enabled", () => {
+      wrapper.setState({ profileDownloadEnabled: true });
+      expect(instance.getButtons().keySeq().toJS()).to.be.eql(["download"]);
+    });
+
+    it("should not return download if support keys are disabled", () => {
+      expect(instance.getButtons().keySeq().toJS()).to.be.eql([]);
     });
   });
 });

@@ -170,32 +170,6 @@ public class ConvertletTable extends ReflectiveConvertletTable {
     registerOp(DremioSqlOperatorTable.DAY, DatePartFunctionsConvertlet.DAY_INSTANCE);
     registerOp(DremioSqlOperatorTable.MONTH, DatePartFunctionsConvertlet.MONTH_INSTANCE);
     registerOp(DremioSqlOperatorTable.YEAR, DatePartFunctionsConvertlet.YEAR_INSTANCE);
-
-    // These convertlets support ARRAY Function coercion:
-    // This can't be made into a function convertlet, since the type changes.
-    registerOp(
-        DremioSqlOperatorTable.ARRAY_APPEND,
-        ArrayFunctionCoercionConvertlets.ArrayAndElement.INSTANCE);
-    registerOp(
-        DremioSqlOperatorTable.ARRAY_PREPEND,
-        ArrayFunctionCoercionConvertlets.ElementAndArray.INSTANCE);
-    registerOp(
-        DremioSqlOperatorTable.ARRAY_POSITION,
-        ArrayFunctionCoercionConvertlets.ElementAndArray.INSTANCE);
-    registerOp(
-        DremioSqlOperatorTable.ARRAY_CONTAINS,
-        ArrayFunctionCoercionConvertlets.ArrayAndElement.INSTANCE);
-    registerOp(
-        DremioSqlOperatorTable.ARRAY_REMOVE,
-        ArrayFunctionCoercionConvertlets.ArrayAndElement.INSTANCE);
-    registerOp(
-        DremioSqlOperatorTable.ARRAY_CONCAT,
-        ArrayFunctionCoercionConvertlets.ArrayAndArray.INSTANCE);
-    registerOp(
-        DremioSqlOperatorTable.SET_UNION, ArrayFunctionCoercionConvertlets.ArrayAndArray.INSTANCE);
-    registerOp(
-        DremioSqlOperatorTable.ARRAY_INTERSECTION,
-        ArrayFunctionCoercionConvertlets.ArrayAndArray.INSTANCE);
   }
 
   /*

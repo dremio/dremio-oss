@@ -26,7 +26,7 @@ export const Default = () => {
       {roundedScale.map((rounded) => (
         <div
           key={rounded}
-          className={`bg-brand-300 items-center m-4 p-5 rounded-${rounded} w-12 h-10`}
+          className={`bg-brand-200 items-center m-4 p-5 rounded-${rounded} w-12 h-10`}
           style={{ display: "inline-flex" }}
         >
           <code>.rounded-{rounded}</code>

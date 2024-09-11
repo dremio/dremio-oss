@@ -18,9 +18,8 @@ package com.dremio.exec.catalog;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.store.NessieReferenceException;
 import com.dremio.exec.store.NoDefaultBranchException;
-import com.dremio.exec.store.ReferenceConflictException;
+import com.dremio.exec.store.ReferenceNotFoundByTimestampException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.StoragePlugin;
@@ -48,11 +47,7 @@ public class VersionContextResolverImpl implements VersionContextResolver {
 
   @Override
   public ResolvedVersionContext resolveVersionContext(
-      String sourceName, VersionContext versionContext)
-      throws ReferenceNotFoundException,
-          NoDefaultBranchException,
-          ReferenceConflictException,
-          ReferenceTypeConflictException {
+      String sourceName, VersionContext versionContext) {
     try {
       ResolvedVersionContext resolvedVersionContext =
           sourceVersionMappingCache.get(new ImmutablePair<>(sourceName, versionContext));
@@ -66,9 +61,18 @@ public class VersionContextResolverImpl implements VersionContextResolver {
       if (e.getCause() instanceof NessieRuntimeException) {
         throw (NessieRuntimeException) e.getCause();
       }
-      throw new NessieReferenceException("Error while resolving version context ", e.getCause());
+      if ((e.getCause() instanceof NoDefaultBranchException)
+          || (e.getCause() instanceof ReferenceNotFoundException)
+          || (e.getCause() instanceof ReferenceNotFoundByTimestampException)) {
+        throw new VersionNotFoundInNessieException("Reference not found in Nessie", e.getCause());
+      }
+      if (e.getCause() instanceof ReferenceTypeConflictException) {
+        throw (ReferenceTypeConflictException) e.getCause();
+      }
+      throw (RuntimeException) e.getCause();
     } catch (Exception e) {
-      throw new IllegalStateException(e);
+      throw new IllegalStateException(
+          "Unable to resolve version: " + versionContext + "for: " + sourceName, e);
     }
   }
 

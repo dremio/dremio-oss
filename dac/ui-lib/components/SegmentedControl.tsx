@@ -22,7 +22,7 @@ import clsx from "clsx";
 //@ts-ignore
 import invariant from "invariant";
 import { Tooltip } from "./Tooltip/Tooltip";
-import { type Placement } from "@floating-ui/react-dom-interactions";
+import { type Placement } from "@floating-ui/react";
 
 type SegmentedControlProps<T extends string = string> = {
   children: JSX.Element[];

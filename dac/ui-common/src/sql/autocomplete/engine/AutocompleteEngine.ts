@@ -34,7 +34,10 @@ import {
   ContainerFetcher,
 } from "../apiClient/containerFetcher";
 import { IColumnFetcher, ColumnFetcher } from "../apiClient/columnFetcher";
-import { createMonacoCompletions } from "./createMonacoCompletions";
+import {
+  type CompletionItem,
+  createMonacoCompletions,
+} from "./createMonacoCompletions";
 import { timedAsync } from "../../../utilities/timed";
 import { LiveEditParsingEngine } from "../../parser/engine/LiveEditParsingEngine";
 
@@ -60,7 +63,7 @@ export class AutocompleteEngine {
     linesContent: string[],
     queryPosition: CursorQueryPosition,
     queryContext: string[],
-  ): Promise<monaco.languages.CompletionItem[]> {
+  ): Promise<CompletionItem[]> {
     const { tokenStream, lexer, parseTree, parser, errors } =
       this.liveEditParsingEngine.run(linesContent);
 

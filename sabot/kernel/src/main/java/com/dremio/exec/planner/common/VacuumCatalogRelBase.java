@@ -36,6 +36,8 @@ public class VacuumCatalogRelBase extends AbstractRelNode {
   private final StoragePluginId storagePluginId;
   private final String user;
   private final String sourceName;
+  private final String fsScheme;
+  private final String schemeVariate;
 
   protected VacuumCatalogRelBase(
       Convention convention,
@@ -45,7 +47,9 @@ public class VacuumCatalogRelBase extends AbstractRelNode {
       String user,
       String sourceName,
       IcebergCostEstimates costEstimates,
-      VacuumOptions vacuumOptions) {
+      VacuumOptions vacuumOptions,
+      String fsScheme,
+      String schemeVariate) {
     super(cluster, traitSet);
     assert getConvention() == convention;
     this.storagePluginId = storagePluginId;
@@ -53,6 +57,8 @@ public class VacuumCatalogRelBase extends AbstractRelNode {
     this.sourceName = sourceName;
     this.vacuumOptions = vacuumOptions;
     this.costEstimates = costEstimates;
+    this.fsScheme = fsScheme;
+    this.schemeVariate = schemeVariate;
   }
 
   @Override
@@ -90,5 +96,13 @@ public class VacuumCatalogRelBase extends AbstractRelNode {
 
   public IcebergCostEstimates getCostEstimates() {
     return this.costEstimates;
+  }
+
+  public String getSchemeVariate() {
+    return schemeVariate;
+  }
+
+  public String getFsScheme() {
+    return fsScheme;
   }
 }

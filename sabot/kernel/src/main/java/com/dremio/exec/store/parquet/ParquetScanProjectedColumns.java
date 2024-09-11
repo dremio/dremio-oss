@@ -17,14 +17,17 @@ package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.ExecConstants.ENABLE_DELTALAKE_COLUMN_MAPPING;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_FALLBACK_NAME_BASED_READ;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SCHEMA_NAME_MAPPING_DEFAULT;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_USE_BATCH_SCHEMA_FOR_RESOLVING_COLUMN;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergSchemaField;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.iceberg.parquet.ParquetMessageTypeIDExtractor;
 import org.apache.parquet.schema.MessageType;
@@ -36,6 +39,7 @@ import org.apache.parquet.schema.MessageType;
 public final class ParquetScanProjectedColumns {
   private final List<SchemaPath> projectedColumns;
   private final List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs;
+  protected List<DefaultNameMapping> icebergDefaultNameMapping;
   private final boolean isConvertedIcebergDataset;
   private final boolean fallBackOnNameBasedRead;
   private final BatchSchema batchSchema;
@@ -45,6 +49,7 @@ public final class ParquetScanProjectedColumns {
   private ParquetScanProjectedColumns(
       List<SchemaPath> projectedColumns,
       List<IcebergSchemaField> icebergColumnIDs,
+      List<DefaultNameMapping> icebergDefaultNameMapping,
       boolean isConvertedIcebergDataset,
       boolean fallBackOnNameBasedRead,
       boolean shouldUseBatchSchemaForResolvingProjectedColumn,
@@ -52,6 +57,7 @@ public final class ParquetScanProjectedColumns {
       BatchSchema batchSchema) {
     this.projectedColumns = projectedColumns;
     this.icebergColumnIDs = icebergColumnIDs;
+    this.icebergDefaultNameMapping = icebergDefaultNameMapping;
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
     this.fallBackOnNameBasedRead = fallBackOnNameBasedRead;
     this.batchSchema = batchSchema;
@@ -82,8 +88,10 @@ public final class ParquetScanProjectedColumns {
       //   but user doesn't want to use name based reader, then use id based reader
       if (parquetHasIds || !fallBackOnNameBasedRead) {
         return new ParquetColumnIcebergResolver(
+            parquetSchema,
             projectedColumns,
             icebergColumnIDs,
+            icebergDefaultNameMapping,
             idExtractor.getAliases(),
             shouldUseBatchSchemaForResolvingProjectedColumn,
             batchSchema);
@@ -95,7 +103,7 @@ public final class ParquetScanProjectedColumns {
   }
 
   private ParquetScanProjectedColumns(List<SchemaPath> projectedColumns) {
-    this(projectedColumns, null, true, true, false, false, null);
+    this(projectedColumns, null, null, true, true, false, false, null);
   }
 
   public List<SchemaPath> getBatchSchemaProjectedColumns() {
@@ -109,12 +117,15 @@ public final class ParquetScanProjectedColumns {
   public static ParquetScanProjectedColumns fromSchemaPathAndIcebergSchema(
       List<SchemaPath> projectedColumns,
       List<IcebergSchemaField> icebergColumnIDs,
+      List<DefaultNameMapping> icebergDefaultNameMapping,
       boolean isConvertedIcebergDataset,
       OperatorContext context,
       BatchSchema batchSchema) {
     Preconditions.checkArgument(context != null, "Unexpected state");
     boolean fallBackOnNameBasedRead =
         context.getOptions().getOption(ENABLE_ICEBERG_FALLBACK_NAME_BASED_READ);
+    boolean shouldUseIcebergDefaultNameMapping =
+        context.getOptions().getOption(ENABLE_ICEBERG_SCHEMA_NAME_MAPPING_DEFAULT);
     boolean shouldUseBatchSchemaForResolvingProjectedColumn =
         context.getOptions().getOption(ENABLE_ICEBERG_USE_BATCH_SCHEMA_FOR_RESOLVING_COLUMN);
     boolean deltaColumnMappingEnabled =
@@ -122,6 +133,7 @@ public final class ParquetScanProjectedColumns {
     return new ParquetScanProjectedColumns(
         projectedColumns,
         icebergColumnIDs,
+        shouldUseIcebergDefaultNameMapping ? icebergDefaultNameMapping : ImmutableList.of(),
         isConvertedIcebergDataset,
         fallBackOnNameBasedRead,
         shouldUseBatchSchemaForResolvingProjectedColumn,
@@ -134,6 +146,7 @@ public final class ParquetScanProjectedColumns {
     return new ParquetScanProjectedColumns(
         projectedColumns,
         this.icebergColumnIDs,
+        this.icebergDefaultNameMapping,
         isConvertedIcebergDataset,
         this.fallBackOnNameBasedRead,
         false,

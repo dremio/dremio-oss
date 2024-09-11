@@ -20,65 +20,34 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.*;
 import static com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup.getNessieClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.BaseTestQuery;
+import com.dremio.BaseTestQueryJunit5;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.catalog.model.dataset.TableVersionType;
-import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.namespace.NamespaceKey;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.stream.Collectors;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
+import javax.annotation.Nullable;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.iceberg.io.FileIO;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInfo;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergView;
 
 /** Dataplane test common helper class */
-public class DataplaneTestHelper extends BaseTestQuery {
-
-  // Allocators for reading query results, compare to ExecTest (but it's still on JUnit4)
-  private BufferAllocator rootAllocator;
-
-  /** Resets the properties and context set for a test session */
-  @BeforeEach
-  public void resetTestClient() throws Exception {
-    updateClient((Properties) null);
-  }
-
-  @BeforeEach
-  public void setUpAllocators(TestInfo testInfo) {
-    // Same as initAllocators() (stuck on Junit4), but needs to get test name from injected TestInfo
-    rootAllocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
-    allocator =
-        rootAllocator.newChildAllocator(testInfo.getDisplayName(), 0, rootAllocator.getLimit());
-  }
-
-  @AfterEach
-  public void tearDownAllocators() {
-    AutoCloseables.closeNoChecked(allocator);
-    AutoCloseables.closeNoChecked(rootAllocator);
-  }
+public class DataplaneTestHelper extends BaseTestQueryJunit5 {
 
   public void assertTableHasExpectedNumRows(List<String> tablePath, long expectedNumRows)
       throws Exception {
@@ -145,7 +114,7 @@ public class DataplaneTestHelper extends BaseTestQuery {
 
   private List<List<String>> getResultsFromBatches(List<QueryDataBatch> batches) {
     List<List<String>> output = new ArrayList<>();
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
     int last = 0;
     for (QueryDataBatch batch : batches) {
       int rows = batch.getHeader().getRowCount();
@@ -187,18 +156,12 @@ public class DataplaneTestHelper extends BaseTestQuery {
     return null;
   }
 
-  public String getContentId(
+  public @Nullable String getContentId(
       List<String> tableKey,
       TableVersionContext tableVersionContext,
       ITDataplanePluginTestSetup base) {
-    VersionedDatasetId versionedDatasetId = null;
-    try {
-      versionedDatasetId =
-          VersionedDatasetId.fromString(
-              getVersionedDatatsetId(tableKey, tableVersionContext, base));
-    } catch (JsonProcessingException e) {
-      return null;
-    }
+    String datatsetId = getVersionedDatatsetId(tableKey, tableVersionContext, base);
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datatsetId);
     return (versionedDatasetId == null ? null : versionedDatasetId.getContentId());
   }
 
@@ -233,9 +196,8 @@ public class DataplaneTestHelper extends BaseTestQuery {
       TableVersionContext tableVersionContext,
       ITDataplanePluginTestSetup base) {
     Preconditions.checkState(
-        (tableVersionContext.getType() == TableVersionType.TIMESTAMP
-            || tableVersionContext.getType() == TableVersionType.SNAPSHOT_ID),
-        "tableVersionContext needs to be of type TIME_TRAVEL or SNAPSHOT_ID");
+        tableVersionContext.isTimeTravelType(),
+        "tableVersionContext needs to be a timetravel type");
     // Get a fresh instance of the Catalog and clear cache( i.e source, version mapping)
     Catalog contextualizedCatalog = null;
     contextualizedCatalog =
@@ -299,18 +261,12 @@ public class DataplaneTestHelper extends BaseTestQuery {
         dataplanePlugin.getSystemUserFS(), null, null, null, null);
   }
 
-  public String getContentIdForTableAtRef(
+  public @Nullable String getContentIdForTableAtRef(
       List<String> tableKey,
       TableVersionContext tableVersionContext,
       ITDataplanePluginTestSetup base) {
-    VersionedDatasetId versionedDatasetId = null;
-    try {
-      versionedDatasetId =
-          VersionedDatasetId.fromString(
-              getVersionedDatasetIdForTableAtRef(tableKey, tableVersionContext, base));
-    } catch (JsonProcessingException e) {
-      return null;
-    }
+    String datasetId = getVersionedDatasetIdForTableAtRef(tableKey, tableVersionContext, base);
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datasetId);
     return (versionedDatasetId == null ? null : versionedDatasetId.getContentId());
   }
 

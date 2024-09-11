@@ -22,18 +22,13 @@ import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import RealTimeTimer from "@app/components/RealTimeTimer";
 import SampleDataMessage from "@app/pages/ExplorePage/components/SampleDataMessage";
 import jobsUtils from "@app/utils/jobsUtils";
-import {
-  getExploreState,
-  getImmutableTable,
-  getJobProgress,
-  getRunStatus,
-} from "@app/selectors/explore";
+import { getExploreState, getImmutableTable } from "@app/selectors/explore";
 import { getAllJobDetails, getJobSummaries } from "@app/selectors/exploreJobs";
 import { intl } from "@app/utils/intl";
-// @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { JobDetails } from "@app/exports/types/JobDetails.type";
 import { JobSummary } from "@app/exports/types/JobSummary.type";
 
 import "./ExploreTableJobStatus.less";
@@ -100,36 +95,29 @@ const jobStatusNames = {
 
 type ExploreTableJobStatusProps = {
   approximate: boolean;
-  jobSummary: JobSummary | undefined;
   version: string;
 
   //connected
-  jobProgress: any;
-  jobId: string;
   haveRows: boolean;
   jobAttempts: number;
-  runStatus: string;
+  jobId: string;
+  jobSummary: JobSummary | undefined;
+  runStatus: JobDetails["queryType"] | undefined;
 };
 
 const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
-  const {
-    jobSummary,
-    jobProgress,
-    jobId,
-    jobAttempts,
-    approximate,
-    haveRows,
-    runStatus,
-  } = props;
+  const { jobSummary, jobId, jobAttempts, approximate, haveRows, runStatus } =
+    props;
 
   const projectId = getSonarContext()?.getSelectedProjectId?.();
-  const isComplete = jobProgress?.status === JOB_STATUS.completed;
-  const jobType = runStatus
-    ? formatMessage({ id: "Explore.Run" })
-    : formatMessage({ id: "Explore.Preview" });
+  const isComplete = jobSummary?.isComplete;
+  const jobType =
+    runStatus === "UI_RUN"
+      ? formatMessage({ id: "Explore.Run" })
+      : formatMessage({ id: "Explore.Preview" });
 
   const showResultsWarning = useMemo(() => {
-    return isComplete && jobSummary?.outputLimited;
+    return isComplete && jobSummary.outputLimited;
   }, [isComplete, jobSummary?.outputLimited]);
 
   const jobStatus = {
@@ -137,27 +125,26 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
       id: `Explore.${isComplete ? "Rows" : "Status"}`,
     }),
     value: isComplete
-      ? !jobSummary?.outputRecords
+      ? !jobSummary.outputRecords
         ? "-"
         : showResultsWarning
           ? jobSummary.outputRecords > 100000
             ? ">100K"
             : "<100K"
           : jobSummary.outputRecords.toLocaleString()
-      : jobStatusNames[jobProgress?.status],
+      : jobStatusNames[jobSummary?.state ?? JOB_STATUS.notSubmitted],
   };
 
   const renderTime = () => {
-    if (!jobProgress) return null;
     // if not complete - show timer, else format end-start
-    if (isWorking(jobProgress.status)) {
+    if (!jobSummary?.isComplete) {
       return (
         <RealTimeTimer
-          startTime={jobProgress.startTime}
+          startTime={jobSummary?.startTime}
           formatter={jobsUtils.formatJobDuration}
         />
       );
-    } else if (jobSummary?.startTime && jobSummary.endTime) {
+    } else if (jobSummary.startTime && jobSummary.endTime) {
       return jobsUtils.formatJobDuration(
         jobSummary.endTime - jobSummary.startTime,
       );
@@ -166,7 +153,7 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
     }
   };
 
-  if (jobProgress === null) {
+  if (!jobSummary) {
     if (approximate && haveRows) {
       return <SampleDataMessage />;
     } else return null;
@@ -249,18 +236,16 @@ function mapStateToProps(
   const queryStatuses = explorePageState.view.queryStatuses;
   const queryTabNumber = explorePageState.view.queryTabNumber;
   const jobId = queryStatuses[queryTabNumber - 1]?.jobId;
-  const jobProgress = getJobProgress(state, version);
 
   const jobDetails = getAllJobDetails(state)[jobId];
   const jobAttempts = jobDetails?.attemptDetails.length || 1;
+  const runStatus = jobDetails?.queryType;
 
   const jobSummary = getJobSummaries(state)[jobId];
 
-  const runStatus = getRunStatus(state).isRun;
-
   let haveRows = false;
-  // get preview tableData for preview w/o jobProgress
-  if (!jobProgress && approximate) {
+  // get preview tableData for preview w/o jobSummary
+  if (!jobSummary && approximate) {
     const tableData = getImmutableTable(state, version);
     const rows = tableData.get("rows");
     haveRows = rows && !!rows.size;
@@ -270,7 +255,6 @@ function mapStateToProps(
     haveRows,
     jobAttempts,
     jobId,
-    jobProgress,
     jobSummary,
     runStatus,
   };

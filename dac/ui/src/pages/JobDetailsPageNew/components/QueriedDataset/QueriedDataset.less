@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
+
 @font-size: 16px;
 @line-height: 20px;
 @font-weight: 600;
@@ -22,7 +22,7 @@
     &-title {
       padding-top: 24px;
       padding-bottom: 5px;
-      color: @font-color1;
+      color: var(--text--primary);
       font-size: @font-size;
       font-weight: @font-weight;
       line-height: @line-height;
@@ -48,11 +48,11 @@
           font-size: 14px;
           font-weight: @font-weight;
           line-height: 20px;
-          color: @font-color1;
+          color: var(--text--primary);
           margin: 0px;
         }
         &__datasetPath {
-          color: @grey;
+          color: var(--text--faded);
           font-size: 12px;
           line-height: 16px;
         }
@@ -60,7 +60,7 @@
           margin: 0px;
           font-size: 12px;
           line-height: 16px;
-          color: @font-color1;
+          color: var(--text--primary);
         }
       }
       &__label {
@@ -76,20 +76,21 @@
       display: flex;
       align-items: center;
       cursor: pointer;
+      width: fit-content;
       &__showmoreContent {
         font-family: var(--dremio--font-family);
         font-style: normal;
         font-weight: normal;
         font-size: 12px;
         line-height: 18px;
-        color: var(--dremio--color--text--faded);
+        color: var(--icon--primary);
         margin: 0px var(--dremio--spacing--1);
         padding-left: var(--dremio--spacing--05);
       }
       &__showmoreIcon {
         width: 20px;
         height: 20px;
-        color: var(--dremio--color--icon--main);
+        color: var(--icon--primary);
       }
     }
   }

@@ -86,7 +86,7 @@ export const TopPanel = (props: WithRouterProps & TopPanelProps) => {
 
     const queriedDataset = jobDetails.get("queriedDatasets").get(0);
     const isPhysicalType = PHYSICAL_DATASET_TYPES.has(
-      queriedDataset.get("datasetType")
+      queriedDataset.get("datasetType"),
     );
     const isUnsavedPath =
       sqlPaths.unsavedDatasetPathUrl.link({
@@ -128,20 +128,19 @@ export const TopPanel = (props: WithRouterProps & TopPanelProps) => {
     <div className="topPanel">
       <div className="topPanel__navigationWrapper">
         <div className="topPanel__jobDetails">
-          <div
-            className="topPanel__jobs-logo"
+          <a
+            className="topPanel__jobs-logo text-lg"
             data-qa="jobs-logo"
             onClick={changePages}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.code === "Enter" || e.code === "Space") {
+                changePages(e);
+              }
+            }}
           >
-            <dremio-icon
-              name="interface/jobs-arrow-right"
-              alt="Jobs"
-              class={classNames(
-                "topPanel__icons",
-                "topPanel__jobDetails__jobsIcon"
-              )}
-            />
-          </div>
+            Jobs »
+          </a>
           <div className="gutter-top--half">
             <JobStateIcon state={jobStatus} />
           </div>

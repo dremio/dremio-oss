@@ -203,7 +203,7 @@ public class Writers {
       Timestamp o;
       if (field.getType() == DateTime.class) {
         DateTime dateTime = (DateTime) field.get(pojo);
-        o = new Timestamp(dateTime.toDate().getTime());
+        o = dateTime == null ? null : new Timestamp(dateTime.toDate().getTime());
       } else {
         o = (Timestamp) field.get(pojo);
       }

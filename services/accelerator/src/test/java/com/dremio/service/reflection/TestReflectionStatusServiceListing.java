@@ -56,6 +56,7 @@ import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.Before;
 import org.junit.Test;
@@ -113,11 +114,11 @@ public class TestReflectionStatusServiceListing {
     entry.setState(ReflectionState.ACTIVE).setId(reflectionId);
     when(entriesStore.get(reflectionId)).thenReturn(entry);
 
-    when(namespaceService.findDatasetByUUID(datasetId)).thenReturn(dataset);
+    when(namespaceService.getDatasetById(new EntityId(datasetId))).thenReturn(Optional.of(dataset));
 
     statusService =
         new ReflectionStatusServiceImpl(
-            sabotContext::getExecutors,
+            () -> sabotContext.getClusterCoordinator(),
             DirectProvider.<MaterializationCache.CacheViewer>wrap(
                 new TestReflectionStatusService.ConstantCacheViewer(true)),
             goalsStore,
@@ -127,7 +128,8 @@ public class TestReflectionStatusServiceListing {
             validator,
             DirectProvider.wrap(catalogService),
             DirectProvider.wrap(jobsService),
-            DirectProvider.wrap(optionManager));
+            DirectProvider.wrap(optionManager),
+            ReflectionUtils::new);
   }
 
   /** Verify that we can list reflections for the sys.reflections table */

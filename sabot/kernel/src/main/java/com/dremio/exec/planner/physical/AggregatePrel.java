@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.PHASE2_ARRAY_AGG;
-
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.expr.fn.ItemsSketch.ItemsSketchFunctions;
 import com.dremio.exec.expr.fn.tdigest.TDigest;
@@ -254,23 +252,6 @@ public abstract class AggregatePrel extends AggregateRelBase implements Prel {
                       getCluster().getTypeFactory(), ImmutableList.of(aggCall.e.getType())),
                   aggCall.e.getName());
           phase2AggCallList.add(Pair.of(newAggCall, delimiter));
-        } else if (aggCall
-            .e
-            .getAggregation()
-            .getName()
-            .equals(DremioSqlOperatorTable.ARRAY_AGG.getName())) {
-          AggregateCall newAggCall =
-              AggregateCall.create(
-                  PHASE2_ARRAY_AGG,
-                  aggCall.e.isDistinct(),
-                  aggCall.e.isApproximate(),
-                  Collections.singletonList(aggExprOrdinal),
-                  -1,
-                  RelCollations.EMPTY,
-                  aggCall.e.getType(),
-                  aggCall.e.getName());
-
-          phase2AggCallList.add(Pair.of(newAggCall, null));
         } else {
           AggregateCall newAggCall =
               AggregateCall.create(

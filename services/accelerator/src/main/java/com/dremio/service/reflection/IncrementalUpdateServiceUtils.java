@@ -37,8 +37,10 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.sql.SqlOperator;
 
 /** Contains various utilities for acceleration incremental updates */
 public class IncrementalUpdateServiceUtils {
@@ -108,14 +110,17 @@ public class IncrementalUpdateServiceUtils {
       ReflectionService service,
       OptionManager optionManager,
       final SabotConfig sabotConfig,
-      boolean nonIncrementalRefreshFunctionEventReceived) {
+      List<SqlOperator> nonIncrementalRefreshFunctions) {
 
     final Pointer<String> fullRefreshReason = new Pointer<>();
     final boolean incremental;
-    if (nonIncrementalRefreshFunctionEventReceived) {
+    if (!nonIncrementalRefreshFunctions.isEmpty()) {
       incremental = false;
       fullRefreshReason.value =
-          "Cannot do incremental update because the reflection has dynamic function operators.";
+          "Cannot do incremental update because the reflection has dynamic function(s): "
+              + nonIncrementalRefreshFunctions.stream()
+                  .map(SqlOperator::getName)
+                  .collect(Collectors.joining(", "));
     } else {
       incremental =
           getIncremental(

@@ -140,8 +140,21 @@ fi
 #
 DREMIO_JAVA_OPTS="-Djava.util.logging.config.class=org.slf4j.bridge.SLF4JBridgeHandler"
 
+# Detect current architecture
+DEFAULT_ARCH="x86_64"
+
+if [ "`uname -s`" == "Darwin" ]; then
+  # native OSX support is known to be missing yet for all archs
+  ARCH=DEFAULT_ARCH
+else
+  case "`uname -m`" in
+    "aarch64") ARCH="aarch64";;
+    "x86_64") ARCH="x86_64";;
+    *) echo "Unsupported architecture detected. Defaulting to ${DEFAULT_ARCH}"; ARCH=$DEFAULT_ARCH;;
+  esac
+fi
 # Set the default path for native hadoop lib
-DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Djava.library.path=${DREMIO_HOME}/lib"
+DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Djava.library.path=${DREMIO_HOME}/lib/${ARCH}"
 
 # Test for cygwin
 is_cygwin=false
@@ -166,7 +179,7 @@ if [ -z "$JAVA_HOME" ]; then
 +======================================================================+
 |      Error: JAVA_HOME is not set and Java could not be found         |
 +----------------------------------------------------------------------+
-| Dremio requires Java 8 or Java 11.                                   |
+| Dremio requires Java 11, 17 or Java 21.                              |
 +======================================================================+
 EOF
     exit 1
@@ -195,7 +208,8 @@ if [ ! -x "$JAVA" ]; then
   echo "Java not found or Java binary not executable at JAVA_HOME=$JAVA_HOME/JAVA=$JAVA."
   exit 1
 fi
-# Ensure that Java version is at least 1.8
+
+# Ensure that Java version is at least 11
 JAVA_VERSION_STRING=`"$JAVA" -version 2>&1 | sed -n -E 's/(java|openjdk) version "([0-9\\._]+)".*/\2/p'`
 JAVA_MAJOR_VERSION=
 if `echo $JAVA_VERSION_STRING | egrep -q -e "^1\.[0-9]{1,}\."`; then
@@ -207,15 +221,24 @@ else
     exit 1
 fi
 
-if [ "$DREMIO_JAVA_VERSION_CHECK" == "false" ]; then
-  if [ $JAVA_MAJOR_VERSION -lt 8 ]; then
-    echo "Java 8 or Java 11 is required to run Dremio."
-    exit 1
-  fi
-elif [ $JAVA_MAJOR_VERSION -ne 8 ] && [ $JAVA_MAJOR_VERSION -ne 11 ]; then
-  echo "Java 8 or Java 11 is required to run Dremio. Java $JAVA_MAJOR_VERSION is being used."
+if [ $JAVA_MAJOR_VERSION -lt 11 ]; then
+  echo "Java 11 or higher is required to run Dremio."
   exit 1
 fi
+
+# Check for supported Java versions
+case $JAVA_MAJOR_VERSION in
+  11 | 17 | 21)
+    # Current supported versions
+    ;;
+
+  *)
+    if [ "$DREMIO_JAVA_VERSION_CHECK" != "false" ]; then
+      echo "Java 11, 17 or 21 is required to run Dremio. Java $JAVA_MAJOR_VERSION is being used."
+      exit 1
+    fi;
+    ;;
+esac
 
 # Adjust paths for CYGWIN
 if $is_cygwin; then
@@ -237,6 +260,16 @@ then
     echo "Dremio requires at least 4 GB memory to run. ${DREMIO_MAX_MEMORY_SIZE_MB} MB is too low."
     exit 1
   fi
+  # Defaults for nodes with at least 64GB of memory
+  if [ $DREMIO_MAX_MEMORY_SIZE_MB -ge 64000 ]
+  then
+    DREMIO_MAX_RESERVE_MEMORY=6000
+  else
+    # Defaults for nodes with less than 64GB of memory
+    DREMIO_MAX_RESERVE_MEMORY=$((DREMIO_MAX_MEMORY_SIZE_MB * 5 / 100))
+  fi
+  # Set aside memory for Gandiva cache and JVM metaspace
+  DREMIO_MAX_MEMORY_SIZE_MB=$((DREMIO_MAX_MEMORY_SIZE_MB - DREMIO_MAX_RESERVE_MEMORY))
   ROLES=`$JAVA -cp "$DREMIO_CLASSPATH" $DREMIO_JAVA_EXTRA_OPTS -Ddremio.log.path=${DREMIO_LOG_DIR} com.dremio.dac.daemon.GetRolesCommand`
   if ( echo $ROLES | grep -q "executor" ); then
     DEFAULT_MAX_HEAP_MEMORY_EXECUTOR_MB=2048
@@ -350,9 +383,13 @@ case $startStopStatus in
   ;;
 esac
 
-if [ "$JAVA_MAJOR_VERSION" -ge 9 ]; then
-  DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED"
-fi
+# Required directives for reflective access
+DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS \
+  --add-opens java.base/java.lang=ALL-UNNAMED \
+  --add-opens java.base/java.nio=ALL-UNNAMED \
+  --add-opens java.base/java.util=ALL-UNNAMED \
+  --add-opens java.base/java.net=ALL-UNNAMED \
+  --add-opens java.base/sun.nio.ch=ALL-UNNAMED"
 
 # Force -XX:UseAVX=2 on Intel Skylake and Cascade Lake CPUs to improve
 # performance.  See https://bugs.openjdk.org/browse/JDK-8286823.
@@ -378,8 +415,7 @@ fi
 CPU_VENDOR=$((grep vendor_id /proc/cpuinfo 2>/dev/null || echo '- - None') | sort -u | awk '{print $3}')
 IS_CPU_FAMILY_6=$(grep -Eq '^cpu family\s*: 6$' /proc/cpuinfo 2>/dev/null && echo true || echo false)
 IS_CPU_SKYLAKE_OR_CASCADELAKE=$(grep -Eq '^model\s*: 85$' /proc/cpuinfo 2>/dev/null && echo true || echo false)
-if [ "$JAVA_MAJOR_VERSION" -ge 11 ] && \
-   [ "$CPU_VENDOR" = "GenuineIntel" ] && \
+if [ "$CPU_VENDOR" = "GenuineIntel" ] && \
    [ "$IS_CPU_FAMILY_6" = "true" ] && \
    [ "$IS_CPU_SKYLAKE_OR_CASCADELAKE" = "true" ]
 then

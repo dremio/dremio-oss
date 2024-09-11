@@ -23,7 +23,7 @@ import javax.validation.constraints.Pattern;
 /** name of a folder in space */
 public class FolderName extends LeafEntity {
   @Pattern(
-      regexp = "^[^.\"\\/]+$",
+      regexp = "^[^.\"/]+$",
       message = "Folder name cannot contain periods, forward slashes or double quotes.")
   private String name;
 

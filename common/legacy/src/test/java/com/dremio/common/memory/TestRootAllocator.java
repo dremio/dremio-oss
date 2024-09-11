@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.UserExceptionAssert;
@@ -51,7 +52,10 @@ public class TestRootAllocator {
       return alloc.buffer(requestSize);
     } catch (OutOfMemoryException e) {
       throw UserException.memoryError(e)
-          .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(e, alloc))
+          .setAdditionalExceptionContext(
+              new OutOfMemoryOrResourceExceptionContext(
+                  OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY,
+                  MemoryDebugInfo.getDetailsOnAllocationFailure(e, alloc)))
           .build(logger);
     }
   }
@@ -66,7 +70,7 @@ public class TestRootAllocator {
                 allocateHelper(child1, 8 * 1024);
               }
             })
-        .hasContext("Allocator(child1)")
+        .hasOOMExceptionContext("Allocator(child1)")
         .hasErrorType(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY)
         .hasMessageContaining(
             "Query was cancelled because it exceeded the memory limits set by the administrator.");
@@ -140,7 +144,7 @@ public class TestRootAllocator {
                 allocateHelper(child2, 16 * 1024);
               }
             })
-        .hasContexts("Allocator(ROOT)", "Allocator(child1)", "Allocator(child2)")
+        .hasOOMExceptionContext("Allocator(ROOT)", "Allocator(child1)", "Allocator(child2)")
         .hasErrorType(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY)
         .hasMessageContaining(
             "Query was cancelled because it exceeded the memory limits set by the administrator.");
@@ -161,7 +165,7 @@ public class TestRootAllocator {
                 }
               }
             })
-        .hasContexts("Allocator(ROOT)", "Allocator(child1)", "Allocator(child2)")
+        .hasOOMExceptionContext("Allocator(ROOT)", "Allocator(child1)", "Allocator(child2)")
         .hasErrorType(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY)
         .hasMessageContaining(
             "Query was cancelled because it exceeded the memory limits set by the administrator.");

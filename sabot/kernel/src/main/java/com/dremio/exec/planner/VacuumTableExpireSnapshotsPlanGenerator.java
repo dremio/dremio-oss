@@ -117,6 +117,9 @@ public class VacuumTableExpireSnapshotsPlanGenerator extends VacuumPlanGenerator
    * IcebergManifestScanTF               IcebergManifestScanTF
    *            │                                     │
    *            │                                     │
+   * ManifestFileDuplicateRemoveTF       ManifestFileDuplicateRemoveTF
+   *            │                                     │
+   *            │                                     │
    * IcebergManifestListScanTF           IcebergManifestListScanTF
    *            │                                     │
    *            │                                     │

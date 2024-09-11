@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/variables.less";
 
 @directions: left, right, top, bottom;
@@ -78,7 +77,7 @@
       &-@{padding-key} {
       padding: @padding-val !important
       }
-  
+
       each(@directions, .(@direction-val) {
       &-@{direction-val}-@{padding-key} {
         padding-@{direction-val}: @padding-val !important

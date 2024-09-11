@@ -70,14 +70,14 @@ describe("MainInfoItemName", () => {
     expect(wrapper.find("Link").props().to).to.eql("/href");
   });
 
-  it("should render color only for queryable folder", () => {
+  it("should render color only for all clickable items", () => {
     const wrapper1 = shallow(<MainInfoItemName {...queryableFolderProps} />, {
       context,
     });
     const wrapper2 = shallow(<MainInfoItemName {...commonProps} />, {
       context,
     });
-    expect(wrapper1.find("Link").props().style.color).to.eql("#333");
+    expect(wrapper1.find("Link").props().style.color).to.eql(undefined);
     expect(wrapper2.find("Link").props().style.color).to.eql(undefined);
   });
 
@@ -104,11 +104,13 @@ describe("MainInfoItemName", () => {
     expect(wrapper.find("EllipsedText").props().text).to.eql("foo");
   });
 
-  it("should render FontIcon type depending on fileType", () => {
+  it("should render dremio-icon type depending on fileType", () => {
     const wrapper = shallow(
       <MainInfoItemName item={commonProps.item.set("fileType", "dataset")} />,
-      { context }
+      { context },
     );
-    expect(wrapper.find("FontIcon").props().type).to.eql("VirtualDataset");
+    expect(wrapper.find("dremio-icon").props().name).to.eql(
+      "entities/dataset-view",
+    );
   });
 });

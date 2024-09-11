@@ -27,12 +27,17 @@ import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.plugins.dataplane.store.NessiePluginConfig;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.hadoop.HadoopFileIO;
+import org.apache.iceberg.io.FileIO;
 
 public class AzureDataplaneStorage implements DataplaneStorage {
 
@@ -95,10 +100,11 @@ public class AzureDataplaneStorage implements DataplaneStorage {
   }
 
   @Override
-  public void putObject(BucketSelection bucketSelection, String objectPath, File file) {
+  public void putObject(String objectPath, File file) {
+    // TODO: Derive container name from the path
     azureClient
-        .getBlobContainerClient(getBucketName(bucketSelection))
-        .getBlobClient(objectPath)
+        .getBlobContainerClient(getBucketName(BucketSelection.PRIMARY_BUCKET))
+        .getBlobClient(stripPrefix(BucketSelection.PRIMARY_BUCKET, objectPath))
         .uploadFromFile(file.getPath());
   }
 
@@ -145,7 +151,37 @@ public class AzureDataplaneStorage implements DataplaneStorage {
     return nessiePluginConfig;
   }
 
+  @Override
+  public FileIO getFileIO() {
+    Configuration conf = new Configuration();
+    Map<String, String> props =
+        ImmutableMap.of(
+            "fs.azure.account.key." + withBlobStoreSuffix(AZURE_STORAGE_DATAPLANE_ACCOUNT_NAME),
+            AZURE_STORAGE_DATAPLANE_ACCOUNT_KEY,
+            "fs.azure.account.keyprovider."
+                + withBlobStoreSuffix(AZURE_STORAGE_DATAPLANE_ACCOUNT_NAME),
+            "org.apache.hadoop.fs.azure.SimpleKeyProvider");
+    props.forEach(conf::set);
+    HadoopFileIO hadoopFileIO = new HadoopFileIO(conf);
+    hadoopFileIO.initialize(props);
+    return hadoopFileIO;
+  }
+
+  private String withBlobStoreSuffix(String account) {
+    return String.format("%s.blob.core.windows.net", account);
+  }
+
+  @Override
+  public String getWarehousePath() {
+    return String.format(
+        "wasbs://%s@%s/test_tables/",
+        primaryBucketName, withBlobStoreSuffix(AZURE_STORAGE_DATAPLANE_ACCOUNT_NAME));
+  }
+
   private String stripPrefix(BucketSelection bucketSelection, String objectPath) {
+    if (!objectPath.startsWith("wasbs://")) {
+      return objectPath;
+    }
     final String objectPathWithoutScheme = StringUtils.removeStart(objectPath, "wasbs://");
     final String objectPathWithoutSchemeOrBucket =
         StringUtils.removeStart(objectPathWithoutScheme, getBucketName(bucketSelection));

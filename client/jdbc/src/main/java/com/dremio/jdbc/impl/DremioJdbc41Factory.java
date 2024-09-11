@@ -16,25 +16,40 @@
 
 package com.dremio.jdbc.impl;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.client.ServerMethod;
+import com.dremio.exec.proto.UserProtos.BigDecimalMsg;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
+import com.dremio.exec.proto.UserProtos.PreparedStatementParameterValue;
 import com.dremio.exec.proto.UserProtos.RequestStatus;
+import com.dremio.exec.proto.UserProtos.ResultColumnMetadata;
+import com.dremio.exec.proto.UserProtos.TimeStamp;
 import com.dremio.exec.rpc.RpcFuture;
+import com.google.protobuf.ByteString;
 import java.io.InputStream;
 import java.io.Reader;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.JDBCType;
 import java.sql.NClob;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
 import java.sql.SQLXML;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.TimeZone;
 import org.apache.calcite.avatica.AvaticaConnection;
+import org.apache.calcite.avatica.AvaticaParameter;
 import org.apache.calcite.avatica.AvaticaStatement;
 import org.apache.calcite.avatica.Helper;
 import org.apache.calcite.avatica.Meta;
+import org.apache.calcite.avatica.Meta.Signature;
 import org.apache.calcite.avatica.Meta.StatementHandle;
 import org.apache.calcite.avatica.QueryState;
 
@@ -163,10 +178,37 @@ public class DremioJdbc41Factory extends DremioFactory {
                 status, errMsgFromServer));
       }
 
+      // create and set avatica parameters into the signature from the parameters received from
+      // the Dremio server.
+      List<AvaticaParameter> parameters = new ArrayList<>();
+      for (ResultColumnMetadata param : resp.getPreparedStatement().getParametersList()) {
+        String parameterType = param.getDataType();
+        if ("CHARACTER VARYING".equals(parameterType)) {
+          parameterType = "VARCHAR";
+        } else if ("BINARY VARYING".equals(parameterType)) {
+          parameterType = "VARBINARY";
+        }
+        parameters.add(
+            new AvaticaParameter(
+                param.getSigned(),
+                param.getPrecision(),
+                param.getScale(),
+                JDBCType.valueOf(parameterType).ordinal(),
+                param.getDataType(),
+                param.getDataType(),
+                param.getColumnName()));
+      }
+
       return new DremioJdbc41PreparedStatement(
           connection,
           h,
-          signature,
+          new Signature(
+              signature.columns,
+              signature.sql,
+              parameters,
+              signature.internalParameters,
+              signature.cursorFactory,
+              signature.statementType),
           resp.getPreparedStatement(),
           resultSetType,
           resultSetConcurrency,
@@ -201,6 +243,9 @@ public class DremioJdbc41Factory extends DremioFactory {
   /** JDBC 4.1 version of {@link DremioPreparedStatementImpl}. */
   private static class DremioJdbc41PreparedStatement extends DremioPreparedStatementImpl {
 
+    private static final String ERROR_MSG =
+        "Parameter value has not been set properly for the index: %s";
+
     DremioJdbc41PreparedStatement(
         DremioConnectionImpl connection,
         StatementHandle h,
@@ -220,7 +265,201 @@ public class DremioJdbc41Factory extends DremioFactory {
           resultSetHoldability);
     }
 
-    // These don't need throwIfClosed(), since getParameter already calls it.
+    @Override
+    public void setNull(int parameterIndex, int sqlType) throws SQLException {
+      throwIfClosed();
+      super.setParamValue(
+          parameterIndex,
+          PreparedStatementParameterValue.newBuilder().setIsNullValue(true).build());
+    }
+
+    @Override
+    public void setBoolean(int parameterIndex, boolean x) throws SQLException {
+      throwIfClosed();
+      if (!getParameter(parameterIndex).typeName.equals("BOOLEAN")) {
+        throw UserException.validationError()
+            .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+            .buildSilently();
+      }
+      super.setParamValue(
+          parameterIndex, PreparedStatementParameterValue.newBuilder().setBoolValue(x).build());
+    }
+
+    @Override
+    public void setShort(int parameterIndex, short x) throws SQLException {
+      throwIfClosed();
+      switch (getParameter(parameterIndex).typeName) {
+        case "NUMERIC":
+        case "BIGINT":
+        case "DECIMAL":
+        case "INTEGER":
+          super.setParamValue(
+              parameterIndex, PreparedStatementParameterValue.newBuilder().setIntValue(x).build());
+          break;
+        default:
+          throw UserException.validationError()
+              .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+              .buildSilently();
+      }
+    }
+
+    @Override
+    public void setInt(int parameterIndex, int x) throws SQLException {
+      throwIfClosed();
+      switch (getParameter(parameterIndex).typeName) {
+        case "NUMERIC":
+        case "BIGINT":
+        case "DECIMAL":
+        case "INTEGER":
+          super.setParamValue(
+              parameterIndex, PreparedStatementParameterValue.newBuilder().setIntValue(x).build());
+          break;
+        default:
+          throw UserException.validationError()
+              .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+              .buildSilently();
+      }
+    }
+
+    @Override
+    public void setLong(int parameterIndex, long x) throws SQLException {
+      throwIfClosed();
+      switch (getParameter(parameterIndex).typeName) {
+        case "NUMERIC":
+        case "BIGINT":
+        case "DECIMAL":
+          super.setParamValue(
+              parameterIndex, PreparedStatementParameterValue.newBuilder().setLongValue(x).build());
+          break;
+        default:
+          throw UserException.validationError()
+              .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+              .buildSilently();
+      }
+    }
+
+    @Override
+    public void setFloat(int parameterIndex, float x) throws SQLException {
+      throwIfClosed();
+      switch (getParameter(parameterIndex).typeName) {
+        case "DOUBLE":
+        case "FLOAT":
+          super.setParamValue(
+              parameterIndex,
+              PreparedStatementParameterValue.newBuilder().setFloatValue(x).build());
+          break;
+        default:
+          throw UserException.validationError()
+              .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+              .buildSilently();
+      }
+    }
+
+    @Override
+    public void setDouble(int parameterIndex, double x) throws SQLException {
+      throwIfClosed();
+      if (!getParameter(parameterIndex).typeName.equals("DOUBLE")) {
+        throw UserException.validationError()
+            .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+            .buildSilently();
+      }
+      super.setParamValue(
+          parameterIndex, PreparedStatementParameterValue.newBuilder().setDoubleValue(x).build());
+    }
+
+    @Override
+    public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
+      throwIfClosed();
+      switch (getParameter(parameterIndex).typeName) {
+        case "NUMERIC":
+        case "BIGINT":
+        case "DECIMAL":
+          super.setParamValue(
+              parameterIndex,
+              PreparedStatementParameterValue.newBuilder()
+                  .setBigDecimalValue(
+                      BigDecimalMsg.newBuilder()
+                          .setScale(x.scale())
+                          .setPrecision(x.precision())
+                          .setValue(ByteString.copyFrom(x.unscaledValue().toByteArray()))
+                          .build())
+                  .build());
+          break;
+        default:
+          throw UserException.validationError()
+              .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+              .buildSilently();
+      }
+    }
+
+    @Override
+    public void setString(int parameterIndex, String x) throws SQLException {
+      throwIfClosed();
+      if (!getParameter(parameterIndex).typeName.equals("CHARACTER VARYING")) {
+        throw UserException.validationError()
+            .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+            .buildSilently();
+      }
+      super.setParamValue(
+          parameterIndex, PreparedStatementParameterValue.newBuilder().setStringValue(x).build());
+    }
+
+    @Override
+    public void setBytes(int parameterIndex, byte[] x) throws SQLException {
+      throwIfClosed();
+      if (!getParameter(parameterIndex).typeName.equals("BINARY VARYING")) {
+        throw UserException.validationError()
+            .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+            .buildSilently();
+      }
+      super.setParamValue(
+          parameterIndex,
+          PreparedStatementParameterValue.newBuilder()
+              .setByteArrayValue(ByteString.copyFrom(x))
+              .build());
+    }
+
+    @Override
+    public void setDate(int parameterIndex, Date x) throws SQLException {
+      throwIfClosed();
+      if (!getParameter(parameterIndex).typeName.equals("DATE")) {
+        throw UserException.validationError()
+            .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+            .buildSilently();
+      }
+      super.setParamValue(
+          parameterIndex,
+          PreparedStatementParameterValue.newBuilder().setDateValue(x.getTime()).build());
+    }
+
+    @Override
+    public void setTime(int parameterIndex, Time x) throws SQLException {
+      throwIfClosed();
+      if (!getParameter(parameterIndex).typeName.equals("TIME")) {
+        throw UserException.validationError()
+            .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+            .buildSilently();
+      }
+      super.setParamValue(
+          parameterIndex,
+          PreparedStatementParameterValue.newBuilder().setTimeValue(x.getTime()).build());
+    }
+
+    @Override
+    public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
+      throwIfClosed();
+      if (!getParameter(parameterIndex).typeName.equals("TIMESTAMP")) {
+        throw UserException.validationError()
+            .message(String.format(ERROR_MSG, (parameterIndex + 1)))
+            .buildSilently();
+      }
+      super.setParamValue(
+          parameterIndex,
+          PreparedStatementParameterValue.newBuilder()
+              .setTimestampValue(
+                  TimeStamp.newBuilder().setSeconds(x.getTime()).setNanos(x.getNanos()).build())
+              .build());
+    }
 
     @Override
     public void setRowId(int parameterIndex, RowId x) throws SQLException {

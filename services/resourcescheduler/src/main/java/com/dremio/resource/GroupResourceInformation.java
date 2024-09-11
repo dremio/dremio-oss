@@ -79,4 +79,10 @@ public interface GroupResourceInformation extends Service {
 
     return Math.round(coresPerNode * optionManager.getOption(MAX_WIDTH_PER_NODE_FRACTION));
   }
+
+  default void appendProfileLogging(StringBuilder builder, OptionResolver resolver) {
+    builder.append("  executorCount : ").append(getExecutorNodeCount());
+    builder.append(",\n  averageExecutorCores : ").append(getAverageExecutorCores(resolver));
+    builder.append(",\n  averageExecutorMemory : ").append(getAverageExecutorMemory());
+  }
 }

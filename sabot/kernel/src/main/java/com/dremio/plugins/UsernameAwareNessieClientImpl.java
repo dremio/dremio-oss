@@ -20,12 +20,10 @@ import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
-import com.dremio.context.UsernameContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.ReferenceInfo;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
-import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
@@ -41,16 +39,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.model.IcebergView;
+import org.projectnessie.model.MergeResponse;
 
 /**
  * This class acts as a decorator and resolves the uuid to the corresponding username string. The
- * username string can be used by referencing the UsernameContext.
- *
- * <p>TODO: Once the ticket DX-64013 [Refactoring of "user_group_ctx_key"] is completed, this class
- * is unnecessary and should be removed in lieu of simply able to extract the context key directly
- * in createNamespace/ deleteNamespace methods where we need to pass the authorname only while
- * committing to Nessie Refer to the epic DX-64087: Remove UsernameAwareNessieClientImpl class
+ * username string can be used by referencing the {@link NessieCommitUsernameContext}.
  */
 public class UsernameAwareNessieClientImpl implements NessieClient {
 
@@ -80,16 +73,25 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
     return null;
   }
 
+  private @Nullable String getUserNameForUserId(String userId) {
+    if (UserContext.SYSTEM_USER_CONTEXT_ID.equals(userId)) {
+      return UserContext.SYSTEM_USER_NAME;
+    }
+    return userNameByUserIdCache.get(new UID(userId));
+  }
+
   private RequestContext getRequestContextWithUsernameContext() {
     RequestContext reqContext = RequestContext.current();
     UserContext userContext = reqContext.get(UserContext.CTX_KEY);
-    boolean hasUsernameContext = reqContext.get(UsernameContext.CTX_KEY) != null;
+    boolean hasUsernameContext = reqContext.get(NessieCommitUsernameContext.CTX_KEY) != null;
     if (userContext != null && !hasUsernameContext) {
       // ideally the userName would be available in UserContext directly but since DataplanePlugin
       // calls NessieClient methods multiple times during a single request we use a cache here
-      String userName = userNameByUserIdCache.get(new UID(userContext.getUserId()));
+      String userName = getUserNameForUserId(userContext.getUserId());
       if (userName != null) {
-        reqContext = reqContext.with(UsernameContext.CTX_KEY, new UsernameContext(userName));
+        reqContext =
+            reqContext.with(
+                NessieCommitUsernameContext.CTX_KEY, new NessieCommitUsernameContext(userName));
       }
     }
     return reqContext;
@@ -175,6 +177,27 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
   }
 
   @Override
+  public NessieListResponsePage listEntriesPage(
+      @Nullable List<String> catalogPath,
+      ResolvedVersionContext resolvedVersion,
+      NestingMode nestingMode,
+      ContentMode contentMode,
+      @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
+      @Nullable String celFilter,
+      NessieListOptions options) {
+    return callWithUsernameContext(
+        () ->
+            nessieClient.listEntriesPage(
+                catalogPath,
+                resolvedVersion,
+                nestingMode,
+                contentMode,
+                contentTypeFilter,
+                celFilter,
+                options));
+  }
+
+  @Override
   public void createNamespace(List<String> namespacePathList, VersionContext version) {
     getRequestContextWithUsernameContext()
         .run(() -> nessieClient.createNamespace(namespacePathList, version));
@@ -210,9 +233,10 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
   }
 
   @Override
-  public void mergeBranch(String sourceBranchName, String targetBranchName) {
-    getRequestContextWithUsernameContext()
-        .run(() -> nessieClient.mergeBranch(sourceBranchName, targetBranchName));
+  public MergeResponse mergeBranch(
+      String sourceBranchName, String targetBranchName, MergeBranchOptions mergeBranchOptions) {
+    return callWithUsernameContext(
+        () -> nessieClient.mergeBranch(sourceBranchName, targetBranchName, mergeBranchOptions));
   }
 
   @Override
@@ -231,7 +255,7 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
   public void commitTable(
       List<String> catalogKey,
       String newMetadataLocation,
-      NessieClientTableMetadata nessieClientTableMetadata,
+      NessieTableAdapter nessieTableAdapter,
       ResolvedVersionContext version,
       String baseContentId,
       @Nullable IcebergCommitOrigin commitOrigin,
@@ -243,7 +267,7 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
                 nessieClient.commitTable(
                     catalogKey,
                     newMetadataLocation,
-                    nessieClientTableMetadata,
+                    nessieTableAdapter,
                     version,
                     baseContentId,
                     commitOrigin,
@@ -255,9 +279,7 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
   public void commitView(
       List<String> catalogKey,
       String newMetadataLocation,
-      IcebergView icebergView,
-      ViewVersionMetadata metadata,
-      String dialect,
+      NessieViewAdapter nessieViewMetadata,
       ResolvedVersionContext version,
       String baseContentId,
       @Nullable IcebergCommitOrigin commitOrigin,
@@ -268,9 +290,29 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
                 nessieClient.commitView(
                     catalogKey,
                     newMetadataLocation,
-                    icebergView,
-                    metadata,
-                    dialect,
+                    nessieViewMetadata,
+                    version,
+                    baseContentId,
+                    commitOrigin,
+                    userName));
+  }
+
+  @Override
+  public void commitUdf(
+      List<String> catalogKey,
+      String newMetadataLocation,
+      NessieUdfAdapter nessieUdfMetadata,
+      ResolvedVersionContext version,
+      String baseContentId,
+      @Nullable IcebergCommitOrigin commitOrigin,
+      String userName) {
+    getRequestContextWithUsernameContext()
+        .run(
+            () ->
+                nessieClient.commitUdf(
+                    catalogKey,
+                    newMetadataLocation,
+                    nessieUdfMetadata,
                     version,
                     baseContentId,
                     commitOrigin,

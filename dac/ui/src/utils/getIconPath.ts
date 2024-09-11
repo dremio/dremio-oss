@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
+import dremioSpritePath from "dremio-ui-lib/dist-icons/dremio.svg";
+
+export { dremioSpritePath };
 export const iconBasePath = "/static/icons/dremio";
 
 type SourceTypes = "svg" | "png";
 export const getSrcPath = (name: string, src: SourceTypes = "svg") => {
   if (src === "svg") return getIconPath(name);
-  else return `${iconBasePath}/${name}.${src}`;
+  else return `${dremioSpritePath as unknown as string}/${name}.${src}`;
 };
 
 export const getIconPath = (name: string) =>

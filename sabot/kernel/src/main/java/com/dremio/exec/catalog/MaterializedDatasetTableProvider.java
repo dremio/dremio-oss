@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
@@ -22,7 +23,6 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
@@ -102,7 +102,7 @@ public class MaterializedDatasetTableProvider implements Provider<MaterializedDa
         schemaConfig.getUserName(),
         datasetConfig,
         partitionChunks,
-        optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT),
+        true,
         versionContext,
         Collections.emptyList());
   }

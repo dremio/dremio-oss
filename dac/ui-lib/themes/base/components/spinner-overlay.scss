@@ -1,7 +1,7 @@
 @use "../utility-classes/overlay-container";
 
 @mixin dremio-spinner-overlay-shown {
-  color: var(--color--neutral--600);
+  color: var(--text--faded);
   opacity: 1;
 }
 
@@ -14,7 +14,9 @@
   @extend %overlay-container;
 
   z-index: 100;
-  transition: color 500ms 150ms, opacity 200ms;
+  transition:
+    color 500ms 150ms,
+    opacity 200ms;
   @include dremio-spinner-overlay-hidden;
 
   &-enter,
@@ -39,7 +41,7 @@
 }
 
 .dremio-spinner-overlay {
-  background: white;
+  background: var(--fill--primary);
 
   .dremio-spinner {
     --dremio--spinner--size: 30px;

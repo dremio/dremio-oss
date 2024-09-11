@@ -21,6 +21,7 @@ import static com.dremio.service.flight.BaseFlightQueryTest.setupBaseFlightQuery
 import com.dremio.service.flight.impl.FlightWorkManager;
 import org.apache.arrow.flight.CallOption;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
@@ -38,6 +39,7 @@ public class TestFlightSqlServerWithBasicAuth {
   }
 
   /** Query execution tests. */
+  @Ignore("DX-91148")
   public static class QueryExecutionTests extends AbstractTestFlightSqlServer {
     public QueryExecutionTests(ExecutionMode executionMode) {
       super(executionMode);

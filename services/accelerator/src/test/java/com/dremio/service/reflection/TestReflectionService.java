@@ -21,11 +21,10 @@ import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CA
 import static com.dremio.service.reflection.ReflectionServiceImpl.DEFAULT_MATERIALIZATION_DESCRIPTOR_FACTORY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,13 +39,13 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.MaterializationExpander.RebuildPlanException;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
+import com.dremio.exec.planner.acceleration.descriptor.UnexpandedMaterializationDescriptor;
+import com.dremio.exec.planner.plancache.PlanCacheInvalidationHelper;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.options.OptionManager;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.job.DeleteJobCountsRequest;
@@ -75,7 +74,6 @@ import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.base.Function;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -134,7 +132,7 @@ public class TestReflectionService {
 
   private ReflectionServiceImpl service;
 
-  @Mock private MaterializationDescriptor descriptor;
+  @Mock private UnexpandedMaterializationDescriptor descriptor;
 
   @Mock private DremioMaterialization dremioMaterialization;
 
@@ -144,7 +142,7 @@ public class TestReflectionService {
   private ReflectionEntry entry;
   private ReflectionGoal goal;
   private ReflectionServiceImpl.ExpansionHelper expansionHelper;
-  private ReflectionServiceImpl.PlanCacheInvalidationHelper planCacheInvalidationHelper;
+  private PlanCacheInvalidationHelper planCacheInvalidationHelper;
 
   @Before
   public void setup() {
@@ -155,6 +153,17 @@ public class TestReflectionService {
             MaterializationDescriptorFactory.class,
             DEFAULT_MATERIALIZATION_DESCRIPTOR_FACTORY))
         .thenReturn(DEFAULT_MATERIALIZATION_DESCRIPTOR_FACTORY);
+
+    ReflectionManagerFactory defaultReflectionManagerFactory =
+        Mockito.mock(ReflectionManagerFactory.class);
+    ReflectionSettings reflectionSettings = Mockito.mock(ReflectionSettings.class);
+    when(config.getInstance(
+            eq(ReflectionManagerFactory.REFLECTION_MANAGER_FACTORY),
+            eq(ReflectionManagerFactory.class),
+            any(ReflectionManagerFactory.class),
+            any(ReflectionManagerFactory.class)))
+        .thenReturn(defaultReflectionManagerFactory);
+    when(defaultReflectionManagerFactory.newReflectionSettings()).thenReturn(reflectionSettings);
 
     when(optionManager.getOption(MATERIALIZATION_CACHE_ENABLED)).thenReturn(true);
     when(optionManager.getOption(AUTO_REBUILD_PLAN)).thenReturn(true);
@@ -171,7 +180,6 @@ public class TestReflectionService {
             DirectProvider.wrap(sabotContext),
             DirectProvider.wrap(reflectionStatusService),
             Mockito.mock(ExecutorService.class),
-            DirectProvider.wrap(Mockito.mock(ForemenWorkManager.class)),
             false,
             allocator);
 
@@ -238,8 +246,7 @@ public class TestReflectionService {
 
     // Setup Materialization expansion helper
     expansionHelper = Mockito.mock(ReflectionServiceImpl.ExpansionHelper.class);
-    planCacheInvalidationHelper =
-        Mockito.mock(ReflectionServiceImpl.PlanCacheInvalidationHelper.class);
+    planCacheInvalidationHelper = Mockito.mock(PlanCacheInvalidationHelper.class);
     converter = Mockito.mock(SqlConverter.class);
     when(converter.getPlannerCatalog()).thenReturn(Mockito.mock(PlannerCatalog.class));
     when(expansionHelper.getConverter()).thenReturn(converter);
@@ -268,11 +275,10 @@ public class TestReflectionService {
             DirectProvider.wrap(sabotContext),
             DirectProvider.wrap(Mockito.mock(ReflectionStatusService.class)),
             Mockito.mock(ExecutorService.class),
-            DirectProvider.wrap(Mockito.mock(ForemenWorkManager.class)),
             false,
             allocator) {
           @Override
-          MaterializationDescriptor getDescriptor(
+          UnexpandedMaterializationDescriptor getDescriptor(
               Materialization materialization,
               Catalog catalog,
               ReflectionPlanGeneratorProvider provider)
@@ -308,7 +314,6 @@ public class TestReflectionService {
             DirectProvider.wrap(sabotContext),
             DirectProvider.wrap(Mockito.mock(ReflectionStatusService.class)),
             Mockito.mock(ExecutorService.class),
-            DirectProvider.wrap(Mockito.mock(ForemenWorkManager.class)),
             false,
             allocator) {
           @Override
@@ -349,7 +354,7 @@ public class TestReflectionService {
           return generator;
         };
 
-    MaterializationDescriptor descriptorWithPlan =
+    UnexpandedMaterializationDescriptor descriptorWithPlan =
         service.getDescriptor(materialization, catalog, provider);
     assertTrue(Arrays.equals(new byte[] {'a', 'b', 'c'}, descriptorWithPlan.getPlan()));
     verify(materializationPlanStore, times(1))
@@ -361,8 +366,8 @@ public class TestReflectionService {
   }
 
   /**
-   * Verifies that when a descriptor can't be upgraded, we mark the materialization as failed and
-   * stop attempting upgrades.
+   * Verifies that when a descriptor can't be upgraded, we throw an exception and we don't mark the
+   * materialization as failed.
    */
   @Test
   public void testDescriptorUpgradeFailure() {
@@ -385,13 +390,9 @@ public class TestReflectionService {
 
     assertEquals(MaterializationState.DONE, materialization.getState());
     assertRedbuildException(() -> service.getDescriptor(materialization, catalog, provider), false);
-    assertEquals(MaterializationState.FAILED, materialization.getState());
-    assertTrue(
-        materialization
-            .getFailure()
-            .getMessage()
-            .contains("Materialization plan upgrade: Failed to rebuild plan for"));
-    verify(materializationStore, times(1)).put(any(), any());
+    assertEquals(MaterializationState.DONE, materialization.getState());
+    assertNull(materialization.getFailure());
+    verify(materializationStore, times(0)).put(any(), any());
   }
 
   private void assertRedbuildException(ThrowingRunnable runnable, boolean sourceDown) {
@@ -513,7 +514,6 @@ public class TestReflectionService {
         Provider<SabotContext> sabotContext,
         Provider<ReflectionStatusService> reflectionStatusService,
         ExecutorService executorService,
-        Provider<ForemenWorkManager> foremenWorkManagerProvider,
         boolean isMaster,
         BufferAllocator allocator) {
       super(
@@ -525,10 +525,10 @@ public class TestReflectionService {
           sabotContext,
           reflectionStatusService,
           executorService,
-          foremenWorkManagerProvider,
           isMaster,
           allocator,
-          null);
+          null,
+          new DatasetEventHub());
     }
 
     @Override
@@ -537,19 +537,6 @@ public class TestReflectionService {
         @Override
         public ExpansionHelper apply(Catalog input) {
           return expansionHelper;
-        }
-      };
-    }
-
-    @Override
-    Supplier<PlanCacheInvalidationHelper> getPlanCacheInvalidationHelper() {
-      return new Supplier<PlanCacheInvalidationHelper>() {
-        @Override
-        public PlanCacheInvalidationHelper get() {
-          doNothing()
-              .when(planCacheInvalidationHelper)
-              .invalidateReflectionAssociatedPlanCache(anyString());
-          return planCacheInvalidationHelper;
         }
       };
     }

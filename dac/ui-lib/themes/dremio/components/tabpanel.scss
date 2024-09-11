@@ -22,7 +22,7 @@
   button {
     box-sizing: border-box;
 
-    color: var(--dremio--color--text--faded);
+    color: var(--text--faded);
     background-color: transparent;
 
     border: none;
@@ -33,13 +33,13 @@
     position: relative;
 
     &[aria-selected="true"] {
-      color: var(--dremio--color--link);
+      color: var(--text--brand);
 
       &:after {
         content: "";
         width: 100%;
         height: 4px;
-        background-color: var(--dremio--color--link);
+        background-color: var(--fill--brand--solid);
 
         position: absolute;
         bottom: 0;
@@ -49,12 +49,12 @@
 
     &:hover,
     &:focus {
-      color: var(--dremio--color--link);
+      color: var(--text--brand);
     }
 
     &:disabled {
       cursor: not-allowed;
-      color: var(--dremio--color--text--disabled);
+      color: var(--text--disabled);
       &:after {
         background-color: var(--color--neutral--200);
       }

@@ -51,6 +51,7 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
   private final StoragePluginId pluginId;
   private final boolean isDistributed;
   private final int executorCount;
+  private final SysTableFunctionCatalogMetadata tableFunctionMetadata;
 
   public SysFlightGroupScan(
       OpProps props,
@@ -60,7 +61,8 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
       SearchQuery query,
       StoragePluginId pluginId,
       boolean isDistributed,
-      int executorCount) {
+      int executorCount,
+      SysTableFunctionCatalogMetadata tableFunctionMetadata) {
     super(props);
     this.columns = columns;
     this.datasetPath = datasetPath;
@@ -69,6 +71,7 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
     this.isDistributed = isDistributed;
     this.executorCount = executorCount;
     this.query = query;
+    this.tableFunctionMetadata = tableFunctionMetadata;
   }
 
   public StoragePluginId getPluginId() {
@@ -153,7 +156,13 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) {
     return new SysFlightSubScan(
-        props, new EntityPath(datasetPath).getComponents(), schema, getColumns(), query, pluginId);
+        props,
+        new EntityPath(datasetPath).getComponents(),
+        schema,
+        getColumns(),
+        query,
+        pluginId,
+        tableFunctionMetadata != null ? tableFunctionMetadata.getSysTableFunction() : null);
   }
 
   @Override
@@ -176,6 +185,14 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children)
       throws ExecutionSetupException {
     return new SysFlightGroupScan(
-        props, datasetPath, schema, columns, query, pluginId, isDistributed, executorCount);
+        props,
+        datasetPath,
+        schema,
+        columns,
+        query,
+        pluginId,
+        isDistributed,
+        executorCount,
+        tableFunctionMetadata);
   }
 }

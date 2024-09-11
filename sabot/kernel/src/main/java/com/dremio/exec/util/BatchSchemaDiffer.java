@@ -18,12 +18,11 @@ package com.dremio.exec.util;
 import com.dremio.common.exceptions.UserException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.arrow.vector.types.pojo.Field;
 
 /**
@@ -93,16 +92,7 @@ public class BatchSchemaDiffer {
             .collect(Collectors.toList());
     deletedFields =
         deletedFields.stream()
-            .flatMap(
-                x -> {
-                  if (parent != null) {
-                    return appendParent(parent, x).stream();
-                  }
-                  if (x.getChildren().size() > 0) {
-                    return appendParents(x, x.getChildren()).stream();
-                  }
-                  return Arrays.asList(x).stream();
-                })
+            .flatMap(this::getFlattenedChildFieldsFromField)
             .collect(Collectors.toList());
 
     diff.droppedField(deletedFields);
@@ -113,16 +103,7 @@ public class BatchSchemaDiffer {
 
     addedFields =
         addedFields.stream()
-            .flatMap(
-                x -> {
-                  if (parent != null) {
-                    return appendParent(parent, x).stream();
-                  }
-                  if (x.getChildren().size() > 0) {
-                    return appendParents(x, x.getChildren()).stream();
-                  }
-                  return Arrays.asList(x).stream();
-                })
+            .flatMap(this::getFlattenedChildFieldsFromField)
             .collect(Collectors.toList());
 
     diff.addedField(addedFields);
@@ -154,35 +135,17 @@ public class BatchSchemaDiffer {
                 .diff(oldFieldMap.get(f.getName().toLowerCase()).getChildren(), f.getChildren());
         diff.addedField(
             batchSchemaDiff.getAddedFields().stream()
-                .flatMap(
-                    x -> {
-                      if (parent != null) {
-                        return appendParent(parent, x).stream();
-                      }
-                      return Arrays.asList(x).stream();
-                    })
+                .flatMap(this::getFlattenedChildFieldsFromField)
                 .collect(Collectors.toList()));
 
         diff.droppedField(
             batchSchemaDiff.getDroppedFields().stream()
-                .flatMap(
-                    x -> {
-                      if (parent != null) {
-                        return appendParent(parent, x).stream();
-                      }
-                      return Arrays.asList(x).stream();
-                    })
+                .flatMap(this::getFlattenedChildFieldsFromField)
                 .collect(Collectors.toList()));
 
         diff.modifiedField(
             batchSchemaDiff.getModifiedFields().stream()
-                .flatMap(
-                    x -> {
-                      if (parent != null) {
-                        return appendParent(parent, x).stream();
-                      }
-                      return Arrays.asList(x).stream();
-                    })
+                .flatMap(this::getFlattenedChildFieldsFromField)
                 .collect(Collectors.toList()));
       }
     }
@@ -198,29 +161,34 @@ public class BatchSchemaDiffer {
             && !oldFieldMap.get(f.getName().toLowerCase()).getType().isComplex());
   }
 
-  private List<Field> appendParent(Field parent, Field child) {
-    if (!child.getType().isComplex()) {
-      if (parent == null) {
-        // return the child if there is not parent
-        return ImmutableList.of(child);
-      }
-      return ImmutableList.of(
-          new Field(parent.getName(), parent.getFieldType(), ImmutableList.of(child)));
-    } else {
-      return child.getChildren().stream()
-          .map(
-              x -> {
-                return new Field(parent.getName(), parent.getFieldType(), appendParent(child, x));
-              })
-          .collect(Collectors.toList());
+  private static List<Field> appendParent(Field parent, Field child) {
+    if (parent == null) {
+      // return the child if there is no parent
+      return ImmutableList.of(child);
     }
+    return ImmutableList.of(
+        new Field(parent.getName(), parent.getFieldType(), ImmutableList.of(child)));
   }
 
-  private List<Field> appendParents(Field parent, List<Field> child) {
-    List<Field> children = new ArrayList();
-    for (Field ele : child) {
-      children.addAll(appendParent(parent, ele));
+  private Stream<Field> getFlattenedChildFieldsFromField(Field field) {
+    if (this.parent != null) {
+      field = new Field(parent.getName(), parent.getFieldType(), ImmutableList.of(field));
     }
-    return children;
+    return appendChildren(field);
+  }
+
+  private static Stream<Field> appendChildren(Field field) {
+    if (!field.getType().isComplex()) {
+      return Stream.of(field);
+    }
+    Stream<Field> result = Stream.empty();
+    for (Field child : field.getChildren()) {
+      result =
+          Stream.concat(
+              result,
+              appendChildren(child)
+                  .map(f -> new Field(field.getName(), field.getFieldType(), ImmutableList.of(f))));
+    }
+    return result;
   }
 }

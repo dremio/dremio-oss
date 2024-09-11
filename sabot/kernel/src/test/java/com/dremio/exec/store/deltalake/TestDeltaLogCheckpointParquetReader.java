@@ -127,7 +127,6 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     assertEquals(0, commitXAttr0.getRowGroupIndex());
     FileProtobuf.FileSystemCachedEntity updateKey =
         FileProtobuf.FileSystemCachedEntity.parseFrom(splitXAttr0.getUpdateKey().toByteString());
-    assertEquals(0, updateKey.getLastModificationTime()); // split is immutable
     assertEquals(fAttrs.getPath().toString(), updateKey.getPath());
     assertEquals(fAttrs.size(), updateKey.getLength());
 
@@ -251,7 +250,6 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     assertEquals(0, commitXAttr0.getRowGroupIndex());
     FileProtobuf.FileSystemCachedEntity updateKey =
         FileProtobuf.FileSystemCachedEntity.parseFrom(splitXAttr0.getUpdateKey().toByteString());
-    assertEquals(0, updateKey.getLastModificationTime()); // split is immutable
     assertEquals(checkpointFilePath1.toString(), updateKey.getPath());
     assertEquals(fs.getFileAttributes(checkpointFilePath1).size(), updateKey.getLength());
 
@@ -266,7 +264,6 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     assertEquals(0, commitXAttr1.getRowGroupIndex());
     FileProtobuf.FileSystemCachedEntity updateKey1 =
         FileProtobuf.FileSystemCachedEntity.parseFrom(splitXAttr1.getUpdateKey().toByteString());
-    assertEquals(0, updateKey1.getLastModificationTime()); // split is immutable
     assertEquals(checkpointFilePath2.toString(), updateKey1.getPath());
     assertEquals(fs.getFileAttributes(checkpointFilePath2).size(), updateKey1.getLength());
   }

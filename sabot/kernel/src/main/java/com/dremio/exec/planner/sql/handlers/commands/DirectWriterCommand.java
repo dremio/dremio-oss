@@ -248,7 +248,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
 
   private OperatorContextImpl createContext(Writer writer) {
     BufferAllocator allocator =
-        context.getAllocator().newChildAllocator("direct-command", 0, Long.MAX_VALUE);
+        context.getAllocator().newChildAllocator("direct-writer-command", 0, Long.MAX_VALUE);
     final OperatorStats stats = new OperatorStats(new OpProfileDef(0, 0, 0), allocator);
     final OperatorContextImpl oc =
         new OperatorContextImpl(

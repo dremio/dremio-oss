@@ -18,6 +18,7 @@ package com.dremio.plugins.dataplane.exec;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_ACCESS_DENIED;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_NOT_FOUND;
 import static com.dremio.exec.store.IcebergExpiryMetric.NUM_PARTIAL_FAILURES;
+import static com.dremio.plugins.dataplane.exec.NessieCommitsRecordReader.readTableMetadata;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -48,7 +49,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.TableMetadataParser;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.NotFoundException;
@@ -81,12 +81,16 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
   private final Queue<CompletableFuture<Optional<IcebergExpiryAction>>> expiryActionsQueue;
 
   private final Semaphore slots;
+  private final String schemeVariate;
+  private final String fsScheme;
 
   public NessieIcebergExpirySnapshotsReader(
       OperatorContext context,
       SupportsIcebergMutablePlugin icebergMutablePlugin,
       OpProps props,
-      SnapshotsScanOptions snapshotsScanOptions) {
+      SnapshotsScanOptions snapshotsScanOptions,
+      String schemeVariate,
+      String fsScheme) {
     super(context, icebergMutablePlugin, props, snapshotsScanOptions);
     DataplanePlugin plugin = (DataplanePlugin) icebergMutablePlugin;
     this.nessieApi = plugin.getNessieApi();
@@ -101,6 +105,8 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
             .orElse(S3ConnectionConstants.DEFAULT_MAX_THREADS / 2);
     this.slots = new Semaphore(maxParallelism);
     this.expiryActionsQueue = new ConcurrentLinkedQueue<>();
+    this.schemeVariate = schemeVariate;
+    this.fsScheme = fsScheme;
   }
 
   @Override
@@ -169,7 +175,11 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
       ResolvedVersionContext tableVersionContext = tableHolder.getVersionContext();
 
       super.setupFsIfNecessary(metadataLocation);
-      TableMetadata tableMetadata = TableMetadataParser.read(io, metadataLocation);
+      Optional<TableMetadata> tableMetadata =
+          readTableMetadata(io, metadataLocation, tableId, context);
+      if (tableMetadata.isEmpty()) {
+        return Optional.empty();
+      }
       VacuumOptions options =
           new VacuumOptions(
               true,
@@ -186,12 +196,14 @@ public class NessieIcebergExpirySnapshotsReader extends IcebergExpirySnapshotsRe
                   props,
                   context,
                   options,
-                  tableMetadata,
+                  tableMetadata.get(),
                   tableName,
                   namespace,
                   tableVersionContext,
                   io,
-                  true));
+                  true,
+                  schemeVariate,
+                  fsScheme));
       status = true;
       return ret;
     } catch (NotFoundException nfe) {

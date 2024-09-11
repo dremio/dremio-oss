@@ -525,4 +525,18 @@ public class TestSimpleUserService {
       assertEquals(SystemUser.SYSTEM_USER, userService.getUser(SystemUser.SYSTEM_USER.getUID()));
     }
   }
+
+  @Test
+  public void testAuthenticateReturnsAuthResultWithRecordedUsername() throws Exception {
+    try (final LegacyKVStoreProvider kvstore =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
+      initUserStore(kvstore, userGroupService);
+
+      AuthResult authResult = userGroupService.authenticate("maRkDaVid", "MarkDavid1");
+
+      assertEquals("MarkDavid", authResult.getUserName());
+    }
+  }
 }

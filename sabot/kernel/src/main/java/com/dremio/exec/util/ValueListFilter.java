@@ -358,6 +358,9 @@ public class ValueListFilter implements AutoCloseable {
         + ", name='"
         + name
         + '\''
+        + ", fieldName='"
+        + fieldName
+        + '\''
         + ", fieldType="
         + fieldType
         + ", fixedWidth="

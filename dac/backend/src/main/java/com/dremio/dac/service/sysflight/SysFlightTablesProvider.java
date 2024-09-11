@@ -22,6 +22,8 @@ import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListMater
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListMaterializationsResponse;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionLineageRequest;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionLineageResponse;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionsRequest;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionsResponse;
 import com.dremio.service.job.ActiveJobSummary;
@@ -205,6 +207,52 @@ public class SysFlightTablesProvider {
     @Override
     public BatchSchema getSchema() {
       return ProtobufRecordReader.getSchema(RecentJobSummary.getDescriptor());
+    }
+  }
+
+  /** reflection_lineage table function */
+  public static class ReflectionLineageTableFunction implements SysFlightDataProvider {
+    private final Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub>
+        reflectionsStub;
+
+    public ReflectionLineageTableFunction(
+        Provider<ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub>
+            reflectionsStub) {
+      this.reflectionsStub = reflectionsStub;
+    }
+
+    protected ListReflectionLineageRequest.Builder getRequest(SysFlightTicket ticket) {
+      return ListReflectionLineageRequest.newBuilder()
+          .setUserName(ticket.getUserName())
+          .setReflectionId(
+              ticket
+                  .getTableFunction()
+                  .getParameters()
+                  .getReflectionLineageParameters()
+                  .getReflectionId());
+    }
+
+    @Override
+    public void streamData(
+        SysFlightTicket ticket,
+        ServerStreamListener listener,
+        BufferAllocator allocator,
+        int recordBatchSize) {
+      ListReflectionLineageRequest request = getRequest(ticket).build();
+      reflectionsStub
+          .get()
+          .listReflectionLineage(
+              request,
+              new SysFlightStreamObserver<>(
+                  allocator,
+                  listener,
+                  ListReflectionLineageResponse.getDescriptor(),
+                  recordBatchSize));
+    }
+
+    @Override
+    public BatchSchema getSchema() {
+      return ProtobufRecordReader.getSchema(ListReflectionLineageResponse.getDescriptor());
     }
   }
 }

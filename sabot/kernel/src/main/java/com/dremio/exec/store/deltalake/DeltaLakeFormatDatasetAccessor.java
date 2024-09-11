@@ -112,7 +112,7 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
                       1000,
                       context.getExpressionSplitCache()); ) {
             final FileSystem tableFileSystem =
-                fsPlugin.createFS(SYSTEM_USERNAME, operatorContext, true);
+                fsPlugin.createFS(SYSTEM_USERNAME, operatorContext, false);
             this.deltaTable =
                 new DeltaLakeTable(context, tableFileSystem, fileSelection, travelRequest);
           }

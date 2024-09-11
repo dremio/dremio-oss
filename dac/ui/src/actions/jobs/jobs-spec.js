@@ -15,7 +15,7 @@
  */
 import { expect } from "chai";
 
-import * as Actions from "./jobs.js";
+import * as Actions from "./jobs";
 
 describe("graph actions", () => {
   describe("test constants", () => {

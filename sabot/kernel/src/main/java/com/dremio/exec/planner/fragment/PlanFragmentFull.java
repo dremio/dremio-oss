@@ -24,7 +24,7 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 public class PlanFragmentFull {
   private final PlanFragmentMajor major;
   private final PlanFragmentMinor minor;
-  private FragmentHandle handle;
+  private final FragmentHandle handle;
 
   public PlanFragmentFull(PlanFragmentMajor major, PlanFragmentMinor minor) {
     this.major = major;

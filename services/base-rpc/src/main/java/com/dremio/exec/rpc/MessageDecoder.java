@@ -16,6 +16,7 @@
 package com.dremio.exec.rpc;
 
 import com.dremio.common.exceptions.ErrorHelper;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcHeader;
@@ -208,16 +209,31 @@ public class MessageDecoder extends ByteToMessageDecoder {
   }
 
   private void sendOutOfMemory(Throwable e, final ChannelHandlerContext ctx, int coordinationId) {
-    final UserException uex =
-        UserException.memoryError(e)
-            .message("Out of memory while receiving data.")
-            .addContext(
-                e instanceof OutOfMemoryException
-                    ? MemoryDebugInfo.getDetailsOnAllocationFailure(
-                        (OutOfMemoryException) e, allocator)
-                    : MemoryDebugInfo.getSummaryFromRoot(allocator))
-            .build(logger);
-
+    final UserException uex;
+    String oomDetails = "Out of memory while receiving data.";
+    if (ErrorHelper.isDirectMemoryException(e)) {
+      if (e instanceof OutOfMemoryException) {
+        oomDetails =
+            String.format(
+                "Out of memory while receiving data. %s ",
+                MemoryDebugInfo.getDetailsOnAllocationFailure((OutOfMemoryException) e, allocator));
+      }
+      uex =
+          UserException.memoryError(e)
+              .setAdditionalExceptionContext(
+                  new OutOfMemoryOrResourceExceptionContext(
+                      OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY, oomDetails))
+              .build(logger);
+    } else if (ErrorHelper.isJavaHeapOutOfMemory(e)) {
+      uex =
+          UserException.memoryError(e)
+              .setAdditionalExceptionContext(
+                  new OutOfMemoryOrResourceExceptionContext(
+                      OutOfMemoryOrResourceExceptionContext.MemoryType.HEAP_MEMORY, oomDetails))
+              .build(logger);
+    } else {
+      uex = UserException.resourceError(e).message(oomDetails).build(logger);
+    }
     final OutboundRpcMessage outMessage =
         new OutboundRpcMessage(
             RpcMode.RESPONSE_FAILURE, 0, coordinationId, uex.getOrCreatePBError(false));

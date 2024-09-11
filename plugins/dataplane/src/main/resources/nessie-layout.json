@@ -36,8 +36,32 @@
                       "elements": [
                         {
                           "propName": "config.nessieAccessToken",
-                          "size": "half",
+                          "size": "full",
                           "secure": true
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "OAUTH2",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.oauth2TokenEndpointURI",
+                          "size": "full",
+                          "errMsg": "Client ID , secret and OAuth2 URI are required for OAuth2  authentication.",
+                          "tooltip": "Token endpoint of the OAuth2 Authorization Server."
+                        },
+                        {
+                          "propName": "config.oauth2ClientId",
+                          "size": "full",
+                          "errMsg": "Client ID , secret and OAuth2 URI are required for OAuth2  authentication."
+                        },
+                        {
+                          "propName": "config.oauth2ClientSecret",
+                          "size": "full",
+                          "secure": true,
+                          "errMsg": "Client ID , secret and OAuth2 URI are required for OAuth2 authentication."
                         }
                       ]
                     }
@@ -201,6 +225,62 @@
                                       }
                                     ]
                                   }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "GOOGLE",
+                    "container": {
+                      "sections": [
+                        {
+                          "name": "GCS Storage",
+                          "elements": [
+                            {
+                              "propName": "config.googleProjectId"
+                            },
+                            {
+                              "propName": "config.googleRootPath",
+                              "placeholder": "bucket-name/optional/path/to/folder",
+                              "prefix": "gs://",
+                              "tooltip": "The default write location for iceberg metadata and data."
+                            }
+                          ]
+                        },
+                        {
+                          "name": "GCS Authentication",
+                          "elements": [
+                            {
+                              "propName": "config.googleAuthenticationType",
+                              "uiType": "container_selection",
+                              "options": [
+                                {
+                                  "value": "SERVICE_ACCOUNT_KEYS",
+                                  "container": {
+                                    "elements": [
+                                      {
+                                        "propName": "config.googleClientEmail"
+                                      },
+                                      {
+                                        "propName": "config.googleClientId"
+                                      },
+                                      {
+                                        "propName": "config.googlePrivateKeyId"
+                                      },
+                                      {
+                                        "propName": "config.googlePrivateKey",
+                                        "secure": true
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "value": "AUTO",
+                                  "container": {}
                                 }
                               ]
                             }

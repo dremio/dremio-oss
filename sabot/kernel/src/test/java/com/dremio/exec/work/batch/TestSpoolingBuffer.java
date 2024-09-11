@@ -26,7 +26,6 @@ import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecTest;
-import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -49,7 +48,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import javax.inject.Provider;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Assert;
@@ -61,9 +59,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 public class TestSpoolingBuffer extends ExecTest {
-  static final org.slf4j.Logger logger =
-      org.slf4j.LoggerFactory.getLogger(TestSpoolingBuffer.class);
-
   @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
   // Test constants.
@@ -353,29 +348,11 @@ public class TestSpoolingBuffer extends ExecTest {
 
   private SpillService setupSpillService(SabotConfig config) throws Exception {
     final SchedulerService schedulerService = mock(SchedulerService.class);
-    final CoordinationProtos.NodeEndpoint endpoint =
-        CoordinationProtos.NodeEndpoint.newBuilder()
-            .setAddress("localhost")
-            .setFabricPort(1834)
-            .build();
-
     final SpillService spillService =
         new SpillServiceImpl(
             DremioConfig.create(null, config),
             new DefaultSpillServiceOptions(),
-            new Provider<SchedulerService>() {
-              @Override
-              public SchedulerService get() {
-                return schedulerService;
-              }
-            },
-            new Provider<CoordinationProtos.NodeEndpoint>() {
-              @Override
-              public CoordinationProtos.NodeEndpoint get() {
-                return endpoint;
-              }
-            },
-            null);
+            () -> schedulerService);
     spillService.start();
     return spillService;
   }

@@ -1,6 +1,8 @@
 .font-default {
   font-family: var(--font-family--default);
-  font-feature-settings: "calt" on, "cv08" on;
+  font-feature-settings:
+    "calt" on,
+    "cv08" on;
 }
 .font-mono {
   font-family: var(--font-family--mono);
@@ -68,4 +70,12 @@
 
 .text-right {
   text-align: end;
+}
+
+.text-error {
+  color: var(--fill--danger--solid);
+}
+
+.text-disabled {
+  color: var(--text--disabled);
 }

@@ -179,7 +179,7 @@ public class TestPromotion extends BaseTestServer {
             getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
-    assertEquals(folder.getChildren().size(), 21);
+    assertEquals(folder.getChildren().size(), 22);
 
     String fileId = null;
 
@@ -235,7 +235,7 @@ public class TestPromotion extends BaseTestServer {
             getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(id)))
                 .buildGet(),
             new GenericType<Folder>() {});
-    assertEquals(folder.getChildren().size(), 21);
+    assertEquals(folder.getChildren().size(), 22);
 
     doc("unpromote file");
     expectSuccess(
@@ -288,6 +288,62 @@ public class TestPromotion extends BaseTestServer {
             new GenericType<Folder>() {});
 
     ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
+    Dataset dataset = createPDS(folder.getPath(), parquetFileConfig);
+
+    dataset =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(folderDatasetId)))
+                .buildPost(Entity.json(dataset)),
+            new GenericType<Dataset>() {});
+
+    doc("load the promoted dataset");
+    dataset =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(),
+            new GenericType<Dataset>() {});
+
+    doc("unpromote the folder");
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+
+    doc("dataset should no longer exist");
+    expectStatus(
+        Response.Status.NOT_FOUND,
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+  }
+
+  @Test
+  public void folderWithFileNameFiltering() {
+    doc(
+        "promote a folder that contains directory structure with parquet and other files as well (dac/backend/src/test/resources/datasets/parquet_2p_4s_mixed)");
+    String folderId = getFolderIdByName(source.getChildren(), "datasets");
+    assertNotNull(folderId, "Failed to find datasets directory");
+
+    Folder dsFolder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(folderId)))
+                .buildGet(),
+            new GenericType<Folder>() {});
+
+    String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "parquet_2p_4s_mixed");
+    assertNotNull(folderDatasetId, "Failed to find parquet_2p_4s_mixed directory");
+
+    doc("we want to use the path that the backend gives us so fetch the full folder");
+    Folder folder =
+        expectSuccess(
+            getBuilder(
+                    getPublicAPI(3)
+                        .path(CATALOG_PATH)
+                        .path(PathUtils.encodeURIComponent(folderDatasetId)))
+                .buildGet(),
+            new GenericType<Folder>() {});
+
+    ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
+    parquetFileConfig.setIgnoreOtherFileFormats(true);
     Dataset dataset = createPDS(folder.getPath(), parquetFileConfig);
 
     dataset =

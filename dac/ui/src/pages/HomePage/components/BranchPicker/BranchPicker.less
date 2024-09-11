@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/variables.less";
 @import "~@app/uiTheme/less/mixins.less";
 
@@ -48,7 +47,7 @@
     }
 
     max-height: 95vh;
-    background-color: white;
+    background-color: var(--fill--popover);
 
     display: flex;
     flex-direction: column;
@@ -83,7 +82,7 @@
       .react-datepicker-wrapper {
         padding-top: 4px;
         input {
-          border-color: @SECONDARY_200;
+          border-color: var(--border--neutral--solid);
         }
       }
       .react-datepicker-popper {
@@ -102,7 +101,7 @@
     .branchesView {
       &-left {
         width: 33.3%;
-        border-right: 1px solid @SECONDARY_200;
+        border-right: 1px solid var(--border--neutral);
       }
       &-right {
         width: 66.7%;

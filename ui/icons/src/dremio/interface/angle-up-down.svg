@@ -1,0 +1,18 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg id="interface/angle-up-down" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M16.4707 8.49971c.1988 0 .3894-.07889.53-.21934.1405-.14063.2194-.33125.2194-.53 0-.19875-.0789-.38937-.2194-.53l-4.4704-4.47039c-.1406-.14045-.3312-.21934-.53-.21934-.1987 0-.3894.07889-.53.21934L7.01903 7.20134c-.07369.06866-.13279.15146-.17378.24346-.041.092-.06304.19131-.06481.29201-.00178.10071.01674.20074.05446.29412.03773.09339.09387.17823.16509.24945.07122.07121.15605.12736.24944.16508.09339.03772.19342.05625.29412.05447.1007-.00178.20002-.02382.29202-.06481.092-.04099.1748-.1001.24346-.17378l3.92127-3.92136 3.9404 3.94039c.1406.14045.3313.21934.53.21934ZM7.53001 15.5003c-.19875 0-.38937.0789-.53.2194-.14045.1406-.21934.3312-.21934.53 0 .1987.07889.3894.21934.53l4.46999 4.47c.1406.1405.3312.2194.53.2194.1988 0 .3894-.0789.53-.2194l4.451-4.451c.0737-.0686.1328-.1514.1737-.2434.041-.092.0631-.1913.0649-.292.0017-.1007-.0168-.2008-.0545-.2942-.0377-.0933-.0939-.1782-.1651-.2494-.0712-.0712-.1561-.1274-.2494-.1651-.0934-.0377-.1935-.0562-.2942-.0545-.1007.0018-.2.0239-.292.0649-.092.041-.1748.1001-.2434.1737L12 19.6597l-3.93999-3.94c-.14062-.1405-.33125-.2194-.53-.2194Z"/></svg>

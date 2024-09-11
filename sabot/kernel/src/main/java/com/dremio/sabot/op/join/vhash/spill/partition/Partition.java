@@ -18,6 +18,7 @@ package com.dremio.sabot.op.join.vhash.spill.partition;
 import com.dremio.sabot.op.join.vhash.NonPartitionColFilters;
 import com.dremio.sabot.op.join.vhash.PartitionColFilters;
 import com.google.common.base.Preconditions;
+import org.apache.arrow.memory.ArrowBuf;
 
 /** Partition of a hash-join. */
 public interface Partition extends AutoCloseable {
@@ -47,6 +48,8 @@ public interface Partition extends AutoCloseable {
    * @param records number of input records
    */
   void probeBatchBegin(int startIdx, int records);
+
+  default void updateSv2(ArrowBuf newSv2) {}
 
   /**
    * Handle pivoted records (only keys are pivoted) of a probe batch, and optionally, produce output

@@ -15,10 +15,10 @@
  */
 package com.dremio.dac.service.source;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity.ResourceType;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.namespace.NamespaceKey;
 import java.util.ArrayList;
@@ -31,13 +31,14 @@ import java.util.stream.Stream;
 public final class ExternalResourceTreeUtils {
   private ExternalResourceTreeUtils() {}
 
-  public static List<ResourceTreeEntity> generateResourceTreeEntityList(
-      NamespaceKey path, Stream<ExternalNamespaceEntry> entries, ResourceType rootType) {
+  public static ResourceTreeListResponse generateResourceTreeEntityList(
+      NamespaceKey path, ExternalListResponse response, ResourceType rootType) {
     Objects.requireNonNull(path);
 
     final String sourceName = path.getRoot();
     final List<ResourceTreeEntity> resources = new ArrayList<>();
 
+    Stream<ExternalNamespaceEntry> entries = response.getEntriesStream();
     entries.forEach(
         entry -> {
           final String id = entry.getId();
@@ -98,6 +99,9 @@ public final class ExternalResourceTreeUtils {
           }
         });
 
-    return resources;
+    return new ImmutableResourceTreeListResponse.Builder()
+        .setEntities(resources)
+        .setNextPageToken(response.getPageToken())
+        .build();
   }
 }

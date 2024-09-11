@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
-import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.service.namespace.NamespaceKey;
 import java.util.Collection;
 import java.util.Map;
@@ -37,7 +37,7 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
    * @param functionType
    * @return
    */
-  Collection<Function> getFunctions(NamespaceKey path, FunctionType functionType);
+  Collection<Function> getFunctions(CatalogEntityKey path, FunctionType functionType);
 
   /**
    * Get the default schema for this catalog. Returns null if there is no default.
@@ -61,31 +61,6 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
    * @return A new catalog contextualized to the provided version context.
    */
   T resolveCatalog(Map<String, VersionContext> sourceVersionMapping);
-
-  /**
-   * Visits each catalog in a depth first order.
-   *
-   * @param catalogRewrite function for transforming the catalog
-   * @return resulting transformed catalog
-   */
-  default Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite) {
-    throw new UnsupportedOperationException();
-  }
-
-  /**
-   * @return all tables that have been requested from this catalog.
-   */
-  default Iterable<DremioTable> getAllRequestedTables() {
-    throw new UnsupportedOperationException();
-  }
-
-  /**
-   * Clears all caches associated to a particular dataset
-   *
-   * @param dataset
-   */
-  default void clearDatasetCache(final NamespaceKey dataset, final TableVersionContext context) {}
-  ;
 
   enum FunctionType {
     SCALAR,

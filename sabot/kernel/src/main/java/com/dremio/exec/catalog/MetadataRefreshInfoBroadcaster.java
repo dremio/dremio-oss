@@ -19,31 +19,37 @@ import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceSynchronizerGrpc.CatalogServiceSynchronizerStub;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 import java.util.Collection;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 /** Broadcasts the updated last metadata refresh date to all other sibling coordinators */
+@Singleton
 public class MetadataRefreshInfoBroadcaster {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(MetadataRefreshInfoBroadcaster.class);
   private final Provider<ConduitProvider> conduitProviderProvider;
-  private final Provider<Collection<NodeEndpoint>> coordinatorEndpointsProvider;
+  private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private final Provider<NodeEndpoint> currentEndpointProvider;
 
+  @Inject
   public MetadataRefreshInfoBroadcaster(
       Provider<ConduitProvider> conduitProvider,
-      Provider<Collection<NodeEndpoint>> coordinatorEndpoints,
+      Provider<ClusterCoordinator> clusterCoordinatorProvider,
       Provider<NodeEndpoint> currentEndpoint) {
     this.conduitProviderProvider = conduitProvider;
-    this.coordinatorEndpointsProvider = coordinatorEndpoints;
+    this.clusterCoordinatorProvider = clusterCoordinatorProvider;
     this.currentEndpointProvider = currentEndpoint;
   }
 
   public void communicateChange(UpdateLastRefreshDateRequest refreshRequest) {
-    final Collection<NodeEndpoint> allCoordinators = coordinatorEndpointsProvider.get();
+    final Collection<NodeEndpoint> allCoordinators =
+        clusterCoordinatorProvider.get().getCoordinatorEndpoints();
     final ConduitProvider conduitProvider = conduitProviderProvider.get();
     final NodeEndpoint currentEndpoint = currentEndpointProvider.get();
 

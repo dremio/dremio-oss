@@ -15,7 +15,9 @@
  */
 package com.dremio.jdbc.impl;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserProtos.PreparedStatement;
+import com.dremio.exec.proto.UserProtos.PreparedStatementParameterValue;
 import com.dremio.jdbc.AlreadyClosedSqlException;
 import com.dremio.jdbc.DremioPreparedStatement;
 import java.sql.ParameterMetaData;
@@ -24,7 +26,9 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
-import org.apache.calcite.avatica.AvaticaParameter;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.AvaticaPreparedStatement;
 import org.apache.calcite.avatica.AvaticaSite;
 import org.apache.calcite.avatica.Meta;
@@ -40,6 +44,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
     implements DremioPreparedStatement, DremioRemoteStatement {
 
   private final PreparedStatement preparedStatementHandle;
+  private final PreparedStatementParameterValue[] parameterValues;
 
   protected DremioPreparedStatementImpl(
       DremioConnectionImpl connection,
@@ -57,6 +62,20 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
       ((DremioColumnMetaDataList) signature.columns)
           .updateColumnMetaData(preparedStatementHandle.getColumnsList());
     }
+    this.parameterValues = new PreparedStatementParameterValue[slots.length];
+  }
+
+  protected void setParamValue(int i, PreparedStatementParameterValue value) throws SQLException {
+    try {
+      this.parameterValues[i - 1] = value;
+    } catch (ArrayIndexOutOfBoundsException e) {
+      throw AvaticaConnection.HELPER.toSQLException(
+          AvaticaConnection.HELPER.createException("parameter ordinal " + i + " out of range"));
+    }
+  }
+
+  public List<PreparedStatementParameterValue> getProtoParameterValues() {
+    return List.of(parameterValues);
   }
 
   @Override
@@ -70,7 +89,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
    *
    * @throws AlreadyClosedSqlException if PreparedStatement is closed
    */
-  private void throwIfClosed() throws AlreadyClosedSqlException {
+  protected void throwIfClosed() throws AlreadyClosedSqlException {
     if (isClosed()) {
       throw new AlreadyClosedSqlException("PreparedStatement is already closed.");
     }
@@ -91,13 +110,6 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
 
   PreparedStatement getPreparedStatementHandle() {
     return preparedStatementHandle;
-  }
-
-  @Override
-  protected AvaticaParameter getParameter(int param) throws SQLException {
-    throwIfClosed();
-    throw new SQLFeatureNotSupportedException(
-        "Prepared-statement dynamic parameters are not supported.");
   }
 
   @Override
@@ -453,7 +465,22 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   @Override
   public ResultSet executeQuery() throws SQLException {
     throwIfClosed();
+    // validate that all the parameters are set before executing the query.
+    if (!validateAllParametersAreSetBeforeExecution()) {
+      throw UserException.validationError()
+          .message("Not all the parameters are set for the given prepared statement.")
+          .buildSilently();
+    }
     return super.executeQuery();
+  }
+
+  private boolean validateAllParametersAreSetBeforeExecution() {
+    for (PreparedStatementParameterValue value : parameterValues) {
+      if (value == null) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
@@ -489,7 +516,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   public void clearParameters() throws SQLException {
     throwIfClosed();
     try {
-      super.clearParameters();
+      Arrays.fill(parameterValues, null);
     } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }

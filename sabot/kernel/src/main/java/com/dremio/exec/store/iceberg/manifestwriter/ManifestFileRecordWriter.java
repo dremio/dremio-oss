@@ -195,8 +195,19 @@ public class ManifestFileRecordWriter implements RecordWriter {
 
       manifestWritesHelper.processIncomingRow(i);
       processDeletedDataFiles();
+
       if (isInsertOperation(writerOptions) && isErrorRecord(i)) {
         processErrorRecords(i);
+      }
+
+      // Process merge on read data files
+      if (isMergeOnReadDataRecord(i)) {
+        processMergeOnReadDataFiles();
+      }
+
+      // Process merge on read positional delete files
+      if (isMergeOnReadPositionalDeleteRecord(i)) {
+        processPositionalDeletes();
       }
 
       if (isOrphanFileRecord(i)) {
@@ -204,6 +215,70 @@ public class ManifestFileRecordWriter implements RecordWriter {
       }
     }
     return length - offset + 1;
+  }
+
+  /**
+   * Process merge on read data files.
+   *
+   * <p>For each data file, call the listener to record the write. The listener will then update the
+   * stats.
+   */
+  private void processMergeOnReadDataFiles() {
+    manifestWritesHelper.processMergeOnReadDataFiles(
+        (mergeOnReadDataFile, dataFileMetadataInfo) -> {
+          listener
+              .get()
+              .recordsWritten(
+                  mergeOnReadDataFile.recordCount(),
+                  mergeOnReadDataFile.fileSizeInBytes(),
+                  mergeOnReadDataFile.path().toString(),
+                  null,
+                  mergeOnReadDataFile.specId(),
+                  dataFileMetadataInfo,
+                  manifestWritesHelper.getWrittenSchema(),
+                  null,
+                  OperationType.ADD_DATAFILE.value,
+                  null,
+                  0L,
+                  null);
+        });
+  }
+
+  /**
+   * Process positional delete files.
+   *
+   * <p>For each positional-delete file, call the listener to record the write. The listener will
+   * then update the stats.
+   */
+  private void processPositionalDeletes() {
+    manifestWritesHelper.processPositionalDeleteFiles(
+        (positionalDeleteFile, deleteFileMetaInfo) -> {
+          listener
+              .get()
+              .recordsWritten(
+                  positionalDeleteFile.recordCount(),
+                  positionalDeleteFile.fileSizeInBytes(),
+                  positionalDeleteFile.path().toString(),
+                  null,
+                  positionalDeleteFile.specId(),
+                  deleteFileMetaInfo.getMetaInfoBytes(),
+                  manifestWritesHelper.getWrittenSchema(),
+                  null,
+                  OperationType.ADD_DELETEFILE.value,
+                  null,
+                  0L,
+                  deleteFileMetaInfo.getReferencedDataFiles());
+        });
+  }
+
+  /** checks if incoming row is a merge on read positional delete record */
+  private boolean isMergeOnReadPositionalDeleteRecord(int row) {
+    return OperationType.ADD_DELETEFILE.value == operationTypeVector.get(row);
+  }
+
+  /** checks if incoming row is a merge on read data record */
+  private boolean isMergeOnReadDataRecord(int row) {
+    return OperationType.ADD_DATAFILE.value == operationTypeVector.get(row);
   }
 
   /**
@@ -236,7 +311,8 @@ public class ManifestFileRecordWriter implements RecordWriter {
             null,
             operationTypeVector.get(row),
             null,
-            rejectedRecordsVector.get(row));
+            rejectedRecordsVector.get(row),
+            null);
   }
 
   private boolean isOrphanFileRecord(int row) {
@@ -259,7 +335,8 @@ public class ManifestFileRecordWriter implements RecordWriter {
                   null,
                   OperationType.ORPHAN_DATAFILE.value,
                   null,
-                  0L);
+                  0L,
+                  null);
         });
   }
 
@@ -298,7 +375,8 @@ public class ManifestFileRecordWriter implements RecordWriter {
                   Collections.singleton(partitionData),
                   OperationType.DELETE_DATAFILE.value,
                   null,
-                  0L);
+                  0L,
+                  null);
         });
   }
 
@@ -373,7 +451,8 @@ public class ManifestFileRecordWriter implements RecordWriter {
             writingContext.getPartitionDataInCurrentManifest(),
             OperationType.ADD_MANIFESTFILE.value,
             null,
-            0L);
+            0L,
+            null);
     updateStats(manifestFile.length(), manifestFile.addedFilesCount());
   }
 

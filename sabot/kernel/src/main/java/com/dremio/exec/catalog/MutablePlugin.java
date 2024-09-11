@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.OpProps;
@@ -27,6 +28,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
@@ -157,6 +159,16 @@ public interface MutablePlugin extends StoragePlugin {
       Map<String, String> tableProperties,
       TableMutationOptions tableMutationOptions,
       boolean isRemove);
+
+  boolean createFunction(
+      CatalogEntityKey key, SchemaConfig schemaConfig, UserDefinedFunction userDefinedFunction)
+      throws IOException;
+
+  boolean updateFunction(
+      CatalogEntityKey key, SchemaConfig schemaConfig, UserDefinedFunction userDefinedFunction)
+      throws IOException;
+
+  void dropFunction(CatalogEntityKey key, SchemaConfig schemaConfig) throws IOException;
 
   default boolean isSupportUserDefinedSchema(DatasetConfig dataset) {
     return false;

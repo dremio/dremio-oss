@@ -15,11 +15,9 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.insertRows;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.dremio.TestBuilder;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
@@ -323,9 +321,10 @@ public class TestIcebergTableFilesFunction extends IcebergMetadataTestTable {
   @Test
   public void testPartitionData() throws Exception {
     try (DmlQueryTestUtils.Table table =
-        createBasicTable(TEMP_SCHEMA_HADOOP, 0, 2, 0, ImmutableSet.of(1))) {
+        DmlQueryTestUtils.createBasicTableWithPartitions(
+            TEMP_SCHEMA_HADOOP, 0, 2, 0, ImmutableSet.of(1))) {
       insertRows(table, 1);
-      new TestBuilder(allocator)
+      testBuilder()
           .sqlQuery("SELECT \"partition\" FROM TABLE(table_files('%s'))", table.fqn)
           .unOrdered()
           .baselineColumns("partition")
@@ -342,7 +341,7 @@ public class TestIcebergTableFilesFunction extends IcebergMetadataTestTable {
     final String tableName = "dfs_hadoop.tmp.iceberg";
     runSQL(String.format("alter table %s refresh metadata", tableName));
 
-    new TestBuilder(allocator)
+    testBuilder()
         .sqlQuery(
             "select content, file_path, \"file_format\", \"partition\", record_count, file_size_in_bytes, spec_id from table(table_files('%s'))",
             tableName)
@@ -369,16 +368,16 @@ public class TestIcebergTableFilesFunction extends IcebergMetadataTestTable {
             .collect(Collectors.toList());
 
     while (scanner.hasNextLine()) {
-      Map<String, Object> record = new LinkedHashMap<>();
+      Map<String, Object> records = new LinkedHashMap<>();
       String[] values = scanner.nextLine().split(",");
-      record.put(headers.get(0), values[0]);
-      record.put(headers.get(1), values[1]);
-      record.put(headers.get(2), values[2]);
-      record.put(headers.get(3), values[3]);
-      record.put(headers.get(4), Long.parseLong(values[4]));
-      record.put(headers.get(5), Long.parseLong(values[5]));
-      record.put(headers.get(6), Integer.parseInt(values[6]));
-      tableFileRecords.add(record);
+      records.put(headers.get(0), values[0]);
+      records.put(headers.get(1), values[1]);
+      records.put(headers.get(2), values[2]);
+      records.put(headers.get(3), values[3]);
+      records.put(headers.get(4), Long.parseLong(values[4]));
+      records.put(headers.get(5), Long.parseLong(values[5]));
+      records.put(headers.get(6), Integer.parseInt(values[6]));
+      tableFileRecords.add(records);
     }
     return tableFileRecords;
   }

@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.hadoop.security.alias.DremioCredentialProvider.DREMIO_SCHEME_PREFIX;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 
 import com.dremio.common.exceptions.UserException;
@@ -193,9 +194,10 @@ public abstract class AbstractS3PluginConfig
           .build(logger);
     }
     finalProperties.add(new Property(Constants.ACCESS_KEY, accessKey));
-    // TODO (DX-87446): Instead of resolving here, pass raw secret and define a custom
     // AWSCredentialsProvider
-    finalProperties.add(new Property(Constants.SECRET_KEY, accessSecret.get()));
+    finalProperties.add(
+        new Property(
+            Constants.SECRET_KEY, SecretRef.toConfiguration(accessSecret, DREMIO_SCHEME_PREFIX)));
     return ACCESS_KEY_PROVIDER;
   }
 }

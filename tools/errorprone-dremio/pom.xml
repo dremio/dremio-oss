@@ -39,11 +39,11 @@
 
     <!-- Please keep versions in sync with oss parent pom.xml -->
     <spotless.version>2.43.0</spotless.version>
-    <google-java-format.version>1.19.2</google-java-format.version>
+    <google-java-format.version>1.21.0</google-java-format.version>
     <auto-service.version>1.0.1</auto-service.version>
-    <errorprone.version>2.24.1</errorprone.version>
+    <errorprone.version>2.29.2</errorprone.version>
     <slf4j.version>1.7.36</slf4j.version>
-    <grpc.version>1.60.1</grpc.version>
+    <grpc.version>1.65.0</grpc.version>
   </properties>
 
   <dependencies>
@@ -93,9 +93,8 @@
       <!-- Please keep versions in sync with oss parent pom.xml -->
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.12.1</version>
+        <version>3.13.0</version>
         <configuration>
-          <forceJavacCompilerUse>true</forceJavacCompilerUse>
           <showWarnings>true</showWarnings>
           <compilerArgs combine.self="override">
             <arg>-XDcompilePolicy=simple</arg>
@@ -137,7 +136,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.3.2</version>
+        <version>3.4.0</version>
       </plugin>
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
@@ -148,7 +147,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.2.5</version>
+        <version>3.3.1</version>
       </plugin>
       <plugin>
         <groupId>com.mycila</groupId>

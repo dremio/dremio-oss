@@ -33,10 +33,16 @@ import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 
@@ -137,9 +143,39 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
     // dont validate Iceberg schema since the writer is not created
     if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_DML_DISPLAY_RESULT_ONLY)
         || !(sqlInsertTable instanceof SqlCopyIntoTable)) {
-      super.validateIcebergSchemaForInsertCommand(sqlInsertTable, config);
+      validateIcebergSchema(sqlInsertTable);
     }
     return plan;
+  }
+
+  private void validateIcebergSchema(DataAdditionCmdCall sqlInsertTable) {
+    IcebergTableProps icebergTableProps = getTableEntry().getIcebergTableProps();
+    Preconditions.checkState(
+        icebergTableProps.getIcebergOpType() == IcebergCommandType.INSERT,
+        "unexpected state found");
+
+    BatchSchema querySchema = icebergTableProps.getFullSchema();
+
+    BatchSchema tableSchemaFromKVStore = getTableSchemaFromKVStore();
+    BatchSchema partSchemaWithSelectedFields =
+        tableSchemaFromKVStore
+            .subset(sqlInsertTable.getFieldNames())
+            .orElse(tableSchemaFromKVStore);
+    if (sqlInsertTable instanceof SqlCopyIntoTable
+        && ((SqlCopyIntoTable) sqlInsertTable).isOnErrorHandlingRequested()) {
+      querySchema =
+          BatchSchema.of(
+              querySchema.getFields().stream()
+                  .filter(f -> !f.getName().equalsIgnoreCase(ColumnUtils.COPY_HISTORY_COLUMN_NAME))
+                  .collect(Collectors.toList())
+                  .toArray(new Field[querySchema.getFieldCount() - 1]));
+    }
+    if (!querySchema.equalsTypesWithoutPositions(partSchemaWithSelectedFields)) {
+      throw UserException.validationError()
+          .message(
+              "Table %s doesn't match with query %s.", partSchemaWithSelectedFields, querySchema)
+          .buildSilently();
+    }
   }
 
   @Override

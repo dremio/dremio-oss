@@ -534,6 +534,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     final OperatorStats stats = context.getStats();
 
     if (table != null) {
+      stats.setLongStat(Metric.IS_SPILLING, 0L);
       stats.setLongStat(Metric.NUM_ENTRIES, table.size());
       stats.setLongStat(Metric.NUM_BUCKETS, table.capacity());
       stats.setLongStat(Metric.NUM_RESIZING, table.getRehashCount());

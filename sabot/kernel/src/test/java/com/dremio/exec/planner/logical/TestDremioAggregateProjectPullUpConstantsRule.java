@@ -27,6 +27,7 @@ import static com.dremio.test.dsl.RexDsl.plus;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.rules.DremioCoreRules;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.options.OptionResolver;
 import com.dremio.test.specs.OptionResolverSpec;
@@ -37,6 +38,7 @@ import java.util.Map;
 import org.apache.calcite.plan.RelHintsPropagator;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.hep.HepPlanner;
@@ -62,8 +64,7 @@ public class TestDremioAggregateProjectPullUpConstantsRule {
   private static final RelBuilder relBuilder = makeRelBuilder();
   private static RelOptCluster cluster;
 
-  private static final DremioAggregateProjectPullUpConstantsRule rule =
-      DremioAggregateProjectPullUpConstantsRule.INSTANCE2_REMOVE_ALL;
+  private static final RelOptRule rule = DremioCoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS;
 
   @Test
   public void testDremioAggregateProjectPullUpConstant() {
@@ -99,8 +100,7 @@ public class TestDremioAggregateProjectPullUpConstantsRule {
                 .build();
 
     TestRelOptRuleCall testRelOptRuleCall =
-        new TestRelOptRuleCall(
-            cluster.getPlanner(), rule.getOperand(), new RelNode[] {agg, filter}, null);
+        new TestRelOptRuleCall(cluster.getPlanner(), rule.getOperand(), new RelNode[] {agg}, null);
 
     rule.onMatch(testRelOptRuleCall);
 

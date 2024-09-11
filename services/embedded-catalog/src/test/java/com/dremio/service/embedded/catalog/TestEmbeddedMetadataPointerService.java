@@ -33,11 +33,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.error.NessieBadRequestException;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.error.ReferenceConflicts;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.Conflict;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.EntriesResponse;
@@ -170,6 +171,7 @@ class TestEmbeddedMetadataPointerService {
   @Test
   void updateConflict() throws NessieNotFoundException, NessieConflictException {
     ContentKey key1 = ContentKey.of("test.ns", "table1");
+    ContentKey key2 = ContentKey.of("test.ns", "non-existing-table");
     Branch branch = api.getDefaultBranch();
     api.commitMultipleOperations()
         .branch(branch)
@@ -198,8 +200,29 @@ class TestEmbeddedMetadataPointerService {
                     .operation(
                         Operation.Put.of(
                             key1, IcebergTable.of("loc333", 0, 0, 0, 0, table.getId())))
+                    .operation(
+                        // intentionally using same tableId to provoke a conflict for key2
+                        Operation.Put.of(
+                            key2, IcebergTable.of("loc444", 0, 0, 0, 0, table.getId())))
                     .commit())
-        .isInstanceOf(NessieBadRequestException.class); // table ID mismatch
+        .asInstanceOf(type(NessieConflictException.class))
+        .extracting(conflictException -> conflictException.getErrorDetails())
+        .asInstanceOf(type(ReferenceConflicts.class))
+        .extracting(ReferenceConflicts::conflicts)
+        .satisfies(
+            conflicts -> {
+              assertThat(conflicts).hasSize(2);
+
+              Conflict conflict1 = conflicts.get(0);
+              assertThat(conflict1.key()).isEqualTo(key1);
+              assertThat(conflict1.conflictType())
+                  .isEqualTo(Conflict.ConflictType.CONTENT_ID_DIFFERS);
+
+              Conflict conflict2 = conflicts.get(1);
+              assertThat(conflict2.key()).isEqualTo(key2);
+              assertThat(conflict2.conflictType())
+                  .isEqualTo(Conflict.ConflictType.KEY_DOES_NOT_EXIST);
+            }); // table ID mismatch
 
     Content table2 = api.getContent().refName("main").getSingle(key1).getContent();
     assertThat(table2)

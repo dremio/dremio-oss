@@ -71,6 +71,7 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
   private final int maxParallelizationWidth;
   private final StoragePluginId storagePluginId;
   private final Iterator<PartitionChunkMetadata> splits;
+  private final String schemeVariate;
 
   public IcebergSnapshotsPrel(
       RelOptCluster cluster,
@@ -81,7 +82,8 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
       StoragePluginId storagePluginId,
       Iterator<PartitionChunkMetadata> splits,
       long estimatedRows,
-      int maxParallelizationWidth) {
+      int maxParallelizationWidth,
+      String schemeVariate) {
     super(cluster, traitSet);
     this.relDataType = relDataType;
     this.snapshotsScanOptions =
@@ -91,6 +93,7 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
     this.estimatedRows = estimatedRows;
     this.maxParallelizationWidth = maxParallelizationWidth;
     this.user = user;
+    this.schemeVariate = schemeVariate;
   }
 
   public IcebergSnapshotsPrel(
@@ -101,7 +104,8 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
       StoragePluginId storagePluginId,
       Iterator<PartitionChunkMetadata> splits,
       long estimatedRows,
-      int maxParallelizationWidth) {
+      int maxParallelizationWidth,
+      String schemeVariate) {
     this(
         cluster,
         traitSet,
@@ -111,13 +115,20 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
         storagePluginId,
         splits,
         estimatedRows,
-        maxParallelizationWidth);
+        maxParallelizationWidth,
+        schemeVariate);
   }
 
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
     // The number of all snapshots in a table.
     return estimatedRows;
+  }
+
+  @Override
+  public int getEstimatedSize() {
+    // The number of all snapshots in a table.
+    return (int) estimatedRows;
   }
 
   @Override
@@ -148,7 +159,8 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
         PROJECTED_COLUMNS,
         snapshotsScanOptions,
         splits,
-        maxParallelizationWidth);
+        maxParallelizationWidth,
+        schemeVariate);
   }
 
   @Override
@@ -161,7 +173,8 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
         storagePluginId,
         splits,
         estimatedRows,
-        maxParallelizationWidth);
+        maxParallelizationWidth,
+        schemeVariate);
   }
 
   @Override

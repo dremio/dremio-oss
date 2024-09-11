@@ -54,6 +54,7 @@ public final class DefaultExpansionNodeSerde
             node.getContextSensitive(),
             Strings.isNullOrEmpty(node.getVersionContext())
                 ? null
-                : TableVersionContext.deserialize(node.getVersionContext()));
+                : TableVersionContext.deserialize(node.getVersionContext()),
+            null);
   }
 }

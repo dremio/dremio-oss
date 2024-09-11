@@ -22,11 +22,17 @@ import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /** NoOp implementation of MaestroForwarder */
+@Singleton
 public class NoOpMaestroForwarder implements MaestroForwarder {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(NoOpMaestroForwarder.class);
+
+  @Inject
+  public NoOpMaestroForwarder() {}
 
   @Override
   public void screenCompleted(NodeQueryScreenCompletion completion) {

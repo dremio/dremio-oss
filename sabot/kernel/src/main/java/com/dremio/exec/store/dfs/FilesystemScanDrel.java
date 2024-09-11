@@ -24,7 +24,6 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.ops.SnapshotDiffContext;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.RelOptNamespaceTable;
@@ -51,7 +50,7 @@ import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** ScanDrel for filesystem stores filter conditions. */
-public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableScan, PruneableScan {
+public class FilesystemScanDrel extends FilterableScan implements Rel, PruneableScan {
   private final ParquetScanFilter filter;
   private final ParquetScanRowGroupFilter rowGroupFilter;
   private final PruneFilterCondition partitionFilter;
@@ -87,7 +86,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         null,
         null,
         snapshotDiffContext,
-        false);
+        false,
+        PartitionStatsStatus.NONE);
   }
 
   private FilesystemScanDrel(
@@ -106,7 +106,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
       Long survivingRowCount,
       Long survivingFileCount,
       SnapshotDiffContext snapshotDiffContext,
-      boolean partitionValuesEnabled) {
+      boolean partitionValuesEnabled,
+      PartitionStatsStatus partitionStats) {
     super(
         cluster,
         traitSet,
@@ -116,7 +117,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         projectedColumns,
         observedRowcountAdjustment,
         hints,
-        snapshotDiffContext);
+        snapshotDiffContext,
+        partitionStats);
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = filter;
     this.rowGroupFilter = rowGroupFilter;
@@ -138,7 +140,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         that.getProjectedColumns(),
         that.getObservedRowcountAdjustment(),
         that.getHints(),
-        that.getSnapshotDiffContext());
+        that.getSnapshotDiffContext(),
+        that.getPartitionStatsStatus());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = filter;
     this.rowGroupFilter = that.getRowGroupFilter();
@@ -164,7 +167,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         that.getProjectedColumns(),
         that.getObservedRowcountAdjustment(),
         that.getHints(),
-        that.getSnapshotDiffContext());
+        that.getSnapshotDiffContext(),
+        that.getPartitionStatsStatus());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
     this.rowGroupFilter = that.getRowGroupFilter();
@@ -186,7 +190,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         that.getProjectedColumns(),
         that.getObservedRowcountAdjustment(),
         that.getHints(),
-        that.getSnapshotDiffContext());
+        that.getSnapshotDiffContext(),
+        that.getPartitionStatsStatus());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
     this.rowGroupFilter = that.getRowGroupFilter();
@@ -208,7 +213,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         that.getProjectedColumns(),
         that.getObservedRowcountAdjustment(),
         that.getHints(),
-        that.getSnapshotDiffContext());
+        that.getSnapshotDiffContext(),
+        that.getPartitionStatsStatus());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
     this.rowGroupFilter = that.getRowGroupFilter();
@@ -230,7 +236,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         that.getProjectedColumns(),
         that.getObservedRowcountAdjustment(),
         that.getHints(),
-        that.getSnapshotDiffContext());
+        that.getSnapshotDiffContext(),
+        that.getPartitionStatsStatus());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
     this.rowGroupFilter = rowGroupFilter;
@@ -259,7 +266,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         survivingRowCount,
         survivingFileCount,
         snapshotDiffContext,
-        partitionValuesEnabled);
+        partitionValuesEnabled,
+        getPartitionStatsStatus());
   }
 
   @Override
@@ -345,7 +353,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         survivingRowCount,
         survivingFileCount,
         snapshotDiffContext,
-        partitionValuesEnabled);
+        partitionValuesEnabled,
+        getPartitionStatsStatus());
   }
 
   @Override
@@ -391,7 +400,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         getSurvivingRowCount(),
         getSurvivingFileCount(),
         snapshotDiffContext,
-        partitionValuesEnabled);
+        partitionValuesEnabled,
+        getPartitionStatsStatus());
   }
 
   @Override
@@ -449,7 +459,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
         survivingRowCount,
         survivingFileCount,
         snapshotDiffContext,
-        partitionValuesEnabled);
+        partitionValuesEnabled,
+        getPartitionStatsStatus());
   }
 
   public boolean isPartitionValuesEnabled() {

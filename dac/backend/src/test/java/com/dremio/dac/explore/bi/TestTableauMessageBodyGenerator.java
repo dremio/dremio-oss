@@ -91,7 +91,9 @@ public class TestTableauMessageBodyGenerator {
       NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build();
   public static final String NATIVE = "NATIVE";
   public static final String FLIGHT = "FLIGHT";
-  public static final String SSL_TRUE = "ssl = true";
+  public static final String SSL_TRUE = "ssl=true";
+  public static final String FLIGHT_SSL_TRUE = "useencryption=true";
+  public static final String DISABLE_CERT_VERIFICATION = "disablecertificateverification=true";
 
   private final DatasetPath path;
   private final String tableName;
@@ -232,7 +234,15 @@ public class TestTableauMessageBodyGenerator {
   @Test
   public void verifyFlightOutputSslOn()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
-    verifyOutput("useEncryption = true", TableauSDKConstants.REQUIRE, FLIGHT);
+    verifyOutput(FLIGHT_SSL_TRUE, TableauSDKConstants.REQUIRE, FLIGHT);
+  }
+
+  @Test
+  public void verifyDisableCertVerificationOutput()
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(config.hasPath("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
+    when(config.getBoolean("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
+    verifyOutput(DISABLE_CERT_VERIFICATION, TableauSDKConstants.REQUIRE, FLIGHT);
   }
 
   @Test
@@ -247,7 +257,6 @@ public class TestTableauMessageBodyGenerator {
     assertEquals("", connection.getAttribute(TableauSDKConstants.QUEUE));
     assertEquals("", connection.getAttribute(TableauSDKConstants.ENGINE));
     assertEquals("", connection.getAttribute(TableauSDKConstants.TAG));
-    assertEquals("", connection.getAttribute(TableauSDKConstants.DISABLE_CERT_VERIFICATION));
   }
 
   protected void verifySdkAuthenticationOutput(Element connection) {
@@ -261,12 +270,19 @@ public class TestTableauMessageBodyGenerator {
 
   protected void verifySdkProduct(Element connection) {
     assertEquals(
-        TableauSDKConstants.LEGACY_SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
+        TableauSDKConstants.SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
   }
 
-  protected void verifyFlightProduct(Element connection) {
-    assertEquals(
-        TableauSDKConstants.SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
+  protected void verifyFlightDriver(Element connection) {
+    assertEquals("true", connection.getAttribute(TableauSDKConstants.USE_FLIGHT_DRIVER));
+  }
+
+  protected void verifyCertVerification(Element connection) {
+    assertEquals("", connection.getAttribute(TableauSDKConstants.DISABLE_CERT_VERIFICATION));
+  }
+
+  protected void verifyDisableCertVerification(Element connection) {
+    assertEquals("true", connection.getAttribute(TableauSDKConstants.DISABLE_CERT_VERIFICATION));
   }
 
   protected Element verifyOutput(String properties, String sslmode, String tableauExportType)
@@ -315,11 +331,14 @@ public class TestTableauMessageBodyGenerator {
     verifySdkAuthenticationOutput(connection);
     verifySdkSSLOutput(connection, sslmode);
     verifySdkCustomOutput(connection);
-
+    verifySdkProduct(connection);
     if (FLIGHT.equals(tableauExportType)) {
-      verifyFlightProduct(connection);
+      verifyFlightDriver(connection);
+    }
+    if (properties.contains("disablecertificateverification")) {
+      verifyDisableCertVerification(connection);
     } else {
-      verifySdkProduct(connection);
+      verifyCertVerification(connection);
     }
 
     verifyRelationElement(connection);

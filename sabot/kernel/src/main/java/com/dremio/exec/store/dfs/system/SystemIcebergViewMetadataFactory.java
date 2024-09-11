@@ -68,6 +68,7 @@ public final class SystemIcebergViewMetadataFactory {
    * @return {@code true} if the view is supported; otherwise, {@code false}.
    */
   public static boolean isSupportedViewPath(List<String> viewSchemaPath) {
-    return SUPPORTED_VIEWS.stream().anyMatch(v -> viewSchemaPath.stream().anyMatch(v::equals));
+    return SUPPORTED_VIEWS.stream()
+        .anyMatch(v -> viewSchemaPath.stream().anyMatch(v::equalsIgnoreCase));
   }
 }

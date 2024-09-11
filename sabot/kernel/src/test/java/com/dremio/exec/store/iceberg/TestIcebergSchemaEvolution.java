@@ -19,7 +19,6 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.service.namespace.NamespaceKey;
@@ -33,11 +32,7 @@ import org.junit.Test;
 
 public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
-  private ParserConfig parserConfig =
-      new ParserConfig(
-          ParserConfig.QUOTING,
-          100,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
 
   private void changeColumn(String table, String existingColumn, String newColumn, String type)
       throws Exception {
@@ -151,9 +146,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testColumnRenameComplex() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testColumnRenameComplex("complex_column_rename_test", TEMP_SCHEMA_HADOOP);
-    }
+    testColumnRenameComplex("complex_column_rename_test", TEMP_SCHEMA_HADOOP);
   }
 
   private void testDropColumn(String drop_column_test, String testSchema) throws Exception {
@@ -195,15 +188,13 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testDropColumn() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testDropColumn("drop_column_test", TEMP_SCHEMA_HADOOP);
-    }
+    testDropColumn("drop_column_test", TEMP_SCHEMA_HADOOP);
   }
 
   @Test
   public void testDropPartitionColumn() throws Exception {
     final String tableName = "test_drop_partition_col";
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       runSQL(
           String.format(
               "create table %s.%s (c1 int, p1 int) PARTITION by (p1)",
@@ -262,9 +253,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testAddColumn() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testAddColumn("add_column_test", TEMP_SCHEMA_HADOOP);
-    }
+    testAddColumn("add_column_test", TEMP_SCHEMA_HADOOP);
   }
 
   private void testDropAndAddColumn(String drop_and_add_test, String testSchema) throws Exception {
@@ -315,9 +304,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testDropAndAddColumn() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testDropAndAddColumn("drop_and_add_test", TEMP_SCHEMA_HADOOP);
-    }
+    testDropAndAddColumn("drop_and_add_test", TEMP_SCHEMA_HADOOP);
   }
 
   private void testDropAndAddSameColumn(String drop_and_add_same_column_test, String testSchema)
@@ -382,9 +369,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testDropAndAddSameColumn() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testDropAndAddSameColumn("drop_and_add_same_column_test", TEMP_SCHEMA_HADOOP);
-    }
+    testDropAndAddSameColumn("drop_and_add_same_column_test", TEMP_SCHEMA_HADOOP);
   }
 
   private void testSimplePushDownWithRename(String simple_pushdown_test, String testSchema)
@@ -454,9 +439,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testSimplePushDownWithRename() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testSimplePushDownWithRename("simple_pushdown_test", TEMP_SCHEMA_HADOOP);
-    }
+    testSimplePushDownWithRename("simple_pushdown_test", TEMP_SCHEMA_HADOOP);
   }
 
   private void testUpPromote(String up_promote_test, String testSchema) throws Exception {
@@ -514,9 +497,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testUpPromote() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testUpPromote("up_promote_test", TEMP_SCHEMA_HADOOP);
-    }
+    testUpPromote("up_promote_test", TEMP_SCHEMA_HADOOP);
   }
 
   private void testUpPromoteAndRename(String up_promote_and_rename_test, String testSchema)
@@ -599,9 +580,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testUpPromoteAndRename() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testUpPromoteAndRename("up_promote_and_rename_test", TEMP_SCHEMA_HADOOP);
-    }
+    testUpPromoteAndRename("up_promote_and_rename_test", TEMP_SCHEMA_HADOOP);
   }
 
   private void testCaseSensitiveRename(String case_sensitive_test, String testSchema)
@@ -652,8 +631,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   @Test
   public void testCaseSensitiveRename() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testCaseSensitiveRename("case_sensitive_test", TEMP_SCHEMA_HADOOP);
-    }
+    testCaseSensitiveRename("case_sensitive_test", TEMP_SCHEMA_HADOOP);
   }
 }

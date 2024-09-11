@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 import Immutable from "immutable";
-import Quote from "./Quote.js";
+import Quote from "./Quote";
 
 describe("Test quote component", () => {
   it("should hide stats box for 0/0", () => {

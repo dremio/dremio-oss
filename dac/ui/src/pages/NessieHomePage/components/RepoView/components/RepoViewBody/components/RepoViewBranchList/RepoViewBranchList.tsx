@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-import { useContext, useEffect, useState } from "react";
+import { useContext, useId } from "react";
 import { FormattedMessage } from "react-intl";
 import { withRouter, WithRouterProps } from "react-router";
 import { connect } from "react-redux";
 
-import { AutoSizer, List } from "react-virtualized";
-import { MenuItem } from "@mui/material";
 import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
 //@ts-ignore
 import { Tooltip } from "dremio-ui-lib";
-import { Avatar } from "dremio-ui-lib/components";
+import { Avatar, Button } from "dremio-ui-lib/components";
 import PromiseViewState from "@app/components/PromiseViewState/PromiseViewState";
 import { Reference } from "@app/types/nessie";
 import { RepoViewContext } from "../../../../RepoView";
@@ -32,18 +30,18 @@ import { convertISOStringWithTooltip, renderIcons } from "./utils";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 import {
-  constructArcticUrl,
-  useArcticCatalogContext,
-} from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
+  constructVersionedEntityUrl,
+  useVersionedPageContext,
+} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
 import { setReference } from "@app/actions/nessie/nessie";
 import { stopPropagation } from "@app/utils/reactEventUtils";
 import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
 import { useResourceSnapshot } from "smart-resource/react";
 import { ArcticCatalogPrivilegesResource } from "@inject/arctic/resources/ArcticCatalogPrivilegesResource";
 import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
+import { SmartResource } from "smart-resource";
 
 import "./RepoViewBranchList.less";
-import { SmartResource } from "smart-resource";
 
 type RepoViewBranchTableProps = {
   rows: Reference[];
@@ -73,60 +71,55 @@ function RepoViewBranchList({
   noSearchResults,
 }: RepoViewBranchTableProps & WithRouterProps) {
   const [catalogPrivileges] = useResourceSnapshot(
-    ArcticCatalogPrivilegesResource || new SmartResource(() => null)
+    ArcticCatalogPrivilegesResource || new SmartResource(() => null),
   );
   const showEmptyState = rows.length < 1;
   const { allRefsStatus: status, allRefsErr: err } =
     useContext(RepoViewContext);
-  const [rowHover, setRowHover] = useState<boolean[]>(
-    new Array(rows.length).fill(false)
-  );
-
   const { baseUrl, stateKey } = useNessieContext();
+  const { isCatalog } = useVersionedPageContext();
+  const id = useId();
 
-  const { isCatalog } = useArcticCatalogContext();
-
-  useEffect(() => {
-    setRowHover(new Array(rows.length).fill(false));
-  }, [rows.length]);
-
-  const renderRow = ({ index, key, style }: any): JSX.Element => {
-    const cur = rows[index];
-
+  const renderRow = (cur: any, index: number): JSX.Element => {
+    const id = cur.name + index;
     const goToDatasetOnClick = () => {
       dispatchSetReference({ reference: cur }, stateKey);
 
       router.push(
-        constructArcticUrl({
+        constructVersionedEntityUrl({
           type: isCatalog ? "catalog" : "source",
           baseUrl,
           tab: "data",
           namespace: encodeURIComponent(cur.name),
-        })
+        }),
       );
     };
 
     return (
       <div
-        key={key}
-        style={style}
+        key={id}
+        id={id}
         className="branch-list-item-container"
-        onMouseEnter={() => {
-          const copyHover = new Array(rowHover.length).fill(false);
-          copyHover[key.split("-")[0]] = true;
-          setRowHover(copyHover);
-        }}
-        onMouseLeave={() => setRowHover(new Array(rowHover.length).fill(false))}
         onClick={
           isArcticSource
             ? () => router.push(`${location.pathname}/${cur.name}`)
             : goToDatasetOnClick
         }
+        role="listitem"
+        tabIndex={0}
+        onKeyPress={(e) => {
+          if (
+            (e.code === "Space" || e.code === "Enter") &&
+            e.target?.id === id
+          ) {
+            isArcticSource
+              ? router.push(`${location.pathname}/${cur.name}`)
+              : goToDatasetOnClick();
+          }
+        }}
+        aria-label={`Branch ${cur.name}, link, go to data`}
       >
-        <MenuItem
-          data-testid={`brach-${cur.name}`}
-          className="branch-list-item"
-        >
+        <div data-testid={`brach-${cur.name}`} className="branch-list-item">
           <div className="branch-list-item-content">
             <span className="branch-list-item-name">
               <dremio-icon
@@ -165,7 +158,7 @@ function RepoViewBranchList({
                         </span>
                       }
                     >
-                      <span className="branch-list-item-message">
+                      <span className="branch-list-item-message text-ellipsis">
                         {cur.metadata.commitMetaOfHEAD.message}
                       </span>
                     </Tooltip>
@@ -173,18 +166,21 @@ function RepoViewBranchList({
                   <span className="branch-list-item-by">by</span>
                   <Avatar
                     initials={nameToInitials(
-                      cur.metadata.commitMetaOfHEAD.authors[0]
+                      cur.metadata.commitMetaOfHEAD.authors[0],
                     )}
                   />
-                  <span className="branch-list-item-author">
+                  <span className="branch-list-item-author text-ellipsis">
                     {cur.metadata.commitMetaOfHEAD.authors[0] || ""}
                   </span>
                   <span className="branch-list-item-divider"></span>
-                  <span onClick={(e) => stopPropagation(e)}>
+                  <span
+                    onClick={(e) => stopPropagation(e)}
+                    className="text-ellipsis"
+                  >
                     {convertISOStringWithTooltip(
                       cur.metadata?.commitMetaOfHEAD?.authorTime?.toString?.() ??
                         "",
-                      { isRelative: true }
+                      { isRelative: true },
                     )}
                   </span>
                 </div>
@@ -196,7 +192,6 @@ function RepoViewBranchList({
           >
             {renderIcons(
               cur,
-              rowHover[key.split("-")[0]],
               isArcticSource,
               goToDatasetOnClick,
               openCreateDialog,
@@ -204,10 +199,10 @@ function RepoViewBranchList({
               openMergeDialog,
               isDefault,
               openTagDialog,
-              catalogPrivileges
+              catalogPrivileges,
             )}
           </div>
-        </MenuItem>
+        </div>
       </div>
     );
   };
@@ -220,19 +215,20 @@ function RepoViewBranchList({
       />
     ) : (
       <EmptyStateContainer
-        title="ArcticCatalog.Branches.NoneYet"
+        title="VersionedEntity.Branches.NoneYet"
         icon="vcs/create-branch"
       >
         <CatalogPrivilegeSwitch
           privilege={["branch", "canCreate"]}
           renderEnabled={() =>
             defaultReference && (
-              <span
+              <Button
                 className="branch-list-empty-state-trigger"
                 onClick={() => openCreateDialog(defaultReference)}
+                variant="tertiary"
               >
-                <FormattedMessage id="ArcticCatalog.Branches.CreateBranch.EmptyState" />
-              </span>
+                <FormattedMessage id="VersionedEntity.Branches.CreateBranch.EmptyState" />
+              </Button>
             )
           }
         />
@@ -241,26 +237,16 @@ function RepoViewBranchList({
 
   return (
     <div className="branch-list">
-      <div className="branch-list-name">
+      <div className="branch-list-name" id={id}>
         {isDefault ? (
           <FormattedMessage id="RepoView.DefaultBranch" />
         ) : (
-          <FormattedMessage id="ArcticCatalog.Branches.Other" />
+          <FormattedMessage id="VersionedEntity.Branches.Other" />
         )}
       </div>
-      <div className="branch-list-container">
+      <div className="branch-list-container" role="list" aria-labelledby={id}>
         <PromiseViewState status={status} error={err} />
-        <AutoSizer>
-          {({ height }) => (
-            <List
-              rowRenderer={showEmptyState ? renderCallToAction : renderRow}
-              rowCount={showEmptyState ? 1 : rows.length}
-              rowHeight={showEmptyState && !noSearchResults ? height : 82}
-              height={height}
-              width={1}
-            />
-          )}
-        </AutoSizer>
+        {showEmptyState ? renderCallToAction() : rows.map(renderRow)}
       </div>
     </div>
   );
@@ -271,5 +257,5 @@ const mapDispatchToProps = {
 };
 
 export default withRouter(
-  connect(null, mapDispatchToProps)(RepoViewBranchList)
+  connect(null, mapDispatchToProps)(RepoViewBranchList),
 );

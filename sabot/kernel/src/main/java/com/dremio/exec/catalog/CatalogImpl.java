@@ -15,23 +15,27 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_METADATA_FUNCTIONS;
+import static com.dremio.exec.catalog.CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED;
+import static com.dremio.exec.catalog.CatalogServiceImpl.SYSTEM_TABLE_SOURCE_NAME;
 import static com.dremio.exec.catalog.CatalogUtil.getIcebergTimeTravelRequest;
 import static com.dremio.exec.catalog.CatalogUtil.getMetadataVerifyRequest;
 import static com.dremio.exec.catalog.CatalogUtil.getMetadataVerifyResult;
-import static com.dremio.exec.catalog.VersionedDatasetId.fromString;
-import static com.dremio.exec.catalog.VersionedDatasetId.isTimeTravelDatasetId;
 import static com.dremio.exec.catalog.VersionedPlugin.EntityType;
+import static com.dremio.exec.planner.physical.PlannerSettings.REFLECTION_LINEAGE_TABLE_FUNCTION_ENABLED;
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static com.dremio.exec.store.sys.udf.UserDefinedFunctionSerde.fromProto;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import com.dremio.catalog.exception.UnsupportedForgetTableException;
 import com.dremio.catalog.model.CatalogEntityId;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
-import com.dremio.catalog.model.dataset.TableVersionType;
+import com.dremio.common.concurrent.bulk.BulkRequest;
+import com.dremio.common.concurrent.bulk.BulkResponse;
+import com.dremio.common.concurrent.bulk.ValueTransformer;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -39,14 +43,16 @@ import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.extensions.SupportsMetadataVerify;
 import com.dremio.connector.metadata.options.InternalMetadataTableOption;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.Serializer;
-import com.dremio.datastore.api.LegacyIndexedStore;
-import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
+import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.exec.catalog.udf.DremioScalarUserDefinedFunction;
 import com.dremio.exec.catalog.udf.DremioTabularUserDefinedFunction;
 import com.dremio.exec.dotfile.View;
@@ -54,13 +60,11 @@ import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.MFunctionCatalogMetadata;
-import com.dremio.exec.store.NessieReferenceException;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.ReferenceConflictException;
@@ -70,6 +74,7 @@ import com.dremio.exec.store.VersionedDatasetAccessOptions;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.iceberg.ViewHandle;
 import com.dremio.exec.store.mfunctions.DeltaLakeMFunctionTranslatableTableImpl;
 import com.dremio.exec.store.mfunctions.IcebergMetadataFunctionsTable;
@@ -81,6 +86,7 @@ import com.dremio.exec.tablefunctions.TableMacroNames;
 import com.dremio.exec.tablefunctions.TimeTravelTableMacro;
 import com.dremio.exec.tablefunctions.copyerrors.CopyErrorsMacro;
 import com.dremio.options.OptionManager;
+import com.dremio.plugins.sysflight.ReflectionLineageTableMacro;
 import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.catalog.Table;
@@ -88,6 +94,7 @@ import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.DatasetIndexKeys;
+import com.dremio.service.namespace.ImmutableEntityNamespaceFindOptions;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceIdentity;
@@ -107,12 +114,12 @@ import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.SourceNamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.orphanage.Orphanage;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -170,6 +177,7 @@ public class CatalogImpl implements Catalog {
   private final VersionContextResolverImpl versionContextResolverImpl;
   private final CatalogStatusEvents catalogStatusEvents;
   private final VersionedDatasetAdapterFactory versionedDatasetAdapterFactory;
+  private final MetadataIOPool metadataIOPool;
 
   CatalogImpl(
       MetadataRequestOptions options,
@@ -184,7 +192,8 @@ public class CatalogImpl implements Catalog {
       IdentityResolver identityResolver,
       VersionContextResolverImpl versionContextResolverImpl,
       CatalogStatusEvents catalogStatusEvents,
-      VersionedDatasetAdapterFactory versionedDatasetAdapterFactory) {
+      VersionedDatasetAdapterFactory versionedDatasetAdapterFactory,
+      MetadataIOPool metadataIOPool) {
     this.options = options;
     this.pluginRetriever = pluginRetriever;
     this.sourceModifier = sourceModifier;
@@ -200,10 +209,11 @@ public class CatalogImpl implements Catalog {
     this.versionedDatasetAdapterFactory = versionedDatasetAdapterFactory;
 
     final CatalogIdentity identity = options.getSchemaConfig().getAuthContext().getSubject();
-    this.userNamespaceService =
-        namespaceFactory.get(identityResolver.toNamespaceIdentity(identity));
+    final NamespaceIdentity namespaceIdentity = identityResolver.toNamespaceIdentity(identity);
+    this.userNamespaceService = namespaceFactory.get(namespaceIdentity);
 
     this.versionContextResolverImpl = versionContextResolverImpl;
+    this.metadataIOPool = metadataIOPool;
     this.datasets =
         new DatasetManager(
             pluginRetriever,
@@ -212,9 +222,11 @@ public class CatalogImpl implements Catalog {
             userName,
             identityResolver,
             versionContextResolverImpl,
-            versionedDatasetAdapterFactory);
+            versionedDatasetAdapterFactory,
+            metadataIOPool);
     this.iscDelegate =
-        new InformationSchemaCatalogImpl(userNamespaceService, pluginRetriever, optionManager);
+        new InformationSchemaCatalogImpl(
+            userNamespaceService, pluginRetriever, optionManager, namespaceIdentity);
     this.catalogStatusEvents = catalogStatusEvents;
   }
 
@@ -235,7 +247,6 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  @WithSpan
   public DremioTable getTable(NamespaceKey key) {
     final NamespaceKey resolvedKey = resolveToDefault(key);
 
@@ -261,6 +272,51 @@ public class CatalogImpl implements Catalog {
       }
     }
     return getTable(namespaceKey);
+  }
+
+  @Override
+  public BulkResponse<NamespaceKey, Optional<DremioTable>> bulkGetTables(
+      BulkRequest<NamespaceKey> keys) {
+
+    // issue a bulk request for the keys as provided
+    BulkResponse<NamespaceKey, Optional<DremioTable>> unresolvedKeyResponses =
+        datasets.bulkGetTables(keys, options, false);
+
+    // if there is a default schema provided, perform a concurrent lookup with keys resolved
+    // to that default schema
+    BulkResponse<NamespaceKey, Optional<DremioTable>> combinedResponses = unresolvedKeyResponses;
+    if (getDefaultSchema() != null && getDefaultSchema().size() > 0) {
+
+      // issue a bulk request for the keys resolved to the default schema
+      BulkResponse<NamespaceKey, Optional<DremioTable>> resolvedKeyResponses =
+          keys.bulkTransformAndHandleRequests(
+              requests -> datasets.bulkGetTables(requests, options, false), this::resolveToDefault);
+
+      // combine with unresolved key responses - resolved key responses will be preferred over
+      // unresolved
+      combinedResponses =
+          resolvedKeyResponses.combineWith(
+              unresolvedKeyResponses,
+              (resolvedResponse, unresolvedResponse) ->
+                  resolvedResponse.isPresent() ? resolvedResponse : unresolvedResponse);
+    }
+
+    // define a value transformer which will update any view tables after retrieval
+    ValueTransformer<NamespaceKey, Optional<DremioTable>, NamespaceKey, Optional<DremioTable>>
+        updateTableAfterRetrieval =
+            (originalKey, resolvedKey, optTable) -> {
+              optTable.ifPresent(table -> updateTableIfNeeded(resolvedKey, table));
+              return optTable;
+            };
+
+    return combinedResponses.transform(
+        java.util.function.Function.identity(), updateTableAfterRetrieval);
+  }
+
+  @Override
+  public BulkResponse<NamespaceKey, Optional<DremioTable>> bulkGetTablesForQuery(
+      BulkRequest<NamespaceKey> keys) {
+    return bulkGetTables(keys);
   }
 
   @Override
@@ -372,34 +428,6 @@ public class CatalogImpl implements Catalog {
       default:
         return DatasetType.INVALID_DATASET_TYPE;
     }
-  }
-
-  boolean versionedFolderExists(CatalogEntityKey folderKey) {
-    if (folderKey == null
-        || folderKey.getKeyComponents().isEmpty()
-        || folderKey.getTableVersionContext() == null
-        || folderKey.getTableVersionContext().isTimeTravelType()) {
-      return false;
-    }
-    Preconditions.checkState(
-        !folderKey.getTableVersionContext().isTimeTravelType(),
-        "Folder context cannot be of type AT TIMESTAMP or AT SNAPSHOT");
-    final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(folderKey.getRootEntity(), false);
-    if (plugin != null
-        && plugin.getPlugin() != null
-        && plugin.getPlugin().isWrapperFor(VersionedPlugin.class)) {
-      ResolvedVersionContext resolvedVersionContext =
-          resolveVersionContext(
-              folderKey.getRootEntity(), folderKey.getTableVersionContext().asVersionContext());
-      EntityType type =
-          (plugin.getPlugin())
-              .unwrap(VersionedPlugin.class)
-              .getType(folderKey.getPathWithoutRoot(), resolvedVersionContext);
-      if (type == EntityType.FOLDER) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /**
@@ -540,11 +568,6 @@ public class CatalogImpl implements Catalog {
       MetadataFunctionsMacro.MacroName mFunctionName,
       NamespaceKey canonicalKey,
       MFunctionMetadata mFunctionMetadata) {
-    boolean complexTypeSupport =
-        options
-            .getSchemaConfig()
-            .getOptions()
-            .getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT);
     final MFunctionCatalogMetadata catalogMetadata =
         new MFunctionCatalogMetadata(
             IcebergMetadataFunctionsTable.valueOf(mFunctionName.getName().toUpperCase(Locale.ROOT))
@@ -564,8 +587,7 @@ public class CatalogImpl implements Catalog {
                     mFunctionName)
                 .buildSilently();
           }
-          return new DeltaLakeMFunctionTranslatableTableImpl(
-              catalogMetadata, mFunctionMetadata, complexTypeSupport);
+          return new DeltaLakeMFunctionTranslatableTableImpl(catalogMetadata, mFunctionMetadata);
         default:
           throw UserException.validationError()
               .message("Unsupported Function '%s' for DeltaLake Table", mFunctionName)
@@ -602,8 +624,7 @@ public class CatalogImpl implements Catalog {
         return new IcebergMFunctionTranslatableTableImpl(
             catalogMetadata,
             mFunctionMetadata.getSchemaConfig().getUserName(),
-            mFunctionMetadata.getMetadataLocation(),
-            complexTypeSupport);
+            mFunctionMetadata.getMetadataLocation());
       case TABLE_FILES:
         final Supplier<Optional<DatasetHandle>> datasetHandleSupplier =
             mFunctionMetadata::getHandle;
@@ -613,8 +634,7 @@ public class CatalogImpl implements Catalog {
             datasetHandleSupplier,
             mFunctionMetadata.getPlugin(),
             mFunctionMetadata.getOptions(),
-            mFunctionMetadata.getSchemaConfig().getUserName(),
-            complexTypeSupport);
+            mFunctionMetadata.getSchemaConfig().getUserName());
       default:
         throw UserException.validationError()
             .message("Invalid Table Function Name '%s' ", mFunctionName)
@@ -672,7 +692,7 @@ public class CatalogImpl implements Catalog {
 
   private DremioTable getTableSnapshotHelper(NamespaceKey key, TableVersionContext context) {
     final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), false);
-    if (plugin == null) {
+    if (plugin == null || plugin.getPlugin() == null) {
       return null;
     }
 
@@ -695,7 +715,7 @@ public class CatalogImpl implements Catalog {
               .setVersionedDatasetAccessOptions(
                   getVersionedDatasetAccessOptions(canonicalKey, tableVersionContext))
               .build();
-    } catch (NessieReferenceException u) {
+    } catch (VersionNotFoundInNessieException u) {
       //  This is thrown  during table resolution if we lookup a VersionContext specified with the
       // AT syntax
       // in the session context source. In that case the Version will not be found. We need to
@@ -716,8 +736,7 @@ public class CatalogImpl implements Catalog {
     }
     if (handle.get() instanceof ViewHandle) {
       final String accessUserName = options.getSchemaConfig().getUserName();
-      if (tableVersionContext.getType() == TableVersionType.SNAPSHOT_ID
-          || tableVersionContext.getType() == TableVersionType.TIMESTAMP) {
+      if (tableVersionContext.isTimeTravelType()) {
         throw UserException.validationError()
             .message(
                 "Versioned views do not support AT SNAPSHOT or AT TIMESTAMP '%s'", canonicalKey)
@@ -919,6 +938,15 @@ public class CatalogImpl implements Catalog {
     return handle.get();
   }
 
+  private Optional<VersionedDatasetAccessOptions> getVersionedPluginAccessOption(
+      ManagedStoragePlugin managedStoragePlugin, CatalogEntityKey key) {
+    if (managedStoragePlugin.getPlugin().isWrapperFor(VersionedPlugin.class)) {
+      return Optional.ofNullable(
+          getVersionedDatasetAccessOptions(key.toNamespaceKey(), key.getTableVersionContext()));
+    }
+    return Optional.empty();
+  }
+
   private boolean datasetSupportsTimeTravel(DatasetConfig config) {
     if (!ManagedStoragePlugin.isComplete(config)) {
       return false;
@@ -968,6 +996,9 @@ public class CatalogImpl implements Catalog {
 
   private VersionContext getVersionContext(NamespaceKey key, TableVersionContext context) {
     VersionContext versionContext;
+    if (context == null) {
+      context = TableVersionContext.NOT_SPECIFIED;
+    }
     if (context.isTimeTravelType()) {
       // TableVersionContext is SNAPSHOT OR TIMESTAMP specified with AT syntax
       // Get the session version setting for this source from MetadataRequestOptions, if set.
@@ -984,7 +1015,8 @@ public class CatalogImpl implements Catalog {
     } else {
       // This must be of type BRANCH,TAG or COMMIT
       versionContext = context.asVersionContext();
-      if (!versionContext.isSpecified()) {
+      if (!versionContext.isSpecified()
+          && (CatalogUtil.requestedPluginSupportsVersionedTables(key.getRoot(), this))) {
         // Fall back to the session context setting for the source
         versionContext = options.getVersionForSource(key.getRoot(), key);
       }
@@ -992,7 +1024,6 @@ public class CatalogImpl implements Catalog {
     return versionContext;
   }
 
-  @WithSpan
   private DremioTable getTableHelper(NamespaceKey key) {
     Span.current().setAttribute("dremio.namespace.key.schemapath", key.getSchemaPath());
     final DremioTable table = datasets.getTable(key, options, false);
@@ -1046,10 +1077,12 @@ public class CatalogImpl implements Catalog {
 
   @Override
   public DremioTable getTable(String datasetId) {
-    final boolean isTimeTravelDataset = VersionedDatasetId.isTimeTravelDatasetId(datasetId);
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datasetId);
+    final boolean isTimeTravelDataset =
+        versionedDatasetId != null && versionedDatasetId.getVersionContext().isTimeTravelType();
     Span.current().setAttribute("dremio.catalog.getTable.isTimeTravelDataset", isTimeTravelDataset);
     if (isTimeTravelDataset) {
-      return getTableForTimeTravel(datasetId);
+      return getTableForTimeTravel(versionedDatasetId);
     }
     return datasets.getTable(datasetId, options);
   }
@@ -1070,99 +1103,77 @@ public class CatalogImpl implements Catalog {
 
   @Override
   public boolean containerExists(CatalogEntityKey path) {
-    if (!containerExistsInNamespace(path.toNamespaceKey(), userNamespaceService)) {
-      if (CatalogUtil.requestedPluginSupportsVersionedTables(path.getRootEntity(), this)) {
-        return containerExistsInNessie(path);
-      } else {
-        return false;
-      }
-    }
-    return true;
+    return containerExists(path, userNamespaceService);
   }
 
-  // Checks for source in Namespace KVstore and any folders in Nessie
-  private boolean containerExistsInNessie(CatalogEntityKey fullyQualifiedVersionedEntityKey) {
-    NamespaceKey versionedSourceKey =
-        new NamespaceKey(fullyQualifiedVersionedEntityKey.getRootEntity());
-    CatalogEntityKey folderKey = null;
-    if (fullyQualifiedVersionedEntityKey.getKeyComponents().size() > 1) {
-      folderKey =
-          CatalogEntityKey.newBuilder()
-              .keyComponents(fullyQualifiedVersionedEntityKey.getPathWithoutRoot())
-              .tableVersionContext(fullyQualifiedVersionedEntityKey.getTableVersionContext())
-              .build();
-    }
-    boolean sourceExistsInNamespaceKVstore =
-        containerExistsInNamespace(versionedSourceKey, userNamespaceService)
-            && getType(versionedSourceKey, false) == SchemaType.SOURCE;
-    return sourceExistsInNamespaceKVstore
-        && versionedFolderExists(fullyQualifiedVersionedEntityKey);
-  }
-
-  private boolean containerExistsInNamespace(NamespaceKey path, NamespaceService namespaceService) {
-    final SchemaType type = getType(path, false);
+  private boolean containerExists(CatalogEntityKey path, NamespaceService namespaceService) {
+    final SchemaType type = getRootType(path.toNamespaceKey());
     if (type == SchemaType.UNKNOWN) {
       return false;
     }
-    try {
-      List<NameSpaceContainer> containers = namespaceService.getEntities(ImmutableList.of(path));
-      NameSpaceContainer c = containers.get(0);
-      if (c != null
-          && ((c.getType() == NameSpaceContainer.Type.FOLDER
-                  && type
-                      != SchemaType
-                          .SOURCE) // DX-10186. Bad behavior in tryCreatePhysicalDataset causes
-              // problems with extra phantom folders.
-              || c.getType() == NameSpaceContainer.Type.HOME
-              || c.getType() == NameSpaceContainer.Type.SPACE
-              || c.getType() == NameSpaceContainer.Type.SOURCE)) {
-        return true;
-      }
-
-      if (type != SchemaType.SOURCE) {
-        return false;
-      }
-
-      // For some sources, some folders aren't automatically existing in namespace, let's be more
-      // invasive...
-
-      // let's check for a dataset in this path. We're looking for a dataset who either has this
-      // path as the schema of it or has a schema that starts with this path.
-
-      SearchTypes.SearchQuery searchQuery =
-          SearchQueryUtils.and(
-              SearchQueryUtils.newTermQuery(
-                  NamespaceIndexKeys.ENTITY_TYPE.getIndexFieldName(), Type.DATASET.getNumber()),
-              SearchQueryUtils.or(
-                  SearchQueryUtils.newTermQuery(
-                      DatasetIndexKeys.UNQUOTED_LC_SCHEMA, path.asLowerCase().toUnescapedString()),
-                  SearchQueryUtils.newPrefixQuery(
-                      DatasetIndexKeys.UNQUOTED_LC_SCHEMA.getIndexFieldName(),
-                      path.asLowerCase().toUnescapedString() + ".")));
-
-      LegacyFindByCondition findByCondition =
-          new LegacyFindByCondition()
-              .setCondition(searchQuery)
-              .setKeySortRequired(
-                  false) // do not sort keys since we are only interested if the result is non-empty
-              .setLimit(1); // fetch only one matching record
-      if (!Iterables.isEmpty(userNamespaceService.find(findByCondition))) {
-        return true;
-      }
-
-      // could be a filesystem, let's check the source directly (most expensive).
-      ManagedStoragePlugin plugin = pluginRetriever.getPlugin(path.getRoot(), false);
-      if (plugin == null) {
-        // possible race condition where this plugin is no longer still registered.
-        return false;
-      }
-
-      return plugin
-          .unwrap(StoragePlugin.class)
-          .containerExists(new EntityPath(path.getPathComponents()));
-    } catch (NamespaceException ex) {
+    List<NameSpaceContainer> containers =
+        namespaceService.getEntities(ImmutableList.of(path.toNamespaceKey()));
+    NameSpaceContainer c = containers.get(0);
+    if (c != null
+        && ((c.getType() == NameSpaceContainer.Type.FOLDER
+                && type
+                    != SchemaType
+                        .SOURCE) // DX-10186. Bad behavior in tryCreatePhysicalDataset causes
+            // problems with extra phantom folders.
+            || c.getType() == NameSpaceContainer.Type.HOME
+            || c.getType() == NameSpaceContainer.Type.SPACE
+            || c.getType() == NameSpaceContainer.Type.SOURCE)) {
+      return true;
+    }
+    if (type != SchemaType.SOURCE) {
       return false;
     }
+
+    // For some sources, some folders aren't automatically existing in namespace, let's be more
+    // invasive...
+
+    // let's check for a dataset in this path. We're looking for a dataset who either has this
+    // path as the schema of it or has a schema that starts with this path.
+
+    SearchTypes.SearchQuery searchQuery =
+        SearchQueryUtils.and(
+            SearchQueryUtils.newTermQuery(
+                NamespaceIndexKeys.ENTITY_TYPE.getIndexFieldName(), Type.DATASET.getNumber()),
+            SearchQueryUtils.or(
+                SearchQueryUtils.newTermQuery(
+                    DatasetIndexKeys.UNQUOTED_LC_SCHEMA, path.asLowerCase().toUnescapedString()),
+                SearchQueryUtils.newPrefixQuery(
+                    DatasetIndexKeys.UNQUOTED_LC_SCHEMA.getIndexFieldName(),
+                    path.asLowerCase().toUnescapedString() + ".")));
+
+    FindByCondition findByCondition =
+        new ImmutableFindByCondition.Builder()
+            .setCondition(searchQuery)
+            // fetch only one matching record
+            .setLimit(1)
+            .build();
+    if (!Iterables.isEmpty(
+        userNamespaceService.find(
+            findByCondition,
+            new ImmutableEntityNamespaceFindOptions.Builder().setDisableKeySort(true).build()))) {
+      return true;
+    }
+
+    // could be a filesystem, let's check the source directly (most expensive).
+    ManagedStoragePlugin plugin = pluginRetriever.getPlugin(path.getRootEntity(), false);
+    if (plugin == null) {
+      // possible race condition where this plugin is no longer still registered.
+      return false;
+    }
+
+    List<GetMetadataOption> containerMetadataOptions = new ArrayList<>();
+    containerMetadataOptions.add(getVersionedPluginAccessOption(plugin, path).orElse(null));
+    return plugin
+        .unwrap(StoragePlugin.class)
+        .containerExists(
+            new EntityPath(path.getKeyComponents()),
+            containerMetadataOptions.toArray(
+                new GetMetadataOption[containerMetadataOptions.size()]));
   }
 
   @Override
@@ -1207,19 +1218,27 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public Collection<Function> getFunctions(NamespaceKey path, FunctionType functionType) {
-    final NamespaceKey resolvedPath = resolveSingle(path);
+  public Collection<Function> getFunctions(CatalogEntityKey path, FunctionType functionType) {
+    final NamespaceKey resolvedPath = resolveSingle(path.toNamespaceKey());
+    // Resolve version context for the source
+    final VersionContext versionContext =
+        getVersionContext(resolvedPath, path.getTableVersionContext());
+    CatalogEntityKey functionKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(resolvedPath.getPathComponents())
+            .tableVersionContext(TableVersionContext.of(versionContext))
+            .build();
     switch (functionType) {
       case TABLE:
-        return getUserDefinedTableFunctions(resolvedPath);
+        return getUserDefinedTableFunctions(functionKey);
       case SCALAR:
-        return getUserDefinedScalarFunctions(resolvedPath);
+        return getUserDefinedScalarFunctions(functionKey);
       default:
         return ImmutableList.of();
     }
   }
 
-  private Optional<UserDefinedFunction> getUserDefinedFunction(NamespaceKey path) {
+  private Optional<UserDefinedFunction> getUserDefinedFunction(CatalogEntityKey path) {
     Optional<UserDefinedFunction> optionalUserDefinedFunction =
         getUserDefinedFunctionImplementation(path);
     if (optionalUserDefinedFunction.isPresent()) {
@@ -1231,16 +1250,27 @@ public class CatalogImpl implements Catalog {
     }
 
     // Try again but from the root context
-    return getUserDefinedFunctionImplementation(new NamespaceKey(path.getLeaf()));
+    return getUserDefinedFunctionImplementation(
+        CatalogEntityKey.fromNamespaceKey(new NamespaceKey(path.getLeaf())));
   }
 
-  private Optional<UserDefinedFunction> getUserDefinedFunctionImplementation(NamespaceKey path) {
+  private Optional<UserDefinedFunction> getUserDefinedFunctionImplementation(
+      CatalogEntityKey path) {
+    FunctionConfig functionConfig;
+    ManagedStoragePlugin plugin = pluginRetriever.getPlugin(path.getRootEntity(), false);
+    if (optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)
+        && plugin != null
+        && plugin.getPlugin() != null
+        && plugin.getPlugin().isWrapperFor(VersionedPlugin.class)) {
+      return getUserDefinedFunctionImplementationFromNessie(path);
+    }
+
     try {
-      if (!userNamespaceService.exists(path, Type.FUNCTION)) {
+      if (!userNamespaceService.exists(path.toNamespaceKey(), Type.FUNCTION)) {
         return Optional.empty();
       }
 
-      FunctionConfig functionConfig = userNamespaceService.getFunction(path);
+      functionConfig = userNamespaceService.getFunction(path.toNamespaceKey());
       if (functionConfig == null) {
         return Optional.empty();
       }
@@ -1253,9 +1283,28 @@ public class CatalogImpl implements Catalog {
     }
   }
 
-  private CatalogIdentity getUserDefinedFunctionOwner(NamespaceKey path) {
+  Optional<UserDefinedFunction> getUserDefinedFunctionImplementationFromNessie(
+      CatalogEntityKey path) {
+    final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(path.getRootEntity(), false);
+    final VersionedPlugin versionedPlugin = plugin.getPlugin().unwrap(VersionedPlugin.class);
+    final Optional<FunctionConfig> functionConfig = versionedPlugin.getFunction(path);
+    if (!functionConfig.isPresent()) {
+      return Optional.empty();
+    }
+    return Optional.of(fromProto(functionConfig.get()));
+  }
+
+  private CatalogIdentity getUserDefinedFunctionOwner(CatalogEntityKey path) {
+    ManagedStoragePlugin plugin = pluginRetriever.getPlugin(path.getRootEntity(), false);
+    // TODO : DX-91837 : Need to get the actual owner of the versioned udf
+    if (optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)
+        && plugin != null
+        && plugin.getPlugin() != null
+        && plugin.getPlugin().isWrapperFor(VersionedPlugin.class)) {
+      return new CatalogUser(SYSTEM_USERNAME);
+    }
     try {
-      CatalogIdentity owner = identityResolver.getOwner(path.getPathComponents());
+      CatalogIdentity owner = identityResolver.getOwner(path.getKeyComponents());
       if (owner == null) {
         owner = new CatalogUser(userName);
       }
@@ -1265,7 +1314,7 @@ public class CatalogImpl implements Catalog {
     }
   }
 
-  private Collection<Function> getUserDefinedScalarFunctions(NamespaceKey path) {
+  private Collection<Function> getUserDefinedScalarFunctions(CatalogEntityKey path) {
     Optional<UserDefinedFunction> optionalUserDefinedFunction = getUserDefinedFunction(path);
     if (!optionalUserDefinedFunction.isPresent()) {
       return ImmutableList.of();
@@ -1279,21 +1328,20 @@ public class CatalogImpl implements Catalog {
     if (userDefinedFunction.getReturnType().isStruct()) {
       return ImmutableList.of();
     }
-
-    final NamespaceKey resolvedNamespaceKey = new NamespaceKey(userDefinedFunction.getFullPath());
+    final List<String> resolvedUdfPath = userDefinedFunction.getFullPath();
+    CatalogEntityKey resolvedUdfKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(resolvedUdfPath)
+            .tableVersionContext(path.getTableVersionContext())
+            .build();
     Function function =
         new DremioScalarUserDefinedFunction(
-            getUserDefinedFunctionOwner(resolvedNamespaceKey), userDefinedFunction);
+            getUserDefinedFunctionOwner(resolvedUdfKey), userDefinedFunction);
     return ImmutableList.of(function);
   }
 
-  private Collection<Function> getUserDefinedTableFunctions(NamespaceKey path) {
+  private Collection<Function> getUserDefinedTableFunctions(CatalogEntityKey path) {
     if (isMetadataFunctions(path.getLeaf())) {
-      if (!optionManager.getOption(ENABLE_ICEBERG_METADATA_FUNCTIONS)) {
-        throw UserException.unsupportedError()
-            .message("Query on metadata functions are not supported on iceberg.")
-            .buildSilently();
-      }
 
       Function function =
           new MetadataFunctionsMacro(
@@ -1301,11 +1349,15 @@ public class CatalogImpl implements Catalog {
                   getMFunctionTable(new NamespaceKey(tablePath), versionContext, path.getLeaf()));
 
       return ImmutableList.of(function);
-    } else if (isCopyErrorsFunction(path)) {
+    } else if (isCopyErrorsFunction(path.toNamespaceKey())) {
       return ImmutableList.of(new CopyErrorsMacro(this));
+    } else if (isReflectionLineageFunction(path.toNamespaceKey())) {
+      ManagedStoragePlugin storagePlugin =
+          pluginRetriever.getPlugin(SYSTEM_TABLE_SOURCE_NAME, false);
+      return ImmutableList.of(new ReflectionLineageTableMacro(storagePlugin, userName));
     }
 
-    if (TableMacroNames.TIME_TRAVEL.equals(path.getPathComponents())) {
+    if (TableMacroNames.TIME_TRAVEL.equals(path.getKeyComponents())) {
       Function function =
           new TimeTravelTableMacro(
               (tablePath, versionContext) ->
@@ -1331,7 +1383,9 @@ public class CatalogImpl implements Catalog {
       return ImmutableList.of(function);
     }
 
-    if (containerExistsInNamespace(path.getParent(), systemNamespaceService)) {
+    if (containerExists(
+        CatalogEntityKey.fromNamespaceKey(path.getParent().toNamespaceKey()),
+        systemNamespaceService)) {
       return getFunctionsInternal(path);
     }
 
@@ -1340,6 +1394,11 @@ public class CatalogImpl implements Catalog {
 
   private static boolean isCopyErrorsFunction(NamespaceKey path) {
     return CopyErrorsMacro.MACRO_NAME.equalsIgnoreCase(path.getLeaf());
+  }
+
+  private boolean isReflectionLineageFunction(NamespaceKey path) {
+    return optionManager.getOption(REFLECTION_LINEAGE_TABLE_FUNCTION_ENABLED)
+        && ReflectionLineageTableMacro.isReflectionLineageFunction(path);
   }
 
   /**
@@ -1353,18 +1412,18 @@ public class CatalogImpl implements Catalog {
         .anyMatch(e -> e.name().equalsIgnoreCase(functionName));
   }
 
-  private Collection<Function> getFunctionsInternal(NamespaceKey path) {
+  private Collection<Function> getFunctionsInternal(CatalogEntityKey path) {
 
-    switch (getType(path, true)) {
+    switch (getRootType(path.toNamespaceKey())) {
       case SOURCE:
         return sourceModifier
-            .getSource(path.getRoot())
-            .getFunctions(path.getPathComponents(), options.getSchemaConfig());
+            .getSource(path.getRootEntity())
+            .getFunctions(path.getKeyComponents(), options.getSchemaConfig());
 
       case HOME:
         try {
           return getHomeFilesPlugin()
-              .getFunctions(path.getPathComponents(), options.getSchemaConfig());
+              .getFunctions(path.getKeyComponents(), options.getSchemaConfig());
         } catch (ExecutionSetupException e) {
           throw new RuntimeException(e);
         }
@@ -1406,7 +1465,8 @@ public class CatalogImpl implements Catalog {
         identityResolver,
         versionContextResolverImpl,
         catalogStatusEvents,
-        versionedDatasetAdapterFactory);
+        versionedDatasetAdapterFactory,
+        metadataIOPool);
   }
 
   @Override
@@ -1426,7 +1486,8 @@ public class CatalogImpl implements Catalog {
         identityResolver,
         versionContextResolverImpl,
         catalogStatusEvents,
-        versionedDatasetAdapterFactory);
+        versionedDatasetAdapterFactory,
+        metadataIOPool);
   }
 
   @Override
@@ -1445,7 +1506,8 @@ public class CatalogImpl implements Catalog {
         identityResolver,
         versionContextResolverImpl,
         catalogStatusEvents,
-        versionedDatasetAdapterFactory);
+        versionedDatasetAdapterFactory,
+        metadataIOPool);
   }
 
   @Override
@@ -1466,7 +1528,8 @@ public class CatalogImpl implements Catalog {
         identityResolver,
         versionContextResolverImpl,
         catalogStatusEvents,
-        versionedDatasetAdapterFactory);
+        versionedDatasetAdapterFactory,
+        metadataIOPool);
   }
 
   private FileSystemPlugin getHomeFilesPlugin() throws ExecutionSetupException {
@@ -1517,7 +1580,7 @@ public class CatalogImpl implements Catalog {
   public void createView(
       final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes)
       throws IOException {
-    switch (getType(key, true)) {
+    switch (getRootType(key)) {
       case SOURCE:
         asMutable(key, "does not support create view")
             .createOrUpdateView(key, options.getSchemaConfig(), view, viewOptions);
@@ -1540,7 +1603,9 @@ public class CatalogImpl implements Catalog {
         break;
       default:
         throw UserException.unsupportedError()
-            .message("Cannot create view in %s.", key)
+            .message(
+                "Cannot create view in %s.",
+                key.getPathComponents().isEmpty() ? key : key.getRoot())
             .build(logger);
     }
   }
@@ -1549,7 +1614,7 @@ public class CatalogImpl implements Catalog {
   public void updateView(
       NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes)
       throws IOException {
-    switch (getType(key, true)) {
+    switch (getRootType(key)) {
       case SOURCE:
         asMutable(key, "does not support update view")
             .createOrUpdateView(key, options.getSchemaConfig(), view, viewOptions);
@@ -1563,14 +1628,16 @@ public class CatalogImpl implements Catalog {
         break;
       default:
         throw UserException.unsupportedError()
-            .message("Cannot update view in %s.", key)
+            .message(
+                "Cannot update view in %s.",
+                key.getPathComponents().isEmpty() ? key : key.getRoot())
             .build(logger);
     }
   }
 
   @Override
   public void dropView(final NamespaceKey key, ViewOptions viewOptions) throws IOException {
-    switch (getType(key, true)) {
+    switch (getRootType(key)) {
       case SOURCE:
         asMutable(key, "does not support view operations.")
             .dropView(key, viewOptions, options.getSchemaConfig());
@@ -1594,47 +1661,35 @@ public class CatalogImpl implements Catalog {
    * @param key The key whose root we will evaluate.
    * @return The SchemaType associated with this key.
    */
-  private SchemaType getType(NamespaceKey key, boolean throwOnMissing) {
-    try {
-      if (key.getPathComponents().isEmpty()) {
-        return SchemaType.UNKNOWN;
-      } else if (("@" + userName).equalsIgnoreCase(key.getRoot())) {
-        return SchemaType.HOME;
-      }
+  private SchemaType getRootType(NamespaceKey key) {
+    if (key.getPathComponents().isEmpty()) {
+      return SchemaType.UNKNOWN;
+    } else if (("@" + userName).equalsIgnoreCase(key.getRoot())) {
+      return SchemaType.HOME;
+    }
 
-      NameSpaceContainer container =
-          systemNamespaceService
-              .getEntities(ImmutableList.of(new NamespaceKey(key.getRoot())))
-              .get(0);
-      if (container == null) {
-        return SchemaType.UNKNOWN;
-      }
+    NameSpaceContainer container =
+        systemNamespaceService
+            .getEntities(ImmutableList.of(new NamespaceKey(key.getRoot())))
+            .get(0);
+    if (container == null) {
+      return SchemaType.UNKNOWN;
+    }
 
-      Type type = container.getType();
-      switch (type) {
-        case SOURCE:
-          return SchemaType.SOURCE;
-        case SPACE:
-          return SchemaType.SPACE;
+    Type type = container.getType();
+    switch (type) {
+      case SOURCE:
+        return SchemaType.SOURCE;
+      case SPACE:
+        return SchemaType.SPACE;
 
-        case HOME:
-          throw UserException.permissionError()
-              .message("No permission to requested path.")
-              .build(logger);
-
-        default:
-          throw new IllegalStateException("Unexpected container type: " + type.name());
-      }
-    } catch (NamespaceNotFoundException e) {
-      if (throwOnMissing) {
-        throw UserException.validationError(e)
-            .message("Unable to find requested path %s.", key)
+      case HOME:
+        throw UserException.permissionError()
+            .message("No permission to requested path.")
             .build(logger);
-      } else {
-        return SchemaType.UNKNOWN;
-      }
-    } catch (NamespaceException e) {
-      throw Throwables.propagate(e);
+
+      default:
+        throw new IllegalStateException("Unexpected container type: " + type.name());
     }
   }
 
@@ -1972,7 +2027,8 @@ public class CatalogImpl implements Catalog {
         final ViewOptions viewOptions =
             new ViewOptions.ViewOptionsBuilder()
                 .version(resolvedVersionContext)
-                .actionType(ViewOptions.ActionType.ALTER_VIEW)
+                .actionType(ViewOptions.ActionType.ALTER_VIEW_PROPERTIES)
+                .icebergViewVersion(optionManager)
                 .properties(properties)
                 .build();
 
@@ -2345,7 +2401,6 @@ public class CatalogImpl implements Catalog {
   @Override
   @WithSpan
   public boolean createOrUpdateDataset(
-      NamespaceService userNamespaceService,
       NamespaceKey source,
       NamespaceKey datasetPath,
       DatasetConfig datasetConfig,
@@ -2546,20 +2601,16 @@ public class CatalogImpl implements Catalog {
     NamespaceIdentity toNamespaceIdentity(CatalogIdentity identity);
   }
 
-  private DremioTable getTableForTimeTravel(String datasetId) {
-    VersionedDatasetId versionedDatasetId;
+  private DremioTable getTableForTimeTravel(VersionedDatasetId versionedDatasetId) {
+    Preconditions.checkNotNull(versionedDatasetId);
+    Preconditions.checkState(versionedDatasetId.getVersionContext().isTimeTravelType());
+    CatalogEntityKey catalogEntityKey =
+        CatalogEntityKey.newBuilder()
+            .keyComponents(versionedDatasetId.getTableKey())
+            .tableVersionContext(versionedDatasetId.getVersionContext())
+            .build();
     try {
-      versionedDatasetId = fromString(datasetId);
-      TableVersionContext tableVersionContext = versionedDatasetId.getVersionContext();
-      Preconditions.checkState(isTimeTravelDatasetId(versionedDatasetId));
-      return getTableSnapshotForQuery(
-          CatalogEntityKey.newBuilder()
-              .keyComponents(versionedDatasetId.getTableKey())
-              .tableVersionContext(tableVersionContext)
-              .build());
-    } catch (JsonProcessingException j) {
-      logger.error("Expected datasetId with time travel specification {}  ", datasetId);
-      return null;
+      return getTableSnapshotForQuery(catalogEntityKey);
     } catch (UserException e) {
       // getTableSnapshot returns a UserException when table is not found.
       return null;
@@ -2581,19 +2632,36 @@ public class CatalogImpl implements Catalog {
     }
   }
 
+  @Override
+  public void clearPermissionCache(String sourceName) {
+    throw new UnsupportedOperationException();
+  }
+
   //// Begin: NamespacePassthrough Methods
   @Override
   public boolean existsById(CatalogEntityId id) {
-    try {
-      return userNamespaceService.getEntityById(id.toString()) != null;
-    } catch (NamespaceNotFoundException notFoundException) {
-      return false;
+    if (id.toVersionedDatasetId().isPresent()) {
+      VersionedDatasetId versionedDatasetId = id.toVersionedDatasetId().get();
+      List<String> fullPath = versionedDatasetId.getTableKey();
+      VersionContext versionContext = versionedDatasetId.getVersionContext().asVersionContext();
+      StoragePlugin plugin = getSource(fullPath.get(0));
+      Preconditions.checkArgument(plugin.isWrapperFor(VersionedPlugin.class));
+      VersionedPlugin versionedPlugin = plugin.unwrap(VersionedPlugin.class);
+      ResolvedVersionContext resolvedVersionContext =
+          versionedPlugin.resolveVersionContext(versionContext);
+      List<String> contentKey = fullPath.subList(1, fullPath.size());
+      String contentId = versionedPlugin.getContentId(contentKey, resolvedVersionContext);
+      return contentId != null;
     }
+
+    Optional<String> namespaceEntityId = id.toNamespaceEntityId();
+    return namespaceEntityId
+        .filter(s -> userNamespaceService.getEntityById(new EntityId(s)).isPresent())
+        .isPresent();
   }
 
   @Override
-  public List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys)
-      throws NamespaceNotFoundException {
+  public List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys) {
     return userNamespaceService.getEntities(lookupKeys);
   }
 
@@ -2644,9 +2712,13 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(
-      LegacyIndexedStore.LegacyFindByCondition condition) {
+  public Iterable<Document<NamespaceKey, NameSpaceContainer>> find(FindByCondition condition) {
     return userNamespaceService.find(condition);
+  }
+
+  @Override
+  public List<NameSpaceContainer> getEntitiesByIds(List<EntityId> ids) {
+    return userNamespaceService.getEntitiesByIds(ids);
   }
   //// End: NamespacePassthrough Methods
 }

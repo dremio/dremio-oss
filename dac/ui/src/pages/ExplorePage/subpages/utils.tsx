@@ -38,7 +38,7 @@ export const assemblePendingOrRunningTabContent = (
   statusesArray: string[],
   newQueryStatuses: (statuses: { statuses: QueryStatusType[] }) => void,
   cancelJob: (jobId: string | undefined) => void,
-  cancelPendingSql: (index: number) => void
+  cancelPendingSql: (index: number) => void,
 ) => {
   const tabStatusArr = queryStatuses.map((query, index) => {
     const obj = {} as StatusObjectType;
@@ -79,6 +79,12 @@ export const assemblePendingOrRunningTabContent = (
     ) {
       obj.renderIcon = "RUNNING";
       obj.text = <FormattedMessage id="NewQuery.Submitted" />;
+    } else if (
+      statusesArray[index] === JOB_STATUS.completed &&
+      query.lazyLoad
+    ) {
+      obj.renderIcon = "RUNNING";
+      obj.text = <FormattedMessage id="NewQuery.LoadingResults" />;
     } else {
       return;
     }
@@ -106,5 +112,5 @@ export const getExploreContentHeight = memoOne(
       contentHeight = contentHeight - NAV_CRUMBS_HEIGHT;
     }
     return contentHeight - headerHeight;
-  }
+  },
 );

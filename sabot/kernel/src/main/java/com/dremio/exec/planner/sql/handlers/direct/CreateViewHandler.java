@@ -412,6 +412,7 @@ public class CreateViewHandler extends SimpleDirectHandler {
             .batchSchema(viewSchema)
             .actionType(
                 isUpdate ? ViewOptions.ActionType.UPDATE_VIEW : ViewOptions.ActionType.CREATE_VIEW)
+            .icebergViewVersion(config.getContext().getOptions())
             .build();
 
     return viewOptions;

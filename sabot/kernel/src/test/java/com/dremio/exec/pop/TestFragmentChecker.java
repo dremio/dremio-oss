@@ -50,8 +50,7 @@ public class TestFragmentChecker extends PopUnitTestBase {
         String.format(
             "=================Building plan fragments for [%s].  Allowing %d total Nodes.==================",
             fragmentFile, bitCount));
-    PhysicalPlanReader ppr =
-        PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(CLASSPATH_SCAN_RESULT);
+    PhysicalPlanReader ppr = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader();
     Fragment fragmentRoot = getRootFragment(ppr, fragmentFile);
     SimpleParallelizer par =
         new SimpleParallelizer(

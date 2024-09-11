@@ -18,6 +18,7 @@ package com.dremio.dac.api;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import javax.annotation.Nullable;
 
 /** Represents an entity in the Dremio catalog */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -32,8 +33,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
   @JsonSubTypes.Type(value = Source.class, name = "source"),
   @JsonSubTypes.Type(value = Folder.class, name = "folder"),
   @JsonSubTypes.Type(value = File.class, name = "file"),
-  @JsonSubTypes.Type(value = Home.class, name = "home")
+  @JsonSubTypes.Type(value = Home.class, name = "home"),
+  @JsonSubTypes.Type(value = Function.class, name = "function")
 })
 public interface CatalogEntity {
   String getId();
+
+  @Nullable
+  String getNextPageToken();
 }

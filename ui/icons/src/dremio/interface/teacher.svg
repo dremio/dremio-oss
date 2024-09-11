@@ -1,0 +1,18 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg id="interface/teacher" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M5.25 2.25C3.45507 2.25 2 3.70507 2 5.5v7.0635c.17948-.3244.40473-.6251.67157-.8919.24935-.2494.52824-.4624.82843-.6357V5.5c0-.9665.7835-1.75 1.75-1.75h13.5c.9665 0 1.75.7835 1.75 1.75V15c0 .9665-.7835 1.75-1.75 1.75h-.25v-1.8c0-.1105-.0895-.2-.2-.2h-5.6c-.1105 0-.2.0895-.2.2v1.8H9.4844c.7062.2938 1.2871.8277 1.641 1.5H18.75c1.7949 0 3.25-1.4551 3.25-3.25V5.5c0-1.79493-1.4551-3.25-3.25-3.25H5.25ZM8 14.5c0 .663-.26339 1.2989-.73223 1.7678C6.79893 16.7366 6.16304 17 5.5 17c-.66304 0-1.29893-.2634-1.76777-.7322C3.26339 15.7989 3 15.163 3 14.5s.26339-1.2989.73223-1.7678C4.20107 12.2634 4.83696 12 5.5 12c.66304 0 1.29893.2634 1.76777.7322C7.73661 13.2011 8 13.837 8 14.5Zm2 5.375C10 21.431 8.714 23 5.5 23S1 21.437 1 19.875v-.103C1 18.792 1.794 18 2.773 18h5.454c.98 0 1.773.793 1.773 1.772v.103Z" clip-rule="evenodd"/></svg>

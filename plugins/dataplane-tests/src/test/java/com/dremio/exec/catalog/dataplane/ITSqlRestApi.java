@@ -37,7 +37,6 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.service.jobs.JobsVersionContext;
 import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.users.UserService;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
@@ -73,7 +72,7 @@ public class ITSqlRestApi extends ITBaseTestVersioned {
   @BeforeAll
   public static void setup() throws Exception {
     // Prevents "requires identity" NPE
-    SampleDataPopulator.addDefaultFirstUser(l(UserService.class), newNamespaceService());
+    SampleDataPopulator.addDefaultFirstUser(getUserService(), getNamespaceService());
 
     // Create alternate branch while empty
     runQuery(createBranchAtBranchQuery(ALTERNATE_BRANCH_NAME, DEFAULT_BRANCH_NAME));

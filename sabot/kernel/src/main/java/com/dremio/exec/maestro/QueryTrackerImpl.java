@@ -23,18 +23,22 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.ExecutionPlanningResources;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.work.foreman.CompletionListener;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.exception.ResourceAllocationException;
+import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
@@ -42,6 +46,7 @@ import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import java.util.List;
 
 public class QueryTrackerImpl implements QueryTracker {
   @VisibleForTesting
@@ -68,7 +73,6 @@ public class QueryTrackerImpl implements QueryTracker {
   private final JobTelemetryClient jobTelemetryClient;
 
   private final FragmentTracker fragmentTracker;
-  private volatile ProgressTracker progressTracker;
   private volatile PhysicalPlan physicalPlan;
   private volatile ExecutionPlan executionPlan;
   private volatile ResourceTracker resourceTracker;
@@ -181,19 +185,104 @@ public class QueryTrackerImpl implements QueryTracker {
               context.getOptions());
       starter.start(executionPlan, MaestroObservers.of(observer, fragmentActivateObserver));
       executionPlan = null; // no longer needed
-
-      progressTracker = new ProgressTracker(queryId, jobTelemetryClient, observer);
     } catch (Exception ex) {
       fragmentTracker.sendOrActivateFragmentsFailed(ex);
       throw ex;
     }
   }
 
+  @WithSpan
+  private long buildOutputRecord(List<CoordExecRPC.FragmentStatus> fragmentStatuses) {
+    long ctasRecordCount = -1;
+    long arrowRecordCount = -1;
+    long screenRecordCount = -1;
+    boolean outputLimited = false;
+
+    for (CoordExecRPC.FragmentStatus fragmentStatus : fragmentStatuses) {
+      for (UserBitShared.OperatorProfile operatorProfile :
+          fragmentStatus.getProfile().getOperatorProfileList()) {
+        for (UserBitShared.StreamProfile streamProfile : operatorProfile.getInputProfileList()) {
+          long records = streamProfile.getRecords();
+          UserBitShared.CoreOperatorType operatorType =
+              UserBitShared.CoreOperatorType.valueOf(operatorProfile.getOperatorType());
+          if (isCtasOperator(operatorType)) {
+            ctasRecordCount = updateRecordCount(ctasRecordCount, records);
+          } else if (isArrowOperator(operatorType)) {
+            outputLimited = isArrowWriterOutputLimited(operatorProfile);
+            arrowRecordCount = updateRecordCount(arrowRecordCount, records);
+          } else if (isScreenOperator(operatorType)) {
+            screenRecordCount = updateRecordCount(screenRecordCount, records);
+          }
+        }
+      }
+    }
+    return getFinalRecordCount(ctasRecordCount, arrowRecordCount, screenRecordCount, outputLimited);
+  }
+
+  private long updateRecordCount(long recordCount, long records) {
+    if (recordCount == -1) {
+      recordCount = 0;
+    }
+    return recordCount + records;
+  }
+
+  private long getFinalRecordCount(
+      long ctasRecordCount, long arrowRecordCount, long screenRecordCount, boolean outputLimited) {
+    if (ctasRecordCount >= 0) {
+      return ctasRecordCount;
+    } else if (arrowRecordCount >= 0) {
+      if (outputLimited) {
+        observer.outputLimited();
+      }
+      return arrowRecordCount;
+    } else if (screenRecordCount >= 0) {
+      return screenRecordCount;
+    } else {
+      return 0;
+    }
+  }
+
+  private boolean isArrowWriterOutputLimited(UserBitShared.OperatorProfile operatorProfile) {
+    for (int i = 0; i < operatorProfile.getMetricCount(); i++) {
+      UserBitShared.MetricValue metricValue = operatorProfile.getMetric(i);
+      if (metricValue.getMetricId() == WriterOperator.Metric.OUTPUT_LIMITED.ordinal()) {
+        return metricValue.getLongValue() > 0;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isCtasOperator(UserBitShared.CoreOperatorType type) {
+    switch (type) {
+      case PARQUET_WRITER:
+      case TEXT_WRITER:
+      case JSON_WRITER:
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
+  private static boolean isArrowOperator(UserBitShared.CoreOperatorType type) {
+    return type == UserBitShared.CoreOperatorType.ARROW_WRITER;
+  }
+
+  private static boolean isScreenOperator(UserBitShared.CoreOperatorType type) {
+    return type == UserBitShared.CoreOperatorType.SCREEN;
+  }
+
   @Override
+  @WithSpan
   public void nodeCompleted(NodeQueryCompletion completion) throws RpcException {
     injector.injectChecked(
         context.getExecutionControls(), INJECTOR_NODE_COMPLETION_ERROR, RpcException.class);
-
+    long outputRecord = buildOutputRecord(completion.getFinalNodeQueryProfile().getFragmentsList());
+    logger.debug(
+        "About to update total output record with outputRecords: {} of Node: {}",
+        outputRecord,
+        completion.getEndpoint());
+    observer.recordsOutput(completion.getEndpoint(), outputRecord);
     fragmentTracker.nodeCompleted(completion);
   }
 
@@ -212,6 +301,17 @@ public class QueryTrackerImpl implements QueryTracker {
     fragmentTracker.cancelExecutingFragments();
   }
 
+  @Override
+  @WithSpan
+  public void putProfileFailed() {
+    observer.putProfileFailed();
+  }
+
+  @Override
+  public ExecutionControls getExecutionControls() {
+    return context.getExecutionControls();
+  }
+
   @VisibleForTesting
   ResourceSet getResources() {
     return resourceTracker.getResources();
@@ -219,7 +319,6 @@ public class QueryTrackerImpl implements QueryTracker {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(
-        resourceTracker, fragmentTracker, progressTracker, executionPlanningResources);
+    AutoCloseables.close(resourceTracker, fragmentTracker, executionPlanningResources);
   }
 }

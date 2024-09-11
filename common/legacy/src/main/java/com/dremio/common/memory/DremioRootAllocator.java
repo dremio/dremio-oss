@@ -47,7 +47,11 @@ public final class DremioRootAllocator extends RootAllocator {
     return listener.getAvailableBuffers();
   }
 
-  /** Constructor, hidden from public use. Use {@link #create(long)} instead */
+  public long getMaxBufferCount() {
+    return listener.getMaxBufferCount();
+  }
+
+  /** Constructor, hidden from public use. Use {@link #create(long, long)} instead */
   private RootAllocatorListener listener;
 
   private DremioRootAllocator(final RootAllocatorListener listener, final long limit) {
@@ -75,11 +79,13 @@ public final class DremioRootAllocator extends RootAllocator {
      * extended period of time or be hugely negative.
      */
     private final AtomicLong availBuffers;
+    private final long maxBufferCount;
 
     private DremioRootAllocator rootAllocator;
 
     public RootAllocatorListener(long maxCount) {
       availBuffers = new AtomicLong(maxCount);
+      maxBufferCount = maxCount;
     }
 
     void setRootAllocator(DremioRootAllocator rootAllocator) {
@@ -90,12 +96,18 @@ public final class DremioRootAllocator extends RootAllocator {
       return availBuffers.get();
     }
 
+    public long getMaxBufferCount() {
+      return maxBufferCount;
+    }
+
     @Override
     public void onPreAllocation(long size) {
       // We don't decrement here since it means we'll possibly leak a reference.
       // However, we throw here since we need to throw before any partial-accounting occurs.
       if (availBuffers.get() < 1) {
-        throw new OutOfMemoryException("Buffer count exceeds maximum.");
+        throw new OutOfMemoryException(
+            String.format(
+                "Buffer count (%d) exceeds maximum (%d).", availBuffers.get(), maxBufferCount));
       }
     }
 

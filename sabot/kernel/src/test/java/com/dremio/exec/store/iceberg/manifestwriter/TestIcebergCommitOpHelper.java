@@ -15,17 +15,20 @@
  */
 package com.dremio.exec.store.iceberg.manifestwriter;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
+import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.OperationType;
@@ -288,6 +291,32 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     verify(sourceTableFileSystem, times(1)).exists(Path.of(SOURCE_TABLE_ROOT));
   }
 
+  @Test
+  public void testRevertCalledOnCommitException() throws Exception {
+    IcebergCommitOpHelper commitOpHelper =
+        createCommitOpHelper(
+            IcebergCommandType.INSERT,
+            ImmutableList.of(),
+            UNPARTITIONED_SCHEMA,
+            UNPARTITIONED_SPEC);
+
+    VectorContainer input = createInputContainer();
+    addInputRow(
+        input,
+        createDataFile("df1", UNPARTITIONED_SPEC),
+        OperationType.ADD_DATAFILE,
+        UNPARTITIONED_SPEC,
+        ImmutableList.of());
+
+    commitOpHelper.setup(input);
+    commitOpHelper.consumeData(input.getRecordCount());
+    when(commitOpHelper.icebergOpCommitter.commit(null)).thenThrow(new RuntimeException(""));
+
+    IcebergCommitOpHelper finalCommitOpHelper = spy(commitOpHelper);
+    assertThrows(RuntimeException.class, () -> finalCommitOpHelper.commit(null));
+    verify(finalCommitOpHelper, times(1)).revertHistoryEvents(any());
+  }
+
   private IcebergCommitOpHelper createCommitOpHelper(
       IcebergCommandType type, List<String> partitionPaths, Schema schema, PartitionSpec spec)
       throws Exception {
@@ -368,7 +397,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
         sourceTablePlugin,
         false,
         true,
-        null,
+        mock(TableFormatWriterOptions.class),
         null);
   }
 

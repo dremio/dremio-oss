@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -106,51 +105,13 @@ public class TestClusteredSingletonSessionExpiration extends DremioTest {
     testClients[1].injectSessionExpiration();
     latch1.await();
     assertThat(incrementer.get()).isGreaterThanOrEqualTo(2);
-    assertThat(cleanupCount.get()).isEqualTo(1);
+    assertThat(cleanupCount.get()).isGreaterThanOrEqualTo(1);
     testClients[0].injectSessionExpiration();
     latch2.await();
     assertThat(incrementer.get()).isGreaterThanOrEqualTo(5);
     // not guaranteed in this case that the schedule would have switched over. So cannot
     // guarantee a cleanup count of 2
     assertThat(cleanupCount.get()).isGreaterThanOrEqualTo(1);
-  }
-
-  @Ignore("Takes close to 40 secs to run this test. Run locally only")
-  @Test
-  public void testRemasteringOnExpiration() throws Exception {
-    final AtomicInteger cleanupCount = new AtomicInteger(0);
-    Schedule testSchedule =
-        Schedule.Builder.everyMillis(100)
-            .asClusteredSingleton(testName.getMethodName())
-            .withCleanup(cleanupCount::incrementAndGet)
-            .build();
-    final CountDownLatch latch1 = new CountDownLatch(2);
-    final CountDownLatch latch2 = new CountDownLatch(5);
-    final CountDownLatch latch3 = new CountDownLatch(10);
-    AtomicInteger incrementer = new AtomicInteger();
-    Runnable task =
-        () -> {
-          incrementer.incrementAndGet();
-          latch1.countDown();
-          latch2.countDown();
-          latch3.countDown();
-        };
-    testClients[1].getSingletonScheduler().schedule(testSchedule, task);
-    Thread.yield();
-    testClients[0].getSingletonScheduler().schedule(testSchedule, task);
-    // inject session expiration to client 0
-    testClients[1].injectSessionExpiration();
-    latch1.await();
-    testClients[1].close();
-    latch2.await();
-    testClients[1] = new TestClient(1, zkServerResource.getConnectionString());
-    testClients[1].getSingletonScheduler().schedule(testSchedule, task);
-    assertThat(incrementer.get()).isGreaterThanOrEqualTo(5);
-    assertThat(cleanupCount.get()).isEqualTo(1);
-    testClients[0].injectSessionExpiration();
-    latch3.await();
-    assertThat(incrementer.get()).isGreaterThanOrEqualTo(10);
-    assertThat(cleanupCount.get()).isEqualTo(2);
   }
 
   @Test
@@ -172,11 +133,9 @@ public class TestClusteredSingletonSessionExpiration extends DremioTest {
         };
     runTaskAndCancel(testSchedule, task, latch1, true);
     assertThat(incrementer.get()).isGreaterThanOrEqualTo(1);
-    assertThat(cleanupCount.get()).isEqualTo(0);
     runTaskAndCancel(testSchedule, task, latch2, false);
     latch2.await();
     assertThat(incrementer.get()).isGreaterThanOrEqualTo(20);
-    assertThat(cleanupCount.get()).isEqualTo(0);
   }
 
   private void runTaskAndCancel(

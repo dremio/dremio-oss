@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-
 :global {
   .delete-branch-dialog {
     width: 600px;
@@ -25,7 +23,7 @@
     }
 
     &-header {
-      border-bottom: 1px solid @SECONDARY_200;
+      border-bottom: 1px solid var(--border--neutral);
       padding: 0 !important;
 
       display: flex;
@@ -45,7 +43,7 @@
     &-body {
       font-size: 14px;
       font-weight: 400;
-      color: @DARK_900;
+      color: var(--text--primary);
 
       &-error {
         color: #f44336;
@@ -53,7 +51,7 @@
     }
 
     &-actions {
-      border-top: 1px solid @SECONDARY_200;
+      border-top: 1px solid var(--border--neutral);
     }
   }
 }

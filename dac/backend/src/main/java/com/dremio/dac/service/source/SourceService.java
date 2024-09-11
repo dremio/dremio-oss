@@ -44,7 +44,6 @@ import com.dremio.dac.model.sources.PhysicalDatasetResourcePath;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
-import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
@@ -60,13 +59,13 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ImmutableVersionedListOptions;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.catalog.conf.ConnectionConf;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
+import com.dremio.exec.store.NamespaceAlreadyExistsException;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
@@ -76,7 +75,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
-import com.dremio.plugins.ExternalNamespaceEntry;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
@@ -87,7 +86,6 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -112,7 +110,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
@@ -130,9 +128,10 @@ public class SourceService {
       "dremio.source_service.isVersionedPlugin";
   public static final String IS_FILE_SYSTEM_PLUGIN_SPAN_ATTRIBUTE_NAME =
       "dremio.source_service.isFileSystemPlugin";
+  public static final int NO_PAGINATION_MAX_RESULTS = Integer.MAX_VALUE;
 
   private final Clock clock;
-  private final SabotContext sabotContext;
+  private final OptionManager optionManager;
   private final NamespaceService namespaceService;
   private final DatasetVersionMutator datasetService;
   private final CatalogService catalogService;
@@ -144,7 +143,7 @@ public class SourceService {
   @Inject
   public SourceService(
       Clock clock,
-      SabotContext sabotContext,
+      OptionManager optionManager,
       NamespaceService namespaceService,
       DatasetVersionMutator datasetService,
       CatalogService catalogService,
@@ -153,7 +152,7 @@ public class SourceService {
       ConnectionReader connectionReader,
       SecurityContext security) {
     this.clock = clock;
-    this.sabotContext = sabotContext;
+    this.optionManager = optionManager;
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.catalogService = catalogService;
@@ -216,16 +215,7 @@ public class SourceService {
     final NamespaceKey key = new NamespaceKey(sourceConfig.getName());
     reflectionServiceHelper
         .getReflectionSettings()
-        .setReflectionSettings(
-            key,
-            new AccelerationSettings()
-                .setMethod(RefreshMethod.FULL)
-                .setRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod())
-                .setRefreshSchedule(sourceConfig.getAccelerationRefreshSchedule())
-                .setRefreshPolicyType(sourceConfig.getAccelerationActivePolicyType())
-                .setGracePeriod(sourceConfig.getAccelerationGracePeriod())
-                .setNeverExpire(sourceConfig.getAccelerationNeverExpire())
-                .setNeverRefresh(sourceConfig.getAccelerationNeverRefresh()));
+        .setReflectionSettings(key, reflectionServiceHelper.fromSourceConfig(sourceConfig));
     return namespaceService.getSource(key);
   }
 
@@ -313,14 +303,6 @@ public class SourceService {
     // InputValidation does not work on SourceConfig.
     Preconditions.checkNotNull(sourceConfig);
     Preconditions.checkNotNull(sourceConfig.getName(), "Source name is missing.");
-    Preconditions.checkArgument(
-        !sourceConfig.getName().contains("."), "Source names can not contain periods.");
-    Preconditions.checkArgument(
-        !sourceConfig.getName().contains("\""), "Source names can not contain double quotes.");
-    Preconditions.checkArgument(
-        !sourceConfig.getName().startsWith(HomeName.HOME_PREFIX),
-        "Source names can not start with the '%s' character.",
-        HomeName.HOME_PREFIX);
     // TODO: add more specific numeric limits here, we never want to allow a 0 ms refresh.
     Preconditions.checkNotNull(
         sourceConfig.getMetadataPolicy(), "Source metadata policy is missing.");
@@ -452,8 +434,7 @@ public class SourceService {
                 new PhysicalDatasetResourcePath(path),
                 new PhysicalDatasetName(path.getFileName().getName()),
                 datasetConfig,
-                datasetService.getJobsCount(
-                    path.toNamespaceKey(), sabotContext.getOptionManager()));
+                datasetService.getJobsCount(path.toNamespaceKey(), optionManager));
           }
           break;
 
@@ -494,8 +475,7 @@ public class SourceService {
                 folderConfig,
                 FileFormat.getForFolder(fileConfig),
                 fileConfig.getType() != FileType.UNKNOWN,
-                datasetService.getJobsCount(
-                    folderPath.toNamespaceKey(), sabotContext.getOptionManager()));
+                datasetService.getJobsCount(folderPath.toNamespaceKey(), optionManager));
           }
           break;
 
@@ -524,7 +504,7 @@ public class SourceService {
         physicalDatasetConfig.getId(),
         filePath,
         FileFormat.getForFile(fileConfig),
-        datasetService.getJobsCount(filePath.toNamespaceKey(), sabotContext.getOptionManager()),
+        datasetService.getJobsCount(filePath.toNamespaceKey(), optionManager),
         false,
         false,
         fileConfig.getType() != FileType.UNKNOWN,
@@ -537,7 +517,9 @@ public class SourceService {
       SourceConfig sourceConfig,
       String userName,
       String refType,
-      String refValue)
+      String refValue,
+      @Nullable String pageToken,
+      int maxResults)
       throws PhysicalDatasetNotFoundException, NamespaceException {
     try {
       final NamespaceKey sourceKey = new NamespaceKey(sourceName.getName());
@@ -547,12 +529,19 @@ public class SourceService {
               catalogService.getSource(sourceName.getName()),
               "storage plugin %s not found",
               sourceName);
+      checkPluginState(sourceName.getName(), plugin);
       if (plugin.isWrapperFor(VersionedPlugin.class)) {
-        Stream<ExternalNamespaceEntry> entries =
+        ExternalListResponse response =
             versionedPluginListEntriesHelper(
-                plugin.unwrap(VersionedPlugin.class), sourceKey, refType, refValue);
-        namespaceTree = namespaceTreeOf(sourceName, entries);
+                plugin.unwrap(VersionedPlugin.class),
+                sourceKey,
+                refType,
+                refValue,
+                pageToken,
+                maxResults);
+        namespaceTree = namespaceTreeOf(sourceName, response);
       } else if (plugin instanceof FileSystemPlugin) {
+        // TODO: limit maximum number of files to get.
         namespaceTree = new NamespaceTree();
         namespaceTree.setIsFileSystemSource(true);
         namespaceTree.setIsImpersonationEnabled(
@@ -564,7 +553,8 @@ public class SourceService {
             sourceName.getName());
         fillInTags(namespaceTree);
       } else {
-        namespaceTree = newNamespaceTree(namespaceService.list(sourceKey), false, false);
+        namespaceTree =
+            newNamespaceTree(namespaceService.list(sourceKey, pageToken, maxResults), false, false);
       }
 
       Span.current()
@@ -575,9 +565,14 @@ public class SourceService {
     }
   }
 
-  public NamespaceTree listSource(SourceName sourceName, SourceConfig sourceConfig, String userName)
+  public NamespaceTree listSource(
+      SourceName sourceName,
+      SourceConfig sourceConfig,
+      String userName,
+      @Nullable String pageToken,
+      int maxResults)
       throws NamespaceException {
-    return listSource(sourceName, sourceConfig, userName, null, null);
+    return listSource(sourceName, sourceConfig, userName, null, null, pageToken, maxResults);
   }
 
   /**
@@ -638,7 +633,10 @@ public class SourceService {
 
     // TODO: why do we need to look up the dataset again in isPhysicalDataset?
     NamespaceTree contents =
-        includeContents ? listFolder(sourceName, folderPath, userName, refType, refValue) : null;
+        includeContents
+            ? listFolder(
+                sourceName, folderPath, userName, refType, refValue, null, Integer.MAX_VALUE)
+            : null;
     String versionedDatasetId = getVersionedDatasetId(folderPath, refType, refValue);
     if (versionedDatasetId != null) {
       folderConfig.setId(new EntityId(versionedDatasetId));
@@ -695,8 +693,9 @@ public class SourceService {
 
     try {
       plugin.unwrap(VersionedPlugin.class).createNamespace(folderPath.toNamespaceKey(), version);
-      return Folder.newInstance(sourceName, folderConfig, null);
-    } catch (NessieNamespaceAlreadyExistsException e) {
+      String id = setFolderIdForVersionedSources(folderPath, refType, refValue);
+      return Folder.newInstance(sourceName, folderConfig, id);
+    } catch (NamespaceAlreadyExistsException e) {
       throw UserException.validationError(e)
           .message(
               "Unable to create folder %s on source %s. An object already exists with that name.",
@@ -719,6 +718,18 @@ public class SourceService {
               "Requested %s in source %s is not the requested type.", version, sourceName.getName())
           .buildSilently();
     }
+  }
+
+  /**
+   * Fetches the folderId for the Versioned Sources
+   *
+   * @param folderPath
+   * @param refType
+   * @param refValue
+   */
+  String setFolderIdForVersionedSources(
+      SourceFolderPath folderPath, String refType, String refValue) {
+    return getVersionedDatasetId(folderPath, refType, refValue);
   }
 
   protected Folder newFolder(
@@ -751,7 +762,9 @@ public class SourceService {
       SourceFolderPath folderPath,
       String userName,
       String refType,
-      String refValue)
+      String refValue,
+      @Nullable String pageToken,
+      int maxResults)
       throws PhysicalDatasetNotFoundException, NamespaceException {
     final String name = sourceName.getName();
     final String prefix = folderPath.toPathString();
@@ -760,11 +773,16 @@ public class SourceService {
           checkNotNull(catalogService.getSource(name), "storage plugin %s not found", sourceName);
       if (plugin.isWrapperFor(VersionedPlugin.class)) {
         final NamespaceKey folderKey = folderPath.toNamespaceKey();
-        Stream<ExternalNamespaceEntry> entries =
+        ExternalListResponse response =
             versionedPluginListEntriesHelper(
-                plugin.unwrap(VersionedPlugin.class), folderKey, refType, refValue);
+                plugin.unwrap(VersionedPlugin.class),
+                folderKey,
+                refType,
+                refValue,
+                pageToken,
+                maxResults);
 
-        return namespaceTreeOf(sourceName, entries);
+        return namespaceTreeOf(sourceName, response);
       } else if (plugin.isWrapperFor(FileSystemPlugin.class)) {
         final NamespaceTree ns = new NamespaceTree();
         ns.setIsFileSystemSource(true);
@@ -780,7 +798,10 @@ public class SourceService {
 
         return ns;
       } else {
-        return newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()), false, false);
+        return newNamespaceTree(
+            namespaceService.list(folderPath.toNamespaceKey(), pageToken, maxResults),
+            false,
+            false);
       }
     } catch (IOException | DatasetNotFoundException e) {
       throw new RuntimeException(e);
@@ -788,14 +809,23 @@ public class SourceService {
   }
 
   public NamespaceTree listFolder(
-      SourceName sourceName, SourceFolderPath folderPath, String userName)
+      SourceName sourceName,
+      SourceFolderPath folderPath,
+      String userName,
+      @Nullable String startChildName,
+      int maxResults)
       throws NamespaceException, IOException {
-    return listFolder(sourceName, folderPath, userName, null, null);
+    return listFolder(sourceName, folderPath, userName, null, null, startChildName, maxResults);
   }
 
   @WithSpan
-  public List<ResourceTreeEntity> listPath(
-      NamespaceKey path, boolean showDatasets, String refType, String refValue)
+  public ResourceTreeListResponse listPath(
+      NamespaceKey path,
+      boolean showDatasets,
+      String refType,
+      String refValue,
+      @Nullable String pageToken,
+      int maxResults)
       throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     final String sourceName = path.getRoot();
@@ -806,15 +836,15 @@ public class SourceService {
     Span.current().setAttribute(IS_VERSIONED_PLUGIN_SPAN_ATTRIBUTE_NAME, isVersionedPlugin);
 
     if (isVersionedPlugin) {
-      Stream<ExternalNamespaceEntry> entries =
+      ExternalListResponse response =
           versionedPluginListEntriesHelper(
-              plugin.unwrap(VersionedPlugin.class), path, refType, refValue);
+              plugin.unwrap(VersionedPlugin.class), path, refType, refValue, pageToken, maxResults);
 
-      return generateResourceTreeEntityList(path, entries, ResourceTreeEntity.ResourceType.SOURCE);
+      return generateResourceTreeEntityList(path, response, ResourceTreeEntity.ResourceType.SOURCE);
     }
 
     // Since we're listing path in a source, the rootType should be SOURCE
-    for (NameSpaceContainer container : namespaceService.list(path)) {
+    for (NameSpaceContainer container : namespaceService.list(path, pageToken, maxResults)) {
       if (container.getType() == Type.FOLDER) {
         resources.add(
             new ResourceTreeEntity(container.getFolder(), ResourceTreeEntity.ResourceType.SOURCE));
@@ -824,7 +854,7 @@ public class SourceService {
       }
     }
 
-    return resources;
+    return new ImmutableResourceTreeListResponse.Builder().setEntities(resources).build();
   }
 
   protected VersionContext getVersionContext(String refType, String refValue) {
@@ -837,12 +867,29 @@ public class SourceService {
         .setName(folderPath.getFolderName().getName());
   }
 
-  protected Stream<ExternalNamespaceEntry> versionedPluginListEntriesHelper(
-      VersionedPlugin plugin, NamespaceKey namespaceKey, String refType, String refValue) {
+  protected ExternalListResponse versionedPluginListEntriesHelper(
+      VersionedPlugin plugin,
+      NamespaceKey namespaceKey,
+      String refType,
+      String refValue,
+      @Nullable String pageToken,
+      int maxResults) {
     VersionContext version = VersionContextUtils.parse(refType, refValue);
     String sourceName = namespaceKey.getRoot();
     try {
-      return plugin.listEntries(namespaceKey.getPathWithoutRoot(), version);
+      if (maxResults == NO_PAGINATION_MAX_RESULTS) {
+        return ExternalListResponse.ofStream(
+            plugin.listEntries(namespaceKey.getPathWithoutRoot(), version));
+      } else {
+        return ExternalListResponse.ofVersionedListPage(
+            plugin.listEntriesPage(
+                namespaceKey.getPathWithoutRoot(),
+                version,
+                new ImmutableVersionedListOptions.Builder()
+                    .setPageToken(pageToken)
+                    .setMaxResultsPerPage(maxResults)
+                    .build()));
+      }
     } catch (ReferenceNotFoundException e) {
       throw UserException.validationError(e)
           .message("Requested %s not found on source %s.", version, sourceName)
@@ -911,7 +958,7 @@ public class SourceService {
     config.setCtime(clock.millis());
     config.setFullPathList(sourceFolderPath.toPathList());
     config.setName(sourceFolderPath.getFolderName().getName());
-    NamespaceTree ns = listFolder(sourceName, sourceFolderPath, user);
+    NamespaceTree ns = listFolder(sourceName, sourceFolderPath, user, null, Integer.MAX_VALUE);
     if (!ns.getFiles().isEmpty()) {
       config.setType(
           FileFormat.getFileFormatType(
@@ -931,7 +978,6 @@ public class SourceService {
       throws NamespaceException {
     createCatalog()
         .createOrUpdateDataset(
-            namespaceService,
             new NamespaceKey(filePath.getSourceName().getName()),
             new PhysicalDatasetPath(filePath).toNamespaceKey(),
             toDatasetConfig(datasetConfig, security.getUserPrincipal().getName()));
@@ -941,7 +987,6 @@ public class SourceService {
       SourceFolderPath folderPath, PhysicalDatasetConfig datasetConfig) throws NamespaceException {
     createCatalog()
         .createOrUpdateDataset(
-            namespaceService,
             new NamespaceKey(folderPath.getSourceName().getName()),
             new PhysicalDatasetPath(folderPath).toNamespaceKey(),
             toDatasetConfig(datasetConfig, security.getUserPrincipal().getName()));
@@ -1072,27 +1117,29 @@ public class SourceService {
 
   public SourceConfig getById(String id) throws SourceNotFoundException, NamespaceException {
     try {
-      return namespaceService.getSourceById(id);
+      return namespaceService.getSourceById(new EntityId(id));
     } catch (NamespaceNotFoundException e) {
       throw new SourceNotFoundException(id);
     }
   }
 
   public Source fromSourceConfig(SourceConfig sourceConfig) {
-    return fromSourceConfig(sourceConfig, null);
+    return fromSourceConfig(sourceConfig, null, null);
   }
 
-  public Source fromSourceConfig(SourceConfig sourceConfig, List<CatalogItem> children) {
+  public Source fromSourceConfig(
+      SourceConfig sourceConfig, List<CatalogItem> children, @Nullable String nextPageToken) {
     final AccelerationSettings settings =
         reflectionServiceHelper
             .getReflectionSettings()
             .getReflectionSettings(new NamespaceKey(sourceConfig.getName()));
-    Source source = new Source(sourceConfig, settings, getConnectionReader(), children);
-
-    SourceState state = getStateForSource(sourceConfig);
-    source.setState(state);
-
-    return source;
+    return new Source(
+        sourceConfig,
+        settings,
+        getConnectionReader(),
+        children,
+        nextPageToken,
+        getStateForSource(sourceConfig));
   }
 
   public SourceState getStateForSource(SourceConfig sourceConfig) {
@@ -1138,5 +1185,15 @@ public class SourceService {
     return (catalog.resolveCatalog(
             DatasetResourceUtils.createSourceVersionMapping(versionContextMapping)))
         .getDatasetId(key);
+  }
+
+  public void checkPluginState(String name, StoragePlugin plugin) {
+    if (plugin.getState().getStatus() == SourceState.SourceStatus.bad) {
+      String message =
+          String.format(
+              "Cannot connect to [%s]. %s", name, plugin.getState().getSuggestedUserAction());
+      logger.error(message);
+      throw UserException.connectionError().message(message).buildSilently();
+    }
   }
 }

@@ -72,6 +72,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -103,9 +104,6 @@ import com.dremio.sabot.op.spi.Operator.MasterState;
 import com.dremio.sabot.op.spi.Operator.OperatorState;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.NamespaceServiceImpl;
-import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
@@ -168,6 +166,7 @@ public class BaseTestOperator extends ExecTest {
     testCloseables.add(testAllocator);
   }
 
+  @Override
   public BufferAllocator getTestAllocator() {
     return testAllocator;
   }
@@ -415,7 +414,7 @@ public class BaseTestOperator extends ExecTest {
         final OptionValidatorListing optionValidatorListing =
             new OptionValidatorListingImpl(result);
         systemOptionManager =
-            new SystemOptionManager(
+            new SystemOptionManagerImpl(
                 optionValidatorListing, persistence, storeProviderProvider, false);
         options =
             OptionManagerWrapper.Builder.newBuilder()
@@ -472,8 +471,6 @@ public class BaseTestOperator extends ExecTest {
         throws Exception {
 
       OperatorStats stats = new OperatorStats(new OpProfileDef(1, 1, 1), child);
-      final NamespaceService namespaceService =
-          new NamespaceServiceImpl(testContext.storeProvider, new CatalogStatusEventsImpl());
       final DremioConfig dremioConfig = DremioConfig.create(null, config);
       final SchedulerService schedulerService = Mockito.mock(SchedulerService.class);
       final SpillService spillService =

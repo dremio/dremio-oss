@@ -83,9 +83,8 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
   protected static final AtomicInteger TABLE_NUMBER = new AtomicInteger(0);
   private final String testTableName =
       "test_snapshot_based_incremental_reflections" + TABLE_NUMBER.getAndIncrement();
-  private final BufferAllocator allocator =
-      getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
-  private final ReflectionMonitor monitor = newReflectionMonitor(1_000, 30_000);
+  private BufferAllocator allocator;
+  private final ReflectionMonitor monitor = newReflectionMonitor();
 
   protected abstract String getTestTablePath();
 
@@ -105,20 +104,21 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
   @BeforeClass
   public static void prepare() throws Exception {
     assumeFalse(isMultinode());
-    setDeletionGracePeriod(60);
+    setDeletionGracePeriod();
     setManagerRefreshDelay(5);
     setMaterializationCacheSettings(false, 1);
   }
 
   @Before
   public void before() throws Exception {
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
     setSystemOption(ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS, "false");
   }
 
   @After
   public void after() throws Exception {
     resetSystemOption(ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS.getOptionName());
-    setDeletionGracePeriod(1);
+    setDeletionGracePeriod();
     getReflectionService().clearAll();
     monitor.waitUntilNoMaterializationsAvailable();
     resetSettings();
@@ -382,7 +382,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
       // confirm that we are indeed reading all the new data
       try (final JobDataFragment data =
           submitJobAndGetData(
-              l(JobsService.class),
+              getJobsService(),
               JobRequest.newBuilder()
                   .setSqlQuery(new SqlQuery(vdsQuery + " order by id", SYSTEM_USERNAME))
                   .setQueryType(QueryType.JDBC)
@@ -1275,7 +1275,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
       // confirm that we are indeed reading all the new data
       try (final JobDataFragment data =
           submitJobAndGetData(
-              l(JobsService.class),
+              getJobsService(),
               JobRequest.newBuilder()
                   .setSqlQuery(new SqlQuery(vdsQuery + " order by id", SYSTEM_USERNAME))
                   .setQueryType(QueryType.JDBC)
@@ -1500,7 +1500,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
       // confirm that we are indeed reading all the new data
       try (final JobDataFragment data =
           submitJobAndGetData(
-              l(JobsService.class),
+              getJobsService(),
               JobRequest.newBuilder()
                   .setSqlQuery(new SqlQuery(vdsQuery + " order by id", SYSTEM_USERNAME))
                   .setQueryType(QueryType.JDBC)
@@ -1718,7 +1718,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
       // confirm that we are indeed reading all the new data
       try (final JobDataFragment data =
           submitJobAndGetData(
-              l(JobsService.class),
+              getJobsService(),
               JobRequest.newBuilder()
                   .setSqlQuery(new SqlQuery(vdsQuery + " order by id", SYSTEM_USERNAME))
                   .setQueryType(QueryType.JDBC)
@@ -1889,7 +1889,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
       // confirm that we are indeed reading all the new data
       try (final JobDataFragment data =
           submitJobAndGetData(
-              l(JobsService.class),
+              getJobsService(),
               JobRequest.newBuilder()
                   .setSqlQuery(new SqlQuery(vdsQuery + " order by id", SYSTEM_USERNAME))
                   .setQueryType(QueryType.JDBC)
@@ -2039,7 +2039,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
       // confirm that we are indeed reading all the new data
       try (final JobDataFragment data =
           submitJobAndGetData(
-              l(JobsService.class),
+              getJobsService(),
               JobRequest.newBuilder()
                   .setSqlQuery(new SqlQuery(vdsQuery + " order by id", SYSTEM_USERNAME))
                   .setQueryType(QueryType.JDBC)
@@ -2288,7 +2288,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
       // confirm that we are indeed reading all the new data
       try (final JobDataFragment data =
           submitJobAndGetData(
-              l(JobsService.class),
+              getJobsService(),
               JobRequest.newBuilder()
                   .setSqlQuery(new SqlQuery(vdsQuery + " order by id", SYSTEM_USERNAME))
                   .setQueryType(QueryType.JDBC)
@@ -2437,7 +2437,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
       // confirm that we are indeed reading all the new data
       try (final JobDataFragment data =
           submitJobAndGetData(
-              l(JobsService.class),
+              getJobsService(),
               JobRequest.newBuilder()
                   .setSqlQuery(new SqlQuery(testQuery, SYSTEM_USERNAME))
                   .setQueryType(QueryType.JDBC)

@@ -87,4 +87,20 @@ abstract class ClusteredSingletonCommon {
 
   // whether the clustered singleton is still active and is NOT in the process of shutting down
   abstract boolean isActive();
+
+  // Tells the recovery monitor to treat this instance as a zombie and thus ignore taking
+  // recovery action.
+  // for testing purposes only; allow tests to control how the recovery monitor behaves
+  abstract boolean isZombie();
+
+  // Tests may ask the recovery monitor to ignore reconnect requests. This allows the tests
+  // to control when the system will act on ZK reconnects. This is needed because the current
+  // ZK session expiration does not have capability to control when the reconnect event arrives
+  // post session expiration.
+  // for testing purposes only;
+  abstract boolean shouldIgnoreReconnects();
+
+  // Fully qualified root path for tracking weights. Non null only when weight based balancing
+  // is enabled.
+  abstract String getWeightFqPath();
 }

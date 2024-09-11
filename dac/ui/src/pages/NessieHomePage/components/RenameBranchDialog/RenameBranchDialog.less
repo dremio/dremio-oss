@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-
 :global {
   .rename-branch-dialog {
     .MuiDialog-paper {
@@ -34,7 +32,7 @@
     }
 
     &-header {
-      border-bottom: 1px solid @SECONDARY_200;
+      border-bottom: 1px solid var(--border--neutral);
       padding: 0 !important;
 
       display: flex;
@@ -56,7 +54,7 @@
         margin-bottom: 4px;
         font-size: 14px;
         font-weight: 400;
-        color: @BLACK;
+        color: var(--text--primary);
       }
 
       .MuiFormControl-fullWidth {
@@ -88,7 +86,7 @@
     }
 
     &-actions {
-      border-top: 1px solid @SECONDARY_200;
+      border-top: 1px solid var(--border--neutral);
     }
   }
 }

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/components/colors.less";
-
 @icon-size: 25px;
 
 :global {
@@ -28,7 +26,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid @border-color;
+      border-bottom: 1px solid var(--border--color);
     }
 
     &__title {
@@ -39,6 +37,7 @@
       align-items: center;
       font-size: 18px !important;
       font-weight: 500 !important;
+      max-width: 100%;
     }
 
     &__endChildren {
@@ -58,10 +57,10 @@
       font-weight: 500;
       cursor: pointer;
       text-decoration: none !important;
-      color: var(--dremio--color--link);
+      color: var(--text--brand);
 
       &:hover {
-        background: var(--color--brand--25);
+        background: var(--fill--primary--hover);
       }
     }
 
@@ -69,7 +68,7 @@
       margin-right: 4px;
       height: @icon-size;
       width: @icon-size;
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
     }
   }
 }

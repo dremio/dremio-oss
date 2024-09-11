@@ -21,16 +21,19 @@ import static org.projectnessie.gc.contents.LiveContentSet.Status.IDENTIFY_SUCCE
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.IcebergExpiryMetric;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.NessieCommitsSubScan;
 import com.dremio.exec.store.iceberg.SnapshotEntry;
 import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
+import com.dremio.plugins.dataplane.exec.gc.NessieLiveContentRetriever;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,37 +41,35 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.hadoop.conf.Configuration;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.gc.contents.ContentReference;
 import org.projectnessie.gc.contents.LiveContentSet;
 import org.projectnessie.gc.contents.LiveContentSetNotFoundException;
-import org.projectnessie.gc.contents.LiveContentSetsRepository;
-import org.projectnessie.gc.contents.inmem.InMemoryPersistenceSpi;
-import org.projectnessie.gc.iceberg.IcebergContentToContentReference;
-import org.projectnessie.gc.iceberg.IcebergContentTypeFilter;
 import org.projectnessie.gc.identify.CutoffPolicy;
-import org.projectnessie.gc.identify.IdentifyLiveContents;
 import org.projectnessie.gc.repository.RepositoryConnector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractNessieCommitRecordsReader implements RecordReader {
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(AbstractNessieCommitRecordsReader.class);
 
   private final NessieCommitsSubScan config;
   private final FragmentExecutionContext fragmentExecutionContext;
   private final OperatorContext context;
   private SupportsIcebergMutablePlugin plugin;
 
-  private InMemoryPersistenceSpi persistenceSpi;
-  private UUID liveContentId;
   private LiveContentSet liveContentSet;
-  private Iterator<String> liveContentSetIterator;
+  private Iterator<String> liveContentIdsSetIterator;
   private Iterator<ContentReference> contentRefsIterator = Collections.emptyIterator();
+  private Configuration conf;
 
   public AbstractNessieCommitRecordsReader(
       FragmentExecutionContext fragmentExecutionContext,
@@ -85,50 +86,20 @@ public abstract class AbstractNessieCommitRecordsReader implements RecordReader 
     Preconditions.checkState(
         plugin instanceof DataplanePlugin,
         "Unsupported plugin type: " + plugin.getClass().getName());
+    this.conf = plugin.getFsConfCopy();
     NessieApiV2 nessieApi = ((DataplanePlugin) plugin).getNessieApi();
 
     SnapshotsScanOptions snapshotsScanOptions = config.getSnapshotsScanOptions();
-    persistenceSpi = new InMemoryPersistenceSpi();
     RepositoryConnector repositoryConnector =
         new QueryContextAwareNessieRepositoryConnector(
             context.getFragmentHandle().getQueryId(), nessieApi);
 
     Stopwatch liveContentScanWatch = Stopwatch.createStarted();
 
-    liveContentId =
-        IdentifyLiveContents.builder()
-            .repositoryConnector(repositoryConnector)
-            .liveContentSetsRepository(
-                LiveContentSetsRepository.builder().persistenceSpi(persistenceSpi).build())
-            .cutOffPolicySupplier(
-                reference ->
-                    CutoffPolicy.atTimestamp(
-                        Instant.ofEpochMilli(snapshotsScanOptions.getOlderThanInMillis())))
-            .contentTypeFilter(IcebergContentTypeFilter.INSTANCE)
-            .contentToContentReference(IcebergContentToContentReference.INSTANCE)
-            .build()
-            .identifyLiveContents();
+    NessieLiveContentRetriever nessieLiveContentRetriever =
+        NessieLiveContentRetriever.create(repositoryConnector);
 
-    try {
-      liveContentSet = persistenceSpi.getLiveContentSet(liveContentId);
-      Preconditions.checkState(
-          liveContentSet.status().equals(IDENTIFY_SUCCESS),
-          "Error while identifying live contents.");
-
-      context
-          .getStats()
-          .addLongStat(
-              IcebergExpiryMetric.NUM_TABLES, liveContentSet.fetchDistinctContentIdCount());
-      try (Stream<String> stream = liveContentSet.fetchContentIds()) {
-        liveContentSetIterator = stream.iterator();
-      }
-    } catch (LiveContentSetNotFoundException e) {
-      throw new RuntimeException(e);
-    } finally {
-      context
-          .getStats()
-          .addLongStat(COMMIT_SCAN_TIME, liveContentScanWatch.elapsed(TimeUnit.MILLISECONDS));
-    }
+    retrieveLiveContentSet(nessieLiveContentRetriever, snapshotsScanOptions, liveContentScanWatch);
   }
 
   @Override
@@ -142,18 +113,41 @@ public abstract class AbstractNessieCommitRecordsReader implements RecordReader 
   public int next() {
     int idx = 0;
 
-    while ((liveContentSetIterator.hasNext() || contentRefsIterator.hasNext())
+    while ((liveContentIdsSetIterator.hasNext() || contentRefsIterator.hasNext())
         && idx < context.getTargetBatchSize()) {
-      if (!contentRefsIterator.hasNext()) {
-        String contentSet = liveContentSetIterator.next();
-        contentRefsIterator =
-            persistenceSpi.fetchContentReferences(liveContentId, contentSet).iterator();
-      }
-      idx = publishRecords(idx);
+      idx = publishNextRecords(idx);
+    }
+
+    if (!liveContentIdsSetIterator.hasNext() && !contentRefsIterator.hasNext()) {
+      deleteLiveContentSet();
     }
 
     setValueCount(idx);
     return idx;
+  }
+
+  private int publishNextRecords(int startIdx) {
+    if (!contentRefsIterator.hasNext()) {
+      String contentSet = liveContentIdsSetIterator.next();
+      // todo: we will need to be aware of closing the resources with our own DiskPersistenceSpi
+      try (Stream<ContentReference> contentReference =
+          liveContentSet.fetchContentReferences(contentSet)) {
+        contentRefsIterator = contentReference.iterator();
+      }
+    }
+    return publishRecords(startIdx);
+  }
+
+  private void deleteLiveContentSet() {
+    try {
+      liveContentSet.delete();
+    } catch (IllegalStateException exception) {
+      // skip if no live content found
+      // todo: in our implementation of PersistenceSpi that saves
+      // the live content to the disk, we can check there for the existence of the live set
+      // and just throw not found exception
+      LOGGER.debug("Ignoring deletion of live content set due to not found exception", exception);
+    }
   }
 
   private int publishRecords(int startIdx) {
@@ -167,17 +161,15 @@ public abstract class AbstractNessieCommitRecordsReader implements RecordReader 
     return idx.intValue();
   }
 
+  @Override
+  public void close() {}
+
   protected abstract CompletableFuture<Optional<SnapshotEntry>> getEntries(
       AtomicInteger idx, ContentReference next);
 
   protected abstract void populateOutputVectors(AtomicInteger idx, SnapshotEntry entry);
 
   protected abstract void setValueCount(int valueCount);
-
-  @Override
-  public void close() {
-    liveContentSet.delete();
-  }
 
   protected NessieCommitsSubScan getConfig() {
     return config;
@@ -189,5 +181,43 @@ public abstract class AbstractNessieCommitRecordsReader implements RecordReader 
 
   protected SupportsIcebergMutablePlugin getPlugin() {
     return plugin;
+  }
+
+  protected byte[] toSchemeAwarePath(String path) {
+    String schemeAwarePath =
+        IcebergUtils.getIcebergPathAndValidateScheme(
+            path, conf, config.getFsScheme(), config.getSchemeVariate());
+    return schemeAwarePath.getBytes(StandardCharsets.UTF_8);
+  }
+
+  private void retrieveLiveContentSet(
+      NessieLiveContentRetriever nessieLiveContentRetriever,
+      SnapshotsScanOptions snapshotsScanOptions,
+      Stopwatch liveContentScanWatch) {
+    try {
+      liveContentSet =
+          nessieLiveContentRetriever.getLiveContentSet(
+              CutoffPolicy.atTimestamp(
+                  Instant.ofEpochMilli(snapshotsScanOptions.getOlderThanInMillis())));
+
+      Preconditions.checkState(
+          liveContentSet.status().equals(IDENTIFY_SUCCESS),
+          "Error while identifying live contents.");
+
+      context
+          .getStats()
+          .addLongStat(
+              IcebergExpiryMetric.NUM_TABLES, liveContentSet.fetchDistinctContentIdCount());
+
+      try (Stream<String> stream = liveContentSet.fetchContentIds()) {
+        liveContentIdsSetIterator = stream.iterator();
+      }
+    } catch (LiveContentSetNotFoundException e) {
+      throw new RuntimeException(e);
+    } finally {
+      context
+          .getStats()
+          .addLongStat(COMMIT_SCAN_TIME, liveContentScanWatch.elapsed(TimeUnit.MILLISECONDS));
+    }
   }
 }

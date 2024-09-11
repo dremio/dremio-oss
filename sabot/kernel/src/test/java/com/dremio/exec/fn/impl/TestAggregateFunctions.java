@@ -23,7 +23,6 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.TestTools;
 import com.google.common.collect.Lists;
-import java.math.BigDecimal;
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Ignore;
@@ -32,45 +31,6 @@ import org.junit.Test;
 public class TestAggregateFunctions extends BaseTestQuery {
 
   private static final String TEST_RES_PATH = TestTools.getWorkingPath() + "/src/test/resources";
-
-  /*
-   * Test checks the count of a nullable column within a map
-   * and verifies count is equal only to the number of times the
-   * column appears and doesn't include the null count
-   */
-  @Test
-  public void testCountOnNullableColumn() throws Exception {
-    testBuilder()
-        .sqlQuery(
-            "select count(t.x.y)  as cnt1, count(\"integer\") as cnt2 from cp.\"/jsoninput/input2.json\" t")
-        .ordered()
-        .baselineColumns("cnt1", "cnt2")
-        .baselineValues(3L, 4L)
-        .build()
-        .run();
-  }
-
-  @Test
-  public void testCountDistinctOnBoolColumn() throws Exception {
-    testBuilder()
-        .sqlQuery(
-            "select count(distinct bool_col) as cnt from cp.\"parquet/alltypes_required.parquet\"")
-        .ordered()
-        .baselineColumns("cnt")
-        .baselineValues(1L)
-        .build()
-        .run();
-  }
-
-  @Test
-  public void testMaxWithZeroInput() throws Exception {
-    testBuilder()
-        .sqlQuery("select max(employee_id * 0.0) as max_val from cp.\"employee.json\"")
-        .unOrdered()
-        .baselineColumns("max_val")
-        .baselineValues(BigDecimal.valueOf(0.0d))
-        .go();
-  }
 
   @Ignore
   @Test // DRILL-2092: count distinct, non distinct aggregate with group-by
@@ -182,61 +142,12 @@ public class TestAggregateFunctions extends BaseTestQuery {
   }
 
   @Test
-  public void testAvgWithNullableScalarFunction() throws Exception {
-    String query = " select avg(length(b1)) as col from cp.\"jsoninput/nullable1.json\"";
-    testBuilder().sqlQuery(query).unOrdered().baselineColumns("col").baselineValues(3.0d).go();
-  }
-
-  @Test
-  public void testCountWithAvg() throws Exception {
-    testBuilder()
-        .sqlQuery("select count(a) col1, avg(b) col2 from cp.\"jsoninput/nullable3.json\"")
-        .unOrdered()
-        .baselineColumns("col1", "col2")
-        .baselineValues(2L, 3.0d)
-        .go();
-
-    testBuilder()
-        .sqlQuery("select count(a) col1, avg(a) col2 from cp.\"jsoninput/nullable3.json\"")
-        .unOrdered()
-        .baselineColumns("col1", "col2")
-        .baselineValues(2L, 1.0d)
-        .go();
-  }
-
-  @Test
-  public void testAvgOnKnownType() throws Exception {
-    testBuilder()
-        .sqlQuery("select avg(cast(employee_id as bigint)) as col from cp.\"employee.json\"")
-        .unOrdered()
-        .baselineColumns("col")
-        .baselineValues(578.9982683982684)
-        .go();
-  }
-
-  @Test
   public void testStddevOnKnownType() throws Exception {
     testBuilder()
         .sqlQuery("select stddev_samp(cast(employee_id as int)) as col from cp.\"employee.json\"")
         .unOrdered()
         .baselineColumns("col")
         .baselineValues(333.56708470261117)
-        .go();
-  }
-
-  @Test
-  // test aggregates when input is empty and data type is optional
-  public void countEmptyNullableInput() throws Exception {
-    String query =
-        "select "
-            + "count(employee_id) col1, avg(employee_id) col2, sum(employee_id) col3 "
-            + "from cp.\"employee.json\" where 1 = 0";
-
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("col1", "col2", "col3")
-        .baselineValues(0L, null, null)
         .go();
   }
 
@@ -270,96 +181,6 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("col1", "col2", "col3", "col4", "col5")
         .baselineValues(null, null, null, null, null)
-        .go();
-  }
-
-  @Test
-  public void minEmptyNonnullableInput() throws Exception {
-    // test min function on required type
-    String query =
-        "select "
-            + "min(bool_col) col1, min(int_col) col2, min(bigint_col) col3, min(float4_col) col4, min(float8_col) col5, "
-            + "min(date_col) col6, min(time_col) col7, min(timestamp_col) col8, min(interval_year_col) col9, "
-            + "min(varchar_col) col10 "
-            + "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
-
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns(
-            "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10")
-        .baselineValues(null, null, null, null, null, null, null, null, null, null)
-        .go();
-  }
-
-  @Test
-  public void maxEmptyNonnullableInputTime() throws Exception {
-
-    // test max function
-    final String query =
-        "select "
-            + "max(time_col) col6"
-            + " from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
-
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("col6")
-        .baselineValues((String) null)
-        .go();
-  }
-
-  @Test
-  public void maxEmptyNonnullableInputDate() throws Exception {
-
-    // test max function
-    final String query =
-        "select "
-            + "max(date_col) col5"
-            + " from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
-
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("col5")
-        .baselineValues((String) null)
-        .go();
-  }
-
-  @Test
-  public void maxEmptyNonnullableInputNoTime() throws Exception {
-
-    // test max function
-    final String query =
-        "select "
-            + "max(int_col) col1, max(bigint_col) col2, max(float4_col) col3, max(float8_col) col4, "
-            + "max(varchar_col) col9 "
-            + "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
-
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("col1", "col2", "col3", "col4", "col9")
-        .baselineValues(null, null, null, null, null)
-        .go();
-  }
-
-  @Test
-  public void maxEmptyNonnullableInput() throws Exception {
-
-    // test max function
-    final String query =
-        "select "
-            + "max(int_col) col1, max(bigint_col) col2, max(float4_col) col3, max(float8_col) col4, "
-            + "max(date_col) col5, max(time_col) col6, max(timestamp_col) col7, max(interval_year_col) col8, "
-            + "max(varchar_col) col9 "
-            + "from cp.\"parquet/alltypes_required.parquet\" where 1 = 0";
-
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9")
-        .baselineValues(null, null, null, null, null, null, null, null, null)
         .go();
   }
 

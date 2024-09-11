@@ -62,62 +62,58 @@ export const getRules = ({
 }: {
   additionalIncludes: string[];
 }) => [
-    {
-      test: /\.worker\.[jt]s$/,
-      use: { loader: "worker-loader" },
+  {
+    test: /\.worker\.[jt]s$/,
+    use: { loader: "worker-loader" },
+  },
+  {
+    test: /\.(js(x)?|ts(x)?)$/,
+    exclude:
+      /node_modules(?!\/regenerator-runtime|\/redux-saga|\/whatwg-fetch)/,
+    include: [
+      resolve(__dirname, "../"),
+      dynLoadPath,
+      ...injectionPathAsList,
+      ...additionalIncludes,
+    ],
+    use: [babelLoader],
+  },
+  getStyleLoader(false),
+  getStyleLoader(true),
+  {
+    test: /\.pattern$/,
+    use: {
+      loader: "glob-loader",
     },
-    {
-      test: /\.(js(x)?|ts(x)?)$/,
-      exclude:
-        /node_modules(?!\/regenerator-runtime|\/redux-saga|\/whatwg-fetch)/,
-      include: [
-        resolve(__dirname, "../"),
-        dynLoadPath,
-        ...injectionPathAsList,
-        ...additionalIncludes,
-      ],
-      use: [babelLoader],
-    },
-    getStyleLoader(false),
-    getStyleLoader(true),
-    {
-      test: /art\/.*\.svg$/,
-      use: [
-        babelLoader,
-        {
-          loader: "react-svg-loader",
-          options: {
-            svgo: {
-              plugins: [{ removeDimensions: true }, { convertPathData: false }], // disable convertPathData pending https://github.com/svg/svgo/issues/863
-            },
-          },
-        },
-      ],
-    },
-    {
-      test: /\.pattern$/,
-      use: {
-        loader: "glob-loader",
+  },
+  {
+    test: /\.png$/,
+    type: "asset/resource",
+  },
+  {
+    test: /(components|pages)\/.*\.svg(\?.*)?$/,
+    type: "asset/resource",
+  },
+  {
+    test: /(ui-lib)\/.*\.svg(\?.*)?$/,
+    type: "asset/resource",
+  },
+  {
+    test: /\.(woff(2)?|ttf|eot|gif|lottie|svg)(\?.*)?$/,
+    type: "asset/resource",
+  },
+  {
+    test: /\.ya?ml$/,
+    use: "yaml-loader",
+  },
+  {
+    test: /\.s[ac]ss$/i,
+    use: [
+      {
+        loader: MiniCssExtractPlugin.loader,
       },
-    },
-    {
-      test: /\.png$/,
-      type: "asset/resource",
-    },
-    {
-      test: /(components|pages)\/.*\.svg(\?.*)?$/,
-      type: "asset/resource",
-    },
-    {
-      test: /(ui-lib)\/.*\.svg(\?.*)?$/,
-      type: "asset/resource",
-    },
-    {
-      test: /\.(woff(2)?|ttf|eot|gif|lottie)(\?.*)?$/,
-      type: "asset/resource",
-    },
-    {
-      test: /\.ya?ml$/,
-      use: "yaml-loader",
-    },
-  ];
+      "css-loader",
+      "sass-loader",
+    ],
+  },
+];

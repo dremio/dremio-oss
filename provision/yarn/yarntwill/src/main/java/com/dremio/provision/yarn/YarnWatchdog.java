@@ -472,15 +472,15 @@ public class YarnWatchdog {
   static class YarnWatchdogFormatter extends Formatter {
 
     @Override
-    public String format(LogRecord record) {
+    public String format(LogRecord logRecord) {
       return String.format(
           "%1$tF %1$tT,%1$tL [%2$s] %3$-7s %4$s - %5$s %n",
           new Object[] {
-            new Date(record.getMillis()),
+            new Date(logRecord.getMillis()),
             Thread.currentThread().getName(),
-            record.getLevel(),
-            record.getSourceClassName(),
-            formatMessage(record)
+            logRecord.getLevel(),
+            logRecord.getSourceClassName(),
+            formatMessage(logRecord)
           });
     }
   }

@@ -16,6 +16,8 @@
 package com.dremio.exec.store.parquet;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
+import com.dremio.exec.store.RecordWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.writer.WriterOperator;
@@ -25,8 +27,14 @@ public class ParquetWriterBatchCreator implements SingleInputOperator.Creator<Pa
   @Override
   public SingleInputOperator create(OperatorContext context, ParquetWriter config)
       throws ExecutionSetupException {
-    ParquetRecordWriter writer =
-        new ParquetRecordWriter(context, config, new ParquetFormatConfig());
+    RecordWriter writer;
+
+    // TODO: check if iceberg table
+    if (DmlUtils.isMergeOnReadDmlOperation(config.getOptions())) {
+      writer = new MergeOnReadRecordWriter(context, config, new ParquetFormatConfig());
+    } else {
+      writer = new ParquetRecordWriter(context, config, new ParquetFormatConfig());
+    }
     return new WriterOperator(context, config.getOptions(), writer);
   }
 }

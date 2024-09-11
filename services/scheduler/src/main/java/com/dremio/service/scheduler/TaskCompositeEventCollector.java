@@ -16,7 +16,7 @@
 package com.dremio.service.scheduler;
 
 import com.dremio.exec.proto.CoordinationProtos;
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,13 +26,9 @@ class TaskCompositeEventCollector implements SchedulerEvents {
   private final List<SchedulerEvents> eventSinks;
   private final Map<String, PerTaskEventCollector> allTasks;
 
-  TaskCompositeEventCollector() {
-    eventSinks = new ArrayList<>();
+  TaskCompositeEventCollector(List<SchedulerEvents> eventHandlers) {
+    eventSinks = ImmutableList.copyOf(eventHandlers);
     allTasks = new ConcurrentHashMap<>();
-  }
-
-  void registerEventSink(SchedulerEvents eventSink) {
-    eventSinks.add(eventSink);
   }
 
   @Override
@@ -78,6 +74,11 @@ class TaskCompositeEventCollector implements SchedulerEvents {
     eventSinks.forEach((x) -> x.runSetSize(currentSize));
   }
 
+  @Override
+  public void computedWeight(int currentWeight) {
+    eventSinks.forEach((x) -> x.computedWeight(currentWeight));
+  }
+
   private static final class PerTaskEventCollector implements SchedulerEvents.PerTaskEvents {
     private final List<PerTaskEvents> perTaskEventsSinks;
 
@@ -91,13 +92,29 @@ class TaskCompositeEventCollector implements SchedulerEvents {
     }
 
     @Override
-    public void bookingAcquired() {
-      perTaskEventsSinks.forEach(PerTaskMainEvents::bookingAcquired);
+    public void bookingAcquired(long bookingOwnerSessionId) {
+      perTaskEventsSinks.forEach(
+          perTaskEvents -> perTaskEvents.bookingAcquired(bookingOwnerSessionId));
     }
 
     @Override
     public void bookingReleased() {
       perTaskEventsSinks.forEach(PerTaskMainEvents::bookingReleased);
+    }
+
+    @Override
+    public void bookingLost() {
+      perTaskEventsSinks.forEach(PerTaskMainEvents::bookingLost);
+    }
+
+    @Override
+    public void bookingRechecked() {
+      perTaskEventsSinks.forEach(PerTaskMainEvents::bookingRechecked);
+    }
+
+    @Override
+    public void bookingRegained() {
+      perTaskEventsSinks.forEach(PerTaskMainEvents::bookingRegained);
     }
 
     @Override
@@ -148,6 +165,16 @@ class TaskCompositeEventCollector implements SchedulerEvents {
     @Override
     public void removedFromRunSet(long cTime) {
       perTaskEventsSinks.forEach((sink) -> sink.removedFromRunSet(cTime));
+    }
+
+    @Override
+    public void weightShed(int weight) {
+      perTaskEventsSinks.forEach((sink) -> sink.weightShed(weight));
+    }
+
+    @Override
+    public void weightGained(int weight) {
+      perTaskEventsSinks.forEach((sink) -> sink.weightGained(weight));
     }
 
     @Override

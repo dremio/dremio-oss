@@ -138,7 +138,7 @@ public class CleanData {
       return true;
     } else if (o instanceof Text) {
       try {
-        String s = Text.decode(((Text) o).getBytes(), 0, ((Text) o).getLength());
+        String s = Text.decode(((Text) o).getBytes(), 0, (int) ((Text) o).getLength());
         return parseLong(s, out);
       } catch (CharacterCodingException e) {
         // TODO: is this the best way?
@@ -172,7 +172,7 @@ public class CleanData {
     } else if (o instanceof Text) {
       String s;
       try {
-        s = Text.decode(((Text) o).getBytes(), 0, ((Text) o).getLength());
+        s = Text.decode(((Text) o).getBytes(), 0, (int) ((Text) o).getLength());
         if (!isNumeric(s)) {
           return false;
         }
@@ -202,7 +202,7 @@ public class CleanData {
       return true;
     } else if (o instanceof Text) {
       try {
-        String s = Text.decode(((Text) o).getBytes(), 0, ((Text) o).getLength());
+        String s = Text.decode(((Text) o).getBytes(), 0, (int) ((Text) o).getLength());
         if ((s == null)
             || (s.length() == 0)
             || ("false".equalsIgnoreCase(s))

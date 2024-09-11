@@ -62,7 +62,7 @@ public class TestOptionManagerWrapper extends DremioTest {
     storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     defaultOptionManager = new DefaultOptionManager(optionValidatorListing);
     systemOptionManager =
-        new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+        new SystemOptionManagerImpl(optionValidatorListing, lpp, () -> storeProvider, true);
     sessionOptionManager = new SessionOptionManagerImpl(optionValidatorListing);
     queryOptionManager = new QueryOptionManager(optionValidatorListing);
 
@@ -72,7 +72,7 @@ public class TestOptionManagerWrapper extends DremioTest {
 
   @After
   public void cleanup() throws Exception {
-    AutoCloseables.close(storeProvider);
+    AutoCloseables.close(systemOptionManager, storeProvider);
   }
 
   @Test

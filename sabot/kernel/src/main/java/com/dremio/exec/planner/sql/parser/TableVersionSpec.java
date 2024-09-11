@@ -20,7 +20,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.evaluator.FunctionEvaluatorRule;
+import com.dremio.exec.planner.sql.evaluator.FunctionEvaluatorUtil;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.google.common.base.Preconditions;
@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.rex.RexLiteral;
@@ -57,11 +58,11 @@ public class TableVersionSpec {
 
   private final TableVersionType tableVersionType;
   private final SqlNode versionSpecifier;
-  private final SqlNode timestamp;
+  private final @Nullable SqlNode timestamp;
   private SqlLiteral resolvedVersionSpecifier;
 
   public TableVersionSpec(
-      TableVersionType tableVersionType, SqlNode versionSpecifier, SqlNode timestamp) {
+      TableVersionType tableVersionType, SqlNode versionSpecifier, @Nullable SqlNode timestamp) {
     this.tableVersionType = tableVersionType;
     this.versionSpecifier = versionSpecifier;
     this.timestamp = timestamp;
@@ -148,9 +149,7 @@ public class TableVersionSpec {
     // grammar
     Preconditions.checkState(tableVersionType == TableVersionType.TIMESTAMP);
     RexNode expr = converter.convertExpression(validatedSpecifier, new HashMap<>());
-
-    FunctionEvaluatorRule functionEvaluatorRule = new FunctionEvaluatorRule(contextInformation);
-    expr = functionEvaluatorRule.evaluate(expr, rexBuilder);
+    expr = FunctionEvaluatorUtil.evaluateAll(expr, rexBuilder, contextInformation, null);
 
     List<RexNode> reducedExprs = new ArrayList<>();
     rexExecutor.reduce(rexBuilder, ImmutableList.of(expr), reducedExprs);
@@ -194,7 +193,7 @@ public class TableVersionSpec {
     return versionSpecifier;
   }
 
-  public SqlNode getTimestamp() {
+  public @Nullable SqlNode getTimestamp() {
     return timestamp;
   }
 

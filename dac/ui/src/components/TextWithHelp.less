@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/components/colors.less";
-
 :global {
   .textWithHelp {
     display: flex;
@@ -38,13 +36,13 @@
       word-wrap: break-word;
 
       &.--light {
-        background-color: @aqua-spring !important;
+        background-color: var(--fill--brand) !important;
         color: inherit !important;
-        border: 1px solid @blue;
+        border: 1px solid var(--color--brand--300);
       }
 
       &.--white {
-        background-color: @white !important;
+        background-color: white !important;
         color: inherit !important;
       }
     }
@@ -62,15 +60,17 @@
 
       &.--light {
         &.--top {
-          border-color: @blue transparent transparent transparent !important;
+          border-color: var(--color--brand--300) transparent transparent
+            transparent !important;
           &:after {
-            border-color: @aqua-spring transparent transparent transparent;
+            border-color: var(--fill--brand) transparent transparent transparent;
           }
         }
         &.--bottom {
-          border-color: transparent transparent @blue transparent !important;
+          border-color: transparent transparent var(--color--brand--300)
+            transparent !important;
           &:after {
-            border-color: transparent transparent @aqua-spring transparent;
+            border-color: transparent transparent var(--fill--brand) transparent;
           }
         }
         &:after {

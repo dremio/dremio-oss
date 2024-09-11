@@ -19,7 +19,7 @@ import { RSAA } from "redux-api-middleware";
 import transformModelMapper from "utils/mappers/ExplorePage/Transform/transformModelMapper";
 
 import { APIV2Call } from "@app/core/APICall";
-import * as Actions from "./recommended.js";
+import * as Actions from "./recommended";
 
 describe("recommended actions", () => {
   describe("test action creators", () => {
@@ -43,7 +43,7 @@ describe("recommended actions", () => {
       };
 
       const apiCall = new APIV2Call().paths(
-        "/dataset/tmp.UNTITLED/version/12345/extract"
+        "/dataset/tmp.UNTITLED/version/12345/extract",
       );
 
       const expectedResult = {
@@ -56,7 +56,7 @@ describe("recommended actions", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
-            transformModelMapper.transformExportPostMapper(data, actionType)
+            transformModelMapper.transformExportPostMapper(data, actionType),
           ),
           endpoint: apiCall,
         },
@@ -65,7 +65,7 @@ describe("recommended actions", () => {
         data,
         transform,
         dataset,
-        actionType
+        actionType,
       )((obj) => obj)[RSAA];
       expect(realResult).to.eql(expectedResult[RSAA]);
     });
@@ -96,7 +96,7 @@ describe("recommended actions", () => {
       };
 
       const apiCall = new APIV2Call().paths(
-        "/dataset/tmp.UNTITLED/version/12345/extract_preview"
+        "/dataset/tmp.UNTITLED/version/12345/extract_preview",
       );
 
       const expectedResult = {
@@ -109,7 +109,10 @@ describe("recommended actions", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
-            transformModelMapper.transformDynamicPreviewMapper(data, actionType)
+            transformModelMapper.transformDynamicPreviewMapper(
+              data,
+              actionType,
+            ),
           ),
           endpoint: apiCall,
         },
@@ -119,7 +122,7 @@ describe("recommended actions", () => {
         transform,
         dataset,
         actionType,
-        index
+        index,
       )((obj) => obj)[RSAA];
       expect(realResult).to.eql(expectedResult[RSAA]);
     });
@@ -147,7 +150,7 @@ describe("recommended actions", () => {
       };
 
       const apiCall = new APIV2Call().paths(
-        "/dataset/tmp.UNTITLED/version/12345/extract_values_preview"
+        "/dataset/tmp.UNTITLED/version/12345/extract_values_preview",
       );
 
       const expectedResult = {
@@ -169,7 +172,7 @@ describe("recommended actions", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
-            transformModelMapper.mapTransformValuesPreview(data, actionType)
+            transformModelMapper.mapTransformValuesPreview(data, actionType),
           ),
           endpoint: apiCall,
         },
@@ -178,7 +181,7 @@ describe("recommended actions", () => {
         data,
         transform,
         dataset,
-        actionType
+        actionType,
       )((obj) => obj)[RSAA];
       expect(realResult).to.eql(expectedResult[RSAA]);
     });

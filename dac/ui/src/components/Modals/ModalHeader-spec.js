@@ -28,11 +28,13 @@ describe("ModalHeader", () => {
 
   it("should render close button by default", () => {
     const wrapper = shallow(<ModalHeader {...minimalProps} />);
-    expect(wrapper.find("FontIcon").props().type).to.be.eql("CloseBig");
+    expect(wrapper.find("dremio-icon").props().name).to.be.eql(
+      "interface/close-big",
+    );
   });
 
   it("should hide close button when hideCloseButton is true", () => {
     const wrapper = shallow(<ModalHeader {...minimalProps} hideCloseButton />);
-    expect(wrapper.find("FontIcon")).to.have.length(0);
+    expect(wrapper.find("dremio-icon")).to.have.length(0);
   });
 });

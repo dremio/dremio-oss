@@ -102,17 +102,13 @@ public class TestHomeFileStoragePlugin extends BaseTestServer {
         .hasMessageContaining("not a valid physical dataset");
   }
 
-  private static NamespaceService getNamespaceService() {
-    return p(NamespaceService.class).get();
-  }
-
   private static String addJsonTable(String tableName, String... jsonData) throws Exception {
     final File file = temp.newFile(tableName);
     final String dataFile = file.getAbsolutePath();
     // TODO write each record in a separate file, so we can cause a union type for example
     try (PrintWriter writer = new PrintWriter(file)) {
-      for (String record : jsonData) {
-        writer.println(record);
+      for (String rec : jsonData) {
+        writer.println(rec);
       }
     }
     final DatasetPath path = new DatasetPath(ImmutableList.of("dfs", dataFile));

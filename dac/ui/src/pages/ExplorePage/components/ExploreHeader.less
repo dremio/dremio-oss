@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../../../components/colors.less"; // contains only variables
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -24,7 +22,7 @@
 
   .ExploreHeader {
     align-items: center;
-    border-bottom: 1px solid @SECONDARY_200;
+    border-bottom: 1px solid var(--border--neutral);
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -41,7 +39,7 @@
       .preview-btn.--outlined,
       .discard-btn.--outlined,
       .edit-btn.--outlined {
-        color: var(--color--neutral--600);
+        color: var(--color--neutral--500);
       }
 
       .run-btn.--disabled,
@@ -64,26 +62,20 @@
         font-weight: 500;
         cursor: pointer;
         text-decoration: none !important;
-        color: var(--dremio--color--link);
+        color: var(--text--brand);
         gap: 4px;
 
         &:hover {
-          background: var(--color--brand--25);
+          background: var(--fill--primary--hover);
         }
 
         &__icon {
           height: 20px;
           width: 20px;
-          color: var(--dremio--color--link);
+          color: var(--icon--brand);
         }
       }
     }
-  }
-
-  .font-icon .Loader {
-    filter: invert(95%) sepia(32%) saturate(3044%) hue-rotate(156deg)
-      brightness(88%) contrast(91%);
-    margin-right: 0px !important; // Overrides inline component styles
   }
 
   .exploreHeaderLeft__tooltip-content {
@@ -93,7 +85,7 @@
       margin-left: 6px;
       padding: 2px 8px;
       border-radius: 8px;
-      background-color: var(--color--neutral--600);
+      background-color: var(--color--neutral--500);
     }
   }
 }

@@ -1,0 +1,42 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+package nodemetrics;
+
+option java_package = "com.dremio.services.nodemetrics";
+option optimize_for = SPEED;
+
+option java_outer_classname = "CoordinatorMetricsProto";
+
+message CoordinatorMetrics {
+  /** Max JVM heap memory in bytes, range [0, MAX_LONG), field not set if unknown,  */
+  optional int64 max_heap_memory = 1;
+  /** Used JVM heap memory in bytes, range (0, MAX_LONG) */
+  int64 used_heap_memory = 2;
+  /** CPU utilization percentage, range (0, 100) */
+  double cpu_utilization = 3;
+}
+
+service CoordinatorMetricsService {
+  rpc GetMetrics (GetMetricsRequest) returns (GetMetricsResponse);
+}
+
+message GetMetricsRequest {
+}
+
+message GetMetricsResponse {
+  CoordinatorMetrics coordinatorMetrics = 1;
+}

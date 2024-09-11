@@ -16,7 +16,6 @@
 package com.dremio.dac.explore.bi;
 
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.exec.server.ContextService;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.service.namespace.NamespaceKey;
@@ -34,7 +33,7 @@ public class TestQlikResource extends BaseTestServer {
   public void setUp() throws Exception {
     BaseTestServer.populateInitialData();
 
-    final OptionManager optionManager = l(ContextService.class).get().getOptionManager();
+    final OptionManager optionManager = getOptionManager();
 
     optionManager.setOption(
         OptionValue.createBoolean(

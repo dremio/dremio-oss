@@ -23,39 +23,24 @@ type Props = {
     show: boolean,
     setShow: (newVal: boolean) => void,
   ) => JSX.Element;
-  message: JSX.Element | string;
+  message?: JSX.Element | string;
   details?: JSX.Element | string;
   show?: boolean; // Initialize shown
+  showCaret?: boolean;
 } & React.HTMLAttributes<HTMLDivElement>;
 
 /**
- * For use with SectionMessage, MessageDetails provides a way to progressively disclose error/warning/info details to the user.
+ * MessageDetails provides a way to progressively disclose details to the user.
  */
 
 export const MessageDetails = forwardRef<HTMLDivElement, Props>(
   (props, ref): JSX.Element => {
     const {
       className,
-      renderButton = (show: boolean, setShow: (newVal: boolean) => void) => {
-        const onClick = (e: any) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setShow(!show);
-        };
-        return (
-          <a
-            href="#"
-            role="button"
-            onClick={onClick}
-            style={{ whiteSpace: "nowrap" }}
-          >
-            {show ? "Show less" : "Show more"}
-          </a>
-        );
-      },
       message,
       details,
       show: showProp = false,
+      showCaret,
       ...rest
     } = props;
     const [show, setShow] = React.useState(showProp);
@@ -69,21 +54,45 @@ export const MessageDetails = forwardRef<HTMLDivElement, Props>(
       >
         <div className="dremio-message-details__content">
           <div className="dremio-message-details__message">
-            {message}
+            {message && <>{message}</>}
             {details && (
               <span
-                style={{ marginLeft: 8 }}
-                className="dremio-message-details_button"
+                className={clsx("dremio-message-details_button", {
+                  "ml-1": !!message,
+                })}
               >
-                {renderButton(show, setShow)}
+                <a
+                  href="#"
+                  role="button"
+                  onClick={(e: any) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShow(!show);
+                  }}
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  {show ? "Show less" : "Show more"}
+                  {showCaret &&
+                    (show ? ( //@ts-ignore
+                      <dremio-icon
+                        alt="Show less"
+                        name="interface/caretUp"
+                        //@ts-ignore
+                      ></dremio-icon>
+                    ) : (
+                      //@ts-ignore
+                      <dremio-icon
+                        alt="Show more"
+                        name="interface/caretDown"
+                        //@ts-ignore
+                      ></dremio-icon>
+                    ))}
+                </a>
               </span>
             )}
           </div>
           {show && (
-            <div
-              className="dremio-message-details__details"
-              style={{ marginTop: 4 }}
-            >
+            <div className="dremio-message-details__details mt-05">
               {details}
             </div>
           )}

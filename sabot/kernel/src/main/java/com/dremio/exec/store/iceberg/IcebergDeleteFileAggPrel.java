@@ -16,7 +16,6 @@
 package com.dremio.exec.store.iceberg;
 
 import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
@@ -48,9 +47,7 @@ public class IcebergDeleteFileAggPrel extends TableFunctionPrel {
         TableFunctionUtil.getIcebergDeleteFileAggTableFunctionConfig(
             SystemSchemas.ICEBERG_DELETE_FILE_AGG_SCHEMA),
         CalciteArrowHelper.wrap(SystemSchemas.ICEBERG_DELETE_FILE_AGG_SCHEMA)
-            .toCalciteRecordType(
-                cluster.getTypeFactory(),
-                PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()),
+            .toCalciteRecordType(cluster.getTypeFactory(), true),
         survivingRowCount);
   }
 

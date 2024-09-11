@@ -25,6 +25,7 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.sabot.exec.heap.HeapLowMemParticipant;
@@ -60,8 +61,8 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
   private final BufferAllocator allocator;
   private final PagePool pool;
   private final String partitionID;
-  private final ArrowBuf sv2;
-  private final ArrowBuf tableHash4B;
+  private ArrowBuf sv2;
+  private ArrowBuf tableHash4B;
 
   private final JoinTable table;
   private final Stopwatch slicerCopyWatch = Stopwatch.createUnstarted();
@@ -70,7 +71,7 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
   private final List<RecordBatchPage> slicedBatchPages = new ArrayList<>();
   private final PageListMultimap linkedList;
   private final PageBatchSlicer slicer;
-  private final ArrowBuf hashTableOrdinals4B;
+  private ArrowBuf hashTableOrdinals4B;
   private VectorizedProbe probe = null;
   private int buildBatchIndex = 0;
   private boolean switchedToSpilling = false;
@@ -152,6 +153,30 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
       throw ex;
     } catch (Exception ex) {
       throw new RuntimeException(ex);
+    }
+  }
+
+  @Override
+  public void updateSv2(ArrowBuf newSv2) {
+    this.sv2 = newSv2;
+    this.hashTableOrdinals4B.close();
+    this.hashTableOrdinals4B = null;
+    this.hashTableOrdinals4B =
+        allocator.buffer((newSv2.capacity() / SelectionVector2.RECORD_SIZE) * ORDINAL_SIZE);
+    if (probe != null) {
+      this.probe.updateSv2(sv2);
+    }
+    if (this.slicer != null) {
+      slicer.updateSv2(newSv2);
+    }
+  }
+
+  @Override
+  public void updateTableHashBuffer(ArrowBuf newBuf) {
+    // previous reference closed by MemoryPartition
+    tableHash4B = newBuf;
+    if (probe != null) {
+      probe.updateTableHashBuffer(tableHash4B);
     }
   }
 

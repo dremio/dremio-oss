@@ -17,6 +17,7 @@ package com.dremio.exec.vector.complex.fn;
 
 import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.List;
@@ -94,7 +95,7 @@ public final class FieldSelection {
   }
 
   private void add(PathSegment segment) {
-    if (segment.isNamed()) {
+    if (segment.getType().equals(PathSegmentType.NAME)) {
       boolean lastPath = segment.isLastPath();
       FieldSelection child = addChild(segment.getNameSegment().getPath());
       if (lastPath) {

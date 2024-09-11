@@ -24,6 +24,7 @@ import com.dremio.common.expression.Describer;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
@@ -42,7 +43,6 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import java.util.Arrays;
 import java.util.Optional;
-import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.ZeroVector;
@@ -170,22 +170,36 @@ public abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     }
 
     final FragmentHandle h = context.getFragmentHandle();
-    UserException.Builder builder =
-        UserException.systemError(e)
-            .message("General execution failure.")
-            .addContext("SqlOperatorImpl", operatorName)
-            .addContext(
-                "Location",
-                String.format(
-                    "%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId));
-
-    OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
-    if (oom != null) {
-      context.getNodeDebugContextProvider().addMemoryContext(builder, oom);
-    } else if (ErrorHelper.isDirectMemoryException(e)) {
-      context.getNodeDebugContextProvider().addMemoryContext(builder);
+    UserException.Builder builder;
+    String operatorInfo = String.format("SqlOperatorImpl %s", operatorName);
+    String locationInfo =
+        String.format(
+            "Location %d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId);
+    if (e instanceof UserException) {
+      context.getNodeDebugContextProvider().addErrorOrigin((UserException) e);
+      UserBitShared.DremioPBError.ErrorType errorType = ((UserException) e).getErrorType();
+      if (errorType == UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY) {
+        return (UserException) e;
+      }
     }
-
+    if (ErrorHelper.isDirectMemoryException(e)) {
+      builder = UserException.memoryError(e);
+      context.getNodeDebugContextProvider().addMemoryContext(builder, e);
+      builder.addContext(operatorInfo);
+      builder.addContext(locationInfo);
+    } else if (ErrorHelper.isJavaHeapOutOfMemory(e)) {
+      builder = UserException.memoryError(e);
+      context.getNodeDebugContextProvider().addHeapMemoryContext(builder, e);
+      builder.addContext(operatorInfo);
+      builder.addContext(locationInfo);
+    } else {
+      builder =
+          UserException.systemError(e)
+              .message("General execution failure.")
+              .addContext(operatorInfo)
+              .addContext(locationInfo);
+      context.getNodeDebugContextProvider().addErrorOrigin(builder);
+    }
     return builder.build(logger);
   }
 
@@ -312,6 +326,7 @@ public abstract class SmartOp<T extends Operator> implements Wrapped<T> {
           incoming = accessible;
           outgoing = inner.setup(accessible);
           initialSchema = outgoing.getSchema();
+          stats.setSchema(initialSchema);
           return outgoing;
         } catch (Exception | AssertionError | AbstractMethodError e) {
           throw contextualize(e);
@@ -543,6 +558,7 @@ public abstract class SmartOp<T extends Operator> implements Wrapped<T> {
           this.right = right;
           outgoing = inner.setup(left, right);
           initialSchema = outgoing.getSchema();
+          stats.setSchema(initialSchema);
           return outgoing;
         } catch (Exception | AssertionError | AbstractMethodError e) {
           throw contextualize(e);
@@ -621,6 +637,7 @@ public abstract class SmartOp<T extends Operator> implements Wrapped<T> {
         try {
           outgoing = inner.setup();
           initialSchema = outgoing.getSchema();
+          stats.setSchema(initialSchema);
           return outgoing;
         } catch (Exception | AssertionError | AbstractMethodError e) {
           throw contextualize(e);

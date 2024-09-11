@@ -20,12 +20,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.DremioRootAllocator;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.ViewCreatorFactory;
-import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -37,9 +39,9 @@ import com.dremio.exec.planner.RulesFactory;
 import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accesscontrol.AccessControlListingManager;
@@ -48,6 +50,7 @@ import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.exec.store.sys.udf.UserDefinedFunctionService;
 import com.dremio.exec.work.WorkStats;
+import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.GroupResourceInformation;
@@ -72,12 +75,11 @@ import com.google.common.collect.ImmutableSet;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import javax.annotation.Nullable;
 import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.projectnessie.client.api.NessieApiV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,13 +93,12 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
   private final SabotConfig config;
   private final Set<Role> roles;
   private final BufferAllocator allocator;
-  private final PhysicalPlanReader reader;
+  private final PhysicalPlanReader planReader;
   private final ClusterCoordinator coord;
   private final NodeEndpoint endpoint;
   private final FunctionImplementationRegistry functionRegistry;
   private final FunctionImplementationRegistry decimalFunctionImplementationRegistry;
   private final OptionManager optionManager;
-  private final SystemOptionManager systemOptionManager;
   private final Provider<WorkStats> workStatsProvider;
   private final CodeCompiler compiler;
   private final ExpressionSplitCache expressionSplitCache;
@@ -121,7 +122,6 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
   private final DremioConfig dremioConfig;
   private final BufferAllocator queryPlanningAllocator;
   private final Provider<SpillService> spillService;
-  private final Provider<ConnectionReader> connectionReaderProvider;
   private final GroupResourceInformation clusterInfo;
   private final FileSystemWrapper fileSystemWrapper;
   private final JobResultInfoProvider jobResultInfoProvider;
@@ -143,6 +143,10 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
 
   private final Provider<SourceVerifier> sourceVerifierProvider;
   private final Provider<SecretsCreator> secretsCreator;
+  private final Provider<ForemenWorkManager> foremenWorkManagerProvider;
+  private final Provider<MetadataIOPool> metadataIOPoolProvider;
+
+  private final NodeDebugContextProvider nodeDebugContext;
 
   private static List<RulesFactory> getRulesFactories(ScanResult scan) {
     ImmutableList.Builder<RulesFactory> factoryBuilder = ImmutableList.builder();
@@ -183,11 +187,9 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
       Provider<ViewCreatorFactory> viewCreatorFactory,
       BufferAllocator queryPlanningAllocator,
       Provider<SpillService> spillService,
-      Provider<ConnectionReader> connectionReaderProvider,
       JobResultInfoProvider jobResultInfoProvider,
-      @Nullable PhysicalPlanReader physicalPlanReader,
+      PhysicalPlanReader physicalPlanReader,
       OptionManager optionManager,
-      SystemOptionManager systemOptionManager,
       FunctionImplementationRegistry functionImplementationRegistry,
       FunctionImplementationRegistry decimalFunctionImplementationRegistry,
       CodeCompiler codeCompiler,
@@ -209,7 +211,9 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
       Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
       Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
       Provider<SourceVerifier> sourceVerifierProvider,
-      Provider<SecretsCreator> secretsCreatorProvider) {
+      Provider<SecretsCreator> secretsCreatorProvider,
+      Provider<ForemenWorkManager> foremenWorkManagerProvider,
+      Provider<MetadataIOPool> metadataIOPoolProvider) {
     this.dremioConfig = dremioConfig;
     this.config = config;
     this.roles = ImmutableSet.copyOf(roles);
@@ -221,21 +225,13 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
     this.lpPersistence = lpPersistence;
     this.accelerationManager = accelerationManager;
     this.accelerationListManager = accelerationListManager;
-    this.connectionReaderProvider = connectionReaderProvider;
-
-    if (physicalPlanReader == null) {
-      // TODO: can we build this in ContextService without passing in "this" ?
-      this.reader =
-          new PhysicalPlanReader(classpathScan, lpPersistence, endpoint, catalogService, this);
-    } else {
-      this.reader = physicalPlanReader;
-    }
+    this.foremenWorkManagerProvider = foremenWorkManagerProvider;
+    this.metadataIOPoolProvider = metadataIOPoolProvider;
+    this.planReader = physicalPlanReader;
     this.optionManager = optionManager;
-    this.systemOptionManager = systemOptionManager;
     this.functionRegistry = functionImplementationRegistry;
     this.decimalFunctionImplementationRegistry = decimalFunctionImplementationRegistry;
     this.compiler = codeCompiler;
-
     this.kvStoreProvider = kvStoreProvider;
     this.namespaceServiceFactory = namespaceServiceFactory;
     this.orphanageFactory = orphanageFactory;
@@ -273,6 +269,10 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
     this.sourceVerifierProvider = sourceVerifierProvider;
     this.secretsCreator = secretsCreatorProvider;
     expressionSplitCache = new ExpressionSplitCache(optionManager, config);
+    this.nodeDebugContext =
+        (allocator instanceof DremioRootAllocator)
+            ? new SabotContext.NodeDebugContextProviderImpl((DremioRootAllocator) allocator)
+            : NodeDebugContextProvider.NOOP;
   }
 
   private void checkIfCoordinator() {
@@ -306,6 +306,18 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
 
   public Provider<UserDefinedFunctionService> getUserDefinedFunctionListManagerProvider() {
     return userDefinedFunctionListManagerProvider;
+  }
+
+  public Provider<ForemenWorkManager> getForemenWorkManagerProvider() {
+    return foremenWorkManagerProvider;
+  }
+
+  public Provider<MetadataIOPool> getMetadataIOPoolProvider() {
+    return metadataIOPoolProvider;
+  }
+
+  public MetadataIOPool getMetadataIOPool() {
+    return metadataIOPoolProvider.get();
   }
 
   public Provider<CatalogService> getCatalogServiceProvider() {
@@ -356,11 +368,6 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
   }
 
   @Override
-  public SystemOptionManager getSystemOptionManager() {
-    return systemOptionManager;
-  }
-
-  @Override
   public NodeEndpoint getEndpoint() {
     return endpoint;
   }
@@ -373,34 +380,6 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
   @Override
   public DremioConfig getDremioConfig() {
     return dremioConfig;
-  }
-
-  public Collection<NodeEndpoint> getCoordinators() {
-    return coord.getServiceSet(Role.COORDINATOR).getAvailableEndpoints();
-  }
-
-  public Optional<NodeEndpoint> getMaster() {
-    return Optional.ofNullable(coord.getServiceSet(Role.MASTER).getAvailableEndpoints())
-        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
-  }
-
-  @Override
-  public Collection<NodeEndpoint> getExecutors() {
-    return coord.getServiceSet(Role.EXECUTOR).getAvailableEndpoints();
-  }
-
-  /**
-   * To return task leader nodeEndpoint if masterless mode is on otherwise return master
-   *
-   * @param serviceName
-   * @return
-   */
-  public Optional<NodeEndpoint> getServiceLeader(final String serviceName) {
-    if (getDremioConfig().isMasterlessEnabled()) {
-      return Optional.ofNullable(coord.getOrCreateServiceSet(serviceName).getAvailableEndpoints())
-          .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
-    }
-    return getMaster();
   }
 
   @Override
@@ -418,9 +397,10 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
   }
 
   public PhysicalPlanReader getPlanReader() {
-    return reader;
+    return planReader;
   }
 
+  @Override
   public ClusterCoordinator getClusterCoordinator() {
     return coord;
   }
@@ -480,10 +460,6 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
     return spillService;
   }
 
-  public Provider<ConnectionReader> getConnectionReaderProvider() {
-    return connectionReaderProvider;
-  }
-
   public LegacyKVStoreProvider getKVStoreProvider() {
     return kvStoreProvider;
   }
@@ -541,10 +517,6 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
   @Override
   public Collection<RulesFactory> getInjectedRulesFactories() {
     return rules;
-  }
-
-  public ViewCreator getViewCreator(String userName) {
-    return viewCreatorFactory.get().get(userName);
   }
 
   public FileSystemWrapper getFileSystemWrapper() {
@@ -626,5 +598,72 @@ public class SabotContext implements AutoCloseable, SabotQueryContext {
   @Override
   public QueryContextCreator getQueryContextCreator() {
     return new QueryContextCreatorImpl(this);
+  }
+
+  public NodeDebugContextProvider getNodeDebugContext() {
+    return this.nodeDebugContext;
+  }
+
+  public class NodeDebugContextProviderImpl implements NodeDebugContextProvider {
+    private final DremioRootAllocator rootAllocator;
+    private final String role;
+
+    public NodeDebugContextProviderImpl(final DremioRootAllocator rootAllocator) {
+      this.rootAllocator = rootAllocator;
+      if (isExecutor()) {
+        role = Role.EXECUTOR.name();
+      } else if (isCoordinator()) {
+        role = Role.COORDINATOR.name();
+      } else {
+        role = UserException.UNCLASSIFIED_ERROR_ORIGIN;
+      }
+    }
+
+    @Override
+    public void addMemoryContext(UserException.Builder exceptionBuilder) {
+      String detail = MemoryDebugInfo.getSummaryFromRoot(rootAllocator);
+      exceptionBuilder.setAdditionalExceptionContext(
+          new OutOfMemoryOrResourceExceptionContext(
+              OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY, detail));
+      exceptionBuilder.addErrorOrigin(role);
+    }
+
+    @Override
+    public void addMemoryContext(UserException.Builder exceptionBuilder, Throwable e) {
+      if (e instanceof OutOfMemoryException) {
+        addMemoryContext(exceptionBuilder, (OutOfMemoryException) e);
+      } else {
+        addMemoryContext(exceptionBuilder);
+      }
+      exceptionBuilder.addErrorOrigin(role);
+    }
+
+    @Override
+    public void addMemoryContext(UserException.Builder exceptionBuilder, OutOfMemoryException e) {
+      String detail = MemoryDebugInfo.getDetailsOnAllocationFailure(e, rootAllocator);
+      exceptionBuilder.setAdditionalExceptionContext(
+          new OutOfMemoryOrResourceExceptionContext(
+              OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY, detail));
+      exceptionBuilder.addErrorOrigin(role);
+    }
+
+    @Override
+    public void addHeapMemoryContext(UserException.Builder exceptionBuilder, Throwable e) {
+      String detail = MemoryDebugInfo.getSummaryFromRoot(rootAllocator);
+      exceptionBuilder.setAdditionalExceptionContext(
+          new OutOfMemoryOrResourceExceptionContext(
+              OutOfMemoryOrResourceExceptionContext.MemoryType.HEAP_MEMORY, detail));
+      exceptionBuilder.addErrorOrigin(role);
+    }
+
+    @Override
+    public void addErrorOrigin(UserException.Builder builder) {
+      builder.addErrorOrigin(role);
+    }
+
+    @Override
+    public void addErrorOrigin(UserException userException) {
+      userException.addErrorOrigin(role);
+    }
   }
 }

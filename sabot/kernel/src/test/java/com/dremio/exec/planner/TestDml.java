@@ -16,11 +16,8 @@
 package com.dremio.exec.planner;
 
 import static com.dremio.PlanTestBase.testMatchingPatterns;
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_ADVANCED_DML;
 import static com.dremio.exec.planner.common.TestPlanHelper.findFirstNode;
-import static com.dremio.exec.planner.common.TestPlanHelper.findNodes;
 import static com.dremio.exec.planner.common.TestPlanHelper.findSingleNode;
-import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.Assert.assertTrue;
@@ -36,8 +33,6 @@ import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.calcite.logical.ScanCrel;
-import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DatasetCatalog;
@@ -48,12 +43,11 @@ import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.TestPlanHelper.NodeFinder;
 import com.dremio.exec.planner.common.TestPlanHelper.TargetNodeDescriptor;
 import com.dremio.exec.planner.physical.DistributionTrait;
-import com.dremio.exec.planner.physical.DmlPlanGenerator.MergeType;
+import com.dremio.exec.planner.physical.DmlPlanGeneratorBase.MergeType;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.StreamAggPrel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.UnionAllPrel;
@@ -69,9 +63,7 @@ import com.dremio.exec.planner.sql.handlers.query.DeleteHandler;
 import com.dremio.exec.planner.sql.handlers.query.DmlHandler;
 import com.dremio.exec.planner.sql.handlers.query.InsertTableHandler;
 import com.dremio.exec.planner.sql.handlers.query.MergeHandler;
-import com.dremio.exec.planner.sql.handlers.query.TableManagementHandler;
 import com.dremio.exec.planner.sql.handlers.query.UpdateHandler;
-import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
@@ -82,7 +74,6 @@ import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPrel;
-import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.exec.store.sys.SystemStoragePlugin;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.options.OptionManager;
@@ -101,7 +92,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlNode;
@@ -192,23 +182,14 @@ public class TestDml extends TestTableManagementBase {
 
     when(mockCatalog.getTableNoResolve(catalogEntityKey)).thenReturn(dremioTable);
     when(dremioTable.getPath()).thenReturn(path);
-    when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML))
-        .thenReturn(Boolean.FALSE);
-    UserExceptionAssert.assertThatThrownBy(
-            () ->
-                DmlHandler.validateDmlRequest(
-                    mockCatalog, mockConfig, catalogEntityKey, SqlDeleteFromTable.OPERATOR))
-        .hasMessageContaining("DELETE clause is not supported in the query for this source");
-
-    when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML))
-        .thenReturn(Boolean.TRUE);
     when(mockCatalog.getSource(path.getRoot())).thenReturn(mock(SystemStoragePlugin.class));
+    when(dremioTable.getJdbcTableType())
+        .thenReturn(org.apache.calcite.schema.Schema.TableType.TABLE);
     UserExceptionAssert.assertThatThrownBy(
             () ->
                 DmlHandler.validateDmlRequest(
                     mockCatalog, mockConfig, catalogEntityKey, SqlDeleteFromTable.OPERATOR))
-        .hasMessageContaining(
-            "DELETE is not supported on this null at [dfs_static_test_hadoop.v2.orders].");
+        .hasMessageContaining("Source [dfs_static_test_hadoop] does not support this operation");
   }
 
   @Test
@@ -235,11 +216,11 @@ public class TestDml extends TestTableManagementBase {
     when(mockCatalog.getTableNoResolve(CatalogEntityKey.fromNamespaceKey(path)))
         .thenReturn(dremioTable);
     when(dremioTable.getPath()).thenReturn(path);
+    when(dremioTable.getJdbcTableType())
+        .thenReturn(org.apache.calcite.schema.Schema.TableType.TABLE);
     UserExceptionAssert.assertThatThrownBy(
             () -> new TruncateTableHandler(mockConfig).toResult(sql, node))
-        .hasMessageContaining(
-            String.format(
-                "TRUNCATE TABLE is not supported on this null at [%s]", table.getTableName()));
+        .hasMessageContaining("Source [dfs_static_test_hadoop] does not support this operation");
   }
 
   @Test
@@ -265,133 +246,13 @@ public class TestDml extends TestTableManagementBase {
     when(mockCatalog.getSource(path.getRoot())).thenReturn(mock(SystemStoragePlugin.class));
     when(mockCatalog.getTableNoResolve(catalogEntityKey)).thenReturn(dremioTable);
     when(dremioTable.getPath()).thenReturn(path);
+    when(dremioTable.getJdbcTableType())
+        .thenReturn(org.apache.calcite.schema.Schema.TableType.TABLE);
     UserExceptionAssert.assertThatThrownBy(
             () ->
                 InsertTableHandler.validateDmlRequest(
                     mockCatalog, mockConfig, catalogEntityKey, node))
-        .hasMessageContaining(
-            String.format("INSERT is not supported on this null at [%s]", table.getTableName()));
-  }
-
-  @Test
-  public void testTableModifyScanCrelSubstitutionRewriterRewriteSingleScanCrel() throws Exception {
-    String sql = format("DELETE FROM %s", table.getTableName());
-    final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode =
-        SqlToRelTransformer.validateAndConvertForDml(config, node, null);
-    assertThat(convertedRelNode.getValidatedRowType().getFieldCount()).isEqualTo(userColumnCount);
-
-    // find TableModifyCrel
-    TableModifyCrel tableModifyCrel =
-        findSingleNode(convertedRelNode.getConvertedNode(), TableModifyCrel.class, null);
-
-    // find the ScanCrel inside TableModifyCrel
-    ScanCrel scanCrel = findSingleNode(tableModifyCrel, ScanCrel.class, null);
-    assertThat(scanCrel.isSubstitutable())
-        .as("scanCrel should be substitutable before rewrite")
-        .isTrue();
-
-    // disable substitution of TableModifyCrel's target table ScanCrel
-    RelNode rewrite =
-        TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(
-            convertedRelNode.getConvertedNode());
-
-    // find the ScanCrel from rewritten TableModifyCrel
-    scanCrel = findSingleNode(rewrite, ScanCrel.class, null);
-    assertThat(scanCrel.isSubstitutable())
-        .as("scanCrel should not be substitutable after rewrite")
-        .isFalse();
-  }
-
-  @Test
-  public void testTableModifyScanCrelSubstitutionRewriterRewriteMultipleScanCrels()
-      throws Exception {
-    String sql =
-        format(
-            "merge into %s using %s as s on s.order_id = %s.order_id when matched then update set order_id = -1 ",
-            table.getTableName(), table.getTableName(), table.getTableName());
-    final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode =
-        SqlToRelTransformer.validateAndConvertForDml(config, node, null);
-    assertThat(convertedRelNode.getValidatedRowType().getFieldCount()).isEqualTo(userColumnCount);
-
-    // find TableModifyCrel
-    TableModifyCrel tableModifyCrel =
-        findSingleNode(convertedRelNode.getConvertedNode(), TableModifyCrel.class, null);
-
-    // find the ScanCrel inside TableModifyCrel
-    List<ScanCrel> scanCrels = findNodes(tableModifyCrel, ScanCrel.class, null);
-    scanCrels.stream()
-        .forEach(
-            scanCrel ->
-                assertThat(scanCrel.isSubstitutable())
-                    .as("scanCrel should be substitutable before rewrite")
-                    .isTrue());
-
-    // disable substitution of TableModifyCrel's target table ScanCrel
-    RelNode rewrite =
-        TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(
-            convertedRelNode.getConvertedNode());
-
-    // find the ScanCrel from rewritten TableModifyCrel
-    scanCrels = findNodes(rewrite, ScanCrel.class, null);
-    scanCrels.stream()
-        .forEach(
-            scanCrel ->
-                assertThat(scanCrel.isSubstitutable())
-                    .as("scanCrel should not be substitutable after rewrite")
-                    .isFalse());
-  }
-
-  @Test
-  public void testTableModifyScanCrelSubstitutionRewriterMixedScanCrels() throws Exception {
-    IcebergTestTables.Table nation = IcebergTestTables.NATION.get();
-    nation.enableIcebergSystemOptions();
-
-    String sql =
-        format(
-            "merge into %s using (select * from %s) as s on s.n_nationkey = %s.order_id when matched then update set order_id = -1 ",
-            table.getTableName(), nation.getTableName(), table.getTableName());
-    final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode =
-        SqlToRelTransformer.validateAndConvertForDml(config, node, null);
-    assertThat(convertedRelNode.getValidatedRowType().getFieldCount()).isEqualTo(userColumnCount);
-
-    // find TableModifyCrel
-    TableModifyCrel tableModifyCrel =
-        findSingleNode(convertedRelNode.getConvertedNode(), TableModifyCrel.class, null);
-
-    // find the ScanCrel inside TableModifyCrel
-    List<ScanCrel> scanCrels = findNodes(tableModifyCrel, ScanCrel.class, null);
-    scanCrels.stream()
-        .forEach(
-            scanCrel ->
-                assertThat(scanCrel.isSubstitutable())
-                    .as("scanCrel should be substitutable before rewrite")
-                    .isTrue());
-
-    // disable substitution of TableModifyCrel's target table ScanCrel
-    RelNode rewrite =
-        TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(
-            convertedRelNode.getConvertedNode());
-
-    // find the ScanCrel from rewritten TableModifyCrel
-    scanCrels = findNodes(rewrite, ScanCrel.class, null);
-    scanCrels.stream()
-        .forEach(
-            scanCrel -> {
-              if (scanCrel.getTableMetadata().getName().toString().equals(table.getTableName())) {
-                assertThat(scanCrel.isSubstitutable())
-                    .as("Target scanCrel should not be substitutable after rewrite")
-                    .isFalse();
-              } else {
-                assertThat(scanCrel.isSubstitutable())
-                    .as(
-                        "Source scanCrel (different from target scanCrel) should still be substitutable after rewrite")
-                    .isTrue();
-              }
-            });
-    nation.close();
+        .hasMessageContaining("Source [dfs_static_test_hadoop] does not support this operation");
   }
 
   @Test
@@ -648,27 +509,6 @@ public class TestDml extends TestTableManagementBase {
                 strategy));
   }
 
-  private void testResultColumnName(String query) throws Exception {
-    TableModify.Operation operation = null;
-    if (query.toUpperCase().startsWith("DELETE")) {
-      operation = TableModify.Operation.DELETE;
-    } else if (query.toUpperCase().startsWith("MERGE")) {
-      operation = TableModify.Operation.MERGE;
-    } else if (query.toUpperCase().startsWith("UPDATE")) {
-      operation = TableModify.Operation.UPDATE;
-    } else {
-      fail("This should never happen - DELETE/UPDATE/MERGE only");
-    }
-
-    assertThat(
-            SqlToRelTransformer.validateAndConvertForDml(config, converter.parse(query), null)
-                .getConvertedNode()
-                .getRowType()
-                .getFieldNames()
-                .get(0))
-        .isEqualTo(DmlUtils.DML_OUTPUT_COLUMN_NAMES.get(operation));
-  }
-
   private String getInsertPlan(String sql) throws Exception {
     InsertTableHandler insertHandler = new InsertTableHandler();
     SqlNode sqlNode = converter.parse(sql);
@@ -685,10 +525,6 @@ public class TestDml extends TestTableManagementBase {
         CatalogUtil.getResolvePathForTableManagement(
             config.getContext().getCatalog(), dmlHandler.getTargetTablePath(sqlNode)));
     return dmlHandler.getPrel();
-  }
-
-  private Prel getDmlPlan(String sql) throws Exception {
-    return getDmlPlan(config, converter.parse(sql));
   }
 
   // get CopyOnWriteJoin condition, left.file_path = right.file_path and left.row_index =
@@ -750,16 +586,6 @@ public class TestDml extends TestTableManagementBase {
     }
     assertThat(recordFieldIndex).as("did not find record field").isNotNull();
     return recordFieldIndex;
-  }
-
-  private static Prel validateRowCountTopProject(Prel plan) {
-    Map<String, String> attributes =
-        ImmutableMap.of(
-            "exps",
-            "[CASE(IS NULL($0), 0, $0)]",
-            "rowType",
-            String.format("RecordType(BIGINT %s)", RecordWriter.RECORDS.getName()));
-    return findSingleNode(plan, ProjectPrel.class, attributes);
   }
 
   // validate row count aggregate

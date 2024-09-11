@@ -15,26 +15,7 @@
  */
 package com.dremio.exec.catalog.dataplane;
 
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtBranchQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtSpecifierQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQueryWithAt;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.deleteAllQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.deleteAllQueryWithoutContext;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.deleteQueryWithSpecifier;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.dropTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueBranchName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTagName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.joinedTableKey;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useContextQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -193,6 +174,64 @@ public class ITDataplanePluginDelete extends ITDataplanePluginTestSetup {
     String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
     String tableName = "myTable";
     runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME)));
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
+    runSQL(createBranchAtSpecifierQuery(devBranchName, mainBranch));
+    // Delete row in dev.
+    runSQL(
+        String.format(
+            "DELETE FROM %s.%s at branch %s where EXPR$0 < 2",
+            DATAPLANE_PLUGIN_NAME, tableName, devBranchName));
+    // Should have no row since EXPR$0 = 1
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, tableName, devBranchName)))
+        .isEqualTo(Collections.emptyList());
+    // we should not modify table in the main branch
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, tableName, DEFAULT_BRANCH_NAME)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "2", "3")));
+  }
+
+  @Test
+  public void testDmlDeleteWithAtWithoutContext() throws Exception {
+    String devBranchName = "devBranch";
+    String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
+    String tableName = "myTable";
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
+    runSQL(createBranchAtSpecifierQuery(devBranchName, mainBranch));
+    // Delete row in dev.
+    runSQL(
+        String.format(
+            "DELETE FROM %s.%s at branch %s where EXPR$0 < 2",
+            DATAPLANE_PLUGIN_NAME, tableName, devBranchName));
+    // Should have no row since EXPR$0 = 1
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, tableName, devBranchName)))
+        .isEqualTo(Collections.emptyList());
+    // we should not modify table in the main branch
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, tableName, DEFAULT_BRANCH_NAME)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "2", "3")));
+  }
+
+  @Test
+  public void testDmlDeleteWithAtSettingToAnotherContext() throws Exception {
+    setupForAnotherPlugin();
+    String devBranchName = "devBranch";
+    String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
+    String tableName = "myTable";
+    runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST)));
     runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
     runSQL(createBranchAtSpecifierQuery(devBranchName, mainBranch));
     // Delete row in dev.

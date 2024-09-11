@@ -101,7 +101,7 @@ export const initialElements = [
     position: { x: 0, y: 0 },
     style: {
       border: "1px solid #E5E5E5",
-      borderLeft: "8px solid #8CA4E9",
+      borderLeft: "8px solid var(--color--indigo--300)",
       width: "156px",
       height: "67px",
       backgroundColor: "#FFF",

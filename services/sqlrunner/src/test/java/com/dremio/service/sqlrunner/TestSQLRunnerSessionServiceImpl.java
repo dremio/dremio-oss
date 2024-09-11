@@ -36,7 +36,6 @@ import com.google.common.collect.Lists;
 import java.util.UUID;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 /** Test class for SQLRunnerSessionServiceImpl. */
 public class TestSQLRunnerSessionServiceImpl {
@@ -58,9 +57,6 @@ public class TestSQLRunnerSessionServiceImpl {
     sqlRunnerSessionStore = new SQLRunnerSessionStoreImpl(() -> kvStoreProvider);
     sqlRunnerSessionStore.start();
 
-    OptionManager mockOptionManager = Mockito.mock(OptionManager.class);
-    when(mockOptionManager.getOption(SQLRunnerOptions.SQLRUNNER_TABS)).thenReturn(true);
-
     ScriptService scriptService = mock(ScriptService.class);
     when(scriptService.getScripts(anyInt(), anyInt(), anyString(), anyString(), anyString(), any()))
         .thenReturn(
@@ -72,7 +68,7 @@ public class TestSQLRunnerSessionServiceImpl {
 
     sqlRunnerSessionService =
         new SQLRunnerSessionServiceImpl(
-            () -> sqlRunnerSessionStore, () -> mockOptionManager, () -> scriptService);
+            () -> sqlRunnerSessionStore, () -> mock(OptionManager.class), () -> scriptService);
   }
 
   @Test

@@ -21,7 +21,7 @@ import FormUtils from "utils/FormUtils/FormUtils";
 import FormConfig from "utils/FormUtils/FormConfig";
 import FormTabConfig from "utils/FormUtils/FormTabConfig";
 import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
-import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import { getFormElementConfig } from "@inject/utils/FormUtils/formOverrideUtils";
 import CheckEnabledContainerConfig from "utils/FormUtils/CheckEnabledContainerConfig";
 import ContainerSelectionConfig from "utils/FormUtils/ContainerSelectionConfig";
 import CredentialsConfig from "utils/FormUtils/CredentialsConfig";
@@ -44,7 +44,6 @@ import addAlwaysPresent, {
   LOOSE_ELEMENT_IGNORE_LIST,
 } from "@inject/utils/FormUtils/globalSourceConfigUtil";
 import { isVersionedSource, isNessieSource } from "../sourceUtils";
-import SecretPickerConfig from "./SecretPickerConfig/SecretPickerConfig";
 
 export default class SourceFormJsonPolicy {
   static deepCopyConfig(config) {
@@ -299,8 +298,6 @@ export default class SourceFormJsonPolicy {
         return new ContainerSelectionConfig(elementJson, functionalElements);
       case "sharing_widget":
         return new SharingWidgetConfig(elementJson);
-      case "secret_store":
-        return new SecretPickerConfig(elementJson);
       case "text":
       case "number":
       case "textarea":
@@ -309,7 +306,7 @@ export default class SourceFormJsonPolicy {
       case "select":
       case "radio":
       default:
-        return new FormElementConfig(elementJson);
+        return getFormElementConfig(elementJson);
       /* eslint-enable indent */
     }
   }

@@ -49,10 +49,10 @@ public class UpgradedDoughnutStoreCreator
 
     // removed flavor
     @Override
-    public void convert(DocumentWriter writer, String key, Doughnut record) {
-      writer.write(NAME, record.getName());
-      writer.write(PRICE, record.getPrice());
-      writer.write(THICKNESS, record.getThickness());
+    public void convert(DocumentWriter writer, String key, Doughnut document) {
+      writer.write(NAME, document.getName());
+      writer.write(PRICE, document.getPrice());
+      writer.write(THICKNESS, document.getThickness());
     }
 
     @Override

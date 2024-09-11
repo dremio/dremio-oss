@@ -20,10 +20,10 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.PathSegment.ArraySegment;
+import com.dremio.common.expression.PathSegment.ArraySegmentInputRef;
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
-import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.plugins.elastic.ElasticsearchConf;
@@ -94,9 +94,8 @@ public final class SchemaField extends RexInputRef {
       ElasticSpecialType specialType,
       boolean isV5,
       boolean isPainless,
-      boolean complexTypeSupport,
       boolean isV7) {
-    super(index, CalciteArrowHelper.wrap(type).toCalciteType(factory, complexTypeSupport));
+    super(index, CalciteArrowHelper.wrap(type).toCalciteType(factory, true));
     this.path = path;
     this.type = type;
     this.annotation = annotation;
@@ -285,8 +284,18 @@ public final class SchemaField extends RexInputRef {
           }
 
           @Override
+          public Void visitArrayInput(ArraySegmentInputRef segment, Void in) {
+            return visitArraySegment(segment.isLastPath(), segment.getPath());
+          }
+
+          @Override
           public Void visitArray(ArraySegment segment, Void in) {
-            if (!segment.isLastPath()) {
+            return visitArraySegment(
+                segment.isLastPath(), String.valueOf(segment.getOptionalIndex()));
+          }
+
+          private Void visitArraySegment(boolean isLastPath, String indexPath) {
+            if (!isLastPath) {
               throw new IllegalStateException(
                   String.format(
                       "Unable to pushdown reference %s as it includes at least one array index that is non-terminal.",
@@ -297,7 +306,7 @@ public final class SchemaField extends RexInputRef {
               sb.append(CLOSE_BQ);
               sb.append(".values");
               sb.append('[');
-              sb.append(segment.getOptionalIndex());
+              sb.append(indexPath);
               sb.append(']');
               possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
             } else {
@@ -446,14 +455,11 @@ public final class SchemaField extends RexInputRef {
     private final ElasticIntermediateScanPrel scan;
     private final boolean isV5;
     private final boolean isPainless;
-    private final boolean complexTypeSupport;
     private final boolean isV7;
 
     public SchemaingShuttle(
         ElasticIntermediateScanPrel scan, Set<ElasticSpecialType> disallowedSpecialTypes) {
       this.scan = scan;
-      this.complexTypeSupport =
-          PrelUtil.getPlannerSettings(scan.getCluster()).isFullNestedSchemaSupport();
       this.isV5 =
           scan.getPluginId()
               .getCapabilities()
@@ -505,7 +511,6 @@ public final class SchemaField extends RexInputRef {
           specialType,
           isV5,
           isPainless,
-          complexTypeSupport,
           isV7);
     }
 

@@ -17,8 +17,14 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.ExecConstants.ICEBERG_CATALOG_TYPE_KEY;
 import static com.dremio.exec.store.iceberg.IcebergUtils.*;
+import static com.dremio.exec.store.iceberg.model.IcebergBaseCommand.DREMIO_JOB_ID_ICEBERG_PROPERTY;
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos;
@@ -40,16 +46,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.GZIPOutputStream;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFiles;
+import org.apache.iceberg.ExpireSnapshots;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.io.OutputFile;
+import org.apache.iceberg.io.PositionOutputStream;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 /** Test class for IcebergUtils.java class */
 public class TestIcebergUtils {
@@ -91,7 +107,7 @@ public class TestIcebergUtils {
           .build();
 
   @Test
-  public void getValidIcebergPathTest() {
+  public void testValidIcebergPath() {
     String testUrl =
         "/testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
 
@@ -108,6 +124,12 @@ public class TestIcebergUtils {
     modifiedFileLocation = IcebergUtils.getValidIcebergPath(new Path(testUrl), conf, "dremioS3");
     Assert.assertEquals(
         "s3://testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro",
+        modifiedFileLocation);
+
+    modifiedFileLocation =
+        IcebergUtils.getIcebergPathAndValidateScheme(testUrl, conf, "dremioS3", "s3a");
+    Assert.assertEquals(
+        "s3a://testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro",
         modifiedFileLocation);
 
     modifiedFileLocation = IcebergUtils.getValidIcebergPath(new Path(testUrl), conf, "dremiogcs");
@@ -134,10 +156,45 @@ public class TestIcebergUtils {
     Assert.assertEquals(urlWithScheme, modifiedFileLocation);
 
     urlWithScheme =
+        "wasbs://testdir@azurev1databricks2.blob.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
+    modifiedFileLocation =
+        IcebergUtils.getIcebergPathAndValidateScheme(
+            urlWithScheme, azureConf, "dremioAzureStorage://", "abfs");
+    Assert.assertEquals(
+        "'wasbs' should be replaced with 'abfs'",
+        "abfs://testdir@azurev1databricks2.blob.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro",
+        modifiedFileLocation);
+
+    urlWithScheme =
         "s3://testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
     modifiedFileLocation =
         IcebergUtils.getValidIcebergPath(new Path(urlWithScheme), conf, "dremioS3");
     Assert.assertEquals(urlWithScheme, modifiedFileLocation);
+
+    urlWithScheme =
+        "s3://testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
+    modifiedFileLocation =
+        IcebergUtils.getIcebergPathAndValidateScheme(urlWithScheme, conf, "dremioS3", "s3a");
+    Assert.assertEquals(
+        "'s3' should be replaced with 's3a'",
+        "s3a://testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro",
+        modifiedFileLocation);
+
+    urlWithScheme =
+        "s3a://testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
+    modifiedFileLocation =
+        IcebergUtils.getIcebergPathAndValidateScheme(urlWithScheme, conf, "s3a", "s3a");
+    Assert.assertEquals(
+        "'s3a' should not be replaced with 's3'", urlWithScheme, modifiedFileLocation);
+
+    urlWithScheme =
+        "gs://testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
+    modifiedFileLocation =
+        IcebergUtils.getIcebergPathAndValidateScheme(urlWithScheme, conf, "dremiogcs", "gs");
+    Assert.assertEquals(
+        "The path should not be updated",
+        "gs://testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro",
+        modifiedFileLocation);
 
     urlWithScheme =
         "hdfs://172.25.0.39:8020/testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
@@ -145,7 +202,7 @@ public class TestIcebergUtils {
     Assert.assertEquals(urlWithScheme, modifiedFileLocation);
 
     urlWithScheme =
-        "file:/testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
+        "file:///testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041.avro";
     modifiedFileLocation = IcebergUtils.getValidIcebergPath(new Path(urlWithScheme), conf, "file");
     Assert.assertEquals(urlWithScheme, modifiedFileLocation);
 
@@ -727,9 +784,11 @@ public class TestIcebergUtils {
         new DremioFileIO(
             fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     String viewMetadataJsonFileName =
-        Resources.getResource("iceberg/utils/ValidViewMetadataV1.json").toURI().toString();
+        Resources.getResource("iceberg/utils/ValidViewMetadataV1.metadata.json").toURI().toString();
+    String compressedViewMetadataJsonFileName =
+        writeFileInGzipFormat(fileIO, viewMetadataJsonFileName);
     IcebergViewMetadata.SupportedIcebergViewSpecVersion viewVersion =
-        IcebergUtils.findIcebergViewVersion(viewMetadataJsonFileName, fileIO);
+        IcebergUtils.findIcebergViewVersion(compressedViewMetadataJsonFileName, fileIO);
     Assert.assertEquals(viewVersion, IcebergViewMetadata.SupportedIcebergViewSpecVersion.V1);
   }
 
@@ -739,9 +798,13 @@ public class TestIcebergUtils {
         new DremioFileIO(
             fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     String viewMetadataJsonFileName =
-        Resources.getResource("iceberg/utils/ViewMetadataMissingVersionV1.json").toURI().toString();
+        Resources.getResource("iceberg/utils/ViewMetadataMissingVersionV1.metadata.json")
+            .toURI()
+            .toString();
+    String compressedViewMetadataJsonFileName =
+        writeFileInGzipFormat(fileIO, viewMetadataJsonFileName);
     IcebergViewMetadata.SupportedIcebergViewSpecVersion viewVersion =
-        IcebergUtils.findIcebergViewVersion(viewMetadataJsonFileName, fileIO);
+        IcebergUtils.findIcebergViewVersion(compressedViewMetadataJsonFileName, fileIO);
     Assert.assertEquals(viewVersion, IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN);
   }
 
@@ -751,9 +814,13 @@ public class TestIcebergUtils {
         new DremioFileIO(
             fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     String viewMetadataJsonFileName =
-        Resources.getResource("iceberg/utils/ViewMetadataMissingUuidV1.json").toURI().toString();
+        Resources.getResource("iceberg/utils/ViewMetadataMissingUuidV1.metadata.json")
+            .toURI()
+            .toString();
+    String compressedViewMetadataJsonFileName =
+        writeFileInGzipFormat(fileIO, viewMetadataJsonFileName);
     IcebergViewMetadata.SupportedIcebergViewSpecVersion viewVersion =
-        IcebergUtils.findIcebergViewVersion(viewMetadataJsonFileName, fileIO);
+        IcebergUtils.findIcebergViewVersion(compressedViewMetadataJsonFileName, fileIO);
     Assert.assertEquals(viewVersion, IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN);
   }
 
@@ -763,11 +830,13 @@ public class TestIcebergUtils {
         new DremioFileIO(
             fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     String viewMetadataJsonFileName =
-        Resources.getResource("iceberg/utils/ViewMetadataUnsupportedVersionV1.json")
+        Resources.getResource("iceberg/utils/ViewMetadataUnsupportedVersionV1.metadata.json")
             .toURI()
             .toString();
+    String compressedViewMetadataJsonFileName =
+        writeFileInGzipFormat(fileIO, viewMetadataJsonFileName);
     IcebergViewMetadata.SupportedIcebergViewSpecVersion viewVersion =
-        IcebergUtils.findIcebergViewVersion(viewMetadataJsonFileName, fileIO);
+        IcebergUtils.findIcebergViewVersion(compressedViewMetadataJsonFileName, fileIO);
     Assert.assertEquals(viewVersion, IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN);
   }
 
@@ -777,7 +846,9 @@ public class TestIcebergUtils {
         new DremioFileIO(
             fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     String viewMetadataJsonFileName =
-        Resources.getResource("iceberg/utils/ValidViewVersionMetadataV0.json").toURI().toString();
+        Resources.getResource("iceberg/utils/ValidViewVersionMetadataV0.metadata.json")
+            .toURI()
+            .toString();
     IcebergViewMetadata.SupportedIcebergViewSpecVersion viewVersion =
         IcebergUtils.findIcebergViewVersion(viewMetadataJsonFileName, fileIO);
     Assert.assertEquals(viewVersion, IcebergViewMetadata.SupportedIcebergViewSpecVersion.V0);
@@ -789,7 +860,7 @@ public class TestIcebergUtils {
         new DremioFileIO(
             fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     String viewMetadataJsonFileName =
-        Resources.getResource("iceberg/utils/ViewVersionMetadataMissingVersionV0.json")
+        Resources.getResource("iceberg/utils/ViewVersionMetadataMissingVersionV0.metadata.json")
             .toURI()
             .toString();
     IcebergViewMetadata.SupportedIcebergViewSpecVersion viewVersion =
@@ -803,7 +874,7 @@ public class TestIcebergUtils {
         new DremioFileIO(
             fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     String viewMetadataJsonFileName =
-        Resources.getResource("iceberg/utils/ViewVersionMetadataMissingVersionV0.json")
+        Resources.getResource("iceberg/utils/ViewVersionMetadataMissingVersionV0.metadata.json")
             .toURI()
             .toString();
     IcebergViewMetadata.SupportedIcebergViewSpecVersion viewVersion =
@@ -817,12 +888,37 @@ public class TestIcebergUtils {
         new DremioFileIO(
             fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
     String viewMetadataJsonFileName =
-        Resources.getResource("iceberg/utils/ViewVersionMetadataMissingVersionV0.json")
+        Resources.getResource("iceberg/utils/ViewVersionMetadataMissingVersionV0.metadata.json")
             .toURI()
             .toString();
     IcebergViewMetadata.SupportedIcebergViewSpecVersion viewVersion =
         IcebergUtils.findIcebergViewVersion(viewMetadataJsonFileName, fileIO);
     Assert.assertEquals(viewVersion, IcebergViewMetadata.SupportedIcebergViewSpecVersion.UNKNOWN);
+  }
+
+  @Test
+  public void testRevertSnapshotFiles() {
+    Table table = mock(Table.class);
+    Snapshot snapshot = mock(Snapshot.class);
+    DataFile df = mock(DataFile.class);
+    DeleteFiles deleteFiles = mock(DeleteFiles.class);
+    ExpireSnapshots expireSnapshots = mock(ExpireSnapshots.class);
+    ArgumentCaptor<DataFile> argumentCaptor = ArgumentCaptor.forClass(DataFile.class);
+
+    when(table.newDelete()).thenReturn(deleteFiles);
+    when(table.expireSnapshots()).thenReturn(expireSnapshots);
+    when(snapshot.snapshotId()).thenReturn(2L);
+    when(snapshot.addedDataFiles(any())).thenReturn(ImmutableList.of(df));
+    when(deleteFiles.validateFilesExist()).thenReturn(deleteFiles);
+    when(expireSnapshots.expireSnapshotId(2L)).thenReturn(expireSnapshots);
+
+    IcebergUtils.revertSnapshotFiles(table, snapshot, "1");
+
+    verify(deleteFiles, times(1)).set(DREMIO_JOB_ID_ICEBERG_PROPERTY, "1");
+    verify(deleteFiles).deleteFile(argumentCaptor.capture());
+    Assert.assertEquals(argumentCaptor.getValue(), df);
+    verify(deleteFiles, times(1)).commit();
+    verify(expireSnapshots, times(1)).commit();
   }
 
   private Map<Integer, PartitionSpec> preparePartitionSpecMap() {
@@ -838,5 +934,23 @@ public class TestIcebergUtils {
     input.put(0, partitionSpec1);
     input.put(1, partitionSpec2);
     return input;
+  }
+
+  /* Used specifically to create new resources (files) in resource folder that originally existed as json into the new compressed (.gz) format */
+  private static String writeFileInGzipFormat(FileIO fileIO, String viewMetadataJsonFileName)
+      throws IOException {
+    InputFile inputFile = fileIO.newInputFile(viewMetadataJsonFileName);
+    OutputFile outputFile = fileIO.newOutputFile(viewMetadataJsonFileName + ".gz");
+    PositionOutputStream pos = null;
+    GZIPOutputStream gzipOut = null;
+    try {
+      pos = outputFile.createOrOverwrite();
+      gzipOut = new GZIPOutputStream(pos);
+      gzipOut.write(inputFile.newStream().readAllBytes());
+    } finally {
+      gzipOut.close();
+      pos.close();
+    }
+    return outputFile.location();
   }
 }

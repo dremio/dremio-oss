@@ -77,7 +77,7 @@ const theme = {
     MuiSelect: {
       styleOverrides: {
         root: {
-          color: "var(--dremio--color--text--main)",
+          color: "var(--text--primary)",
           backgroundColor: "#F4F6F7",
         },
       },
@@ -92,6 +92,7 @@ const theme = {
     MuiPaper: {
       styleOverrides: {
         root: {
+          backgroundColor: "var(--fill--popover)",
           color: "inherit",
         },
         rounded: {

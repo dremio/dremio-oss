@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import sessionStorageUtils from "@inject/utils/storageUtils/sessionStorageUtils";
 import { store } from "@app/store/store";
 // @ts-ignore
 import { resetPrivilegesState } from "@inject/actions/privileges";
@@ -21,12 +22,14 @@ import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { resetAllSourcesView } from "@app/actions/resources/sources";
 import { SonarContentsResource } from "@app/exports/resources/SonarContentsResource";
 import { resetHomeContents } from "@app/actions/home";
+import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 
 export const handleSonarProjectChange = (
   project: any,
-  pushToProject?: () => any
+  pushToProject?: () => any,
 ) => {
-  (localStorageUtils as any)?.setProjectContext?.(project);
+  (sessionStorageUtils as any)?.setProjectContext?.(project);
   (localStorageUtils as any)?.clearCurrentEngine?.();
   if (isNotSoftware()) {
     // reset redux state related to projects
@@ -37,6 +40,10 @@ export const handleSonarProjectChange = (
   store.dispatch(resetAllSourcesView());
   store.dispatch(resetHomeContents());
   SonarContentsResource.reset(); // Reset folder list when switching projects
+
+  // Reset scripts resources when switching projects
+  $SqlRunnerSession.resource.fetch();
+  ScriptsResource.fetch();
 
   if (pushToProject) setImmediate(pushToProject); // Schedule callback/redirect
 };

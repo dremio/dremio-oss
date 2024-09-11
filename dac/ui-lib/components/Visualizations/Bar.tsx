@@ -22,6 +22,7 @@ import { Popover } from "../Popover";
 type HeightString = `${number}%`;
 
 type Segment = {
+  id?: string | number;
   height: HeightString;
   class?: string;
 };
@@ -43,8 +44,8 @@ const withBarTooltip =
       <Popover
         content={() => (
           <div
-            className="drop-shadow-lg"
-            style={{ background: "white", padding: "8px", borderRadius: "4px" }}
+            className="drop-shadow-lg bg-primary"
+            style={{ padding: "8px", borderRadius: "4px" }}
           >
             {tooltip()}
           </div>
@@ -63,10 +64,12 @@ export const Bar = forwardRef<HTMLDivElement, BarProps>((props, ref) => {
   return (
     <div ref={ref} className="bar">
       {wrapTooltip(
-        <div className={`bar__container bar__container--${props.segmentMode}`}>
+        <div
+          className={`bar__container hover-alt bar__container--${props.segmentMode}`}
+        >
           {props.segments.map((segment, i) => (
             <div
-              key={i}
+              key={segment.id || i}
               className={clsx(
                 "bar__segment",
                 segment.class || "bar__segment--bg-default",

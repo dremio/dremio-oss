@@ -115,7 +115,7 @@ export function updateScript(
           meta: { ...meta, notification: !hideFail },
         },
       ],
-      method: "PUT",
+      method: "PATCH",
       endpoint: apiCall,
       body: JSON.stringify(payload),
     },
@@ -191,9 +191,20 @@ export const clearActiveScript = () => ({
   type: CLEAR_SCRIPT_STATE,
 });
 
-export const LOAD_SCRIPT_JOBS = "LOAD_SCRIPT_JOBS";
+export const LOAD_JOB_TABS = "LOAD_JOB_TABS";
 
-export const loadScriptJobs = (script: Record<string, any>) => ({
-  type: LOAD_SCRIPT_JOBS,
+export const loadJobTabs = (script: Record<string, any>) => ({
+  type: LOAD_JOB_TABS,
   script,
+});
+
+export const LOAD_JOB_RESULTS = "LOAD_JOB_RESULTS";
+
+export const loadJobResults = (
+  script: Record<string, any>,
+  jobStatus: Record<string, any>,
+) => ({
+  type: LOAD_JOB_RESULTS,
+  script,
+  jobStatus,
 });

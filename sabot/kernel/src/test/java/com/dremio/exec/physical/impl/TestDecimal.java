@@ -55,7 +55,7 @@ public class TestDecimal extends PopUnitTestBase {
               readResourceAsString("/decimal/cast_simple_decimal.json")
                   .replace("#{TEST_FILE}", "/input_simple_decimal.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -108,7 +108,7 @@ public class TestDecimal extends PopUnitTestBase {
               readResourceAsString("/decimal/cast_float_decimal.json")
                   .replace("#{TEST_FILE}", "/input_simple_decimal.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -157,7 +157,7 @@ public class TestDecimal extends PopUnitTestBase {
               readResourceAsString("/decimal/simple_decimal_arithmetic.json")
                   .replace("#{TEST_FILE}", "/input_simple_decimal.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -212,7 +212,7 @@ public class TestDecimal extends PopUnitTestBase {
               readResourceAsString("/decimal/test_decimal_complex.json")
                   .replace("#{TEST_FILE}", "/input_complex_decimal.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -273,7 +273,7 @@ public class TestDecimal extends PopUnitTestBase {
               readResourceAsString("/decimal/test_decimal_sort_complex.json")
                   .replace("#{TEST_FILE}", "/input_sort_complex_decimal.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -327,7 +327,7 @@ public class TestDecimal extends PopUnitTestBase {
               readResourceAsString("/decimal/simple_decimal_math.json")
                   .replace("#{TEST_FILE}", "/input_simple_decimal.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));

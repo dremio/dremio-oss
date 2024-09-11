@@ -48,9 +48,18 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
   private Map<FormatOption, Object> formatOptions;
   private long recordsLoadedCount;
   private long recordsRejectedCount;
-  private Long snapshotId;
+  private long snapshotId;
   private String fileFormat;
   private CopyIntoFileState fileState;
+  private String branch;
+  private String pipeName;
+  private String pipeId;
+  private long processingStartTime;
+  private long fileSize;
+  private String firstErrorMessage;
+  private Long fileNotificationTimestamp;
+  private String ingestionSourceType;
+  private String requestId;
 
   private CopyIntoFileLoadInfo() {}
 
@@ -66,6 +75,15 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
     this.snapshotId = builder.snapshotId;
     this.fileFormat = builder.fileFormat;
     this.fileState = builder.fileState;
+    this.branch = builder.branch;
+    this.pipeName = builder.pipeName;
+    this.pipeId = builder.pipeId;
+    this.processingStartTime = builder.processingStartTime;
+    this.fileSize = builder.fileSize;
+    this.firstErrorMessage = builder.firstErrorMessage;
+    this.fileNotificationTimestamp = builder.fileNotificationTimestamp;
+    this.ingestionSourceType = builder.ingestionSourceType;
+    this.requestId = builder.requestId;
   }
 
   public String getQueryId() {
@@ -100,7 +118,7 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
     return recordsRejectedCount;
   }
 
-  public Long getSnapshotId() {
+  public long getSnapshotId() {
     return snapshotId;
   }
 
@@ -110,6 +128,42 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
 
   public CopyIntoFileState getFileState() {
     return fileState;
+  }
+
+  public String getBranch() {
+    return branch;
+  }
+
+  public String getPipeName() {
+    return pipeName;
+  }
+
+  public String getPipeId() {
+    return pipeId;
+  }
+
+  public long getProcessingStartTime() {
+    return processingStartTime;
+  }
+
+  public long getFileSize() {
+    return fileSize;
+  }
+
+  public String getFirstErrorMessage() {
+    return firstErrorMessage;
+  }
+
+  public Long getFileNotificationTimestamp() {
+    return fileNotificationTimestamp;
+  }
+
+  public String getIngestionSourceType() {
+    return ingestionSourceType;
+  }
+
+  public String getRequestId() {
+    return requestId;
   }
 
   /** Builder class for constructing CopyIntoFileLoadInfo instances. */
@@ -126,10 +180,19 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
     private String fieldDelimiter;
     private String quoteChar;
     private String escapeChar;
-    private Long snapshotId;
+    private long snapshotId;
     private Map<FormatOption, Object> formatOptionsMap;
     private final String fileFormat;
     private final CopyIntoFileState fileState;
+    private String branch;
+    private String pipeName;
+    private String pipeId;
+    private long processingStartTime;
+    private long fileSize;
+    private String firstErrorMessage;
+    private Long fileNotificationTimestamp;
+    private String ingestionSourceType;
+    private String requestId;
 
     /**
      * Constructs a new instance of the CopyIntoFileLoadInfo.Builder with the given parameters.
@@ -180,6 +243,15 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
       formatOptionsMap = info.getFormatOptions();
       fileFormat = info.getFileFormat();
       fileState = info.getFileState();
+      branch = info.getBranch();
+      pipeName = info.getPipeName();
+      pipeId = info.getPipeId();
+      processingStartTime = info.getProcessingStartTime();
+      fileSize = info.getFileSize();
+      firstErrorMessage = info.getFirstErrorMessage();
+      fileNotificationTimestamp = info.getFileNotificationTimestamp();
+      ingestionSourceType = info.getIngestionSourceType();
+      requestId = info.getRequestId();
     }
 
     /**
@@ -239,8 +311,53 @@ public final class CopyIntoFileLoadInfo implements FileLoadInfo {
       return this;
     }
 
-    public Builder setSnapshotId(Long snapshotId) {
+    public Builder setSnapshotId(long snapshotId) {
       this.snapshotId = snapshotId;
+      return this;
+    }
+
+    public Builder setBranch(String branch) {
+      this.branch = branch;
+      return this;
+    }
+
+    public Builder setPipeName(String pipeName) {
+      this.pipeName = pipeName;
+      return this;
+    }
+
+    public Builder setPipeId(String pipeId) {
+      this.pipeId = pipeId;
+      return this;
+    }
+
+    public Builder setProcessingStartTime(long processingStartTime) {
+      this.processingStartTime = processingStartTime;
+      return this;
+    }
+
+    public Builder setFileSize(long fileSize) {
+      this.fileSize = fileSize;
+      return this;
+    }
+
+    public Builder setFirstErrorMessage(String firstErrorMessage) {
+      this.firstErrorMessage = firstErrorMessage;
+      return this;
+    }
+
+    public Builder setFileNotificationTimestamp(Long fileNotificationTimestamp) {
+      this.fileNotificationTimestamp = fileNotificationTimestamp;
+      return this;
+    }
+
+    public Builder setIngestionSourceType(String ingestionSourceType) {
+      this.ingestionSourceType = ingestionSourceType;
+      return this;
+    }
+
+    public Builder setRequestId(String requestId) {
+      this.requestId = requestId;
       return this;
     }
 

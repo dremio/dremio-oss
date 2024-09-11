@@ -13,33 +13,71 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { Tooltip } from "dremio-ui-lib/components";
+import { CommunityUser } from "@dremio/dremio-js/interfaces";
 import { Avatar } from "dremio-ui-lib/components";
+import { FC } from "react";
 
-type DremioUserProps = {
-  user: any;
+export const DremioUserTooltip: FC<{ user: CommunityUser }> = (props) => {
+  const subheading = props.user.email || props.user.username;
+  const showSubheading = props.user.displayName !== subheading;
+  return (
+    <div className="flex">
+      <div className="flex flex-row gap-1 items-center">
+        {/* <Avatar initials={props.user.initials} /> */}
+        <div className="flex flex-col text-left">
+          <div className="text-semibold">{props.user.displayName}</div>
+          {showSubheading && <div className="text-sm">{subheading}</div>}
+        </div>
+      </div>
+    </div>
+  );
 };
 
-const getInitials = (user: {
-  email: string;
-  firstName: string;
-  lastName: string;
-}) => {
-  if (!user.firstName) {
-    return user.email.slice(0, 2);
-  }
-  if (user.lastName.length) {
-    return user.firstName.charAt(0) + user.lastName.charAt(0);
-  } else {
-    return user.firstName.slice(0, 2);
-  }
+export const DremioUser: FC<{ user: CommunityUser }> = (props) => {
+  return (
+    <Tooltip content={<DremioUserTooltip user={props.user} />}>
+      <div className="inline-flex flex-row gap-1 items-center">
+        <Avatar initials={props.user.initials} /> {props.user.displayName}
+      </div>
+    </Tooltip>
+  );
 };
 
-export const DremioUser = (props: DremioUserProps) => {
+export const DremioUserAvatar: FC<{ user: CommunityUser }> = (props) => {
+  return (
+    <Tooltip content={<DremioUserTooltip user={props.user} />}>
+      <Avatar initials={props.user.initials} />
+    </Tooltip>
+  );
+};
+
+const NullDremioUserTooltip = () => (
+  <div style={{ maxWidth: "35ch" }}>
+    Details for this user could not be found. They may have been deleted or
+    removed from the system.
+  </div>
+);
+
+export const NullDremioUser: FC = () => {
   return (
     <div className="inline-flex flex-row gap-1 items-center">
-      <Avatar initials={getInitials(props.user).toLowerCase()} />{" "}
-      {props.user.firstName + " " + props.user.lastName}
+      <NullDremioUserAvatar />
+      <span className="dremio-typography-less-important">Unavailable</span>
     </div>
+  );
+};
+
+export const NullDremioUserAvatar: FC = () => {
+  return (
+    <Tooltip portal content={<NullDremioUserTooltip />}>
+      <Avatar
+        initials="?"
+        style={{
+          background: "var(--fill--disabled)",
+          color: "var(--text--disabled)",
+        }}
+      />
+    </Tooltip>
   );
 };

@@ -17,12 +17,11 @@
 import fs from "fs";
 import path from "path";
 import SVGSpriter from "svg-sprite";
-//@ts-ignore
 import { generateIconManifest } from "./generateIconManifest";
 
 const OUTPUT_PATH = "dist-icons";
 
-const icons = generateIconManifest().filter(icon => icon.theme === "sprite");
+const icons = generateIconManifest().filter((icon) => icon.theme === "dremio");
 
 const spriter = new SVGSpriter({
   transform: false,
@@ -44,7 +43,7 @@ icons.forEach((icon) => {
   spriter.add(
     icon.path,
     icon.name + ".svg",
-    fs.readFileSync(icon.path, "utf-8")
+    fs.readFileSync(icon.path, "utf-8"),
   );
 });
 
@@ -55,8 +54,8 @@ spriter.compile((_error, result) => {
         recursive: true,
       });
       fs.writeFileSync(
-        path.join(OUTPUT_PATH, "sprite.svg"),
-        result[mode][resource].contents
+        path.join(OUTPUT_PATH, "dremio.svg"),
+        result[mode][resource].contents,
       );
     }
   }

@@ -28,11 +28,19 @@ message IcebergSchemaField {
   optional int32 id = 2;
 }
 
+message DefaultNameMapping {
+  optional string name = 1;
+  optional int32 id = 2;
+}
+
 message IcebergDatasetXAttr {
   optional com.dremio.sabot.exec.store.parquet.proto.ParquetDatasetXAttr parquetDatasetXAttr = 1;
   repeated IcebergSchemaField column_ids = 2;
   optional string partition_stats_file = 3;  // path to partition stats file for the latest snapshot
   optional int64 partition_stats_file_size = 4; // size of the partition stats file
+  // extracted from table property "schema.name-mapping.default",
+  // fallback field ids to be used when a data file does not contain field id information
+  repeated DefaultNameMapping default_name_mapping = 5;
 }
 
 message IcebergDatasetSplitXAttr {

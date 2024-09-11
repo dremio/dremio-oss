@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -168,7 +168,8 @@ public class TestParquetRecordWriter extends BaseTestQuery {
             any(),
             any(),
             any(),
-            recordRejectedCaptor.capture());
+            recordRejectedCaptor.capture(),
+            any());
 
     for (FileStatus file : newFs.listStatus(targetPath)) {
       if (file.getPath()
@@ -333,7 +334,8 @@ public class TestParquetRecordWriter extends BaseTestQuery {
             any(),
             operationTypeCaptor.capture(),
             any(),
-            recordRejectedCaptor.capture());
+            recordRejectedCaptor.capture(),
+            any());
 
     assertThat(recordWrittenCaptor.getAllValues()).isEqualTo(ImmutableList.of(0L, 0L));
     assertThat(pathCaptor.getAllValues()).isEqualTo(ImmutableList.of("file_0", "file_1"));

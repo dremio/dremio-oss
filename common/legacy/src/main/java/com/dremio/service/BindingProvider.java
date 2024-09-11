@@ -21,7 +21,7 @@ import javax.inject.Provider;
 /** Interface that allows retrieval of providers */
 public interface BindingProvider extends Iterable<Binding<?>> {
 
-  <T> Provider<T> provider(final Class<T> iface);
+  <T> Provider<T> provider(final Class<? extends T> iface);
 
   <T> T lookup(Class<T> iface);
 

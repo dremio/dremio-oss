@@ -256,6 +256,67 @@ public class RexToExprTest {
         usingIfElse.toString());
   }
 
+  @Test
+  public void testItemWithLiteralIndexValue() {
+    // Assuming you have a RexBuilder instance
+    RexBuilder rexBuilder = new RexBuilder(SqlTypeFactoryImpl.INSTANCE);
+
+    // Reference to the array_test column
+    RexNode array =
+        rexBuilder.makeInputRef(
+            SqlTypeFactoryImpl.INSTANCE.createArrayType(
+                SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.INTEGER), -1),
+            0);
+
+    // Creating literal index
+    RexNode literalIndex =
+        rexBuilder.makeLiteral(
+            10, SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.INTEGER), false);
+
+    // Building the ITEM function
+    RexNode item = rexBuilder.makeCall(SqlStdOperatorTable.ITEM, array, literalIndex);
+    RelDataType arrayType =
+        SqlTypeFactoryImpl.INSTANCE.createArrayType(
+            SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.INTEGER), -1);
+    RelDataType rowType =
+        SqlTypeFactoryImpl.INSTANCE.builder().add("array_test", arrayType).build();
+    LogicalExpression itemLiteral = RexToExpr.toExpr(buildContext(20), rowType, rexBuilder, item);
+
+    assertEquals("`array_test`[10]", itemLiteral.toString());
+  }
+
+  @Test
+  public void testItemWithInputRefIndexValue() {
+    // Assuming you have a RexBuilder instance
+    RexBuilder rexBuilder = new RexBuilder(SqlTypeFactoryImpl.INSTANCE);
+
+    // Reference to the array_test column
+    RexNode array =
+        rexBuilder.makeInputRef(
+            SqlTypeFactoryImpl.INSTANCE.createArrayType(
+                SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.INTEGER), -1),
+            0);
+
+    // Reference to the index column
+    RexNode indexRef =
+        rexBuilder.makeInputRef(SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.INTEGER), 1);
+
+    // Building ITEM function
+    RexNode item = rexBuilder.makeCall(SqlStdOperatorTable.ITEM, array, indexRef);
+    RelDataType arrayType =
+        SqlTypeFactoryImpl.INSTANCE.createArrayType(
+            SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.INTEGER), -1);
+    RelDataType rowType =
+        SqlTypeFactoryImpl.INSTANCE
+            .builder()
+            .add("array_test", arrayType)
+            .add("index", SqlTypeName.INTEGER)
+            .build();
+    LogicalExpression itemLiteral = RexToExpr.toExpr(buildContext(20), rowType, rexBuilder, item);
+
+    assertEquals("`array_test`[index]", itemLiteral.toString());
+  }
+
   private LogicalExpression parseExpression(String expr) throws Exception {
     ExprLexer lexer = new ExprLexer(new ANTLRStringStream(expr));
     CommonTokenStream tokens = new CommonTokenStream(lexer);

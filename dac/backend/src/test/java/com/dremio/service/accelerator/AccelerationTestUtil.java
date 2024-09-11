@@ -37,7 +37,6 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.accelerator.proto.AccelerationId;
-import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -49,7 +48,6 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.google.common.base.Preconditions;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -220,21 +218,6 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     final NamespaceService nsService = getNamespaceService();
     nsService.addOrUpdateDataset(path.toNamespaceKey(), dataset);
     createDatasetFromParentAndSave(vdsPath, path.toPathString());
-  }
-
-  protected JobsService getJobsService() {
-    final JobsService service = l(JobsService.class);
-    return Preconditions.checkNotNull(service, "jobs service is required");
-  }
-
-  protected NamespaceService getNamespaceService() {
-    final NamespaceService service = newNamespaceService();
-    return Preconditions.checkNotNull(service, "ns service is required");
-  }
-
-  protected SourceService getSourceService() {
-    final SourceService service = newSourceService();
-    return Preconditions.checkNotNull(service, "source service is required");
   }
 
   protected AccelerationApiDescriptor createNewAcceleration(DatasetPath path) {

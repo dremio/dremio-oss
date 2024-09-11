@@ -55,7 +55,7 @@ export const createReflectionFormValues = (opts, siblingNames = []) => {
           : laDeprecated("Aggregation Reflection"),
         (proposedName) => {
           return !siblingNames.includes(proposedName);
-        }
+        },
       );
   }
 
@@ -103,7 +103,7 @@ export const areReflectionFormValuesUnconfigured = (reflectionFormValues) => {
 export const areReflectionFormValuesBasic = (
   reflectionFormValues,
   dataset,
-  rawRecommendation
+  rawRecommendation,
 ) => {
   reflectionFormValues = { ...reflectionFormValues };
 
@@ -154,14 +154,14 @@ export const fieldSorter = (a, b) => {
 };
 
 export const forceChangesForDatasetChange = (reflection, dataset) => {
-  if (reflection.status.config !== "INVALID") return { reflection };
+  if (reflection.status?.config !== "INVALID") return { reflection };
 
   const lostFields = {};
   reflection = { ...reflection };
   const validFields = new Set(dataset.fields.map((f) => f.name));
 
   for (const feildList of "sortFields partitionFields distributionFields displayFields dimensionFields measureFields".split(
-    " "
+    " ",
   )) {
     if (!reflection[feildList]) continue;
     reflection[feildList] = reflection[feildList].filter((field) => {
@@ -209,7 +209,7 @@ export const fixupReflection = (reflection, dataset) => {
     for (const measureField of reflection.measureFields) {
       if (!measureField.measureTypeList) {
         measureField.measureTypeList = getDefaultMeasureTypes(
-          getTypeForField(dataset, measureField.name)
+          getTypeForField(dataset, measureField.name),
         );
       }
     }
@@ -227,17 +227,6 @@ export const getTypeForField = (dataset, fieldName) => {
       return elm.get("name") === fieldName;
     })
     .getIn(["type", "name"]);
-};
-
-const getTextWithFailureCount = (status, statusMessage) => {
-  const msgId =
-    status.get("refresh") === "MANUAL"
-      ? "Reflection.StatusFailedNoReattempt"
-      : "Reflection.StatusFailedNonFinal";
-  return formatMessage(msgId, {
-    status: statusMessage,
-    failCount: status.get("failureCount"),
-  });
 };
 
 export function getReflectionUiStatus(reflection) {
@@ -265,67 +254,74 @@ export function getReflectionUiStatus(reflection) {
     text = formatMessage("Reflection.StatusInvalidConfiguration", {
       status: statusMessage,
     });
-  } else if (status.get("refresh") === "GIVEN_UP") {
-    icon = "ErrorSolid";
-    iconId = "job-state/failed";
-    text = formatMessage("Reflection.StatusFailedFinal", {
-      status: statusMessage,
-    });
-  } else if (status.get("availability") === "INCOMPLETE") {
-    icon = "ErrorSolid";
-    iconId = "job-state/failed";
-    text = formatMessage("Reflection.StatusIncomplete", {
-      status: statusMessage,
-    });
-  } else if (status.get("availability") === "EXPIRED") {
-    icon = "ErrorSolid";
-    iconId = "job-state/failed";
-    text = formatMessage("Reflection.StatusExpired", { status: statusMessage });
   } else if (status.get("refresh") === "RUNNING") {
+    icon = "Loader";
+    iconId = "job-state/loading";
+    className = "spinner";
     if (status.get("availability") === "AVAILABLE") {
-      icon = "OKSolid";
-      iconId = "job-state/completed";
       text = formatMessage("Reflection.StatusRefreshing", {
         status: statusMessage,
       });
     } else {
-      icon = "Loader";
-      iconId = "job-state/loading";
       text = formatMessage("Reflection.StatusBuilding", {
         status: statusMessage,
       });
-      className = "spinner";
     }
-  } else if (status.get("availability") === "AVAILABLE") {
-    if (status.get("failureCount") > 0) {
+  } else if (status.get("failureCount") > 0) {
+    if (status.get("refresh") === "GIVEN_UP") {
+      // reflection exhausts retry policy
+      icon = "ErrorSolid";
+      iconId = "job-state/failed";
+      text = formatMessage("Reflection.StatusFailedNoReattempt", {
+        status: statusMessage,
+        failCount: status.get("failureCount"),
+      });
+    } else {
+      // reflection still reattempting according to retry policy
       icon = "WarningSolid";
       iconId = "job-state/warning";
-      text = getTextWithFailureCount(status, statusMessage);
-    } else if (status.get("refresh") === "MANUAL") {
-      icon = "OKSolid";
-      iconId = "job-state/completed";
+      text = formatMessage("Reflection.StatusFailedNonFinal", {
+        status: statusMessage,
+        failCount: status.get("failureCount"),
+      });
+    }
+  } else if (status.get("refresh") === "GIVEN_UP") {
+    // Reflection manager is not running, which happens here:
+    // oss/services/accelerator/src/main/java/com/dremio/service/reflection
+    // /ReflectionStatusServiceImpl.java#L228
+    icon = "ErrorSolid";
+    iconId = "job-state/failed";
+    text = formatMessage("Reflection.StatusReflectionManagerDown", {
+      status: statusMessage,
+    });
+  } else if (status.get("availability") === "AVAILABLE") {
+    icon = "OKSolid";
+    iconId = "job-state/completed";
+    if (status.get("refresh") === "MANUAL") {
       text = formatMessage("Reflection.StatusManual", {
         status: statusMessage,
       });
     } else {
-      icon = "OKSolid";
-      iconId = "job-state/completed";
       text = formatMessage("Reflection.StatusCanAccelerate");
     }
-  } else if (status.get("failureCount") > 0) {
-    icon = "WarningSolid";
-    iconId = "job-state/warning";
-    text = getTextWithFailureCount(status, statusMessage);
-  } else if (status.get("refresh") === "SCHEDULED") {
-    icon = "Ellipsis";
-    iconId = "job-state/queued";
-    text = formatMessage("Reflection.Scheduled", {
-      status: statusMessage,
-    });
-  } else if (status.get("refresh") === "MANUAL") {
-    icon = "WarningSolid";
-    iconId = "job-state/warning";
-    text = formatMessage("Reflection.StatusManual", { status: statusMessage });
+  } else if (status.get("availability") === "NONE") {
+    if (
+      status.get("refresh") === "SCHEDULED" ||
+      status.get("refresh") === "PENDING" ||
+      status.get("refresh") === "ON_DATA_CHANGES"
+    ) {
+      icon = "Ellipsis";
+      iconId = "job-state/queued";
+      text = formatMessage("Reflection.Scheduled", {
+        status: statusMessage,
+      });
+    } else if (status.get("refresh") === "MANUAL") {
+      icon = "ErrorSolid";
+      iconId = "job-state/failed";
+      text = formatMessage("Reflection.StatusManual", {
+        status: statusMessage,
+      });
+    }
   }
 
   return Immutable.fromJS({

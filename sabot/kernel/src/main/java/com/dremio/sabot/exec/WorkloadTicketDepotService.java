@@ -23,13 +23,16 @@ import com.dremio.sabot.task.GroupManager;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.Service;
 import com.google.common.annotations.VisibleForTesting;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import org.apache.arrow.memory.BufferAllocator;
 
 /**
  * Service that creates the {@link WorkloadTicketDepot} singleton when started, and provides it
  * through the registry
  */
+@Singleton
 public class WorkloadTicketDepotService implements Service {
 
   private final Provider<BufferAllocator> allocator;
@@ -38,6 +41,7 @@ public class WorkloadTicketDepotService implements Service {
 
   private WorkloadTicketDepot ticketDepot;
 
+  @Inject
   public WorkloadTicketDepotService(
       final Provider<BufferAllocator> allocator,
       final Provider<TaskPool> taskPool,

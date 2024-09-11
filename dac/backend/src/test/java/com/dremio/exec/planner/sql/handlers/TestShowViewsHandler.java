@@ -17,7 +17,7 @@ package com.dremio.exec.planner.sql.handlers;
 
 import static com.dremio.exec.ExecConstants.ENABLE_USE_VERSION_SYNTAX;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -67,7 +67,6 @@ public class TestShowViewsHandler {
   private static final String STATEMENT_REF_NAME = "statement_ref_name";
   private static final String STATEMENT_BRANCH_NAME = "statement_branch_name";
   private static final String STATEMENT_TAG_NAME = "statement_tag_name";
-  private static final String STATEMENT_COMMIT_HASH = "DEADBEEFDEADBEEF";
   private static final String SESSION_BRANCH_NAME = "session_branch_name";
 
   @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
@@ -314,11 +313,15 @@ public class TestShowViewsHandler {
   @Test // SHOW VIEWS AT REF <arbitrary ref>
   public void showViewsRefSessionSourceNonexistentThrows() {
     // Arrange
+    VersionContext statementVersionContext = VersionContext.ofRef(STATEMENT_REF_NAME);
     when(catalog.containerExists(
-            CatalogEntityKey.fromNamespaceKey(new NamespaceKey(SESSION_SOURCE_NAME))))
+            CatalogEntityKey.newBuilder()
+                .keyComponents(ImmutableList.of(SESSION_SOURCE_NAME))
+                .tableVersionContext(TableVersionContext.of(statementVersionContext))
+                .build()))
         .thenReturn(false);
     when(userSession.getSessionVersionForSource(SESSION_SOURCE_NAME))
-        .thenReturn(VersionContext.ofRef(STATEMENT_REF_NAME));
+        .thenReturn(statementVersionContext);
     when(userSession.getDefaultSchemaPath())
         .thenReturn(new NamespaceKey(ImmutableList.of((SESSION_SOURCE_NAME))));
 

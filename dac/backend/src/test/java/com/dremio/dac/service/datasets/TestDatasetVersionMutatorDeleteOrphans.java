@@ -57,7 +57,7 @@ public class TestDatasetVersionMutatorDeleteOrphans extends BaseTestServer {
     KVStoreProvider provider = l(KVStoreProvider.class);
     datasetVersionsStore = provider.getStore(DatasetVersionMutator.VersionStoreCreator.class);
 
-    NamespaceService namespaceService = newNamespaceService();
+    NamespaceService namespaceService = getNamespaceService();
     SpaceConfig config = new SpaceConfig();
     config.setName(SPACE_NAME);
     namespaceService.addOrUpdateSpace(

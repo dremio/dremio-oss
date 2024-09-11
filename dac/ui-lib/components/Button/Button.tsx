@@ -52,7 +52,7 @@ type ButtonProps = {
   /**
    * If defined, a tooltip will be added to the button
    */
-  tooltip?: string;
+  tooltip?: string | JSX.Element;
 
   /**
    * If tooltip is defined, this will define where the tooltip is placed
@@ -89,6 +89,7 @@ const isDisabled = (buttonProps: ButtonProps): boolean =>
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (props, ref) => {
+    const id = React.useId();
     const {
       as = "button",
       prefix,
@@ -109,7 +110,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             type,
           }
         : {};
-    return React.createElement(
+
+    const createdButton = React.createElement(
       as,
       {
         ...rest,
@@ -119,23 +121,27 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           props.className,
         ),
         ...buttonProps,
+        ...(tooltip && { "aria-labelledby": id }),
         ref,
       },
       <>
         {prefix && <div className="dremio-button__prefix">{prefix}</div>}
-        {tooltip ? (
-          <Tooltip
-            content={tooltip}
-            shouldWrapChildren
-            placement={tooltipPlacement}
-          >
-            <div className="dremio-button__content">{getContent(props)}</div>
-          </Tooltip>
-        ) : (
-          <div className="dremio-button__content">{getContent(props)}</div>
-        )}
+        <div className="dremio-button__content">{getContent(props)}</div>
         {suffix && <div className="dremio-button__suffix">{suffix}</div>}
       </>,
+    );
+
+    return tooltip ? (
+      <Tooltip
+        content={tooltip}
+        shouldWrapChildren
+        placement={tooltipPlacement}
+        id={id}
+      >
+        {createdButton}
+      </Tooltip>
+    ) : (
+      createdButton
     );
   },
 );

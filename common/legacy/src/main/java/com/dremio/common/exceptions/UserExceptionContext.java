@@ -31,6 +31,7 @@ class UserExceptionContext {
   private final List<String> contextList;
 
   private CoordinationProtos.NodeEndpoint endpoint;
+  private String errorOrigin;
 
   UserExceptionContext() {
     errorId = UUID.randomUUID().toString();
@@ -57,6 +58,10 @@ class UserExceptionContext {
     if (this.endpoint == null) {
       this.endpoint = endpoint;
     }
+  }
+
+  void addErrorOrigin(String role) {
+    this.errorOrigin = role;
   }
 
   /**
@@ -136,6 +141,10 @@ class UserExceptionContext {
     return endpoint;
   }
 
+  String getErrorOrigin() {
+    return errorOrigin;
+  }
+
   /**
    * generate a context message
    *
@@ -148,9 +157,15 @@ class UserExceptionContext {
       sb.append(context).append("\n");
     }
 
+    if (getErrorOrigin() != null) {
+      sb.append("ErrorOrigin: ");
+      sb.append(getErrorOrigin());
+      sb.append("\n");
+    }
+
     if (includeErrorIdAndIdentity) {
       // add identification infos
-      sb.append("\n[Error Id: ");
+      sb.append("[Error Id: ");
       sb.append(errorId).append(" ");
       if (endpoint != null) {
         sb.append("on ").append(endpoint.getAddress()).append(":").append(endpoint.getUserPort());

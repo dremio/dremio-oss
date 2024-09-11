@@ -25,7 +25,7 @@ import SQLScriptForm from "./SQLScriptForm";
 type SQLScriptDialogProps = {
   title: string;
   isOpen: boolean;
-  script: any;
+  getScriptToSave: () => any;
   intl: any;
   onCancel: () => void;
   onSubmit: (payload: any, scriptId?: string, hideFail?: boolean) => void;
@@ -43,7 +43,7 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
     isOpen,
     onCancel,
     push,
-    script = {},
+    getScriptToSave = () => ({}),
     onSubmit,
     postSubmit,
     intl,
@@ -51,6 +51,7 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
     saveAsDialogError,
     addNotification,
   } = props;
+  const script = getScriptToSave();
   const { content, context } = script;
 
   const onFormSubmit = (values: any) => {
@@ -67,7 +68,7 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
 
     //Tabs: Remove below code after SQLRUNNER_TABS_UI is removed
     return ApiUtils.attachFormSubmitHandlers(
-      onSubmit(payload, script.id, hideFail)
+      onSubmit(payload, script.id, hideFail),
     ).then((res: any) => {
       if (push) {
         push(res.payload);
@@ -76,7 +77,7 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
       postSubmit(res.payload);
       addNotification(
         intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
-        "success"
+        "success",
       );
       onCancel();
       return;
@@ -90,7 +91,6 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
       title={title}
       className="--newModalStyles"
       hide={onCancel}
-      closeButtonType="CloseBig"
       modalHeight={"250px"}
     >
       <SQLScriptForm

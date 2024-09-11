@@ -15,7 +15,7 @@
  */
 
 %dremio-card-hover {
-  --dremio--card--background: var(--color--brand--25);
+  --dremio--card--background: var(--fill--primary--hover);
 }
 
 .dremio-card {
@@ -48,7 +48,7 @@
 
   &__toolbar {
     margin-inline-start: auto;
-    color: var(--dremio--color--icon--main);
+    color: var(--icon--primary);
   }
 
   &__body {

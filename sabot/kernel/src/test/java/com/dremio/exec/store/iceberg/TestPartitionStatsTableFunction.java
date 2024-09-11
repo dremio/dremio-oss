@@ -137,7 +137,7 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
                 4709042947025192029L,
                 "/tmp/iceberg/metadata/snap-4709042947025192029-1-348cabd1-9bc4-442c-92b4-7f8ac8e26a6d.avro"),
             tr(
-                "/tmp/iceberg/metadata/dremio-partitionStatsMetadata-4709042947025192029.json",
+                "file:///tmp/iceberg/metadata/dremio-partitionStatsMetadata-4709042947025192029.json",
                 IcebergFileType.PARTITION_STATS.name(),
                 NULL_VARCHAR,
                 NULL_BIGINT,
@@ -157,7 +157,7 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
                 4447362982003292979L,
                 "/tmp/iceberg/metadata/snap-4447362982003292979-1-9f0488cd-235e-44d2-b88b-c901424ee372.avro"),
             tr(
-                "/tmp/iceberg/metadata/dremio-partitionStatsMetadata-4447362982003292979.json",
+                "file:///tmp/iceberg/metadata/dremio-partitionStatsMetadata-4447362982003292979.json",
                 IcebergFileType.PARTITION_STATS.name(),
                 NULL_VARCHAR,
                 NULL_BIGINT,
@@ -244,7 +244,7 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
                 4709042947025192029L,
                 "/tmp/iceberg/metadata/snap-4709042947025192029-1-348cabd1-9bc4-442c-92b4-7f8ac8e26a6d.avro"),
             tr(
-                "/tmp/iceberg/metadata/dremio-partitionStatsMetadata-4709042947025192029.json",
+                "file:///tmp/iceberg/metadata/dremio-partitionStatsMetadata-4709042947025192029.json",
                 IcebergFileType.PARTITION_STATS.name(),
                 NULL_VARCHAR,
                 NULL_BIGINT,
@@ -270,7 +270,7 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
                 4447362982003292979L,
                 "/tmp/iceberg/metadata/snap-4447362982003292979-1-9f0488cd-235e-44d2-b88b-c901424ee372.avro"),
             tr(
-                "/tmp/iceberg/metadata/dremio-partitionStatsMetadata-4447362982003292979.json",
+                "file:///tmp/iceberg/metadata/dremio-partitionStatsMetadata-4447362982003292979.json",
                 IcebergFileType.PARTITION_STATS.name(),
                 NULL_VARCHAR,
                 NULL_BIGINT,
@@ -341,6 +341,7 @@ public class TestPartitionStatsTableFunction extends BaseTestTableFunction {
                     SchemaPath.getSimplePath(METADATA_FILE_PATH),
                     SchemaPath.getSimplePath(FILE_PATH)),
                 FILE_TYPE,
-                METADATA_JSON.name())));
+                METADATA_JSON.name(),
+                IcebergUtils.getDefaultPathScheme(fs.getScheme()))));
   }
 }

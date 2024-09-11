@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
@@ -22,7 +21,7 @@
       margin-left: 2px;
 
       .copy-button {
-        color: #43b8c9;
+        color: var(--icon--brand);
         margin: 0 0 0 5px;
         opacity: 0;
       }
@@ -33,10 +32,10 @@
       }
     }
 
-    .view-state-wrapper-overlay .font-icon {
-      background-color: @WHITE;
+    .view-state-wrapper-overlay .dremio-spinner {
+      background-color: var(--fill--primary);
       position: absolute;
-      left: -2px;
+      left: 0px;
       top: -25px;
     }
   }
@@ -45,6 +44,6 @@
     .dataset-label-overlay
     .view-state-wrapper-overlay
     .font-icon {
-    background-color: @PRIMARY_100;
+    background-color: var(--fill--primary--hover);
   }
 }

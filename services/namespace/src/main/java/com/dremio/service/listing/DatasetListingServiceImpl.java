@@ -20,16 +20,20 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import java.util.List;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 /**
  * Implementation of {@link DatasetListingService} that interacts with {@link NamespaceService}
  * running on this node.
  */
+@Singleton
 public class DatasetListingServiceImpl implements DatasetListingService {
 
   private final Provider<NamespaceService.Factory> factoryProvider;
 
+  @Inject
   public DatasetListingServiceImpl(Provider<NamespaceService.Factory> factoryProvider) {
     this.factoryProvider = factoryProvider;
   }

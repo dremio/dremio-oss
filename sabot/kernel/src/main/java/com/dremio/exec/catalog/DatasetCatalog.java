@@ -29,7 +29,6 @@ import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import java.util.List;
@@ -93,7 +92,6 @@ public interface DatasetCatalog {
   /**
    * Create or update a physical dataset along with its read definitions and splits.
    *
-   * @param userNamespaceService namespace service for a user who is adding or modifying a dataset.
    * @param source source where dataset is to be created/updated
    * @param datasetPath dataset full path
    * @param datasetConfig minimum configuration needed to define a dataset (format settings)
@@ -102,7 +100,6 @@ public interface DatasetCatalog {
    * @throws NamespaceException
    */
   boolean createOrUpdateDataset(
-      NamespaceService userNamespaceService,
       NamespaceKey source,
       NamespaceKey datasetPath,
       DatasetConfig datasetConfig,

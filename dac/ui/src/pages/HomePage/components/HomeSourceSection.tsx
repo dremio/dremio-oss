@@ -21,15 +21,12 @@ import { WithRouterProps, withRouter } from "react-router";
 import { compose } from "redux";
 import { orderBy } from "lodash";
 import FinderNav from "@app/components/FinderNav";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
 import { getViewState } from "@app/selectors/resources";
 import {
   getHomeContents,
   getHomeSource,
   getSortedSources,
 } from "@app/selectors/home";
-import { FLEX_COL_START } from "@app/uiTheme/radium/flexStyle";
-import { spacesSourcesListSpinnerStyle } from "@app/pages/HomePage/HomePageConstants";
 
 import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
@@ -68,10 +65,10 @@ function HomeSourceSection(props: HomeSourceSectionProps & WithRouterProps) {
       orderBy(
         result?.contents?.folders?.map((folder: any) =>
           // Adds entityType to folder data for rendering icon
-          decorateFolder(Immutable.fromJS(folder)).toJS()
+          decorateFolder(Immutable.fromJS(folder)).toJS(),
         ) || [],
-        [(folder) => folder.name.toLowerCase()]
-      )
+        [(folder) => folder.name.toLowerCase()],
+      ),
     );
   }, [result]);
 
@@ -83,57 +80,52 @@ function HomeSourceSection(props: HomeSourceSectionProps & WithRouterProps) {
 
   return (
     <div className={clsx("left-tree-wrap", classes["home-source-section"])}>
-      <ViewStateWrapper
-        viewState={viewState}
-        style={FLEX_COL_START}
-        spinnerStyle={spacesSourcesListSpinnerStyle}
-        hideChildrenWhenFailed={false}
-      >
-        <FinderNav
-          title=""
-          noMarginTop
-          navItems={decoratedFolders}
-          isInProgress={viewState.get("isInProgress")}
-          renderLink={() =>
-            homeSource ? (
-              <>
-                <FinderNavItem
-                  linkClass={classes["homeSourceNavItem"]}
-                  item={homeSource}
-                  onlyActiveOnIndex={true}
-                  renderExtra={(item: any, targetRef: any) => (
-                    <>
-                      <SourceBranchPicker
-                        source={item}
-                        getAnchorEl={() => targetRef.current}
-                      />
-                    </>
-                  )}
-                />
-                {SHOW_ADD_FOLDER && showAdd && (
-                  <IconButton
-                    className="add-button"
-                    tooltip={formatMessage({ id: "Common.NewFolder" })}
-                    as={LinkWithRef}
-                    to={{
-                      ...props.location,
-                      state: {
-                        modal: "AddFolderModal",
-                        addToRoot: true,
-                      },
-                    }}
-                  >
-                    <dremio-icon
-                      name="interface/add-small"
-                      class="add-space-icon"
+      <FinderNav
+        title=""
+        noMarginTop
+        navItems={decoratedFolders}
+        isInProgress={viewState.get("isInProgress")}
+        renderLink={() =>
+          homeSource ? (
+            <>
+              <FinderNavItem
+                isLoading={viewState.get("isInProgress")}
+                linkClass={classes["homeSourceNavItem"]}
+                item={homeSource}
+                onlyActiveOnIndex={true}
+                renderExtra={(item: any, targetRef: any) => (
+                  <>
+                    <SourceBranchPicker
+                      source={item}
+                      getAnchorEl={() => targetRef.current}
                     />
-                  </IconButton>
+                  </>
                 )}
-              </>
-            ) : null
-          }
-        />
-      </ViewStateWrapper>
+              />
+              {SHOW_ADD_FOLDER && showAdd && (
+                <IconButton
+                  className="add-button"
+                  tooltip={formatMessage({ id: "Common.NewFolder" })}
+                  as={LinkWithRef}
+                  to={{
+                    ...props.location,
+                    state: {
+                      modal: "AddFolderModal",
+                      rootPath: homeSource.resourcePath,
+                      rootName: homeSource.name,
+                    },
+                  }}
+                >
+                  <dremio-icon
+                    name="interface/add-small"
+                    class="add-space-icon"
+                  />
+                </IconButton>
+              )}
+            </>
+          ) : null
+        }
+      />
     </div>
   );
 }

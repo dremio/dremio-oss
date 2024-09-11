@@ -137,6 +137,7 @@ public class LogInLogOutResource {
               true,
               true,
               true,
+              true,
               true);
 
       return Response.ok(

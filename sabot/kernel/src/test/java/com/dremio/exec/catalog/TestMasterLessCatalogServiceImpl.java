@@ -38,6 +38,8 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
+import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -141,12 +143,16 @@ public class TestMasterLessCatalogServiceImpl {
 
     final SabotContext sabotContext = mock(SabotContext.class);
 
+    MetadataIOPool metadataIOPool = mock(MetadataIOPool.class);
+    when(sabotContext.getMetadataIOPoolProvider()).thenReturn(() -> metadataIOPool);
+
     storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
-    namespaceService = new NamespaceServiceImpl(storeProvider, mock(CatalogStatusEvents.class));
     localClusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
     kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     kvStoreProvider.start();
+
+    namespaceService = new NamespaceServiceImpl(kvStoreProvider, mock(CatalogStatusEvents.class));
     orphanage = new OrphanageImpl(kvStoreProvider);
 
     final Orphanage.Factory orphanageFactory =
@@ -199,7 +205,7 @@ public class TestMasterLessCatalogServiceImpl {
     final OptionValidatorListing optionValidatorListing =
         new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
     final SystemOptionManager som =
-        new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+        new SystemOptionManagerImpl(optionValidatorListing, lpp, () -> storeProvider, true);
     OptionManager optionManager =
         OptionManagerWrapper.Builder.newBuilder()
             .withOptionManager(new DefaultOptionManager(optionValidatorListing))
@@ -217,16 +223,6 @@ public class TestMasterLessCatalogServiceImpl {
     when(sabotContext.getAllocator()).thenReturn(allocator);
 
     when(sabotContext.getClusterCoordinator()).thenReturn(localClusterCoordinator);
-    when(sabotContext.getExecutors())
-        .thenReturn(
-            localClusterCoordinator
-                .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
-                .getAvailableEndpoints());
-    when(sabotContext.getCoordinators())
-        .thenReturn(
-            localClusterCoordinator
-                .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-                .getAvailableEndpoints());
 
     when(sabotContext.getRoles())
         .thenReturn(
@@ -261,7 +257,7 @@ public class TestMasterLessCatalogServiceImpl {
             () -> new SystemTablePluginConfigProvider(),
             null,
             () -> fabricService,
-            () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            () -> ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class),
             () -> allocator,
             () -> storeProvider,
             () -> datasetListingService,

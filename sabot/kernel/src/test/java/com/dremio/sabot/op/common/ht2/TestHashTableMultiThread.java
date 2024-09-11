@@ -193,10 +193,10 @@ public class TestHashTableMultiThread extends BaseTestOperator {
                 new FieldVectorPair(col3, col3));
 
         final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
-        final VariableBlockVector var =
+        final VariableBlockVector variable =
             new VariableBlockVector(allocator, pivot.getVariableCount());
 
-        Pivots.pivot(pivot, records, fbv, var);
+        Pivots.pivot(pivot, records, fbv, variable);
         if (hashTable == null) {
           HashTable.HashTableCreateArgs hashTableCreateArgs =
               new HashTable.HashTableCreateArgs(
@@ -215,12 +215,12 @@ public class TestHashTableMultiThread extends BaseTestOperator {
           hashTable = HashTable.getInstance(SabotConfig.create(), options, hashTableCreateArgs);
         }
         ArrowBuf hashkey8B = allocator.buffer(8 * records);
-        hashTable.computeHash(records, fbv.getBuf(), var.getBuf(), 0, hashkey8B);
+        hashTable.computeHash(records, fbv.getBuf(), variable.getBuf(), 0, hashkey8B);
         long hashKeyBBAddress = hashkey8B.memoryAddress();
         ArrowBuf ordinals = allocator.buffer(4 * records);
         // ArrowBuf needs to be accessed at the right index since it is not strongly typed.
         // For integer, multiply the index by 4
-        hashTable.add(records, fbv.getBuf(), var.getBuf(), hashkey8B, ordinals);
+        hashTable.add(records, fbv.getBuf(), variable.getBuf(), hashkey8B, ordinals);
         for (int i = 0; i < records; i++) {
           logger.debug(
               "Inserted keyvalue {} Returned Ordinal {} ", col3arr[i], ordinals.getInt(i * 4));
@@ -229,7 +229,7 @@ public class TestHashTableMultiThread extends BaseTestOperator {
         hashkey8B.close();
         ordinals.close();
         fbv.close();
-        var.close();
+        variable.close();
       }
     }
   }
@@ -288,14 +288,14 @@ public class TestHashTableMultiThread extends BaseTestOperator {
                 new FieldVectorPair(col3, col3));
 
         try (FixedBlockVector fbv = new FixedBlockVector(readAllocator, pivot.getBlockWidth());
-            VariableBlockVector var =
+            VariableBlockVector variable =
                 new VariableBlockVector(readAllocator, pivot.getVariableCount())) {
 
-          Pivots.pivot(pivot, records, fbv, var);
+          Pivots.pivot(pivot, records, fbv, variable);
           try (ArrowBuf hashkey8B = readAllocator.buffer(8 * records);
               ArrowBuf ordinals = readAllocator.buffer(4 * records)) {
-            hashTable.computeHash(records, fbv.getBuf(), var.getBuf(), 0, hashkey8B);
-            hashTable.find(records, fbv.getBuf(), var.getBuf(), hashkey8B, ordinals);
+            hashTable.computeHash(records, fbv.getBuf(), variable.getBuf(), 0, hashkey8B);
+            hashTable.find(records, fbv.getBuf(), variable.getBuf(), hashkey8B, ordinals);
             for (int i = 0; i < records; i++) {
               Integer ordinal = ordinalHashMap.get(col3arr[i]);
               if (ordinal == null) {

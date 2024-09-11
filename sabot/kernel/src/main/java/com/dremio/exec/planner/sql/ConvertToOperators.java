@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql;
 
 import com.dremio.common.exceptions.UserException;
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCallBinding;
@@ -121,6 +122,37 @@ public final class ConvertToOperators {
                 @Override
                 public boolean isOptional(int i) {
                   return false;
+                }
+              })
+          .withImplicitCoercionStrategy(
+              new ImplicitCoercionStrategy() {
+                @Override
+                public Map<Integer, RelDataType> coerce(SqlCallBinding sqlCallBinding) {
+                  if (!sqlCallBinding.isOperandLiteral(1, false)) {
+                    return Collections.emptyMap();
+                  }
+
+                  String type;
+                  SqlLiteral sqlLiteral = (SqlLiteral) sqlCallBinding.operand(1);
+                  type = ((NlsString) sqlLiteral.getValue()).getValue();
+                  type = type.toUpperCase();
+
+                  SqlOperator operator = TYPE_TO_OPERATOR_MAP.get(type);
+                  if (operator == null) {
+                    return Collections.emptyMap();
+                  }
+
+                  SqlCallBinding rewrittenCallBinding =
+                      new SqlCallBinding(
+                          sqlCallBinding.getValidator(),
+                          sqlCallBinding.getScope(),
+                          operator.createCall(SqlParserPos.ZERO, sqlCallBinding.operand(0)));
+
+                  SqlOperatorBuilder.DremioSqlFunction dremioSqlFunction =
+                      (SqlOperatorBuilder.DremioSqlFunction) operator;
+                  return dremioSqlFunction
+                      .getImplicitCoercionStrategy()
+                      .coerce(rewrittenCallBinding);
                 }
               })
           .build();
@@ -260,7 +292,7 @@ public final class ConvertToOperators {
   public static final SqlOperator CONVERT_TOUTF8 =
       SqlOperatorBuilder.name("CONVERT_TOUTF8")
           .returnType(SqlTypeName.VARBINARY)
-          // TODO: This should really be done through an explict cast
+          // TODO: This should really be done through an explicit cast
           .operandTypes(SqlOperands.ANY)
           .build();
 

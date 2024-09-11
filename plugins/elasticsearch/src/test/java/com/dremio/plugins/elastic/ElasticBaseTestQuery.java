@@ -32,7 +32,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.dremio.PlanTestBase;
 import com.dremio.QueryTestUtil;
-import com.dremio.TestBuilder;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.store.CatalogService;
@@ -115,11 +114,6 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     int scrollSize() default ES_CONFIG_DEFAULT_BATCH_SIZE;
   }
 
-  @Override
-  public TestBuilder testBuilder() {
-    return new TestBuilder(allocator);
-  }
-
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.TYPE})
   public @interface ScriptsEnabled {
@@ -172,8 +166,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   public ElasticConnection getConnection() {
-    ElasticsearchStoragePlugin plugin =
-        getSabotContext().getCatalogService().getSource("elasticsearch");
+    ElasticsearchStoragePlugin plugin = getCatalogService().getSource("elasticsearch");
     return plugin.getRandomConnection();
   }
 
@@ -255,7 +248,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
 
   @After
   public void removeSource() {
-    CatalogServiceImpl service = (CatalogServiceImpl) getSabotContext().getCatalogService();
+    CatalogServiceImpl service = (CatalogServiceImpl) getCatalogService();
     service.deleteSource("elasticsearch");
     if (elastic != null) {
       elastic.wipe();
@@ -307,7 +300,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     int retries = 3;
     while (retries >= 0) {
       try {
-        getSabotContext().getCatalogService().createSourceIfMissingWithThrow(sc);
+        getCatalogService().createSourceIfMissingWithThrow(sc);
         break;
       } catch (Exception e) {
         retries--;

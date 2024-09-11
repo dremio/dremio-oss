@@ -24,7 +24,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.dremio.service.reflection.ReflectionServiceImpl.PlanCacheInvalidationHelper;
+import com.dremio.exec.planner.plancache.PlanCacheInvalidationHelper;
+import com.dremio.exec.planner.plancache.PlanCacheSynchronizer;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;

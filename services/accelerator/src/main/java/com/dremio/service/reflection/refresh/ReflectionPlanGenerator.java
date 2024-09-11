@@ -15,19 +15,21 @@
  */
 package com.dremio.service.reflection.refresh;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.ops.SnapshotDiffContext;
-import com.dremio.exec.planner.events.NonIncrementalRefreshFunctionEvent;
+import com.dremio.exec.planner.events.FunctionDetectedEvent;
 import com.dremio.exec.planner.events.PlannerEventBus;
 import com.dremio.exec.planner.events.PlannerEventHandler;
 import com.dremio.exec.planner.normalizer.NormalizerException;
+import com.dremio.exec.planner.sql.NonIncrementalRefreshFunctionDetector;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.UnmaterializableFunctionDetector;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
@@ -52,11 +54,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.protostuff.ByteString;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.tools.RelConversionException;
@@ -123,9 +129,15 @@ public class ReflectionPlanGenerator {
 
   public RelNode generateNormalizedPlan() {
     PlannerEventBus plannerEventBus = sqlHandlerConfig.getPlannerEventBus();
-    NonIncrementalRefreshFunctionEventHandler handler =
-        new NonIncrementalRefreshFunctionEventHandler();
-    try (Closeable ignored = plannerEventBus.register(handler)) {
+    NonIncrementalRefreshFunctionDetectedEventHandler
+        nonIncrementalRefreshFunctionDetectedEventHandler =
+            new NonIncrementalRefreshFunctionDetectedEventHandler();
+    UnmaterializeableFunctionDetectedEventHandler unmaterializeableFunctionDetectedEventHandler =
+        new UnmaterializeableFunctionDetectedEventHandler();
+    try (Closeable ignored =
+        plannerEventBus.register(
+            nonIncrementalRefreshFunctionDetectedEventHandler,
+            unmaterializeableFunctionDetectedEventHandler)) {
       ReflectionPlanNormalizer planNormalizer =
           new ReflectionPlanNormalizer(
               sqlHandlerConfig,
@@ -140,7 +152,7 @@ public class ReflectionPlanGenerator {
               forceFullUpdate,
               matchingPlanOnly,
               refreshDecisionWrapper,
-              handler);
+              nonIncrementalRefreshFunctionDetectedEventHandler);
       // retrieve reflection's dataset
       final EntityExplorer catalog = sqlHandlerConfig.getContext().getCatalog();
       DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, goal.getDatasetId());
@@ -151,16 +163,20 @@ public class ReflectionPlanGenerator {
       }
       final SqlSelect select = generateSelectStarFromDataset(datasetConfig);
       try {
-
         ConvertedRelNode converted =
             SqlToRelTransformer.validateAndConvertForReflectionRefreshAndCompact(
                 sqlHandlerConfig, select, planNormalizer);
-        if (!converted.getNonCacheableFunctionResult().isReflectionAllowed()) {
+        if (!unmaterializeableFunctionDetectedEventHandler
+            .getUnmaterializableFunctions()
+            .isEmpty()) {
           throw UserException.validationError()
               .message(
-                  "Reflection could not be created as it uses context-sensitive functions. "
-                      + "Functions like IS_MEMBER, USER, etc. cannot be used in reflections since "
-                      + "they require context to complete.")
+                  "Reflection could not be created as it uses the following context-sensitive function(s): "
+                      + unmaterializeableFunctionDetectedEventHandler
+                          .getUnmaterializableFunctions()
+                          .stream()
+                          .map(SqlOperator::getName)
+                          .collect(Collectors.joining(", ")))
               .build(logger);
         }
         this.refreshDecisionWrapper = planNormalizer.getRefreshDecisionWrapper();
@@ -185,7 +201,7 @@ public class ReflectionPlanGenerator {
     final NamespaceKey path = new NamespaceKey(datasetConfig.getFullPathList());
     final SqlNode from;
     final VersionedDatasetId versionedDatasetId =
-        ReflectionUtils.getVersionDatasetId(datasetConfig.getId().getId());
+        VersionedDatasetId.tryParse(datasetConfig.getId().getId());
     if (versionedDatasetId != null) {
       // For reflections on versioned datasets, call UDF to resolve to the correct dataset version
       final TableVersionType tableVersionType = versionedDatasetId.getVersionContext().getType();
@@ -282,22 +298,53 @@ public class ReflectionPlanGenerator {
     }
   }
 
-  static final class NonIncrementalRefreshFunctionEventHandler
-      implements PlannerEventHandler<NonIncrementalRefreshFunctionEvent> {
-    private boolean eventReceived = false;
+  static final class NonIncrementalRefreshFunctionDetectedEventHandler
+      implements PlannerEventHandler<FunctionDetectedEvent> {
+    private List<SqlOperator> nonIncrementalRefreshFunctions;
 
-    @Override
-    public void handle(NonIncrementalRefreshFunctionEvent event) {
-      eventReceived = true;
+    public NonIncrementalRefreshFunctionDetectedEventHandler() {
+      nonIncrementalRefreshFunctions = new ArrayList<>();
     }
 
     @Override
-    public Class<NonIncrementalRefreshFunctionEvent> supports() {
-      return NonIncrementalRefreshFunctionEvent.class;
+    public void handle(FunctionDetectedEvent event) {
+      if (NonIncrementalRefreshFunctionDetector.isA(event.getSqlOperator())) {
+        nonIncrementalRefreshFunctions.add(event.getSqlOperator());
+      }
     }
 
-    public boolean isEventReceived() {
-      return eventReceived;
+    @Override
+    public Class<FunctionDetectedEvent> supports() {
+      return FunctionDetectedEvent.class;
+    }
+
+    public List<SqlOperator> getNonIncrementalRefreshFunctions() {
+      return nonIncrementalRefreshFunctions;
+    }
+  }
+
+  private static final class UnmaterializeableFunctionDetectedEventHandler
+      implements PlannerEventHandler<FunctionDetectedEvent> {
+    private final List<SqlOperator> unmaterializableFunctions;
+
+    public UnmaterializeableFunctionDetectedEventHandler() {
+      this.unmaterializableFunctions = new ArrayList<>();
+    }
+
+    @Override
+    public void handle(FunctionDetectedEvent event) {
+      if (UnmaterializableFunctionDetector.isA(event.getSqlOperator())) {
+        this.unmaterializableFunctions.add(event.getSqlOperator());
+      }
+    }
+
+    @Override
+    public Class<FunctionDetectedEvent> supports() {
+      return FunctionDetectedEvent.class;
+    }
+
+    public List<SqlOperator> getUnmaterializableFunctions() {
+      return unmaterializableFunctions;
     }
   }
 }

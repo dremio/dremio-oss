@@ -125,6 +125,7 @@ public class JobInfoDetailsUI {
   private long cpuUsed;
   private Boolean isOutputLimited;
   private List<String> datasetPaths;
+  private Boolean isProfileIncomplete;
 
   public JobInfoDetailsUI() {}
 
@@ -173,7 +174,8 @@ public class JobInfoDetailsUI {
       @JsonProperty("totalMemory") Long totalMemory,
       @JsonProperty("cpuUsed") Long cpuUsed,
       @JsonProperty("isOutputLimited") Boolean isOutputLimited,
-      @JsonProperty("datasetPaths") List<String> datasetPaths) {
+      @JsonProperty("datasetPaths") List<String> datasetPaths,
+      @JsonProperty("isProfileIncomplete") Boolean isProfileIncomplete) {
     this.id = id;
     this.jobStatus = jobStatus;
     this.queryType = queryType;
@@ -218,6 +220,7 @@ public class JobInfoDetailsUI {
     this.cpuUsed = cpuUsed;
     this.isOutputLimited = isOutputLimited;
     this.datasetPaths = datasetPaths;
+    this.isProfileIncomplete = isProfileIncomplete;
   }
 
   @WithSpan
@@ -318,6 +321,7 @@ public class JobInfoDetailsUI {
     totalMemory = jobAttempt.getDetails().getTotalMemory();
     cpuUsed = jobAttempt.getDetails().getCpuUsed();
     isOutputLimited = jobAttempt.getStats().getIsOutputLimited();
+    isProfileIncomplete = jobAttempt.getIsProfileIncomplete();
     return new JobInfoDetailsUI(
         id,
         jobStatus,
@@ -362,7 +366,8 @@ public class JobInfoDetailsUI {
         totalMemory,
         cpuUsed,
         isOutputLimited,
-        datasetPaths);
+        datasetPaths,
+        isProfileIncomplete);
   }
 
   public String getDatasetVersion() {
@@ -540,6 +545,10 @@ public class JobInfoDetailsUI {
 
   public List<String> getDatasetPaths() {
     return datasetPaths;
+  }
+
+  public boolean getIsProfileIncomplete() {
+    return isProfileIncomplete;
   }
 
   private void convertReflectionListToMap(

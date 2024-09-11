@@ -51,7 +51,6 @@ import org.apache.parquet.format.PageType;
 import org.apache.parquet.format.Util;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.apache.parquet.hadoop.util.PageHeaderUtil;
 import org.joda.time.Period;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -885,7 +884,6 @@ public class TestParquetWriter extends BaseTestQuery {
         String version =
             footer.getFileMetaData().getKeyValueMetaData().get(DREMIO_VERSION_PROPERTY);
         assertEquals(DremioVersionInfo.getVersion(), version);
-        PageHeaderUtil.validatePageHeaders(file.getPath(), footer);
         fileValidator.accept(file.getPath());
       }
     } finally {

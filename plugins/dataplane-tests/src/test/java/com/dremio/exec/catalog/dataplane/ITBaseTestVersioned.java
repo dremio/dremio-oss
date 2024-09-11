@@ -15,18 +15,12 @@
  */
 package com.dremio.exec.catalog.dataplane;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
-import static com.dremio.exec.ExecConstants.ENABLE_USE_VERSION_SYNTAX;
-import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
-import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.ALTERNATIVE_BUCKET_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.BUCKET_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createFolderAtQueryWithIfNotExists;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.fullyQualifiedTableName;
-import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
-import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -34,19 +28,18 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.server.BaseTestServerJunit5;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.catalog.VersionedDatasetId;
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.ReferenceNotFoundException;
-import com.dremio.options.OptionValue;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.plugins.dataplane.store.NessiePluginConfig;
 import com.dremio.plugins.s3.store.S3FileSystem;
@@ -54,7 +47,6 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.findify.s3mock.S3Mock;
@@ -62,20 +54,19 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.projectnessie.client.NessieClientBuilder;
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.client.http.HttpClientBuilder;
 import org.projectnessie.tools.compatibility.api.NessieBaseUri;
-import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
 import software.amazon.awssdk.regions.Region;
 
 @ExtendWith(OlderNessieServersExtension.class)
-@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")
 public abstract class ITBaseTestVersioned extends BaseTestServerJunit5 {
   private static AmazonS3 s3Client;
   private static S3Mock s3Mock;
@@ -138,7 +129,9 @@ public abstract class ITBaseTestVersioned extends BaseTestServerJunit5 {
 
   protected static void setUpNessie() {
     nessieClient =
-        HttpClientBuilder.builder().withUri(createNessieURIString()).build(NessieApiV2.class);
+        NessieClientBuilder.createClientBuilder("HTTP", null)
+            .withUri(createNessieURIString())
+            .build(NessieApiV2.class);
   }
 
   private static NessiePluginConfig prepareConnectionConf(String bucket) {
@@ -146,6 +139,8 @@ public abstract class ITBaseTestVersioned extends BaseTestServerJunit5 {
     nessiePluginConfig.nessieEndpoint = createNessieURIString();
     nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
     nessiePluginConfig.secure = false;
+    nessiePluginConfig.credentialType =
+        AWSAuthenticationType.ACCESS_KEY; // Unused, just needs to be set
     nessiePluginConfig.awsAccessKey = "foo"; // Unused, just needs to be set
     nessiePluginConfig.awsAccessSecret = SecretRef.of("bar"); // Unused, just needs to be set
     nessiePluginConfig.awsRootPath = bucket;
@@ -162,43 +157,23 @@ public abstract class ITBaseTestVersioned extends BaseTestServerJunit5 {
   }
 
   protected static void setUpDataplanePlugin() {
-    getSabotContext()
-        .getOptionManager()
-        .setOption(OptionValue.createBoolean(SYSTEM, VERSIONED_VIEW_ENABLED.getOptionName(), true));
-    getSabotContext()
-        .getOptionManager()
-        .setOption(
-            OptionValue.createBoolean(SYSTEM, ENABLE_USE_VERSION_SYNTAX.getOptionName(), true));
-    getSabotContext()
-        .getOptionManager()
-        .setOption(
-            OptionValue.createBoolean(SYSTEM, ENABLE_ICEBERG_TIME_TRAVEL.getOptionName(), true));
-    getSabotContext()
-        .getOptionManager()
-        .setOption(
-            OptionValue.createBoolean(
-                SYSTEM, REFLECTION_VERSIONED_SOURCE_ENABLED.getOptionName(), true));
-    getSabotContext()
-        .getOptionManager()
-        .setOption(OptionValue.createBoolean(SYSTEM, NESSIE_PLUGIN_ENABLED.getOptionName(), true));
-
-    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
+    catalog = getCatalogService().getSystemUserCatalog();
 
     SourceConfig sourceConfig =
         new SourceConfig()
             .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
             .setName(DATAPLANE_PLUGIN_NAME)
             .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-    catalogImpl.getSystemUserCatalog().createSource(sourceConfig);
-    dataplanePlugin = catalogImpl.getSystemUserCatalog().getSource(DATAPLANE_PLUGIN_NAME);
-    catalog = catalogImpl.getSystemUserCatalog();
+
+    catalog.createSource(sourceConfig);
+    dataplanePlugin = catalog.getSource(DATAPLANE_PLUGIN_NAME);
 
     SourceConfig sourceConfigForReflectionTest =
         new SourceConfig()
             .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
             .setName(DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST)
             .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-    catalogImpl.getSystemUserCatalog().createSource(sourceConfigForReflectionTest);
+    catalog.createSource(sourceConfigForReflectionTest);
 
     namespaceService = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
   }
@@ -223,15 +198,11 @@ public abstract class ITBaseTestVersioned extends BaseTestServerJunit5 {
     return newCatalog;
   }
 
-  public String getContentId(List<String> tableKey, TableVersionContext tableVersionContext) {
-    try {
-      final VersionedDatasetId versionedDatasetId =
-          VersionedDatasetId.fromString(getVersionedDatatsetId(tableKey, tableVersionContext));
-
-      return (versionedDatasetId == null ? null : versionedDatasetId.getContentId());
-    } catch (JsonProcessingException e) {
-      return null;
-    }
+  public @Nullable String getContentId(
+      List<String> tableKey, TableVersionContext tableVersionContext) {
+    String datatsetId = getVersionedDatatsetId(tableKey, tableVersionContext);
+    final VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datatsetId);
+    return (versionedDatasetId == null ? null : versionedDatasetId.getContentId());
   }
 
   public String getVersionedDatatsetId(

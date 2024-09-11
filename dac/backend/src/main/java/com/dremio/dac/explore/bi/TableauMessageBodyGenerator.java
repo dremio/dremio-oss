@@ -46,6 +46,7 @@ import java.io.OutputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -155,25 +156,42 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
   /** Enum for the different types of Tableau export available within Dremio. */
   public enum TableauExportType {
-    ODBC("", "", EXTRA_CONNECTION_PROPERTIES),
-    FLIGHT("useencryption=true", "dremio", EXTRA_FLIGHT_CONNECTION_PROPERTIES),
-    NATIVE("ssl=true", "dremio", EXTRA_NATIVE_CONNECTION_PROPERTIES);
+    ODBC("", "", EXTRA_CONNECTION_PROPERTIES, ""),
+    FLIGHT(
+        "useencryption=true",
+        "dremio",
+        EXTRA_FLIGHT_CONNECTION_PROPERTIES,
+        "disablecertificateverification=true"),
+    NATIVE(
+        "ssl=true",
+        "dremio",
+        EXTRA_NATIVE_CONNECTION_PROPERTIES,
+        "disablecertificateverification=true");
 
+    private final String disableCertificateVerification;
     private final String sslProps;
     private final String connectorClass;
     private final StringValidator extraConnectionProps;
 
     TableauExportType(
-        String sslProps, String connectorClass, StringValidator extraConnectionProps) {
+        String sslProps,
+        String connectorClass,
+        StringValidator extraConnectionProps,
+        String disableCertificateVerification) {
       // The ssl property has to be lower case to mirror the case insensitivity of JDBC connection
       // properties
       this.sslProps = sslProps.toLowerCase(Locale.ROOT);
       this.connectorClass = connectorClass;
       this.extraConnectionProps = extraConnectionProps;
+      this.disableCertificateVerification = disableCertificateVerification;
     }
 
     public String getSslProps() {
       return sslProps;
+    }
+
+    public String getDisableCertificateVerification() {
+      return disableCertificateVerification;
     }
 
     public String getConnectorClass() {
@@ -331,39 +349,50 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
-  protected String getSdkProduct(TableauExportType tableauExportType) {
-    return tableauExportType.equals(TableauExportType.FLIGHT)
-        ? TableauSDKConstants.SOFTWARE
-        : TableauSDKConstants.LEGACY_SOFTWARE;
+  protected String useFlightDriver(TableauExportType tableauExportType) {
+    return tableauExportType.equals(TableauExportType.FLIGHT) ? "true" : "false";
+  }
+
+  protected String getSdkProduct() {
+    return TableauSDKConstants.SOFTWARE;
   }
 
   protected Map<String, String> getSdkCustomProperties() {
     return ImmutableMap.of(
         TableauSDKConstants.QUEUE, "",
         TableauSDKConstants.TAG, "",
-        TableauSDKConstants.ENGINE, "",
-        TableauSDKConstants.DISABLE_CERT_VERIFICATION, "");
+        TableauSDKConstants.ENGINE, "");
   }
 
   protected Map<String, String> getSdkAuthenticationMethod(String hostname) {
     return ImmutableMap.of(TableauSDKConstants.AUTHENTICATION, TableauSDKConstants.BASIC);
   }
 
-  protected String getSdkSSL(TableauExportType tableauExportType) {
-    // TODO(DX-34480): We only check for ssl=true and ignore any other option
-    String customExtraProperties =
-        getOptionManager().getOption(tableauExportType.getExtraConnectionProps());
-    customExtraProperties = customExtraProperties.replace(" ", "").toLowerCase(Locale.ROOT);
+  protected String[] getExtraConnectionProperties(TableauExportType tableauExportType) {
+    return getOptionManager()
+        .getOption(tableauExportType.getExtraConnectionProps())
+        .replace(" ", "")
+        .toLowerCase(Locale.ROOT)
+        .split(";");
+  }
 
-    // The "parsing" here is rudimentary, and is not meant to be advanced. We simply need a flag to
-    // determine if SSL
-    // is enabled to allow Tableau to do the right thing. As more options are added, this may need
-    // to be more complex.
-    if (customExtraProperties.contains(tableauExportType.getSslProps())
+  protected String getSdkSSL(
+      TableauExportType tableauExportType, String[] extraConnectionProperties) {
+    if (Arrays.stream(extraConnectionProperties)
+            .anyMatch(prop -> prop.equals(tableauExportType.getSslProps()))
         || (config.hasPath(USER_SSL) && config.getBoolean(USER_SSL))) {
       return TableauSDKConstants.REQUIRE;
     }
     return TableauSDKConstants.NOT_REQUIRE;
+  }
+
+  protected String getDisableCertVerification(
+      TableauExportType tableauExportType, String[] extraConnectionProperties) {
+    if (Arrays.stream(extraConnectionProperties)
+        .anyMatch(prop -> prop.equals(tableauExportType.getDisableCertificateVerification()))) {
+      return "true";
+    }
+    return "";
   }
 
   private void writeAttributes(XMLStreamWriter xmlStreamWriter, Map<String, String> properties)
@@ -388,6 +417,10 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
             ? String.valueOf(config.getInt(DremioConfig.FLIGHT_SERVICE_PORT_INT))
             : String.valueOf(getPort());
 
+    String useFlightDriver = useFlightDriver(tableauExportType);
+
+    String[] extraConnectionProperties = getExtraConnectionProperties(tableauExportType);
+
     final Map<String, String> basicAttributes =
         new ImmutableMap.Builder<String, String>()
             .put(TableauSDKConstants.CLASS, tableauExportType.getConnectorClass())
@@ -396,8 +429,12 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
             .put(TableauSDKConstants.PORT, port)
             .put(TableauSDKConstants.SERVER, hostname)
             .put(TableauSDKConstants.USERNAME, "")
-            .put(TableauSDKConstants.PRODUCT, getSdkProduct(tableauExportType))
-            .put(TableauSDKConstants.SSL, getSdkSSL(tableauExportType))
+            .put(TableauSDKConstants.PRODUCT, getSdkProduct())
+            .put(TableauSDKConstants.SSL, getSdkSSL(tableauExportType, extraConnectionProperties))
+            .put(
+                TableauSDKConstants.DISABLE_CERT_VERIFICATION,
+                getDisableCertVerification(tableauExportType, extraConnectionProperties))
+            .put(TableauSDKConstants.USE_FLIGHT_DRIVER, useFlightDriver)
             .build();
 
     writeAttributes(xmlStreamWriter, basicAttributes);

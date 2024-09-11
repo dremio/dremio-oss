@@ -50,6 +50,9 @@ public class ServerData {
   private final boolean allowFormatting;
   private final boolean useNewDatasetNavigation;
   private final boolean showNewJobsTables;
+  private final boolean asyncDownloadEnabled;
+  private final boolean nextgenSearchUIEnabled;
+  private final boolean appearancePickerEnabled;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -80,6 +83,9 @@ public class ServerData {
     this.allowFormatting = builder.allowFormatting;
     this.useNewDatasetNavigation = builder.useNewDatasetNavigation;
     this.showNewJobsTables = builder.showNewJobsTables;
+    this.asyncDownloadEnabled = builder.asyncDownloadEnabled;
+    this.nextgenSearchUIEnabled = builder.nextgenSearchUIEnabled;
+    this.appearancePickerEnabled = builder.appearancePickerEnabled;
   }
 
   public String getServerEnvironment() {
@@ -202,6 +208,18 @@ public class ServerData {
     return showNewJobsTables;
   }
 
+  public boolean isAsyncDownloadEnabled() {
+    return asyncDownloadEnabled;
+  }
+
+  public boolean isNextgenSearchUIEnabled() {
+    return nextgenSearchUIEnabled;
+  }
+
+  public boolean isAppearancePickerEnabled() {
+    return appearancePickerEnabled;
+  }
+
   /** A builder for server data */
   public static class Builder {
     private String serverEnvironment;
@@ -232,6 +250,9 @@ public class ServerData {
     private boolean allowFormatting;
     private boolean useNewDatasetNavigation;
     private boolean showNewJobsTables;
+    private boolean asyncDownloadEnabled;
+    private boolean nextgenSearchUIEnabled;
+    private boolean appearancePickerEnabled;
 
     protected Builder() {}
 
@@ -264,6 +285,9 @@ public class ServerData {
       this.allowFormatting = builder.allowFormatting;
       this.useNewDatasetNavigation = builder.useNewDatasetNavigation;
       this.showNewJobsTables = builder.showNewJobsTables;
+      this.asyncDownloadEnabled = builder.asyncDownloadEnabled;
+      this.nextgenSearchUIEnabled = builder.nextgenSearchUIEnabled;
+      this.appearancePickerEnabled = builder.appearancePickerEnabled;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -404,6 +428,21 @@ public class ServerData {
 
     public Builder setShowNewJobsTables(boolean showNewJobsTables) {
       this.showNewJobsTables = showNewJobsTables;
+      return this;
+    }
+
+    public Builder setAsyncDownloadEnabled(boolean asyncDownloadEnabled) {
+      this.asyncDownloadEnabled = asyncDownloadEnabled;
+      return this;
+    }
+
+    public Builder setNextgenSearchUIEnabled(boolean nextgenSearchUIEnabled) {
+      this.nextgenSearchUIEnabled = nextgenSearchUIEnabled;
+      return this;
+    }
+
+    public Builder setAppearancePickerEnabled(boolean appearancePickerEnabled) {
+      this.appearancePickerEnabled = appearancePickerEnabled;
       return this;
     }
 

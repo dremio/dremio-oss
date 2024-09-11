@@ -29,7 +29,11 @@ public interface FunctionNamespaceService {
 
   FunctionConfig getFunction(NamespaceKey functionPath) throws NamespaceException;
 
+  /** Gets all functions. */
   List<FunctionConfig> getFunctions();
+
+  /** Gets top level functions. */
+  List<FunctionConfig> getTopLevelFunctions();
 
   void deleteFunction(NamespaceKey functionPath) throws NamespaceException;
 }

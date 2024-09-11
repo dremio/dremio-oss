@@ -41,18 +41,21 @@ public class TestCarryForwardAwareTableFunctionContext {
                 SchemaPath.getCompoundPath(SystemSchemas.SPLIT_IDENTITY, SplitIdentity.PATH),
                 SchemaPath.getSimplePath(SystemSchemas.FILE_PATH)),
             SystemSchemas.FILE_TYPE,
-            IcebergFileType.MANIFEST_LIST.name());
+            IcebergFileType.MANIFEST_LIST.name(),
+            "file");
 
     String serialized = mapper.writeValueAsString(ctx);
     CarryForwardAwareTableFunctionContext deserialized =
         mapper.readValue(serialized, CarryForwardAwareTableFunctionContext.class);
 
     assertThat(deserialized)
-        .extracting("isCarryForwardEnabled", "inputColMap", "constValCol", "constVal")
+        .extracting(
+            "isCarryForwardEnabled", "inputColMap", "constValCol", "constVal", "schemeVariate")
         .containsExactly(
             ctx.isCarryForwardEnabled(),
             ctx.getInputColMap(),
             ctx.getConstValCol(),
-            ctx.getConstVal());
+            ctx.getConstVal(),
+            ctx.getSchemeVariate());
   }
 }

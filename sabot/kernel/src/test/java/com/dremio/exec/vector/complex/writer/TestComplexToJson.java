@@ -35,7 +35,7 @@ public class TestComplexToJson extends BaseTestQuery {
     DremioClient parent_client = client;
 
     List<QueryDataBatch> results;
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
 
     setup();
     results =
@@ -57,7 +57,7 @@ public class TestComplexToJson extends BaseTestQuery {
     DremioClient parent_client = client;
 
     List<QueryDataBatch> results;
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
 
     setup();
     results =

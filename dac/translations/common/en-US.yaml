@@ -1,0 +1,25 @@
+---
+Common.Action.Add: Add
+Common.Action.Create: Create
+Common.Action.Delete: Delete
+Common.Action.Discard: Discard
+Common.Action.Remove: Remove
+Common.Action.Revert: Revert
+Common.Action.Save: Save
+Common.Action.Undo: Undo
+Common.Action.Update: Update
+Common.Noun.Dataset: Dataset
+Common.Noun.Engine: Engine
+Common.Noun.Folder: Folder
+Common.Noun.Reflection: Reflection
+Common.Noun.Script: Script
+Common.Noun.Sonar: Sonar
+Common.Noun.Source: Source
+Common.Noun.Space: Space
+Common.Noun.Table: Table
+Common.Noun.View: View
+Common.Temporal.Created: Created on
+Common.Temporal.Deleted: Deleted on
+Common.Temporal.LastNDays: "Last {n, plural, one {24 hours} other { # days }}"
+Common.Temporal.LastNHours: "Last {n, plural, one {hour} other { # hours }}"
+Common.Temporal.Updated: Updated on

@@ -48,6 +48,13 @@ const Collapsible = ({
           onClick={() => {
             setOpen(open ? false : true);
           }}
+          tabIndex={0}
+          onKeyPress={(e) => {
+            if (e.code === "Enter" || e.code === "Space") {
+              setOpen(open ? false : true);
+            }
+          }}
+          aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
         >
           <dremio-icon
             name={open ? "interface/down-chevron" : "interface/up-chevron"}
@@ -81,7 +88,7 @@ const Collapsible = ({
                   </div>
                 </div>
               );
-            }
+            },
           )}
         </div>
       </div>

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { arcticCatalogTabs } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
+import { versionedPageTabs } from "@app/exports/pages/VersionedHomePage/VersionedHomePage";
 
 export const isActive = ({
   name,
@@ -37,7 +37,7 @@ export const isActive = ({
   if (
     isArctic &&
     name === "catalog" &&
-    arcticCatalogTabs
+    versionedPageTabs
       .filter((tab) => tab !== "settings" && tab !== "jobs")
       .includes(loc.split("/")[3])
   ) {

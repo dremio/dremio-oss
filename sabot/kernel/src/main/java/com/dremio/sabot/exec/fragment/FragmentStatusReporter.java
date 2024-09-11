@@ -135,6 +135,15 @@ class FragmentStatusReporter {
     notifyStatusChanged(status);
   }
 
+  public int fillStats(
+      StringBuilder logBuffer,
+      String queryId,
+      String state,
+      String taskState,
+      boolean dumpHeapUsage) {
+    return stats.fillLogBuffer(logBuffer, queryId, state, taskState, dumpHeapUsage);
+  }
+
   private void notifyStatusChanged(final FragmentStatus status) {
     maestroProxy.fragmentStatusChanged(status);
   }

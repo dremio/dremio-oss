@@ -19,8 +19,8 @@ import com.dremio.common.exceptions.UserCancellationException;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo.Substitution;
 import com.dremio.exec.planner.logical.ViewTable;
@@ -29,10 +29,12 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.visitor.QueryProfileProcessor;
+import com.dremio.exec.planner.plancache.CachedPlan;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
+import com.dremio.exec.proto.UserBitShared.DatasetProfile.Builder;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.LayoutMaterializedViewProfile;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
@@ -40,6 +42,8 @@ import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
+import com.dremio.resource.GroupResourceInformation;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
@@ -85,6 +89,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   private final RelSerializerFactory relSerializerFactory;
 
   private Map<String, UserBitShared.RelNodeInfo> finalPrelInfo = new HashMap<>();
+
   private String text;
   private String json;
   private BatchSchema schema;
@@ -331,7 +336,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
               .addAllDisplayColumns(materialization.getLayoutInfo().getDisplayColumns())
               .setNumSubstitutions(substitutions.size())
               .setMillisTakenSubstituting(millisTaken)
-              .setPlan(toStringOrEmpty(materialization.getQueryRel(), false))
+              .setPlan(toStringOrEmpty(materialization.getOriginal(), false))
               .addNormalizedPlans(toProfilePlan(target))
               .setSnowflake(materialization.isSnowflake())
               .setDefaultReflection(defaultReflection);
@@ -380,6 +385,33 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     } else if (batchSchema != null) {
       schema = batchSchema;
     }
+  }
+
+  @Override
+  public void resourcesPlanned(GroupResourceInformation resourceInformation, long millisTaken) {
+    StringBuilder builder = new StringBuilder();
+    builder.append("\ngroupResourceInformation {\n");
+    resourceInformation.appendProfileLogging(builder, this.funcRegistry.getOptionManager());
+    builder.append("\n}");
+    planPhases.add(
+        PlanPhaseProfile.newBuilder()
+            .setPhaseName(PlannerPhase.PLAN_RESOURCES_PLANNED)
+            .setDurationMillis(millisTaken)
+            .setPlan(builder.toString())
+            .build());
+  }
+
+  @Override
+  public void resourcesScheduled(ResourceSchedulingDecisionInfo info) {
+    if (info.getSchedulingEndTimeMs() == 0) {
+      return;
+    }
+    planPhases.add(
+        PlanPhaseProfile.newBuilder()
+            .setPhaseName(PlannerPhase.PLAN_RESOURCES_ALLOCATED)
+            .setDurationMillis(info.getSchedulingEndTimeMs() - info.getSchedulingStartTimeMs())
+            .setPlan("")
+            .build());
   }
 
   @Override
@@ -521,7 +553,12 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
             .setPlan(planAsString);
 
     // dump state of volcano planner to troubleshoot costing issues (or long planning issues).
-    if (verbose || noTransform) {
+    // only add it if the plan string is empty, or it's the logical/physical planning phase, because
+    // it would otherwise be redundant info.
+    if ((verbose || noTransform)
+        && (planAsString.isEmpty()
+            || phase == PlannerPhase.LOGICAL
+            || phase == PlannerPhase.PHYSICAL)) {
       final String dump = getPlanDump(planner);
       if (dump != null) {
         b.setPlannerDump(dump);
@@ -594,11 +631,15 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     try {
       if (t instanceof ViewTable) {
         final ViewTable view = (ViewTable) t;
-        return UserBitShared.DatasetProfile.newBuilder()
-            .setDatasetPath(t.getPath().getSchemaPath())
-            .setType(UserBitShared.DatasetType.VDS)
-            .setSql(view.getView().getSql())
-            .build();
+        Builder builder =
+            UserBitShared.DatasetProfile.newBuilder()
+                .setDatasetPath(t.getPath().getSchemaPath())
+                .setType(UserBitShared.DatasetType.VDS)
+                .setSql(view.getView().getSql());
+        if (view.getVersionContext() != null) {
+          builder.setVersionContext(view.getVersionContext().toSql());
+        }
+        return builder.build();
       } else {
         Boolean allowApproxStats = false;
 
@@ -606,13 +647,16 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         if (physicalDataset != null) {
           allowApproxStats = physicalDataset.getAllowApproxStats();
         }
-
-        return UserBitShared.DatasetProfile.newBuilder()
-            .setDatasetPath(t.getPath().getSchemaPath())
-            .setType(UserBitShared.DatasetType.PDS)
-            .setBatchSchema(ByteString.copyFrom(t.getSchema().serialize()))
-            .setAllowApproxStats(allowApproxStats)
-            .build();
+        Builder builder =
+            UserBitShared.DatasetProfile.newBuilder()
+                .setDatasetPath(t.getPath().getSchemaPath())
+                .setType(UserBitShared.DatasetType.PDS)
+                .setBatchSchema(ByteString.copyFrom(t.getSchema().serialize()))
+                .setAllowApproxStats(allowApproxStats);
+        if (t.getDataset().getVersionContext() != null) {
+          builder.setVersionContext(t.getDataset().getVersionContext().toSql());
+        }
+        return builder.build();
       }
     } catch (Exception e) {
       logger.warn("Couldn't build dataset profile for table {}", t.getPath().getSchemaPath(), e);
@@ -648,9 +692,6 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
             .setPlan(sb.toString())
             .build());
   }
-
-  @Override
-  public void recordsProcessed(long recordCount) {}
 
   @Override
   public void planGenerationTime(long millisTaken) {

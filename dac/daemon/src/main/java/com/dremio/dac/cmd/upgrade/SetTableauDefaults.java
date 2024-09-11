@@ -16,11 +16,12 @@
 package com.dremio.dac.cmd.upgrade;
 
 import com.dremio.common.Version;
+import com.dremio.dac.options.TableauResourceOptions;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
-import com.dremio.dac.resource.TableauResource;
 import com.dremio.dac.support.BasicSupportService;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.options.OptionValue;
 import com.dremio.service.DirectProvider;
 import com.google.common.annotations.VisibleForTesting;
@@ -57,7 +58,7 @@ public class SetTableauDefaults extends UpgradeTask {
     final Supplier<SystemOptionManager> optionManagerSupplier =
         Suppliers.memoize(
             () ->
-                new SystemOptionManager(
+                new SystemOptionManagerImpl(
                     new OptionValidatorListingImpl(context.getScanResult()),
                     context.getLpPersistence(),
                     DirectProvider.wrap(context.getLegacyKVStoreProvider()),
@@ -95,12 +96,13 @@ public class SetTableauDefaults extends UpgradeTask {
         optionManager.start();
       }
 
-      final OptionValue regularTableauDefault = TableauResource.CLIENT_TOOLS_TABLEAU.getDefault();
+      final OptionValue regularTableauDefault =
+          TableauResourceOptions.CLIENT_TOOLS_TABLEAU.getDefault();
       final OptionValue tableauEnable =
           OptionValue.createBoolean(
               regularTableauDefault.getType(), regularTableauDefault.getName(), false);
 
-      if (!optionManager.isSet(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName())) {
+      if (!optionManager.isSet(TableauResourceOptions.CLIENT_TOOLS_TABLEAU.getOptionName())) {
         optionManager.setOption(tableauEnable);
         return true;
       }

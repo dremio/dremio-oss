@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-
 :global {
   .sqlTab {
     overflow: hidden;
@@ -60,34 +58,13 @@
 
     &__editor {
       margin: 10px 0;
-
-      .monaco-editor {
-        .margin,
-        .monaco-scrollable-element {
-          margin-top: 5px !important;
-        }
-      }
-
-      .monaco-editor.vs {
-        background-color: @black-haze;
-
-        .overflow-guard {
-          .margin {
-            background-color: @black-haze;
-          }
-
-          .monaco-scrollable-element .monaco-editor-background {
-            background-color: @black-haze;
-          }
-        }
-      }
     }
 
     &__icon {
       height: 24px;
       width: 24px;
       margin-right: 8px;
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
     }
   }
 }

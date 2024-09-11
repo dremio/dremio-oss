@@ -15,9 +15,12 @@
  */
 package com.dremio.dac.service;
 
+import static com.dremio.exec.catalog.CatalogOptions.SUPPORT_UDF_API;
+import static com.dremio.exec.catalog.CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -27,6 +30,7 @@ import static org.mockito.Mockito.when;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.api.CatalogEntity;
 import com.dremio.dac.api.Dataset;
@@ -46,7 +50,6 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.server.SabotContext;
@@ -99,6 +102,7 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
   @Mock private HomeFileTool homeFileTool;
   @Mock private DatasetVersionMutator datasetVersionMutator;
   @Mock private SearchService searchService;
+  @Mock private OptionManager optionManager;
 
   private static final String sourceId = UUID.randomUUID().toString();
   private static final String datasetId = UUID.randomUUID().toString();
@@ -116,7 +120,8 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             .setType(NameSpaceContainer.Type.SOURCE)
             .setFullPathList(Arrays.asList("versionedSource"));
 
-    when(namespaceService.getEntityById(eq(sourceId))).thenReturn(sourceContainer);
+    when(namespaceService.getEntityById(eq(new EntityId(sourceId))))
+        .thenReturn(Optional.of(sourceContainer));
     when(namespaceService.getEntities(
             eq(Collections.singletonList(new NamespaceKey("versionedSource")))))
         .thenReturn(Collections.singletonList(sourceContainer));
@@ -142,7 +147,7 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             homeFileTool,
             datasetVersionMutator,
             searchService,
-            mock(OptionManager.class));
+            optionManager);
   }
 
   @Test
@@ -193,12 +198,20 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
 
     when(securityContext.getUserPrincipal()).thenReturn(() -> "user123");
     when(sourceService.listSource(
-            any(SourceName.class), any(SourceConfig.class), eq("user123"), eq(null), eq(null)))
+            any(SourceName.class),
+            any(SourceConfig.class),
+            eq("user123"),
+            eq(null),
+            eq(null),
+            any(),
+            anyInt()))
         .thenReturn(contents);
-    when(sourceService.fromSourceConfig(eq(sourceConfig), any(List.class))).thenReturn(testSource);
+    when(sourceService.fromSourceConfig(eq(sourceConfig), any(List.class), any()))
+        .thenReturn(testSource);
 
     final Optional<CatalogEntity> catalogEntity =
-        catalogServiceHelper.getCatalogEntityById(sourceId, ImmutableList.of(), ImmutableList.of());
+        catalogServiceHelper.getCatalogEntityById(
+            sourceId, ImmutableList.of(), ImmutableList.of(), null, 0);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Source.class);
@@ -272,12 +285,14 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             any(SourceFolderPath.class),
             eq("user123"),
             eq("BRANCH"),
-            eq("main")))
+            eq("main"),
+            any(),
+            anyInt()))
         .thenReturn(contents);
 
     final Optional<CatalogEntity> catalogEntity =
         catalogServiceHelper.getCatalogEntityById(
-            folderId.asString(), ImmutableList.of(), ImmutableList.of());
+            folderId.asString(), ImmutableList.of(), ImmutableList.of(), null, null);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Folder.class);
@@ -315,7 +330,8 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
 
     final Optional<CatalogEntity> catalogEntity =
-        catalogServiceHelper.getCatalogEntityById(tableId, ImmutableList.of(), ImmutableList.of());
+        catalogServiceHelper.getCatalogEntityById(
+            tableId, ImmutableList.of(), ImmutableList.of(), null, 0);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Dataset.class);
@@ -352,7 +368,8 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
 
     final Optional<CatalogEntity> catalogEntity =
-        catalogServiceHelper.getCatalogEntityById(viewId, ImmutableList.of(), ImmutableList.of());
+        catalogServiceHelper.getCatalogEntityById(
+            viewId, ImmutableList.of(), ImmutableList.of(), null, 0);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Dataset.class);
@@ -364,6 +381,33 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
   }
 
   @Test
+  public void getCatalogFunctionEntityById() throws NamespaceException {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+    when(optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)).thenReturn(true);
+    final String functionId =
+        VersionedDatasetId.newBuilder()
+            .setTableVersionContext(TableVersionContext.of(VersionContext.ofBranch("main")))
+            .setContentId(UUID.randomUUID().toString())
+            .setTableKey(Arrays.asList("versionedSource", "udf"))
+            .build()
+            .asString();
+
+    ResolvedVersionContext resolvedVersionContext =
+        ResolvedVersionContext.ofBranch("main", "abc123");
+
+    when(dataplanePlugin.resolveVersionContext(any(VersionContext.class)))
+        .thenReturn(resolvedVersionContext);
+    when(dataplanePlugin.getType(eq(Arrays.asList("udf")), eq(resolvedVersionContext)))
+        .thenReturn(VersionedPlugin.EntityType.UDF);
+
+    final Optional<CatalogEntity> catalogEntity =
+        catalogServiceHelper.getCatalogEntityById(
+            functionId, ImmutableList.of(), ImmutableList.of(), null, 0);
+
+    assertThat(catalogEntity.isPresent()).isFalse();
+  }
+
+  @Test
   public void getCatalogEntityByPathWithoutVersionValue() throws Exception {
     assertThatThrownBy(
             () ->
@@ -372,6 +416,8 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
                     ImmutableList.of(),
                     ImmutableList.of(),
                     "BRANCH",
+                    null,
+                    null,
                     null))
         .isInstanceOf(ClientErrorException.class)
         .hasMessageContaining("Missing a valid versionType/versionValue");
@@ -386,7 +432,9 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
                     ImmutableList.of(),
                     ImmutableList.of(),
                     null,
-                    "main"))
+                    "main",
+                    null,
+                    null))
         .isInstanceOf(ClientErrorException.class)
         .hasMessageContaining("Missing a valid versionType/versionValue");
   }
@@ -416,6 +464,8 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             ImmutableList.of(),
             ImmutableList.of(),
             null,
+            null,
+            null,
             null);
 
     assertThat(catalogEntity.isPresent()).isTrue();
@@ -437,7 +487,9 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             ImmutableList.of(),
             ImmutableList.of(),
             "BRANCH",
-            "main");
+            "main",
+            null,
+            null);
 
     assertThat(catalogEntity.isPresent()).isFalse();
   }
@@ -466,7 +518,9 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             ImmutableList.of(),
             ImmutableList.of(),
             "BRANCH",
-            "main");
+            "main",
+            null,
+            null);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Dataset.class);
@@ -500,7 +554,9 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             ImmutableList.of(),
             ImmutableList.of(),
             "SNAPSHOT",
-            "1128544236092645872");
+            "1128544236092645872",
+            null,
+            null);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Dataset.class);
@@ -534,7 +590,9 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             ImmutableList.of(),
             ImmutableList.of(),
             "TIMESTAMP",
-            "1679029735226");
+            "1679029735226",
+            null,
+            null);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Dataset.class);
@@ -569,7 +627,9 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             ImmutableList.of(),
             ImmutableList.of(),
             "BRANCH",
-            "main");
+            "main",
+            null,
+            null);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Dataset.class);
@@ -651,7 +711,9 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             any(SourceFolderPath.class),
             eq("user123"),
             eq("BRANCH"),
-            eq("main")))
+            eq("main"),
+            any(),
+            anyInt()))
         .thenReturn(contents);
 
     final Optional<CatalogEntity> catalogEntity =
@@ -660,7 +722,9 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
             ImmutableList.of(),
             ImmutableList.of(),
             "BRANCH",
-            "main");
+            "main",
+            null,
+            null);
 
     assertThat(catalogEntity.isPresent()).isTrue();
     assertThat(catalogEntity.get()).isInstanceOf(Folder.class);
@@ -671,6 +735,31 @@ public class TestCatalogServiceHelperForVersioned extends DremioTest {
     assertThat(folder.getPath()).isEqualTo(Arrays.asList("versionedSource", "myfolder"));
     assertThat(folder.getName()).isEqualTo("myfolder");
     assertThat(folder.getChildren().size()).isEqualTo(3);
+  }
+
+  @Test
+  public void getCatalogEntityByPathForFunction() throws NamespaceException {
+    when(optionManager.getOption(SUPPORT_UDF_API)).thenReturn(true);
+    when(optionManager.getOption(VERSIONED_SOURCE_UDF_ENABLED)).thenReturn(true);
+    ResolvedVersionContext resolvedVersionContext =
+        ResolvedVersionContext.ofBranch("main", "abc123");
+
+    when(dataplanePlugin.resolveVersionContext(any(VersionContext.class)))
+        .thenReturn(resolvedVersionContext);
+    when(dataplanePlugin.getType(eq(Arrays.asList("udf")), eq(resolvedVersionContext)))
+        .thenReturn(VersionedPlugin.EntityType.UDF);
+
+    final Optional<CatalogEntity> catalogEntity =
+        catalogServiceHelper.getCatalogEntityByPath(
+            Arrays.asList("versionedSource", "udf"),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            "BRANCH",
+            "main",
+            null,
+            null);
+
+    assertThat(catalogEntity.isPresent()).isFalse();
   }
 
   @Test

@@ -35,7 +35,9 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -138,25 +140,30 @@ public class RuntimeFilterDecorator {
           RuntimeFilterId.createRuntimeFilterId(
               buildSideRel, buildExchangePrel instanceof BroadcastExchangePrel);
       boolean found = false;
-
+      Set<Integer> processedProbeKeys = new HashSet<>();
       for (Pair<Integer, Integer> keyPair : Pair.zip(probeKeys, buildKeys)) {
         Integer probeKey = keyPair.left;
         Integer buildKey = keyPair.right;
-        String buildFieldName = rightFields.get(buildKey);
-        List<ColumnOriginScan> probeSideColumnOriginList =
-            ((Prel) probeSideRel).accept(new FindScanVisitor(), probeKey);
-        for (ColumnOriginScan probeSideColumnOrigin : probeSideColumnOriginList) {
-          RuntimeFilteredRel scanPrel = probeSideColumnOrigin.filteredRel;
-          String probeFieldName = probeSideColumnOrigin.fieldName;
-          RuntimeFilteredRel.ColumnType columnType =
-              isPartitionColumn(scanPrel, probeFieldName)
-                  ? RuntimeFilteredRel.ColumnType.PARTITION
-                  : RuntimeFilteredRel.ColumnType.RANDOM;
-          if (columnType == RuntimeFilteredRel.ColumnType.PARTITION
-              || (nonParitionRuntimeFiltersEnabled && shouldAddNonPartitionRF)) {
-            scanPrel.addRuntimeFilter(
-                new RuntimeFilteredRel.Info(id, columnType, probeFieldName, buildFieldName));
-            found = true;
+        if (!processedProbeKeys.contains(probeKey)) {
+          String buildFieldName = rightFields.get(buildKey);
+          List<ColumnOriginScan> probeSideColumnOriginList =
+              ((Prel) probeSideRel).accept(new FindScanVisitor(), probeKey);
+          for (ColumnOriginScan probeSideColumnOrigin : probeSideColumnOriginList) {
+            RuntimeFilteredRel scanPrel = probeSideColumnOrigin.filteredRel;
+            String probeFieldName = probeSideColumnOrigin.fieldName;
+            RuntimeFilteredRel.ColumnType columnType =
+                isPartitionColumn(scanPrel, probeFieldName)
+                    ? RuntimeFilteredRel.ColumnType.PARTITION
+                    : RuntimeFilteredRel.ColumnType.RANDOM;
+            if (columnType == RuntimeFilteredRel.ColumnType.PARTITION
+                || (nonParitionRuntimeFiltersEnabled && shouldAddNonPartitionRF)) {
+              scanPrel.addRuntimeFilter(
+                  new RuntimeFilteredRel.Info(id, columnType, probeFieldName, buildFieldName));
+              found = true;
+              if (columnType == RuntimeFilteredRel.ColumnType.RANDOM) {
+                processedProbeKeys.add(probeKey);
+              }
+            }
           }
         }
       }

@@ -19,7 +19,8 @@ import static com.dremio.exec.store.hive.HiveTestDataGenerator.HIVE_TEST_PLUGIN_
 
 import org.junit.Test;
 
-import com.dremio.exec.planner.sql.VacuumTests;
+import com.dremio.exec.planner.sql.ExpireSnapshotsTests;
+import com.dremio.exec.planner.sql.RemoveOrphanFilesTests;
 
 /**
  * Runs test cases on the local Hive-based source.
@@ -32,26 +33,32 @@ public class ITVacuumOnHive extends DmlQueryOnHiveTestBase {
 
   @Test
   public void testSimpleExpireOlderThanRetainLastUsingEqual() throws Exception {
-    VacuumTests.testSimpleExpireOlderThanRetainLastUsingEqual(allocator, SOURCE);
+    ExpireSnapshotsTests.testSimpleExpireOlderThanRetainLastUsingEqual(allocator, SOURCE);
   }
 
   @Test
   public void testSimpleExpireOlderThan() throws Exception {
-    VacuumTests.testSimpleExpireOlderThan(allocator, SOURCE);
+    ExpireSnapshotsTests.testSimpleExpireOlderThan(allocator, SOURCE);
   }
 
   @Test
   public void testExpireOnTableOneSnapshot() throws Exception {
-    VacuumTests.testExpireOnTableOneSnapshot(allocator, SOURCE);
+    ExpireSnapshotsTests.testExpireOnTableOneSnapshot(allocator, SOURCE);
   }
 
   @Test
   public void testRetainMoreSnapshots() throws Exception {
-    VacuumTests.testRetainMoreSnapshots(allocator, SOURCE);
+    ExpireSnapshotsTests.testRetainMoreSnapshots(allocator, SOURCE);
   }
 
   @Test
   public void testRetainAllSnapshots() throws Exception {
-    VacuumTests.testRetainAllSnapshots(allocator, SOURCE);
+    ExpireSnapshotsTests.testRetainAllSnapshots(allocator, SOURCE);
+  }
+
+  /** Remove orphan files tests */
+  @Test
+  public void testSimpleRemoveOrphanFiles() throws Exception {
+    RemoveOrphanFilesTests.testSimpleRemoveOrphanFiles(allocator, SOURCE);
   }
 }

@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Dremio } from "@dremio/dremio-js";
+import { Dremio } from "@dremio/dremio-js/community";
+import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
 
 export const config = {
   origin: window.location.origin as any,
@@ -24,6 +25,7 @@ export const config = {
       return null;
     }
   },
+  logger: getLoggingContext().createLogger("SDK"),
 };
 
 export const dremio = Dremio(config);

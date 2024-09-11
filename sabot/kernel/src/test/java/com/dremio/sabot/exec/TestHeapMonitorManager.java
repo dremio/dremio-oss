@@ -30,6 +30,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
@@ -52,18 +53,19 @@ public class TestHeapMonitorManager {
 
     kvStore = mock(LegacyKVStore.class);
     LegacyKVStoreProvider storeProvider = mock(LegacyKVStoreProvider.class);
-    when(storeProvider.getStore(SystemOptionManager.OptionStoreCreator.class)).thenReturn(kvStore);
+    when(storeProvider.getStore(SystemOptionManagerImpl.OptionStoreCreator.class))
+        .thenReturn(kvStore);
 
     LegacyKVStore mockedEmptyKVStore = mock(LegacyKVStore.class);
 
     when(mockedEmptyKVStore.find()).thenReturn(Collections.emptyList());
-    when(storeProvider.getStore(SystemOptionManager.LegacyProtoOptionStoreCreator.class))
+    when(storeProvider.getStore(SystemOptionManagerImpl.LegacyProtoOptionStoreCreator.class))
         .thenReturn(mockedEmptyKVStore);
-    when(storeProvider.getStore(SystemOptionManager.LegacyJacksonOptionStoreCreator.class))
+    when(storeProvider.getStore(SystemOptionManagerImpl.LegacyJacksonOptionStoreCreator.class))
         .thenReturn(mockedEmptyKVStore);
 
     SystemOptionManager som =
-        spy(new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, false));
+        spy(new SystemOptionManagerImpl(optionValidatorListing, lpp, () -> storeProvider, false));
     som.start();
     reset(kvStore); // clearInvocations
     return som;
@@ -87,7 +89,7 @@ public class TestHeapMonitorManager {
     FragmentExecutors fragmentExecutors = mock(FragmentExecutors.class);
     QueriesClerk queriesClerk = mock(QueriesClerk.class);
     HeapClawBackStrategy heapClawBackStrategy =
-        new FailGreediestQueriesStrategy(fragmentExecutors, queriesClerk);
+        new FailGreediestQueriesStrategy(fragmentExecutors, queriesClerk, 25);
     testHeapMonitorEnabledDisabled(
         heapClawBackStrategy,
         ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING,
@@ -109,6 +111,7 @@ public class TestHeapMonitorManager {
     doReturn(true).when(som).getOption(enableHeapMonitoring);
     doReturn(85L).when(som).getOption(clawbackThreshPercentage);
     doReturn(2_000L).when(som).getOption(delayHeapMonitorMillis);
+    doReturn(true).when(som).getOption(ExecConstants.EXECUTOR_ENABLE_HEAP_USAGE_COLLECTION);
     doReturn(75L)
         .when(som)
         .getOption(ExecConstants.EXECUTOR_HEAP_MONITORING_LOW_MEM_THRESH_PERCENTAGE);
@@ -116,7 +119,7 @@ public class TestHeapMonitorManager {
         .when(som)
         .getOption(ExecConstants.EXECUTOR_HEAP_MONITORING_AGGRESSIVE_WIDTH_LOWER_BOUND);
     HeapMonitorManager heapMonitorManager =
-        new HeapMonitorManager(() -> som, heapClawBackStrategy, role);
+        new HeapMonitorManager(() -> som, heapClawBackStrategy, null, role);
     heapMonitorManager.start();
     assertTrue("Heap monitor should be running.", heapMonitorManager.isHeapMonitorThreadRunning());
 

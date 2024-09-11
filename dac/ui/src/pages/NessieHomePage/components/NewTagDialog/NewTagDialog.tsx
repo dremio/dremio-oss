@@ -74,11 +74,11 @@ function NewTagDialog({
       dispatch(
         addNotification(
           intl.formatMessage(
-            { id: "ArcticCatalog.Tags.Dialog.SuccessMessage" },
-            { tag_name: newTagName }
+            { id: "VersionedEntity.Tags.Dialog.SuccessMessage" },
+            { tag_name: newTagName },
           ),
-          "success"
-        )
+          "success",
+        ),
       );
       refetch?.();
       setIsSending(false);
@@ -86,11 +86,11 @@ function NewTagDialog({
     } catch (error: any) {
       if (error.status === 400) {
         setErrorText(
-          <FormattedMessage id="RepoView.Dialog.CreateTag.Error.InvalidName" />
+          <FormattedMessage id="RepoView.Dialog.CreateTag.Error.InvalidName" />,
         );
       } else if (error.status === 409) {
         setErrorText(
-          <FormattedMessage id="RepoView.Dialog.CreateTag.Error.Conflict" />
+          <FormattedMessage id="RepoView.Dialog.CreateTag.Error.Conflict" />,
         );
       } else {
         setErrorText(<FormattedMessage id="RepoView.Dialog.DeleteTag.Error" />);

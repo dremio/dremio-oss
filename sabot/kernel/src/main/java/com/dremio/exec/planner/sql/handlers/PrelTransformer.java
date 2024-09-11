@@ -285,10 +285,8 @@ public final class PrelTransformer {
      */
     phyRelNode = Limit0Converter.eliminateEmptyTrees(config, phyRelNode);
 
-    /* 7.8)
-     * If a node is replaced by an EmptyPrel, certain operators coming after that node will be
-     * empty like project or joins. Propagate the EmptyPrel and prune them here.
-     */
+    // We need to keep this around, since redundant sort operations are introduced earlier in
+    // physical planning
     phyRelNode = EmptyPrelPropagator.propagateEmptyPrel(config, phyRelNode);
 
     /* 8.)
@@ -360,20 +358,13 @@ public final class PrelTransformer {
      * */
     phyRelNode = JoinConditionValidatorVisitor.validate(phyRelNode, queryOptions);
 
-    final String textPlan;
-    if (logger.isDebugEnabled() || config.getObserver() != null) {
-      textPlan =
-          PrelSequencer.setPlansWithIds(
-              phyRelNode,
-              SqlExplainLevel.ALL_ATTRIBUTES,
-              config.getObserver(),
-              finalPrelTimer.elapsed(TimeUnit.MILLISECONDS));
-      if (logger.isDebugEnabled()) {
-        logger.debug(String.format("%s:\n%s", "Final Physical Transformation", textPlan));
-      }
-    } else {
-      textPlan = "";
+    final String textPlan = PrelSequencer.getPlanText(phyRelNode, SqlExplainLevel.ALL_ATTRIBUTES);
+    final String jsonPlan = PrelSequencer.getPlanJson(phyRelNode, SqlExplainLevel.ALL_ATTRIBUTES);
+    if (logger.isDebugEnabled()) {
+      logger.debug(String.format("%s:\n%s", "Final Physical Transformation", textPlan));
     }
+    config.getObserver().planText(textPlan, finalPrelTimer.elapsed(TimeUnit.MILLISECONDS));
+    config.getObserver().planJsonPlan(jsonPlan);
 
     config.getObserver().finalPrelPlanGenerated(phyRelNode);
     config.getObserver().setNumJoinsInFinalPrel(MoreRelOptUtil.countJoins(phyRelNode));

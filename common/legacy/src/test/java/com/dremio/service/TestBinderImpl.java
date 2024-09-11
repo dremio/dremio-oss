@@ -36,6 +36,7 @@ import com.dremio.service.BinderImpl.ProviderBinding;
 import com.dremio.service.BinderImpl.ProviderReference;
 import com.dremio.service.BinderImpl.Resolver;
 import com.dremio.service.BinderImpl.SingletonBinding;
+import com.google.common.base.Preconditions;
 import com.google.inject.Injector;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -267,6 +268,15 @@ class TestBinderImpl {
                   assertThat(r.get(bindingProvider))
                       .isInstanceOf(PublicFooImplementationWithInjectableCtor.class);
                 });
+      }
+
+      @Test
+      void testInjectableResolverWithProviderParam() {
+        binder.bind(Foo.class, PublicFooImplementationWithInjectableCtorWithProviderParam.class);
+        assertThatThrownBy(() -> binder.getBindingProvider().lookup(Foo.class))
+            .hasStackTraceContaining("Unable to find injectable based on java.lang.Integer");
+        binder.bind(Integer.class, Integer.valueOf(1));
+        binder.getBindingProvider().lookup(Foo.class);
       }
 
       @Test
@@ -766,6 +776,15 @@ class TestBinderImpl {
     @Inject
     UninstantiablePrivateFooImplementationWithInjectableCtor(String bar) {
       throw new IllegalStateException("Unexpected eager cinit()");
+    }
+  }
+
+  static class PublicFooImplementationWithInjectableCtorWithProviderParam implements Foo {
+
+    @Inject
+    public PublicFooImplementationWithInjectableCtorWithProviderParam(Provider<Integer> bar) {
+      Preconditions.checkNotNull(bar);
+      Preconditions.checkNotNull(bar.get());
     }
   }
 }

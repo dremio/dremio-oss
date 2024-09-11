@@ -327,7 +327,7 @@ public class TestConvertFunctions extends BaseTestQuery {
     final int _0 = 0;
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int _9 = 9;
-    final ArrowBuf buffer = getAllocator().buffer(_9);
+    final ArrowBuf buffer = getTestAllocator().buffer(_9);
 
     long longVal = 0;
     buffer.clear();
@@ -463,7 +463,7 @@ public class TestConvertFunctions extends BaseTestQuery {
     List<QueryDataBatch> resultList = testRunAndReturn(queryType, planString);
 
     List<Object> res = new ArrayList<>();
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
     for (QueryDataBatch result : resultList) {
       if (result.getData() != null) {
         loader.load(result.getHeader().getDef(), result.getData());

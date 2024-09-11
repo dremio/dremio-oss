@@ -41,7 +41,7 @@ public class TestUserResource extends BaseTestServer {
 
   @Before
   public void setup() throws Exception {
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
 
     SimpleUser user1 =
         SimpleUser.newBuilder()
@@ -55,14 +55,14 @@ public class TestUserResource extends BaseTestServer {
 
   @After
   public void teardown() throws Exception {
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
 
     userService.deleteUser(createdUser.getUserName(), createdUser.getVersion());
   }
 
   @Test
   public void testGetUserById() throws Exception {
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
     com.dremio.service.users.User user1 = userService.getUser("user1");
 
     User user =
@@ -75,7 +75,7 @@ public class TestUserResource extends BaseTestServer {
 
   @Test
   public void testGetUserDetails() throws Exception {
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
     com.dremio.service.users.User user1 = userService.getUser("user1");
 
     User user =
@@ -137,7 +137,7 @@ public class TestUserResource extends BaseTestServer {
     assertNull("Password should not be sent to a data consumer", savedUser.getPassword());
     assertNotNull(savedUser.getTag());
 
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
     userService.deleteUser(savedUser.getName(), savedUser.getTag());
   }
 
@@ -226,8 +226,6 @@ public class TestUserResource extends BaseTestServer {
 
   @Test
   public void testGetUserByName() throws Exception {
-    final UserService userService = l(UserService.class);
-
     User user =
         expectSuccess(
             getBuilder(

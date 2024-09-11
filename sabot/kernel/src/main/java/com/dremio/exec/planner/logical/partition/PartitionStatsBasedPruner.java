@@ -30,12 +30,15 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.common.MoreRelOptUtil.RexNodeCountVisitor;
 import com.dremio.exec.planner.logical.partition.FindSimpleFilters.StateHolder;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.FilterableScan;
+import com.dremio.exec.store.dfs.FilterableScan.PartitionStatsStatus;
 import com.dremio.exec.store.iceberg.FieldIdBroker;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
@@ -101,7 +104,7 @@ public class PartitionStatsBasedPruner extends RecordPruner {
       partitionColNameToPartitionFunctionOutputType; // col name to output type of the partition
   // function
   private String fileLocation;
-  private final ScanRelBase scan;
+  private final FilterableScan scan;
 
   public Map<String, MajorType> getPartitionColNameToPartitionFunctionOutputType() {
     return partitionColNameToPartitionFunctionOutputType;
@@ -116,7 +119,7 @@ public class PartitionStatsBasedPruner extends RecordPruner {
       PartitionStatsReader partitionStatsReader,
       OptimizerRulesContext rulesContext,
       PartitionSpec partitionSpec,
-      ScanRelBase scan) {
+      FilterableScan scan) {
     super(rulesContext);
     this.statsEntryIterator = partitionStatsReader.iterator();
     this.partitionSpec = partitionSpec;
@@ -181,6 +184,7 @@ public class PartitionStatsBasedPruner extends RecordPruner {
                 .getReadDefinition()
                 .getManifestScanStats()
                 .getRecordCount();
+        scan.setPartitionStatsStatus(PartitionStatsStatus.USED);
         return PartitionStatsValue.newBuilder()
             .setRowcount(qualifiedRecordCount)
             .setFilecount(getNoOfSplitsAdjustedNumberOfFiles(qualifiedFileCount))
@@ -191,61 +195,88 @@ public class PartitionStatsBasedPruner extends RecordPruner {
       long[] fileCounts = null;
       LogicalExpression materializedExpr = null;
       boolean countOverflowFound = false;
-      while (!countOverflowFound && statsEntryIterator.hasNext()) {
-        List<PartitionStatsEntry> entriesInBatch =
-            createRecordBatch(sargPrunableEvaluator, batchIndex);
-        int batchSize = entriesInBatch.size();
-        if (batchSize == 0) {
-          logger.debug("batch: {} is empty as sarg pruned all entries", batchIndex);
-          break;
-        }
+      final long expressionSizeLimit =
+          optimizerContext
+              .getOptions()
+              .getOption(ExecConstants.PARTITION_STATS_PRUNE_EXPRESSION_LIMIT);
+      final int pruneExpressionSize = RexNodeCountVisitor.rexCallCount(pruneCondition);
+      final long statsEntriesLimit =
+          optimizerContext.getOptions().getOption(ExecConstants.STATS_PARTITIONS_LIMIT);
+      final Pointer<Integer> statsEntries = new Pointer<>(0);
+      try {
+        while (!countOverflowFound && statsEntryIterator.hasNext()) {
+          List<PartitionStatsEntry> entriesInBatch =
+              createRecordBatch(
+                  sargPrunableEvaluator,
+                  batchIndex,
+                  pruneExpressionSize,
+                  expressionSizeLimit,
+                  statsEntries,
+                  statsEntriesLimit);
+          int batchSize = entriesInBatch.size();
+          if (batchSize == 0) {
+            logger.debug("batch: {} is empty as sarg pruned all entries", batchIndex);
+            break;
+          }
 
-        if (batchIndex == 0) {
-          setupVectors(inUseColIdToNameMap, partitionColToIdMap, batchSize);
-          materializedExpr =
-              materializePruneExpr(pruneConditionWithPartitionTransformsRemoved, rowType, cluster);
-          recordCounts = new long[batchSize];
-          fileCounts = new long[batchSize];
-        }
-        populateVectors(batchIndex, recordCounts, fileCounts, entriesInBatch);
-        evaluateExpr(materializedExpr, batchSize);
+          if (batchIndex == 0) {
+            setupVectors(inUseColIdToNameMap, partitionColToIdMap, batchSize);
+            materializedExpr =
+                materializePruneExpr(
+                    pruneConditionWithPartitionTransformsRemoved, rowType, cluster);
+            recordCounts = new long[batchSize];
+            fileCounts = new long[batchSize];
+          }
+          populateVectors(batchIndex, recordCounts, fileCounts, entriesInBatch);
+          evaluateExpr(materializedExpr, batchSize);
+          // Count the number of records in the splits that survived the expression evaluation
+          for (int i = 0; i < batchSize; ++i) {
+            if (!outputVector.isNull(i) && outputVector.get(i) == 1) {
+              qualifiedRecordCount += recordCounts[i];
+              qualifiedFileCount += fileCounts[i];
 
-        // Count the number of records in the splits that survived the expression evaluation
-        for (int i = 0; i < batchSize; ++i) {
-          if (!outputVector.isNull(i) && outputVector.get(i) == 1) {
-            qualifiedRecordCount += recordCounts[i];
-            qualifiedFileCount += fileCounts[i];
-
-            if (recordCounts[i] < 0
-                || qualifiedRecordCount < 0
-                || fileCounts[i] < 0
-                || qualifiedFileCount < 0) {
-              qualifiedRecordCount = tableMetadata.getApproximateRecordCount();
-              qualifiedFileCount =
-                  tableMetadata
-                      .getDatasetConfig()
-                      .getReadDefinition()
-                      .getManifestScanStats()
-                      .getRecordCount();
-              countOverflowFound = true;
-              logger.info(
-                  "Record count overflowed while evaluating partition filter. Partition stats file {}. Partition Expression {}",
-                  this.fileLocation,
-                  materializedExpr.toString());
-              break;
+              if (recordCounts[i] < 0
+                  || qualifiedRecordCount < 0
+                  || fileCounts[i] < 0
+                  || qualifiedFileCount < 0) {
+                qualifiedRecordCount = tableMetadata.getApproximateRecordCount();
+                qualifiedFileCount =
+                    tableMetadata
+                        .getDatasetConfig()
+                        .getReadDefinition()
+                        .getManifestScanStats()
+                        .getRecordCount();
+                countOverflowFound = true;
+                logger.info(
+                    "Record count overflowed while evaluating partition filter. Partition stats file {}. Partition Expression {}",
+                    this.fileLocation,
+                    materializedExpr.toString());
+                break;
+              }
             }
           }
+          logger.debug(
+              "Within batch: {}, qualified records: {}, qualified files: {}",
+              batchIndex,
+              qualifiedRecordCount,
+              qualifiedFileCount);
+          batchIndex++;
         }
-
-        logger.debug(
-            "Within batch: {}, qualified records: {}, qualified files: {}",
-            batchIndex,
-            qualifiedRecordCount,
-            qualifiedFileCount);
-        batchIndex++;
+      } catch (PruningTooExpensiveException other) {
+        logger.warn(
+            "Partition stats calculation bypassed because number of partition stats {} "
+                + "and partition expression size {} exceeded the limits. The limits are currently "
+                + "{} and {} respectively.",
+            statsEntries.value,
+            pruneExpressionSize,
+            statsEntriesLimit,
+            expressionSizeLimit);
+        scan.setPartitionStatsStatus(PartitionStatsStatus.SKIPPED);
+        return null;
       }
 
       if (countOverflowFound) {
+        scan.setPartitionStatsStatus(PartitionStatsStatus.ERROR);
         qualifiedRecordCount = tableMetadata.getApproximateRecordCount();
         qualifiedFileCount =
             tableMetadata
@@ -273,7 +304,7 @@ public class PartitionStatsBasedPruner extends RecordPruner {
                 .getManifestScanStats()
                 .getRecordCount()
             : qualifiedFileCount;
-
+    scan.setPartitionStatsStatus(PartitionStatsStatus.USED);
     return PartitionStatsValue.newBuilder()
         .setRowcount(qualifiedRecordCount)
         .setFilecount(getNoOfSplitsAdjustedNumberOfFiles(qualifiedFileCount))
@@ -361,7 +392,13 @@ public class PartitionStatsBasedPruner extends RecordPruner {
   }
 
   private List<PartitionStatsEntry> createRecordBatch(
-      SargPrunableEvaluator sargPrunableEvaluator, int batchIndex) {
+      SargPrunableEvaluator sargPrunableEvaluator,
+      int batchIndex,
+      int pruneExpressionSize,
+      long expressionSizeLimit,
+      Pointer<Integer> statsEntries,
+      long statsEntriesLimit)
+      throws PruningTooExpensiveException {
     timer.start();
     List<PartitionStatsEntry> entriesInBatch = new ArrayList<>();
     while (entriesInBatch.size() < PARTITION_BATCH_SIZE && statsEntryIterator.hasNext()) {
@@ -371,6 +408,10 @@ public class PartitionStatsBasedPruner extends RecordPruner {
           || sargPrunableEvaluator.isRecordMatch(partitionData)) {
         entriesInBatch.add(statsEntry);
       }
+      statsEntries.value++;
+      if (pruneExpressionSize > expressionSizeLimit && statsEntries.value > statsEntriesLimit) {
+        throw new PruningTooExpensiveException();
+      }
     }
     logger.debug(
         "Elapsed time to get list of partition stats entries for the current batch: {}ms within batchIndex: {}",
@@ -378,6 +419,12 @@ public class PartitionStatsBasedPruner extends RecordPruner {
         batchIndex);
     timer.reset();
     return entriesInBatch;
+  }
+
+  private static final class PruningTooExpensiveException extends Exception {
+    public PruningTooExpensiveException() {
+      super();
+    }
   }
 
   private void populateVectors(

@@ -57,12 +57,7 @@ public final class MockDremioQueryParser {
       org.slf4j.LoggerFactory.getLogger(MockDremioQueryParser.class);
 
   private final RelDataTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
-  private final ParserConfig parserConfig =
-      new ParserConfig(
-          Quoting.DOUBLE_QUOTE,
-          1000,
-          true,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig = new ParserConfig(Quoting.DOUBLE_QUOTE, 1000, true);
   private final SqlValidator validator;
   private final RelOptCluster cluster;
   private final Prepare.CatalogReader catalogReader;

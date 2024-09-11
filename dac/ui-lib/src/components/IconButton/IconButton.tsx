@@ -48,6 +48,7 @@ function validateProps(props: IconButtonProps) {
 }
 
 export const IconButton: React.FC<IconButtonProps> = (props) => {
+  const id = React.useId();
   const {
     as = "button",
     className,
@@ -68,11 +69,12 @@ export const IconButton: React.FC<IconButtonProps> = (props) => {
     className: clsx(className, "dremio-icon-button"),
     tabIndex: 0,
     "aria-label": ariaLabel,
+    "aria-labelledby": id,
   });
 
   if (tooltip) {
     return (
-      <Tooltip title={tooltip} placement={tooltipPlacement}>
+      <Tooltip title={tooltip} placement={tooltipPlacement} id={id}>
         {ButtonElement}
       </Tooltip>
     );

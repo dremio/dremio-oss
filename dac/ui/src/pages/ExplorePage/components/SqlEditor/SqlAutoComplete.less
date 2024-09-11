@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../../../../components/colors.less";
+
 @import "~@app/uiTheme/less/mixins.less";
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .sqlAutocomplete {
-    border: 1px solid @athensGray;
+    border: 1px solid var(--border--neutral);
     border-radius: 4px;
     min-height: 40px;
     margin-left: 10px;
@@ -34,7 +33,7 @@
         border-color: #6f6f6f;
 
         .sqlAutocomplete__context {
-          color: @white;
+          color: white;
         }
       }
     }
@@ -58,19 +57,14 @@
     .keyboard__shortcutsIcon {
       cursor: default;
     }
-
-    .react-monaco-editor-container {
-      min-height: 40px !important;
-      height: 170px;
-    }
   }
 
   .sql__lightIcon {
     width: 24px;
     height: 24px;
-    color: var(--color--neutral--600) !important;
+    color: var(--icon--primary) !important;
     &:hover {
-      color: var(--dremio--color--link) !important;
+      color: var(--icon--hover) !important;
     }
   }
 
@@ -85,12 +79,11 @@
 
   .sqlAutocomplete__actions {
     align-items: center;
-    border-bottom: 1px solid @athensGray;
+    border-bottom: 1px solid var(--border--neutral);
     display: flex;
     justify-content: flex-end;
     gap: 12px;
     padding: 8px 10px;
-    margin-bottom: 10px;
     flex-wrap: wrap;
   }
 
@@ -101,7 +94,7 @@
 
   .sqlAutocomplete__contextText-light,
   .sqlAutocomplete__contextText-dark {
-    color: var(--dremio--color--link);
+    color: var(--text--brand);
     cursor: pointer;
     margin-left: 5px;
 

@@ -26,7 +26,7 @@
 }
 
 .dremio-typography-disabled {
-  color: var(--color--gray--200);
+  color: var(--text--disabled);
 }
 
 .dremio-typography-extra-large {
@@ -55,7 +55,7 @@
 }
 
 .dremio-typography-less-important {
-  color: var(--dremio--color--text--faded);
+  color: var(--text--faded);
 }
 
 /**

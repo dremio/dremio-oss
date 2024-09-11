@@ -20,6 +20,7 @@ import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
 import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.options.KVStoreOptionUtility;
+import com.dremio.datastore.api.options.MaxResultsOption;
 import com.dremio.datastore.api.options.VersionOption;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -29,10 +30,13 @@ import com.google.common.primitives.UnsignedBytes;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 /** An in memory store for testing purposes. */
@@ -131,21 +135,43 @@ class MapStore implements ByteStore {
 
     final boolean startIsNull = find.getStart() == null;
     final boolean endIsNull = find.getEnd() == null;
+
+    ConcurrentNavigableMap<byte[], VersionedEntry> subMap;
     if (startIsNull || endIsNull) {
       if (!endIsNull) {
-        return toIterableDocs(map.headMap(find.getEnd(), find.isEndInclusive()));
+        subMap = map.headMap(find.getEnd(), find.isEndInclusive());
+      } else {
+        if (!startIsNull) {
+          subMap = map.tailMap(find.getStart(), find.isStartInclusive());
+        } else {
+          // only case left is both are null
+          subMap = map;
+        }
       }
-
-      if (!startIsNull) {
-        return toIterableDocs(map.tailMap(find.getStart(), find.isStartInclusive()));
-      }
-
-      // only case left is both are null
-      return toIterableDocs(map);
+    } else {
+      subMap =
+          map.subMap(
+              find.getStart(), find.isStartInclusive(), find.getEnd(), find.isEndInclusive());
     }
 
-    return toIterableDocs(
-        map.subMap(find.getStart(), find.isStartInclusive(), find.getEnd(), find.isEndInclusive()));
+    // Limit result set if requested.
+    int maxResults = Integer.MAX_VALUE;
+    if (options.length > 0) {
+      Optional<MaxResultsOption> optionalMaxResults =
+          Arrays.stream(options)
+              .filter(option -> option instanceof MaxResultsOption)
+              .map(option -> (MaxResultsOption) option)
+              .findFirst();
+      if (optionalMaxResults.isPresent()) {
+        maxResults = optionalMaxResults.get().maxResults();
+      }
+    }
+    if (maxResults < subMap.size()) {
+      byte[][] keys = subMap.navigableKeySet().toArray(new byte[0][]);
+      subMap = subMap.headMap(keys[maxResults], /* inclusive */ false);
+    }
+
+    return toIterableDocs(subMap);
   }
 
   @Override

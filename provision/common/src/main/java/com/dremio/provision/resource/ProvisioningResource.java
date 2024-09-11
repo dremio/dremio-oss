@@ -389,9 +389,8 @@ public class ProvisioningResource {
             .orElse(null));
     DynamicConfig requestConfig =
         Optional.ofNullable(clusterModifyRequest.getDynamicConfig())
-            .orElse(DynamicConfig.builder().build());
-    clusterSpec.setContainerCount(
-        Optional.ofNullable(requestConfig.getContainerCount()).orElse(null));
+            .orElseGet(() -> DynamicConfig.builder().build());
+    clusterSpec.setContainerCount(requestConfig.getContainerCount());
     clusterSpec.setQueue(
         Optional.ofNullable(clusterModifyRequest.getYarnProps())
             .map(t -> t.getQueue())

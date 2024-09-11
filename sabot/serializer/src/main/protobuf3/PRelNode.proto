@@ -48,6 +48,7 @@ message PRelNode {
     PLogicalIntersect logical_intersect = 15;
     PLogicalMinus logical_minus = 16;
     PLogicalTableFunctionScan logical_table_function_scan = 17;
+    PLogicalWindow logical_window = 18;
   }
 }
 
@@ -276,4 +277,20 @@ message PFlattenCrel {
   repeated PRexNode toFlatten = 2;
   repeated string alias = 3;
   int32 numProjects = 4;
+}
+
+message PLogicalWindow {
+  int32 input = 1;
+  repeated PRexNode constants = 2;
+  repeated PGroup groups = 3;
+  PRelDataType type = 4;
+}
+
+message PGroup {
+  repeated int32 keys = 1;
+  bool isRows = 2;
+  PRexWindowBound lowerBound = 3;
+  PRexWindowBound upperBound = 4;
+  PRelCollation orderKeys = 5;
+  repeated PRexNode aggCalls = 6;
 }

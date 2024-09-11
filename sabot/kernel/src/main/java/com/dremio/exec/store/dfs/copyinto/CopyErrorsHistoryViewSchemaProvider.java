@@ -32,58 +32,13 @@ public final class CopyErrorsHistoryViewSchemaProvider {
    * @throws UnsupportedOperationException If the schema version is not supported.
    */
   public static Schema getSchema(long schemaVersion) {
-    Schema jobHistorySchema = CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion);
-    Schema fileHistorySchema = CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion);
     if (schemaVersion == 1) {
-      return new Schema(
-          ImmutableList.of(
-              getFieldOf(
-                  1,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getExecutedAtColName(schemaVersion))),
-              getFieldOf(
-                  2,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getJobIdColName(schemaVersion))),
-              getFieldOf(
-                  3,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getTableNameColName(schemaVersion))),
-              getFieldOf(
-                  4,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getUserNameColName(schemaVersion))),
-              getFieldOf(
-                  5,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName(schemaVersion))),
-              getFieldOf(
-                  6,
-                  jobHistorySchema.findField(
-                      CopyJobHistoryTableSchemaProvider.getStorageLocationColName(schemaVersion))),
-              getFieldOf(
-                  7,
-                  fileHistorySchema.findField(
-                      CopyFileHistoryTableSchemaProvider.getFilePathColName(schemaVersion))),
-              getFieldOf(
-                  8,
-                  fileHistorySchema.findField(
-                      CopyFileHistoryTableSchemaProvider.getFileStateColName(schemaVersion))),
-              getFieldOf(
-                  9,
-                  fileHistorySchema.findField(
-                      CopyFileHistoryTableSchemaProvider.getRecordsLoadedColName(schemaVersion))),
-              getFieldOf(
-                  10,
-                  fileHistorySchema.findField(
-                      CopyFileHistoryTableSchemaProvider.getRecordsRejectedColName(
-                          schemaVersion)))));
+      return V1SchemaDefinition.getSchema();
+    }
+    if (schemaVersion == 2) {
+      return V2SchemaDefinition.getSchema();
     }
     throw newUnsupportedSchemaVersionException(schemaVersion);
-  }
-
-  private static Types.NestedField getFieldOf(int id, Types.NestedField oldField) {
-    return Types.NestedField.required(id, oldField.name(), oldField.type());
   }
 
   private static UnsupportedOperationException newUnsupportedSchemaVersionException(
@@ -93,4 +48,61 @@ public final class CopyErrorsHistoryViewSchemaProvider {
             + schemaVersion
             + ". Currently supported schema versions are: 1");
   }
+
+  /** Schema definition for schema version 1 of the copy_errors_history view */
+  private static class V1SchemaDefinition {
+    private static final long SCHEMA_VERSION = 1L;
+
+    protected static Schema getSchema() {
+      Schema jobHistorySchema = CopyJobHistoryTableSchemaProvider.getSchema(SCHEMA_VERSION);
+      Schema fileHistorySchema = CopyFileHistoryTableSchemaProvider.getSchema(SCHEMA_VERSION);
+      return new Schema(
+          ImmutableList.of(
+              getFieldOf(
+                  1,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getExecutedAtColName())),
+              getFieldOf(
+                  2,
+                  jobHistorySchema.findField(CopyJobHistoryTableSchemaProvider.getJobIdColName())),
+              getFieldOf(
+                  3,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getTableNameColName())),
+              getFieldOf(
+                  4,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getUserNameColName())),
+              getFieldOf(
+                  5,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName())),
+              getFieldOf(
+                  6,
+                  jobHistorySchema.findField(
+                      CopyJobHistoryTableSchemaProvider.getStorageLocationColName())),
+              getFieldOf(
+                  7,
+                  fileHistorySchema.findField(
+                      CopyFileHistoryTableSchemaProvider.getFilePathColName())),
+              getFieldOf(
+                  8,
+                  fileHistorySchema.findField(
+                      CopyFileHistoryTableSchemaProvider.getFileStateColName())),
+              getFieldOf(
+                  9,
+                  fileHistorySchema.findField(
+                      CopyFileHistoryTableSchemaProvider.getRecordsLoadedColName())),
+              getFieldOf(
+                  10,
+                  fileHistorySchema.findField(
+                      CopyFileHistoryTableSchemaProvider.getRecordsRejectedColName()))));
+    }
+
+    private static Types.NestedField getFieldOf(int id, Types.NestedField oldField) {
+      return Types.NestedField.required(id, oldField.name(), oldField.type());
+    }
+  }
+
+  private static class V2SchemaDefinition extends V1SchemaDefinition {}
 }

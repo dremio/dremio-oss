@@ -176,7 +176,7 @@ describe("ExploreInfoHeader", () => {
     it("should render (edited) dataset label when isEditedDataset returns true", () => {
       sinon.stub(instance, "isEditedDataset").returns(true);
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
-      expect(node.find("FontIcon")).to.have.length(1);
+      expect(node.find("dremio-icon")).to.have.length(1);
       expect(node.find("EllipsedText").props().text).to.be.contains(
         'New Query{"0":{"id":"Dataset.Edited"}}',
       );
@@ -185,7 +185,7 @@ describe("ExploreInfoHeader", () => {
     it("should not render (edited) dataset label when isEditedDataset returns false", () => {
       sinon.stub(instance, "isEditedDataset").returns(false);
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
-      expect(node.find("FontIcon")).to.have.length(1);
+      expect(node.find("dremio-icon")).to.have.length(1);
       expect(node.find("EllipsedText").props().text).to.be.contains(
         "New Query",
       );

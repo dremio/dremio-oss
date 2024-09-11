@@ -20,14 +20,14 @@ import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_DISTINCT;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.tools.RelBuilder;
 
-public final class ArrayDistinctConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE =
-      new NullableArrayFunctionConvertlet(new ArrayDistinctConvertlet());
+public final class ArrayDistinctConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE =
+      new NullableArrayRexCallConvertlet(new ArrayDistinctConvertlet());
 
   private ArrayDistinctConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator() == ARRAY_DISTINCT;
   }
 

@@ -36,20 +36,31 @@ public class TestCopyIntoFileLoadInfo {
     CopyIntoFileLoadInfo fileLoadInfo = getCopyIntoFileLoadInfo(formatOptions);
 
     // Verify the properties of the CopyIntoFileLoadInfo object
-    assertThat("queryId").isEqualTo(fileLoadInfo.getQueryId());
-    assertThat("queryUser").isEqualTo(fileLoadInfo.getQueryUser());
-    assertThat("tableName").isEqualTo(fileLoadInfo.getTableName());
-    assertThat("filePath").isEqualTo(fileLoadInfo.getFilePath());
-    assertThat(100).isEqualTo(fileLoadInfo.getRecordsLoadedCount());
-    assertThat(10).isEqualTo(fileLoadInfo.getRecordsRejectedCount());
-    assertThat(12345L).isEqualTo(fileLoadInfo.getSnapshotId());
-    assertThat("storageLocation").isEqualTo(fileLoadInfo.getStorageLocation());
-    assertThat("JSON").isEqualTo(fileLoadInfo.getFileFormat());
+    assertThat(fileLoadInfo.getQueryId()).isEqualTo("queryId");
+    assertThat(fileLoadInfo.getQueryUser()).isEqualTo("queryUser");
+    assertThat(fileLoadInfo.getTableName()).isEqualTo("tableName");
+    assertThat(fileLoadInfo.getFilePath()).isEqualTo("filePath");
+    assertThat(fileLoadInfo.getRecordsLoadedCount()).isEqualTo(100);
+    assertThat(fileLoadInfo.getRecordsRejectedCount()).isEqualTo(10);
+    assertThat(fileLoadInfo.getSnapshotId()).isEqualTo(12345L);
+    assertThat(fileLoadInfo.getStorageLocation()).isEqualTo("storageLocation");
+    assertThat(fileLoadInfo.getFileFormat()).isEqualTo("JSON");
+    assertThat(fileLoadInfo.getBranch()).isEqualTo("nessieBranch");
+    assertThat(fileLoadInfo.getPipeName()).isEqualTo("dev-pipe");
+    assertThat(fileLoadInfo.getPipeId()).isEqualTo("a79ed8c4-6581-4504-a5a9-5af6733b7f40");
+    assertThat(fileLoadInfo.getProcessingStartTime())
+        .isLessThanOrEqualTo(System.currentTimeMillis());
+    assertThat(fileLoadInfo.getFileSize()).isEqualTo(45678L);
+    assertThat(fileLoadInfo.getFirstErrorMessage()).isEqualTo("Unrecognized column type");
+    assertThat(fileLoadInfo.getFileNotificationTimestamp())
+        .isLessThanOrEqualTo(System.currentTimeMillis());
+    assertThat(fileLoadInfo.getIngestionSourceType()).isEqualTo("AWS");
+    assertThat(fileLoadInfo.getRequestId()).isEqualTo("5723df1f-3026-47b9-a089-d375d4008324");
 
     // Verify the formatOptions
     Map<CopyIntoTableContext.FormatOption, Object> expectedFormatOptions = getFormatOptions();
 
-    assertThat(expectedFormatOptions).isEqualTo(fileLoadInfo.getFormatOptions());
+    assertThat(fileLoadInfo.getFormatOptions()).isEqualTo(expectedFormatOptions);
   }
 
   @Test
@@ -68,23 +79,36 @@ public class TestCopyIntoFileLoadInfo {
         FileLoadInfo.Util.getInfo(json, CopyIntoFileLoadInfo.class);
 
     // Verify the properties of the deserialized CopyIntoErrorInfo object
-    assertThat(fileLoadInfo.getQueryId()).isEqualTo(deserializedFileLoadInfo.getQueryId());
-    assertThat(fileLoadInfo.getQueryUser()).isEqualTo(deserializedFileLoadInfo.getQueryUser());
-    assertThat(fileLoadInfo.getTableName()).isEqualTo(deserializedFileLoadInfo.getTableName());
-    assertThat(fileLoadInfo.getFilePath()).isEqualTo(deserializedFileLoadInfo.getFilePath());
-    assertThat(fileLoadInfo.getRecordsLoadedCount())
-        .isEqualTo(deserializedFileLoadInfo.getRecordsLoadedCount());
-    assertThat(fileLoadInfo.getRecordsRejectedCount())
-        .isEqualTo(deserializedFileLoadInfo.getRecordsRejectedCount());
-    assertThat(fileLoadInfo.getSnapshotId()).isEqualTo(deserializedFileLoadInfo.getSnapshotId());
-    assertThat(fileLoadInfo.getStorageLocation())
-        .isEqualTo(deserializedFileLoadInfo.getStorageLocation());
-    assertThat(fileLoadInfo.getFileFormat()).isEqualTo(deserializedFileLoadInfo.getFileFormat());
+    assertThat(deserializedFileLoadInfo.getQueryId()).isEqualTo(fileLoadInfo.getQueryId());
+    assertThat(deserializedFileLoadInfo.getQueryUser()).isEqualTo(fileLoadInfo.getQueryUser());
+    assertThat(deserializedFileLoadInfo.getTableName()).isEqualTo(fileLoadInfo.getTableName());
+    assertThat(deserializedFileLoadInfo.getFilePath()).isEqualTo(fileLoadInfo.getFilePath());
+    assertThat(deserializedFileLoadInfo.getRecordsLoadedCount())
+        .isEqualTo(fileLoadInfo.getRecordsLoadedCount());
+    assertThat(deserializedFileLoadInfo.getRecordsRejectedCount())
+        .isEqualTo(fileLoadInfo.getRecordsRejectedCount());
+    assertThat(deserializedFileLoadInfo.getSnapshotId()).isEqualTo(fileLoadInfo.getSnapshotId());
+    assertThat(deserializedFileLoadInfo.getStorageLocation())
+        .isEqualTo(fileLoadInfo.getStorageLocation());
+    assertThat(deserializedFileLoadInfo.getFileFormat()).isEqualTo(fileLoadInfo.getFileFormat());
+    assertThat(deserializedFileLoadInfo.getBranch()).isEqualTo(fileLoadInfo.getBranch());
+    assertThat(deserializedFileLoadInfo.getPipeName()).isEqualTo(fileLoadInfo.getPipeName());
+    assertThat(deserializedFileLoadInfo.getPipeId()).isEqualTo(fileLoadInfo.getPipeId());
+    assertThat(deserializedFileLoadInfo.getProcessingStartTime())
+        .isEqualTo(fileLoadInfo.getProcessingStartTime());
+    assertThat(deserializedFileLoadInfo.getFileSize()).isEqualTo(fileLoadInfo.getFileSize());
+    assertThat(deserializedFileLoadInfo.getFirstErrorMessage())
+        .isEqualTo(fileLoadInfo.getFirstErrorMessage());
+    assertThat(deserializedFileLoadInfo.getFileNotificationTimestamp())
+        .isEqualTo(fileLoadInfo.getFileNotificationTimestamp());
+    assertThat(deserializedFileLoadInfo.getIngestionSourceType())
+        .isEqualTo(fileLoadInfo.getIngestionSourceType());
+    assertThat(deserializedFileLoadInfo.getRequestId()).isEqualTo(fileLoadInfo.getRequestId());
 
     // Verify the formatOptions
     Map<CopyIntoTableContext.FormatOption, Object> expectedFormatOptions = getFormatOptions();
 
-    assertThat(expectedFormatOptions).isEqualTo(deserializedFileLoadInfo.getFormatOptions());
+    assertThat(deserializedFileLoadInfo.getFormatOptions()).isEqualTo(expectedFormatOptions);
   }
 
   @Test
@@ -130,6 +154,15 @@ public class TestCopyIntoFileLoadInfo {
         .setQuoteChar("\"")
         .setEscapeChar("\\")
         .setSnapshotId(12345L)
+        .setBranch("nessieBranch")
+        .setPipeName("dev-pipe")
+        .setPipeId("a79ed8c4-6581-4504-a5a9-5af6733b7f40")
+        .setProcessingStartTime(System.currentTimeMillis())
+        .setFileSize(45678L)
+        .setFirstErrorMessage("Unrecognized column type")
+        .setFileNotificationTimestamp(System.currentTimeMillis())
+        .setIngestionSourceType("AWS")
+        .setRequestId("5723df1f-3026-47b9-a089-d375d4008324")
         .build();
   }
 

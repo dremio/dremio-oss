@@ -113,12 +113,9 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
@@ -1061,13 +1058,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   @Test
   public void testUpdateSql() throws Exception {
     final String sql = "select foo, bar as b from tbl";
-    SqlParser parser =
-        SqlParser.create(
-            sql,
-            new ParserConfig(
-                Quoting.DOUBLE_QUOTE,
-                128,
-                PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+    SqlParser parser = SqlParser.create(sql, new ParserConfig(Quoting.DOUBLE_QUOTE, 128));
     final SqlNode sqlNode = parser.parseStmt();
 
     final JavaTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
@@ -1142,17 +1133,17 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     Transformer testTransformer =
         new Transformer(
-            l(SabotContext.class),
-            l(JobsService.class),
-            newNamespaceService(),
-            newDatasetVersionMutator(),
+            getSabotContext(),
+            getJobsService(),
+            getNamespaceService(),
+            getDatasetVersionMutator(),
             null,
             l(SecurityContext.class),
-            l(CatalogService.class));
+            getCatalogService());
 
     VirtualDatasetUI vdsui =
         DatasetsUtil.getHeadVersion(
-            myDatasetPath, newNamespaceService(), newDatasetVersionMutator());
+            myDatasetPath, getNamespaceService(), getDatasetVersionMutator());
     String originalDatasetVersion = vdsui.getVersion().getVersion();
     List<ViewFieldType> sqlFields = vdsui.getSqlFieldsList();
     boolean isContainOriginal = false;
@@ -1191,17 +1182,17 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     Transformer testTransformer =
         new Transformer(
-            l(SabotContext.class),
-            l(JobsService.class),
-            newNamespaceService(),
-            newDatasetVersionMutator(),
+            getSabotContext(),
+            getJobsService(),
+            getNamespaceService(),
+            getDatasetVersionMutator(),
             null,
             l(SecurityContext.class),
-            l(CatalogService.class));
+            getCatalogService());
 
     VirtualDatasetUI vdsui =
         DatasetsUtil.getHeadVersion(
-            myDatasetPath, newNamespaceService(), newDatasetVersionMutator());
+            myDatasetPath, getNamespaceService(), getDatasetVersionMutator());
     TransformUpdateSQL transformUpdateSQL = new TransformUpdateSQL();
     transformUpdateSQL.setSql(vdsui.getSql());
     transformUpdateSQL.setSqlContextList(vdsui.getContextList());
@@ -1214,8 +1205,8 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   public void testTransformMetadataRetrieval() throws Exception {
     // Setup the dataset and transformations.
     setSpace();
-    final NamespaceService namespaceService = newNamespaceService();
-    final DatasetVersionMutator datasetService = newDatasetVersionMutator();
+    final NamespaceService namespaceService = getNamespaceService();
+    final DatasetVersionMutator datasetService = getDatasetVersionMutator();
 
     final String updatedSQL = "SELECT * FROM cp.\"tpch/supplier.parquet\" LIMIT 3";
     final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.testTransform");
@@ -1242,13 +1233,13 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     final Transformer testTransformer =
         new Transformer(
-            l(SabotContext.class),
-            l(JobsService.class),
+            getSabotContext(),
+            getJobsService(),
             namespaceService,
             datasetService,
             executor,
             l(SecurityContext.class),
-            l(CatalogService.class));
+            getCatalogService());
 
     final TransformUpdateSQL transformUpdateSQL =
         new TransformUpdateSQL()

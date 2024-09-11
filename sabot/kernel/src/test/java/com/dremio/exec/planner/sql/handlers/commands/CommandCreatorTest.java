@@ -99,7 +99,7 @@ public class CommandCreatorTest {
     final CommandCreator commandCreator = spy(buildCommandCreator(0));
     // Override getSqlCommand, expecting that permissions checking of the underlying source would
     // happen as normal
-    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
+    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any(), any());
 
     // Act
     CommandRunner<?> actualCommand = commandCreator.toCommand();
@@ -174,7 +174,7 @@ public class CommandCreatorTest {
     final CommandCreator commandCreator = spy(buildCommandCreator(1));
     // Override getSqlCommand, expecting that permissions checking of the underlying source would
     // happen as normal
-    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
+    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any(), any());
 
     // Act
     CommandRunner<?> actualCommand = commandCreator.toCommand();
@@ -196,7 +196,7 @@ public class CommandCreatorTest {
     final CommandCreator commandCreator = spy(buildCommandCreator(0));
     // Override getSqlCommand, expecting that permissions checking of the underlying source would
     // happen as normal
-    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
+    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any(), any());
 
     // Act
     commandCreator.toCommand();
@@ -215,7 +215,7 @@ public class CommandCreatorTest {
     final CommandCreator commandCreator = spy(buildCommandCreator(0));
     // Override getSqlCommand, expecting that permissions checking of the underlying source would
     // happen as normal
-    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
+    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any(), any());
 
     // Act
     commandCreator.toCommand();

@@ -18,6 +18,7 @@ package com.dremio.dac.server;
 import com.dremio.common.util.DremioEdition;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.ServerHealthMonitor;
+import com.dremio.dac.options.UIOptions;
 import com.dremio.dac.server.models.AnalyzeTools;
 import com.dremio.dac.server.models.ServerData;
 import com.dremio.dac.service.datasets.DatasetDownloadManager;
@@ -161,7 +162,10 @@ public class DremioServlet implements Servlet {
         .setAllowDownload(options.getOption(UIOptions.ALLOW_DOWNLOAD))
         .setAllowFormatting(options.getOption(UIOptions.ALLOW_FORMATTING))
         .setUseNewDatasetNavigation(options.getOption(UIOptions.DATASET_NAVIGATION_CHECK))
-        .setShowNewJobsTables(options.getOption(UIOptions.JOBS_TABLES_UI_CHECK));
+        .setShowNewJobsTables(options.getOption(UIOptions.JOBS_TABLES_UI_CHECK))
+        .setAsyncDownloadEnabled(options.getOption(UIOptions.ASYNC_DOWNLOAD_CHECK))
+        .setNextgenSearchUIEnabled(options.getOption(UIOptions.NEXTGEN_SEARCH_UI))
+        .setAppearancePickerEnabled(options.getOption(UIOptions.APPEARANCE_PICKER));
   }
 
   protected Provider<SupportService> getSupportService() {

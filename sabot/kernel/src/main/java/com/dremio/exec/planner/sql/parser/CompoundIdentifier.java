@@ -81,7 +81,7 @@ public class CompoundIdentifier extends SqlIdentifier {
     }
   }
 
-  public SqlNode getAsSqlNode(boolean withCalciteComplexTypeSupport) {
+  public SqlNode getAsSqlNode() {
     if (ids.size() == 1) {
       return new SqlIdentifier(Collections.singletonList(ids.get(0).value), ids.get(0).parserPos);
     }
@@ -108,28 +108,23 @@ public class CompoundIdentifier extends SqlIdentifier {
               ids.get(0).parserPos, //
               ImmutableList.of(ids.get(0).parserPos, ids.get(1).parserPos));
     }
-    if (!withCalciteComplexTypeSupport) {
-      for (int i = startIndex; i < ids.size(); i++) {
-        node = ids.get(i).getNode(node);
-      }
-    } else {
-      for (int i = startIndex; i < ids.size(); i++) {
-        IdentifierHolder holder = ids.get(i);
-        if (holder.isArray()) {
-          SqlLiteral literal = SqlLiteral.createExactNumeric(holder.value, holder.parserPos);
+
+    for (int i = startIndex; i < ids.size(); i++) {
+      IdentifierHolder holder = ids.get(i);
+      if (holder.isArray()) {
+        SqlLiteral literal = SqlLiteral.createExactNumeric(holder.value, holder.parserPos);
+        node =
+            new SqlBasicCall(
+                SqlStdOperatorTable.ITEM, new SqlNode[] {node, literal}, holder.parserPos);
+      } else {
+        if (node instanceof SqlIdentifier) {
+          int pos = ((SqlIdentifier) node).names.size();
+          node = ((SqlIdentifier) node).add(pos, holder.value, holder.parserPos);
+        } else {
+          SqlIdentifier identifier = new SqlIdentifier(holder.value, holder.parserPos);
           node =
               new SqlBasicCall(
-                  SqlStdOperatorTable.ITEM, new SqlNode[] {node, literal}, holder.parserPos);
-        } else {
-          if (node instanceof SqlIdentifier) {
-            int pos = ((SqlIdentifier) node).names.size();
-            node = ((SqlIdentifier) node).add(pos, holder.value, holder.parserPos);
-          } else {
-            SqlIdentifier identifier = new SqlIdentifier(holder.value, holder.parserPos);
-            node =
-                new SqlBasicCall(
-                    SqlStdOperatorTable.DOT, new SqlNode[] {node, identifier}, holder.parserPos);
-          }
+                  SqlStdOperatorTable.DOT, new SqlNode[] {node, identifier}, holder.parserPos);
         }
       }
     }

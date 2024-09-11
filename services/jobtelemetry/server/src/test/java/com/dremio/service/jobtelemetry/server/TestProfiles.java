@@ -17,38 +17,33 @@ package com.dremio.service.jobtelemetry.server;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.concurrent.ContextMigratingExecutorService;
+import com.dremio.common.concurrent.CloseableThreadPool;
+import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.datastore.DatastoreException;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
-import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
-import com.dremio.service.Pointer;
 import com.dremio.service.jobtelemetry.DeleteProfileRequest;
 import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
-import com.dremio.service.jobtelemetry.GetQueryProgressMetricsRequest;
-import com.dremio.service.jobtelemetry.GetQueryProgressMetricsResponse;
 import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
 import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
 import com.dremio.service.jobtelemetry.PutPlanningProfileRequest;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
-import com.dremio.service.jobtelemetry.server.store.LocalMetricsStore;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
-import com.dremio.service.jobtelemetry.server.store.MetricsStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
@@ -60,8 +55,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 import org.junit.After;
 import org.junit.Assert;
@@ -78,33 +71,28 @@ public class TestProfiles {
 
   @Rule public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
 
-  private MetricsStore metricsStore;
+  private LegacyKVStoreProvider kvStoreProvider;
   private ProfileStore profileStore;
   private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub server;
   private JobTelemetryServiceGrpc.JobTelemetryServiceStub asyncServer;
   private JobTelemetryServiceImpl profileService;
-  private ContextMigratingExecutorService executorService =
-      new ContextMigratingExecutorService(Executors.newCachedThreadPool());
+  private ContextMigratingCloseableExecutorService executorService;
 
   @Before
   public void setUp() throws Exception {
-    // start in-memory metrics store
-    metricsStore = new LocalMetricsStore();
-    metricsStore.start();
+    executorService =
+        new ContextMigratingCloseableExecutorService<>(
+            new CloseableThreadPool(getClass().getSimpleName() + "-executor-"));
 
     // start in-memory profile store
-    profileStore = new LocalProfileStore(TempLegacyKVStoreProviderCreator.create());
+    kvStoreProvider = TempLegacyKVStoreProviderCreator.create();
+    profileStore = new LocalProfileStore(kvStoreProvider);
     profileStore.start();
 
     final String serverName = InProcessServerBuilder.generateName();
     profileService =
         new JobTelemetryServiceImpl(
-            metricsStore,
-            profileStore,
-            new GrpcTracerFacade(TracerFacade.INSTANCE),
-            false,
-            100,
-            executorService);
+            profileStore, new GrpcTracerFacade(TracerFacade.INSTANCE), false, executorService);
 
     grpcCleanupRule.register(
         InProcessServerBuilder.forName(serverName)
@@ -124,7 +112,7 @@ public class TestProfiles {
 
   @After
   public void tearDown() throws Exception {
-    AutoCloseables.close(metricsStore, profileStore);
+    AutoCloseables.close(profileService, profileStore, kvStoreProvider, executorService);
   }
 
   @Test
@@ -237,156 +225,12 @@ public class TestProfiles {
     assertEquals(expectedMergedProfile, queryProfile);
   }
 
-  // fetch the last metric received. terminate streaming request immediately.
-  private long getSimpleQueryProgressMetrics(QueryId queryId) throws InterruptedException {
-    final CountDownLatch responseLatch = new CountDownLatch(1);
-    final Pointer<Long> recordsProcessed = new Pointer<>();
-
-    StreamObserver<GetQueryProgressMetricsResponse> responseObserver =
-        new StreamObserver<GetQueryProgressMetricsResponse>() {
-          @Override
-          public void onNext(GetQueryProgressMetricsResponse metricsResponse) {
-            recordsProcessed.value = metricsResponse.getMetrics().getRowsProcessed();
-          }
-
-          @Override
-          public void onError(Throwable throwable) {
-            responseLatch.countDown();
-          }
-
-          @Override
-          public void onCompleted() {
-            responseLatch.countDown();
-          }
-        };
-
-    // send request, and complete.
-    StreamObserver<GetQueryProgressMetricsRequest> requestObserver =
-        asyncServer.getQueryProgressMetrics(responseObserver);
-    requestObserver.onNext(GetQueryProgressMetricsRequest.newBuilder().setQueryId(queryId).build());
-    requestObserver.onCompleted();
-
-    // wait on response completion.
-    responseLatch.await();
-    return recordsProcessed.value;
-  }
-
-  // fetch the last metric received.
-  private QueryProgressMetrics getSimpleQueryProgressMetricsUnary(QueryId queryId)
-      throws InterruptedException {
-    GetQueryProgressMetricsResponse response =
-        server.getQueryProgressMetricsUnary(
-            GetQueryProgressMetricsRequest.newBuilder().setQueryId(queryId).build());
-    return response.getMetrics();
-  }
-
-  @Test
-  public void testSimpleGetProgressMetrics() throws InterruptedException {
-    final int numExecutors = 2;
-    final ProfileSet profileSet = new ProfileSet(numExecutors);
-
-    // publish only executor profiles.
-    int numRecords = 0;
-    for (int i = 0; i < numExecutors; ++i) {
-      PutExecutorProfileRequest req = profileSet.executorQueryProfileRequests.get(i);
-      server.putExecutorProfile(req);
-      numRecords += req.getProfile().getProgress().getRowsProcessed();
-    }
-
-    // verify metrics.
-    assertEquals(numRecords, getSimpleQueryProgressMetrics(profileSet.queryId));
-    assertEquals(
-        getSimpleQueryProgressMetricsUnary(profileSet.queryId).getRowsProcessed(),
-        getSimpleQueryProgressMetrics(profileSet.queryId));
-  }
-
-  @Test
-  public void testGetProgressMetrics() throws InterruptedException {
-    final int numExecutors = 3;
-    final ProfileSet profileSet = new ProfileSet(numExecutors);
-    final CountDownLatch responseLatch = new CountDownLatch(1);
-    final List<QueryProgressMetrics> metrics = new ArrayList<>();
-
-    StreamObserver<GetQueryProgressMetricsResponse> responseObserver =
-        new StreamObserver<GetQueryProgressMetricsResponse>() {
-          @Override
-          public void onNext(GetQueryProgressMetricsResponse metricsResponse) {
-            metrics.add(metricsResponse.getMetrics());
-          }
-
-          @Override
-          public void onError(Throwable throwable) {
-            responseLatch.countDown();
-          }
-
-          @Override
-          public void onCompleted() {
-            responseLatch.countDown();
-          }
-        };
-
-    // send metrics request
-    StreamObserver<GetQueryProgressMetricsRequest> requestObserver =
-        asyncServer.getQueryProgressMetrics(responseObserver);
-    requestObserver.onNext(
-        GetQueryProgressMetricsRequest.newBuilder().setQueryId(profileSet.queryId).build());
-
-    // publish executor profiles.
-    long expectedRecords = 0;
-    long outputRecords = 0;
-    for (int i = 0; i < numExecutors; i++) {
-      PutExecutorProfileRequest req = profileSet.executorQueryProfileRequests.get(i);
-      server.putExecutorProfile(req);
-      expectedRecords += req.getProfile().getProgress().getRowsProcessed();
-      outputRecords += req.getProfile().getProgress().getOutputRecords();
-
-      Thread.sleep(100);
-    }
-
-    // terminate request.
-    requestObserver.onCompleted();
-
-    // wait on response completion.
-    responseLatch.await();
-
-    // verify metrics.
-    assertTrue(metrics.size() > 1);
-    assertEquals(expectedRecords, metrics.get(metrics.size() - 1).getRowsProcessed());
-    assertEquals(outputRecords, metrics.get(metrics.size() - 1).getOutputRecords());
-
-    // verify metrics via unary call
-    QueryProgressMetrics metrics2 = getSimpleQueryProgressMetricsUnary(profileSet.queryId);
-    assertEquals(expectedRecords, metrics2.getRowsProcessed());
-    assertEquals(outputRecords, metrics2.getOutputRecords());
-  }
-
   @Test
   public void testDeleteProfile() throws InterruptedException {
-    final int numExecutors = 2;
     final ProfileSet profileSet = new ProfileSet(2);
 
     // publish planning profile.
     server.putQueryPlanningProfile(profileSet.planningProfileRequest);
-
-    // publish only executor profiles.
-    long expectedRecords = 0;
-    long outputRecords = 0;
-    for (int i = 0; i < numExecutors; ++i) {
-      PutExecutorProfileRequest req = profileSet.executorQueryProfileRequests.get(i);
-      server.putExecutorProfile(req);
-
-      expectedRecords += req.getProfile().getProgress().getRowsProcessed();
-      outputRecords += req.getProfile().getProgress().getOutputRecords();
-    }
-
-    // verify metrics via streaming call
-    long recordsProcessed = getSimpleQueryProgressMetrics(profileSet.queryId);
-    assertEquals(expectedRecords, recordsProcessed);
-
-    // verify metrics via unary call
-    QueryProgressMetrics metrics = getSimpleQueryProgressMetricsUnary(profileSet.queryId);
-    assertEquals(expectedRecords, metrics.getRowsProcessed());
-    assertEquals(outputRecords, metrics.getOutputRecords());
 
     // publish tail profile.
     server.putQueryTailProfile(profileSet.tailProfileRequest);
@@ -404,11 +248,6 @@ public class TestProfiles {
     // delete the profile and fetch again.
     server.deleteProfile(DeleteProfileRequest.newBuilder().setQueryId(profileSet.queryId).build());
 
-    // expect empty metrics.
-    assertEquals(-1, getSimpleQueryProgressMetrics(profileSet.queryId));
-    assertEquals(-1, getSimpleQueryProgressMetricsUnary(profileSet.queryId).getRowsProcessed());
-    assertEquals(-1, getSimpleQueryProgressMetricsUnary(profileSet.queryId).getOutputRecords());
-
     // expect error on GetProfile
     assertThatThrownBy(
             () ->
@@ -424,16 +263,10 @@ public class TestProfiles {
     final ProfileSet profileSet = new ProfileSet();
 
     ProfileStore mockedProfileStore = mock(ProfileStore.class);
-    MetricsStore mockedMetricsStore = mock(MetricsStore.class);
 
     final JobTelemetryServiceImpl tmpService =
         new JobTelemetryServiceImpl(
-            mockedMetricsStore,
-            mockedProfileStore,
-            mock(GrpcTracerFacade.class),
-            true,
-            100,
-            executorService);
+            mockedProfileStore, mock(GrpcTracerFacade.class), true, executorService);
 
     when(mockedProfileStore.getPlanningProfile(any(QueryId.class)))
         .thenReturn(Optional.of(profileSet.planningProfileRequest.getProfile()));
@@ -492,8 +325,6 @@ public class TestProfiles {
                 .setFabricPort(i % 2)
                 .build();
 
-        final QueryProgressMetrics queryProgressMetrics =
-            QueryProgressMetrics.newBuilder().setRowsProcessed(6666).setOutputRecords(8888).build();
         List<NodePhaseStatus> nodePhaseStatuses = new ArrayList<>();
         nodePhaseStatuses.add(
             NodePhaseStatus.newBuilder().setMajorFragmentId(0).setMaxMemoryUsed(6).build());
@@ -516,7 +347,6 @@ public class TestProfiles {
             ExecutorQueryProfile.newBuilder()
                 .setEndpoint(nodeEndPoint)
                 .setQueryId(queryId)
-                .setProgress(queryProgressMetrics)
                 .setNodeStatus(nodeQueryStatus)
                 .addAllFragments(fragmentStatuses)
                 .build();

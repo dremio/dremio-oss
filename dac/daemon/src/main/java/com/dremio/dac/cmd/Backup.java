@@ -23,19 +23,21 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
-import com.dremio.dac.resource.BackupResource;
-import com.dremio.dac.resource.ImmutableUploadsBackupOptions;
+import com.dremio.dac.resource.BackupResource.FilesBackupOptions;
+import com.dremio.dac.resource.ImmutableFilesBackupOptions;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupOptions;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 import com.dremio.datastore.CheckpointInfo;
+import com.dremio.datastore.ImmutableCheckpointInfo;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.credentials.CredentialsServiceImpl;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -50,7 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Backup command line. */
-@AdminCommand(value = "backup", description = "Backs up Dremio metadata and user-uploaded files")
+@AdminCommand(
+    value = "backup",
+    description = "Backs up Dremio metadata, user-uploaded files and system files")
 public class Backup {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Backup.class);
@@ -134,6 +138,40 @@ public class Backup {
                 + "required when using this parameter. (this backup cannot be restored)",
         hidden = true)
     private String key = "";
+
+    @Parameter(
+        names = {"--checkpoint"},
+        description =
+            "Specify the checkpoint path to use. The checkpoint needs to be previous created. Credentials are not used."
+                + "Only available when running in the same process. When this option is enabled, the process only do a backup of the KVStore.",
+        hidden = true)
+    private String checkpoint = "";
+  }
+
+  @VisibleForTesting static WebClientFactory defaultWebClientFactory = new WebClientFactory() {};
+
+  private static WebClientFactory webClientFactory = defaultWebClientFactory;
+
+  @VisibleForTesting
+  interface WebClientFactory {
+    default WebClient createClient(
+        DACConfig dacConfig,
+        Provider<CredentialsService> credentialsServiceProvider,
+        String userName,
+        String password,
+        boolean checkSSLCertificates)
+        throws GeneralSecurityException, IOException {
+      if (!checkSSLCertificates) {
+        LOGGER.warn("Skipping Dremio SSL certificate check");
+      }
+      return new WebClient(
+          dacConfig, credentialsServiceProvider, userName, password, checkSSLCertificates);
+    }
+  }
+
+  @VisibleForTesting
+  static void setWebClientFactory(WebClientFactory factory) {
+    webClientFactory = factory;
   }
 
   public static BackupStats createBackup(
@@ -150,7 +188,7 @@ public class Backup {
       String key)
       throws IOException, GeneralSecurityException {
     final WebClient client =
-        new WebClient(
+        webClientFactory.createClient(
             dacConfig, credentialsServiceProvider, userName, password, checkSSLCertificates);
     BackupOptions options =
         new BackupOptions(uri.toString(), binary, includeProfiles, compression, tableToBackup, key);
@@ -168,13 +206,13 @@ public class Backup {
       boolean includeProfiles)
       throws IOException, GeneralSecurityException {
     final WebClient client =
-        new WebClient(
+        webClientFactory.createClient(
             dacConfig, credentialsServiceProvider, userName, password, checkSSLCertificates);
     BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, "", "", "");
     return client.buildPost(CheckpointInfo.class, "/backup/checkpoint", options);
   }
 
-  static BackupStats uploadsBackup(
+  static BackupStats filesBackup(
       DACConfig dacConfig,
       Provider<CredentialsService> credentialsServiceProvider,
       String userName,
@@ -184,14 +222,14 @@ public class Backup {
       boolean includeProfiles)
       throws IOException, GeneralSecurityException {
     final WebClient client =
-        new WebClient(
+        webClientFactory.createClient(
             dacConfig, credentialsServiceProvider, userName, password, checkSSLCertificates);
-    BackupResource.UploadsBackupOptions options =
-        new ImmutableUploadsBackupOptions.Builder()
+    FilesBackupOptions options =
+        new ImmutableFilesBackupOptions.Builder()
             .setBackupDestinationDirectory(uri.toString())
             .setIsIncludeProfiles(includeProfiles)
             .build();
-    return client.buildPost(BackupStats.class, "/backup/uploads", options);
+    return client.buildPost(BackupStats.class, "/backup/files", options);
   }
 
   private static boolean validateOnlineOption(BackupManagerOptions options) {
@@ -270,15 +308,19 @@ public class Backup {
               "A JDK is required to use local-attach mode. Please make sure JAVA_HOME is correctly configured");
         }
       } else {
-        if (options.userName == null) {
-          options.userName = System.console().readLine("username: ");
-        }
-        if (options.password == null) {
-          char[] pwd = System.console().readPassword("password: ");
-          options.password = new String(pwd);
-        }
-        if (!validateOnlineOption(options)) {
-          throw new ParameterException("User credential is required.");
+        // When the checkpoint is set, we only do a local backup. Credentials aren't used, we don't
+        // perform HTTP request to Dremio.
+        if (StringUtils.isBlank(options.checkpoint)) {
+          if (options.userName == null) {
+            options.userName = System.console().readLine("username: ");
+          }
+          if (options.password == null) {
+            char[] pwd = System.console().readPassword("password: ");
+            options.password = new String(pwd);
+          }
+          if (!validateOnlineOption(options)) {
+            throw new ParameterException("User credential is required.");
+          }
         }
         if (!options.table.isEmpty() && !options.json) {
           throw new ParameterException("One table backup works with json only.");
@@ -288,7 +330,7 @@ public class Backup {
         }
 
         final CredentialsService credService = options.acceptAll ? null : credentialsService;
-        final boolean checkSSLCertificates = options.acceptAll;
+        final boolean checkSSLCertificates = !options.acceptAll;
 
         if (!options.sameProcess) {
           LOGGER.info("Running backup using REST API");
@@ -306,7 +348,7 @@ public class Backup {
                   options.table,
                   options.key);
           AdminLogger.log(
-              "Backup created at {}, dremio tables {}, uploaded files {}",
+              "Backup created at {}, dremio tables {}, files {}",
               backupStats.getBackupPath(),
               backupStats.getTables(),
               backupStats.getFiles());
@@ -335,19 +377,32 @@ public class Backup {
 
     CheckpointInfo checkpoint = null;
     try {
-      // backup using same process is a 3 steps process: create DB checkpoint, backup uploads and
-      // backup DB
-      checkpoint =
-          createCheckpoint(
-              dacConfig,
-              () -> credentialsService,
-              options.userName,
-              options.password,
-              checkSSLCertificates,
-              target,
-              !options.json,
-              !options.profiles);
-      AdminLogger.log("Checkpoint created");
+      // When a checkpoint is specified in the CLI, it means we want to perform a local backup only
+      // without credentials requirements.
+      boolean hasCheckpoint = StringUtils.isNotBlank(options.checkpoint);
+      if (hasCheckpoint) {
+        checkpoint =
+            new ImmutableCheckpointInfo.Builder()
+                .setCheckpointPath(options.checkpoint)
+                .setBackupDestinationDir(options.backupDir)
+                .build();
+        AdminLogger.log(
+            "Reuse checkpoint previously created. We will only perform a backup without the files");
+      } else {
+        // backup using same process is a 3 steps process: create DB checkpoint, backup files and
+        // backup DB
+        checkpoint =
+            createCheckpoint(
+                dacConfig,
+                () -> credentialsService,
+                options.userName,
+                options.password,
+                checkSSLCertificates,
+                target,
+                !options.json,
+                !options.profiles);
+        AdminLogger.log("Checkpoint created");
+      }
 
       final Path backupDestinationDirPath = Path.of(checkpoint.getBackupDestinationDir());
       final FileSystem fs = HadoopFileSystem.get(backupDestinationDirPath, new Configuration());
@@ -373,19 +428,30 @@ public class Backup {
         localKVStoreProvider.start();
         final BackupStats tablesBackupStats =
             BackupRestoreUtil.createBackup(
-                fs, backupOptions, localKVStoreProvider, null, checkpoint);
-        final BackupStats uploadsBackupStats =
-            uploadsBackup(
-                dacConfig,
-                () -> credentialsService,
-                options.userName,
-                options.password,
-                checkSSLCertificates,
-                backupDestinationDirPath.toURI(),
-                options.profiles);
-        final BackupStats backupStats = merge(uploadsBackupStats, tablesBackupStats);
+                fs,
+                backupOptions,
+                localKVStoreProvider,
+                null,
+                dacConfig.getConfig(),
+                checkpoint,
+                false);
+        final BackupStats filesBackupStats;
+        if (hasCheckpoint) {
+          filesBackupStats = new BackupStats(checkpoint.getBackupDestinationDir(), 0, 0);
+        } else {
+          filesBackupStats =
+              filesBackup(
+                  dacConfig,
+                  () -> credentialsService,
+                  options.userName,
+                  options.password,
+                  checkSSLCertificates,
+                  backupDestinationDirPath.toURI(),
+                  options.profiles);
+        }
+        final BackupStats backupStats = merge(filesBackupStats, tablesBackupStats);
         AdminLogger.log(
-            "Backup created at {}, dremio tables {}, uploaded files {}",
+            "Backup created at {}, dremio tables {}, files {}",
             backupStats.getBackupPath(),
             backupStats.getTables(),
             backupStats.getFiles());
@@ -398,9 +464,9 @@ public class Backup {
     }
   }
 
-  private static BackupStats merge(BackupStats uploadStats, BackupStats tablesStats) {
+  private static BackupStats merge(BackupStats filesStats, BackupStats tablesStats) {
     return new BackupStats(
-        uploadStats.getBackupPath(), tablesStats.getTables(), uploadStats.getFiles());
+        filesStats.getBackupPath(), tablesStats.getTables(), filesStats.getFiles());
   }
 
   @Value.Immutable

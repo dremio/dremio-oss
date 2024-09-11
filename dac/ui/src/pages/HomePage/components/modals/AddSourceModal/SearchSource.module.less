@@ -24,22 +24,23 @@
     width: 100%;
     margin: 16px 16px 8px 16px;
     height: 32px;
-    color: var(--dremio--color--text--main);
+    color: var(--text--primary);
     border-radius: 4px;
-    border: 1px solid var(--color--neutral--100);
+    background-color: var(--fill--primary);
+    border: 1px solid var(--border--neutral--solid);
     padding-left: 36px;
     outline: none;
 
     &:hover {
-      border-color: var(--color--neutral--200);
+      border-color: var(--border--hover);
     }
     &:focus {
-      border-color: var(--color--brand--300);
+      border-color: var(--border--focused);
     }
   }
 
   &__input::placeholder {
-    color: var(--dremio--color--icon--dremio--disabled);
+    color: var(--text--disabled);
   }
 
   span {
@@ -55,7 +56,7 @@
     .search-icon {
       height: 24px;
       width: 24px;
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
     }
   }
 }

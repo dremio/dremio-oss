@@ -29,18 +29,15 @@ import org.junit.Test;
 public class TestValuesRewrite extends PlanTestBase {
 
   protected static String finalIcebergMetadataLocation;
-  private static AutoCloseable closeable;
 
   @BeforeClass
   public static void setup() {
     finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
-    closeable = enableIcebergTables();
   }
 
   @AfterClass
   public static void cleanup() throws Exception {
     FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation()));
-    closeable.close();
   }
 
   @Test

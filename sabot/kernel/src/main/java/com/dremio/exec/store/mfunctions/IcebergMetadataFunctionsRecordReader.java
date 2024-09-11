@@ -16,11 +16,8 @@
 
 package com.dremio.exec.store.mfunctions;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_METADATA_FUNCTIONS;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.store.RecordReader;
@@ -62,12 +59,6 @@ final class IcebergMetadataFunctionsRecordReader implements RecordReader {
       OperatorContext context,
       SupportsIcebergRootPointer pluginForIceberg,
       MetadataFunctionsSubScan config) {
-    if (context.getOptions() != null
-        && !context.getOptions().getOption(ENABLE_ICEBERG_METADATA_FUNCTIONS)) {
-      throw UserException.unsupportedError()
-          .message("Query on metadata functions is not supported on iceberg.")
-          .buildSilently();
-    }
     Preconditions.checkNotNull(config.getReferencedTables());
     this.metadataLocation = config.getMetadataLocation();
     this.context = context;

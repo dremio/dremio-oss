@@ -18,9 +18,9 @@ package com.dremio.dac.explore;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.explore.model.DatasetUI;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import java.util.Arrays;

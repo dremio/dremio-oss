@@ -60,6 +60,11 @@ import org.junit.Rule;
 /** DML test utilities. */
 public class DmlQueryTestUtils {
 
+  public enum DmlRowwiseOperationWriteMode {
+    COPY_ON_WRITE,
+    MERGE_ON_READ
+  }
+
   @Rule public static TemporarySystemProperties PROPERTIES = new TemporarySystemProperties();
 
   public static final Object[][] EMPTY_EXPECTED_DATA = new Object[0][];
@@ -80,16 +85,24 @@ public class DmlQueryTestUtils {
     public SqlTypeName typeName;
     public boolean partitionColumn;
     public String extra;
+    public boolean sortColumn;
 
-    public ColumnInfo(String name, SqlTypeName typeName, boolean partitionColumn, String extra) {
+    public ColumnInfo(
+        String name,
+        SqlTypeName typeName,
+        boolean partitionColumn,
+        boolean sortColumn,
+        String extra) {
       this.name = name;
       this.typeName = typeName;
       this.partitionColumn = partitionColumn;
+      this.sortColumn = sortColumn;
       this.extra = extra;
     }
 
-    public ColumnInfo(String name, SqlTypeName typeName, boolean partitionColumn) {
-      this(name, typeName, partitionColumn, null);
+    public ColumnInfo(
+        String name, SqlTypeName typeName, boolean partitionColumn, boolean sortColumn) {
+      this(name, typeName, partitionColumn, sortColumn, null);
     }
   }
 
@@ -152,6 +165,10 @@ public class DmlQueryTestUtils {
             Arrays.stream(schema)
                 .filter(columnInfo -> columnInfo.partitionColumn)
                 .map(columnInfo -> columnInfo.name)
+                .collect(Collectors.toList()),
+            Arrays.stream(schema)
+                .filter(columnInfo -> columnInfo.sortColumn)
+                .map(columnInfo -> columnInfo.name)
                 .collect(Collectors.toList()));
     String schemaSql =
         Arrays.stream(schema)
@@ -209,9 +226,9 @@ public class DmlQueryTestUtils {
   public static Table createEmptyTable(String source, String[] paths, String name, int columnCount)
       throws Exception {
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
-      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.VARCHAR, false);
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.VARCHAR, false, false);
     }
 
     String fullPath = String.join(".", paths);
@@ -220,6 +237,10 @@ public class DmlQueryTestUtils {
         getCreateTableSql(
             Arrays.stream(schema)
                 .filter(columnInfo -> columnInfo.partitionColumn)
+                .map(columnInfo -> columnInfo.name)
+                .collect(Collectors.toList()),
+            Arrays.stream(schema)
+                .filter(columnInfo -> columnInfo.sortColumn)
                 .map(columnInfo -> columnInfo.name)
                 .collect(Collectors.toList()));
     String schemaSql =
@@ -319,6 +340,10 @@ public class DmlQueryTestUtils {
             Arrays.stream(schema)
                 .filter(columnInfo -> columnInfo.partitionColumn)
                 .map(columnInfo -> columnInfo.name)
+                .collect(Collectors.toList()),
+            Arrays.stream(schema)
+                .filter(columnInfo -> columnInfo.sortColumn)
+                .map(columnInfo -> columnInfo.name)
                 .collect(Collectors.toList()));
     String schemaSql =
         Arrays.stream(schema)
@@ -414,12 +439,15 @@ public class DmlQueryTestUtils {
     return createTable(source, EMPTY_PATHS, name, schema, data);
   }
 
-  private static String getCreateTableSql(List<String> partitionColumns) {
+  private static String getCreateTableSql(List<String> partitionColumns, List<String> sortColumns) {
     return String.format(
-        "CREATE TABLE %%s (%%s)%sSTORE AS (type => 'Iceberg')",
+        "CREATE TABLE %%s (%%s)%s%sSTORE AS (type => 'Iceberg')",
         CollectionUtils.isEmpty(partitionColumns)
             ? " "
-            : String.format(" PARTITION BY (%s) ", String.join(", ", partitionColumns)));
+            : String.format(" PARTITION BY (%s) ", String.join(", ", partitionColumns)),
+        CollectionUtils.isEmpty(sortColumns)
+            ? " "
+            : String.format(" LOCALSORT BY (%s) ", String.join(", ", sortColumns)));
   }
 
   public static String createRandomId() {
@@ -469,14 +497,23 @@ public class DmlQueryTestUtils {
       int rowCount,
       int startingRowId,
       Set<Integer> partitionColumnIndexes,
+      Set<Integer> sortColumnIndexes,
       String tableName)
       throws Exception {
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, partitionColumnIndexes.contains(0));
+    schema[0] =
+        new ColumnInfo(
+            "id",
+            SqlTypeName.INTEGER,
+            partitionColumnIndexes.contains(0),
+            sortColumnIndexes.contains(0));
     for (int c = 0; c < columnCount - 1; c++) {
       schema[c + 1] =
           new ColumnInfo(
-              "column_" + c, SqlTypeName.VARCHAR, partitionColumnIndexes.contains(c + 1));
+              "column_" + c,
+              SqlTypeName.VARCHAR,
+              partitionColumnIndexes.contains(c + 1),
+              sortColumnIndexes.contains(c + 1));
     }
 
     Object[][] data = new Object[rowCount][columnCount];
@@ -499,9 +536,9 @@ public class DmlQueryTestUtils {
   public static Table createStockIcebergTable(
       String source, int pathCount, int columnCount, String tableName) throws Exception {
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
-      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.VARCHAR, false);
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.VARCHAR, false, false);
     }
 
     String[] paths = pathCount > 0 ? new String[pathCount] : EMPTY_PATHS;
@@ -570,7 +607,7 @@ public class DmlQueryTestUtils {
     return new Table(table.name, table.paths, table.fqn, table.columns, allData);
   }
 
-  public static Table createBasicTable(
+  public static Table createBasicTableWithPartitions(
       String source,
       int pathCount,
       int columnCount,
@@ -578,30 +615,155 @@ public class DmlQueryTestUtils {
       Set<Integer> partitionColumnIndexes)
       throws Exception {
     return createBasicTable(
-        source, pathCount, columnCount, rowCount, 0, partitionColumnIndexes, null);
+        source,
+        pathCount,
+        columnCount,
+        rowCount,
+        0,
+        partitionColumnIndexes,
+        Collections.emptySet(),
+        null);
   }
 
   public static Table createBasicTable(String source, int pathCount, int columnCount, int rowCount)
       throws Exception {
-    return createBasicTable(source, pathCount, columnCount, rowCount, Collections.emptySet());
+    return createBasicTable(
+        source, pathCount, columnCount, rowCount, Collections.emptySet(), Collections.emptySet());
+  }
+
+  public static Table createBasicTable(
+      String source,
+      int pathCount,
+      int columnCount,
+      int rowCount,
+      Set<Integer> partitionColumnIndexes,
+      Set<Integer> sortColumnIndexes)
+      throws Exception {
+    return createBasicTable(
+        source,
+        pathCount,
+        columnCount,
+        rowCount,
+        0,
+        partitionColumnIndexes,
+        sortColumnIndexes,
+        null);
   }
 
   public static Table createBasicTable(
       int startingRowId, String source, int columnCount, int rowCount) throws Exception {
     return createBasicTable(
-        source, 0, columnCount, rowCount, startingRowId, Collections.emptySet(), null);
+        source,
+        0,
+        columnCount,
+        rowCount,
+        startingRowId,
+        Collections.emptySet(),
+        Collections.emptySet(),
+        null);
+  }
+
+  private static Table createBasicNonPartitionedTableWithSortOrder(
+      int startingRowId,
+      String source,
+      int columnCount,
+      int rowCount,
+      Set<Integer> sortColumnIndexes)
+      throws Exception {
+    return createBasicTable(
+        source,
+        0,
+        columnCount,
+        rowCount,
+        startingRowId,
+        Collections.emptySet(),
+        sortColumnIndexes,
+        null);
   }
 
   public static Table createBasicTable(String source, int columnCount, int rowCount)
       throws Exception {
-    return createBasicTable(source, 0, columnCount, rowCount, Collections.emptySet());
+    return createBasicTable(
+        source, 0, columnCount, rowCount, Collections.emptySet(), Collections.emptySet());
   }
 
   public static Table createBasicTable(
       int startingRowId, String source, int columnCount, int rowCount, String name)
       throws Exception {
     return createBasicTable(
-        source, 0, columnCount, rowCount, startingRowId, Collections.emptySet(), name);
+        source,
+        0,
+        columnCount,
+        rowCount,
+        startingRowId,
+        Collections.emptySet(),
+        Collections.emptySet(),
+        name);
+  }
+
+  public static Table createBasicTable(
+      int startingRowId,
+      String source,
+      int columnCount,
+      int rowCount,
+      Set<Integer> sortColumnIndexes,
+      String name)
+      throws Exception {
+    return createBasicTable(
+        source,
+        0,
+        columnCount,
+        rowCount,
+        startingRowId,
+        Collections.emptySet(),
+        sortColumnIndexes,
+        name);
+  }
+
+  public static Table createBasicTable(
+      int startingRowId,
+      String source,
+      int columnCount,
+      int rowCount,
+      String name,
+      Set<Integer> partitionColumnIndexes)
+      throws Exception {
+    return createBasicTable(
+        source,
+        0,
+        columnCount,
+        rowCount,
+        startingRowId,
+        partitionColumnIndexes,
+        Collections.emptySet(),
+        name);
+  }
+
+  public static Table createBasicTable(
+      int startingRowId,
+      String source,
+      int columnCount,
+      int rowCount,
+      Set<Integer> partitionColumnIndexes,
+      Set<Integer> sortColumnIndexes,
+      String name)
+      throws Exception {
+    return createBasicTable(
+        source,
+        0,
+        columnCount,
+        rowCount,
+        startingRowId,
+        partitionColumnIndexes,
+        sortColumnIndexes,
+        name);
+  }
+
+  public static Tables createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+      String source, int columnCount, int rowCount, Set<Integer> partitionColumnIndexes)
+      throws Exception {
+    return createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+        source, columnCount, rowCount, 0, partitionColumnIndexes);
   }
 
   public static Tables createBasicNonPartitionedAndPartitionedTables(
@@ -609,6 +771,29 @@ public class DmlQueryTestUtils {
       throws Exception {
     return createBasicNonPartitionedAndPartitionedTables(
         source, columnCount, rowCount, 0, partitionColumnIndexes);
+  }
+
+  public static Tables createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+      String source,
+      int columnCount,
+      int rowCount,
+      int startingRowId,
+      Set<Integer> partitionColumnIndexes)
+      throws Exception {
+    return createBasicNonPartitionedAndPartitionedTablesWithAndWithoutSortOrder(
+        source, columnCount, rowCount, startingRowId, partitionColumnIndexes, Set.of(0, 1));
+  }
+
+  public static Tables createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+      String source,
+      int columnCount,
+      int rowCount,
+      int startingRowId,
+      Set<Integer> partitionColumnIndexes,
+      Set<Integer> sortColumnIndexes)
+      throws Exception {
+    return createBasicNonPartitionedAndPartitionedTablesWithAndWithoutSortOrder(
+        source, columnCount, rowCount, startingRowId, partitionColumnIndexes, sortColumnIndexes);
   }
 
   public static Tables createBasicNonPartitionedAndPartitionedTables(
@@ -622,7 +807,48 @@ public class DmlQueryTestUtils {
         new Table[] {
           createBasicTable(startingRowId, source, columnCount, rowCount),
           createBasicTable(
-              source, 0, columnCount, rowCount, startingRowId, partitionColumnIndexes, null)
+              source,
+              0,
+              columnCount,
+              rowCount,
+              startingRowId,
+              partitionColumnIndexes,
+              Collections.emptySet(),
+              null)
+        });
+  }
+
+  public static Tables createBasicNonPartitionedAndPartitionedTablesWithAndWithoutSortOrder(
+      String source,
+      int columnCount,
+      int rowCount,
+      int startingRowId,
+      Set<Integer> partitionColumnIndexes,
+      Set<Integer> sortColumnIndexes)
+      throws Exception {
+    return new Tables(
+        new Table[] {
+          createBasicTable(startingRowId, source, columnCount, rowCount),
+          createBasicTable(
+              source,
+              0,
+              columnCount,
+              rowCount,
+              startingRowId,
+              partitionColumnIndexes,
+              Collections.emptySet(),
+              null),
+          createBasicNonPartitionedTableWithSortOrder(
+              startingRowId, source, columnCount, rowCount, sortColumnIndexes),
+          createBasicTable(
+              source,
+              0,
+              columnCount,
+              rowCount,
+              startingRowId,
+              partitionColumnIndexes,
+              sortColumnIndexes,
+              null)
         });
   }
 
@@ -642,9 +868,9 @@ public class DmlQueryTestUtils {
   public static Table createBasicTableWithDecimals(
       String source, int columnCount, int rowCount, int startingRowId) throws Exception {
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
-      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.DECIMAL, false);
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.DECIMAL, false, false);
     }
 
     Object[][] data = new Object[rowCount][columnCount];
@@ -679,9 +905,9 @@ public class DmlQueryTestUtils {
   public static Table createBasicTableWithDoubles(
       String source, int columnCount, int rowCount, int startingRowId) throws Exception {
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
-      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.DOUBLE, false);
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.DOUBLE, false, false);
     }
 
     Object[][] data = new Object[rowCount][columnCount];
@@ -715,9 +941,9 @@ public class DmlQueryTestUtils {
   public static Table createBasicTableWithFloats(
       String source, int columnCount, int rowCount, int startingRowId) throws Exception {
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
-      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.FLOAT, false);
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.FLOAT, false, false);
     }
 
     Object[][] data = new Object[rowCount][columnCount];
@@ -747,9 +973,9 @@ public class DmlQueryTestUtils {
         LocalDateTime.parse(
             startDateString, DateFunctionsUtils.getISOFormatterForFormatString(dateFormat));
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
-      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.DATE, false);
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.DATE, false, false);
     }
 
     Object[][] data = new Object[rowCount][columnCount];
@@ -774,10 +1000,11 @@ public class DmlQueryTestUtils {
   public static Table createEmptyTableWithListOfType(
       String source, int columnCount, String listMemberTypeName) throws Exception {
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
       schema[c + 1] =
-          new ColumnInfo("column_" + c, SqlTypeName.ARRAY, false, "(" + listMemberTypeName + ")");
+          new ColumnInfo(
+              "column_" + c, SqlTypeName.ARRAY, false, false, "(" + listMemberTypeName + ")");
     }
 
     // Create object array of size 0 and pass that instead of passing null.
@@ -803,9 +1030,9 @@ public class DmlQueryTestUtils {
         LocalDateTime.parse(
             startTimeString, DateFunctionsUtils.getISOFormatterForFormatString(timeFormat));
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
-      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.TIME, false);
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.TIME, false, false);
     }
 
     Object[][] data = new Object[rowCount][columnCount];
@@ -839,9 +1066,9 @@ public class DmlQueryTestUtils {
             startTimestampString,
             DateFunctionsUtils.getISOFormatterForFormatString(timestampFormat));
     ColumnInfo[] schema = new ColumnInfo[columnCount];
-    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false, false);
     for (int c = 0; c < columnCount - 1; c++) {
-      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.TIMESTAMP, false);
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.TIMESTAMP, false, false);
     }
 
     Object[][] data = new Object[rowCount][columnCount];
@@ -1093,6 +1320,37 @@ public class DmlQueryTestUtils {
   public static void addMonthPartition(
       DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
     runSQL(String.format("ALTER TABLE %s add PARTITION FIELD MONTH(%s)", table.fqn, column));
+  }
+
+  public static void enableMergeOnRead(DmlQueryTestUtils.Table table) throws Exception {
+    runSQL(
+        String.format(
+            "ALTER TABLE %s SET TBLPROPERTIES "
+                + "('write.delete.mode'='merge-on-read', "
+                + "'write.update.mode'='merge-on-read', "
+                + "'write.merge.mode'='merge-on-read', "
+                + "'format-version'='2')",
+            table.fqn));
+  }
+
+  public static void enableCopyOnWrite(DmlQueryTestUtils.Table table) throws Exception {
+    runSQL(
+        String.format(
+            "ALTER TABLE %s SET TBLPROPERTIES "
+                + "('write.delete.mode'='copy-on-write', "
+                + "'write.update.mode'='copy-on-write', "
+                + "'write.merge.mode'='copy-on-write', "
+                + "'format-version'='2')",
+            table.fqn));
+  }
+
+  public static void configureDmlWriteModeProperties(
+      Table table, DmlRowwiseOperationWriteMode dmlWriteMode) throws Exception {
+    if (dmlWriteMode == DmlRowwiseOperationWriteMode.MERGE_ON_READ) {
+      enableMergeOnRead(table);
+    } else {
+      enableCopyOnWrite(table);
+    }
   }
 
   public static void dropYearPartition(

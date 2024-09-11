@@ -17,6 +17,7 @@ package com.dremio.sabot.op.project;
 
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import java.util.List;
@@ -30,7 +31,8 @@ public interface Projector {
       VectorAccessible incoming,
       VectorAccessible outgoing,
       List<TransferPair> transfers,
-      ComplexWriterCreator writerCreator)
+      ComplexWriterCreator writerCreator,
+      ExpressionEvaluationOptions projectorOptions)
       throws SchemaChangeException;
 
   void projectRecords(final int recordCount);

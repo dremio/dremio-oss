@@ -22,6 +22,15 @@ export const PHYSICAL_DATASET_HOME_FILE = "PHYSICAL_DATASET_HOME_FILE";
 export const PHYSICAL_DATASET_HOME_FOLDER = "PHYSICAL_DATASET_HOME_FOLDER";
 export const SCRIPT = "SCRIPT";
 
+export const DATASET_TYPES_TO_DREMIO_ICON = {
+  [VIRTUAL_DATASET]: "entities/dataset-view",
+  [PHYSICAL_DATASET]: "entities/dataset-table",
+  [PHYSICAL_DATASET_SOURCE_FILE]: "entities/dataset-table",
+  [PHYSICAL_DATASET_SOURCE_FOLDER]: "entities/purple-folder",
+  [PHYSICAL_DATASET_HOME_FILE]: "entities/dataset-table",
+  [SCRIPT]: "entities/script",
+};
+
 export const DATASET_TYPES_TO_ICON_TYPES = {
   [VIRTUAL_DATASET]: "VirtualDataset",
   [PHYSICAL_DATASET]: "PhysicalDataset",
@@ -33,8 +42,8 @@ export const DATASET_TYPES_TO_ICON_TYPES = {
 };
 
 export const DATASET_TYPES_TO_ICEBERG_TYPES = {
-  [PHYSICAL_DATASET]: "IcebergTable",
-  [VIRTUAL_DATASET]: "IcebergView",
+  [PHYSICAL_DATASET]: "entities/iceberg-table",
+  [VIRTUAL_DATASET]: "entities/iceberg-view",
 };
 
 export const datasetTypeToEntityType = {

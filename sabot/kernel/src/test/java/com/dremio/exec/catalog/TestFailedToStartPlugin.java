@@ -20,13 +20,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.connector.ConnectorException;
@@ -50,6 +50,7 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.options.OptionManager;
@@ -64,6 +65,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
@@ -99,8 +101,6 @@ import org.junit.Test;
 public class TestFailedToStartPlugin extends DremioTest {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(TestFailedToStartPlugin.class);
-
-  private SabotConfig sabotConfig;
   private SabotContext sabotContext;
   private LegacyKVStoreProvider storeProvider;
   private SchedulerService schedulerService;
@@ -115,6 +115,7 @@ public class TestFailedToStartPlugin extends DremioTest {
   private final MetadataRefreshInfoBroadcaster broadcaster =
       mock(MetadataRefreshInfoBroadcaster.class);
   private ModifiableSchedulerService modifiableSchedulerService;
+  private ConnectionReader connectionReader;
   private static final String MOCK_UP = "mockup-failed-to-start";
 
   @Before
@@ -150,12 +151,13 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     when(mockNamespaceService.getSources()).thenReturn(Arrays.asList(mockUpConfig));
     when(mockNamespaceService.getSource(any(NamespaceKey.class))).thenReturn(mockUpConfig);
+    when(mockNamespaceService.exists(any(NamespaceKey.class), eq(NameSpaceContainer.Type.SOURCE)))
+        .thenReturn(true);
     when(mockNamespaceService.getAllDatasets(any(NamespaceKey.class)))
         .thenReturn(Collections.emptyList());
 
-    when(mockSecretsCreator.encrypt(any())).thenReturn(new URI("system:secretplaceholder"));
-
-    sabotConfig = SabotConfig.create();
+    when(mockSecretsCreator.encrypt(any()))
+        .thenReturn(Optional.of(new URI("system:secretplaceholder")));
 
     sabotContext = mock(SabotContext.class);
     // used in c'tor
@@ -169,7 +171,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     final OptionValidatorListing optionValidatorListing =
         new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    som = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    som = new SystemOptionManagerImpl(optionValidatorListing, lpp, () -> storeProvider, true);
     optionManager =
         OptionManagerWrapper.Builder.newBuilder()
             .withOptionManager(new DefaultOptionManager(optionValidatorListing))
@@ -251,11 +253,14 @@ public class TestFailedToStartPlugin extends DremioTest {
           @Override
           public void modifyTaskGroup(String groupName, ScheduleTaskGroup taskGroup) {}
         };
+
+    connectionReader =
+        ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class);
   }
 
   @After
   public void tearDown() throws Exception {
-    AutoCloseables.close(modifiableSchedulerService);
+    AutoCloseables.close(modifiableSchedulerService, som, storeProvider);
   }
 
   private static final class InvocationCounter {
@@ -329,7 +334,7 @@ public class TestFailedToStartPlugin extends DremioTest {
             DremioConfig.create(),
             sourceDataStore,
             schedulerService,
-            ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            connectionReader,
             monitor,
             () -> broadcaster,
             null,
@@ -387,7 +392,7 @@ public class TestFailedToStartPlugin extends DremioTest {
             DremioConfig.create(),
             sourceDataStore,
             schedulerService,
-            ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            connectionReader,
             monitor,
             () -> broadcaster,
             null,
@@ -448,7 +453,7 @@ public class TestFailedToStartPlugin extends DremioTest {
             DremioConfig.create(),
             sourceDataStore,
             schedulerService,
-            ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            connectionReader,
             monitor,
             () -> broadcaster,
             null,
@@ -518,7 +523,7 @@ public class TestFailedToStartPlugin extends DremioTest {
             DremioConfig.create(),
             sourceDataStore,
             schedulerService,
-            ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            connectionReader,
             monitor,
             () -> broadcaster,
             null,
@@ -649,7 +654,7 @@ public class TestFailedToStartPlugin extends DremioTest {
     }
 
     @Override
-    public boolean containerExists(EntityPath containerPath) {
+    public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
       return false;
     }
 

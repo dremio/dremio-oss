@@ -40,7 +40,6 @@ public abstract class MetadataRequestOptions {
   public CaseInsensitiveMap<VersionContext> getSourceVersionMapping() {
     return CaseInsensitiveMap.newHashMap();
   }
-  ;
 
   /**
    * Consider the metadata valid only if it is newer than the given time.
@@ -66,6 +65,12 @@ public abstract class MetadataRequestOptions {
   @Value.Default
   public boolean checkValidity() {
     return true;
+  }
+
+  /** See {@link MetadataRequestOptions#checkValidity()}. Specifically for Iceberg datasets. */
+  @Value.Default
+  public boolean checkIcebergValidity() {
+    return checkValidity();
   }
 
   /**

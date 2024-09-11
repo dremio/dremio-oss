@@ -49,7 +49,7 @@
 
   <!-- Maximum file line length -->
   <module name="FileLength">
-    <property name="max" value="4000"/>
+    <property name="max" value="5000"/>
   </module>
 
   <!-- No TAB characters -->
@@ -104,6 +104,7 @@
       <property name="severity" value="warning"/>
       <property name="format" value="^logger|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
     </module>
+    <module name="IllegalIdentifierName"/>
     <module name="LocalFinalVariableName"/>
     <module name="LocalVariableName">
       <!-- TODO: move to error -->

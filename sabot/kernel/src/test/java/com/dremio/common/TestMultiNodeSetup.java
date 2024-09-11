@@ -15,8 +15,8 @@
  */
 package com.dremio.common;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -38,16 +38,13 @@ public class TestMultiNodeSetup extends BaseTestQuery {
     assertEquals(NUM_NODES, nodes.length);
 
     // first node has all roles
-    assertEquals(
-        EnumSet.allOf(ClusterCoordinator.Role.class).size(),
-        nodes[0].getContext().getRoles().size());
-    assertTrue(
-        nodes[0].getContext().getRoles().containsAll(EnumSet.allOf(ClusterCoordinator.Role.class)));
+    assertThat(nodes[0].getContext().getRoles())
+        .containsExactlyElementsOf(EnumSet.allOf(ClusterCoordinator.Role.class));
 
     // all others are only executors
     for (int i = 1; i < nodes.length; i++) {
-      assertEquals(1, nodes[i].getContext().getRoles().size());
-      assertTrue(nodes[0].getContext().getRoles().contains(ClusterCoordinator.Role.EXECUTOR));
+      assertThat(nodes[i].getContext().getRoles())
+          .containsExactly(ClusterCoordinator.Role.EXECUTOR);
     }
   }
 }

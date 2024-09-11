@@ -16,10 +16,30 @@
 package com.dremio.exec.serialization;
 
 import com.dremio.common.utils.ProtobufUtils;
+import com.fasterxml.jackson.core.StreamReadConstraints;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Message;
 
-public class ProtoSerializer {
-  public static <M extends Message> InstanceSerializer<M> of(Class<M> clazz) {
-    return new JacksonSerializer<>(ProtobufUtils.newMapper(), clazz);
+/** Utilities to serialize/deserialize JSON encoded protobuf */
+public final class ProtoSerializer {
+  private ProtoSerializer() {}
+
+  /**
+   * Returns JacksonSerializer to serialize/deserialize protobuf
+   *
+   * @param clazz Type of protobuf object
+   * @param maxStringLength Max allowed size of the String fields
+   * @return JacksonSerializer to be used for serializing/deserializing JSON
+   * @param <M> Type of protobuf object
+   */
+  public static <M extends Message> InstanceSerializer<M> of(Class<M> clazz, int maxStringLength) {
+    ObjectMapper mapper = ProtobufUtils.newMapper();
+    mapper
+        .getFactory()
+        .setStreamReadConstraints(
+            StreamReadConstraints.builder().maxStringLength(maxStringLength).build());
+    mapper = mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    return new JacksonSerializer<>(mapper, clazz);
   }
 }

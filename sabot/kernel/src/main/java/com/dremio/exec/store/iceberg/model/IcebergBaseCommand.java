@@ -67,6 +67,7 @@ import org.apache.iceberg.OverwriteFiles;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PendingUpdate;
 import org.apache.iceberg.ReplaceSortOrder;
+import org.apache.iceberg.RowDelta;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.SnapshotUpdate;
@@ -87,6 +88,7 @@ import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.CharSequenceSet;
 import org.apache.iceberg.util.PropertyUtil;
 
 /** Base Iceberg catalog */
@@ -99,7 +101,11 @@ public class IcebergBaseCommand implements IcebergCommand {
   private final TableOperations tableOperations;
   private AppendFiles appendFiles;
   private DeleteFiles deleteFiles;
+
+  private List<DeleteFile> positionalDeleteFileList;
   private OverwriteFiles overwriteFiles;
+
+  private RowDelta rowDelta;
   private final Configuration configuration;
   protected final Path fsPath;
   private Snapshot currentSnapshot;
@@ -162,6 +168,11 @@ public class IcebergBaseCommand implements IcebergCommand {
   }
 
   @Override
+  public void registerTable(TableMetadata tableMetadata) {
+    tableOperations.commit(null, tableMetadata);
+  }
+
+  @Override
   public void beginTransaction() {
     Preconditions.checkState(transaction == null, "Unexpected state");
     Table table = loadTable();
@@ -180,11 +191,28 @@ public class IcebergBaseCommand implements IcebergCommand {
   public void beginOverwrite(long snapshotId) {
     Preconditions.checkState(transaction != null, "Unexpected state");
     // Mark the transaction as a read-modify-write transaction. When performing DML (DELETE, UPDATE,
+    // MERGE) operations to update an iceberg table, the version of the table while updating should
+    // be the same as the version that was read.
+
+    // Metadata refresh also use this API
+    overwriteFiles =
+        transaction.newOverwrite().validateFromSnapshot(snapshotId).validateNoConflictingData();
+  }
+
+  @Override
+  public void beginRowDelta(Long snapshotId) {
+    Preconditions.checkState(transaction != null, "Unexpected state");
+    // RowDelta is used to track positional deleteFiles (merge-on-read DML mode)
+    // Mark the transaction as a read-modify-write transaction. When performing DML (DELETE, UPDATE,
     // MERGE) operations
     // to update an iceberg table, the version of the table while updating should be the same as the
     // version that was read.
-    overwriteFiles =
-        transaction.newOverwrite().validateFromSnapshot(snapshotId).validateNoConflictingData();
+    rowDelta =
+        transaction
+            .newRowDelta()
+            .validateFromSnapshot(snapshotId)
+            .validateNoConflictingDataFiles()
+            .validateNoConflictingDeleteFiles();
   }
 
   @Override
@@ -201,10 +229,32 @@ public class IcebergBaseCommand implements IcebergCommand {
   }
 
   @Override
-  public Snapshot finishOverwrite() {
+  public void beginSerializableIsolationRowDelta(
+      CharSequenceSet referencedDataFiles, Long snapshotId, Expression conflictDetectionFilter) {
+    Preconditions.checkState(transaction != null, "Unexpected state");
+    rowDelta =
+        transaction
+            .newRowDelta()
+            .validateFromSnapshot(snapshotId)
+            .conflictDetectionFilter(conflictDetectionFilter)
+            .validateNoConflictingDataFiles()
+            .validateNoConflictingDeleteFiles()
+            .validateDataFilesExist(referencedDataFiles) // unique to row delta
+            .validateDeletedFiles(); // unique to row delta
+  }
+
+  @Override
+  public void finishOverwrite() {
     stampSnapshotUpdateWithDremioJobId(overwriteFiles);
     overwriteFiles.commit();
-    return transaction.table().currentSnapshot();
+    transaction.table().currentSnapshot();
+  }
+
+  @Override
+  public void finishRowDelta() {
+    stampSnapshotUpdateWithDremioJobId(rowDelta);
+    rowDelta.commit();
+    transaction.table().currentSnapshot();
   }
 
   @Override
@@ -301,7 +351,8 @@ public class IcebergBaseCommand implements IcebergCommand {
   }
 
   @Override
-  public List<SnapshotEntry> expireSnapshots(long olderThanInMillis, int retainLast) {
+  public List<SnapshotEntry> expireSnapshots(
+      long olderThanInMillis, int retainLast, boolean throwIcebergException) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     // perform expiration
     String olderThanTimestamp = getTimestampFromMillis(olderThanInMillis);
@@ -315,19 +366,18 @@ public class IcebergBaseCommand implements IcebergCommand {
             retainLast);
         ExpireSnapshots expireSnapshots =
             IcebergExpiryAction.getIcebergExpireSnapshots(table, olderThanInMillis, retainLast);
-        performNonTransactionCommit(expireSnapshots);
+        if (throwIcebergException) {
+          // Directly throw Iceberg native exceptions, and the callers will handle it.
+          expireSnapshots.commit();
+        } else {
+          // Wrap Iceberg exceptions as CONCURRENT_MODIFICATION_EXCEPTION (CME)
+          performNonTransactionCommit(expireSnapshots);
+        }
       } else {
         logger.warn("Skipping expiry on {} because {} is set to 'false'", table.name(), GC_ENABLED);
       }
       table.refresh();
       return findSnapshots(tableOperations.refresh());
-    } catch (Exception e) {
-      final String errorMsg =
-          String.format(
-              "Cannot expire snapshots older than %s and retain last %d snapshots.",
-              olderThanTimestamp, retainLast);
-      logger.error(errorMsg, e);
-      throw UserException.unsupportedError(e).message(errorMsg).buildSilently();
     } finally {
       long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
       logger.info("Iceberg ExpireSnapshots call took {} ms.", totalCommitTime);
@@ -340,21 +390,6 @@ public class IcebergBaseCommand implements IcebergCommand {
     }
     return metadata.snapshots().stream()
         .map(s -> new SnapshotEntry(metadata.metadataFileLocation(), s))
-        .collect(Collectors.toList());
-  }
-
-  @Override
-  public List<SnapshotEntry> collectExpiredSnapshots(long olderThanInMillis, int retainLast) {
-    Table table = loadTable();
-    ExpireSnapshots expireSnapshots =
-        IcebergExpiryAction.getIcebergExpireSnapshots(table, olderThanInMillis, retainLast);
-    String metadataLocation = tableOperations.current().metadataFileLocation();
-    return expireSnapshots
-        .expireOlderThan(olderThanInMillis)
-        .retainLast(retainLast)
-        .apply()
-        .stream()
-        .map(s -> new SnapshotEntry(metadataLocation, s))
         .collect(Collectors.toList());
   }
 
@@ -442,6 +477,20 @@ public class IcebergBaseCommand implements IcebergCommand {
   }
 
   @Override
+  public void consumePositionalDeleteFiles(List<DeleteFile> positionalDeleteFileList) {
+    Preconditions.checkState(transaction != null, "Transaction was not started");
+    Preconditions.checkState(rowDelta != null, "rowDelta was not started");
+    positionalDeleteFileList.forEach(x -> rowDelta.addDeletes(x));
+  }
+
+  @Override
+  public void consumeMergeOnReadDataFiles(List<DataFile> mergeOnReadDataFilesList) {
+    Preconditions.checkState(transaction != null, "Transaction was not started");
+    Preconditions.checkState(rowDelta != null, "rowDelta was not started");
+    mergeOnReadDataFilesList.forEach(x -> rowDelta.addRows(x));
+  }
+
+  @Override
   public void consumeDeleteDataFilesByPaths(List<String> filePathsList) {
     Preconditions.checkState(transaction != null, "Transaction was not started");
     Preconditions.checkState(deleteFiles != null, "DeleteFiles was not started");
@@ -463,16 +512,6 @@ public class IcebergBaseCommand implements IcebergCommand {
           .message(CONCURRENT_OPERATION_ERROR)
           .buildSilently();
     }
-  }
-
-  @Override
-  public Snapshot setIsReadModifyWriteTransaction(long snapshotId) {
-    transaction
-        .newOverwrite()
-        .validateFromSnapshot(snapshotId)
-        .validateNoConflictingData()
-        .commit();
-    return transaction.table().currentSnapshot();
   }
 
   @Override

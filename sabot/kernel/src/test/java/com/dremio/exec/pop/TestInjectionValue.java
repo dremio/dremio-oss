@@ -32,8 +32,7 @@ public class TestInjectionValue extends ExecTest {
 
   @Test
   public void testInjected() throws Exception {
-    PhysicalPlanReader r =
-        PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(CLASSPATH_SCAN_RESULT);
+    PhysicalPlanReader r = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader();
     PhysicalPlan p = r.readPhysicalPlan(readResourceAsString("/physical_screen.json"));
 
     List<PhysicalOperator> o = p.getSortedOperators(false);

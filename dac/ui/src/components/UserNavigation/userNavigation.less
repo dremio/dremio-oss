@@ -17,7 +17,7 @@
 :global {
   .userNavigation {
     &__container {
-      border-right: 1px solid var(--color--neutral--50);
+      border-right: 1px solid var(--border--color);
       min-width: 272px;
       width: 288px;
       font-size: 14px;
@@ -39,7 +39,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      color: var(--dremio--color--text--main);
+      color: var(--text--primary);
     }
 
     &__title {
@@ -60,7 +60,7 @@
       font-size: 12px;
       padding-bottom: 4px;
       font-weight: 400;
-      color: var(--color--neutral--600);
+      color: var(--text--faded);
     }
 
     &__item,
@@ -73,13 +73,13 @@
       margin: 2px 16px 0 54px;
       border-radius: 4px;
       text-decoration: none;
-      color: var(--dremio--color--text--main);
+      color: var(--text--primary);
       font-weight: 400;
       height: 40px;
 
       &.--selected {
         background-color: var(
-          --color--brand--400
+          --fill--brand--bold
         ) !important; // Important is needed here to ignore the :hover's background
         color: white;
         margin: 0 2x 0 4px;
@@ -97,15 +97,12 @@
 
     &__headerLink {
       margin: 2px 16px 2px 4px;
-      &:hover {
-        background-color: var(--color--brand--50);
-      }
     }
 
     &__navigation {
       margin: 0 16px;
       span {
-        color: var(--color--brand--800);
+        color: var(--color--brand--600);
       }
 
       &:hover {
@@ -117,7 +114,7 @@
       margin: 0 8px 0 0;
       height: 24px;
       width: 24px;
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
     }
 
     &__itemList {
@@ -128,7 +125,7 @@
       margin-right: 8px;
       height: 24px;
       width: 24px;
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
     }
   }
   #selected {

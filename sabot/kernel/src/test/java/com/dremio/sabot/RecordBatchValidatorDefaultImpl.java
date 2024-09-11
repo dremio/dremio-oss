@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.dremio.common.expression.Describer;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchData;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.google.common.base.Preconditions;
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
 import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
@@ -191,9 +192,9 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator {
       }
 
       if (expectedBatchIndex < expected.length) {
-        RecordSet.Record record = expected[expectedBatchIndex].records[expectedIndex];
-        for (int c = 0; c < record.values.length; c++) {
-          outputValues[c] = String.format("- (%s)", expectedToString(record.values[c]));
+        RsRecord rec = expected[expectedBatchIndex].records[expectedIndex];
+        for (int c = 0; c < rec.values.length; c++) {
+          outputValues[c] = String.format("- (%s)", expectedToString(rec.values[c]));
         }
 
         output.addRow(outputValues);
@@ -207,7 +208,7 @@ public class RecordBatchValidatorDefaultImpl implements RecordBatchValidator {
   }
 
   protected boolean compareRecord(
-      RecordSet.Record expected, List<ValueVector> actual, int actualIndex, V2_AsciiTable output) {
+      RsRecord expected, List<ValueVector> actual, int actualIndex, V2_AsciiTable output) {
     assertThat(actual.size()).isEqualTo(expected.values.length);
     boolean matches = true;
     Object[] outputValues = new Object[actual.size()];

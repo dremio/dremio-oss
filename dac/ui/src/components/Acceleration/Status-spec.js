@@ -57,7 +57,7 @@ describe("Status-spec", () => {
     };
     const wrapper = shallow(<Status {...props} />);
     expect(wrapper.props().title).to.equal(
-      "Reflection can accelerate.\n\n2 refresh job attempts failed, will not reattempt."
+      "Reflection can accelerate.\n\n2 refresh job attempts failed, will reattempt."
     );
   });
 

@@ -45,9 +45,9 @@ public class SpillWriter implements AutoCloseable {
   private final SpillSerializable serializable;
   private final String fileName;
   private final PagePool pagePool;
-  private final ArrowBuf sv2;
+  private ArrowBuf sv2;
   private final FixedBlockVector fixed;
-  private final VariableBlockVector var;
+  private final VariableBlockVector variable;
   private final PageBatchSlicer slicer;
 
   private SpillManager.SpillOutputStream outputStream;
@@ -65,15 +65,19 @@ public class SpillWriter implements AutoCloseable {
       VectorAccessible input,
       ImmutableBitSet unpivotedColumns,
       FixedBlockVector fixed,
-      VariableBlockVector var) {
+      VariableBlockVector variable) {
     this.spillManager = spillManager;
     this.serializable = serializable;
     this.fileName = fileName;
     this.pagePool = pagePool;
     this.sv2 = sv2;
     this.fixed = fixed;
-    this.var = var;
+    this.variable = variable;
     this.slicer = new PageBatchSlicer(pagePool, sv2, input, unpivotedColumns);
+  }
+
+  public void setSv2(ArrowBuf newSv2) {
+    this.sv2 = newSv2;
   }
 
   public void writeBatch(int pivotShift, int records) throws Exception {
@@ -127,7 +131,7 @@ public class SpillWriter implements AutoCloseable {
   private int pickMaxPivotedRecordsForPage(
       int availableSize, int pivotShift, int startIdx, int endIdx) {
     int maxRecords = endIdx - startIdx + 1;
-    if (var == null || var.getVariableFieldCount() == 0) {
+    if (variable == null || variable.getVariableFieldCount() == 0) {
       // fast-path
       return Integer.min(maxRecords, availableSize / fixed.getBlockWidth());
     }
@@ -145,7 +149,7 @@ public class SpillWriter implements AutoCloseable {
       final int keyFixedOffset = fixed.getBlockWidth() * (keyIndex - pivotShift);
       final int keyVarOffset =
           fixed.getBuf().getInt(keyFixedOffset + fixed.getBlockWidth() - VAR_OFFSET_SIZE);
-      final long recordVariableSize = var.getBuf().getInt(keyVarOffset);
+      final long recordVariableSize = variable.getBuf().getInt(keyVarOffset);
       if (totalSize + recordFixedSize + recordVariableSize + VAR_LENGTH_SIZE > availableSize) {
         // cannot include this record in the page.
         break;
@@ -175,16 +179,16 @@ public class SpillWriter implements AutoCloseable {
       curSrcFixedOffset += fixed.getBlockWidth();
       curDstFixedOffset += fixed.getBlockWidth();
 
-      if (var != null && var.getVariableFieldCount() > 0) {
+      if (variable != null && variable.getVariableFieldCount() > 0) {
         final int curSrcVarOffset = fixed.getBuf().getInt(curSrcFixedOffset - VAR_OFFSET_SIZE);
-        final int recordVarLen = var.getBuf().getInt(curSrcVarOffset);
+        final int recordVarLen = variable.getBuf().getInt(curSrcVarOffset);
 
         // store the relative offset of the var section in the fixed block
         dstBuf.setInt(curDstFixedOffset - VAR_OFFSET_SIZE, curDstVarOffset - startDstVarOffset);
 
         // copy the var section from src to dst
         dstBuf.setBytes(
-            curDstVarOffset, var.getBuf(), curSrcVarOffset, recordVarLen + VAR_LENGTH_SIZE);
+            curDstVarOffset, variable.getBuf(), curSrcVarOffset, recordVarLen + VAR_LENGTH_SIZE);
         curDstVarOffset += (recordVarLen + VAR_LENGTH_SIZE);
       }
     }

@@ -19,10 +19,15 @@
   &__icon {
     display: flex;
     cursor: pointer;
+    svg {
+      path {
+        fill: var(--icon--primary);
+      }
+    }
     &:hover {
       svg {
         path {
-          fill: $pelorous;
+          fill: var(--icon--hover);
         }
       }
     }
@@ -30,6 +35,6 @@
   &__content {
     display: flex;
     align-items: center;
-    background-color: var(--color--neutral--800) !important;
+    background-color: var(--color--neutral--700) !important;
   }
 }

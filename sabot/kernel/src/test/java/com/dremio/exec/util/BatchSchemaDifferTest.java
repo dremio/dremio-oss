@@ -53,11 +53,11 @@ public class BatchSchemaDifferTest {
     BatchSchemaDiff diff =
         batchSchemaDiffer.diff(tableSchema1.getFields(), tableSchema2.getFields());
 
-    assertEquals(diff.getAddedFields().size(), 0);
+    assertEquals(0, diff.getAddedFields().size());
     assertEquals(
-        diff.getModifiedFields(), ImmutableList.of(CompleteType.VARCHAR.toField("bitField")));
+        ImmutableList.of(CompleteType.VARCHAR.toField("bitField")), diff.getModifiedFields());
     assertEquals(
-        diff.getDroppedFields(), ImmutableList.of(CompleteType.DOUBLE.toField("doubleCol")));
+        ImmutableList.of(CompleteType.DOUBLE.toField("doubleCol")), diff.getDroppedFields());
   }
 
   /**
@@ -85,15 +85,15 @@ public class BatchSchemaDifferTest {
     BatchSchemaDiff diff =
         batchSchemaDiffer.diff(tableSchema1.getFields(), tableSchema2.getFields());
 
-    assertEquals(diff.getAddedFields().size(), 0);
-    assertEquals(diff.getModifiedFields(), ImmutableList.of(structField2));
+    assertEquals(0, diff.getAddedFields().size());
+    assertEquals(ImmutableList.of(structField2), diff.getModifiedFields());
 
     Field assertField =
         new Field(
             "a",
             FieldType.nullable(STRUCT.getType()),
             ImmutableList.of(CompleteType.INT.toField("integerCol")));
-    assertEquals(diff.getDroppedFields(), ImmutableList.of(assertField));
+    assertEquals(ImmutableList.of(assertField), diff.getDroppedFields());
   }
 
   /**
@@ -129,7 +129,7 @@ public class BatchSchemaDifferTest {
     BatchSchemaDiff diff =
         batchSchemaDiffer.diff(tableSchema1.getFields(), tableSchema2.getFields());
 
-    assertEquals(diff.getAddedFields().size(), 0);
+    assertEquals(0, diff.getAddedFields().size());
 
     Field assertField1 =
         new Field(
@@ -157,8 +157,8 @@ public class BatchSchemaDifferTest {
                     FieldType.nullable(STRUCT.getType()),
                     ImmutableList.of(CompleteType.DOUBLE.toField("col")))));
 
-    assertEquals(diff.getModifiedFields(), ImmutableList.of(assertField1));
-    assertEquals(diff.getDroppedFields(), ImmutableList.of(assertField2, assertField3));
+    assertEquals(ImmutableList.of(assertField1), diff.getModifiedFields());
+    assertEquals(ImmutableList.of(assertField2, assertField3), diff.getDroppedFields());
   }
 
   /**
@@ -195,7 +195,7 @@ public class BatchSchemaDifferTest {
     BatchSchemaDiff diff =
         batchSchemaDiffer.diff(tableSchema1.getFields(), tableSchema2.getFields());
 
-    assertEquals(diff.getAddedFields().size(), 0);
+    assertEquals(0, diff.getAddedFields().size());
 
     Field assertField1 =
         new Field(
@@ -215,8 +215,8 @@ public class BatchSchemaDifferTest {
 
     Field assertField4 = CompleteType.INT.toField("integerCol");
 
-    assertEquals(diff.getModifiedFields(), ImmutableList.of(assertField1));
-    assertEquals(diff.getDroppedFields(), ImmutableList.of(assertField4, assertField2));
+    assertEquals(ImmutableList.of(assertField1), diff.getModifiedFields());
+    assertEquals(ImmutableList.of(assertField4, assertField2), diff.getDroppedFields());
   }
 
   @Test
@@ -246,9 +246,9 @@ public class BatchSchemaDifferTest {
     BatchSchemaDiff diff =
         batchSchemaDiffer.diff(tableSchema1.getFields(), tableSchema2.getFields());
 
-    assertEquals(diff.getAddedFields().size(), 0);
-    assertEquals(diff.getModifiedFields(), ImmutableList.of(listField2));
-    assertEquals(diff.getDroppedFields().size(), 0);
+    assertEquals(0, diff.getAddedFields().size());
+    assertEquals(ImmutableList.of(listField2), diff.getModifiedFields());
+    assertEquals(0, diff.getDroppedFields().size());
   }
 
   @Test
@@ -277,7 +277,7 @@ public class BatchSchemaDifferTest {
     BatchSchemaDiff diff =
         batchSchemaDiffer.diff(tableSchema1.getFields(), tableSchema2.getFields());
 
-    assertEquals(diff.getAddedFields().size(), 0);
+    assertEquals(0, diff.getAddedFields().size());
 
     Field assertField1 =
         new Field(
@@ -299,8 +299,8 @@ public class BatchSchemaDifferTest {
                     FieldType.nullable(STRUCT.getType()),
                     ImmutableList.of(CompleteType.DOUBLE.toField("doubleCol")))));
 
-    assertEquals(diff.getModifiedFields(), ImmutableList.of(assertField1));
-    assertEquals(diff.getDroppedFields(), ImmutableList.of(assertField2));
+    assertEquals(ImmutableList.of(assertField1), diff.getModifiedFields());
+    assertEquals(ImmutableList.of(assertField2), diff.getDroppedFields());
   }
 
   @Test
@@ -320,9 +320,9 @@ public class BatchSchemaDifferTest {
     BatchSchemaDiff diff =
         batchSchemaDiffer.diff(tableSchema1.getFields(), tableSchema2.getFields());
 
-    assertEquals(diff.getAddedFields().size(), 0);
-    assertEquals(diff.getModifiedFields().size(), 0);
-    assertEquals(diff.getDroppedFields().size(), 2);
+    assertEquals(0, diff.getAddedFields().size());
+    assertEquals(0, diff.getModifiedFields().size());
+    assertEquals(2, diff.getDroppedFields().size());
 
     Field assertField1 =
         new Field(
@@ -336,6 +336,74 @@ public class BatchSchemaDifferTest {
             FieldType.nullable(STRUCT.getType()),
             ImmutableList.of(CompleteType.DOUBLE.toField("doubleCol")));
 
-    assertEquals(diff.getDroppedFields(), ImmutableList.of(assertField1, assertField2));
+    assertEquals(ImmutableList.of(assertField1, assertField2), diff.getDroppedFields());
+  }
+
+  /**
+   * schema 1 -> {intCol, struct outerStruct{nestedInt, listOfStruct [struct innerStruct{nestInt2A,
+   * nestInt2B}]}}
+   *
+   * <p>schema 2 -> {intCol}
+   */
+  @Test
+  public void testBatchSchemaDifferStructOfListOfStruct() {
+    List<Field> innerChildren =
+        ImmutableList.of(
+            CompleteType.INT.toField("nestInt2A"), CompleteType.INT.toField("nestInt2B"));
+
+    Field innerStruct =
+        new Field("innerStruct", FieldType.nullable(STRUCT.getType()), innerChildren);
+
+    Field nestedInt = CompleteType.INT.toField("nestedInt");
+    Field listField =
+        new Field(
+            "listOfStruct", FieldType.nullable(LIST.getType()), ImmutableList.of(innerStruct));
+    Field outerStruct =
+        new Field(
+            "outerStruct",
+            FieldType.nullable(STRUCT.getType()),
+            ImmutableList.of(listField, nestedInt));
+    Field outerInt = CompleteType.INT.toField("intCol");
+
+    BatchSchema oldSchema = BatchSchema.of(outerInt, outerStruct);
+    BatchSchema newSchema = BatchSchema.of(outerInt);
+
+    BatchSchemaDiffer batchSchemaDiffer = new BatchSchemaDiffer();
+    BatchSchemaDiff diff = batchSchemaDiffer.diff(oldSchema.getFields(), newSchema.getFields());
+
+    Field assertField1 =
+        new Field(
+            "outerStruct",
+            FieldType.nullable(STRUCT.getType()),
+            ImmutableList.of(
+                new Field(
+                    "listOfStruct",
+                    FieldType.nullable(LIST.getType()),
+                    ImmutableList.of(
+                        new Field(
+                            "innerStruct",
+                            FieldType.nullable(STRUCT.getType()),
+                            List.of(innerChildren.get(0)))))));
+
+    Field assertField2 =
+        new Field(
+            "outerStruct",
+            FieldType.nullable(STRUCT.getType()),
+            ImmutableList.of(
+                new Field(
+                    "listOfStruct",
+                    FieldType.nullable(LIST.getType()),
+                    ImmutableList.of(
+                        new Field(
+                            "innerStruct",
+                            FieldType.nullable(STRUCT.getType()),
+                            List.of(innerChildren.get(1)))))));
+
+    Field assertField3 =
+        new Field("outerStruct", FieldType.nullable(STRUCT.getType()), ImmutableList.of(nestedInt));
+
+    assertEquals(3, diff.getDroppedFields().size());
+    assertEquals(
+        ImmutableList.of(assertField1, assertField2, assertField3), diff.getDroppedFields());
   }
 }

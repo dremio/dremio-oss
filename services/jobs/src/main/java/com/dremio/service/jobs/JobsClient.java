@@ -103,8 +103,8 @@ public class JobsClient implements Service {
       synchronized (this) {
         if (prevChannel != curChannel) {
           AutoCloseables.closeNoChecked(flightClient);
+          flightClient = FlightGrpcUtils.createFlightClient(allocator, curChannel);
           prevChannel = curChannel;
-          flightClient = FlightGrpcUtils.createFlightClient(allocator, prevChannel);
         }
       }
     }

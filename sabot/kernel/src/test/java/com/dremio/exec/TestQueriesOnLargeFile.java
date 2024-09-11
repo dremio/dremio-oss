@@ -71,7 +71,7 @@ public class TestQueriesOnLargeFile extends BaseTestQuery {
     List<QueryDataBatch> results =
         testSqlWithResults(String.format("SELECT count(*) FROM dfs.\"%s\"", dataFile.getPath()));
 
-    RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
     for (QueryDataBatch batch : results) {
       batchLoader.load(batch.getHeader().getDef(), batch.getData());

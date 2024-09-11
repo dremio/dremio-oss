@@ -3,7 +3,7 @@
 @use "../../base/components/spinner-overlay";
 
 .dremio-spinner-overlay {
-  background: white;
+  background: var(--fill--primary);
 
   .dremio-spinner {
     --dremio--spinner--size: 30px;

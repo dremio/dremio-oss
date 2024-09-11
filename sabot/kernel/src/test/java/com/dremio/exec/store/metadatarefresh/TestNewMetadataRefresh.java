@@ -26,7 +26,6 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -1092,7 +1091,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
   @Test
   public void testCreateEmptyIcebergTable() throws Exception {
     String tblName = "emptyIcebergTable";
-    try (AutoCloseable c2 = enableIcebergTables() /* to create iceberg tables with ctas */) {
+    try {
       final String createTableQuery =
           String.format("CREATE TABLE %s.%s(id int, code int)", "dfs_test_hadoop", tblName);
       test(createTableQuery);
@@ -1107,7 +1106,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
   @Test
   public void testCreateAndSelectOnIcebergTable() throws Exception {
     String tblName = "newIcebergTable";
-    try (AutoCloseable c2 = enableIcebergTables() /* to create iceberg tables with ctas */) {
+    try {
       final String createTableQuery =
           String.format(
               "create table %s.%s(id, code) as values(cast(10 as int), cast(30 as int))",
@@ -1273,9 +1272,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
       File dataFile = new File(Resources.getResource("metadatarefresh/int.parquet").getFile());
       FileUtils.copyFileToDirectory(dataFile, dir, false);
 
-      final CatalogServiceImpl pluginRegistry =
-          (CatalogServiceImpl) getSabotContext().getCatalogService();
-      final FileSystemPlugin<?> msp = pluginRegistry.getSource("dfs");
+      final FileSystemPlugin<?> msp = getCatalogService().getSource("dfs");
 
       // set auto-promote true to trigger getDatasetHandle() to return
       // UnlimitedSplitsFileDatasetHandle if generated
@@ -1304,9 +1301,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
       File dataFile = new File(Resources.getResource("metadatarefresh/bogus.csv").getFile());
       FileUtils.copyFileToDirectory(dataFile, dir, false);
 
-      final CatalogServiceImpl pluginRegistry =
-          (CatalogServiceImpl) getSabotContext().getCatalogService();
-      final FileSystemPlugin<?> msp = pluginRegistry.getSource("dfs");
+      final FileSystemPlugin<?> msp = getCatalogService().getSource("dfs");
 
       // set auto-promote true to trigger getDatasetHandle() to return
       // UnlimitedSplitsFileDatasetHandle if generated

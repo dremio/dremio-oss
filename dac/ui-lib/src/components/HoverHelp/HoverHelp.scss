@@ -20,9 +20,9 @@
   .infoIcon {
     width: 20px;
     height: 20px;
-    color: var(--color--neutral--600);
+    color: var(--icon--primary);
     &:hover {
-      color: var(--dremio--color--link);
+      color: var(--icon--hover);
     }
   }
 }

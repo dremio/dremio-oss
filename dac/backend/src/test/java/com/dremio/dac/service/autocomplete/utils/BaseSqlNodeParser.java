@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.service.autocomplete.utils;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
@@ -28,11 +27,7 @@ public final class BaseSqlNodeParser extends SqlNodeParser {
   public static final BaseSqlNodeParser INSTANCE = new BaseSqlNodeParser();
 
   private static final ParserConfig PARSER_CONFIG =
-      new ParserConfig(
-          Quoting.DOUBLE_QUOTE,
-          1000,
-          true,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+      new ParserConfig(Quoting.DOUBLE_QUOTE, 1000, true);
 
   private BaseSqlNodeParser() {}
 

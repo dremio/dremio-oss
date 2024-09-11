@@ -27,6 +27,7 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetNotFoundException;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.dac.model.spaces.HomeName;
@@ -261,7 +262,7 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
   }
 
   @Override
-  public boolean containerExists(EntityPath key) {
+  public boolean containerExists(EntityPath key, GetMetadataOption... options) {
     List<String> folderPath = key.getComponents();
     try {
       return getSystemUserFS()

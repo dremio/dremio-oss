@@ -35,9 +35,9 @@ describe("nessieUtils", () => {
   describe("encode source name correctly", () => {
     it("nessie%demo", () => {
       expect(
-        getEndpointFromSource({ type: "NESSIE", name: "nessie%demo" })
+        getEndpointFromSource({ type: "NESSIE", name: "nessie%demo" }),
       ).to.equal(
-        `//${window.location.host}/nessie-proxy/v2/source/nessie%25demo`
+        `//${window.location.host}/nessie-proxy/v2/source/nessie%25demo`,
       );
     });
   });
@@ -46,7 +46,6 @@ describe("nessieUtils", () => {
       expect(getTypeAndValue(null)).to.equal(null);
       expect(getTypeAndValue()).to.equal(null);
     });
-
     it("returns branch", () => {
       expect(getTypeAndValue(nessieState["ref/dataplane"])).to.deep.equal({
         type: nessieState["ref/dataplane"].reference!.type,
@@ -54,7 +53,6 @@ describe("nessieUtils", () => {
         value: nessieState["ref/dataplane"].reference!.name,
       });
     });
-
     it("returns tag", () => {
       expect(getTypeAndValue(nessieState["ref/ref/dataplane3"])).to.deep.equal({
         type: nessieState["ref/ref/dataplane3"].reference!.type,
@@ -62,7 +60,6 @@ describe("nessieUtils", () => {
         value: nessieState["ref/ref/dataplane3"].reference!.name,
       });
     });
-
     it("returns commit", () => {
       expect(getTypeAndValue(nessieState["ref/dataplane2"])).to.deep.equal({
         type: COMMIT_TYPE,
@@ -70,7 +67,6 @@ describe("nessieUtils", () => {
       });
     });
   });
-
   describe("getNessieReferencePayload", () => {
     it("empty state", () => {
       expect(getNessieReferencePayload(undefined)).to.deep.equal({});
@@ -80,7 +76,6 @@ describe("nessieUtils", () => {
       expect(getNessieReferencePayload(noRef)).to.deep.equal({});
       expect(getNessieReferencePayload(nullStates as any)).to.deep.equal({});
     });
-
     it("populated state", () => {
       expect(getNessieReferencePayload(nessieState)).to.deep.equal({
         dataplane: {
@@ -100,12 +95,10 @@ describe("nessieUtils", () => {
       });
     });
   });
-
   describe("getRefQueryParams", () => {
     it("empty state", () => {
       expect(getRefQueryParams({}, "")).to.deep.equal({});
     });
-
     it("returns branch", () => {
       expect(getRefQueryParams(nessieState, "ref/dataplane")).to.deep.equal({
         refType: nessieState["ref/dataplane"].reference!.type,
@@ -113,17 +106,15 @@ describe("nessieUtils", () => {
         refValue: nessieState["ref/dataplane"].reference!.name,
       });
     });
-
     it("returns tag", () => {
       expect(
-        getRefQueryParams(nessieState, "ref/ref/dataplane3")
+        getRefQueryParams(nessieState, "ref/ref/dataplane3"),
       ).to.deep.equal({
         refType: nessieState["ref/ref/dataplane3"].reference!.type,
         //@ts-ignore
         refValue: nessieState["ref/ref/dataplane3"].reference!.name,
       });
     });
-
     it("returns commit", () => {
       expect(getRefQueryParams(nessieState, "ref/dataplane2")).to.deep.equal({
         refType: COMMIT_TYPE,
@@ -131,16 +122,14 @@ describe("nessieUtils", () => {
       });
     });
   });
-
   describe("getReferenceListForTransform", () => {
     it("empty state", () => {
       expect(getReferenceListForTransform(undefined)).to.deep.equal([]);
       expect(getReferenceListForTransform(null)).to.deep.equal([]);
     });
-
     it("populated state", () => {
       expect(
-        getReferenceListForTransform(getNessieReferencePayload(nessieState))
+        getReferenceListForTransform(getNessieReferencePayload(nessieState)),
       ).to.deep.equal([
         {
           reference: {
@@ -167,7 +156,6 @@ describe("nessieUtils", () => {
       ]);
     });
   });
-
   describe("getSqlATSyntax", () => {
     // const storeStub = sinon.stub(store, "getState");
     const sampleState = {
@@ -190,17 +178,14 @@ describe("nessieUtils", () => {
         errors: {},
       },
     };
-
     it("AT BRANCH BRANCHNAME", () => {
       setStore({
         getState: () => ({ nessie: sampleState }),
       });
-
       expect(getSqlATSyntax("nessie1")).to.eql(
-        ` AT BRANCH "${sampleState.nessie1.reference.name}"`
+        ` AT BRANCH "${sampleState.nessie1.reference.name}"`,
       );
     });
-
     it("AT COMMIT HASH", () => {
       setStore({
         getState: () => ({
@@ -213,12 +198,10 @@ describe("nessieUtils", () => {
           },
         }),
       });
-
       expect(getSqlATSyntax("nessie1")).to.eql(
-        ` AT COMMIT "${sampleState.nessie1.defaultReference.hash}"`
+        ` AT COMMIT "${sampleState.nessie1.defaultReference.hash}"`,
       );
     });
-
     it("AT TAG TAGNAME", () => {
       setStore({
         getState: () => ({
@@ -234,22 +217,17 @@ describe("nessieUtils", () => {
           },
         }),
       });
-
       expect(getSqlATSyntax("nessie1")).to.eql(' AT TAG "TAGNAME"');
     });
-
     it("No state", () => {
       setStore({
         getState: () => ({ nessie: null }),
       });
-
       expect(getSqlATSyntax("nessie1")).to.eql("");
     });
-
     it("Empty", () => {
       expect(getSqlATSyntax("")).to.eql("");
     });
-
     it("Undefined", () => {
       expect(getSqlATSyntax()).to.eql("");
     });

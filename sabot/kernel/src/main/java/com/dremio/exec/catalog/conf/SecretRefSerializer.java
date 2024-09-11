@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import java.io.IOException;
 
-/** Jackson serializer for SecretRef */
+/** Jackson serializer for SecretRef. Treats SecretRef as a String. */
 public class SecretRefSerializer extends StdSerializer<SecretRef> {
 
   protected SecretRefSerializer() {
@@ -32,11 +32,7 @@ public class SecretRefSerializer extends StdSerializer<SecretRef> {
       throws IOException {
     if (value == null) {
       return;
-    } else if (SecretRef.EMPTY.equals(value) || SecretRef.EXISTING_VALUE.equals(value)) {
-      gen.writeString(value.get());
-    } else {
-      throw new IllegalArgumentException(
-          "Secrets cannot be serialized to json and must be cleared.");
     }
+    gen.writeString(SecretRef.getDisplayString(value));
   }
 }

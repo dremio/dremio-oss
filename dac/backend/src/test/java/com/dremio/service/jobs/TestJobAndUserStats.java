@@ -40,10 +40,8 @@ public class TestJobAndUserStats extends BaseTestServer {
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    if (isMultinode()) {
-      setBinder(createBinder(getMasterDremioDaemon().getBindingProvider()));
-    }
-    jobsService = (HybridJobsService) l(JobsService.class);
+    jobsService = (HybridJobsService) lMaster(JobsService.class);
+
     populateJobData();
   }
 

@@ -16,6 +16,7 @@
 package com.dremio.common.expression;
 
 import com.dremio.common.expression.BasePath.SchemaPathVisitor;
+import com.dremio.exec.record.TypedFieldId;
 import java.util.Optional;
 
 public abstract class PathSegment {
@@ -77,17 +78,12 @@ public abstract class PathSegment {
     }
 
     @Override
-    public boolean isArray() {
-      return true;
+    public PathSegmentType getType() {
+      return PathSegmentType.ARRAY_INDEX;
     }
 
     @Override
-    public boolean isNamed() {
-      return false;
-    }
-
-    @Override
-    public ArraySegment getArraySegment() {
+    public PathSegment getPathSegment() {
       return this;
     }
 
@@ -180,17 +176,12 @@ public abstract class PathSegment {
     }
 
     @Override
-    public boolean isArray() {
-      return false;
+    public PathSegmentType getType() {
+      return PathSegmentType.NAME;
     }
 
     @Override
-    public boolean isNamed() {
-      return true;
-    }
-
-    @Override
-    public NameSegment getNameSegment() {
+    public PathSegment getPathSegment() {
       return this;
     }
 
@@ -247,17 +238,133 @@ public abstract class PathSegment {
     }
   }
 
+  public static final class ArraySegmentInputRef extends PathSegment {
+    private final String path;
+    private TypedFieldId fieldId;
+
+    public ArraySegmentInputRef(CharSequence n, PathSegment child) {
+      super(child);
+      this.path = n.toString();
+    }
+
+    public ArraySegmentInputRef(CharSequence n) {
+      this(n, null);
+    }
+
+    public String getPath() {
+      return path;
+    }
+
+    public TypedFieldId getFieldId() {
+      return fieldId;
+    }
+
+    public void setFieldId(TypedFieldId fieldId) {
+      this.fieldId = fieldId;
+    }
+
+    @Override
+    public ArraySegmentInputRef cloneWithoutChild() {
+      if (isLastPath()) {
+        return null;
+      }
+
+      return new ArraySegmentInputRef(path, child.cloneWithoutChild());
+    }
+
+    @Override
+    public PathSegmentType getType() {
+      return PathSegmentType.ARRAY_INDEX_REF;
+    }
+
+    @Override
+    public PathSegment getPathSegment() {
+      return this;
+    }
+
+    @Override
+    public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in) {
+      return visitor.visitArrayInput(this, in);
+    }
+
+    @Override
+    public String toString() {
+      return "ArrayInputRef [path=" + path + ", getChild()=" + getChild() + "]";
+    }
+
+    @Override
+    public int segmentHashCode() {
+      return ((path == null) ? 0 : path.toLowerCase().hashCode());
+    }
+
+    @Override
+    public boolean segmentEquals(PathSegment obj) {
+      if (this == obj) {
+        return true;
+      } else if (obj == null) {
+        return false;
+      } else if (getClass() != obj.getClass()) {
+        return false;
+      }
+
+      ArraySegmentInputRef other = (ArraySegmentInputRef) obj;
+      if (path == null) {
+        return other.path == null;
+      }
+      return path.equalsIgnoreCase(other.path);
+    }
+
+    @Override
+    public ArraySegmentInputRef clone() {
+      ArraySegmentInputRef s = new ArraySegmentInputRef(this.path);
+      if (child != null) {
+        s.setChild(child.clone());
+      }
+      return s;
+    }
+
+    @Override
+    public ArraySegmentInputRef cloneWithNewChild(PathSegment newChild) {
+      ArraySegmentInputRef s = new ArraySegmentInputRef(this.path);
+      if (child != null) {
+        s.setChild(child.cloneWithNewChild(newChild));
+      } else {
+        s.setChild(newChild);
+      }
+      return s;
+    }
+  }
+
+  public abstract PathSegment getPathSegment();
+
+  public abstract PathSegmentType getType();
+
   public NameSegment getNameSegment() {
-    throw new UnsupportedOperationException();
+    PathSegment current = getPathSegment();
+    if (current instanceof NameSegment) {
+      return (NameSegment) current;
+    } else {
+      throw new UnsupportedOperationException();
+    }
   }
 
   public ArraySegment getArraySegment() {
-    throw new UnsupportedOperationException();
+    PathSegment current = getPathSegment();
+    if (current instanceof ArraySegment) {
+      return (ArraySegment) current;
+    } else {
+      throw new UnsupportedOperationException();
+    }
   }
 
-  public abstract boolean isArray();
-
-  public abstract boolean isNamed();
+  public ArraySegmentInputRef getArrayInputRef() {
+    PathSegment current = getPathSegment();
+    if (current instanceof ArraySegmentInputRef) {
+      return (ArraySegmentInputRef) current;
+    } else {
+      throw new UnsupportedOperationException();
+    }
+  }
 
   public boolean isLastPath() {
     return child == null;
@@ -337,7 +444,8 @@ public abstract class PathSegment {
     // the current behavior to always return true when we hit an array may be useful in some cases,
     // but we can get better performance in the JSON reader if we avoid reading unwanted elements in
     // arrays
-    if (otherSeg.isArray() || this.isArray()) {
+    if (otherSeg.getType().equals(PathSegmentType.ARRAY_INDEX)
+        || this.getType().equals(PathSegmentType.ARRAY_INDEX)) {
       return true;
     }
     if (getClass() != otherSeg.getClass()) {
@@ -351,5 +459,11 @@ public abstract class PathSegment {
       return true;
     }
     return child.contains(otherSeg.child);
+  }
+
+  public enum PathSegmentType {
+    ARRAY_INDEX,
+    ARRAY_INDEX_REF,
+    NAME
   }
 }

@@ -42,14 +42,14 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.tools.RelBuilder;
 
-public final class ArrayValueConstructorConvertlet implements FunctionConvertlet {
+public final class ArrayValueConstructorConvertlet extends RexCallConvertlet {
   public static final ArrayValueConstructorConvertlet INSTANCE =
       new ArrayValueConstructorConvertlet();
 
   private ArrayValueConstructorConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator() == ARRAY_VALUE_CONSTRUCTOR;
   }
 

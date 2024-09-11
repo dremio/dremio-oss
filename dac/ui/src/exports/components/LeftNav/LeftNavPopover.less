@@ -13,9 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 .left-nav-popover {
-  color: white !important;
+  color: var(--icon--nav) !important;
   &[aria-expanded="true"] {
-    background-color: var(--color--brand--400);
+    background-color: var(--icon--hover);
+  }
+}
+
+:global {
+  .sideNav {
+    .left-nav-popover {
+      &.hover-expand[aria-expanded="true"],
+      &.hover-expand:focus-visible {
+        background-color: var(--hover--nav--sonar);
+      }
+    }
+
+    &--organization {
+      .left-nav-popover {
+        &.hover-expand[aria-expanded="true"],
+        &.hover-expand:focus-visible {
+          background-color: var(--hover--nav--org);
+        }
+      }
+    }
+
+    &--arctic {
+      .left-nav-popover {
+        &.hover-expand[aria-expanded="true"],
+        &.hover-expand:focus-visible {
+          background-color: var(--hover--nav--catalog);
+        }
+      }
+    }
   }
 }

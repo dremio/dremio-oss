@@ -64,19 +64,22 @@
     <module>nessie-restjavax</module>
     <module>nessie-storage-upgrade</module>
     <module>nessie-validation</module>
+    <module>node-metrics</module>
     <module>options</module>
     <module>orphanage</module>
     <module>orphanagecleaner</module>
     <module>partition-stats</module>
+    <module>pubsub-api</module>
     <module>reindexer</module>
     <module>resourcescheduler</module>
     <module>scheduler</module>
     <module>script</module>
+    <module>search</module>
     <module>spill</module>
     <module>sqlrunner</module>
     <module>statistics</module>
     <module>sysflight</module>
-    <module>systemicebergtablescleaner</module>
+    <module>systemicebergtablesmaintainer</module>
     <module>telemetry-api</module>
     <module>telemetry-impl</module>
     <module>telemetry-utils</module>

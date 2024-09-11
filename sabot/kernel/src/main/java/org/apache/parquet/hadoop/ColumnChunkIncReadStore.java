@@ -364,7 +364,8 @@ public class ColumnChunkIncReadStore implements PageReadStore {
             : new ColumnChunkIncPageReader(metaData, descriptor, in));
   }
 
-  public void close() throws IOException {
+  @Override
+  public void close() {
     for (ColumnChunkIncPageReader reader : columns.values()) {
       reader.close();
     }

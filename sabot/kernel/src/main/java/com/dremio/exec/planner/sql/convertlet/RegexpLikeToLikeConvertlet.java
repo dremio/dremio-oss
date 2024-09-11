@@ -49,7 +49,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
  *
  * <p>SELECT * FROM EMP WHERE LIKE(name, '%asdf%')
  */
-public final class RegexpLikeToLikeConvertlet implements FunctionConvertlet {
+public final class RegexpLikeToLikeConvertlet extends RexCallConvertlet {
   public static final RegexpLikeToLikeConvertlet INSTANCE = new RegexpLikeToLikeConvertlet();
 
   private RegexpLikeToLikeConvertlet() {}
@@ -58,7 +58,7 @@ public final class RegexpLikeToLikeConvertlet implements FunctionConvertlet {
       ImmutableSet.of('.', '+', '*', '?', '^', '$', '(', ')', '[', ']', '{', '}', '|', '\\');
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     // If the right operand is not a string literal or
     // if the pattern has special characters, then don't do a rewrite.
     if (call.getOperator() != REGEXP_LIKE) {

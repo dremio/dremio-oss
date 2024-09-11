@@ -37,7 +37,7 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
   public void dropNonExistingCol() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "dropcol1";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -59,7 +59,7 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
   public void noContextFail() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "dropcol01";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -81,7 +81,7 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addAndDropColumnOnTableWithPath";
       String path = "path";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -138,7 +138,7 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
   public void dropOnSingleColTable() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "dropcol2";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -172,7 +172,7 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
   public void addAndDrop() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "dropcol3";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -230,7 +230,7 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
   public void dropPartitionColumn() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "dropcol4";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(

@@ -21,8 +21,6 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.namespace.NamespaceKey;
@@ -70,9 +68,7 @@ public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
         getSabotContext()
             .getNamespaceService(SYSTEM_USERNAME)
             .getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-    ((CatalogServiceImpl) getSabotContext().getCatalogService())
-        .getSystemUserCatalog()
-        .deleteSource(config);
+    getCatalogService().getSystemUserCatalog().deleteSource(config);
     stopMiniDfsCluster();
   }
 
@@ -98,7 +94,6 @@ public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
   }
 
   private static void addMiniDfsStorage() throws Exception {
-    CatalogService catalogService = getSabotContext().getCatalogService();
     Path dirPath1 = new Path("/data/1");
     FileSystem.mkdirs(fs, dirPath1, new FsPermission((short) 0777));
     fs.setOwner(dirPath1, processUser, processUser);
@@ -123,7 +118,8 @@ public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
             .setAuthTtlMs(5L)
             .setAutoPromoteDatasets(true)
             .setDatasetDefinitionExpireAfterMs(1_000_000L));
-    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(config);
+
+    getCatalogService().getSystemUserCatalog().createSource(config);
   }
 
   private static Path getSampleParquetFilePath() throws URISyntaxException {

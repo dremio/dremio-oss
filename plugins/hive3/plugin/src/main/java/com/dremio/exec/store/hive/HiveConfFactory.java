@@ -169,6 +169,9 @@ public class HiveConfFactory {
     if (config.hiveMajorVersion == 2) {
       setHive2SourceType(hiveConf);
     }
+    if (HiveCommonUtilities.AWS_GLUE_HIVE_METASTORE_PLACEHOLDER.equals(config.hostname)) {
+      setAwsglueSourceType(hiveConf);
+    }
 
     addS3Properties(hiveConf);
     addUserProperties(hiveConf, config);
@@ -264,16 +267,16 @@ public class HiveConfFactory {
     configuration.set(name, value, DREMIO_SOURCE_CONFIGURATION_SOURCE);
   }
 
-  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, String value) {
-    setConf(configuration, var.varname, value);
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars confVar, String value) {
+    setConf(configuration, confVar.varname, value);
   }
 
-  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, int value) {
-    setConf(configuration, var.varname, Integer.toString(value));
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars confVar, int value) {
+    setConf(configuration, confVar.varname, Integer.toString(value));
   }
 
-  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, boolean value) {
-    setConf(configuration, var.varname, Boolean.toString(value));
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars confVar, boolean value) {
+    setConf(configuration, confVar.varname, Boolean.toString(value));
   }
 
   private void setConf(HiveConf hiveConf, String intProperty, int intValue) {
@@ -293,6 +296,14 @@ public class HiveConfFactory {
         MetaStoreUtils.DREMIO_HIVE2_COMPATIBILITY_MODE_ENABLED,
         "true",
         DREMIO_SOURCE_CONFIGURATION_SOURCE);
+  }
+
+  public static boolean isAWSGlueSourceType(Configuration configuration) {
+    return configuration.getBoolean(DREMIO_AWSGLUE_SOURCE_TYPE, false);
+  }
+
+  public static void setAwsglueSourceType(Configuration configuration) {
+    configuration.setBoolean(DREMIO_AWSGLUE_SOURCE_TYPE, true);
   }
 
   /**

@@ -15,13 +15,16 @@
  */
 package com.dremio.plugins;
 
-import static com.dremio.plugins.NessieClient.ContentMode.ENTRY_WITH_CONTENT;
-import static com.dremio.plugins.NessieClient.NestingMode.IMMEDIATE_CHILDREN_ONLY;
 import static com.dremio.plugins.NessieClientOptions.BYPASS_CONTENT_CACHE;
 import static com.dremio.plugins.NessieClientOptions.NESSIE_CONTENT_CACHE_SIZE_ITEMS;
 import static com.dremio.plugins.NessieClientOptions.NESSIE_CONTENT_CACHE_TTL_MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -31,9 +34,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.projectnessie.model.Content.Type.ICEBERG_TABLE;
-import static org.projectnessie.model.Content.Type.NAMESPACE;
-import static org.projectnessie.model.EntriesResponse.Entry.entry;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
@@ -44,6 +44,7 @@ import com.dremio.exec.store.ReferenceInfo;
 import com.dremio.exec.store.ReferenceNotFoundByTimestampException;
 import com.dremio.options.OptionManager;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.net.ConnectException;
 import java.sql.Timestamp;
@@ -61,7 +62,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -70,6 +73,8 @@ import org.projectnessie.client.api.GetAllReferencesBuilder;
 import org.projectnessie.client.api.GetCommitLogBuilder;
 import org.projectnessie.client.api.GetContentBuilder;
 import org.projectnessie.client.api.GetEntriesBuilder;
+import org.projectnessie.client.api.GetReferenceBuilder;
+import org.projectnessie.client.api.MergeReferenceBuilder;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.http.HttpClientException;
 import org.projectnessie.client.rest.NessieNotAuthorizedException;
@@ -83,9 +88,10 @@ import org.projectnessie.model.Branch;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
+import org.projectnessie.model.EntriesResponse;
 import org.projectnessie.model.IcebergTable;
-import org.projectnessie.model.ImmutableNamespace;
 import org.projectnessie.model.LogResponse;
+import org.projectnessie.model.MergeResponse;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.ReferencesResponse;
 import org.projectnessie.model.Tag;
@@ -156,6 +162,35 @@ public class TestNessieClientImpl {
 
     RequestContext.empty().run(() -> nessieClient.getContent(CATALOG_KEY, VERSION, null));
     verify(builder, times(2)).get();
+  }
+
+  @Test
+  public void testGetAuthorNameWithContext() throws Exception {
+    GetReferenceBuilder builder = mock(GetReferenceBuilder.class);
+    when(nessieApi.getReference()).thenReturn(builder);
+    when(builder.refName(any())).thenReturn(builder);
+    when(builder.get()).thenReturn(Branch.of("foo", "a0f4f33a14fa610c75ff8cd89b6a54f5df61fcb7"));
+    MergeReferenceBuilder refBuilder =
+        mock(MergeReferenceBuilder.class, Mockito.RETURNS_DEEP_STUBS);
+    ArgumentCaptor<CommitMeta> captor = ArgumentCaptor.forClass(CommitMeta.class);
+    when(nessieApi.mergeRefIntoBranch()).thenReturn(refBuilder);
+    when(refBuilder
+            .commitMeta(captor.capture())
+            .branchName(any())
+            .hash(any())
+            .fromRefName(any())
+            .fromHash(any())
+            .defaultMergeMode(any())
+            .returnConflictAsResult(anyBoolean())
+            .dryRun(anyBoolean())
+            .merge())
+        .thenReturn(mock(MergeResponse.class));
+
+    RequestContext.current()
+        .with(NessieCommitUsernameContext.CTX_KEY, new NessieCommitUsernameContext("User1"))
+        .run(
+            () -> nessieClient.mergeBranch("foo", "bar", MergeBranchOptions.DEFAULT_MERGE_OPTIONS));
+    assertEquals("User1", captor.getValue().getAuthor());
   }
 
   @Test
@@ -388,46 +423,60 @@ public class TestNessieClientImpl {
   }
 
   @Test
-  public void testListVirtualNamespaces() throws NessieNotFoundException {
-    GetEntriesBuilder requestBuilder = mock(GetEntriesBuilder.class, RETURNS_SELF);
-    when(requestBuilder.stream())
-        .thenReturn(
-            Stream.of(
-                entry(ContentKey.of("a", "b", "T1"), ICEBERG_TABLE, "id1"),
-                entry(ContentKey.of("a", "b", "c", "T2"), ICEBERG_TABLE, "id2"),
-                entry(ContentKey.of("a", "b", "d", "T4"), ICEBERG_TABLE, "id4"),
-                entry(
-                    ContentKey.of("a", "b", "e"),
-                    NAMESPACE,
-                    "bogus-id"), // overriden by the full entry below
-                entry(
-                    ContentKey.of("a", "b", "e"),
-                    NAMESPACE,
-                    ImmutableNamespace.builder().addElements("a", "b", "e").id("ns2").build()),
-                entry(ContentKey.of("a", "b", "e", "T5"), ICEBERG_TABLE, "id5"),
-                entry(ContentKey.of("a", "b", "c"), NAMESPACE, "ns1"),
-                entry(ContentKey.of("a", "b", "T3"), ICEBERG_TABLE, "id3")));
+  public void testListEntriesPage() throws NessieNotFoundException {
+    // Mock request.
+    GetEntriesBuilder requestBuilder = mock(GetEntriesBuilder.class);
     when(nessieApi.getEntries()).thenReturn(requestBuilder);
+    when(requestBuilder.reference(any())).thenReturn(requestBuilder);
+    when(requestBuilder.maxRecords(anyInt())).thenReturn(requestBuilder);
+    when(requestBuilder.pageToken(any(String.class))).thenReturn(requestBuilder);
 
-    Map<String, ExternalNamespaceEntry> entriesByName =
-        nessieClient
-            .listEntries(
-                ImmutableList.of("a", "b"),
-                VERSION,
-                IMMEDIATE_CHILDREN_ONLY,
-                ENTRY_WITH_CONTENT,
-                null,
-                null)
-            .collect(Collectors.toMap(ExternalNamespaceEntry::getName, e -> e));
-    assertThat(entriesByName).hasEntrySatisfying("T1", e -> assertThat(e.getId()).isEqualTo("id1"));
-    assertThat(entriesByName).hasEntrySatisfying("T3", e -> assertThat(e.getId()).isEqualTo("id3"));
-    assertThat(entriesByName).hasEntrySatisfying("c", e -> assertThat(e.getId()).isEqualTo("ns1"));
-    assertThat(entriesByName)
-        .hasEntrySatisfying("d", e -> assertThat(e.getId()).isNull()); // implicit namespace
-    assertThat(entriesByName).hasEntrySatisfying("e", e -> assertThat(e.getId()).isEqualTo("ns2"));
-    assertThat(entriesByName)
-        .hasEntrySatisfying("e", e -> assertThat(e.getNessieContent()).isNotNull());
-    assertThat(entriesByName).hasSize(5);
+    // Mock response.
+    String nextPageToken = "next-page";
+    ContentKey contentKey = ContentKey.of("name");
+    when(requestBuilder.get())
+        .thenReturn(
+            EntriesResponse.builder()
+                .token(nextPageToken)
+                .addEntries(EntriesResponse.Entry.entry(contentKey, Content.Type.ICEBERG_TABLE))
+                .build());
+    GetContentBuilder contentBuilder = mock(GetContentBuilder.class);
+    when(contentBuilder.key(any())).thenReturn(contentBuilder);
+    when(contentBuilder.reference(any())).thenReturn(contentBuilder);
+    when(contentBuilder.get())
+        .thenReturn(ImmutableMap.of(contentKey, IcebergTable.of("path", 123L, 12, 1, 1)));
+    when(nessieApi.getContent()).thenReturn(contentBuilder);
+
+    // Call method under test.
+    String pageToken = "page";
+    int maxResultsPerPage = 15;
+    NessieListResponsePage responsePage =
+        nessieClient.listEntriesPage(
+            null,
+            VERSION,
+            NessieClient.NestingMode.IMMEDIATE_CHILDREN_ONLY,
+            NessieClient.ContentMode.ENTRY_WITH_CONTENT,
+            null,
+            null,
+            new ImmutableNessieListOptions.Builder()
+                .setPageToken(pageToken)
+                .setMaxResultsPerPage(maxResultsPerPage)
+                .build());
+
+    // Verify calls to requestBuilder.
+    verify(requestBuilder, times(1)).maxRecords(eq(maxResultsPerPage));
+    verify(requestBuilder, times(1)).pageToken(eq(pageToken));
+    verify(requestBuilder, times(1)).withContent(true);
+
+    // Verify response.
+    NessieListResponsePage expectedResponse =
+        new ImmutableNessieListResponsePage.Builder()
+            .setPageToken(nextPageToken)
+            .addEntries(
+                ExternalNamespaceEntry.of(
+                    ExternalNamespaceEntry.Type.ICEBERG_TABLE, ImmutableList.of("name")))
+            .build();
+    assertEquals(expectedResponse, responsePage);
   }
 
   @Test
@@ -486,12 +535,6 @@ public class TestNessieClientImpl {
   @org.junit.jupiter.api.Tag("skipBeforeEach")
   public void testBypassCache() throws NessieNotFoundException {
     // arrange
-    doReturn(NESSIE_CONTENT_CACHE_SIZE_ITEMS.getDefault().getNumVal())
-        .when(optionManager)
-        .getOption(NESSIE_CONTENT_CACHE_SIZE_ITEMS);
-    doReturn(NESSIE_CONTENT_CACHE_TTL_MINUTES.getDefault().getNumVal())
-        .when(optionManager)
-        .getOption(NESSIE_CONTENT_CACHE_TTL_MINUTES);
     doReturn(true).when(optionManager).getOption(BYPASS_CONTENT_CACHE);
 
     builder = mock(GetContentBuilder.class, RETURNS_SELF);

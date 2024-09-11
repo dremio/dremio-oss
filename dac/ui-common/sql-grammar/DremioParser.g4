@@ -154,7 +154,7 @@ parseRequiredFieldListWithMasking : LPAREN columnNamesWithMasking (COMMA columnN
 
 columnNamesWithMasking : simpleIdentifier (MASKING POLICY policy)?  ;
 
-sqlCreateOrReplace : CREATE (OR REPLACE)? (FUNCTION (IF NOT EXISTS)? compoundIdentifier parseFunctionFieldList RETURNS (TABLE parseFunctionReturnFieldList | dataType nullableOptDefaultTrue) RETURN orderedQueryOrExpr | (VIEW | VDS) compoundIdentifier parseOptionalFieldListWithMasking (AT (REF | REFERENCE | BRANCH) simpleIdentifier)? (ROW ACCESS POLICY policy)? AS orderedQueryOrExpr)  ;
+sqlCreateOrReplace : CREATE (OR REPLACE)? (FUNCTION (IF NOT EXISTS)? compoundIdentifier parseFunctionFieldList aTVersionSpec? RETURNS (TABLE parseFunctionReturnFieldList | dataType nullableOptDefaultTrue) RETURN orderedQueryOrExpr | (VIEW | VDS) compoundIdentifier parseOptionalFieldListWithMasking (AT (REF | REFERENCE | BRANCH) simpleIdentifier)? (ROW ACCESS POLICY policy)? AS orderedQueryOrExpr)  ;
 
 sqlDropFunction : DROP FUNCTION (IF EXISTS)? compoundIdentifier  ;
 
@@ -239,7 +239,7 @@ sqlAnalyzeTableStatistics : ANALYZE TABLE compoundIdentifier FOR (ALL COLUMNS | 
 
 sqlRefreshDataset : REFRESH DATASET compoundIdentifier (FOR ALL (FILES | PARTITIONS) | FOR FILES parseRequiredFilesList | FOR PARTITIONS parseRequiredPartitionList)? (AUTO PROMOTION | AVOID PROMOTION)? (FORCE UPDATE | LAZY UPDATE)? (DELETE WHEN MISSING | MAINTAIN WHEN MISSING)?  ;
 
-sqlOptimize : OPTIMIZE TABLE compoundIdentifier (REWRITE MANIFESTS | (REWRITE DATA)? (USING BIN_PACK)? (FOR PARTITIONS expression)? (LPAREN parseOptimizeOptions (COMMA parseOptimizeOptions)* RPAREN)? EOF)?  ;
+sqlOptimize : OPTIMIZE TABLE compoundIdentifier (REWRITE MANIFESTS | (REWRITE DATA)? (USING BIN_PACK)? (FOR PARTITIONS expression)? (LPAREN parseOptimizeOptions (COMMA parseOptimizeOptions)* RPAREN)?)  ;
 
 parseOptimizeOptions : (MIN_INPUT_FILES | TARGET_FILE_SIZE_MB | MIN_FILE_SIZE_MB | MAX_FILE_SIZE_MB) EQ literal  ;
 
@@ -248,6 +248,8 @@ fieldNameStructTypeCommaList : simpleIdentifier COLON? dataType nullableOptDefau
 dremioRowTypeName : (ROW | STRUCT) (LPAREN | LT) fieldNameStructTypeCommaList (RPAREN | GT)  ;
 
 arrayTypeName : (ARRAY | LIST) (LPAREN | LT) dataType nullableOptDefaultTrue (RPAREN | GT)  ;
+
+mapTypeName : (MAP) (LPAREN | LT) sqlTypeName (COMMA) dataType (RPAREN | GT)  ;
 
 sqlExplainQueryDML : EXPLAIN PLAN explainDetailLevel? explainDepth (AS XML | AS JSON)? FOR sqlQueryOrTableDml  ;
 
@@ -329,7 +331,7 @@ sqlExplainJson : EXPLAIN JSON simpleIdentifier? FOR sqlQueryOrDml  ;
 
 sqlGrant : GRANT (OWNERSHIP sqlGrantOwnership | ROLE sqlGrantRole | sqlGrantPrivilege)  ;
 
-sqlGrantPrivilege : privilegeCommaList ON ((SYSTEM | PROJECT) | (PDS | TABLE) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | (VDS | VIEW) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | FUNCTION compoundIdentifier | FOLDER compoundIdentifier (AT parseReferenceType simpleIdentifier)? | SCHEMA compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | ORG | CATALOG simpleIdentifier | CLOUD simpleIdentifier | ENGINE simpleIdentifier | IDENTITY PROVIDER simpleIdentifier | OAUTH APPLICATION simpleIdentifier | EXTERNAL TOKENS PROVIDER simpleIdentifier | SCRIPT simpleIdentifier | ALL DATASETS IN ((FOLDER | SCHEMA) compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | CATALOG simpleIdentifier)) TO parseGranteeType simpleIdentifier  ;
+sqlGrantPrivilege : privilegeCommaList ON ((SYSTEM | PROJECT) | (PDS | TABLE) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | (VDS | VIEW) compoundIdentifier (AT parseReferenceType simpleIdentifier)? | FUNCTION compoundIdentifier | FOLDER compoundIdentifier (AT parseReferenceType simpleIdentifier)? | SCHEMA compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | ORG | CATALOG simpleIdentifier | CLOUD simpleIdentifier | ENGINE simpleIdentifier | IDENTITY PROVIDER simpleIdentifier | OAUTH APPLICATION simpleIdentifier | EXTERNAL TOKENS PROVIDER simpleIdentifier | SCRIPT simpleIdentifier | ALL FOLDERS IN (CATALOG simpleIdentifier | FOLDER compoundIdentifier) | ALL DATASETS IN ((FOLDER | SCHEMA) compoundIdentifier | SOURCE simpleIdentifier | SPACE simpleIdentifier | CATALOG simpleIdentifier)) TO parseGranteeType simpleIdentifier  ;
 
 parseReferenceType : 
     REF
@@ -383,6 +385,8 @@ privilege :
     | CREATE SOURCE
     | UPLOAD
     | WRITE
+    | SHOW
+    | EXPORT DIAGNOSTICS
     | ALL
       ;
 
@@ -420,7 +424,17 @@ sqlDropBranch : DROP BRANCH (IF EXISTS)? simpleIdentifier (AT COMMIT simpleIdent
 
 sqlDropTag : DROP TAG (IF EXISTS)? simpleIdentifier (AT COMMIT simpleIdentifier | FORCE)? (IN simpleIdentifier)?  ;
 
-sqlMergeBranch : MERGE BRANCH simpleIdentifier (INTO simpleIdentifier)? (IN simpleIdentifier)?  ;
+sqlMergeBranch : MERGE BRANCH (DRY RUN)? simpleIdentifier (INTO simpleIdentifier)? (IN simpleIdentifier)? (ON CONFLICT getMergeBehavior (EXCEPT getMergeBehavior getTableKeys)? (EXCEPT getMergeBehavior getTableKeys)?)?  ;
+
+getMergeBehavior :
+    OVERWRITE
+    | DISCARD
+    | CANCEL
+      ;
+
+getTableKeys : tableKey (COMMA tableKey)*  ;
+
+tableKey : compoundIdentifier  ;
 
 sqlAssignBranch : ALTER BRANCH simpleIdentifier ASSIGN (REF | REFERENCE | BRANCH | TAG | COMMIT) simpleIdentifier (AS OF stringLiteral)? (IN simpleIdentifier)?  ;
 
@@ -441,7 +455,7 @@ parseCopyIntoOptions :
 
 sqlCreatePipe : CREATE PIPE (IF NOT EXISTS)? simpleIdentifier (DEDUPE_LOOKBACK_PERIOD unsignedNumericLiteral)? (NOTIFICATION_PROVIDER simpleIdentifier NOTIFICATION_QUEUE_REFERENCE simpleIdentifier)? AS sqlCopyInto  ;
 
-sqlAlterPipe : ALTER PIPE simpleIdentifier (DEDUPE_LOOKBACK_PERIOD unsignedNumericLiteral)? AS sqlCopyInto  ;
+sqlAlterPipe : ALTER PIPE simpleIdentifier (SET PIPE_EXECUTION_RUNNING EQ (TRUE | FALSE) | (DEDUPE_LOOKBACK_PERIOD unsignedNumericLiteral)? AS sqlCopyInto)  ;
 
 sqlDropPipe : DROP PIPE simpleIdentifier  ;
 
@@ -857,6 +871,7 @@ dataType : typeName collectionsTypeName?  ;
 typeName : 
     dremioRowTypeName
     | arrayTypeName
+    | mapTypeName
     | sqlTypeName
     | rowTypeName
     | compoundIdentifier
@@ -1215,155 +1230,16 @@ nonReservedKeyWord0of3 :
     | BEFORE
     | BRANCH
     | C
-    | CATALOG
-    | CHAIN
-    | CHARACTERS
-    | CHARACTER_SET_SCHEMA
-    | CLOUD
-    | COLLATION_CATALOG
-    | COLUMN
-    | COMMAND_FUNCTION
-    | COMMITTED
-    | CONFIGURE
-    | CONSOLIDATED
-    | CONSTRAINT_SCHEMA
-    | CONTINUE
-    | DATABASE
-    | DATETIME_INTERVAL_CODE
-    | DEFAULTS
-    | DEFINED
-    | DEPTH
-    | DESCRIPTION
-    | DIMENSIONS
-    | DISPLAY
-    | DOW
-    | DYNAMIC_FUNCTION_CODE
-    | ENGINE
-    | EXCEPTION
-    | EXECUTE
-    | FIRST
-    | FORCE
-    | FORTRAN
-    | FUNCTIONS
-    | GENERATED
-    | GOTO
-    | HASH
-    | IGNORE
-    | IMPLEMENTATION
-    | INCREMENT
-    | INSTANCE
-    | INVOKER
-    | ISOYEAR
-    | JSON
-    | JSON_LENGTH
-    | K
-    | KEY_TYPE
-    | LAYOUT
-    | LENGTH
-    | LIST
-    | LOCATOR
-    | M
-    | MANIFESTS
-    | MATCHED
-    | MAX_FILE_SIZE_MB
-    | MESSAGE_LENGTH
-    | MICROSECOND
-    | MINVALUE
-    | MISSING
-    | MORE_
-    | NAMES
-    | NORMALIZED
-    | NUMBER
-    | OCTETS
-    | OPTIONS
-    | ORG
-    | OVERRIDING
-    | PARAMETER_MODE
-    | PARAMETER_SPECIFIC_CATALOG
-    | PARTIAL
-    | PASSTHROUGH
-    | PATH
-    | PLAN
-    | PRECEDING
-    | PRIVILEGES
-    | PROVIDER
-    | QUERY
-    | READ
-    | REFLECTIONS
-    | REPLACE
-    | RESTRICT
-    | RETURNED_OCTET_LENGTH
-    | REWRITE
-    | ROUTE
-    | ROUTINE_NAME
-    | SCALAR
-    | SCHEMA_NAME
-    | SCOPE_SCHEMA
-    | SELF
-    | SERVER
-    | SETS
-    | SIZE
-    | SOURCE
-    | SQL_BIGINT
-    | SQL_BLOB
-    | SQL_CLOB
-    | SQL_DOUBLE
-    | SQL_INTERVAL_DAY
-    | SQL_INTERVAL_DAY_TO_SECOND
-    | SQL_INTERVAL_HOUR_TO_SECOND
-    | SQL_INTERVAL_MONTH
-    | SQL_INTERVAL_YEAR_TO_MONTH
-    | SQL_LONGVARNCHAR
-    | SQL_NUMERIC
-    | SQL_SMALLINT
-    | SQL_TINYINT
-    | SQL_TSI_HOUR
-    | SQL_TSI_MONTH
-    | SQL_TSI_WEEK
-    | SQL_VARCHAR
-    | STATS
-    | STRIPED
-    | STYLE
-    | TABLE_NAME
-    | TARGET_FILE_SIZE_MB
-    | TIMESTAMPADD
-    | TOKENS
-    | TRANSACTIONS_COMMITTED
-    | TRANSFORMS
-    | TRIGGER_NAME
-    | UNBOUNDED
-    | UNDER
-    | USAGE
-    | USER_DEFINED_TYPE_NAME
-    | UTF16
-    | VERSION
-    | WEEK
-    | WRITE
-    | ZONE
-      ;
-
-nonReservedKeyWord1of3 :
-    ABSENT
-    | ACCESS
-    | ADD
-    | AGGREGATE
-    | APPLICATION
-    | APPROXIMATE
-    | ASSIGN
-    | ATTRIBUTE
-    | AVOID
-    | BERNOULLI
-    | BRANCHES
-    | CACHE
-    | CATALOG_NAME
-    | CHANGE
-    | CHARACTER_SET_CATALOG
-    | CLASS_ORIGIN
-    | COBOL
-    | COLLATION_NAME
-    | COLUMNS
-    | COMMAND_FUNCTION_CODE
-    | CONDITION_NUMBER
+    | CASCADE
+    | CENTURY
+    | CHARACTERISTICS
+    | CHARACTER_SET_NAME
+    | CLEAR
+    | COLLATION
+    | COLLATION_SCHEMA
+    | COLUMN_NAME
+    | COMMIT
+    | CONDITIONAL
     | CONNECTION
     | CONSTRAINT_CATALOG
     | CONSTRAINTS
@@ -1375,11 +1251,12 @@ nonReservedKeyWord1of3 :
     | DERIVED
     | DESCRIPTOR
     | DISABLE
-    | DISTRIBUTE
-    | DOY
-    | ENABLE
-    | EPOCH
-    | EXCLUDE
+    | DISPLAY
+    | DOW
+    | DYNAMIC_FUNCTION
+    | ENCODING
+    | ERROR
+    | EXCLUDING
     | FIELD
     | FOLDER
     | FORGET
@@ -1417,25 +1294,26 @@ nonReservedKeyWord1of3 :
     | OPERATE
     | ORDERING
     | OTHERS
-    | OWNERSHIP
-    | PARAMETER_NAME
-    | PARAMETER_SPECIFIC_NAME
-    | PASCAL
-    | PASSWORD
-    | PDS
-    | PLI
-    | PRESERVE
-    | PROJECT
-    | PUBLIC
-    | QUEUE
-    | REFERENCE
-    | RELATIVE
-    | RESPECT
-    | RETURNED_CARDINALITY
-    | RETURNED_SQLSTATE
-    | ROLE
-    | ROUTINE
-    | ROUTINE_SCHEMA
+    | OVERWRITE
+    | PARAMETER_MODE
+    | PARAMETER_SPECIFIC_CATALOG
+    | PARTIAL
+    | PASSTHROUGH
+    | PATH
+    | PLACING
+    | POLICY
+    | PRIOR
+    | PROMOTION
+    | QUARTER
+    | RAW
+    | REFLECTION
+    | REPEATABLE
+    | RESTART
+    | RETURNED_LENGTH
+    | RETURNING
+    | ROUNDROBIN
+    | ROUTINE_CATALOG
+    | ROW_COUNT
     | SCALE
     | SCOPE_CATALOGS
     | SECTION
@@ -1481,28 +1359,29 @@ nonReservedKeyWord1of3 :
     | WRITER
       ;
 
-nonReservedKeyWord2of3 :
-    ABSOLUTE
-    | ACTION
-    | ADMIN
-    | ALTER
-    | APPLY
-    | ARROW
-    | ASSERTION
-    | ATTRIBUTES
-    | BATCH
-    | BIN_PACK
-    | BREADTH
-    | CASCADE
-    | CENTURY
-    | CHARACTERISTICS
-    | CHARACTER_SET_NAME
-    | CLEAR
-    | COLLATION
-    | COLLATION_SCHEMA
-    | COLUMN_NAME
-    | COMMIT
-    | CONDITIONAL
+nonReservedKeyWord1of3 :
+    ABSENT
+    | ACCESS
+    | ADD
+    | AGGREGATE
+    | APPLICATION
+    | APPROXIMATE
+    | ASSIGN
+    | ATTRIBUTE
+    | AVOID
+    | BERNOULLI
+    | BRANCHES
+    | CACHE
+    | CATALOG
+    | CHAIN
+    | CHARACTERS
+    | CHARACTER_SET_SCHEMA
+    | CLOUD
+    | COLLATION_CATALOG
+    | COLUMN
+    | COMMAND_FUNCTION
+    | COMMITTED
+    | CONFIGURE
     | CONNECTION_NAME
     | CONSTRAINT_NAME
     | CONSTRUCTOR
@@ -1513,13 +1392,15 @@ nonReservedKeyWord2of3 :
     | DEGREE
     | DESC
     | DIAGNOSTICS
-    | DISPATCH
-    | DOMAIN
-    | DYNAMIC_FUNCTION
-    | ENCODING
-    | ERROR
-    | EXCLUDING
+    | DISCARD
+    | DISTRIBUTE
+    | DOY
+    | DYNAMIC_FUNCTION_CODE
+    | ENGINE
+    | EXCEPTION
+    | EXECUTE
     | FINAL
+    | FOLDERS
     | FOLLOWING
     | FORMAT
     | FRAC_SECOND
@@ -1556,25 +1437,26 @@ nonReservedKeyWord2of3 :
     | OPTION
     | ORDINALITY
     | OUTPUT
-    | PAD
-    | PARAMETER_ORDINAL_POSITION
-    | PARAMETER_SPECIFIC_SCHEMA
-    | PASSING
-    | PAST
-    | PLACING
-    | POLICY
-    | PRIOR
-    | PROMOTION
-    | QUARTER
-    | RAW
-    | REFLECTION
-    | REPEATABLE
-    | RESTART
-    | RETURNED_LENGTH
-    | RETURNING
-    | ROUNDROBIN
-    | ROUTINE_CATALOG
-    | ROW_COUNT
+    | OWNERSHIP
+    | PARAMETER_NAME
+    | PARAMETER_SPECIFIC_NAME
+    | PASCAL
+    | PASSWORD
+    | PDS
+    | PLAN
+    | PRECEDING
+    | PRIVILEGES
+    | PROVIDER
+    | QUERY
+    | READ
+    | REFLECTIONS
+    | REPLACE
+    | RESTRICT
+    | RETURNED_OCTET_LENGTH
+    | REWRITE
+    | ROUTE
+    | ROUTINE_NAME
+    | RUN
     | SCHEMA
     | SCOPE_NAME
     | SECURITY
@@ -1618,6 +1500,148 @@ nonReservedKeyWord2of3 :
     | VIEWS
     | WRAPPER
     | XML
+      ;
+
+nonReservedKeyWord2of3 :
+    ABSOLUTE
+    | ACTION
+    | ADMIN
+    | ALTER
+    | APPLY
+    | ARROW
+    | ASSERTION
+    | ATTRIBUTES
+    | BATCH
+    | BIN_PACK
+    | BREADTH
+    | CANCEL
+    | CATALOG_NAME
+    | CHANGE
+    | CHARACTER_SET_CATALOG
+    | CLASS_ORIGIN
+    | COBOL
+    | COLLATION_NAME
+    | COLUMNS
+    | COMMAND_FUNCTION_CODE
+    | CONDITION_NUMBER
+    | CONFLICT
+    | CONSOLIDATED
+    | CONSTRAINT_SCHEMA
+    | CONTINUE
+    | DATABASE
+    | DATETIME_INTERVAL_CODE
+    | DEFAULTS
+    | DEFINED
+    | DEPTH
+    | DESCRIPTION
+    | DIMENSIONS
+    | DISPATCH
+    | DOMAIN
+    | DRY
+    | ENABLE
+    | EPOCH
+    | EXCLUDE
+    | EXPORT
+    | FIRST
+    | FORCE
+    | FORTRAN
+    | FUNCTIONS
+    | GENERATED
+    | GOTO
+    | HASH
+    | IGNORE
+    | IMPLEMENTATION
+    | INCREMENT
+    | INSTANCE
+    | INVOKER
+    | ISOYEAR
+    | JSON
+    | JSON_LENGTH
+    | K
+    | KEY_TYPE
+    | LAYOUT
+    | LENGTH
+    | LIST
+    | LOCATOR
+    | M
+    | MANIFESTS
+    | MATCHED
+    | MAX_FILE_SIZE_MB
+    | MESSAGE_LENGTH
+    | MICROSECOND
+    | MINVALUE
+    | MISSING
+    | MORE_
+    | NAMES
+    | NORMALIZED
+    | NUMBER
+    | OCTETS
+    | OPTIONS
+    | ORG
+    | OVERRIDING
+    | PAD
+    | PARAMETER_ORDINAL_POSITION
+    | PARAMETER_SPECIFIC_SCHEMA
+    | PASSING
+    | PAST
+    | PIPE_EXECUTION_RUNNING
+    | PLI
+    | PRESERVE
+    | PROJECT
+    | PUBLIC
+    | QUEUE
+    | REFERENCE
+    | RELATIVE
+    | RESPECT
+    | RETURNED_CARDINALITY
+    | RETURNED_SQLSTATE
+    | ROLE
+    | ROUTINE
+    | ROUTINE_SCHEMA
+    | SCALAR
+    | SCHEMA_NAME
+    | SCOPE_SCHEMA
+    | SELF
+    | SERVER
+    | SETS
+    | SIZE
+    | SOURCE
+    | SQL_BIGINT
+    | SQL_BLOB
+    | SQL_CLOB
+    | SQL_DOUBLE
+    | SQL_INTERVAL_DAY
+    | SQL_INTERVAL_DAY_TO_SECOND
+    | SQL_INTERVAL_HOUR_TO_SECOND
+    | SQL_INTERVAL_MONTH
+    | SQL_INTERVAL_YEAR_TO_MONTH
+    | SQL_LONGVARNCHAR
+    | SQL_NUMERIC
+    | SQL_SMALLINT
+    | SQL_TINYINT
+    | SQL_TSI_HOUR
+    | SQL_TSI_MONTH
+    | SQL_TSI_WEEK
+    | SQL_VARCHAR
+    | STATS
+    | STRIPED
+    | STYLE
+    | TABLE_NAME
+    | TARGET_FILE_SIZE_MB
+    | TIMESTAMPADD
+    | TOKENS
+    | TRANSACTIONS_COMMITTED
+    | TRANSFORMS
+    | TRIGGER_NAME
+    | UNBOUNDED
+    | UNDER
+    | USAGE
+    | USER_DEFINED_TYPE_NAME
+    | UTF16
+    | VERSION
+    | WEEK
+    | WRITE
+    | ZONE
       ;
 
 unusedExtension : ZONE  ;

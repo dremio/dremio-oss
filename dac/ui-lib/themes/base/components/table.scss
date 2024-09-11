@@ -56,12 +56,12 @@
 }
 
 .leantable-row-hover-visibility > * {
-  visibility: hidden;
+  opacity: 0;
 }
 
 .leantable__body-row:hover .leantable-row-hover-visibility > *,
 .leantable__body-row:focus-visible .leantable-row-hover-visibility > * {
-  visibility: visible;
+  opacity: 1;
 }
 
 .leantable-sticky-column--right.leantable-row-hover-visibility {

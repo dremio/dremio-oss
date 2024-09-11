@@ -20,7 +20,7 @@ import static com.dremio.BaseTestQuery.getIcebergTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.PARTITION_COLUMN_ONE_INDEX_SET;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Table;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Tables;
-import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.configureDmlWriteModeProperties;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTableWithDecimals;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTableWithDoubles;
@@ -35,6 +35,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQuer
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.planner.sql.DmlQueryTestUtils.DmlRowwiseOperationWriteMode;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.google.common.collect.Iterables;
 import java.io.File;
@@ -96,11 +97,15 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateAll(BufferAllocator allocator, String source) throws Exception {
+  public static void testUpdateAll(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET id = 0",
@@ -121,12 +126,15 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateAllColumns(BufferAllocator allocator, String source)
+  public static void testUpdateAllColumns(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET id = 0, %s = '%s'",
@@ -139,11 +147,17 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateById(BufferAllocator allocator, String source) throws Exception {
+  public static void testUpdateById(
+      BufferAllocator allocator,
+      String source,
+      DmlRowwiseOperationWriteMode dmlRowwiseOperationWriteMode)
+      throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlRowwiseOperationWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET id = %s WHERE id = %s",
@@ -161,13 +175,16 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithEqualNull(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithEqualNull(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     // column = null should return false and no data should be updated
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET id = %s WHERE id = %s",
@@ -180,12 +197,15 @@ public class UpdateTests {
   }
 
   public static void testUpdateTargetTableWithAndWithoutAlias(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     // without target table aliasing
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET id = %s WHERE id = %s",
@@ -204,9 +224,11 @@ public class UpdateTests {
 
     //  with target table aliasing
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s as t SET id = %s WHERE t.id = %s",
@@ -224,12 +246,15 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdInEquality(BufferAllocator allocator, String source)
+  public static void testUpdateByIdInEquality(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET id = 777 WHERE id > 4",
@@ -247,10 +272,12 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithInClauseFilter(BufferAllocator allocator, String source)
+  public static void testUpdateWithInClauseFilter(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     Object[] newId = new Object[] {777};
     try (Table table = createBasicTable(source, 1, 10)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET id = 777 WHERE id in (5, 6, 7, 8, 9, 10)",
@@ -262,12 +289,15 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdAndColumn0(BufferAllocator allocator, String source)
+  public static void testUpdateByIdAndColumn0(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET column_1 = '%s' WHERE id > 0 AND column_0 = '%s'",
@@ -288,13 +318,16 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdOrColumn0(BufferAllocator allocator, String source)
+  public static void testUpdateByIdOrColumn0(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     String newValue = "777";
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET column_0 = '%s' WHERE id = %s OR column_0 = '%s'",
@@ -313,14 +346,17 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdTwoColumns(BufferAllocator allocator, String source)
+  public static void testUpdateByIdTwoColumns(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     String newColumn0 = "000";
     String newColumn1 = "111";
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET column_0 = '%s', column_1 = '%s' WHERE id = %s",
@@ -338,9 +374,11 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithDecimals(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithDecimals(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTableWithDecimals(source, 3, 10)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET column_0 = 1.0, column_1 = 7.77 WHERE id = %s",
@@ -357,9 +395,11 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithDoubles(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithDoubles(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTableWithDoubles(source, 3, 10)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET column_0 = 1.0, column_1 = 7.77 WHERE id = %s",
@@ -376,9 +416,11 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithFloats(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithFloats(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTableWithFloats(source, 3, 10)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET column_0 = 1.0, column_1 = 7.77 WHERE id = %s",
@@ -395,12 +437,15 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithSubQuery(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithSubQuery(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             ""
@@ -422,9 +467,11 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithSubQueryWithFloat(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithSubQueryWithFloat(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTableWithFloats(source, 3, 10)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET column_0 = (SELECT column_1 FROM %s WHERE id = %s LIMIT 1) WHERE id = %s",
@@ -444,8 +491,10 @@ public class UpdateTests {
   }
 
   public static void testUpdateByIdWithSubQueryAndLiteralWithFloats(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table table = createBasicTableWithFloats(source, 3, 10)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET column_1 = (SELECT column_1 FROM %s WHERE id = %s LIMIT 1), column_0 = 1.0 WHERE id = %s",
@@ -462,9 +511,11 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithSubQueryWithDecimal(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithSubQueryWithDecimal(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTableWithDecimals(source, 3, 10)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET column_0 = (SELECT column_1 FROM %s WHERE id = %s LIMIT 1) WHERE id = %s",
@@ -483,12 +534,15 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithScalarSubQuery(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithScalarSubQuery(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET id = (SELECT MAX(id) FROM %s)",
@@ -509,12 +563,15 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateByIdWithSubQueries(BufferAllocator allocator, String source)
+  public static void testUpdateByIdWithSubQueries(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "UPDATE %s SET column_0 = (SELECT column_1 FROM %s WHERE id = %s LIMIT 1), "
@@ -542,10 +599,12 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateALLWithOneUnusedSourceTable(BufferAllocator allocator, String source)
+  public static void testUpdateALLWithOneUnusedSourceTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 4);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -559,11 +618,13 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithOneSourceTableFullPath(BufferAllocator allocator, String source)
+  public static void testUpdateWithOneSourceTableFullPath(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 10);
         Table targetTable = createBasicTable(source, 2, 5);
         AutoCloseable ignored = setContext(allocator, source)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET id = -%s.id,  column_0 = 'ASDF' "
@@ -586,12 +647,14 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithViewAsSourceTable(BufferAllocator allocator, String source)
+  public static void testUpdateWithViewAsSourceTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     String viewName = createRandomId();
     try (Table sourceTable = createBasicTable(source, 3, 10);
         Table targetTable = createBasicTable(source, 2, 5);
         AutoCloseable ignore = createViewFromTable(source, viewName, sourceTable.fqn)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET id = -s.id,  column_0 = 'ASDF' "
@@ -607,10 +670,12 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithOneSourceTableNoAlias(BufferAllocator allocator, String source)
+  public static void testUpdateWithOneSourceTableNoAlias(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 10);
         Table targetTable = createBasicTable(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET id = -%s.id,  column_0 = 'ASDF' "
@@ -633,10 +698,12 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithOneSourceTableUseAlias(BufferAllocator allocator, String source)
+  public static void testUpdateWithOneSourceTableUseAlias(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 10);
         Table targetTable = createBasicTable(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           ""
@@ -655,10 +722,12 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithOneSourceTableSubQuery(BufferAllocator allocator, String source)
+  public static void testUpdateWithOneSourceTableSubQuery(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 10);
         Table targetTable = createBasicTable(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s as t SET id = -s.id,  column_0 = 'ASDF' "
@@ -674,11 +743,13 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithTwoSourceTables(BufferAllocator allocator, String source)
+  public static void testUpdateWithTwoSourceTables(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable1 = createBasicTable(source, 3, 2);
         Table sourceTable2 = createBasicTable(source, 3, 3);
         Table targetTable = createBasicTable(source, 3, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           ""
@@ -703,11 +774,13 @@ public class UpdateTests {
   }
 
   public static void testUpdateWithTwoSourceTableOneSourceQuery(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable1 = createBasicTable(source, 3, 2);
         Table sourceTable2 = createBasicTable(source, 3, 3);
         Table sourceTable3 = createBasicTable(source, 3, 4);
         Table targetTable = createBasicTable(source, 4, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           ""
@@ -737,16 +810,17 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithDupsInSource(BufferAllocator allocator, String source)
+  public static void testUpdateWithDupsInSource(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable =
             createTable(
                 source,
                 createRandomId(),
                 new DmlQueryTestUtils.ColumnInfo[] {
-                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.VARCHAR, false),
-                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.VARCHAR, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "insert-1", "source 1.1"},
@@ -758,15 +832,16 @@ public class UpdateTests {
                 source,
                 createRandomId(),
                 new DmlQueryTestUtils.ColumnInfo[] {
-                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.VARCHAR, false),
-                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.VARCHAR, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "insert-1", "target 1.1"},
                   new Object[] {20, "second insert-1", "target 2.1"},
                   new Object[] {30, "third insert-1", "target 3.1"}
                 })) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -781,9 +856,11 @@ public class UpdateTests {
   }
 
   public static void testUpdateWithUnrelatedConditionToSourceTableNoCondition(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 4);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -798,9 +875,11 @@ public class UpdateTests {
   }
 
   public static void testUpdateWithUnrelatedConditionToSourceTable(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 4);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -814,16 +893,17 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithSchemaNotMatch(BufferAllocator allocator, String source)
+  public static void testUpdateWithSchemaNotMatch(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable =
             createTable(
                 source,
                 createRandomId(),
                 new DmlQueryTestUtils.ColumnInfo[] {
-                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.DATE, false),
-                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.DATE, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "2001-01-01", "source 1.2"},
@@ -835,15 +915,16 @@ public class UpdateTests {
                 source,
                 createRandomId(),
                 new DmlQueryTestUtils.ColumnInfo[] {
-                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.FLOAT, false),
-                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.FLOAT, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, 1.0, "target 1.1"},
                   new Object[] {20, 2.0, "target 2.1"},
                   new Object[] {30, 3.0, "target 3.1"}
                 })) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
 
       // One target column
       assertThatThrownBy(
@@ -871,16 +952,17 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithImplicitTypeCasting1(BufferAllocator allocator, String source)
+  public static void testUpdateWithImplicitTypeCasting1(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table1 =
             createTable(
                 source,
                 createRandomId(),
                 new DmlQueryTestUtils.ColumnInfo[] {
-                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.VARCHAR, false),
-                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.DOUBLE, false)
+                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.VARCHAR, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.DOUBLE, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "1.1", 4.1d},
@@ -892,15 +974,17 @@ public class UpdateTests {
                 source,
                 createRandomId(),
                 new DmlQueryTestUtils.ColumnInfo[] {
-                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.FLOAT, false),
-                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.INTEGER, false)
+                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.FLOAT, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.INTEGER, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, 1.0, 1},
                   new Object[] {20, 2.0, 2},
                   new Object[] {30, 3.0, 3}
                 })) {
+      configureDmlWriteModeProperties(table2, dmlWriteMode);
+
       // test1 as the source table, test2 as the target table
       testDmlQuery(
           allocator,
@@ -916,16 +1000,17 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithImplicitTypeCasting2(BufferAllocator allocator, String source)
+  public static void testUpdateWithImplicitTypeCasting2(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table1 =
             createTable(
                 source,
                 createRandomId(),
                 new DmlQueryTestUtils.ColumnInfo[] {
-                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.VARCHAR, false),
-                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.DOUBLE, false)
+                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.VARCHAR, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.DOUBLE, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "1.1", 4.1d},
@@ -937,15 +1022,16 @@ public class UpdateTests {
                 source,
                 createRandomId(),
                 new DmlQueryTestUtils.ColumnInfo[] {
-                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.FLOAT, false),
-                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.INTEGER, false)
+                  new DmlQueryTestUtils.ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data1", SqlTypeName.FLOAT, false, false),
+                  new DmlQueryTestUtils.ColumnInfo("data2", SqlTypeName.INTEGER, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, 1.0, 1},
                   new Object[] {20, 2.0, 2},
                   new Object[] {30, 3.0, 3}
                 })) {
+      configureDmlWriteModeProperties(table1, dmlWriteMode);
       // test2 as the source table, test1 as the target table
       testDmlQuery(
           allocator,
@@ -994,10 +1080,12 @@ public class UpdateTests {
     Assert.assertEquals(expectedDataFileCount, Iterables.size(dataFiles));
   }
 
-  public static void testUpdateWithPartitionTransformation(BufferAllocator allocator, String source)
+  public static void testUpdateWithPartitionTransformation(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     String tableName = "updateWithPartitionTransformation";
     try (Table table = createBasicTable(0, source, 2, 10000, tableName)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
       org.apache.iceberg.Table icebergTable =
           getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
@@ -1015,8 +1103,10 @@ public class UpdateTests {
 
   // BEGIN: Contexts + Paths
   public static void testUpdateWithWrongContextWithPathTable(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -1030,10 +1120,12 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithContextWithPathTable(BufferAllocator allocator, String source)
+  public static void testUpdateWithContextWithPathTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2);
         AutoCloseable ignored = setContext(allocator, source)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s.%s SET %s = 'One' WHERE id = %s",
@@ -1045,13 +1137,14 @@ public class UpdateTests {
     }
   }
 
-  public static void testUpdateWithStockIcebergTable(BufferAllocator allocator, String source)
+  public static void testUpdateWithStockIcebergTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (DmlQueryTestUtils.Table table =
             DmlQueryTestUtils.createStockIcebergTable(
                 source, 2, 2, "test_update_into_stock_iceberg");
         AutoCloseable ignored = setContext(allocator, source)) {
-
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "UPDATE %s SET %s = 'One' WHERE id = 1",

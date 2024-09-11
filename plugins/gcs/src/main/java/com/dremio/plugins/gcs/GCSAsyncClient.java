@@ -21,6 +21,8 @@ import com.google.auth.oauth2.GoogleCredentials;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.function.Supplier;
+import org.apache.commons.lang3.function.Suppliers;
 import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncHttpClient;
 
@@ -29,15 +31,29 @@ class GCSAsyncClient implements Closeable {
   private static final String SCOPE = "https://www.googleapis.com/auth/devstorage.full_control";
 
   private final AsyncHttpClient asyncHttpClient;
-  private final GoogleCredentials credentials;
+  private final Supplier<GoogleCredentials> credentialsProvider;
+  private final String baseUrl;
+  private final GcsApiType gcsApiType;
 
-  public GCSAsyncClient(String name, GoogleCredentials credentials) throws IOException {
-    this.credentials = credentials.createScoped(Collections.singletonList(SCOPE));
-    asyncHttpClient = AsyncHttpClientProvider.getInstance();
+  public GCSAsyncClient(
+      String name,
+      Supplier<GoogleCredentials> credentialsProvider,
+      String baseUrl,
+      GcsApiType gcsApiType) {
+    this.credentialsProvider = credentialsProvider;
+    this.asyncHttpClient = AsyncHttpClientProvider.getInstance();
+    this.baseUrl = baseUrl;
+    this.gcsApiType = gcsApiType;
+  }
+
+  private GoogleCredentials createScopedCredentials() {
+    GoogleCredentials credentials = Suppliers.get(credentialsProvider);
+    return credentials == null ? null : credentials.createScoped(Collections.singletonList(SCOPE));
   }
 
   public AsyncByteReader newByteReader(Path path, String version) {
-    return new GCSAsyncFileReader(asyncHttpClient, path, version, credentials);
+    return new GCSAsyncFileReader(
+        asyncHttpClient, path, version, createScopedCredentials(), baseUrl, gcsApiType);
   }
 
   @Override

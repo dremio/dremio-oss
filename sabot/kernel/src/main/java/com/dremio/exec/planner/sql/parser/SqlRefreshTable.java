@@ -18,6 +18,7 @@ package com.dremio.exec.planner.sql.parser;
 import com.dremio.common.dialect.DremioSqlDialect;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -278,7 +279,10 @@ public class SqlRefreshTable extends SqlSystemCall {
     return partitionRefresh;
   }
 
-  public String toRefreshDatasetQuery(List<String> pathComponents) {
+  public String toRefreshDatasetQuery(
+      List<String> pathComponents,
+      Optional<String> fileNameRegex,
+      boolean errorOnConcurrentRefresh) {
     return new SqlRefreshDataset(
             pos,
             new SqlIdentifier(pathComponents, pos),
@@ -290,7 +294,9 @@ public class SqlRefreshTable extends SqlSystemCall {
             fileRefresh,
             partitionRefresh,
             filesList,
-            partitionList)
+            partitionList,
+            fileNameRegex.map(p -> SqlLiteral.createCharString(p, SqlParserPos.ZERO)).orElse(null),
+            SqlLiteral.createBoolean(errorOnConcurrentRefresh, SqlParserPos.ZERO))
         .toSqlString(DremioSqlDialect.CALCITE)
         .getSql();
   }

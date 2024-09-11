@@ -17,11 +17,14 @@ package com.dremio.dac.service.autocomplete;
 
 import com.dremio.dac.api.CatalogEntity;
 import com.dremio.dac.api.CatalogItem;
+import com.dremio.dac.api.CatalogPageToken;
 import com.dremio.dac.api.Dataset;
 import com.dremio.dac.api.Source;
+import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.dac.service.autocomplete.model.AutocompleteRequest;
 import com.dremio.dac.service.autocomplete.model.AutocompleteResponse;
 import com.dremio.dac.service.autocomplete.model.SuggestionsType;
+import com.dremio.dac.service.catalog.CatalogListingResult;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.exec.store.ReferenceInfo;
@@ -31,6 +34,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import java.security.AccessControlException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,7 +49,10 @@ import org.apache.commons.lang3.StringUtils;
 /** Manage to get the catalog entities based on the namespace key(s) and prefix */
 public final class AutocompleteProxy {
   private static final List<String> SYSTEM_SOURCES =
-      Arrays.asList(InfoSchemaStoragePlugin.NAME, SystemStoragePlugin.NAME);
+      Arrays.asList(
+          InfoSchemaStoragePlugin.NAME,
+          SystemStoragePlugin.NAME,
+          DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME);
 
   public static AutocompleteResponse getSuggestions(
       CatalogServiceHelper catalogServiceHelper, AutocompleteRequest request) {
@@ -193,8 +200,15 @@ public final class AutocompleteProxy {
       addSystemSources(matchingContainers, catalogServiceHelper);
     } else {
       try {
-        matchingContainers =
-            catalogServiceHelper.getCatalogChildrenForPath(catalogEntityKey, refType, refValue);
+        matchingContainers = new ArrayList<>();
+        CatalogPageToken pageToken = null;
+        do {
+          CatalogListingResult listingResult =
+              catalogServiceHelper.getCatalogChildrenForPath(
+                  catalogEntityKey, refType, refValue, pageToken, 1000);
+          matchingContainers.addAll(listingResult.children());
+          pageToken = listingResult.nextPageToken().orElse(null);
+        } while (pageToken != null);
       } catch (AccessControlException ignored) {
         matchingContainers = Collections.EMPTY_LIST;
       }
@@ -283,7 +297,13 @@ public final class AutocompleteProxy {
     try {
       Optional<CatalogEntity> entity =
           catalogServiceHelper.getCatalogEntityByPath(
-              catalogEntityKey, Collections.EMPTY_LIST, Collections.EMPTY_LIST, refType, refValue);
+              catalogEntityKey,
+              Collections.EMPTY_LIST,
+              Collections.EMPTY_LIST,
+              refType,
+              refValue,
+              null,
+              null);
       if (entity.isPresent() && entity.get() instanceof Dataset) {
         List<Field> matchingColumns = ((Dataset) entity.get()).getFields();
         return matchingColumns.stream()

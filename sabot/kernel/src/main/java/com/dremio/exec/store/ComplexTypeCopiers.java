@@ -18,11 +18,15 @@ package com.dremio.exec.store;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.util.ColumnUtils;
+import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,9 +34,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
+import org.apache.arrow.vector.util.Text;
 
 /**
  * This class is responsible for setting up complex field readers Also, copies data from appropriate
@@ -66,6 +72,7 @@ public class ComplexTypeCopiers {
       OperatorContext context,
       List<ValueVector> input,
       List<ValueVector> output,
+      ValueVector error,
       TypeCoercion typeCoercion,
       Stopwatch javaCodeGenWatch,
       Stopwatch gandivaCodeGenWatch) {
@@ -82,6 +89,7 @@ public class ComplexTypeCopiers {
               context,
               input.get(pos),
               output.get(pos),
+              error,
               typeCoercion,
               javaCodeGenWatch,
               gandivaCodeGenWatch);
@@ -95,6 +103,7 @@ public class ComplexTypeCopiers {
       OperatorContext context,
       ValueVector inVector,
       ValueVector outVector,
+      ValueVector errorVector,
       TypeCoercion typeCoercion,
       Stopwatch javaCodeGenWatch,
       Stopwatch gandivaCodeGenWatch) {
@@ -108,14 +117,26 @@ public class ComplexTypeCopiers {
     if (outVector instanceof ListVector && inVector instanceof ListVector) {
       // return list copier
       return new ListCopier(
-          context, inVector, outVector, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch);
+          context,
+          inVector,
+          outVector,
+          errorVector,
+          typeCoercion,
+          javaCodeGenWatch,
+          gandivaCodeGenWatch);
     }
 
     // StructVector can be mapped to only StructVector
     if (outVector instanceof StructVector && inVector instanceof StructVector) {
       // return struct copier
       return new StructCopier(
-          context, inVector, outVector, typeCoercion, javaCodeGenWatch, gandivaCodeGenWatch);
+          context,
+          inVector,
+          outVector,
+          errorVector,
+          typeCoercion,
+          javaCodeGenWatch,
+          gandivaCodeGenWatch);
     }
 
     // control should not reach this place because of schema validation
@@ -125,7 +146,7 @@ public class ComplexTypeCopiers {
   }
 
   /** Class that copies ListVector by taking care of child field coercions */
-  static class ListCopier implements ComplexTypeCopier {
+  static class ListCopier extends ErrorWritingCopier implements ComplexTypeCopier {
     private final ListVector inVector;
     private final ListVector outVector;
     private final CompositeReader childFieldCompositeReader;
@@ -145,14 +166,17 @@ public class ComplexTypeCopiers {
         OperatorContext context,
         ValueVector in,
         ValueVector out,
+        ValueVector errorReportVector,
         TypeCoercion typeCoercion,
         Stopwatch javaCodeGenWatch,
         Stopwatch gandivaCodeGenWatch) {
       inVector = (ListVector) in;
       outVector = (ListVector) out;
+      setupErrorVectors(context, errorReportVector);
 
       // create a mutator for output child field vector
-      outChildMutator = createChildMutator(context, outVector.getDataVector());
+      outChildMutator =
+          createChildMutator(context, outVector.getDataVector(), intermediateErrorVector);
 
       // construct mutator for input child field vector
       inChildMutator = createChildMutator(context, inVector.getDataVector());
@@ -171,10 +195,18 @@ public class ComplexTypeCopiers {
               targetSchema);
     }
 
-    private SampleMutator createChildMutator(
+    private static SampleMutator createChildMutator(
         OperatorContext context, ValueVector childFieldVector) {
+      return createChildMutator(context, childFieldVector, null);
+    }
+
+    private static SampleMutator createChildMutator(
+        OperatorContext context, ValueVector childFieldVector, ValueVector errorVector) {
       SampleMutator sampleMutator = new SampleMutator(context.getAllocator());
       sampleMutator.addVector(childFieldVector);
+      if (errorVector != null) {
+        sampleMutator.addVector(errorVector);
+      }
       sampleMutator.getContainer().buildSchema();
       sampleMutator.getAndResetSchemaChanged();
       return sampleMutator;
@@ -193,7 +225,7 @@ public class ComplexTypeCopiers {
     }
 
     @Override
-    public void runProjector(int recordCount, VectorContainer incoming) {
+    protected void runProjectorInternal(int recordCount, VectorContainer incoming) {
       childFieldCompositeReader.runProjector(recordCount, incoming);
     }
 
@@ -216,13 +248,40 @@ public class ComplexTypeCopiers {
     }
 
     @Override
+    protected void propagateError() {
+      // tracks how far we have progressed in the flattened vector
+      int baseNestedIndex = 0;
+
+      for (int i = 0; i < inVector.getValueCount(); ++i) {
+        // number of nested values at i index of the list vector
+        int nestedCount = inVector.getInnerValueCountAt(i);
+
+        for (int j = 0; j < nestedCount; ++j) {
+          // true flattened vector index
+          int nestedIndex = baseNestedIndex + j;
+          Text errorSeenInList = intermediateErrorVector.getObject(nestedIndex);
+          if (errorSeenInList != null) {
+            Text existingError = errorReportVector.getObject(i);
+            if (existingError == null) {
+              errorReportVector.setSafe(i, new Text(errorSeenInList.toString()));
+            } else if (!reportFirstErrorOnly) {
+              errorReportVector.setSafe(i, new Text(existingError + ", " + errorSeenInList));
+            }
+          }
+        }
+        baseNestedIndex += nestedCount;
+      }
+    }
+
+    @Override
     public void close() throws Exception {
       AutoCloseables.close(childFieldCompositeReader, outChildMutator, inChildMutator);
+      super.close();
     }
   }
 
   /** Class that copies StructVector by taking care of child field coercions */
-  static class StructCopier implements ComplexTypeCopier {
+  static class StructCopier extends ErrorWritingCopier implements ComplexTypeCopier {
     private final StructVector inVector;
     private final StructVector outVector;
     private final CompositeReader childrenFieldCompositeReader;
@@ -242,6 +301,7 @@ public class ComplexTypeCopiers {
         OperatorContext context,
         ValueVector in,
         ValueVector out,
+        ValueVector errorReportVector,
         TypeCoercion typeCoercion,
         Stopwatch javaCodeGenWatch,
         Stopwatch gandivaCodeGenWatch) {
@@ -251,6 +311,8 @@ public class ComplexTypeCopiers {
 
       outChildMutator = new SampleMutator(context.getAllocator());
       inChildMutator = new SampleMutator(context.getAllocator());
+
+      setupErrorVectors(context, errorReportVector);
 
       int fieldCount = inVector.getChildFieldNames().size();
       for (int idx = 0; idx < fieldCount; ++idx) {
@@ -267,6 +329,10 @@ public class ComplexTypeCopiers {
         if (inFields.containsKey(outFieldName.toLowerCase())) {
           inChildMutator.addVector(inFields.get(outFieldName.toLowerCase()));
         }
+      }
+
+      if (intermediateErrorVector != null) {
+        outChildMutator.addVector(intermediateErrorVector);
       }
 
       outChildMutator.getContainer().buildSchema();
@@ -302,7 +368,7 @@ public class ComplexTypeCopiers {
     }
 
     @Override
-    public void runProjector(int recordCount, VectorContainer incoming) {
+    protected void runProjectorInternal(int recordCount, VectorContainer incoming) {
       childrenFieldCompositeReader.runProjector(recordCount, incoming);
     }
 
@@ -324,9 +390,72 @@ public class ComplexTypeCopiers {
     }
 
     @Override
+    protected void propagateError() {
+      Preconditions.checkState(
+          intermediateErrorVector.getValueCount() == inVector.getValueCount(),
+          "Struct copiers expects matching cardinality of error and input vectors");
+      for (int i = 0; i < intermediateErrorVector.getValueCount(); ++i) {
+        Text errorInStruct = intermediateErrorVector.getObject(i);
+        if (errorInStruct != null) {
+          Text existingError = errorReportVector.getObject(i);
+          if (existingError == null) {
+            errorReportVector.setSafe(i, new Text(errorInStruct.toString()));
+          } else if (!reportFirstErrorOnly) {
+            errorReportVector.setSafe(i, new Text(existingError + ", " + errorInStruct));
+          }
+        }
+      }
+    }
+
+    @Override
     public void close() throws Exception {
       AutoCloseables.close(childrenFieldCompositeReader, outChildMutator, inChildMutator);
+      super.close();
     }
+  }
+
+  private abstract static class ErrorWritingCopier implements ComplexTypeCopier {
+    protected VarCharVector errorReportVector;
+    protected VectorContainer intermediateErrorContainer;
+    protected VarCharVector intermediateErrorVector;
+    protected boolean reportFirstErrorOnly;
+
+    protected void setupErrorVectors(OperatorContext context, ValueVector errorReportVector) {
+      this.reportFirstErrorOnly =
+          context.getOptions().getOption(ExecConstants.COPY_ERRORS_FIRST_ERROR_OF_RECORD_ONLY);
+      this.errorReportVector = (VarCharVector) errorReportVector;
+      if (errorReportVector != null) {
+        intermediateErrorContainer =
+            VectorContainer.create(
+                context.getAllocator(), BatchSchema.of(errorReportVector.getField()));
+        intermediateErrorVector =
+            (VarCharVector)
+                VectorUtil.getVectorFromSchemaPath(
+                    intermediateErrorContainer, ColumnUtils.COPY_HISTORY_COLUMN_NAME);
+      }
+    }
+
+    @Override
+    public void close() throws Exception {
+      AutoCloseables.close(intermediateErrorContainer);
+    }
+
+    @Override
+    public void runProjector(int recordCount, VectorContainer incoming) {
+      runProjectorInternal(recordCount, incoming);
+      if (intermediateErrorVector != null
+          && intermediateErrorVector.getNullCount() != intermediateErrorVector.getValueCount()) {
+        propagateError();
+      }
+    }
+
+    protected abstract void runProjectorInternal(int recordCount, VectorContainer incoming);
+
+    /**
+     * Collects errors from intermediateErrorVector and propagates them to the upstream
+     * errorReportVector
+     */
+    protected abstract void propagateError();
   }
 
   /** NoOpCopier does nothing */

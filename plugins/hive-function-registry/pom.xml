@@ -38,6 +38,7 @@
     <datanucleus-jdo.version>${plugin.hive3.datanucleus-jdo.version}</datanucleus-jdo.version>
     <jdo-api.version>${plugin.hive3.jdo-api.version}</jdo-api.version>
     <hikaricp.version>${plugin.hive3.hikaricp.version}</hikaricp.version>
+    <surefire.add-opens-args.test>--add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.util.regex=ALL-UNNAMED --add-opens java.base/java.time=ALL-UNNAMED</surefire.add-opens-args.test>
   </properties>
 
   <dependencies>
@@ -243,7 +244,7 @@
             <goals>
               <goal>java</goal>
             </goals>
-            <phase>process-classes</phase>
+            <phase>${buildtimescan.phase}</phase>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <includePluginDependencies>true</includePluginDependencies>

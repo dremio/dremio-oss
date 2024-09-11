@@ -33,15 +33,13 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.dac.util.JSONUtil;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.BaseTestMiniDFS;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.HDFSConf;
 import com.dremio.exec.util.TestUtilities;
-import com.dremio.service.Binder;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
@@ -51,15 +49,11 @@ import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -72,8 +66,6 @@ import org.junit.rules.TestRule;
 public class TestHdfs extends BaseTestMiniDFS {
 
   private static DACDaemon dremioDaemon;
-  private static Binder dremioBinder;
-  private static Client client;
   private static String host;
   private static int port;
   private static final String SOURCE_NAME = "dachdfs_test";
@@ -118,11 +110,7 @@ public class TestHdfs extends BaseTestMiniDFS {
               DremioTest.CLASSPATH_SCAN_RESULT,
               new DACDaemonModule());
       dremioDaemon.init();
-      dremioBinder = BaseTestServer.createBinder(dremioDaemon.getBindingProvider());
-      JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-      provider.setMapper(JSONUtil.prettyMapper());
-      client =
-          ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
+      BaseTestServer.addDummySecurityContextForDefaultUser(dremioDaemon);
     }
 
     setupDeltaDatabase("testDataset");
@@ -131,7 +119,7 @@ public class TestHdfs extends BaseTestMiniDFS {
 
     SampleDataPopulator.addDefaultFirstUser(
         l(UserService.class),
-        new NamespaceServiceImpl(l(LegacyKVStoreProvider.class), new CatalogStatusEventsImpl()));
+        new NamespaceServiceImpl(l(KVStoreProvider.class), new CatalogStatusEventsImpl()));
     final HDFSConf hdfsConfig = new HDFSConf();
     hdfsConfig.hostname = host;
     hdfsConfig.port = port;
@@ -145,7 +133,7 @@ public class TestHdfs extends BaseTestMiniDFS {
         l(BootStrapContext.class)
             .getAllocator()
             .newChildAllocator("child-allocator", 0, Long.MAX_VALUE);
-    ((CatalogServiceImpl) l(CatalogService.class)).getSystemUserCatalog().createSource(source);
+    l(CatalogService.class).getSystemUserCatalog().createSource(source);
   }
 
   private static void setupDeltaDatabase(String tableName) throws Exception {
@@ -171,29 +159,36 @@ public class TestHdfs extends BaseTestMiniDFS {
     if (isMaprProfile()) {
       return;
     }
-    TestUtilities.clear(l(CatalogService.class), l(LegacyKVStoreProvider.class), null, null);
+    TestUtilities.clear(
+        l(CatalogService.class),
+        l(LegacyKVStoreProvider.class),
+        l(KVStoreProvider.class),
+        null,
+        null);
     allocator.close();
 
     try (Timer.TimedBlock b = Timer.time("TestHdfs.@AfterClass")) {
       if (dremioDaemon != null) {
         dremioDaemon.close();
       }
-      if (client != null) {
-        client.close();
-      }
       stopMiniDfsCluster();
     }
   }
 
   private static <T> T l(Class<T> clazz) {
-    return dremioBinder.lookup(clazz);
+    return dremioDaemon.getInstance(clazz);
   }
 
   @Test
   public void listSource() throws Exception {
     NamespaceTree ns =
         l(SourceService.class)
-            .listSource(new SourceName(SOURCE_NAME), null, SampleDataPopulator.DEFAULT_USER_NAME);
+            .listSource(
+                new SourceName(SOURCE_NAME),
+                null,
+                SampleDataPopulator.DEFAULT_USER_NAME,
+                null,
+                Integer.MAX_VALUE);
     assertEquals(3, ns.getFolders().size());
     assertEquals(0, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
@@ -206,7 +201,9 @@ public class TestHdfs extends BaseTestMiniDFS {
             .listFolder(
                 new SourceName(SOURCE_NAME),
                 new SourceFolderPath("dachdfs_test.dir1.json"),
-                SampleDataPopulator.DEFAULT_USER_NAME);
+                SampleDataPopulator.DEFAULT_USER_NAME,
+                null,
+                Integer.MAX_VALUE);
     assertEquals(0, ns.getFolders().size());
     assertEquals(1, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());

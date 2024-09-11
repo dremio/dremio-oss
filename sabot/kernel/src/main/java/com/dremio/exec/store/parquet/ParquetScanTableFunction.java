@@ -29,6 +29,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.SystemSchemas;
+import com.dremio.exec.store.easy.triggerpipe.TriggerPipeScanUtils;
 import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -53,6 +54,9 @@ public class ParquetScanTableFunction extends ScanTableFunction {
   private RecordReaderIterator recordReaderIterator;
   private VarCharVector inputSplitIdentityPath;
   private ListVector inputDeleteFiles;
+  private boolean isCopyIntoSkip;
+  private boolean isTriggerPipe;
+  private TriggerPipeScanUtils scanUtils;
 
   public ParquetScanTableFunction(
       FragmentExecutionContext fec,
@@ -60,20 +64,16 @@ public class ParquetScanTableFunction extends ScanTableFunction {
       OpProps props,
       TableFunctionConfig functionConfig) {
     super(fec, context, props, functionConfig);
+    parseExtendedProperty(functionConfig.getFunctionContext());
+    if (isCopyIntoSkip && isTriggerPipe) {
+      scanUtils = new TriggerPipeScanUtils();
+    }
   }
 
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     setSplitReaderCreatorIterator();
-
-    if (accessible.getSchema().findFieldIgnoreCase(SystemSchemas.DELETE_FILES).isPresent()) {
-      StructVector splitIdentity =
-          (StructVector) getVectorFromSchemaPath(accessible, SystemSchemas.SPLIT_IDENTITY);
-      inputSplitIdentityPath = splitIdentity.getChild(SplitIdentity.PATH, VarCharVector.class);
-      inputDeleteFiles =
-          (ListVector) getVectorFromSchemaPath(accessible, SystemSchemas.DELETE_FILES);
-    }
-
+    initializeIncomingVectors(accessible);
     return super.setup(accessible);
   }
 
@@ -94,9 +94,22 @@ public class ParquetScanTableFunction extends ScanTableFunction {
   }
 
   @Override
+  protected SplitAndPartitionInfo getSplitAndPartitionInfo(int idx) {
+    SplitAndPartitionInfo splitAndPartitionInfo = super.getSplitAndPartitionInfo(idx);
+    if (isTriggerPipe) {
+      scanUtils.addSplitIngestionProperties(idx);
+    }
+    return splitAndPartitionInfo;
+  }
+
+  @Override
   protected void addSplits(List<SplitAndPartitionInfo> splits) {
     if (hasIcebergDeleteFiles()) {
       splitReaderCreatorIterator.setDataFileInfoForBatch(getDataFileInfoForBatch());
+    }
+    if (isTriggerPipe) {
+      ((CopyIntoSkipParquetSplitReaderCreatorIterator) splitReaderCreatorIterator)
+          .addSplitsIngestionProperties(scanUtils.getSplitsIngestionProperties());
     }
     splitReaderCreatorIterator.addSplits(splits);
   }
@@ -108,7 +121,7 @@ public class ParquetScanTableFunction extends ScanTableFunction {
 
   protected void setSplitReaderCreatorIterator() throws IOException, ExecutionSetupException {
     splitReaderCreatorIterator =
-        isCopyIntoSkip(functionConfig.getFunctionContext())
+        isCopyIntoSkip || isTriggerPipe
             ? new CopyIntoSkipParquetSplitReaderCreatorIterator(
                 fec, context, props, functionConfig, false, false)
             : new ParquetSplitReaderCreatorIterator(
@@ -166,7 +179,7 @@ public class ParquetScanTableFunction extends ScanTableFunction {
     return dataFileInfo;
   }
 
-  private boolean isCopyIntoSkip(TableFunctionContext tableFunctionContext) {
+  private void parseExtendedProperty(TableFunctionContext tableFunctionContext) {
     ByteString extendedProperty = tableFunctionContext.getExtendedProperty();
     Optional<CopyIntoExtendedProperties> copyIntoExtendedPropertiesOptional =
         CopyIntoExtendedProperties.Util.getProperties(extendedProperty);
@@ -179,21 +192,35 @@ public class ParquetScanTableFunction extends ScanTableFunction {
           copyIntoExtendedProperties.getProperty(
               CopyIntoExtendedProperties.PropertyKey.COPY_INTO_QUERY_PROPERTIES,
               CopyIntoQueryProperties.class);
-      if (copyIntoQueryProperties != null
-          && CopyIntoQueryProperties.OnErrorOption.SKIP_FILE.equals(
-              copyIntoQueryProperties.getOnErrorOption())) {
-        return true;
-      }
 
       // copy_errors() case
       CopyIntoHistoryExtendedProperties copyIntoHistoryProperties =
           copyIntoExtendedProperties.getProperty(
               CopyIntoExtendedProperties.PropertyKey.COPY_INTO_HISTORY_PROPERTIES,
               CopyIntoHistoryExtendedProperties.class);
-      if (copyIntoHistoryProperties != null) {
-        return true;
-      }
+
+      isCopyIntoSkip =
+          (copyIntoQueryProperties != null
+                  && CopyIntoQueryProperties.OnErrorOption.SKIP_FILE.equals(
+                      copyIntoQueryProperties.getOnErrorOption()))
+              || copyIntoHistoryProperties != null;
+
+      // TRIGGER PIPE
+      isTriggerPipe = copyIntoQueryProperties != null && copyIntoQueryProperties.isTriggerPipe();
     }
-    return false;
+  }
+
+  private void initializeIncomingVectors(VectorAccessible accessible) {
+    if (accessible.getSchema().findFieldIgnoreCase(SystemSchemas.DELETE_FILES).isPresent()) {
+      StructVector splitIdentity =
+          (StructVector) getVectorFromSchemaPath(accessible, SystemSchemas.SPLIT_IDENTITY);
+      inputSplitIdentityPath = splitIdentity.getChild(SplitIdentity.PATH, VarCharVector.class);
+      inputDeleteFiles =
+          (ListVector) getVectorFromSchemaPath(accessible, SystemSchemas.DELETE_FILES);
+    }
+
+    if (scanUtils != null) {
+      scanUtils.initializeTriggerPipeIncomingVectors(accessible);
+    }
   }
 }

@@ -66,7 +66,6 @@ import com.dremio.exec.proto.SearchProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.beans.AttemptEvent;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.testing.Controls;
@@ -127,7 +126,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.Response;
-import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -606,7 +604,7 @@ public class TestJobService extends BaseTestServer {
       UserBitShared.DremioPBError error =
           ((UserRemoteException) observedEx).getOrCreatePBError(false);
       assertEquals(cancelReason, error.getOriginalMessage());
-      assertEquals(l(SabotContext.class).getEndpoint(), error.getEndpoint());
+      assertEquals(getSabotContext().getEndpoint(), error.getEndpoint());
       assertTrue(
           "Cancel context should be in returned error context",
           error.getContextList().contains(cancelContext));
@@ -1955,11 +1953,7 @@ public class TestJobService extends BaseTestServer {
             JobRequest.newBuilder().setSqlQuery(ctas).setQueryType(QueryType.UI_RUN).build());
 
     FileSystemPlugin plugin =
-        (FileSystemPlugin)
-            getCurrentDremioDaemon()
-                .getBindingProvider()
-                .lookup(CatalogService.class)
-                .getSource("$scratch");
+        getCurrentDremioDaemon().getInstance(CatalogService.class).getSource("$scratch");
 
     // Make sure the table data files exist
     File ctasTableDir = new File(plugin.getConfig().getPath().toString(), "ctas");
@@ -2039,17 +2033,16 @@ public class TestJobService extends BaseTestServer {
     final JobId jobId =
         submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(ctas).build());
 
-    SabotContext context = l(SabotContext.class);
     OptionValue days =
         OptionValue.createLong(
             OptionType.SYSTEM, ExecConstants.RESULTS_MAX_AGE_IN_DAYS.getOptionName(), 0);
-    context.getOptionManager().setOption(days);
+    getOptionManager().setOption(days);
     OptionValue millis =
         OptionValue.createLong(
             OptionType.SYSTEM,
             ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS.getOptionName(),
             10);
-    context.getOptionManager().setOption(millis);
+    getOptionManager().setOption(millis);
 
     Thread.sleep(20);
 
@@ -2065,13 +2058,11 @@ public class TestJobService extends BaseTestServer {
         JobDetailsUI.of(jobDetails, jobDetails.getAttempts(0).getInfo().getUser())
             .getResultsAvailable());
 
-    context
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createLong(
                 OptionType.SYSTEM, ExecConstants.RESULTS_MAX_AGE_IN_DAYS.getOptionName(), 30));
-    context
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createLong(
                 OptionType.SYSTEM,
@@ -2412,7 +2403,7 @@ public class TestJobService extends BaseTestServer {
     SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName("ctasSpace");
 
-    newNamespaceService().addOrUpdateSpace(namespaceKey, spaceConfig);
+    getNamespaceService().addOrUpdateSpace(namespaceKey, spaceConfig);
 
     SqlQuery ctas =
         getQueryFromSQL("CREATE OR REPLACE VIEW ctasSpace.ctastest AS select * from (VALUES (1))");
@@ -2424,8 +2415,8 @@ public class TestJobService extends BaseTestServer {
     submitJobAndWaitUntilCompletion(
         JobRequest.newBuilder().setSqlQuery(ctas).setQueryType(QueryType.UI_RUN).build());
 
-    newNamespaceService()
-        .deleteSpace(namespaceKey, newNamespaceService().getSpace(namespaceKey).getTag());
+    getNamespaceService()
+        .deleteSpace(namespaceKey, getNamespaceService().getSpace(namespaceKey).getTag());
   }
 
   /**
@@ -2506,8 +2497,7 @@ public class TestJobService extends BaseTestServer {
               @Override
               public void run() {
                 try (JobDataFragment jobDataFragment =
-                    JobDataClientUtils.getJobData(
-                        jobsService, l(BufferAllocator.class), jobId, 0, 1)) {
+                    JobDataClientUtils.getJobData(jobsService, getRootAllocator(), jobId, 0, 1)) {
                   throwable[0] = new AssertionError("Job data call should not have succeeded");
                 } catch (Exception e) {
                   throwable[0] = e;
@@ -2647,7 +2637,7 @@ public class TestJobService extends BaseTestServer {
 
       final CompletionListener completionListener = new CompletionListener();
 
-      SqlQuery sqlQuery = new SqlQuery("SELECT 1')", null, DEFAULT_USERNAME);
+      SqlQuery sqlQuery = new SqlQuery("SELECT 1", null, DEFAULT_USERNAME);
       JobRequest jobRequest = JobRequest.newBuilder().setSqlQuery(sqlQuery).build();
       JobId jobId = submitAndWaitUntilSubmitted(jobRequest, completionListener);
       assertThatExceptionOfType(UserRemoteException.class)

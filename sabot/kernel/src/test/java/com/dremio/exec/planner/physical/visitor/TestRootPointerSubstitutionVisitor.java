@@ -108,7 +108,7 @@ public class TestRootPointerSubstitutionVisitor {
 
     // Simulate root pointer metadata swap.
     final List<DatasetConfig> replaced = new ArrayList<>();
-    final Map<DatasetConfig, DatasetConfig> swap = ImmutableMap.of(metadata0, metadata1);
+    final Map<String, DatasetConfig> swap = ImmutableMap.of("Location0", metadata1);
     final Prel newTree = RootPointerSubstitutionVisitor.substitute(tree, swap, replaced);
 
     // Assert that a new tree was produced with the new metadata replaced in each
@@ -133,7 +133,7 @@ public class TestRootPointerSubstitutionVisitor {
 
     // Try to swap metadata that is not present in tree.
     final List<DatasetConfig> replaced = new ArrayList<>();
-    final Map<DatasetConfig, DatasetConfig> swap = ImmutableMap.of(metadata1, metadata0);
+    final Map<String, DatasetConfig> swap = ImmutableMap.of("Location1", metadata0);
     final Prel newTree = RootPointerSubstitutionVisitor.substitute(tree, swap, replaced);
 
     // Assert that the original tree was not mutated and the original metadata is present.

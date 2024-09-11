@@ -19,7 +19,7 @@ module.exports = {
     [
       "@babel/preset-env",
       {
-        corejs: "3.32.1",
+        corejs: "3.37.1",
         useBuiltIns: "usage",
       },
     ],
@@ -32,4 +32,9 @@ module.exports = {
     "@babel/preset-typescript",
   ],
   plugins: [["@babel/plugin-proposal-decorators", { legacy: true }]],
+  env: {
+    test: {
+      presets: [["@babel/preset-env"]],
+    },
+  },
 };

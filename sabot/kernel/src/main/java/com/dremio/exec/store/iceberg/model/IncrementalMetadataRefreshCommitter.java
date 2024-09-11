@@ -20,7 +20,6 @@ import static com.dremio.common.exceptions.UserException.REFRESH_METADATA_FAILED
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
@@ -61,6 +60,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -77,10 +78,13 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableProperties;
+import org.apache.iceberg.exceptions.CommitFailedException;
+import org.apache.iceberg.exceptions.CommitStateUnknownException;
 import org.apache.iceberg.exceptions.ValidationException;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.Pair;
+import org.apache.iceberg.util.Tasks;
 import org.apache.iceberg.util.ThreadPools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +99,7 @@ public class IncrementalMetadataRefreshCommitter
       LoggerFactory.getLogger(IncrementalMetadataRefreshCommitter.class);
   private static final ControlsInjector injector =
       ControlsInjectorFactory.getInjector(IncrementalMetadataRefreshCommitter.class);
+  private static final int KVSTORE_UPDATE_RETRIES = 3;
 
   @VisibleForTesting
   public static final String INJECTOR_AFTER_ICEBERG_COMMIT_ERROR =
@@ -128,15 +133,18 @@ public class IncrementalMetadataRefreshCommitter
   private final ExecutionControls executionControls;
   private final DatasetConfig datasetConfig;
   private Table table;
-  private final MutablePlugin plugin;
   private final boolean isMapDataTypeEnabled;
   private final FileSystem fs;
   private final Long metadataExpireAfterMs;
   private final boolean isMetadataCleanEnabled;
   private final IcebergCommandType icebergOpType;
+  private final boolean errorOnConcurrentRefresh;
   private boolean enableUseDefaultPeriod = true; // For unit test purpose only
   private int minSnapshotsToKeep = MIN_SNAPSHOTS_TO_KEEP;
   private final FileType fileType;
+  private final Long startingSnapshotId;
+  private final List<String> partitionColumnNames;
+  private boolean kvstoreRetryEnabled = true; // For unit test purpose only
 
   public IncrementalMetadataRefreshCommitter(
       OperatorContext operatorContext,
@@ -151,16 +159,18 @@ public class IncrementalMetadataRefreshCommitter
       boolean isFileSystem,
       DatasetCatalogGrpcClient datasetCatalogGrpcClient,
       DatasetConfig datasetConfig,
-      MutablePlugin plugin,
       FileSystem fs,
       Long metadataExpireAfterMs,
       IcebergCommandType icebergOpType,
-      FileType fileType) {
+      FileType fileType,
+      Long startingSnapshotId,
+      boolean errorOnConcurrentRefresh) {
     Preconditions.checkState(icebergCommand != null, "Unexpected state");
     Preconditions.checkNotNull(
         datasetCatalogGrpcClient, "Unexpected state: DatasetCatalogService client not provided");
     Preconditions.checkNotNull(
         datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
+    Preconditions.checkNotNull(startingSnapshotId, "Unexpected state: SnapshotId not provided");
     this.icebergCommand = icebergCommand;
     this.tableName = tableName;
     this.conf = configuration;
@@ -168,6 +178,7 @@ public class IncrementalMetadataRefreshCommitter
     this.client = datasetCatalogGrpcClient;
     this.datasetConfig = datasetConfig;
     this.fileType = fileType;
+    this.partitionColumnNames = partitionColumnNames;
     this.datasetCatalogRequestBuilder =
         DatasetCatalogRequestBuilder.forIncrementalMetadataRefresh(
             datasetPath,
@@ -184,7 +195,6 @@ public class IncrementalMetadataRefreshCommitter
     this.tableLocation = tableLocation;
     this.datasetPath = datasetPath;
     this.executionControls = operatorContext.getExecutionControls();
-    this.plugin = plugin;
     this.isMapDataTypeEnabled =
         operatorContext.getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
     this.fs = fs;
@@ -196,6 +206,8 @@ public class IncrementalMetadataRefreshCommitter
     this.icebergOpType = icebergOpType;
     this.periodToKeepSnapshotsMs =
         operatorContext.getOptions().getOption(ExecConstants.DEFAULT_PERIOD_TO_KEEP_SNAPSHOTS_MS);
+    this.startingSnapshotId = startingSnapshotId;
+    this.errorOnConcurrentRefresh = errorOnConcurrentRefresh;
   }
 
   private boolean hasAnythingChanged() {
@@ -217,16 +229,6 @@ public class IncrementalMetadataRefreshCommitter
   @VisibleForTesting
   public void beginMetadataRefreshTransaction() {
     this.icebergCommand.beginTransaction();
-
-    if (hasAnythingChanged()) {
-      Snapshot snapshot = icebergCommand.getCurrentSnapshot();
-      Preconditions.checkArgument(snapshot != null, "Iceberg metadata does not have a snapshot");
-      long snapshotId = snapshot.snapshotId();
-      // Mark the transaction as a read-modify-write transaction to ensure
-      // that the Iceberg table is updated only if the snapshotId is the same as the
-      // one that is read as part of incremental metadata refresh
-      icebergCommand.setIsReadModifyWriteTransaction(snapshotId);
-    }
   }
 
   @VisibleForTesting
@@ -249,24 +251,26 @@ public class IncrementalMetadataRefreshCommitter
       icebergCommand.finishDelete();
     }
     if (manifestFileList.size() > 0) {
-      icebergCommand.beginInsert();
-      icebergCommand.consumeManifestFiles(manifestFileList);
-      icebergCommand.finishInsert();
+      icebergCommand.beginOverwrite(startingSnapshotId);
+      if (logger.isDebugEnabled()) {
+        logger.debug("Committing {} manifest files.", manifestFileList.size());
+        manifestFileList.stream()
+            .forEach(
+                l ->
+                    logger.debug(
+                        "Committing manifest file: {}, with {} added files.",
+                        l.path(),
+                        l.addedFilesCount()));
+      }
+      icebergCommand.consumeManifestFilesWithOverwrite(manifestFileList);
+      icebergCommand.finishOverwrite();
     }
   }
 
   @VisibleForTesting
   public Snapshot endMetadataRefreshTransaction() {
-    try {
-      table = icebergCommand.endTransaction();
-      return table.currentSnapshot();
-    } catch (ValidationException e) {
-      // The metadata table was updated by other incremental refresh queries. Skip this update.
-      // Iceberg commit is not successful and needs to clean the orphaned manifest files.
-      cleanOrphans();
-      checkToThrowException(getRootPointer(), getRootPointer(), null);
-      return null;
-    }
+    table = icebergCommand.endTransaction();
+    return table.currentSnapshot();
   }
 
   @VisibleForTesting
@@ -285,18 +289,92 @@ public class IncrementalMetadataRefreshCommitter
         executionControls,
         INJECTOR_AFTER_ICEBERG_COMMIT_ERROR,
         UnsupportedOperationException.class);
+
+    setDatasetCatalogRequestBuilder(datasetCatalogRequestBuilder);
+    logger.debug(
+        "Committed incremental metadata change of table {}. Updating Dataset Catalog store",
+        tableName);
+    try {
+      client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
+    } catch (StatusRuntimeException sre) {
+      if (sre.getStatus().getCode() == Status.Code.ABORTED) {
+        logger.error(
+            "Metadata refresh failed. Dataset: "
+                + Arrays.toString(datasetPath.toArray())
+                + " TableLocation: "
+                + tableLocation,
+            sre);
+
+        // DX-84083: Iceberg commit succeeds. However, it fails to update the KV store. Because,
+        // Another concurrent metadata refresh query could already succeed and update the KV
+        // store and the dataset has a new tag.
+        // In this case, we will try get the latest tag info and re-try to the commit.
+        // If re-tries succeed, we can update the KV Store with the Iceberg snapshot
+        // and metadata location info.
+        AtomicInteger nRetried = new AtomicInteger(0);
+        AtomicBoolean kvstoreRetryFailed = new AtomicBoolean(false);
+
+        if (kvstoreRetryEnabled) {
+          Tasks.foreach(tableLocation)
+              .retry(KVSTORE_UPDATE_RETRIES)
+              .suppressFailureWhenFinished()
+              .onFailure(
+                  (tableLocation, exc) -> {
+                    logger.info(
+                        "Metadata refresh update KV store retry "
+                            + nRetried.get()
+                            + " time(s) failed. Dataset: "
+                            + Arrays.toString(datasetPath.toArray())
+                            + " TableLocation: "
+                            + tableLocation);
+                    if (nRetried.get() == KVSTORE_UPDATE_RETRIES) {
+                      kvstoreRetryFailed.set(true);
+                    }
+                  })
+              .run(
+                  tableLocation -> {
+                    nRetried.set(nRetried.get() + 1);
+                    // For every retry, it gets the latest tag info and do the retry.
+                    DatasetCatalogRequestBuilder datasetCatalogRequestBuilderRetry =
+                        DatasetCatalogRequestBuilder.forIncrementalMetadataRefresh(
+                            datasetPath,
+                            tableLocation,
+                            batchSchema,
+                            partitionColumnNames,
+                            client,
+                            datasetConfig);
+
+                    setDatasetCatalogRequestBuilder(datasetCatalogRequestBuilderRetry);
+                    client
+                        .getCatalogServiceApi()
+                        .addOrUpdateDataset(datasetCatalogRequestBuilderRetry.build());
+                  });
+        }
+        // If the retries can not successfully update the KV Store, we check original exception
+        // to determine whether we need to finally throw CME.
+        if (!kvstoreRetryEnabled || kvstoreRetryFailed.get()) {
+          checkToThrowException(prevMetadataRootPointer, getRootPointer(), sre);
+        }
+      } else {
+        throw sre;
+      }
+    }
+    return table.currentSnapshot();
+  }
+
+  private void setDatasetCatalogRequestBuilder(DatasetCatalogRequestBuilder datasetBuilder) {
     Map<String, String> summary =
         Optional.ofNullable(table.currentSnapshot())
             .map(Snapshot::summary)
             .orElseGet(ImmutableMap::of);
     long numRecords = Long.parseLong(summary.getOrDefault("total-records", "0"));
-    datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
+    datasetBuilder.setNumOfRecords(numRecords);
     long numDataFiles = Long.parseLong(summary.getOrDefault("total-data-files", "0"));
-    datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
+    datasetBuilder.setNumOfDataFiles(numDataFiles);
     ImmutableDremioFileAttrs partitionStatsFileAttrs =
         IcebergUtils.getPartitionStatsFileAttrs(
             getRootPointer(), table.currentSnapshot().snapshotId(), icebergCommand.getFileIO());
-    datasetCatalogRequestBuilder.setIcebergMetadata(
+    datasetBuilder.setIcebergMetadata(
         getRootPointer(),
         tableUuid,
         table.currentSnapshot().snapshotId(),
@@ -316,33 +394,7 @@ public class IncrementalMetadataRefreshCommitter
             .addField(
                 Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true)))
             .build();
-    datasetCatalogRequestBuilder.overrideSchema(newSchemaFromIceberg);
-    logger.debug(
-        "Committed incremental metadata change of table {}. Updating Dataset Catalog store",
-        tableName);
-    try {
-      client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
-    } catch (StatusRuntimeException sre) {
-      if (sre.getStatus().getCode() == Status.Code.ABORTED) {
-        logger.error(
-            "Metadata refresh failed. Dataset: "
-                + Arrays.toString(datasetPath.toArray())
-                + " TableLocation: "
-                + tableLocation,
-            sre);
-        // DX-84083: Iceberg commit succeeds. However, it fails to update the KV store. Because,
-        // Another concurrent
-        // metadata refresh query could already succeed and update the KV store and the dataset has
-        // a new tag.
-        // In this case, we don't delete consumed manifest files, as they are already used to
-        // construct the snapshot
-        // in the metadata table.
-        checkToThrowException(prevMetadataRootPointer, getRootPointer(), sre);
-      } else {
-        throw sre;
-      }
-    }
-    return table.currentSnapshot();
+    datasetBuilder.overrideSchema(newSchemaFromIceberg);
   }
 
   private void cleanSnapshotsAndMetadataFiles(Table targetTable) {
@@ -406,8 +458,18 @@ public class IncrementalMetadataRefreshCommitter
     }
 
     // Perform the expiry operation.
-    final List<SnapshotEntry> liveSnapshots =
-        icebergCommand.expireSnapshots(timestampExpiry, numSnapshotsRetain);
+    List<SnapshotEntry> liveSnapshots;
+    try {
+      liveSnapshots = icebergCommand.expireSnapshots(timestampExpiry, numSnapshotsRetain, true);
+    } catch (ValidationException
+        | CommitFailedException
+        | CommitStateUnknownException
+        | IllegalStateException e) {
+      // Fail to expire old snapshots and exit old snapshots clean process.
+      logger.warn("Fail to expire and clean old snapshots", e);
+      checkToThrowException(getRootPointer(), getRootPointer(), e);
+      return Pair.of(Collections.emptySet(), 0L);
+    }
 
     // Collect the orphan files.
     final FileIO io = targetTable.io();
@@ -417,12 +479,12 @@ public class IncrementalMetadataRefreshCommitter
     }
 
     // Remove the files that are still used by the valid snapshots. We only need to keep the
-    // snapshots that are within
-    // certain amount of time. Because, other snapshots are expired and not valid for in-flight
-    // queries.
+    // snapshots that are within certain amount of time.
+    // Because, other snapshots are expired and not valid for in-flight queries.
     Long numValidSnapshots = 0L;
     for (SnapshotEntry entry : liveSnapshots) {
-      if (entry.getTimestampMillis() < timestampExpiry) {
+      if ((entry.getTimestampMillis() < timestampExpiry)
+          && (entry.getSnapshotId() != tableMetadata.currentSnapshot().snapshotId())) {
         continue;
       }
       numValidSnapshots += 1L;
@@ -431,6 +493,9 @@ public class IncrementalMetadataRefreshCommitter
       // that we try to keep.
       orphanFiles.removeAll(collectFilesForSnapshot(io, entry, false));
     }
+
+    Preconditions.checkState(
+        numValidSnapshots >= 1L, "Should keep files at least for current snapshot");
 
     // Remove orphan files
     IcebergUtils.removeOrphanFiles(fs, logger, EXECUTOR_SERVICE, orphanFiles);
@@ -497,6 +562,10 @@ public class IncrementalMetadataRefreshCommitter
 
   @Override
   public Snapshot commit() {
+    return commitImpl(false);
+  }
+
+  public Snapshot commitImpl(boolean skipBeginOperation /* test only */) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     logger.info("Incremental refresh type: {}", icebergOpType);
     if (isIcebergTableUpdated()) {
@@ -522,10 +591,24 @@ public class IncrementalMetadataRefreshCommitter
                     .getSnapshotId();
       }
       if (shouldCommit) {
-        beginMetadataRefreshTransaction();
-        performUpdates();
-        endMetadataRefreshTransaction();
-        return postCommitTransaction();
+        try {
+          if (!skipBeginOperation) {
+            beginMetadataRefreshTransaction();
+          }
+          performUpdates();
+          endMetadataRefreshTransaction();
+          return postCommitTransaction();
+        } catch (ValidationException
+            | CommitFailedException
+            | CommitStateUnknownException
+            | IllegalStateException e) {
+          // The metadata table was updated by other incremental refresh queries. Skip this update.
+          // Iceberg commit is not successful and needs to clean the orphaned manifest files.
+          logger.error("Fail to commit Iceberg metadata table", e);
+          cleanOrphans();
+          checkToThrowException(getRootPointer(), getRootPointer(), e);
+          return null;
+        }
       } else {
         logger.debug("Nothing is changed for  table " + this.tableName + ", Skipping commit");
         // Clean the metadata table's snapshots, if needed. Even, we don't increase new commits to
@@ -549,9 +632,9 @@ public class IncrementalMetadataRefreshCommitter
             "Expected metadataRootPointer: %s, Found metadataRootPointer: %s.",
             rootPointer, foundRootPointer);
     logger.info("Concurrent operation has updated the table." + " " + metadataFiles);
-    // If the refresh query works on partitions, we should notify users the failure and re-run the
-    // query.
-    if (icebergOpType == IcebergCommandType.PARTIAL_METADATA_REFRESH) {
+    // If the refresh query works on partitions, or errors on concurrent refresh are enabled, we
+    // should notify users the failure and re-run the query.
+    if (icebergOpType == IcebergCommandType.PARTIAL_METADATA_REFRESH || errorOnConcurrentRefresh) {
       throw UserException.concurrentModificationError(cause)
           .message(REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
           .build(logger);
@@ -744,6 +827,11 @@ public class IncrementalMetadataRefreshCommitter
   @VisibleForTesting
   public void disableUseDefaultPeriod() {
     enableUseDefaultPeriod = false;
+  }
+
+  @VisibleForTesting
+  public void disableKvstoreRetry() {
+    kvstoreRetryEnabled = false;
   }
 
   @VisibleForTesting

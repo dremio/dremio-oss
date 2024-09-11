@@ -38,6 +38,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insert
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableWithValuesQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.joinedTableKey;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.mergeBranchQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.pathWithoutTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.quoted;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.selectCountAtBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.selectCountQuery;
@@ -114,7 +115,10 @@ public class ITDataplanePluginSelect extends ITDataplanePluginTestSetup {
     assertQueryThrowsExpectedError(
         selectCountQuery(tablePath, DEFAULT_COUNT_COLUMN),
         String.format(
-            "Object '%s' not found within '%s'", tablePath.get(0), DATAPLANE_PLUGIN_NAME));
+            "Object '%s' not found within '%s.%s'",
+            tablePath.get(tablePath.size() - 1),
+            DATAPLANE_PLUGIN_NAME,
+            joinedTableKey(pathWithoutTableName(tablePath))));
   }
 
   @Test
@@ -260,7 +264,10 @@ public class ITDataplanePluginSelect extends ITDataplanePluginTestSetup {
     assertQueryThrowsExpectedError(
         selectCountQuery(tablePath, DEFAULT_COUNT_COLUMN),
         String.format(
-            "Object '%s' not found within '%s'", tablePath.get(0), DATAPLANE_PLUGIN_NAME));
+            "Object '%s' not found within '%s.%s'",
+            tablePath.get(tablePath.size() - 1),
+            DATAPLANE_PLUGIN_NAME,
+            joinedTableKey(pathWithoutTableName(tablePath))));
 
     // Act
     // Go back to tag1

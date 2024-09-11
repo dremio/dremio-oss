@@ -72,10 +72,10 @@ describe("InnerJoin", () => {
 
       instance.receiveProps(commonProps, instance.props);
       expect(instance.leftDisabledColumnNames).to.equal(
-        oldLeftDisabledColumnNames
+        oldLeftDisabledColumnNames,
       );
       expect(instance.rightDisabledColumnNames).to.equal(
-        oldRightDisabledColumnNames
+        oldRightDisabledColumnNames,
       );
 
       instance.receiveProps(
@@ -88,13 +88,13 @@ describe("InnerJoin", () => {
             { custom: { name: "baz" } },
           ]),
         },
-        commonProps
+        commonProps,
       );
       expect(instance.leftDisabledColumnNames).to.not.equal(
-        oldLeftDisabledColumnNames
+        oldLeftDisabledColumnNames,
       );
       expect(instance.rightDisabledColumnNames).to.not.equal(
-        oldRightDisabledColumnNames
+        oldRightDisabledColumnNames,
       );
     });
   });
@@ -136,25 +136,25 @@ describe("InnerJoin", () => {
       {
         label: "Inner",
         des: "Only matching records",
-        icon: "JoinInner",
+        icon: "sql-editor/join-inner",
         value: "Inner",
       },
       {
         label: "Left Outer",
         des: "All records from left, matching records from right",
-        icon: "JoinLeft",
+        icon: "sql-editor/join-left",
         value: "LeftOuter",
       },
       {
         label: "Right Outer",
         des: "All records from right, matching records from left",
-        icon: "JoinRight",
+        icon: "sql-editor/join-right",
         value: "RightOuter",
       },
       {
         label: "Full Outer",
         des: "All records from both",
-        icon: "JoinFull",
+        icon: "sql-editor/join-full",
         value: "FullOuter",
       },
     ];
@@ -176,7 +176,7 @@ describe("InnerJoin", () => {
       <InnerJoin
         {...minimalProps}
         columnsInDragArea={Immutable.fromJS([{ a: 1 }])}
-      />
+      />,
     );
     expect(wrapper.find(JoinDragArea)).to.have.length(1);
   });

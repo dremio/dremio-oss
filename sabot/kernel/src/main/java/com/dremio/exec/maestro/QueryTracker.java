@@ -20,6 +20,7 @@ import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.resource.exception.ResourceAllocationException;
 
 /** Handles the life-cycle of query during the execution phases (post logical planning). */
@@ -73,4 +74,8 @@ interface QueryTracker extends AutoCloseable {
 
   /** Cancel the fragments of a query. */
   void cancel();
+
+  void putProfileFailed();
+
+  ExecutionControls getExecutionControls();
 }

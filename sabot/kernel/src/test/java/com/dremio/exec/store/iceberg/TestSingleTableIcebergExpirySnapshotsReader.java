@@ -87,6 +87,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
   private static final Configuration CONF = new Configuration();
   private static FileSystem fs;
   private static ExecutorService executorService;
+  private static String schemeVariate;
 
   private final BufferAllocator allocator = new RootAllocator();
 
@@ -94,6 +95,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
   public static void initStatics() throws Exception {
     fs = HadoopFileSystem.get(Path.of("/"), CONF);
     executorService = Executors.newCachedThreadPool();
+    schemeVariate = IcebergUtils.getDefaultPathScheme(fs.getScheme());
   }
 
   @AfterClass
@@ -115,7 +117,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
         new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
     SingleTableIcebergExpirySnapshotsReader reader =
         new SingleTableIcebergExpirySnapshotsReader(
-            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions, schemeVariate);
     reader.setup(outputMutator());
     int recordCount = reader.next();
 
@@ -133,7 +135,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
     Table table = createTable(5);
     SingleTableIcebergExpirySnapshotsReader reader =
         new SingleTableIcebergExpirySnapshotsReader(
-            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions, schemeVariate);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -160,7 +162,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
     Table table = createTable(5);
     SingleTableIcebergExpirySnapshotsReader reader =
         new SingleTableIcebergExpirySnapshotsReader(
-            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions, schemeVariate);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -177,7 +179,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
 
     SingleTableIcebergExpirySnapshotsReader reader =
         new SingleTableIcebergExpirySnapshotsReader(
-            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions, schemeVariate);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -203,7 +205,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
 
     SingleTableIcebergExpirySnapshotsReader reader =
         new SingleTableIcebergExpirySnapshotsReader(
-            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions, schemeVariate);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);
@@ -230,7 +232,7 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
 
     SingleTableIcebergExpirySnapshotsReader reader =
         new SingleTableIcebergExpirySnapshotsReader(
-            operatorContext(), toSplit(table), plugin(), props(), scanOptions);
+            operatorContext(), toSplit(table), plugin(), props(), scanOptions, schemeVariate);
     OutputMutator outputMutator = outputMutator();
 
     reader.setup(outputMutator);

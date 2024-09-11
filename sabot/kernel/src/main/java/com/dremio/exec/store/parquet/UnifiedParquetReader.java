@@ -52,6 +52,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -632,20 +634,16 @@ public class UnifiedParquetReader implements RecordReader {
     }
 
     MessageType schema = footer.getFileMetaData().getSchema();
+    Set<String> projectedParquetColumnRootSegments = new TreeSet(String.CASE_INSENSITIVE_ORDER);
+    projectedParquetColumnRootSegments.addAll(
+        Sets.newHashSet(
+            this.columnResolver.getProjectedParquetColumns().stream()
+                .map(schemaPath -> schemaPath.getRootSegment().getNameSegment().getPath())
+                .collect(Collectors.toSet())));
     for (Type parquetField : schema.getFields()) {
       if (this.ignoreSchemaLearning) {
         // check if parquet field is in projected columns, if not, then ignore it
-        boolean ignoreThisField = true;
-        for (SchemaPath projectedPath : this.columnResolver.getBatchSchemaProjectedColumns()) {
-          String name = projectedPath.getRootSegment().getNameSegment().getPath();
-          String parquetColumnName = this.columnResolver.getParquetColumnName(name);
-          if (parquetColumnName != null
-              && parquetField.getName().equalsIgnoreCase(parquetColumnName)) {
-            ignoreThisField = false;
-            break;
-          }
-        }
-        if (ignoreThisField) {
+        if (!projectedParquetColumnRootSegments.contains(parquetField.getName())) {
           continue;
         }
       }

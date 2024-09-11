@@ -18,26 +18,13 @@
 @use "./transition";
 
 .bg-background {
-  background: white;
-  color: lch(12.73% 2.2 272.68);
+  background: var(--fill--primary);
+  color: var(--text--primary);
 }
 
-.bg-foreground {
-  background: white;
-  color: lch(12.73% 2.2 272.68);
-}
-
-.dremio-dark {
-  .bg-background,
-  &.bg-background {
-    background: var(--color--gray--900);
-    color: var(--color--gray--100);
-  }
-  .bg-foreground,
-  &.bg-foreground {
-    background: var(--color--gray--900);
-    color: var(--color--gray--100);
-  }
+.bg-secondary {
+  background: var(--fill--secondary);
+  color: var(--text--primary);
 }
 
 @each $shade in helpers.$shades {
@@ -72,38 +59,38 @@
 }
 
 .bg-danger-50 {
-  background-color: var(--color--red--50);
+  background-color: var(--fill--danger);
   color: black;
 }
-.bg-danger-500 {
-  background-color: var(--color--red--500);
+.bg-danger-400 {
+  background-color: var(--fill--danger--solid);
   color: white;
 }
 
 .bg-warning-50 {
-  background-color: var(--color--orange--50);
+  background-color: var(--fill--warning);
   color: black;
 }
-.bg-warning-500 {
-  background-color: var(--color--orange--500);
+.bg-warning-200 {
+  background-color: var(--fill--warning--solid);
   color: white;
 }
 
 .bg-success-50 {
-  background-color: var(--color--green--50);
+  background-color: var(--fill--success);
   color: black;
 }
 .bg-success-300 {
-  background-color: var(--color--green--300);
+  background-color: var(--fill--success--solid);
   color: black;
 }
 
 .bg-info-50 {
-  background-color: var(--color--blue--50);
+  background-color: var(--fill--info);
   color: black;
 }
 .bg-info-400 {
-  background-color: var(--color--blue--400);
+  background-color: var(--fill--info--solid);
   color: black;
 }
 
@@ -111,7 +98,7 @@
   @extend .bg-brand-300;
 }
 .bg-brand-subtle {
-  @extend .bg-brand-50;
+  @extend .bg-brand-25;
 }
 .bg-success-subtle {
   @extend .bg-success-50;
@@ -123,7 +110,7 @@
   @extend .bg-danger-50;
 }
 .bg-danger-bold {
-  @extend .bg-danger-500;
+  @extend .bg-danger-400;
 }
 .bg-info-subtle {
   @extend .bg-info-50;
@@ -135,19 +122,15 @@
   @extend .bg-warning-50;
 }
 .bg-warning-bold {
-  @extend .bg-warning-500;
+  @extend .bg-warning-200;
 }
 
 .bg-danger-subtle-border {
   @extend .bg-danger-subtle;
-  color: var(--color--red--500);
-  border: 1px solid var(--color--red--500);
+  color: var(--color--red--400);
+  border: 1px solid var(--color--red--400);
 }
 
-.bg-disabled {
-  background-color: var(--color--neutral--50) !important;
-  color: var(--color--neutral--200);
-}
 .bg-none {
   background: none;
 }
@@ -158,27 +141,9 @@
   transition-property: background;
 }
 
-.bg-chart-categorical-0 {
-  background-color: #095f6b;
-}
-.bg-chart-categorical-1 {
-  background-color: #18c0c0;
-}
-.bg-chart-categorical-2 {
-  background-color: #ed991c;
-}
-.bg-chart-categorical-3 {
-  background-color: #a6245e;
-}
-.bg-chart-categorical-4 {
-  background-color: #004d7e;
-}
-.bg-chart-categorical-5 {
-  background-color: #ca3f32;
-}
-.bg-chart-categorical-6 {
-  background-color: #7bca6e;
-}
-.bg-chart-categorical-7 {
-  background-color: #36712c;
+//@deprecated -- don't @extend this in ui-lib
+.bg-disabled {
+  background: var(--fill--disabled) !important;
+  color: var(--text--disabled);
+  --text--hovered: var(--text--disabled);
 }

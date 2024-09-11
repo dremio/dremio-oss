@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.server.options;
 
-import static com.dremio.exec.server.options.SystemOptionManager.OPTIONS_KEY;
+import static com.dremio.exec.server.options.SystemOptionManagerImpl.OPTIONS_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,7 +45,7 @@ import org.mockito.ArgumentCaptor;
 
 /** Tests for {@link SystemOptionManager} */
 public class TestSystemOptionManager extends DremioTest {
-  private SystemOptionManager som;
+  private SystemOptionManagerImpl som;
   private LegacyKVStore<String, OptionValueProtoList> kvStore;
   private OptionValidatorListing optionValidatorListing;
 
@@ -58,17 +58,18 @@ public class TestSystemOptionManager extends DremioTest {
 
     kvStore = mock(LegacyKVStore.class);
     LegacyKVStoreProvider storeProvider = mock(LegacyKVStoreProvider.class);
-    when(storeProvider.getStore(SystemOptionManager.OptionStoreCreator.class)).thenReturn(kvStore);
+    when(storeProvider.getStore(SystemOptionManagerImpl.OptionStoreCreator.class))
+        .thenReturn(kvStore);
 
     LegacyKVStore mockedEmptyKVStore = mock(LegacyKVStore.class);
 
     when(mockedEmptyKVStore.find()).thenReturn(Collections.emptyList());
-    when(storeProvider.getStore(SystemOptionManager.LegacyProtoOptionStoreCreator.class))
+    when(storeProvider.getStore(SystemOptionManagerImpl.LegacyProtoOptionStoreCreator.class))
         .thenReturn(mockedEmptyKVStore);
-    when(storeProvider.getStore(SystemOptionManager.LegacyJacksonOptionStoreCreator.class))
+    when(storeProvider.getStore(SystemOptionManagerImpl.LegacyJacksonOptionStoreCreator.class))
         .thenReturn(mockedEmptyKVStore);
 
-    som = spy(new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, false));
+    som = spy(new SystemOptionManagerImpl(optionValidatorListing, lpp, () -> storeProvider, false));
     som.start();
     reset(kvStore); // clearInvocations
   }

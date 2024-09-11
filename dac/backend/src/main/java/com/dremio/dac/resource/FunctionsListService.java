@@ -120,7 +120,7 @@ public final class FunctionsListService {
     }
 
     SqlOperatorTable operatorTable =
-        DremioCompositeSqlOperatorTable.create(functionImplementationRegistry);
+        DremioCompositeSqlOperatorTable.create(functionImplementationRegistry, optionManager);
 
     return new FunctionSource(catalog, operatorTable);
   }

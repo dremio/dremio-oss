@@ -21,13 +21,14 @@ import com.dremio.common.tracing.TracingUtils;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.context.RequestContext;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.plancache.CachedPlan;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
@@ -41,6 +42,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.telemetry.utils.TracerFacade;
 import io.opentracing.Span;
@@ -254,6 +256,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void resourcesPlanned(GroupResourceInformation resourceInformation, long millisTaken) {
+    execute(() -> innerObserver.resourcesPlanned(resourceInformation, millisTaken));
+  }
+
+  @Override
   public void planValidated(
       final RelDataType rowType,
       final SqlNode node,
@@ -336,13 +343,13 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void recordsProcessed(long recordCount) {
-    execute(() -> innerObserver.recordsProcessed(recordCount));
+  public void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount) {
+    execute(() -> innerObserver.recordsOutput(endpoint, recordCount));
   }
 
   @Override
-  public void recordsOutput(long recordCount) {
-    execute(() -> innerObserver.recordsOutput(recordCount));
+  public void outputLimited() {
+    execute(innerObserver::outputLimited);
   }
 
   @Override
@@ -394,6 +401,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   @Override
   public void setNumJoinsInFinalPrel(Integer joins) {
     execute(() -> innerObserver.setNumJoinsInFinalPrel(joins));
+  }
+
+  @Override
+  public void putProfileFailed() {
+    execute(innerObserver::putProfileFailed);
   }
 
   /**

@@ -15,9 +15,9 @@
  */
 
 //@ts-ignore
-import { Dremio } from "@dremio/dremio-js";
+import { Dremio } from "@dremio/dremio-js/community";
 
-export type DremioContext = ReturnType<typeof Dremio>
+export type DremioContext = ReturnType<typeof Dremio>;
 
 let dremioContext: (pid: string) => DremioContext;
 

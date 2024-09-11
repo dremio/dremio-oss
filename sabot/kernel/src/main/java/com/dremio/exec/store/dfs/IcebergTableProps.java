@@ -55,6 +55,7 @@ public class IcebergTableProps {
   // TODO: Separate action specific props from "Table Metadata" related props
   private boolean detectSchema;
   private boolean isMetadataRefresh;
+  private boolean errorOnConcurrentRefresh;
   private IcebergCommandType icebergOpType;
   private Long metadataExpireAfterMs;
   private Map<String, String> tableProperties;
@@ -246,6 +247,14 @@ public class IcebergTableProps {
 
   public void setMetadataRefresh(boolean metadataRefresh) {
     isMetadataRefresh = metadataRefresh;
+  }
+
+  public boolean getErrorOnConcurrentRefresh() {
+    return errorOnConcurrentRefresh;
+  }
+
+  public void setErrorOnConcurrentRefresh(boolean errorOnConcurrentRefresh) {
+    this.errorOnConcurrentRefresh = errorOnConcurrentRefresh;
   }
 
   public List<String> getPartitionPaths() {

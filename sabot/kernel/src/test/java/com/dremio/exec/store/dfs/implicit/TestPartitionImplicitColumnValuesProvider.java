@@ -153,7 +153,7 @@ public class TestPartitionImplicitColumnValuesProvider extends ExecTest {
       pairs =
           getProvider()
               .getImplicitColumnValues(
-                  getAllocator(), partitionInfo, implicitColumns, OPTION_RESOLVER);
+                  getTestAllocator(), partitionInfo, implicitColumns, OPTION_RESOLVER);
       Map<String, Object> actualValues =
           pairs.stream().collect(Collectors.toMap(NameValuePair::getName, NameValuePair::getValue));
       assertThat(actualValues).containsExactlyInAnyOrderEntriesOf(expectedImplicitValues);

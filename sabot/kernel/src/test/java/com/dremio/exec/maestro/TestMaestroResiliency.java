@@ -96,15 +96,11 @@ public class TestMaestroResiliency extends BaseTestQuery {
   }
 
   private long getForemenCount() {
-    return nodes[0]
-        .getBindingProvider()
-        .provider(ForemenWorkManager.class)
-        .get()
-        .getActiveQueryCount();
+    return getInstance(ForemenWorkManager.class).getActiveQueryCount();
   }
 
   private long getMaestroTrackerCount() {
-    return nodes[0].getBindingProvider().provider(MaestroService.class).get().getActiveQueryCount();
+    return getInstance(MaestroService.class).getActiveQueryCount();
   }
 
   @Test

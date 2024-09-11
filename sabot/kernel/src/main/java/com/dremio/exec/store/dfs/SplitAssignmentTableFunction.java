@@ -198,11 +198,12 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
 
     String lastPath = null;
     PartitionProtobuf.BlockLocationsList lastBlockLocations = null;
-    for (int record = 0; record < batchSize; ++record) {
-      if (inputSplitIdentities.isNull(record)) {
+    for (int recordIndex = 0; recordIndex < batchSize; ++recordIndex) {
+      if (inputSplitIdentities.isNull(recordIndex)) {
         continue;
       }
-      Map<String, Object> fields = (Map<String, Object>) inputSplitIdentities.getObject(record);
+      Map<String, Object> fields =
+          (Map<String, Object>) inputSplitIdentities.getObject(recordIndex);
       String path = fields.get(SplitIdentity.PATH).toString();
       long offset = (Long) fields.get(SplitIdentity.OFFSET);
       long length = (Long) fields.get(SplitIdentity.LENGTH);

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .sort() {
   min-width: 24px;
@@ -21,7 +20,7 @@
   width: 24px;
   inline-size: 24px;
   block-size: 24px;
-  color: var(--dremio--color--icon--main);
+  color: var(--icon--primary);
 }
 
 :global {
@@ -41,7 +40,7 @@
     }
 
     &--withBorderBottom {
-      border-bottom: 1px solid var(--color--neutral--50);
+      border-bottom: 1px solid var(--border--neutral);
     }
 
     &--dragging {
@@ -75,7 +74,7 @@
       display: inline-flex;
       align-items: center;
       height: 1.5em;
-      color: var(--color--neutral--50);
+      color: var(--border--neutral);
 
       &--noDrag {
         cursor: default !important;

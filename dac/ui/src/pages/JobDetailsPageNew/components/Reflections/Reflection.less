@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @font-size: 16px;
 @line-height: 20px;
 @font-weight: 600;
@@ -28,7 +27,7 @@
       &__title {
         flex-basis: 83%;
         padding-bottom: 5px;
-        color: @font-color1;
+        color: var(--text--primary);
         font-size: @font-size;
         font-weight: @font-weight;
         line-height: @line-height;
@@ -43,7 +42,7 @@
       &__title {
         font-size: 14px;
         line-height: 20px;
-        color: @DARK_800;
+        color: var(--text--faded);
         padding-top: 18px;
       }
       &__rowWrapper {
@@ -67,10 +66,10 @@
         font-size: 14px;
         font-weight: @font-weight;
         line-height: 20px;
-        color: @greyish-blue;
+        color: var(--text--primary);
         &__algbric {
           font-size: 16px;
-          color: @liteSlate-grey;
+          color: var(--text--faded);
           font-style: italic;
           font-weight: 400;
           padding-left: 4px;
@@ -79,10 +78,10 @@
       &__dataLabelSubscription {
         font-size: 12px;
         line-height: 16px;
-        color: @DARK_700;
+        color: var(--color--neutral--300);
       }
       &__dataHeaderContent {
-        color: @DARK_700;
+        color: var(--color--neutral--300);
         flex-basis: 27.5%;
       }
     }
@@ -117,18 +116,18 @@
         font-size: 14px;
         font-weight: @font-weight;
         line-height: 20px;
-        color: @greyish-blue;
+        color: var(--text--primary);
         padding-left: 4px;
       }
       &__path {
         font-size: 12px;
         line-height: 16px;
-        color: @DARK_700;
+        color: var(--color--neutral--300);
         padding-left: 4px;
       }
     }
     &__age {
-      color: @DARK_700;
+      color: var(--color--neutral--300);
       flex-basis: 27.5%;
       padding-left: 8px;
     }

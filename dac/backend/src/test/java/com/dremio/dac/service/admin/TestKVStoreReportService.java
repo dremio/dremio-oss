@@ -33,12 +33,13 @@ import com.dremio.dac.api.Source;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.admin.KVStoreReportService.KVStoreNotSupportedException;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
-import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.NamespaceServiceImpl.MultiSplitStoreCreator;
+import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.MultiSplit;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
@@ -84,7 +85,6 @@ import javax.ws.rs.core.GenericType;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -96,7 +96,8 @@ import org.junit.rules.TemporaryFolder;
 public class TestKVStoreReportService extends BaseTestServer {
   private static final String CATALOG_PATH = "/catalog/";
 
-  private static Provider<LegacyKVStoreProvider> storeProviderProvider;
+  private static Provider<LegacyKVStoreProvider> legacyKVStoreProviderProvider;
+  private static Provider<KVStoreProvider> kvStoreProviderProvider;
   private static KVStoreReportService service;
   private static final ListeningExecutorService executorService =
       MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
@@ -113,12 +114,16 @@ public class TestKVStoreReportService extends BaseTestServer {
     Assume.assumeFalse(
         BaseTestServer.isMultinode()); // the api can only run on master node with a local kvstore
     BaseTestServer.init();
-    storeProviderProvider = () -> l(LegacyKVStoreProvider.class);
+    legacyKVStoreProviderProvider = p(LegacyKVStoreProvider.class);
+    kvStoreProviderProvider = p(KVStoreProvider.class);
     service =
         new KVStoreReportService(
-            storeProviderProvider, p(NamespaceService.class), () -> executorService);
+            legacyKVStoreProviderProvider,
+            kvStoreProviderProvider,
+            p(NamespaceService.class),
+            () -> executorService);
     service.start();
-    sourcesCount = p(NamespaceService.class).get().getSources().size();
+    sourcesCount = getNamespaceService().getSources().size();
   }
 
   /** prepare the env (source, datasets) for the interested kvstores to have some contents */
@@ -196,8 +201,8 @@ public class TestKVStoreReportService extends BaseTestServer {
             getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(createDataset.getId())).buildGet(),
             new GenericType<Dataset>() {});
 
-    LegacyKVStore<PartitionChunkId, MultiSplit> multiSplitsStore =
-        storeProviderProvider.get().getStore(MultiSplitStoreCreator.class);
+    KVStore<PartitionChunkId, MultiSplit> multiSplitsStore =
+        kvStoreProviderProvider.get().getStore(NamespaceServiceImpl.MultiSplitStoreCreator.class);
 
     partitionChunkId = String.format("%s_%d_%d", UUID.randomUUID(), System.currentTimeMillis(), 0);
     PartitionChunkId chunkId = PartitionChunkId.of(partitionChunkId);
@@ -211,9 +216,11 @@ public class TestKVStoreReportService extends BaseTestServer {
     multiSplitsStore.put(chunkId, multiSplit);
 
     ReflectionEntriesStore reflectionEntriesStore =
-        new ReflectionEntriesStore(storeProviderProvider);
-    ReflectionGoalsStore reflectionGoalsStore = new ReflectionGoalsStore(storeProviderProvider);
-    MaterializationStore materializationStore = new MaterializationStore(storeProviderProvider);
+        new ReflectionEntriesStore(legacyKVStoreProviderProvider);
+    ReflectionGoalsStore reflectionGoalsStore =
+        new ReflectionGoalsStore(legacyKVStoreProviderProvider);
+    MaterializationStore materializationStore =
+        new MaterializationStore(legacyKVStoreProviderProvider);
 
     reflectionId = new ReflectionId(UUID.randomUUID().toString());
     ReflectionEntry reflectionEntry =
@@ -255,6 +262,7 @@ public class TestKVStoreReportService extends BaseTestServer {
             10800000L,
             RefreshMethod.FULL,
             false,
+            false,
             false);
     return new Dataset(
         id,
@@ -269,9 +277,6 @@ public class TestKVStoreReportService extends BaseTestServer {
         format,
         null);
   }
-
-  @AfterClass
-  public static void close() {}
 
   /** mock {@link com.dremio.dac.resource.KVStoreReportResource#doDownload(List)} method */
   private void doDownload(List<String> storeNames, String filename)

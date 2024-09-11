@@ -27,16 +27,19 @@ import com.dremio.exec.store.dfs.EasySplitGenTableFunction;
 import com.dremio.exec.store.dfs.SplitAssignmentTableFunction;
 import com.dremio.exec.store.dfs.SplitGenTableFunction;
 import com.dremio.exec.store.easy.EasyScanTableFunction;
+import com.dremio.exec.store.easy.triggerpipe.TriggerPipeEasyScanTableFunction;
 import com.dremio.exec.store.iceberg.DeletedFilesMetadataTableFunction;
 import com.dremio.exec.store.iceberg.IcebergDeleteFileAggTableFunction;
 import com.dremio.exec.store.iceberg.IcebergDmlMergeDuplicateCheckTableFunction;
 import com.dremio.exec.store.iceberg.IcebergIncrementalRefreshJoinKeyTableFunction;
 import com.dremio.exec.store.iceberg.IcebergLocationFinderTableFunction;
+import com.dremio.exec.store.iceberg.IcebergMergeOnReadRowSplitterTableFunction;
 import com.dremio.exec.store.iceberg.IcebergOrphanFileDeleteTableFunction;
 import com.dremio.exec.store.iceberg.IcebergPartitionTransformTableFunction;
 import com.dremio.exec.store.iceberg.IcebergSplitGenTableFunction;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.InputCarryForwardTableFunctionDecorator;
+import com.dremio.exec.store.iceberg.ManifestFileDuplicateRemoveTableFunction;
 import com.dremio.exec.store.iceberg.ManifestFileProcessor;
 import com.dremio.exec.store.iceberg.ManifestListScanTableFunction;
 import com.dremio.exec.store.iceberg.ManifestScanTableFunction;
@@ -144,6 +147,12 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
         return new IcebergLocationFinderTableFunction(fec, context, props, functionConfig);
       case DELTALAKE_HISTORY_SCAN:
         return new DeltaLakeHistoryScanTableFunction(fec, context, props, functionConfig);
+      case TRIGGER_PIPE_EASY_DATA_SCAN:
+        return new TriggerPipeEasyScanTableFunction(fec, context, props, functionConfig);
+      case MERGE_ON_READ_ROW_SPLITTER:
+        return new IcebergMergeOnReadRowSplitterTableFunction(context, functionConfig);
+      case MANIFEST_FILE_DUPLICATE_REMOVE:
+        return new ManifestFileDuplicateRemoveTableFunction(context, functionConfig);
       case UNKNOWN:
       default:
         throw new UnsupportedOperationException(

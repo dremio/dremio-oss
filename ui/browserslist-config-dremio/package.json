@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "name": "@dremio/browserslist-config-dremio",
+  "main": "./index.js",
+  "files": [
+    "index.js"
+  ]
+}

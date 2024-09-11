@@ -22,7 +22,11 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import com.dremio.cache.AuthorizationCacheException;
 import com.dremio.cache.AuthorizationCacheService;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.common.concurrent.ContextAwareCompletableFuture;
+import com.dremio.common.concurrent.bulk.BulkRequest;
+import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
@@ -38,6 +42,7 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.DatasetNotFoundException;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.EntityPathWithOptions;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
@@ -87,6 +92,7 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
+import com.dremio.exec.store.BulkSourceMetadata;
 import com.dremio.exec.store.ClassPathFileSystem;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.LocalSyncableFileSystem;
@@ -124,6 +130,7 @@ import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
 import com.dremio.exec.store.parquet.ParquetScanTableFunction;
 import com.dremio.exec.store.parquet.ParquetSplitCreator;
 import com.dremio.exec.store.parquet.ScanTableFunction;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.exec.util.FSHealthChecker;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.file.FileAttributes;
@@ -176,6 +183,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -221,7 +229,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
         SupportsIcebergRootPointer,
         SupportsIcebergMutablePlugin,
         SupportsTypeCoercionsAndUpPromotions,
-        SupportsMetadataVerify {
+        SupportsMetadataVerify,
+        BulkSourceMetadata {
   /**
    * Default {@link Configuration} instance. Use this instance through {@link #getNewFsConf()} to
    * create new copies of {@link Configuration} objects.
@@ -1388,7 +1397,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
                   tableSchemaPath.getName(),
                   fs,
                   fullPath,
-                  FileDatasetHandle.getMaxFilesLimit(context));
+                  FileDatasetHandle.getMaxFilesLimit(context.getOptionManager()));
     } catch (IOException e) {
       throw new RuntimeException(
           String.format(
@@ -1814,7 +1823,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
       final NamespaceKey folderNSKey = new NamespaceKey(path);
 
       if (ns.exists(folderNSKey)) {
-        for (NameSpaceContainer entity : ns.list(folderNSKey)) {
+        for (NameSpaceContainer entity : ns.list(folderNSKey, null, Integer.MAX_VALUE)) {
           if (entity.getType() == Type.DATASET) {
             tableNames.add(resolveTableNameToValidPath(entity.getDataset().getFullPathList()));
           }
@@ -1841,7 +1850,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
         return ImmutableList.of();
       }
       if (ns.exists(folderNSKey)) {
-        for (NameSpaceContainer entity : ns.list(folderNSKey)) {
+        for (NameSpaceContainer entity : ns.list(folderNSKey, null, Integer.MAX_VALUE)) {
           if (entity.getType() == Type.DATASET) {
             tableNames.add(resolveTableNameToValidPath(entity.getDataset().getFullPathList()));
           }
@@ -2072,6 +2081,33 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
   @Override
   public Optional<DatasetHandle> getDatasetHandle(
       EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
+    return internalGetDatasetHandle(datasetPath, options);
+  }
+
+  @Override
+  @WithSpan
+  public BulkResponse<EntityPathWithOptions, Optional<DatasetHandle>> bulkGetDatasetHandles(
+      BulkRequest<EntityPathWithOptions> requestedDatasets) {
+    MetadataIOPool metadataIOPool = context.getMetadataIOPool();
+    return requestedDatasets.handleRequests(
+        dataset ->
+            ContextAwareCompletableFuture.createFrom(
+                metadataIOPool.execute(
+                    new MetadataIOPool.MetadataTask<>(
+                        "bulk_get_dataset_handles_async",
+                        dataset.entityPath(),
+                        () -> {
+                          try {
+                            return internalGetDatasetHandle(
+                                dataset.entityPath(), dataset.options());
+                          } catch (ConnectorException ex) {
+                            throw new RuntimeException(ex);
+                          }
+                        }))));
+  }
+
+  private Optional<DatasetHandle> internalGetDatasetHandle(
+      EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
     BatchSchema currentSchema = CurrentSchemaOption.getSchema(options);
     FileConfig fileConfig = FileConfigOption.getFileConfig(options);
     List<String> sortColumns = SortColumnsOption.getSortColumns(options);
@@ -2171,7 +2207,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
   }
 
   @Override
-  public boolean containerExists(EntityPath containerPath) {
+  public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
     final List<String> folderPath = containerPath.getComponents();
     try {
       return systemUserFS.isDirectory(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath)));
@@ -2350,7 +2386,28 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>>
         tableSchema,
         partitionValues,
         true,
-        isPartitionInferenceEnabled());
+        isPartitionInferenceEnabled(),
+        getFsConfCopy());
+  }
+
+  @Override
+  public boolean createFunction(
+      CatalogEntityKey key, SchemaConfig schemaConfig, UserDefinedFunction userDefinedFunction) {
+    throw new UnsupportedOperationException(
+        "File System plugin doesn't support function creation via CREATE FUNCTION.");
+  }
+
+  @Override
+  public boolean updateFunction(
+      CatalogEntityKey key, SchemaConfig schemaConfig, UserDefinedFunction userDefinedFunction) {
+    throw new UnsupportedOperationException(
+        "File System plugin doesn't support function update via CREATE OR REPLACE FUNCTION.");
+  }
+
+  @Override
+  public void dropFunction(CatalogEntityKey key, SchemaConfig schemaConfig) {
+    throw new UnsupportedOperationException(
+        "File System plugin doesn't support function drop via DROP FUNCTION.");
   }
 
   private Optional<DatasetHandle> getDatasetHandleForInternalMetadataTable(

@@ -32,8 +32,7 @@ import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.service.users.UserNotFoundException;
-import com.dremio.telemetry.api.metrics.Counter;
-import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.SimpleCounter;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.StatusRuntimeException;
 import java.security.AccessControlException;
@@ -53,8 +52,8 @@ import org.slf4j.LoggerFactory;
 class GenericExceptionMapper implements ExceptionMapper<Throwable> {
   private static final Logger logger = LoggerFactory.getLogger(GenericExceptionMapper.class);
 
-  private static final Counter GenericErrorMessageCounter =
-      Metrics.newCounter(Metrics.join("resetapi", "error", "generic"), Metrics.ResetType.NEVER);
+  private static final SimpleCounter GENERIC_ERROR_MESSAGE_COUNTER =
+      SimpleCounter.of("resetapi.generic_errors");
 
   private boolean sendStackTraceToClient;
 
@@ -280,7 +279,7 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
 
   private static Response newGenericErrorMessage(
       Response.Status status, Throwable cause, String[] stackTrace) {
-    GenericErrorMessageCounter.increment(1);
+    GENERIC_ERROR_MESSAGE_COUNTER.increment();
     return newResponse(status, new GenericErrorMessage(cause.getMessage(), stackTrace));
   }
 

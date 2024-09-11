@@ -24,15 +24,21 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-public class TimestampArrayAggAccumulator
-    extends BaseArrayAggAccumulator<Long, TimeStampMilliVector> {
+public class TimestampArrayAggAccumulator extends ArrayAggAccumulator<Long> {
   public TimestampArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
-      BufferAllocator allocator) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
+      BufferAllocator allocator,
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
+    super(
+        input,
+        transferVector,
+        tempAccumulatorHolder,
+        allocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
   }
 
   @Override
@@ -46,9 +52,9 @@ public class TimestampArrayAggAccumulator
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Long, TimeStampMilliVector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
-    return new TimestampArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<Long> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new TimestampArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

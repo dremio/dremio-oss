@@ -47,6 +47,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
 import java.util.Map;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
@@ -102,6 +103,17 @@ public class ReflectionGoalsStore {
                     newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DISABLED.name())))
             .addSortings(ReflectionIndexKeys.DEFAULT_SORT);
     return FluentIterable.from(store.get().find(condition)).transform(GET_VALUE).filter(notNull());
+  }
+
+  public int getNumAllNotDeleted() {
+    return Iterables.getFirst(
+        store
+            .get()
+            .getCounts(
+                or(
+                    newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
+                    newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DISABLED.name()))),
+        0);
   }
 
   public Iterable<ReflectionGoal> getModifiedOrCreatedSince(final long time) {
@@ -199,13 +211,13 @@ public class ReflectionGoalsStore {
     }
 
     @Override
-    public void convert(DocumentWriter writer, ReflectionId key, ReflectionGoal record) {
+    public void convert(DocumentWriter writer, ReflectionId key, ReflectionGoal document) {
       writer.write(REFLECTION_ID, key.getId());
-      writer.write(DATASET_ID, record.getDatasetId());
-      writer.write(CREATED_AT, record.getCreatedAt());
-      writer.write(REFLECTION_GOAL_MODIFIED_AT, record.getModifiedAt());
-      writer.write(REFLECTION_GOAL_STATE, record.getState().name());
-      writer.write(REFLECTION_NAME, record.getName());
+      writer.write(DATASET_ID, document.getDatasetId());
+      writer.write(CREATED_AT, document.getCreatedAt());
+      writer.write(REFLECTION_GOAL_MODIFIED_AT, document.getModifiedAt());
+      writer.write(REFLECTION_GOAL_STATE, document.getState().name());
+      writer.write(REFLECTION_NAME, document.getName());
     }
   }
 

@@ -28,12 +28,15 @@ import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.services.configuration.ConfigurationStore;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import java.util.List;
 import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 
 /** Restore command. */
-@AdminCommand(value = "restore", description = "Restores Dremio metadata and user-uploaded files")
+@AdminCommand(
+    value = "restore",
+    description = "Restores Dremio metadata and user-uploaded files and system files")
 public class Restore {
 
   /** Command line options for backup and restore */
@@ -91,16 +94,21 @@ public class Restore {
       System.exit(1);
     }
 
-    Path backupDir = Path.of(options.backupDir);
-    FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
+    // Default value of 20000000 is not sufficient, override with 512MB.
+    StreamReadConstraints.overrideDefaultStreamReadConstraints(
+        StreamReadConstraints.builder()
+            .maxStringLength(
+                Math.max(1 << 29, StreamReadConstraints.defaults().getMaxStringLength()))
+            .build());
+
     try {
       BackupRestoreUtil.RestorationResults restorationResults =
-          BackupRestoreUtil.restore(fs, backupDir, dacConfig);
+          restore(options.backupDir, dacConfig);
       String backupPath = restorationResults.getStats().getBackupPath();
       long numTables = restorationResults.getStats().getTables();
 
       AdminLogger.log(
-          "Restored from backup at {}, {} dremio tables, {} uploaded files.",
+          "Restored from backup at {}, {} dremio tables, {} files.",
           backupPath,
           numTables,
           restorationResults.getStats().getFiles());
@@ -133,5 +141,12 @@ public class Restore {
         System.exit(1);
       }
     }
+  }
+
+  public static BackupRestoreUtil.RestorationResults restore(String backupDir, DACConfig dacConfig)
+      throws Exception {
+    Path backupDirPath = Path.of(backupDir);
+    FileSystem fs = HadoopFileSystem.get(backupDirPath, new Configuration());
+    return BackupRestoreUtil.restore(fs, backupDirPath, dacConfig);
   }
 }

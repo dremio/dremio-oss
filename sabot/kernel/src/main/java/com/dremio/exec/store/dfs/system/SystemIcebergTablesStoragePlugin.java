@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.store.dfs.system;
 
+import static com.dremio.exec.ExecConstants.ICEBERG_CATALOG_TYPE_KEY;
+import static com.dremio.exec.ExecConstants.ICEBERG_NAMESPACE_KEY;
+import static com.dremio.exec.ExecConstants.NESSIE_METADATA_NAMESPACE;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -23,15 +27,18 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
@@ -39,18 +46,40 @@ import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.store.dfs.MayBeDistFileSystemPlugin;
+import com.dremio.exec.store.dfs.system.evolution.SystemIcebergTablesUpdateStepsProvider;
+import com.dremio.exec.store.dfs.system.evolution.SystemIcebergTablesUpdateStepsProvider.UpdateSteps;
+import com.dremio.exec.store.dfs.system.evolution.handler.SystemIcebergTablesPartitionUpdateHandler;
+import com.dremio.exec.store.dfs.system.evolution.handler.SystemIcebergTablesPropertyUpdateHandler;
+import com.dremio.exec.store.dfs.system.evolution.handler.SystemIcebergTablesSchemaUpdateHandler;
+import com.dremio.exec.store.dfs.system.evolution.handler.SystemIcebergTablesUpdateHandler;
+import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTablePartitionUpdateStep;
+import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTablePropertyUpdateStep;
+import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTableSchemaUpdateStep;
+import com.dremio.exec.store.iceberg.IcebergModelCreator;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.inject.Provider;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableMetadataParser;
+import org.apache.iceberg.UpdatePartitionSpec;
+import org.apache.iceberg.UpdateProperties;
+import org.apache.iceberg.UpdateSchema;
+import org.apache.iceberg.io.FileIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +90,7 @@ public class SystemIcebergTablesStoragePlugin
   private static final Logger logger =
       LoggerFactory.getLogger(SystemIcebergTablesStoragePlugin.class);
   private final Lock createSystemTablesLock = new ReentrantLock();
+  private final AtomicBoolean tablesCreated = new AtomicBoolean(false);
 
   /**
    * Constructs a new SystemIcebergTablesStoragePlugin instance with the given configuration,
@@ -116,6 +146,12 @@ public class SystemIcebergTablesStoragePlugin
     return metadataProvider.getDatasetMetadata(options);
   }
 
+  @Override
+  public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key) {
+    // Dremio internal tables are always expected to have up-to-date metadata
+    return true;
+  }
+
   /**
    * Retrieves a view table representing the table. This method constructs a view table based on the
    * provided table schema path and user name. The view table is constructed to display data from
@@ -154,6 +190,32 @@ public class SystemIcebergTablesStoragePlugin
   }
 
   /**
+   * Checks if the specified user has the privilege to read all records from the given tables.
+   *
+   * @param tableNames The list of table names to check.
+   * @param userName The name of the user whose privileges are being checked.
+   * @return {@code true} if the user has the privilege to read all records from all tables, {@code
+   *     false} otherwise.
+   */
+  private boolean canReadAllRecords(List<String> tableNames, String userName) {
+    Catalog catalog =
+        getContext()
+            .getCatalogService()
+            .getCatalog(
+                MetadataRequestOptions.of(
+                    SchemaConfig.newBuilder(CatalogUser.from(userName)).build()));
+    try {
+      for (String tableName : tableNames) {
+        catalog.validatePrivilege(
+            getTableMetadata(ImmutableList.of(tableName)).getNamespaceKey(), Privilege.SELECT);
+      }
+    } catch (UserException e) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * Prepares a SQL query string for constructing a view based on the provided table metadata and
    * user name.
    *
@@ -163,7 +225,9 @@ public class SystemIcebergTablesStoragePlugin
    */
   private String prepareViewQuery(List<String> tableSchemaPath, String userName) {
     if (SystemIcebergViewMetadataFactory.isSupportedViewPath(tableSchemaPath)) {
-      return getViewMetadata(tableSchemaPath).getViewQuery(userName);
+      SystemIcebergViewMetadata viewMetadata = getViewMetadata(tableSchemaPath);
+      return viewMetadata.getViewQuery(
+          userName, canReadAllRecords(viewMetadata.getViewTables(), userName));
     } else {
       return getTableMetadata(tableSchemaPath).getViewQuery();
     }
@@ -185,16 +249,38 @@ public class SystemIcebergTablesStoragePlugin
   }
 
   /**
+   * Check if an iceberg table exists with a specified table schema path
+   *
+   * @param tableSchemaPath table schema path, must be non-null
+   * @return True if the table exists; otherwise, false
+   */
+  public boolean isTableExists(List<String> tableSchemaPath) {
+    return isTableExists(getTableMetadata(tableSchemaPath).getTableLocation());
+  }
+
+  /**
    * Retrieves the iceberg table from the specified table location if it exists.
    *
    * @param tableLocation The location of the table.
    * @return The iceberg table if it exists; otherwise, null.
    */
   public Table getTable(String tableLocation) {
-    if (isTableExists(tableLocation)) {
+    try {
       return getIcebergModel().getIcebergTable(getIcebergModel().getTableIdentifier(tableLocation));
+    } catch (UserException e) {
+      // Table doesn't exist
+      logger.warn("Table {} doesn't exist", tableLocation, e);
     }
     return null;
+  }
+
+  /**
+   * Retrieves the iceberg table from the specified table description.
+   *
+   * @return The iceberg table if it exists; otherwise, null.
+   */
+  public Table getTable(List<String> tableSchemaPath) {
+    return getTable(getTableMetadata(tableSchemaPath).getTableLocation());
   }
 
   /**
@@ -243,11 +329,6 @@ public class SystemIcebergTablesStoragePlugin
   public void refreshDataset(List<String> tableSchemaPath) {
 
     SystemIcebergTableMetadata metadata = getTableMetadata(tableSchemaPath);
-
-    if (!isTableExists(metadata.getTableLocation())) {
-      return;
-    }
-
     NamespaceKey tableNamespaceKey = metadata.getNamespaceKey();
 
     // Build dataset retrieval options with desired settings
@@ -262,10 +343,7 @@ public class SystemIcebergTablesStoragePlugin
     CatalogService catalogService = getContext().getCatalogService();
 
     // Retrieve the catalog with a specified schema configuration
-    Catalog catalog =
-        catalogService.getCatalog(
-            MetadataRequestOptions.of(
-                SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
+    Catalog catalog = catalogService.getSystemUserCatalog();
 
     // Refresh the dataset metadata using the configured options
     catalog.refreshDataset(tableNamespaceKey, options);
@@ -279,9 +357,16 @@ public class SystemIcebergTablesStoragePlugin
    * @see #createEmptySystemIcebergTableIfNotExists(List)
    */
   public void createEmptySystemIcebergTablesIfNotExists() {
+    // The flag may not always be accurate, it's only a cached copy which would prevent avoidable
+    // catalog and metadata
+    // load during the table existence table check.
+    if (tablesCreated.get()) {
+      return;
+    }
     for (String tableName : SystemIcebergTableMetadataFactory.SUPPORTED_TABLES) {
       createEmptySystemIcebergTableIfNotExists(ImmutableList.of(tableName));
     }
+    tablesCreated.set(true);
   }
 
   /**
@@ -298,6 +383,9 @@ public class SystemIcebergTablesStoragePlugin
     if (!isTableExists(tableMetadata.getTableLocation())) {
       createSystemTablesLock.lock();
       try {
+        if (migrateTableIfNecessary(tableMetadata)) {
+          return;
+        }
         if (!isTableExists(tableMetadata.getTableLocation())) {
           logger.debug(
               "Iceberg table at location {} does not exists. Creating empty system iceberg table",
@@ -323,6 +411,7 @@ public class SystemIcebergTablesStoragePlugin
                   Long.MAX_VALUE,
                   tableFormatWriterOptions,
                   null,
+                  false,
                   false);
           createEmptyTable(
               tableMetadata.getNamespaceKey(),
@@ -339,5 +428,107 @@ public class SystemIcebergTablesStoragePlugin
       }
       refreshDataset(tableSchemaPath);
     }
+  }
+
+  /**
+   * Validates the upgrade case, where the table might have existed in the hadoop catalog variant.
+   * Returns true if migration took place
+   */
+  private boolean migrateTableIfNecessary(SystemIcebergTableMetadata tableMetadata) {
+    Configuration hadoopConf = new Configuration(getFsConf());
+    hadoopConf.set(ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.HADOOP.name());
+    try (FileIO fileIO = createIcebergFileIO(getSystemUserFS(), null, null, null, null)) {
+      IcebergModel hadoopIcebergModel =
+          IcebergModelCreator.createIcebergModel(hadoopConf, getContext(), fileIO, null, this);
+      String metadataJsonLocation =
+          hadoopIcebergModel
+              .getIcebergTableLoader(
+                  hadoopIcebergModel.getTableIdentifier(tableMetadata.getTableLocation()))
+              .getRootPointer();
+      TableMetadata icebergMetadata = TableMetadataParser.read(fileIO, metadataJsonLocation);
+
+      IcebergModel currentIcebergModel = getIcebergModel();
+      currentIcebergModel.registerTable(
+          currentIcebergModel.getTableIdentifier(tableMetadata.getTableLocation()),
+          icebergMetadata);
+      logger.info("Table {} migrated to the current catalog", tableMetadata.getTableName());
+      return true;
+    } catch (UserException e) {
+      // Table does not exist in hadoop catalog
+      return false;
+    }
+  }
+
+  @Override
+  protected List<Property> getProperties() {
+    List<Property> props = new ArrayList<>(super.getProperties());
+
+    props.add(new Property(ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.NESSIE.name()));
+    props.add(
+        new Property(
+            ICEBERG_NAMESPACE_KEY,
+            getContext().getOptionManager().getOption(NESSIE_METADATA_NAMESPACE)));
+    if (getConfig().getProperties() != null) {
+      props.addAll(getConfig().getProperties());
+    }
+    return props;
+  }
+
+  /**
+   * Updates the system Iceberg tables based on the configured schema version. This method iterates
+   * over supported system Iceberg tables, checks their schema version, and updates them if
+   * necessary.
+   */
+  public void updateSystemIcebergTables() {
+    long systemIcebergTablesSchemaVersion =
+        getContext()
+            .getOptionManager()
+            .getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
+    for (String systemIcebergTableName : SystemIcebergTableMetadataFactory.SUPPORTED_TABLES) {
+      updateSystemIcebergTable(systemIcebergTableName, systemIcebergTablesSchemaVersion);
+    }
+  }
+
+  private void updateSystemIcebergTable(String tableName, long systemIcebergTablesSchemaVersion) {
+    if (!isTableExists(ImmutableList.of(tableName))) {
+      return;
+    }
+    ImmutableList<String> tableSchemaPath = ImmutableList.of(tableName);
+    SystemIcebergTableMetadata tableMetadata = getTableMetadata(tableSchemaPath);
+    Table table = getTable(tableMetadata.getTableLocation());
+
+    // SCHEMA_VERSION_PROPERTY wasn't stamped during V1. So we assume V1 if property is not present.
+    long tableCurrentSchemaVersion =
+        Long.parseLong(
+            table
+                .properties()
+                .getOrDefault(SystemIcebergTableMetadata.SCHEMA_VERSION_PROPERTY, "1"));
+    logger.debug(
+        String.format(
+            "System Iceberg tables schema version: %s. %s table current schema version %s",
+            systemIcebergTablesSchemaVersion, table.name(), tableCurrentSchemaVersion));
+    if (systemIcebergTablesSchemaVersion == tableCurrentSchemaVersion) {
+      // No need to update
+      return;
+    }
+
+    SystemIcebergTablesUpdateStepsProvider updateStepsProvider =
+        new SystemIcebergTablesUpdateStepsProvider(
+            tableName, tableCurrentSchemaVersion, systemIcebergTablesSchemaVersion);
+
+    SystemIcebergTablesUpdateHandler<UpdateSchema, SystemIcebergTableSchemaUpdateStep>
+        schemaUpdater = new SystemIcebergTablesSchemaUpdateHandler();
+    SystemIcebergTablesUpdateHandler<UpdatePartitionSpec, SystemIcebergTablePartitionUpdateStep>
+        partitionUpdater = new SystemIcebergTablesPartitionUpdateHandler();
+    SystemIcebergTablesUpdateHandler<UpdateProperties, SystemIcebergTablePropertyUpdateStep>
+        propertyUpdater = new SystemIcebergTablesPropertyUpdateHandler();
+
+    while (updateStepsProvider.hasNext()) {
+      UpdateSteps next = updateStepsProvider.next();
+      schemaUpdater.update(table.updateSchema(), next.getSchemaUpdateStep());
+      partitionUpdater.update(table.updateSpec(), next.getPartitionUpdateStep());
+      propertyUpdater.update(table.updateProperties(), next.getPropertyUpdateStep());
+    }
+    refreshDataset(tableSchemaPath);
   }
 }

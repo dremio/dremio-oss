@@ -34,7 +34,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
 
   @Before
   public void ensureFullMetadataRead() throws NamespaceException{
-    ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    ((CatalogServiceImpl) getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
   }
 
   @Test

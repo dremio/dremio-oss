@@ -18,7 +18,7 @@ import * as React from "react";
 import clsx from "clsx";
 import { Tooltip } from "./Tooltip/Tooltip";
 import { useHasClipboardPermissions } from "./utilities/useHasClipboardPermissions";
-import { type Placement } from "@floating-ui/react-dom-interactions";
+import { type Placement } from "@floating-ui/react";
 
 const writeToClipboard = (text: string): Promise<void> => {
   return navigator.clipboard.writeText(text);
@@ -45,7 +45,7 @@ export const CopyContainer = (props: Props) => {
       <span>{copyTooltipLabel}</span>
     )
   ) : (
-    <span>Copy is disabled on unsecure connections</span>
+    <span>Copy is disabled on insecure connections</span>
   );
 
   return (

@@ -16,15 +16,13 @@
 
 import { setupWorker } from "msw";
 import additionalMockHandlers from "@inject/additionalMockHandlers";
-// import * as ArcticCatalogs from "./exports/endpoints/ArcticCatalogs/__mocks__";
 // import { getSupportFlagHandler } from "./exports/endpoints/SupportFlags/__mocks__/getSupportFlag.handler";
-import * as reflections from "dremio-ui-common/mocks/reflections/index.ts";
+// import * as reflections from "dremio-ui-common/mocks/reflections/index.ts";
 export const browserMocks = async () => {
   return setupWorker(
-    // ...Object.values(ArcticCatalogs),
     // getSupportFlagHandler,
-    ...Object.values(reflections),
-    ...additionalMockHandlers
+    // ...Object.values(reflections),
+    ...additionalMockHandlers,
   ).start({
     onUnhandledRequest: "bypass",
   });

@@ -37,11 +37,14 @@ import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.ImmutableFindByRange;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.options.ImmutableMaxResultsOption;
 import com.dremio.datastore.api.options.ImmutableVersionOption;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
+import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 
@@ -88,6 +91,13 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
     final CoreKVStore store = coreStoreProvider.getStore(request.getStoreId());
     final Iterable<Document<KVStoreTuple<?>, KVStoreTuple<?>>> results;
 
+    List<KVStore.FindOption> optionsList = new ArrayList<>();
+    if (request.getMaxResults() < Integer.MAX_VALUE) {
+      optionsList.add(
+          new ImmutableMaxResultsOption.Builder().setMaxResults(request.getMaxResults()).build());
+    }
+    KVStore.FindOption[] options = optionsList.toArray(new KVStore.FindOption[0]);
+
     if (request.hasEnd() || request.hasStart()) {
       final ImmutableFindByRange.Builder rangeBuilder =
           new ImmutableFindByRange.Builder<KVStoreTuple<?>>();
@@ -102,9 +112,9 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
             .setEnd(store.newKey().setSerializedBytes(request.getEnd().toByteArray()));
       }
 
-      results = store.find(rangeBuilder.build());
+      results = store.find(rangeBuilder.build(), options);
     } else { // find all
-      results = store.find();
+      results = store.find(options);
     }
     final FindResponse.Builder findResponseBuilder = FindResponse.newBuilder();
 

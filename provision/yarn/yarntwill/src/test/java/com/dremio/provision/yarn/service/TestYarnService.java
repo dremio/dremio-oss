@@ -215,8 +215,6 @@ public class TestYarnService {
 
   }
 
-  private static final String MAPR_IMPALA_RA_THROTTLE = "MAPR_IMPALA_RA_THROTTLE";
-  private static final String MAPR_MAX_RA_STREAMS = "MAPR_MAX_RA_STREAMS";
   private static final String NETTY_MAX_DIRECT_MEMORY = "io.netty.maxDirectMemory";
 
   @Test
@@ -227,9 +225,6 @@ public class TestYarnService {
     YarnService yarnService =
         new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
 
-    properties.clear(MAPR_IMPALA_RA_THROTTLE);
-    properties.clear(MAPR_MAX_RA_STREAMS);
-
     Cluster myCluster = createCluster();
     myCluster.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(true);
     YarnConfiguration myYarnConfig = new YarnConfiguration();
@@ -246,8 +241,6 @@ public class TestYarnService {
         "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
         myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
-    assertNull(myYarnConfig.get(MAPR_IMPALA_RA_THROTTLE));
-    assertNull(myYarnConfig.get(MAPR_MAX_RA_STREAMS));
 
     Cluster myClusterOff = createCluster();
     myClusterOff.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(false);
@@ -266,8 +259,6 @@ public class TestYarnService {
         "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
         myYarnConfigOff.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
-    assertNull(myYarnConfigOff.get(MAPR_IMPALA_RA_THROTTLE));
-    assertNull(myYarnConfigOff.get(MAPR_MAX_RA_STREAMS));
   }
 
   @Test
@@ -278,9 +269,6 @@ public class TestYarnService {
     YarnService yarnService =
         new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
 
-    properties.set("MAPR_IMPALA_RA_THROTTLE", "");
-    properties.set("MAPR_MAX_RA_STREAMS", "123");
-
     Cluster myCluster = createCluster();
     myCluster.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(true);
     YarnConfiguration myYarnConfig = new YarnConfiguration();
@@ -297,8 +285,6 @@ public class TestYarnService {
         "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
         myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
-    assertEquals("", myYarnConfig.get(MAPR_IMPALA_RA_THROTTLE));
-    assertEquals("123", myYarnConfig.get(MAPR_MAX_RA_STREAMS));
 
     Cluster myClusterOff = createCluster();
     myClusterOff.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(false);
@@ -317,8 +303,6 @@ public class TestYarnService {
         "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]",
         myYarnConfigOff.get(YarnDefaultsConfigurator.SPILL_PATH));
     assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
-    assertEquals("", myYarnConfigOff.get(MAPR_IMPALA_RA_THROTTLE));
-    assertEquals("123", myYarnConfigOff.get(MAPR_MAX_RA_STREAMS));
   }
 
   @Test

@@ -27,6 +27,9 @@ import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * Enable access to ReadableBuffer directly to copy data from a GRPC InputStream into arrow buffers.
+ *
+ * <p>Adapted from
+ * https://github.com/apache/arrow/blob/53859262ea988f31ce33a469305251064b5a53b8/java/flight/flight-core/src/main/java/org/apache/arrow/flight/grpc/GetReadableBuffer.java
  */
 @SuppressForbidden
 public class StreamToByteBufReader {

@@ -32,12 +32,14 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.elastic.proto.ElasticReaderProto;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
@@ -76,6 +78,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.util.Pair;
@@ -177,6 +181,16 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
   }
 
   public ElasticConnection getConnection(Iterable<String> hostsIter) {
+    AtomicReference<ElasticConnection> connection = new AtomicReference<>();
+    checkConnection(
+        () -> {
+          connection.set(getConnectionImpl(hostsIter));
+          return connection.get();
+        });
+    return connection.get();
+  }
+
+  private ElasticConnection getConnectionImpl(Iterable<String> hostsIter) {
     List<String> hosts = ImmutableList.copyOf(hostsIter);
     Set<String> hostSet = ImmutableSet.copyOf(hosts);
     if (hosts.isEmpty()) {
@@ -281,7 +295,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     }
   }
 
-  private static final List<Pair<Field, Field>> findDiff(BatchSchema a, BatchSchema other) {
+  private static List<Pair<Field, Field>> findDiff(BatchSchema a, BatchSchema other) {
     List<Pair<Field, Field>> differentFields = new ArrayList<>();
     Map<String, Field> fieldMap =
         FluentIterable.from(a.getFields())
@@ -440,7 +454,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
   }
 
   @Override
-  public boolean containerExists(EntityPath containerPath) {
+  public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
     final NamespaceKey key = MetadataObjectsUtils.toNamespaceKey(containerPath);
 
     if (key.size() != 2) {
@@ -503,16 +517,36 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     }
   }
 
+  private Result checkConnection(Supplier<ElasticConnection> connection) {
+    try {
+      return executeHealthAction(connection);
+    } catch (UserException originalEx) {
+      if (originalEx.getErrorType() == ErrorType.PERMISSION
+          && context.getOptionManager().getOption(CatalogOptions.RETRY_CONNECTION_ON_FAILURE)) {
+        try {
+          connectionPool.connect();
+          return executeHealthAction(connection);
+        } catch (Exception ex) {
+          throw originalEx;
+        }
+      }
+      throw originalEx;
+    }
+  }
+
+  private Result executeHealthAction(Supplier<ElasticConnection> connection) {
+    return connection
+        .get()
+        .executeAndHandleResponseCode(
+            new Health(),
+            true,
+            "Cannot get cluster health information.  Please make sure that the user has [cluster:monitor/health] privilege.");
+  }
+
   @Override
   public SourceState getState() {
     try {
-      final Result result =
-          (connectionPool
-              .getRandomConnection()
-              .executeAndHandleResponseCode(
-                  new Health(),
-                  true,
-                  "Cannot get cluster health information.  Please make sure that the user has [cluster:monitor/health] privilege."));
+      final Result result = checkConnection(connectionPool::getRandomConnection);
       if (result.success()) {
         String clusterHealth = result.getAsJsonObject().get("status").getAsString();
         switch (clusterHealth) {

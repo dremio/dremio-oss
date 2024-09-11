@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/mixins.less";
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .tableDetailsPage {
@@ -34,7 +33,7 @@
       flex-shrink: 0;
 
       width: 352px;
-      border-right: 1px solid @SECONDARY_200;
+      border-right: 1px solid var(--border--neutral);
     }
 
     &-info {
@@ -61,7 +60,7 @@
       font-weight: 500;
     }
     &-tableNamespace {
-      color: @SECONDARY_600;
+      color: var(--color--neutral--300);
     }
 
     &-tabs {
@@ -80,7 +79,7 @@
       position: relative;
       .flex-center;
       font-size: 13px;
-      color: @SECONDARY_600;
+      color: var(--color--neutral--300);
       .font-icon {
         margin-right: 4px;
       }
@@ -92,7 +91,7 @@
 
         width: 100%;
         height: 4px;
-        background-color: @PRIMARY_900;
+        background-color: var(--color--brand--500);
       }
     }
   }

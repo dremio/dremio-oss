@@ -16,9 +16,7 @@
 import { formDescription } from "uiTheme/radium/typography";
 
 export const borderDottedGreen = "1px dotted #92E2D0";
-export const borderSolidGray = "1px solid rgba(0,0,0,0.10)";
 export const greenBackground = "#F5FCFF";
-export const whiteBackground = "#FFFFFF";
 export const fieldAreaWidth = "240px";
 
 export const areaWrap = {
@@ -66,12 +64,12 @@ const dragArea = {
     ...defaultBorderWidth,
   },
   empty: {
-    background: whiteBackground,
+    background: "var(--fill--primary)",
     ...defaultBorderWidth,
   },
   notEmpty: {
     alignItems: "flex-start",
-    background: whiteBackground,
+    background: "var(--fill--primary)",
   },
   grabbed: {
     alignItems: "top",

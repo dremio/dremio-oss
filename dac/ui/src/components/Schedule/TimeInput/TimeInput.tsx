@@ -16,6 +16,7 @@
 
 import { Controller } from "react-hook-form";
 import { useIntl } from "react-intl";
+import clsx from "clsx";
 import { Label } from "dremio-ui-lib/components";
 import { TimeInput as TimeInputMantine } from "@mantine/dates";
 
@@ -23,9 +24,15 @@ import * as classes from "./TimeInput.module.less";
 
 type TimeInputProps = {
   name: string;
+  inputClassName?: string;
+  disabled?: boolean;
 };
 
-export const TimeInput = ({ name }: TimeInputProps) => {
+export const TimeInput = ({
+  name,
+  inputClassName = "",
+  disabled,
+}: TimeInputProps) => {
   const { formatMessage } = useIntl();
 
   return (
@@ -41,11 +48,12 @@ export const TimeInput = ({ name }: TimeInputProps) => {
             <TimeInputMantine
               {...field}
               name={name}
-              className={classes["time-input"]}
+              className={clsx(classes["time-input"], inputClassName)}
               icon={
                 <dremio-icon name="interface/time" class={classes["icon"]} />
               }
               error={error?.message}
+              disabled={disabled}
             />
           );
         }}

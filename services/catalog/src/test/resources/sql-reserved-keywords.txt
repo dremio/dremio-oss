@@ -1,0 +1,6 @@
+# List of reserved keywords in current parser.
+#
+# NOTE: This file is a sample of file with same name that exists in exec/java-exec jar. This file is
+# added here to let the tests in this module pass. This module can't depend on exec/java-exec module as it creates
+# circular dependencies. Until we move the parser/planner related code out of exec/java-exec into a separate module
+# we have to rely on this method.

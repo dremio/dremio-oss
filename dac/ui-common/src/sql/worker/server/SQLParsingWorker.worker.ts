@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-/* eslint-disable */
+import * as monaco from "monaco-editor";
 import { additionalSetup } from "../../../utilities/webWorker";
 import { assertNever } from "../../../utilities/typeUtils";
 import type { SQLFunction } from "../../autocomplete/types/SQLFunction";
 import { AutocompleteApiClient } from "../../autocomplete/apiClient/autocompleteApi";
 import { getSuggestionsAPICreator } from "../../autocomplete/endpoints/GetSuggestionsAPI";
 import { AutocompleteEngine } from "../../autocomplete/engine/AutocompleteEngine";
+import type { CompletionItem } from "../../autocomplete/engine/createMonacoCompletions";
 import { CursorQueryPosition } from "../../autocomplete/types/CursorQueryPosition";
 import { LiveEditParsingEngine } from "../../parser/engine/LiveEditParsingEngine";
 import { ErrorDetectionEngine } from "../../errorDetection/engine/ErrorDetectionEngine";
 import { SQLError } from "../../errorDetection/types/SQLError";
-
-export { SQLFunction, SQLError };
 
 export type Document = {
   /**
@@ -80,7 +79,7 @@ export type SQLParsingWorkerResponse =
   | RunAutocompleteResponse
   | RunErrorDetectionResponse;
 
-export type RunAutocompleteResponse = monaco.languages.CompletionItem[];
+export type RunAutocompleteResponse = CompletionItem[];
 
 export type RunErrorDetectionResponse = SQLError[];
 
@@ -153,7 +152,7 @@ async function checkShouldCancel(port: MessagePort): Promise<boolean> {
         initialize(e.data.data);
         break;
       case "autocomplete":
-      case "errorDetection":
+      case "errorDetection": {
         const shouldCancel = await checkShouldCancel(port);
         if (shouldCancel) {
           return;
@@ -166,6 +165,7 @@ async function checkShouldCancel(port: MessagePort): Promise<boolean> {
         }
         port.postMessage(result);
         break;
+      }
       default:
         return assertNever(e.data);
     }

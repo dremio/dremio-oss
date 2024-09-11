@@ -1,0 +1,20 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg id="interface/star-starred" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M11.0298 4.86518C11.4259 4.06171 12.5711 4.06171 12.9672 4.86518L14.8542 8.68806L19.0741 9.30106C19.96 9.42991 20.3137 10.5191 19.6727 11.1441L16.6188 14.1211L17.3399 18.3225C17.4919 19.2052 16.5652 19.8782 15.7722 19.4621L11.9981 17.4774L8.22482 19.4621C7.43256 19.8782 6.50585 19.206 6.6563 18.3225L7.37734 14.1211L4.32431 11.1441C3.6833 10.5199 4.03702 9.42991 4.92291 9.30106L9.14273 8.68806L11.0298 4.86518Z" fill="#FFA940"/>
+</svg>

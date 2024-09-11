@@ -144,7 +144,7 @@ public abstract class JSONOutputRecordWriter extends AbstractRowBasedRecordWrite
     <#if typeName == "VarChar">
     if (reader.isSet()) {
       final Text varValue = reader.readText();
-      FieldSizeLimitExceptionHelper.checkSizeLimit(varValue.getLength(), maxCellSize, fieldId, logger);
+      FieldSizeLimitExceptionHelper.checkSizeLimit((int)varValue.getLength(), maxCellSize, fieldId, logger);
       gen.writeVarChar(varValue.toString());
     } else {
       gen.writeVarcharNull();

@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql.parser;
 
 import static com.dremio.exec.calcite.SqlNodes.DREMIO_DIALECT;
 
-import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
@@ -58,8 +57,6 @@ public class TableDefinitionGenerator {
   final DatasetConfig datasetConfig;
   final NamespaceKey resolvedPath;
   final List<RelDataTypeField> fields;
-  final String refType;
-  final String refValue;
   final boolean isVersioned;
   final OptionManager optionManager;
 
@@ -67,15 +64,11 @@ public class TableDefinitionGenerator {
       DatasetConfig datasetConfig,
       NamespaceKey resolvedPath,
       List<RelDataTypeField> fields,
-      String refType,
-      String refValue,
       boolean isVersioned,
       OptionManager optionManager) {
     this.datasetConfig = datasetConfig;
     this.resolvedPath = resolvedPath;
     this.fields = fields;
-    this.refType = refType;
-    this.refValue = refValue;
     this.isVersioned = isVersioned;
     this.optionManager = optionManager;
   }
@@ -115,14 +108,6 @@ public class TableDefinitionGenerator {
     writer.literal(resolvedPath.getSchemaPath());
 
     generateFields(writer, fields);
-
-    if (refType != null
-        && refValue != null
-        && refType.equalsIgnoreCase(ResolvedVersionContext.Type.BRANCH.name())) {
-      writer.keyword("AT");
-      writer.keyword(refType);
-      writer.identifier(refValue);
-    }
 
     generatePartitionColumns(writer, datasetConfig);
     generateSortColumns(writer);

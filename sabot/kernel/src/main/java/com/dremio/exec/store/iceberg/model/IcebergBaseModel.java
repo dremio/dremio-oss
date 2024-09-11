@@ -41,8 +41,10 @@ import javax.annotation.Nullable;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.RowLevelOperationMode;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
 
@@ -169,7 +171,9 @@ public abstract class IcebergBaseModel implements IcebergModel {
       FileSystem fs,
       Long metadataExpireAfterMs,
       IcebergCommandType icebergOpType,
-      FileType fileType) {
+      FileType fileType,
+      Long startingSnapshotId,
+      boolean errorOnConcurrentRefresh) {
     IcebergCommand icebergCommand =
         getIcebergCommandWithMetricStat(
             tableIdentifier, IcebergCommitOrigin.INCREMENTAL_METADATA_REFRESH);
@@ -186,11 +190,12 @@ public abstract class IcebergBaseModel implements IcebergModel {
         isFileSystem,
         client,
         datasetConfig,
-        plugin,
         fs,
         metadataExpireAfterMs,
         icebergOpType,
-        fileType);
+        fileType,
+        startingSnapshotId,
+        errorOnConcurrentRefresh);
   }
 
   @Override
@@ -218,11 +223,12 @@ public abstract class IcebergBaseModel implements IcebergModel {
       IcebergTableIdentifier tableIdentifier,
       DatasetConfig datasetConfig,
       IcebergCommandType commandType,
-      Long startingSnapshotId) {
+      Long startingSnapshotId,
+      RowLevelOperationMode dmlWriteMode) {
     IcebergCommitOrigin commitOrigin = IcebergCommitOrigin.fromCommandType(commandType);
     IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier, commitOrigin);
     return new IcebergDmlOperationCommitter(
-        operatorContext, icebergCommand, datasetConfig, startingSnapshotId);
+        operatorContext, icebergCommand, datasetConfig, startingSnapshotId, dmlWriteMode);
   }
 
   @Override
@@ -255,6 +261,14 @@ public abstract class IcebergBaseModel implements IcebergModel {
         fs);
   }
 
+  /** Utility to register an existing table to the catalog */
+  @Override
+  public void registerTable(IcebergTableIdentifier tableIdentifier, TableMetadata tableMetadata) {
+    IcebergCommand icebergCommand =
+        getIcebergCommandWithMetricStat(tableIdentifier, IcebergCommitOrigin.CREATE_TABLE);
+    icebergCommand.registerTable(tableMetadata);
+  }
+
   @Override
   public void rollbackTable(IcebergTableIdentifier tableIdentifier, RollbackOption rollbackOption) {
     IcebergCommand icebergCommand =
@@ -267,7 +281,7 @@ public abstract class IcebergBaseModel implements IcebergModel {
       IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast) {
     IcebergCommand icebergCommand =
         getIcebergCommandWithMetricStat(tableIdentifier, IcebergCommitOrigin.EXPIRE_SNAPSHOTS);
-    return icebergCommand.expireSnapshots(olderThanInMillis, retainLast);
+    return icebergCommand.expireSnapshots(olderThanInMillis, retainLast, false);
   }
 
   @Override

@@ -35,6 +35,8 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceOptions;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
@@ -111,6 +113,13 @@ public class DatasetSaverImpl implements DatasetSaver {
     }
 
     Preconditions.checkState(
+        Optional.ofNullable(datasetConfig.getPhysicalDataset())
+            .map(PhysicalDataset::getFormatSettings)
+            .map(FileConfig::getFileNameRegex)
+            .isEmpty(),
+        "File name filtering is not supported for the selected file format");
+
+    Preconditions.checkState(
         datasetConfig.getPhysicalDataset() == null
             || datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled() == null
             || !datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled(),
@@ -180,7 +189,7 @@ public class DatasetSaverImpl implements DatasetSaver {
       NamespaceKey canonicalKey,
       String queryUser) {
     try {
-      String refreshQuery = getRefreshQuery(handle, options);
+      String refreshQuery = getRefreshQuery(datasetConfig, handle, options);
 
       logger.debug(
           "Running internal query to do metadata refresh of table [{}]",
@@ -241,24 +250,33 @@ public class DatasetSaverImpl implements DatasetSaver {
     return true;
   }
 
-  private String getRefreshQuery(DatasetHandle handle, DatasetRetrievalOptions options) {
+  private String getRefreshQuery(
+      DatasetConfig datasetConfig, DatasetHandle handle, DatasetRetrievalOptions options) {
     if (options.datasetRefreshQuery().isPresent()) {
       return options.datasetRefreshQuery().get().getQuery();
     }
 
-    return "REFRESH DATASET "
-        + handle.getDatasetPath().getComponents().stream()
-            .map(
-                component -> {
-                  if (!component.startsWith("\"")) {
-                    component = "\"" + component;
-                  }
-                  if (!component.endsWith("\"")) {
-                    component = component + "\"";
-                  }
-                  return component;
-                })
-            .collect(Collectors.joining("."));
+    StringBuilder builder =
+        new StringBuilder("REFRESH DATASET ")
+            .append(
+                handle.getDatasetPath().getComponents().stream()
+                    .map(
+                        component -> {
+                          if (!component.startsWith("\"")) {
+                            component = "\"" + component;
+                          }
+                          if (!component.endsWith("\"")) {
+                            component = component + "\"";
+                          }
+                          return component;
+                        })
+                    .collect(Collectors.joining(".")));
+    Optional.ofNullable(datasetConfig.getPhysicalDataset())
+        .map(PhysicalDataset::getFormatSettings)
+        .map(FileConfig::getFileNameRegex)
+        .ifPresent(globPattern -> builder.append(" FOR REGEX '").append(globPattern).append('\''));
+
+    return builder.toString();
   }
 
   private String getRefreshQueryUser(DatasetRetrievalOptions options) {

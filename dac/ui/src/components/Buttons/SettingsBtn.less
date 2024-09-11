@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
-@import "../colors.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -46,7 +44,7 @@
       border: 0;
       align-items: center;
       border-radius: 4px;
-      background: @button-bg;
+      background: var(--color--neutral--100);
       height: 23px;
       .fa {
         margin: 0;
@@ -54,7 +52,7 @@
       .settings-icon {
         height: 24px;
         width: 24px;
-        color: var(--color--neutral--600);
+        color: var(--icon--primary);
       }
     }
     .drop-down {
@@ -72,14 +70,14 @@
       width: 155px;
       z-index: 2;
       li {
-        color: @black;
+        color: var(--text--primary);
         font-size: 12px;
         line-height: 18px;
         padding: 2px 7px;
         cursor: pointer;
         position: relative;
         &:hover {
-          background: @OVERLAY_BORDER;
+          background: var(--color--neutral--100);
           > .drop-down {
             display: block !important;
           }
@@ -112,6 +110,13 @@
       font-size: 11px;
       line-height: 1px;
       vertical-align: middle;
+    }
+  }
+
+  .settings-popover {
+    .MuiPaper-root,
+    .MuiList-root {
+      overflow: visible !important;
     }
   }
 }

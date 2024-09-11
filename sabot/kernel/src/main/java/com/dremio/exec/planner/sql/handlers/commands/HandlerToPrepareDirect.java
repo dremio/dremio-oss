@@ -19,6 +19,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
+import com.dremio.exec.record.BatchSchema;
 
 /** Take a sql node and return as a prepared statement response. */
 public class HandlerToPrepareDirect
@@ -38,6 +39,7 @@ public class HandlerToPrepareDirect
         state,
         context.getQueryId(),
         context.getSession().getCatalogName(),
-        context.getSession().getRecordBatchFormat());
+        context.getSession().getRecordBatchFormat(),
+        BatchSchema.EMPTY);
   }
 }

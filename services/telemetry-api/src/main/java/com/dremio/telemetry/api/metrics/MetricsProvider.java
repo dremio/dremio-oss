@@ -21,18 +21,18 @@ package com.dremio.telemetry.api.metrics;
  */
 interface MetricsProvider {
   /**
-   * Creates a counter with the provided name.
+   * Creates a {@link SimpleCounter} with the provided name.
    *
    * @param name The name of the counter.
    * @return A counter.
    */
-  Counter counter(String name);
+  SimpleCounter counter(String name);
 
   /**
-   * Creates a timer with the provided name.
+   * Creates a {@link SimpleTimer} with the provided name.
    *
    * @param name The name of the timer.
    * @return A timer.
    */
-  Timer timer(String name);
+  SimpleTimer timer(String name);
 }

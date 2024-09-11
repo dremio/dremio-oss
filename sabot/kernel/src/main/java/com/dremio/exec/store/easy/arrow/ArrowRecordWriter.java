@@ -231,7 +231,8 @@ public class ArrowRecordWriter implements RecordWriter {
           null,
           null,
           null,
-          0L);
+          0L,
+          null);
     }
   }
 

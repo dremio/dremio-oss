@@ -63,6 +63,8 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +93,7 @@ public class SplitGenTableFunction extends AbstractTableFunction {
   protected int row;
   protected ArrowBuf tmpBuf;
   protected final boolean isOneSplitPerFile;
+  private final List<TransferPair> transfers = new ArrayList<>();
 
   public SplitGenTableFunction(
       FragmentExecutionContext fec, OperatorContext context, TableFunctionConfig functionConfig) {
@@ -120,6 +123,16 @@ public class SplitGenTableFunction extends AbstractTableFunction {
             partitionColValues.put(
                 col, VectorUtil.getVectorFromSchemaPath(incoming, col + PARTITION_NAME_SUFFIX)));
     tmpBuf = context.getAllocator().buffer(4096);
+    for (Field field : incoming.getSchema()) {
+      if (outgoing.getSchema().getFields().stream()
+          .map(Field::getName)
+          .anyMatch(n -> n.equals(field.getName()))) {
+        ValueVector vvIn = VectorUtil.getVectorFromSchemaPath(incoming, field.getName());
+        ValueVector vvOut = VectorUtil.getVectorFromSchemaPath(outgoing, field.getName());
+        TransferPair tp = vvIn.makeTransferPair(vvOut);
+        transfers.add(tp);
+      }
+    }
     return outgoing;
   }
 
@@ -179,8 +192,8 @@ public class SplitGenTableFunction extends AbstractTableFunction {
       splitOffset++;
     }
     int recordCount = startOutIndex + splitOffset;
-    outgoing.forEach(vw -> vw.getValueVector().setValueCount(recordCount));
-    outgoing.setRecordCount(recordCount);
+    transfers.forEach(tp -> tp.splitAndTransfer(0, recordCount));
+    outgoing.setAllCount(recordCount);
     return splitOffset;
   }
 

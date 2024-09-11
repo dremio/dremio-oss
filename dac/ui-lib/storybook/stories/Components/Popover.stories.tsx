@@ -34,7 +34,7 @@ export const Default: StoryFn<typeof Popover> = () => {
       placement="right"
       content={
         <div className="leading-normal drop-shadow-lg">
-          <header className="text-lg text-semibold bg-brand-500 py-1 px-2 flex flex-row items-center gap-1 rounded-top-sm">
+          <header className="text-lg text-semibold bg-brand-400 py-1 px-2 flex flex-row items-center gap-1 rounded-top-sm">
             <dremio-icon
               name="interface/tutorial"
               alt=""
@@ -51,7 +51,7 @@ export const Default: StoryFn<typeof Popover> = () => {
             </span>
           </header>
           <div
-            className="bg-foreground p-1 rounded-bottom-sm"
+            className="bg-primary p-1 rounded-bottom-sm"
             style={{ maxWidth: "40ch" }}
           >
             <p className="text-semibold color-faded">

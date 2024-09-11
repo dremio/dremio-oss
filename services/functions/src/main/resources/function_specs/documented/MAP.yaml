@@ -1,0 +1,133 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "MAP"
+signatures:
+  -
+    returnType: "MAP"
+    parameters:
+      -
+        kind: "REGULAR"
+        type: "CHARACTERS"
+        name: "key1"
+        description: "First key"
+      -
+        kind: "REGULAR"
+        type: "CHARACTERS"
+        name: "value1"
+        description: "First value"
+      -
+        kind: "OPTIONAL"
+        type: "CHARACTERS"
+        name: "key2"
+        description: "Second key"
+      -
+        kind: "OPTIONAL"
+        type: "CHARACTERS"
+        name: "value2"
+        description: "Second value"
+      -
+        kind: "OPTIONAL"
+        type: "CHARACTERS"
+        name: "keyN"
+        description: "Nth key"
+      -
+        kind: "OPTIONAL"
+        type: "CHARACTERS"
+        name: "valueN"
+        description: "Nth value"
+    sampleCodes:
+      -
+        call: "SELECT MAP['a', 'b', 'c', 'd']"
+        result: "{'a':'b', 'c':'d'}"
+  -
+    returnType: "MAP"
+    parameters:
+      -
+        kind: "REGULAR"
+        type: "CHARACTERS"
+        name: "key1"
+        description: "First key"
+      -
+        kind: "REGULAR"
+        type: "NUMERIC"
+        name: "value1"
+        description: "First value"
+      -
+        kind: "OPTIONAL"
+        type: "CHARACTERS"
+        name: "key2"
+        description: "Second key"
+      -
+        kind: "OPTIONAL"
+        type: "NUMERIC"
+        name: "value2"
+        description: "Second value"
+      -
+        kind: "OPTIONAL"
+        type: "CHARACTERS"
+        name: "keyN"
+        description: "Nth key"
+      -
+        kind: "OPTIONAL"
+        type: "NUMERIC"
+        name: "valueN"
+        description: "Nth value"
+    sampleCodes:
+      -
+        call: "SELECT MAP['a', 1, 'b', 2]"
+        result: "{'a':1, 'b':2}"
+  -
+    returnType: "MAP"
+    parameters:
+      -
+        kind: "REGULAR"
+        type: "CHARACTERS"
+        name: "key1"
+        description: "First key"
+      -
+        kind: "REGULAR"
+        type: "BOOLEAN"
+        name: "value1"
+        description: "First value"
+      -
+        kind: "OPTIONAL"
+        type: "CHARACTERS"
+        name: "key2"
+        description: "Second key"
+      -
+        kind: "OPTIONAL"
+        type: "BOOLEAN"
+        name: "value2"
+        description: "Second value"
+      -
+        kind: "OPTIONAL"
+        type: "CHARACTERS"
+        name: "keyN"
+        description: "Nth key"
+      -
+        kind: "OPTIONAL"
+        type: "BOOLEAN"
+        name: "valueN"
+        description: "Nth value"
+    sampleCodes:
+      -
+        call: "SELECT MAP['a', true, 'b', false]"
+        result: "{'a':true, 'b':false}"
+functionCategories:
+  - "CONVERSION"
+description: "Returns Map built from provided key/value pairs. Accepts variable count of arguments.\n"

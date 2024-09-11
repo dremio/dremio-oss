@@ -37,6 +37,10 @@ import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
 import { store } from "@app/store/store";
 
 import * as classes from "./SQLScriptRenameDialog.module.less";
+import {
+  stripTemporaryPrefix,
+  isTemporaryScriptName,
+} from "dremio-ui-common/sonar/SqlRunnerSession/utilities/temporaryTabs.js";
 
 type SQLScriptRenameDialogProps = {
   isOpen: boolean;
@@ -60,6 +64,16 @@ const SQLScriptRenameDialog = (
     mode: "onChange",
     defaultValues: { scriptName: name },
   });
+  const isTemporaryScript = isTemporaryScriptName(name);
+  if (isTemporaryScript) {
+    setTimeout(() => {
+      methods.setValue("scriptName", stripTemporaryPrefix(name), {
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+    });
+  }
+
   const {
     formState: { isDirty, isSubmitting },
     register,
@@ -97,7 +111,7 @@ const SQLScriptRenameDialog = (
     <ModalContainer open={() => {}} isOpen={isOpen} close={onCancel}>
       <form onSubmit={methods.handleSubmit(onSubmit)}>
         <DialogContent
-          title={t("Script.Rename")}
+          title={isTemporaryScript ? "Save" : t("Script.Rename")}
           className={classes["dialog"]}
           error={
             error ? <Message messageType="error" message={error} /> : undefined

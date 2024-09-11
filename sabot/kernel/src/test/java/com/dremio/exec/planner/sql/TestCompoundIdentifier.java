@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.sql;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -27,11 +26,7 @@ import org.junit.jupiter.api.Test;
 public class TestCompoundIdentifier {
   @Test
   public void testDoubleQuoted() {
-    final ParserConfig parserConfig =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            100,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    final ParserConfig parserConfig = new ParserConfig(Quoting.DOUBLE_QUOTE, 100);
     final String sql = "SELECT * FROM \"a\".b.\"c.d.e\"";
     final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlIdentifier compoundId = (SqlIdentifier) ((SqlSelect) sqlNode).getFrom();
@@ -43,11 +38,7 @@ public class TestCompoundIdentifier {
 
   @Test
   public void testBracketed() {
-    final ParserConfig parserConfig =
-        new ParserConfig(
-            Quoting.BRACKET,
-            100,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    final ParserConfig parserConfig = new ParserConfig(Quoting.BRACKET, 100);
     final String sql = "SELECT * FROM [\"a\"].b.[c.d.e]";
     final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlIdentifier compoundId = (SqlIdentifier) ((SqlSelect) sqlNode).getFrom();
@@ -59,11 +50,7 @@ public class TestCompoundIdentifier {
 
   @Test
   public void testBackticked() {
-    final ParserConfig parserConfig =
-        new ParserConfig(
-            Quoting.BACK_TICK,
-            100,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    final ParserConfig parserConfig = new ParserConfig(Quoting.BACK_TICK, 100);
     final String sql = "SELECT * FROM `\"a\"`.b.`c.d.e`";
     final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlIdentifier compoundId = (SqlIdentifier) ((SqlSelect) sqlNode).getFrom();

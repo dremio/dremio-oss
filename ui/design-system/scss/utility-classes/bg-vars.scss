@@ -1,0 +1,87 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Primary (foreground) containing elements (cards, tables)
+ */
+.bg-vars--primary {
+  --bg: var(--fill--primary);
+  --bg--hovered: var(--fill--primary--hover);
+  --bg--hovered--alt: var(--fill--primary--hover--alt);
+
+  --border--color: var(--border--neutral);
+  --border--color--hovered: var(--border--hover);
+
+  --text: var(--text--primary);
+  --text--hovered: var(--text--primary--hover, var(--text--primary));
+  --text--hovered--alt: var(--text--primary--hover--alt);
+}
+
+/**
+ * Secondary (background) containing elements / layer underneath primary elements (page)
+ */
+.bg-vars--secondary {
+  --bg: var(--fill--secondary);
+  --bg--hovered: var(--fill--primary--hover);
+  --bg--hovered--alt: var(--fill--disabled);
+
+  --border--color: var(--border--neutral);
+  --border--color--hovered: var(--border--hover);
+
+  --text: var(--text--faded);
+  --text--hovered: var(--text--secondary--hover, var(--text--faded));
+  --text--hovered--alt: var(--text--secondary--hover--alt);
+}
+
+.bg-vars--brand-solid {
+  --bg: var(--fill--brand--bold);
+  --bg--hovered: var(--color--brand--600);
+
+  --border--color: var(--border--brand--solid);
+
+  --text: white;
+  --text--hovered: white;
+}
+
+.bg-vars--danger-solid {
+  --bg: var(--fill--danger--solid);
+  --bg--hovered: var(--fill--danger--bold);
+
+  --border--color: var(--border--danger--solid);
+
+  --text: white;
+  --text--hovered: white;
+}
+
+.bg-vars--danger {
+  --bg: var(--fill--danger--solid);
+  --bg--hovered: var(--fill--danger--hover);
+
+  --border--color: var(--border--brand);
+
+  --text: var(--text--danger);
+  --text--hovered: var(--text--danger--hover);
+}
+
+.bg-vars--disabled {
+  --bg: var(--fill--disabled);
+  --bg--hovered: var(--fill--disabled);
+
+  --border--color: var(--border--disabled);
+
+  --text: var(--text--disabled);
+  --text--hovered: var(--text--disabled);
+}

@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "name": "@dremio/eslint-config-dremio",
+  "description": "A shareable ESLint configuration for Dremio UI projects",
+  "type": "module",
+  "dependencies": {
+    "@eslint/js": "^9",
+    "eslint-config-prettier": "^9",
+    "eslint-plugin-perfectionist": "^2",
+    "eslint-plugin-regexp": "^2",
+    "typescript-eslint": "^7"
+  },
+  "peerDependencies": {
+    "eslint": "^9",
+    "typescript": "^5"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "packageManager": "pnpm@9.3.0"
+}

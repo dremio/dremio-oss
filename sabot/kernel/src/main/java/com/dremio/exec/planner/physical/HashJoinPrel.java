@@ -214,7 +214,7 @@ public class HashJoinPrel extends JoinPrel {
 
     try {
       Double maxRowCount = getCluster().getMetadataQuery().getMaxRowCount(right);
-      logger.debug("MaxRowCount {}", maxRowCount);
+      logger.debug("Build side MaxRowCount {}", maxRowCount);
       if (maxRowCount != null) {
         int fieldCount = getRowType().getFieldCount();
         canSpill =

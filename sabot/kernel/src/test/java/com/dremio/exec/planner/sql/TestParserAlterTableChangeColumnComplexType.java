@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.sql;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
@@ -34,6 +33,11 @@ public class TestParserAlterTableChangeColumnComplexType {
   }
 
   @Test
+  public void alterTableChangeMap() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point MAP<BIGINT, BIGINT>");
+  }
+
+  @Test
   public void alterTableAlterRow() throws SqlParseException {
     parse("ALTER TABLE a.b.c ALTER COLUMN point point ROW(x BIGINT NOT NULL )");
   }
@@ -41,6 +45,11 @@ public class TestParserAlterTableChangeColumnComplexType {
   @Test
   public void alterTableAlterStruct() throws SqlParseException {
     parse("ALTER TABLE a.b.c ALTER COLUMN point point STRUCT<x : BIGINT NOT NULL>");
+  }
+
+  @Test
+  public void alterTableAlterMap() throws SqlParseException {
+    parse("ALTER TABLE a.b.c ALTER COLUMN point point MAP<BIGINT, BIGINT>");
   }
 
   @Test
@@ -64,6 +73,11 @@ public class TestParserAlterTableChangeColumnComplexType {
   }
 
   @Test
+  public void alterTableChangeMapDecimal() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point MAP<BIGINT, DECIMAL(38,10)>");
+  }
+
+  @Test
   public void alterTableChangeRowOfArray() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x  ARRAY(BIGINT NOT NULL ) )");
   }
@@ -79,6 +93,11 @@ public class TestParserAlterTableChangeColumnComplexType {
   }
 
   @Test
+  public void alterTableChangeMapOfArray() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x : MAP(BIGINT, BIGINT)>");
+  }
+
+  @Test
   public void alterTableChangeRowOfRow() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x BIGINT, y ROW(x int, y int ) )");
   }
@@ -87,6 +106,17 @@ public class TestParserAlterTableChangeColumnComplexType {
   public void alterTableChangeStructOfStruct() throws SqlParseException {
     parse(
         "ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x: BIGINT, y : STRUCT<x :int, y: int>>");
+  }
+
+  @Test
+  public void alterTableChangeMapAsMapValue() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point MAP(BIGINT, MAP(BIGINT,BIGINT) )");
+  }
+
+  /** The parser will allow this construction, type is checked later. */
+  @Test
+  public void alterTableChangeMapAsMapKey() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point MAP(MAP(BIGINT,BIGINT), BIGINT)");
   }
 
   @Test
@@ -102,6 +132,11 @@ public class TestParserAlterTableChangeColumnComplexType {
   @Test
   public void alterTableChangeListFieldName() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point2  ARRAY(BIGINT NULL )");
+  }
+
+  @Test
+  public void alterTableChangeMapFieldName() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point2 MAP(BIGINT, BIGINT)");
   }
 
   @Test
@@ -135,11 +170,7 @@ public class TestParserAlterTableChangeColumnComplexType {
   }
 
   private SqlNode parse(String toParse) throws SqlParseException {
-    ParserConfig config =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            255,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255);
     SqlParser parser = SqlParser.create(toParse, config);
     return parser.parseStmt();
   }

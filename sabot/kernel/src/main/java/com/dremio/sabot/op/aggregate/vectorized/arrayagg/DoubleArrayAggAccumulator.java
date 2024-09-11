@@ -24,14 +24,21 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-public final class DoubleArrayAggAccumulator extends BaseArrayAggAccumulator<Double, Float8Vector> {
+public final class DoubleArrayAggAccumulator extends ArrayAggAccumulator<Double> {
   public DoubleArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
-      BufferAllocator allocator) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
+      BufferAllocator allocator,
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
+    super(
+        input,
+        transferVector,
+        tempAccumulatorHolder,
+        allocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
   }
 
   @Override
@@ -45,9 +52,9 @@ public final class DoubleArrayAggAccumulator extends BaseArrayAggAccumulator<Dou
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Double, Float8Vector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
-    return new DoubleArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<Double> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new DoubleArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

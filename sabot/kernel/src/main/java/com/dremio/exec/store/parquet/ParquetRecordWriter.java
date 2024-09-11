@@ -19,6 +19,7 @@ import static com.dremio.common.arrow.DremioArrowSchema.DREMIO_ARROW_SCHEMA_2_1;
 import static com.dremio.common.map.CaseInsensitiveImmutableBiMap.newImmutableMap;
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 import static com.dremio.exec.store.iceberg.IcebergUtils.convertSchemaMilliToMicro;
+import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -37,7 +38,9 @@ import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
 import com.dremio.exec.hadoop.DremioHadoopUtils;
+import com.dremio.exec.physical.base.CombineSmallFileOptions;
 import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
@@ -62,7 +65,6 @@ import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.util.ColumnUtils;
-import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
@@ -83,10 +85,15 @@ import io.protostuff.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -108,22 +115,18 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.parquet.NoExceptionAutoCloseables;
-import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnWriteStore;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
-import org.apache.parquet.column.page.PageWriteStore;
 import org.apache.parquet.column.values.factory.DefaultV1ValuesWriterFactory;
 import org.apache.parquet.column.values.factory.DefaultV2ValuesWriterFactory;
 import org.apache.parquet.column.values.factory.ValuesWriterFactory;
 import org.apache.parquet.compression.CompressionCodecFactory;
-import org.apache.parquet.compression.CompressionCodecFactory.BytesInputCompressor;
 import org.apache.parquet.hadoop.CodecFactory;
-import org.apache.parquet.hadoop.CodecFactory.BytesCompressor;
-import org.apache.parquet.hadoop.ColumnChunkPageWriteStoreExposer;
+import org.apache.parquet.hadoop.ColumnChunkPageWriteStore;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.ColumnIOFactory;
@@ -198,7 +201,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private long recordCountForNextMemCheck = MINIMUM_RECORD_COUNT_FOR_CHECK;
 
   private ColumnWriteStore store;
-  private PageWriteStore pageStore;
+  private ColumnChunkPageWriteStore pageStore;
 
   private RecordConsumer consumer;
   private BatchSchema batchSchema;
@@ -207,6 +210,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   private final String location;
   private final String prefix;
+  private String suffix = "";
   private final String extension;
   private int index = 0;
   private final OperatorContext context;
@@ -218,14 +222,18 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private boolean isIcebergWriter;
   private org.apache.iceberg.Schema icebergSchema;
   private CaseInsensitiveImmutableBiMap<Integer> icebergColumnIDMap;
+  private CaseInsensitiveImmutableBiMap<Integer> staticIcebergColumnIDMap;
   private PartitionSpec partitionSpec;
   private final ExecutionControls executionControls;
-
   private final String queryUser;
+
+  // Collection of distinct valueVectors (compressed as bytes) to optionally send to manifest writer
+  private final Set<ByteArrayWrapper> valueVectorCollection = new HashSet<>();
 
   private final int parquetFileWriteTimeThresholdMilliSecs;
   private final double parquetFileWriteIoRateThresholdMbps;
   private long fileSize;
+  private Metrics icebergMetrics;
   private VectorContainerWithSV filteredContainer;
   private VarCharVector copyHistoryRecordVector;
 
@@ -236,6 +244,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   long avgFileSize = 0;
   long minRecordCountInFile = Long.MAX_VALUE;
   long maxRecordCountInFile = Long.MIN_VALUE;
+  private OperationType operationType = OperationType.ADD_DATAFILE;
+  private boolean mustCheckBlockSizeAfterEachWrite = true;
 
   public ParquetRecordWriter(
       OperatorContext context, ParquetWriter writer, ParquetFormatConfig config)
@@ -293,12 +303,11 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     memoryThreshold =
         (int) context.getOptions().getOption(ExecConstants.PARQUET_MEMORY_THRESHOLD_VALIDATOR);
     blockSize = context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR);
-    Long combinedSmallFileTargetFileSize =
-        writer.getOptions().getCombineSmallFileOptions() == null
-            ? null
-            : writer.getOptions().getCombineSmallFileOptions().getTargetFileSize();
-    if (combinedSmallFileTargetFileSize != null
-        && combinedSmallFileTargetFileSize.longValue() != 0L) {
+    CombineSmallFileOptions combineSmallFileOptions =
+        writer.getOptions().getCombineSmallFileOptions();
+    if (combineSmallFileOptions != null && combineSmallFileOptions.getIsSmallFileWriter()) {
+      Long combinedSmallFileTargetFileSize =
+          writer.getOptions().getCombineSmallFileOptions().getTargetFileSize();
       blockSize = combinedSmallFileTargetFileSize;
     }
     Long targetFileSize = writer.getOptions().getTableFormatOptions().getTargetFileSize();
@@ -374,13 +383,13 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   @Override
   public void setup() throws IOException {
     this.fs = plugin.createFS(location, queryUser, context);
-    this.batchSchema = incoming.getSchema();
+
+    this.batchSchema = batchSchema == null ? incoming.getSchema() : batchSchema;
 
     if (this.isIcebergWriter) {
       this.icebergBatchSchema = new BatchSchema(convertSchemaMilliToMicro(batchSchema.getFields()));
-
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
       if (this.icebergColumnIDMap == null) {
-        SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
         this.icebergSchema =
             partitionSpec != null
                 ? partitionSpec.schema()
@@ -388,8 +397,11 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         this.icebergColumnIDMap =
             newImmutableMap(IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema));
       } else {
-        SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
         SeededFieldIdBroker fieldIdBroker = new SeededFieldIdBroker(icebergColumnIDMap);
+        if (staticIcebergColumnIDMap != null) {
+          this.icebergSchema = schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
+          return;
+        }
         this.icebergSchema =
             partitionSpec != null
                 ? partitionSpec.schema()
@@ -397,6 +409,49 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       }
     }
     newSchema();
+  }
+
+  /** Set IcebergColumnIDMap during instance initialization */
+  public ParquetRecordWriter withStaticIcebergColumnIDMap(
+      CaseInsensitiveImmutableBiMap<Integer> staticIcebergColumnIDMap) {
+    this.staticIcebergColumnIDMap = staticIcebergColumnIDMap;
+    this.icebergColumnIDMap = staticIcebergColumnIDMap;
+    return this;
+  }
+
+  /** Set batchSchema during instance initialization */
+  public ParquetRecordWriter withBatchSchema(BatchSchema batchSchema) {
+    this.batchSchema = batchSchema;
+    return this;
+  }
+
+  /**
+   * Set parquet-file block size during instance initialization.
+   *
+   * <p>Some configurations handle block sizing prior to writing.
+   */
+  public ParquetRecordWriter withBlockSize(
+      long blockSize, boolean mustCheckBlockSizeAfterEachRecordWrite) {
+    this.blockSize = blockSize;
+    this.mustCheckBlockSizeAfterEachWrite = mustCheckBlockSizeAfterEachRecordWrite;
+    return this;
+  }
+
+  /** Set operation-Type during instance initialization */
+  public ParquetRecordWriter withOperationType(OperationType operationType) {
+    this.operationType = operationType;
+    return this;
+  }
+
+  /** Set suffix for parquet-file. Not required. */
+  public ParquetRecordWriter withParquetFileNameSuffix(String suffix) {
+    this.suffix = suffix;
+    return this;
+  }
+
+  /** Add referencedDatafiles to the overall set. */
+  public void appendValueVectorCollection(Set<ByteArrayWrapper> referencedDataFiles) {
+    this.valueVectorCollection.addAll(referencedDataFiles);
   }
 
   /**
@@ -458,11 +513,11 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
    * Writes a batch of records to the output stream.
    *
    * <p>This method writes a batch of records to the output stream. It first checks if the incoming
-   * records contain a "copy into error" column. If such a column is present, it extracts the error
-   * records, processes them, and writes them to the error output. The method then filters out the
-   * "copy into error" column from the incoming records to create a new filtered container. Finally,
-   * it delegates the actual writing of the batch to an event-based record writer, either creating a
-   * new one if none exists or using the existing one.
+   * records contain a "copy history" column. If such a column is present, it extracts the event
+   * records, processes them, and writes them to the history event output. The method then filters
+   * out the "copy history" column from the incoming records to create a new filtered container.
+   * Finally, it delegates the actual writing of the batch to an event-based record writer, either
+   * creating a new one if none exists or using the existing one.
    *
    * @param offset The offset at which to start writing records.
    * @param length The number of records to write.
@@ -480,44 +535,54 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     // If a "copy history" column is present, process the records and write them to the system
     // history table's output path.
     if (hasCopyHistoryColumn) {
-      try (SelectionVector2 copyIntoErrorSV2 =
-          filteredContainer != null
-              ? filteredContainer.getSelectionVector2()
-              : new SelectionVector2(context.getAllocator())) {
-        try {
-          if (copyHistoryRecordVector == null) {
-            copyHistoryRecordVector =
-                (VarCharVector)
-                    VectorUtil.getVectorFromSchemaPath(
-                        incoming, ColumnUtils.COPY_HISTORY_COLUMN_NAME);
-          }
-          filteredContainer =
-              filterCopyHistoryColumn(copyHistoryRecordVector, copyIntoErrorSV2, offset, length);
-          processCopyHistoryRecords(copyHistoryRecordVector, offset, length);
+      return copyIntoErrorWriteBatch(offset, length);
+    }
 
-          // Create or update the event-based record writer to use the filtered container for
-          // writing.
-          if (this.eventBasedRecordWriter == null) {
-            this.eventBasedRecordWriter =
-                new SVFilteredEventBasedRecordWriter(filteredContainer, this);
-          } else {
-            ((SVFilteredEventBasedRecordWriter) eventBasedRecordWriter).setBatch(filteredContainer);
-          }
+    // If not "Copy History" write the batch using traditional route
+    // using the superclass method.
+    return super.writeBatch(offset, length);
+  }
 
-          // Write the batch using the event-based record writer.
-          return eventBasedRecordWriter.write(offset, length);
-        } finally {
-          if (offset + length == incoming.getRecordCount()) {
-            filteredContainer.close();
-            filteredContainer = null;
-            copyHistoryRecordVector.close();
-            copyHistoryRecordVector = null;
-          }
+  /**
+   * extracts the error records, processes them, and writes them to the error output. <br>
+   * The method then filters out the "copy into error" column from the incoming records to create a
+   * new filtered container.
+   */
+  private int copyIntoErrorWriteBatch(int offset, int length) throws IOException {
+    try (SelectionVector2 copyIntoErrorSV2 =
+        filteredContainer != null
+            ? filteredContainer.getSelectionVector2()
+            : new SelectionVector2(context.getAllocator())) {
+
+      try {
+        if (copyHistoryRecordVector == null) {
+          copyHistoryRecordVector =
+              (VarCharVector)
+                  getVectorFromSchemaPath(incoming, ColumnUtils.COPY_HISTORY_COLUMN_NAME);
+        }
+        filteredContainer =
+            filterCopyHistoryColumn(copyHistoryRecordVector, copyIntoErrorSV2, offset, length);
+        processCopyHistoryRecords(copyHistoryRecordVector, offset, length);
+
+        // Create or update the event-based record writer to use the filtered container for
+        // writing.
+        if (this.eventBasedRecordWriter == null) {
+          this.eventBasedRecordWriter =
+              new SVFilteredEventBasedRecordWriter(filteredContainer, this);
+        } else {
+          ((SVFilteredEventBasedRecordWriter) eventBasedRecordWriter).setBatch(filteredContainer);
+        }
+
+        // Write the batch using the event-based record writer.
+        return eventBasedRecordWriter.write(offset, length);
+      } finally {
+        if (offset + length == incoming.getRecordCount()) {
+          filteredContainer.close();
+          filteredContainer = null;
+          copyHistoryRecordVector.close();
+          copyHistoryRecordVector = null;
         }
       }
-    } else {
-      // If no "copy into error" column is present, write the batch using the superclass method.
-      return super.writeBatch(offset, length);
     }
   }
 
@@ -530,27 +595,65 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       SelectionVector2 copyIntoErrorSV2,
       int offset,
       int length) {
-    if (copyIntoErrorSV2.getCount() < length) {
-      copyIntoErrorSV2.allocateNew(length);
+    prepareSV2(copyIntoErrorRecordVector, copyIntoErrorSV2, offset, length, Objects::isNull, null);
+  }
+
+  /**
+   * Build the Selection Vector based on the provided condition. If the value satisfies the
+   * condition, that value is added. Otherwise, that row is filtered out, i.e. excluded from the sv2
+   * by skipping that index.
+   *
+   * @param vector the original vector
+   * @param selectionVector the selection vector used to acquire only the values satisfying the
+   *     condition
+   * @param offset the starting index of the vector
+   * @param length the number of indices to iterate on the vector
+   * @param condition the conditional used to permit a set of values
+   * @param valueCollector [optional] abstract collector which, if not null, stores the values for
+   *     later purpose. Values ore stored as bytes for compaction purposes.
+   */
+  public void prepareSV2(
+      VarCharVector vector,
+      SelectionVector2 selectionVector,
+      int offset,
+      int length,
+      Predicate<byte[]> condition,
+      Consumer<ByteArrayWrapper> valueCollector) {
+    if (selectionVector.getCount() < length) {
+      selectionVector.allocateNew(length);
     }
 
     int svIndex = 0;
     for (int i = offset; i < offset + length; i++) {
-      byte[] bytes = copyIntoErrorRecordVector.get(i);
-      if (bytes == null) {
-        copyIntoErrorSV2.setIndex(svIndex, (char) (i));
+      byte[] bytes = vector.get(i);
+      if (condition.test(bytes)) {
+        selectionVector.setIndex(svIndex, (char) (i));
         svIndex++;
+
+        // if collector is defined, add value
+        if (valueCollector != null) {
+          valueCollector.accept(new ByteArrayWrapper(bytes));
+        }
       }
     }
-    copyIntoErrorSV2.setRecordCount(svIndex);
+    selectionVector.setRecordCount(svIndex);
   }
 
   private void initIcebergColumnIDList(PartitionSpec partitionSpec) {
     if (partitionSpec != null) {
       this.icebergColumnIDMap =
           newImmutableMap(IcebergUtils.getIcebergColumnNameToIDMap(partitionSpec.schema()));
-      return;
     }
+  }
+
+  /**
+   * Seal the parquet file write output and prepare for new write-out path
+   *
+   * @throws IOException
+   */
+  public void flushAndPrepareForNextWritePath() throws IOException {
+    flushAndClose();
+    newSchema();
   }
 
   private void initIcebergColumnIDList(ByteString extendedProperty) {
@@ -566,6 +669,14 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException("Could not deserialize Parquet dataset info", e);
     }
+  }
+
+  protected void setPartition(WritePartition partition) {
+    this.partition = partition;
+  }
+
+  protected WritePartition getPartition() {
+    return partition;
   }
 
   private org.apache.hadoop.fs.FileSystem getHadoopFs(Path path) throws IOException {
@@ -589,7 +700,11 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
    * @throws IOException
    */
   private void initRecordWriter() throws IOException {
-    initRecordWriter(partition.getQualifiedPath(location, prefix + "_" + index + "." + extension));
+    initRecordWriter(partition.getQualifiedPath(location, buildBaseParquetFileName()));
+  }
+
+  private String buildBaseParquetFileName() {
+    return prefix + "_" + index + suffix + "." + extension;
   }
 
   public void initRecordWriter(Path dataFilePath) throws IOException {
@@ -612,6 +727,10 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
    */
   public long getFileSize() {
     return fileSize;
+  }
+
+  public Metrics getIcebergMetrics() {
+    return icebergMetrics;
   }
 
   @VisibleForTesting
@@ -686,10 +805,12 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
             .withPageRowCountLimit(Integer.MAX_VALUE) // Bug 16118
             .build();
     pageStore =
-        ColumnChunkPageWriteStoreExposer.newColumnChunkPageWriteStore(
-            toDeprecatedBytesCompressor(codecFactory.getCompressor(codec)),
+        new ColumnChunkPageWriteStore(
+            codecFactory.getCompressor(codec),
             schema,
-            parquetProperties);
+            parquetProperties.getAllocator(),
+            parquetProperties.getColumnIndexTruncateLength(),
+            parquetProperties.getPageWriteChecksumEnabled());
     store = parquetProperties.newColumnWriteStore(schema, pageStore);
     MessageColumnIO columnIO = new ColumnIOFactory(false).getColumnIO(this.schema);
     consumer = columnIO.getRecordWriter(store);
@@ -734,27 +855,6 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
     return new PrimitiveType(
         repetition, primitiveTypeName, length, name, originalType, decimalMetadata, null);
-  }
-
-  @SuppressWarnings("deprecation")
-  private static BytesCompressor toDeprecatedBytesCompressor(
-      final BytesInputCompressor compressor) {
-    return new BytesCompressor() {
-      @Override
-      public BytesInput compress(BytesInput bytes) throws IOException {
-        return compressor.compress(bytes);
-      }
-
-      @Override
-      public CompressionCodecName getCodecName() {
-        return compressor.getCodecName();
-      }
-
-      @Override
-      public void release() {
-        compressor.release();
-      }
-    };
   }
 
   @Nullable
@@ -1005,67 +1105,74 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       return;
     }
 
-    if (recordCount > 0) {
-      long writeFileStartTimeMillis = System.currentTimeMillis();
-      long memSize = store.getBufferedSize();
-      parquetFileWriter.startBlock(recordCount);
-      consumer.flush();
-      store.flush();
-      ColumnChunkPageWriteStoreExposer.flushPageStore(pageStore, parquetFileWriter);
-      parquetFileWriter.endBlock();
-      long recordsWritten = recordCount;
+    try {
+      if (recordCount > 0) {
+        long writeFileStartTimeMillis = System.currentTimeMillis();
+        long memSize = store.getBufferedSize();
+        parquetFileWriter.startBlock(recordCount);
+        consumer.flush();
+        store.flush();
+        pageStore.flushToFileWriter(parquetFileWriter);
+        parquetFileWriter.endBlock();
+        long recordsWritten = recordCount;
 
-      long footerWriteAndFlushStartTimeMillis = System.currentTimeMillis();
-      // we are writing one single block per file
-      parquetFileWriter.end(extraMetaData);
+        long footerWriteAndFlushStartTimeMillis = System.currentTimeMillis();
+        // we are writing one single block per file
+        parquetFileWriter.end(extraMetaData);
 
-      long writeFileEndTimeMillis = System.currentTimeMillis();
+        long writeFileEndTimeMillis = System.currentTimeMillis();
 
-      logSlowIoWrite(
-          writeFileStartTimeMillis,
-          footerWriteAndFlushStartTimeMillis,
-          writeFileEndTimeMillis,
-          parquetFileWriter.getPos(),
-          recordsWritten,
-          path);
-
-      fileSize = parquetFileWriter.getPos();
-      if (listener != null) {
-        byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
-        listener.recordsWritten(
+        logSlowIoWrite(
+            writeFileStartTimeMillis,
+            footerWriteAndFlushStartTimeMillis,
+            writeFileEndTimeMillis,
+            parquetFileWriter.getPos(),
             recordsWritten,
-            fileSize,
-            path.toString(),
-            metadata
-            /** TODO: add parquet footer * */
-            ,
-            partition.getBucketNumber(),
-            getIcebergMetaData(),
-            null,
-            null,
-            OperationType.ADD_DATAFILE.value,
-            partition.getPartitionValues(),
-            0L);
+            path);
+
+        fileSize = parquetFileWriter.getPos();
+        if (isIcebergWriter) {
+          icebergMetrics =
+              ParquetToIcebergStatsConvertor.toMetrics(
+                  context, parquetFileWriter.getFooter(), icebergSchema);
+        }
+        if (listener != null) {
+          byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
+
+          /** TODO: add parquet footer */
+          listener.recordsWritten(
+              recordsWritten,
+              fileSize,
+              path.toString(),
+              metadata,
+              partition.getBucketNumber(),
+              getIcebergMetaData(),
+              null,
+              null,
+              operationType.value,
+              partition.getPartitionValues(),
+              0L,
+              IcebergSerDe.serializeToByteArray(valueVectorCollection));
+
+          valueVectorCollection.clear();
+        }
+
+        if (executionControls != null) {
+          injector.injectChecked(
+              executionControls,
+              INJECTOR_AFTER_RECORDS_WRITTEN_ERROR,
+              UnsupportedOperationException.class);
+        }
+        updateStats(memSize, recordCount);
+
+        recordCount = 0;
       }
+    } finally {
+      AutoCloseables.close(IOException.class, store, pageStore, parquetFileWriter);
+      store = null;
+      pageStore = null;
       parquetFileWriter = null;
-
-      if (executionControls != null) {
-        injector.injectChecked(
-            executionControls,
-            INJECTOR_AFTER_RECORDS_WRITTEN_ERROR,
-            UnsupportedOperationException.class);
-      }
-      updateStats(memSize, recordCount);
-
-      recordCount = 0;
     }
-
-    if (store != null) {
-      store.close();
-    }
-
-    store = null;
-    pageStore = null;
     index++;
   }
 
@@ -1113,7 +1220,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
           null,
           OperationType.COPY_HISTORY_EVENT.value,
           null,
-          recordsRejectedCount);
+          recordsRejectedCount,
+          null);
     }
   }
 
@@ -1200,25 +1308,55 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
             ? partitionSpec
             : IcebergUtils.getIcebergPartitionSpec(
                 this.batchSchema, this.partitionColumns, this.icebergSchema);
-    DataFiles.Builder dataFileBuilder =
-        DataFiles.builder(datafilePartitionSpec)
-            .withPath(datafileLocation)
-            .withFileSizeInBytes(fileSize)
-            .withRecordCount(recordCount)
-            .withFormat(FileFormat.PARQUET);
 
-    // add partition info
-    if (partitionColumns != null && partition.getIcebergPartitionData() != null) {
-      dataFileBuilder = dataFileBuilder.withPartition(partition.getIcebergPartitionData());
+    DataFiles.Builder dataFileBuilder;
+    FileMetadata.Builder deleteFileBuilder;
+    IcebergMetadataInformation icebergMetadata;
+
+    if (operationType == OperationType.ADD_DELETEFILE) {
+      deleteFileBuilder =
+          FileMetadata.deleteFileBuilder(datafilePartitionSpec)
+              .ofPositionDeletes()
+              .withPath(datafileLocation)
+              .withFileSizeInBytes(fileSize)
+              .withRecordCount(recordCount)
+              .withFormat(FileFormat.PARQUET);
+
+      // add partition info
+      if (partitionColumns != null && partition.getIcebergPartitionData() != null) {
+        deleteFileBuilder = deleteFileBuilder.withPartition(partition.getIcebergPartitionData());
+      }
+
+      // add column level metrics
+      Metrics metrics =
+          ParquetToIcebergStatsConvertor.toMetrics(
+              context, parquetFileWriter.getFooter(), icebergSchema);
+      deleteFileBuilder = deleteFileBuilder.withMetrics(metrics);
+      icebergMetadata =
+          new IcebergMetadataInformation(
+              IcebergSerDe.serializeDeleteFile(deleteFileBuilder.build()));
+    } else {
+      dataFileBuilder =
+          DataFiles.builder(datafilePartitionSpec)
+              .withPath(datafileLocation)
+              .withFileSizeInBytes(fileSize)
+              .withRecordCount(recordCount)
+              .withFormat(FileFormat.PARQUET);
+
+      // add partition info
+      if (partitionColumns != null && partition.getIcebergPartitionData() != null) {
+        dataFileBuilder = dataFileBuilder.withPartition(partition.getIcebergPartitionData());
+      }
+
+      // add column level metrics
+      Metrics metrics =
+          ParquetToIcebergStatsConvertor.toMetrics(
+              context, parquetFileWriter.getFooter(), icebergSchema);
+      dataFileBuilder = dataFileBuilder.withMetrics(metrics);
+      icebergMetadata =
+          new IcebergMetadataInformation(IcebergSerDe.serializeDataFile(dataFileBuilder.build()));
     }
 
-    // add column level metrics
-    Metrics metrics =
-        ParquetToIcebergStatsConvertor.toMetrics(
-            context, parquetFileWriter.getFooter(), icebergSchema);
-    dataFileBuilder = dataFileBuilder.withMetrics(metrics);
-    IcebergMetadataInformation icebergMetadata =
-        new IcebergMetadataInformation(IcebergSerDe.serializeDataFile(dataFileBuilder.build()));
     return IcebergSerDe.serializeToByteArray(icebergMetadata);
   }
 
@@ -1434,8 +1572,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       long memSize = store.getBufferedSize();
       if (context.getAllocator().getHeadroom() < memoryThreshold || memSize >= blockSize) {
         logger.debug("Reached block size " + blockSize);
-        flushAndClose();
-        newSchema();
+        flushAndPrepareForNextWritePath();
       } else {
         // Find the average record size for encoded records so far
         float recordSize = ((float) memSize) / recordCount;
@@ -1688,7 +1825,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
     recordCount++;
 
-    checkBlockSizeReached();
+    if (mustCheckBlockSizeAfterEachWrite) {
+      checkBlockSizeReached();
+    }
   }
 
   @Override
@@ -1738,11 +1877,13 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
                 .build());
       }
     } finally {
-      try {
-        NoExceptionAutoCloseables.close(store, pageStore, parquetFileWriter);
-      } finally {
-        AutoCloseables.close(codecFactory::release, codecAllocator, columnEncoderAllocator);
-      }
+      AutoCloseables.close(
+          store,
+          pageStore,
+          parquetFileWriter,
+          codecFactory::release,
+          codecAllocator,
+          columnEncoderAllocator);
     }
   }
 

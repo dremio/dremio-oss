@@ -1,0 +1,63 @@
+{
+  "name": "@dremio/dremio-js",
+  "version": "0.0.1",
+  "description": "JavaScript library for the Dremio API",
+  "keywords": [
+    "dremio"
+  ],
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dremio",
+    "url": "https://dremio.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dremio/dremio-oss.git",
+    "directory": "ui/dremio-js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    "./cloud": "./dist/src/cloud/index.js",
+    "./community": "./dist/src/community/index.js",
+    "./enterprise": "./dist/src/enterprise/index.js",
+    "./interfaces": "./dist/src/interfaces/index.js"
+  },
+  "scripts": {
+    "apiTypes": "openapi-typescript \"../../../openapi/community/v4/components/*.yaml\" --output ./apiTypes/v4/components/ && openapi-typescript \"../../../openapi/community/v2/endpoints/*.yaml\" --output ./apiTypes/v2/endpoints/ && openapi-typescript \"../../../openapi/community/v3/endpoints/*.yaml\" --output ./apiTypes/v3/endpoints/",
+    "check-licenses": "jsgl --local .",
+    "dist": "tsc",
+    "docs": "typedoc src/community/index.ts",
+    "lint": "eslint src",
+    "prepare": "node --run dist"
+  },
+  "dependencies": {
+    "@e3m-io/batch-fn-calls": "^1.0.5",
+    "deep-equal": "^2",
+    "moize": "^6",
+    "parse-ms": "^4",
+    "rxjs": "^7",
+    "ts-results-es": "^4"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.5.0",
+    "@types/deep-equal": "^1.0.4",
+    "eslint": "9.5.0",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-perfectionist": "2.11.0",
+    "eslint-plugin-regexp": "2.6.0",
+    "js-green-licenses": "4.0.0",
+    "openapi-typescript": "6.6.0",
+    "prettier": "3.3.2",
+    "typedoc": "0.26.2",
+    "typescript": "5.5.2",
+    "typescript-eslint": "7.14.1"
+  },
+  "peerDependencies": {
+    "apache-arrow": ">=15",
+    "temporal-polyfill": ">=0.2.4"
+  },
+  "packageManager": "pnpm@9.3.0"
+}

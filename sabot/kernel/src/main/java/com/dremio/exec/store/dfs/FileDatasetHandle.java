@@ -25,11 +25,11 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.catalog.DatasetTypeHandle;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.MetadataProtoUtils;
@@ -98,8 +98,8 @@ public interface FileDatasetHandle extends DatasetTypeHandle {
    * <p>Please use that method instead - this is intended to be used only when the FormatPlugin is
    * not known
    */
-  static int getMaxFilesLimit(SabotContext context) {
-    return Math.toIntExact(context.getOptionManager().getOption(FileDatasetHandle.DFS_MAX_FILES));
+  static int getMaxFilesLimit(OptionManager optionManager) {
+    return Math.toIntExact(optionManager.getOption(FileDatasetHandle.DFS_MAX_FILES));
   }
 
   default boolean metadataValid(

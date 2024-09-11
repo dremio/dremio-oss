@@ -31,8 +31,8 @@ public final class TableauSDKConstants {
   public static final String USERNAME = "username";
   public static final String SCHEMA = "schema";
   public static final String PRODUCT = "v-dremio-product";
-  public static final String SOFTWARE = "v-software-flight";
-  public static final String LEGACY_SOFTWARE = "v-software";
+  public static final String USE_FLIGHT_DRIVER = "v-use-flight-driver";
+  public static final String SOFTWARE = "v-software";
   public static final String UI_PORT = "9047";
 
   // Authentication Modes

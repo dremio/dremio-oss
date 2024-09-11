@@ -21,19 +21,27 @@ import static org.mockito.Mockito.when;
 
 import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.service.users.UserNotFoundException;
+import com.dremio.telemetry.api.metrics.SimpleCounter;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.AccessControlException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.UriInfo;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class TestGenericExceptionMapper {
   private static GenericExceptionMapper gem;
+
+  private static SimpleMeterRegistry simpleRegistry;
 
   @BeforeClass
   public static void setUp() throws URISyntaxException {
@@ -42,6 +50,24 @@ public class TestGenericExceptionMapper {
     final Request request = mock(Request.class);
     when(request.getMethod()).thenReturn("PUT");
     gem = new GenericExceptionMapper(uriInfo, request);
+
+    simpleRegistry = new SimpleMeterRegistry();
+    Metrics.addRegistry(simpleRegistry);
+  }
+
+  @AfterClass
+  public static void tearDown() {
+    Metrics.removeRegistry(simpleRegistry);
+  }
+
+  @After
+  public void reset() {
+    Metrics.globalRegistry.forEachMeter(
+        meter -> {
+          if (meter.getId().getName().equals("resetapi.generic_errors")) {
+            Metrics.globalRegistry.remove(meter);
+          }
+        });
   }
 
   @Test
@@ -55,6 +81,8 @@ public class TestGenericExceptionMapper {
         GenericErrorMessage.GENERIC_ERROR_MSG,
         ((GenericErrorMessage) gem.toResponse(new RuntimeException("")).getEntity())
             .getErrorMessage());
+
+    Assert.assertEquals(2, SimpleCounter.of("resetapi.generic_errors").count());
   }
 
   @Test
@@ -89,5 +117,7 @@ public class TestGenericExceptionMapper {
                 gem.toResponse(new StatusRuntimeException(Status.NOT_FOUND.withDescription("foo")))
                     .getEntity())
             .getErrorMessage());
+
+    Assert.assertEquals(4, SimpleCounter.of("resetapi.generic_errors").count());
   }
 }

@@ -38,10 +38,12 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ExpireSnapshots;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableMetadataParser;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.util.Pair;
 import org.apache.iceberg.util.PropertyUtil;
@@ -54,7 +56,8 @@ public class IcebergExpiryAction {
   private static final String METADATA_FOLDER_NAME = "metadata";
 
   protected final VacuumOptions vacuumOptions;
-  protected final TableMetadata tableMetadata;
+  protected TableMetadata tableMetadata;
+  protected final FileIO fileIO;
   protected final SupportsIcebergMutablePlugin icebergMutablePlugin;
   private final OpProps props;
   private final OperatorContext context;
@@ -67,18 +70,23 @@ public class IcebergExpiryAction {
   private List<SnapshotEntry> expiredSnapshots;
   protected List<SnapshotEntry> liveSnapshots;
   private List<String> metadataPathsToRetain;
+  private final String schemeVariate;
+  private final Configuration conf;
+  private final String fsScheme;
 
   public IcebergExpiryAction(
       SupportsIcebergMutablePlugin icebergMutablePlugin,
       OpProps props,
       OperatorContext context,
       VacuumOptions vacuumOptions,
-      TableMetadata tableMetadata,
+      final TableMetadata tableMetadata,
       String tableName,
       String dbName,
       ResolvedVersionContext versionContext,
       FileIO fileIO,
-      boolean commitExpiry) {
+      boolean commitExpiry,
+      String schemeVariate,
+      String fsScheme) {
     this.icebergMutablePlugin = icebergMutablePlugin;
     this.props = props;
     this.context = context;
@@ -86,7 +94,11 @@ public class IcebergExpiryAction {
     this.dbName = dbName;
     this.versionContext = versionContext;
     this.tableMetadata = tableMetadata;
+    this.fileIO = fileIO;
     this.vacuumOptions = vacuumOptions;
+    this.schemeVariate = schemeVariate;
+    this.conf = icebergMutablePlugin.getFsConfCopy();
+    this.fsScheme = fsScheme;
 
     Stopwatch stopwatchIceberg = Stopwatch.createStarted();
     try {
@@ -99,16 +111,16 @@ public class IcebergExpiryAction {
         if (vacuumOptions.isRemoveOrphans()) {
           this.liveSnapshots =
               allSnapshots.stream()
-                  .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
+                  .map(s -> buildSnapshotEntry(tableMetadata.metadataFileLocation(), s))
                   .collect(Collectors.toList());
           Set<Long> liveSnapshotIds =
               liveSnapshots.stream().map(SnapshotEntry::getSnapshotId).collect(Collectors.toSet());
           this.expiredSnapshots =
               allSnapshots.stream()
                   .filter(s -> !liveSnapshotIds.contains(s.snapshotId()))
-                  .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
+                  .map(s -> buildSnapshotEntry(tableMetadata.metadataFileLocation(), s))
                   .collect(Collectors.toList());
-          this.metadataPathsToRetain = computeMetadataPathsToRetain(tableMetadata, liveSnapshotIds);
+          this.metadataPathsToRetain = computeMetadataPathsToRetain(liveSnapshotIds);
         } else {
           // Collect expiry snapshots from TableMetadata.
           final long olderThanInMillis =
@@ -126,7 +138,7 @@ public class IcebergExpiryAction {
           this.liveSnapshots =
               allSnapshots.stream()
                   .filter(s -> idsToRetain.contains(s.snapshotId()))
-                  .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
+                  .map(s -> buildSnapshotEntry(tableMetadata.metadataFileLocation(), s))
                   .collect(Collectors.toList());
           this.metadataPathsToRetain = Collections.emptyList();
         }
@@ -140,12 +152,19 @@ public class IcebergExpiryAction {
               "Skipping {} because snapshot count <= {}", tableId, vacuumOptions.getRetainLast());
           this.liveSnapshots =
               allSnapshots.stream()
-                  .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
+                  .map(s -> buildSnapshotEntry(tableMetadata.metadataFileLocation(), s))
                   .collect(Collectors.toList());
         } else {
           this.liveSnapshots =
               icebergModel.expireSnapshots(
                   tableId, vacuumOptions.getOlderThanInMillis(), vacuumOptions.getRetainLast());
+          List<String> newMetadataLocation =
+              liveSnapshots.stream()
+                  .map(SnapshotEntry::getMetadataJsonPath)
+                  .distinct()
+                  .collect(Collectors.toList());
+          Preconditions.checkState(newMetadataLocation.size() == 1);
+          this.tableMetadata = TableMetadataParser.read(fileIO, newMetadataLocation.get(0));
         }
 
         Set<Long> liveSnapshotIds =
@@ -153,17 +172,16 @@ public class IcebergExpiryAction {
         this.expiredSnapshots =
             allSnapshots.stream()
                 .filter(s -> !liveSnapshotIds.contains(s.snapshotId()))
-                .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
+                .map(s -> buildSnapshotEntry(tableMetadata.metadataFileLocation(), s))
                 .collect(Collectors.toList());
-        this.metadataPathsToRetain = computeMetadataPathsToRetain(tableMetadata, liveSnapshotIds);
+        this.metadataPathsToRetain = computeMetadataPathsToRetain(liveSnapshotIds);
       }
     } finally {
       this.timeElapsedForExpiry = stopwatchIceberg.elapsed(TimeUnit.MILLISECONDS);
     }
   }
 
-  protected List<String> computeMetadataPathsToRetain(
-      TableMetadata tableMetadata, Set<Long> liveSnapshotIds) {
+  protected List<String> computeMetadataPathsToRetain(Set<Long> liveSnapshotIds) {
     // Metadata files are only needed to be appended for Remove Orphan Files.
     if (!vacuumOptions.isRemoveOrphans()) {
       return Collections.emptyList();
@@ -180,10 +198,12 @@ public class IcebergExpiryAction {
             + METADATA_FOLDER_NAME
             + Path.SEPARATOR
             + VERSION_HINT_FILENAME;
-    return Stream.concat(
-            Stream.of(tableMetadata.metadataFileLocation(), versionHintFilePath),
-            tableMetadata.previousFiles().stream().map(TableMetadata.MetadataLogEntry::file))
-        .collect(Collectors.toList());
+    List<String> metadataFiles =
+        Stream.concat(
+                Stream.of(tableMetadata.metadataFileLocation(), versionHintFilePath),
+                tableMetadata.previousFiles().stream().map(TableMetadata.MetadataLogEntry::file))
+            .collect(Collectors.toList());
+    return metadataFiles.stream().map(p -> getIcebergPath(p)).collect(Collectors.toList());
   }
 
   public List<SnapshotEntry> getRetainedSnapshots() {
@@ -196,7 +216,7 @@ public class IcebergExpiryAction {
 
   public List<SnapshotEntry> getAllSnapshotEntries() {
     return allSnapshots.stream()
-        .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
+        .map(s -> buildSnapshotEntry(tableMetadata.metadataFileLocation(), s))
         .collect(Collectors.toList());
   }
 
@@ -254,6 +274,21 @@ public class IcebergExpiryAction {
 
   private IcebergTableIdentifier getTableIdentifier(IcebergModel icebergModel) {
     String location = Path.getContainerSpecificRelativePath(Path.of(tableMetadata.location()));
+    if (icebergMutablePlugin instanceof IcebergPathSanitizer) {
+      location = ((IcebergPathSanitizer) icebergMutablePlugin).sanitizePath(location);
+    }
     return icebergModel.getTableIdentifier(location);
+  }
+
+  protected String getIcebergPath(String path) {
+    return IcebergUtils.getIcebergPathAndValidateScheme(path, conf, fsScheme, schemeVariate);
+  }
+
+  private SnapshotEntry buildSnapshotEntry(String metadataFileLocation, Snapshot s) {
+    return new SnapshotEntry(
+        getIcebergPath(metadataFileLocation),
+        s.snapshotId(),
+        getIcebergPath(s.manifestListLocation()),
+        s.timestampMillis());
   }
 }

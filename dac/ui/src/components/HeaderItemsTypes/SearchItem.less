@@ -47,17 +47,17 @@
     width: 336px;
     height: 32px;
     border-radius: var(--dremio--radius--1);
-    background-color: white;
-    border-color: var(--color--neutral--100);
+    background-color: var(--fill--primary);
+    border-color: var(--border--neutral--solid);
     border-width: 1px;
     border-style: solid;
 
     &:hover {
-      border-color: var(--color--neutral--200);
+      border-color: var(--border--hover);
     }
 
     &.--focused {
-      border-color: var(--color--brand--300);
+      border-color: var(--border--focused);
     }
   }
 
@@ -70,6 +70,6 @@
 .searchIcon {
   height: 24px;
   width: 24px;
-  color: var(--color--neutral--600);
+  color: var(--icon--primary);
   margin-inline: var(--dremio--spacing--05);
 }

@@ -18,11 +18,9 @@ package com.dremio.exec.physical.impl.orderedpartitioner;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.config.DremioConfig;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.record.RecordBatchLoader;
-import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -61,10 +59,7 @@ public class TestOrderedPartitionExchange extends PopUnitTestBase {
             new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true);
         SabotNode bit2 =
             new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, false);
-        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator);
-        BootStrapContext bootStrapContext =
-            new BootStrapContext(
-                DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT)) {
+        DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
 
       bit1.run();
       bit2.run();
@@ -79,7 +74,7 @@ public class TestOrderedPartitionExchange extends PopUnitTestBase {
         if (b.getData() != null) {
           int rows = b.getHeader().getRowCount();
           count += rows;
-          RecordBatchLoader loader = new RecordBatchLoader(bootStrapContext.getAllocator());
+          RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
           loader.load(b.getHeader().getDef(), b.getData());
           BigIntVector vv1 =
               loader

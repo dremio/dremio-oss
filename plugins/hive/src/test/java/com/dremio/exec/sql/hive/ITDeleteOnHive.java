@@ -17,6 +17,7 @@ package com.dremio.exec.sql.hive;
 
 import static com.dremio.exec.store.hive.HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME;
 
+import com.dremio.exec.planner.sql.DmlQueryTestUtils.DmlRowwiseOperationWriteMode;
 import org.junit.Test;
 
 import com.dremio.exec.planner.sql.DeleteTests;
@@ -31,8 +32,10 @@ public class ITDeleteOnHive extends DmlQueryOnHiveTestBase {
   // Defining SOURCE such that you can easily copy and paste the same test across other test variations
   private static final String SOURCE = HIVE_TEST_PLUGIN_NAME;
 
+  DmlRowwiseOperationWriteMode dmlWriteMode = DmlRowwiseOperationWriteMode.COPY_ON_WRITE;
+
   @Test
   public void testDeleteAll() throws Exception {
-    DeleteTests.testDeleteAll(allocator, SOURCE);
+    DeleteTests.testDeleteAll(allocator, SOURCE, dmlWriteMode);
   }
 }

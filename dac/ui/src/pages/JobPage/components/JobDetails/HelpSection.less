@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .helpSection {
     border-radius: 4px;
-    background: @secondary-blue;
+    background: var(--fill--primary--selected);
     width: 100%;
     min-height: 197px;
     margin-right: 10px;
@@ -65,7 +64,7 @@
       padding: 0px 8px;
       font-size: 13px;
       line-height: 16px;
-      color: @font-color1;
+      color: var(--text--primary);
     }
     &__quoteMessage {
       flex-basis: 60%;
@@ -74,7 +73,7 @@
       font-weight: normal;
       font-style: normal;
       min-height: 100px;
-      color: @greyish-blue;
+      color: var(--text--primary);
     }
   }
 }

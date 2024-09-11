@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/variables.less";
 @import "~@app/uiTheme/less/mixins.less";
 :global {
@@ -28,12 +27,12 @@
     padding: 2px 4px 2px 6.5px;
     border-radius: 4px;
 
-    background-color: var(--color--neutral--50);
+    background-color: var(--fill--chip);
 
     transition: background-color 100ms linear;
     &.isOpen,
     &:hover {
-      background-color: darken(#eeeff1, 5%);
+      background-color: var(--hover--chip);
     }
 
     &-iconDiv {

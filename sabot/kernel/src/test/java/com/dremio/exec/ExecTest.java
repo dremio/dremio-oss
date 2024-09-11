@@ -15,47 +15,24 @@
  */
 package com.dremio.exec;
 
-import static org.mockito.Mockito.when;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.JULBridge;
-import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.cost.DremioRelMetadataQuery;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValidatorListingImpl;
-import com.dremio.exec.server.options.QueryOptionManager;
-import com.dremio.exec.server.options.SessionOptionManager;
-import com.dremio.exec.server.options.SessionOptionManagerImpl;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
-import com.dremio.exec.store.sys.statistics.StatisticsService;
-import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidatorListing;
-import com.dremio.options.impl.DefaultOptionManager;
-import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.dremio.test.DremioTest;
-import com.google.common.collect.ImmutableList;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.calcite.sql.SqlOperatorTable;
 import org.junit.After;
 import org.junit.Before;
 import org.mockito.Mockito;
@@ -80,10 +57,6 @@ public class ExecTest extends DremioTest {
     return FUNCTION_REGISTRY;
   }
 
-  protected static boolean isComplexTypeSupport() {
-    return PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal();
-  }
-
   protected static FunctionImplementationRegistry DECIMAL_FUNCTIONS() {
     if (FUNCTION_REGISTRY_DECIMAL == null) {
       FUNCTION_REGISTRY_DECIMAL =
@@ -105,78 +78,15 @@ public class ExecTest extends DremioTest {
   }
 
   @After
-  public void clear() {
-    // TODO:  (Re DRILL-1735) Check whether still needed now that
-    // BootstrapContext.close() resets the metrics.
-    Metrics.resetMetrics();
-    AutoCloseables.closeNoChecked(allocator);
-    AutoCloseables.closeNoChecked(rootAllocator);
+  public void clear() throws Exception {
+    AutoCloseables.close(allocator, rootAllocator);
   }
 
-  protected BufferAllocator getAllocator() {
+  /**
+   * @return pre-created BufferAllocator for the currently running test method
+   */
+  protected BufferAllocator getTestAllocator() {
     return allocator;
-  }
-
-  protected QueryContext mockQueryContext(SabotContext dbContext) throws Exception {
-    final SessionOptionManager sessionOptionManager =
-        new SessionOptionManagerImpl(dbContext.getOptionValidatorListing());
-
-    final UserSession userSession =
-        UserSession.Builder.newBuilder()
-            .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
-            .build();
-
-    final OptionValidatorListing optionValidatorListing =
-        new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
-    final OptionManager queryOptions =
-        OptionManagerWrapper.Builder.newBuilder()
-            .withOptionManager(new DefaultOptionManager(optionValidatorListing))
-            .withOptionManager(userSession.getOptions())
-            .withOptionManager(
-                new QueryOptionManager(userSession.getOptions().getOptionValidatorListing()))
-            .build();
-    final ExecutionControls executionControls =
-        new ExecutionControls(queryOptions, NodeEndpoint.getDefaultInstance());
-    FunctionImplementationRegistry functions =
-        queryOptions.getOption(PlannerSettings.ENABLE_DECIMAL_V2)
-            ? DECIMAL_FUNCTIONS()
-            : FUNCTIONS();
-    final SqlOperatorTable table = DremioCompositeSqlOperatorTable.create(functions);
-    final LogicalPlanPersistence lp = dbContext.getLpPersistence();
-    final CatalogService registry = dbContext.getCatalogService();
-
-    final QueryContext context = Mockito.mock(QueryContext.class);
-    when(context.getSession()).thenReturn(userSession);
-    when(context.getLpPersistence()).thenReturn(lp);
-    when(context.getCatalogService()).thenReturn(registry);
-    when(context.getFunctionRegistry()).thenReturn(functions);
-    when(context.getSession())
-        .thenReturn(
-            UserSession.Builder.newBuilder()
-                .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
-                .setSupportComplexTypes(true)
-                .build());
-    when(context.getCurrentEndpoint()).thenReturn(NodeEndpoint.getDefaultInstance());
-    when(context.getActiveEndpoints())
-        .thenReturn(ImmutableList.of(NodeEndpoint.getDefaultInstance()));
-    when(context.getPlannerSettings())
-        .thenReturn(
-            new PlannerSettings(
-                dbContext.getConfig(),
-                queryOptions,
-                () -> dbContext.getClusterResourceInformation()));
-    when(context.getOptions()).thenReturn(queryOptions);
-    when(context.getConfig()).thenReturn(DEFAULT_SABOT_CONFIG);
-    when(context.getOperatorTable()).thenReturn(table);
-    when(context.getAllocator()).thenReturn(allocator);
-    when(context.getExecutionControls()).thenReturn(executionControls);
-    when(context.getMaterializationProvider())
-        .thenReturn(Mockito.mock(MaterializationDescriptorProvider.class));
-    when(context.getStatisticsService()).thenReturn(Mockito.mock(StatisticsService.class));
-    when(context.getStatisticsAdministrationFactory())
-        .thenReturn(Mockito.mock(StatisticsAdministrationService.Factory.class));
-    when(context.getRelMetadataQuerySupplier()).thenReturn(DremioRelMetadataQuery.QUERY_SUPPLIER);
-    return context;
   }
 
   public static UserClientConnection mockUserClientConnection(QueryContext context) {

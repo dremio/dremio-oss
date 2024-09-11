@@ -91,8 +91,6 @@ public class ZKClusterServiceSetManager
       } catch (Exception e) {
         logger.error("Unable to close zkService for service {}", serviceName, e);
       }
-    } else {
-      logger.info("Nothing to do (delete) for zkServiceSet for service {}", serviceName);
     }
   }
 

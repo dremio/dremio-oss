@@ -40,9 +40,11 @@ import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.DremioSqlRowTypeSpec;
+import com.dremio.exec.planner.sql.parser.DremioSqlValidator;
 import com.dremio.exec.planner.sql.parser.SqlArrayTypeSpec;
 import com.dremio.exec.planner.sql.parser.SqlColumnPolicyPair;
 import com.dremio.exec.planner.sql.parser.SqlComplexDataTypeSpec;
+import com.dremio.exec.planner.sql.parser.SqlMapTypeSpec;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
 import com.dremio.exec.record.BatchSchema;
@@ -50,7 +52,6 @@ import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionManager;
-import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
@@ -80,6 +81,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.SqlDynamicParam;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
@@ -91,6 +93,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.TimestampString;
 import org.apache.commons.lang3.StringUtils;
@@ -168,7 +171,8 @@ public class SqlHandlerUtil {
     //    final RelDataType queryRowType = validatedRowtype;
 
     if (tableFieldNames.size() > 0) {
-      // Field count should match.
+      // Field count should match unless there is an order by clause using a row
+      // that is not in the select list.
       if (tableFieldNames.size() != validatedRowtype.getFieldCount()) {
         final String tblType = isNewTableView ? "view" : "table";
         throw UserException.validationError()
@@ -177,7 +181,6 @@ public class SqlHandlerUtil {
                 tblType, tblType)
             .build(logger);
       }
-
       // CTAS's query field list shouldn't have "*" when table's field list is specified.
       for (String field : validatedRowtype.getFieldNames()) {
         if ("*".equals(field)) {
@@ -428,6 +431,9 @@ public class SqlHandlerUtil {
     } else if (type instanceof SqlArrayTypeSpec) {
       checkNestedFieldsForDuplicateNameDeclarations(
           sql, ((SqlArrayTypeSpec) type).getSpec().getTypeName());
+    } else if (type instanceof SqlMapTypeSpec) {
+      checkNestedFieldsForDuplicateNameDeclarations(
+          sql, ((SqlMapTypeSpec) type).getSpecValue().getTypeName());
     }
   }
 
@@ -465,13 +471,12 @@ public class SqlHandlerUtil {
    * @param column
    * @return
    */
-  public static Field fieldFromSqlColDeclaration(
-      SqlHandlerConfig config, DremioSqlColumnDeclaration column, String sql) {
+  public static Field fieldFromSqlColDeclaration(DremioSqlColumnDeclaration column, String sql) {
     checkInvalidType(column, sql);
 
     return CalciteArrowHelper.fieldFromCalciteRowType(
             column.getName().getSimple(),
-            column.getDataType().deriveType(JavaTypeFactoryImpl.INSTANCE))
+            column.getDataType().deriveType(new DremioSqlValidator(JavaTypeFactoryImpl.INSTANCE)))
         .orElseThrow(
             () ->
                 SqlExceptionHelper.parseError(
@@ -495,7 +500,8 @@ public class SqlHandlerUtil {
     checkInvalidType(column, sql);
 
     return CalciteArrowHelper.fieldFromCalciteRowType(
-            column.getName().getSimple(), column.getDataType().deriveType(relDataTypeFactory))
+            column.getName().getSimple(),
+            column.getDataType().deriveType(new DremioSqlValidator(relDataTypeFactory)))
         .orElseThrow(
             () ->
                 SqlExceptionHelper.parseError(
@@ -516,6 +522,20 @@ public class SqlHandlerUtil {
               sql,
               column.getParserPosition())
           .buildSilently();
+    }
+
+    if (column.getDataType() instanceof SqlComplexDataTypeSpec) {
+      SqlDataTypeSpec invalidTypeSpec =
+          ((SqlComplexDataTypeSpec) column.getDataType()).validateType();
+      if (invalidTypeSpec != null) {
+        throw SqlExceptionHelper.parseError(
+                String.format(
+                    "Invalid type [%s] specified for nested column [%s].",
+                    invalidTypeSpec, column.getName().getSimple()),
+                sql,
+                column.getParserPosition())
+            .buildSilently();
+      }
     }
 
     if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL
@@ -551,10 +571,10 @@ public class SqlHandlerUtil {
    * @return
    */
   public static BatchSchema batchSchemaFromSqlSchemaSpec(
-      SqlHandlerConfig config, List<DremioSqlColumnDeclaration> newColumsDeclaration, String sql) {
+      List<DremioSqlColumnDeclaration> newColumsDeclaration, String sql) {
     SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
     for (DremioSqlColumnDeclaration column : newColumsDeclaration) {
-      schemaBuilder.addField(fieldFromSqlColDeclaration(config, column, sql));
+      schemaBuilder.addField(fieldFromSqlColDeclaration(column, sql));
     }
     return schemaBuilder.build();
   }
@@ -625,15 +645,6 @@ public class SqlHandlerUtil {
                     + "user managed schema feature.")
             .buildSilently();
       }
-      if (DatasetHelper.isInternalIcebergTable(table.getDatasetConfig())) {
-        if (!IcebergUtils.isIcebergFeatureEnabled(config.getContext().getOptions(), null)) {
-          throw UserException.unsupportedError()
-              .message(
-                  "Please contact customer support for steps to enable "
-                      + "the iceberg tables feature.")
-              .buildSilently();
-        }
-      }
     } else {
       // For NativeIceberg tables in different catalogs supported
       validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, null, true);
@@ -702,5 +713,35 @@ public class SqlHandlerUtil {
     }
 
     return UNKNOWN_SOURCE_TYPE;
+  }
+
+  /**
+   * Checks if the given sql node contains any Dynamic parameters, i.e, select * from tableA where
+   * tableA.a = ?. => returns true.
+   *
+   * @param sqlNode
+   * @return true if there is a parameter in the given sql node.
+   */
+  public static boolean containsParameters(SqlNode sqlNode) {
+    ParametersSqlShuttle parametersSqlShuttle = new ParametersSqlShuttle();
+    sqlNode.accept(parametersSqlShuttle);
+    return parametersSqlShuttle.containsParameter();
+  }
+
+  /*
+  Sql shuttle to find parameters inside a Sql node.
+   */
+  private static class ParametersSqlShuttle extends SqlShuttle {
+    private boolean containsParameter;
+
+    @Override
+    public SqlNode visit(SqlDynamicParam param) {
+      containsParameter = true;
+      return super.visit(param);
+    }
+
+    public boolean containsParameter() {
+      return this.containsParameter;
+    }
   }
 }

@@ -15,11 +15,16 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.parquet.ParquetColumnIcebergResolver;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,6 +33,11 @@ import java.util.Map;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
+import org.apache.parquet.schema.Type;
+import org.apache.parquet.schema.Type.Repetition;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -50,7 +60,7 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("p2", 2);
 
     ParquetColumnIcebergResolver columnIcebergResolver =
-        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, parquetColumnIDs);
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, parquetColumnIDs);
     Assert.assertEquals("col1", columnIcebergResolver.getBatchSchemaColumnName("p1"));
     Assert.assertEquals("col2", columnIcebergResolver.getBatchSchemaColumnName("p2"));
 
@@ -92,7 +102,7 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("p2", 2);
 
     ParquetColumnIcebergResolver columnIcebergResolver =
-        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, parquetColumnIDs);
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, parquetColumnIDs);
     Assert.assertEquals("p1", columnIcebergResolver.getBatchSchemaColumnName("p1"));
     Assert.assertEquals("p2", columnIcebergResolver.getBatchSchemaColumnName("p2"));
 
@@ -132,7 +142,7 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("p2", 2);
 
     ParquetColumnIcebergResolver columnIcebergResolver =
-        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, parquetColumnIDs);
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, parquetColumnIDs);
     Assert.assertEquals(null, columnIcebergResolver.getBatchSchemaColumnName("p1"));
     Assert.assertEquals("p2", columnIcebergResolver.getBatchSchemaColumnName("p2"));
 
@@ -168,7 +178,7 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("p2", 2);
 
     ParquetColumnIcebergResolver columnIcebergResolver =
-        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, parquetColumnIDs);
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, parquetColumnIDs);
     Assert.assertEquals("p1", columnIcebergResolver.getBatchSchemaColumnName("p1"));
     Assert.assertEquals(null, columnIcebergResolver.getBatchSchemaColumnName("p2"));
 
@@ -197,7 +207,7 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("p3", 3);
 
     columnIcebergResolver =
-        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, parquetColumnIDs);
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, parquetColumnIDs);
     Assert.assertEquals("p1", columnIcebergResolver.getBatchSchemaColumnName("p1"));
     Assert.assertEquals("p3", columnIcebergResolver.getBatchSchemaColumnName("p3"));
 
@@ -234,7 +244,7 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("p2", 2);
 
     ParquetColumnIcebergResolver columnIcebergResolver =
-        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, parquetColumnIDs);
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, parquetColumnIDs);
     Assert.assertEquals("p1", columnIcebergResolver.getBatchSchemaColumnName("p1"));
     Assert.assertEquals(null, columnIcebergResolver.getBatchSchemaColumnName("p2"));
 
@@ -263,7 +273,7 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("p2", 3);
 
     columnIcebergResolver =
-        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, parquetColumnIDs);
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, parquetColumnIDs);
     Assert.assertEquals("p1", columnIcebergResolver.getBatchSchemaColumnName("p1"));
     Assert.assertEquals("p2", columnIcebergResolver.getBatchSchemaColumnName("p2"));
 
@@ -321,7 +331,7 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("col1", 1);
 
     ParquetColumnIcebergResolver columnIcebergResolver =
-        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, parquetColumnIDs);
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, parquetColumnIDs);
     Assert.assertEquals("col1", columnIcebergResolver.getBatchSchemaColumnName("col1"));
     Assert.assertEquals(
         "col4.f2.sub_f2",
@@ -447,11 +457,102 @@ public class TestIcebergColumnResolver {
     parquetColumnIDs.put("col1", 1);
     ParquetColumnIcebergResolver columnIcebergResolver =
         new ParquetColumnIcebergResolver(
+            null,
             paths,
             icebergColumnIDs,
+            null,
             parquetColumnIDs,
             shouldUseBatchSchemaForResolvingProjectedColumn,
             schema);
     return columnIcebergResolver;
+  }
+
+  private void testSchemaNameMappingDefault(
+      List<DefaultNameMapping> icebergDefaultNameMapping,
+      Map<String, Integer> parquetColumnIDs,
+      PrimitiveType parquetColumn1,
+      PrimitiveType parquetColumn2) {
+    List<SchemaPath> paths = new ArrayList<>();
+    paths.add(new SchemaPath("col1"));
+    paths.add(new SchemaPath("col2"));
+
+    List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs = new ArrayList<>();
+    IcebergProtobuf.IcebergSchemaField.Builder icebergSchemaFieldBuilder =
+        IcebergProtobuf.IcebergSchemaField.newBuilder();
+    icebergColumnIDs.add(icebergSchemaFieldBuilder.setSchemaPath("col1").setId(1).build());
+    icebergColumnIDs.add(icebergSchemaFieldBuilder.setSchemaPath("col2").setId(2).build());
+
+    // parquet columns "p1" and "p2" are not shown in parquetColumnIDs since they dont have Ids
+    ParquetColumnIcebergResolver columnIcebergResolver =
+        new ParquetColumnIcebergResolver(paths, icebergColumnIDs, null, ImmutableMap.of());
+    // can't find "p1" and "p2" since they are defined nowhere
+    assertThat(columnIcebergResolver.getBatchSchemaColumnName(parquetColumn1.getName())).isNull();
+    assertThat(columnIcebergResolver.getBatchSchemaColumnName(parquetColumn2.getName())).isNull();
+
+    MessageType parquetSchema = new MessageType("root", parquetColumn2, parquetColumn1);
+    columnIcebergResolver =
+        new ParquetColumnIcebergResolver(
+            parquetSchema,
+            paths,
+            icebergColumnIDs,
+            icebergDefaultNameMapping,
+            parquetColumnIDs,
+            false,
+            null);
+    // find "p1" and "p2" since they are defined in icebergDefaultNameMapping
+    Assert.assertEquals(
+        "col1", columnIcebergResolver.getBatchSchemaColumnName(parquetColumn1.getName()));
+    Assert.assertEquals(
+        "col2", columnIcebergResolver.getBatchSchemaColumnName(parquetColumn2.getName()));
+
+    // check projectedParquetColumns, the order of the column is the same as projected schema
+    // columns (not parquet columns in parquet file)
+    List<SchemaPath> expectedProjectedParquetColumns =
+        ImmutableList.of(
+            SchemaPath.getSimplePath(parquetColumn1.getName()),
+            SchemaPath.getSimplePath(parquetColumn2.getName()));
+    Assert.assertEquals(
+        expectedProjectedParquetColumns, columnIcebergResolver.getProjectedParquetColumns());
+  }
+
+  @Test
+  public void testSchemaNameMappingDefault() {
+    // add parquet columns "p1" and "p2" to icebergDefaultNameMapping
+    List<DefaultNameMapping> icebergDefaultNameMapping =
+        ImmutableList.of(
+            DefaultNameMapping.newBuilder().setName("p1").setId(1).build(),
+            DefaultNameMapping.newBuilder().setName("p2").setId(2).build());
+
+    // Create parquet columns without Ids
+    PrimitiveType p1 = new PrimitiveType(Repetition.OPTIONAL, PrimitiveTypeName.INT32, "p1");
+    PrimitiveType p2 = new PrimitiveType(Repetition.OPTIONAL, PrimitiveTypeName.INT32, "p2");
+
+    testSchemaNameMappingDefault(icebergDefaultNameMapping, ImmutableMap.of(), p1, p2);
+  }
+
+  @Test
+  /***
+   *     this is reproing on Iceberg tables converted by Unity (DX-93899) where:
+   *     - icebergDefaultNameMapping is a copy of icebergColumnIDs, and
+   *     - parquet columns contain Ids, and
+   *     - parquet columns are mapped to Iceberg columns by Ids
+   */
+  public void testSchemaNameMappingDefaultWithParquetColumnIds() {
+    // add icebergColumnIDs name/id to icebergDefaultNameMapping
+    List<DefaultNameMapping> icebergDefaultNameMapping =
+        ImmutableList.of(
+            DefaultNameMapping.newBuilder().setName("col1").setId(1).build(),
+            DefaultNameMapping.newBuilder().setName("col2").setId(2).build());
+
+    // Create parquet columns with Ids
+    PrimitiveType p1 =
+        new PrimitiveType(
+            Repetition.OPTIONAL, PrimitiveTypeName.INT32, 0, "p1", null, null, new Type.ID(1));
+    PrimitiveType p2 =
+        new PrimitiveType(
+            Repetition.OPTIONAL, PrimitiveTypeName.INT32, 0, "p2", null, null, new Type.ID(2));
+
+    testSchemaNameMappingDefault(
+        icebergDefaultNameMapping, ImmutableMap.of("p1", 1, "p2", 2), p1, p2);
   }
 }

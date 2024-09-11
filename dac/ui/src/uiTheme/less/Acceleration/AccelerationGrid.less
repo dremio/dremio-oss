@@ -15,15 +15,14 @@
  */
 
 @import "~@app/uiTheme/less/variables.less";
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .grid-acceleration {
     padding: 10px;
-    border-left: 1px solid @BORDER_TABLE;
-    border-right: 1px solid @BORDER_TABLE;
-    border-bottom: 1px solid @BORDER_TABLE;
+    border-left: 1px solid var(--border--neutral);
+    border-right: 1px solid var(--border--neutral);
+    border-bottom: 1px solid var(--border--neutral);
 
     .subCell {
       text-align: center;
@@ -41,7 +40,7 @@
     .fixedDataTableRowLayout_main.public_fixedDataTableRow_main.fixedDataTableLayout_header.public_fixedDataTable_header
       .fixedDataTableCellGroupLayout_cellGroupWrapper:nth-child(2)
       .fixedDataTableCellGroupLayout_cellGroup {
-      border-bottom: 1px solid @BORDER_TABLE;
+      border-bottom: 1px solid var(--border--neutral);
     }
 
     .fixedDataTableLayout_rowsContainer,
@@ -49,6 +48,7 @@
     .public_fixedDataTable_header,
     .public_fixedDataTableCell_main,
     .fixedDataTableCellGroupLayout_cellGroupWrapper {
+      border-color: var(--border--neutral);
       background: transparent; // hide the content sliding underneath
     }
 
@@ -60,12 +60,11 @@
       z-index: 0 !important;
 
       input::placeholder {
-        color: #bbc0c6 !important;
+        color: var(--text--disabled) !important;
       }
     }
 
     .fixedDataTableCellLayout_main {
-      // background-color: @WHITE;
       border-width: 0;
       border-right-style: none;
     }
@@ -98,8 +97,8 @@
       align-items: center;
       height: @row-height;
       width: 100%;
-      border-bottom: 1px solid @BORDER_TABLE;
-      border-right: 1px solid @BORDER_TABLE;
+      border-bottom: 1px solid var(--border--neutral);
+      border-right: 1px solid var(--border--neutral);
     }
 
     &__column {
@@ -110,11 +109,11 @@
     }
 
     &__disabledSearchField {
-      background-color: @DISABLED_ADVANCED_LIGHT_ROW;
+      background-color: var(--fill--primary);
     }
 
     &__enabledSearchField {
-      background-color: @ACTIVE_ADVANCED_LIGHT_ROW;
+      background-color: var(--fill--brand);
     }
 
     &__fields {
@@ -123,8 +122,8 @@
       justify-content: flex-start;
       padding-left: 10px;
       align-items: center;
-      border-right: 1px solid @BORDER_TABLE;
-      border-left: 1px solid @BORDER_TABLE;
+      border-right: 1px solid var(--border--neutral);
+      border-left: 1px solid var(--border--neutral);
     }
 
     &__header {
@@ -133,14 +132,14 @@
       flex-direction: column;
       justify-content: flex-end;
       margin-left: 10px;
-      border-right: 1px solid @BORDER_TABLE;
-      border-left: 1px solid @BORDER_TABLE;
-      border-top: 1px solid @BORDER_TABLE;
+      border-right: 1px solid var(--border--neutral);
+      border-left: 1px solid var(--border--neutral);
+      border-top: 1px solid var(--border--neutral);
     }
 
     &__input {
       border-radius: 0;
-      border: 1px solid @BORDER_TABLE;
+      border: 1px solid var(--border--neutral);
     }
 
     &__lastCell {
@@ -150,33 +149,28 @@
       align-items: center;
       height: @row-height;
       width: 100%;
-      border-bottom: 1px solid @BORDER_TABLE;
+      border-bottom: 1px solid var(--border--neutral);
     }
 
     &__layoutDescriptionLine {
-      height: @row-height;
-      border-bottom: 1px solid @BORDER_TABLE;
+      height: 40px;
+      border-bottom: 1px solid var(--border--neutral);
     }
 
     &__layoutHeaderRecommendationButton,
     &__layoutHeaderRefeshButton,
     &__layoutHeaderDeleteButton,
     &__layoutHeaderSettingsButton {
-      height: 24px;
-      width: 24px;
-      color: var(--color--neutral--600) !important;
-
-      &__icon {
-        inline-size: 18.5px !important;
-        block-size: 20px !important;
-      }
+      height: 32px;
+      width: 32px;
+      color: var(--icon--primary) !important;
 
       &:hover {
-        color: var(--dremio--color--link) !important;
+        color: var(--icon--hover) !important;
       }
 
       &__layoutHeaderRefeshButton.--disabled {
-        color: var(--dremio--color--text--disabled) !important;
+        color: var(--text--disabled) !important;
       }
     }
 
@@ -200,7 +194,7 @@
       font-family: @acceleration_font;
       font-weight: 400;
       font-size: 13;
-      color: @font-color2;
+      color: var(--text--faded);
       width: 100%;
       flex-grow: 1;
       padding: 0 5px;
@@ -210,14 +204,14 @@
       font-family: @acceleration_font;
       font-weight: 400;
       font-size: 13px;
-      color: @TEXT_COLOR;
+      color: var(--text--faded);
       display: flex;
       align-items: center;
       justify-content: space-between;
       height: @row-height;
       padding: 0 5px;
-      border-right: 1px solid @BORDER_TABLE;
-      border-left: 1px solid @BORDER_TABLE;
+      border-right: 1px solid var(--border--neutral);
+      border-left: 1px solid var(--border--neutral);
     }
 
     &__leftHeader {
@@ -231,21 +225,16 @@
       max-height: @row-max-height;
     }
 
-    &__prevalidatedField {
-      flex: 1;
-      border: 1px solid transparent !important; // keep 1px to prevent wiggle on focus;
-      background-color: transparent !important;
-      padding: 0;
-      margin: 0;
-      font-size: inherit;
-      font-weight: inherit;
-      width: 0;
-      box-shadow: none;
+    &__prevalidatedFieldRec {
+      &.--with-padding {
+        margin-inline-end: var(--dremio--spacing--1);
+      }
+      width: 100%;
     }
 
     &__status {
       height: @row-height;
-      border-bottom: 1px solid @BORDER_TABLE;
+      border-bottom: 1px solid var(--border--neutral);
       display: flex;
       align-items: center;
       position: relative; // for absolute Message
@@ -256,7 +245,7 @@
       font-family: @acceleration_font;
       font-weight: 400;
       font-size: 13px;
-      color: @TEXT_COLOR;
+      color: var(--text--faded);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -271,7 +260,6 @@
     &__togglesContainer {
       display: flex;
       align-items: center;
-      padding-left: 12px;
     }
   }
 

@@ -70,7 +70,7 @@ public class TestOutOfMemoryException extends BaseTestQuery {
 
       // Verify that allocators have released all memory.
       final WorkloadTicketDepot ticketDepot =
-          getBindingProvider().lookup(WorkloadTicketDepotService.class).getTicketDepot();
+          getInstance(WorkloadTicketDepotService.class).getTicketDepot();
       final long totalAllocatedMemory =
           ticketDepot.getWorkloadTickets().stream()
               .mapToLong(t -> t.getAllocator().getAllocatedMemory())
@@ -102,7 +102,7 @@ public class TestOutOfMemoryException extends BaseTestQuery {
     } catch (UserException uex) {
       // Verify that query has hit the injected out-of-memory exception.
       DremioPBError error = uex.getOrCreatePBError(false);
-      Assert.assertEquals(DremioPBError.ErrorType.RESOURCE, error.getErrorType());
+      Assert.assertEquals(DremioPBError.ErrorType.OUT_OF_MEMORY, error.getErrorType());
       Assert.assertTrue(
           "Error message isn't related to memory error",
           uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));
@@ -137,7 +137,7 @@ public class TestOutOfMemoryException extends BaseTestQuery {
     } catch (UserException uex) {
       // Verify that query has hit the injected out-of-memory exception.
       DremioPBError error = uex.getOrCreatePBError(false);
-      Assert.assertEquals(DremioPBError.ErrorType.RESOURCE, error.getErrorType());
+      Assert.assertEquals(DremioPBError.ErrorType.OUT_OF_MEMORY, error.getErrorType());
       Assert.assertTrue(
           "Error message isn't related to memory error",
           uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));

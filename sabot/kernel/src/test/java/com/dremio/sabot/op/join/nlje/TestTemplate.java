@@ -40,11 +40,11 @@ public class TestTemplate extends BaseTestOperator {
     Mockito.when(options.getOrOptimizationThresholdForGandiva()).thenReturn(50);
 
     VectorContainer probe = new VectorContainer();
-    probe.add(new IntVector("a", getAllocator()));
+    probe.add(new IntVector("a", getTestAllocator()));
     probe.buildSchema();
 
     VectorContainer build = new VectorContainer();
-    build.addHyperList(Arrays.asList(new IntVector("a", getAllocator())));
+    build.addHyperList(Arrays.asList(new IntVector("a", getTestAllocator())));
     build.buildSchema(SelectionVectorMode.FOUR_BYTE);
 
     LogicalExpression e =
@@ -56,6 +56,9 @@ public class TestTemplate extends BaseTestOperator {
 
     MatchGenerator matchHolder =
         MatchGenerator.generate(
-            e, testContext.newClassProducer(new BufferManagerImpl(getAllocator())), probe, build);
+            e,
+            testContext.newClassProducer(new BufferManagerImpl(getTestAllocator())),
+            probe,
+            build);
   }
 }

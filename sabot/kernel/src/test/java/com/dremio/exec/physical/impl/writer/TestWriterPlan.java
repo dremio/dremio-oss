@@ -30,7 +30,6 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.TestDml;
 import com.dremio.exec.planner.observer.AttemptObserver;
-import com.dremio.exec.planner.physical.AdaptiveHashExchangePrel;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.SingleMergeExchangePrel;
@@ -177,7 +176,6 @@ public class TestWriterPlan extends BaseTestQuery {
                 OptionValue.OptionType.SYSTEM, ExecConstants.ADAPTIVE_HASH.getOptionName(), true));
 
     table = IcebergTestTables.V2_ORDERS.get();
-    table.enableIcebergSystemOptions();
   }
 
   private void resetSmallFileCombinationFlags() {
@@ -237,9 +235,6 @@ public class TestWriterPlan extends BaseTestQuery {
 
       Prel plan = TestDml.getDmlPlan(config, converter.parse(delete));
 
-      // AdaptiveHashExchangePrel is expected in writer plan
-      findSingleNode(plan, AdaptiveHashExchangePrel.class, null);
-
       List<UnionAllPrel> unions = findNodes(plan, UnionAllPrel.class, null);
       assertThat(unions.size()).isEqualTo(2);
       UnionAllPrel smallFileCombiningUnion = unions.get(1);
@@ -260,10 +255,13 @@ public class TestWriterPlan extends BaseTestQuery {
           RecordWriter.SCHEMA.getFieldId(
                   SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE_COLUMN))
               .getFieldIds()[0];
+
+      // note: "operationTypeColumnIndex +4... +5" are referencing fields spanning beyond
+      // RecordWriter's Schema.
       String expectedConditions =
           String.format(
               "[=($%s, 0), <>($%s, 'p0$DREMIO_notSmallFilePartitionTableValue':VARCHAR(41)), >($%s, 1)]",
-              operationTypeColumnIndex, operationTypeColumnIndex + 3, operationTypeColumnIndex + 4);
+              operationTypeColumnIndex, operationTypeColumnIndex + 4, operationTypeColumnIndex + 5);
       Map<String, String> attributes = ImmutableMap.of("conjunctions", expectedConditions);
       findSingleNode(plan, FilterPrel.class, attributes);
     }
@@ -287,7 +285,7 @@ public class TestWriterPlan extends BaseTestQuery {
   }
 
   @Test
-  public void testCombiningSmallFilesIsOffForOptimizePlan() throws Exception {
+  public void testCombiningSmallFilesIsOnByDefaultForOptimizePlan() throws Exception {
     try (DmlQueryTestUtils.Table table = createBasicTable(TEMP_SCHEMA_HADOOP, 2, 2)) {
       resetSmallFileCombinationFlags();
       final String optimizeQuery = String.format("OPTIMIZE TABLE %s", table.fqn);
@@ -300,8 +298,9 @@ public class TestWriterPlan extends BaseTestQuery {
               config,
               sqlNode,
               optimizeHandler.getTargetTablePath(sqlNode));
-      // a single writer is expected since small-file-combination is turned off for Optimize plan
-      findSingleNode(plan, WriterPrel.class, null);
+      // two writers are expected since small-file-combination is turned on for Optimize plan
+      List<WriterPrel> writers = findNodes(plan, WriterPrel.class, null);
+      assertThat(writers.size()).isEqualTo(2);
     }
   }
 

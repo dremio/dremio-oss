@@ -226,9 +226,7 @@ public class ScanBuilder {
     } else {
       includesOrderedByOriginalTable =
           CalciteArrowHelper.wrap(scan.getBatchSchema().mask(scan.getProjectedColumns(), false))
-              .toCalciteRecordType(
-                  scan.getCluster().getTypeFactory(),
-                  PrelUtil.getPlannerSettings(scan.getCluster()).isFullNestedSchemaSupport())
+              .toCalciteRecordType(scan.getCluster().getTypeFactory(), true)
               .getFieldNames()
               .toArray(new String[0]);
     }

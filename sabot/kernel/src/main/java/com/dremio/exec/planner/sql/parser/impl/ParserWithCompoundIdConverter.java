@@ -30,21 +30,16 @@ public class ParserWithCompoundIdConverter extends ParserImpl {
   /**
    * {@link org.apache.calcite.sql.parser.SqlParserImplFactory} implementation for creating parser.
    */
-  private final boolean withCalciteComplexTypeSupport;
-
-  public ParserWithCompoundIdConverter(Reader stream, boolean withCalciteComplexTypeSupport) {
+  public ParserWithCompoundIdConverter(Reader stream) {
     super(stream);
-    this.withCalciteComplexTypeSupport = withCalciteComplexTypeSupport;
   }
 
-  public static final SqlParserImplFactory getParserImplFactory(
-      boolean withCalciteComplexTypeSupport) {
+  public static final SqlParserImplFactory getParserImplFactory() {
     SqlParserImplFactory factory =
         new SqlParserImplFactory() {
           @Override
           public SqlAbstractParserImpl getParser(Reader stream) {
-            SqlAbstractParserImpl parserImpl =
-                new ParserWithCompoundIdConverter(stream, withCalciteComplexTypeSupport);
+            SqlAbstractParserImpl parserImpl = new ParserWithCompoundIdConverter(stream);
             parserImpl.setIdentifierMaxLength(PlannerSettings.DEFAULT_IDENTIFIER_MAX_LENGTH);
             return parserImpl;
           }
@@ -53,7 +48,7 @@ public class ParserWithCompoundIdConverter extends ParserImpl {
   }
 
   protected SqlVisitor<SqlNode> createConverter() {
-    return new CompoundIdentifierConverter(withCalciteComplexTypeSupport);
+    return new CompoundIdentifierConverter();
   }
 
   @Override

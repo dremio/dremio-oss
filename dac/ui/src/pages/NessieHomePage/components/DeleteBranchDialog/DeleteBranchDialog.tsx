@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { browserHistory } from "react-router";
 import { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import {
+  constructVersionedEntityUrl,
+  useVersionedPageContext,
+} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
 import {
   Button,
   ModalContainer,
@@ -51,10 +55,12 @@ function DeleteBranchDialog({
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
   const {
+    baseUrl,
     apiV2,
     stateKey,
     state: { reference, defaultReference },
   } = useNessieContext();
+  const { isCatalog } = useVersionedPageContext();
 
   const onDelete = async () => {
     setIsSending(true);
@@ -69,7 +75,7 @@ function DeleteBranchDialog({
 
       if (allRefs && setAllRefs) {
         const indexToRemove = allRefs.findIndex(
-          (ref: Reference) => ref.name === referenceToDelete.name
+          (ref: Reference) => ref.name === referenceToDelete.name,
         );
 
         setAllRefs([
@@ -84,6 +90,14 @@ function DeleteBranchDialog({
 
       if (reference && referenceToDelete.name === reference.name) {
         dispatch(setReference({ reference: defaultReference }, stateKey));
+        browserHistory.push(
+          constructVersionedEntityUrl({
+            type: isCatalog ? "catalog" : "source",
+            baseUrl,
+            tab: "data",
+            namespace: encodeURIComponent(defaultReference.name),
+          }),
+        );
       }
 
       closeDialog();
@@ -101,7 +115,7 @@ function DeleteBranchDialog({
         className="delete-branch-dialog"
         title={intl.formatMessage(
           { id: "RepoView.Dialog.DeleteBranch.DeleteBranch" },
-          { branchName: referenceToDelete.name }
+          { branchName: referenceToDelete.name },
         )}
         actions={
           <>

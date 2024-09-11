@@ -30,10 +30,14 @@ import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.CachedFragmentReader;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
+import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordExecRPC.MajorFragmentAssignment;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.FragmentOptionManager;
@@ -63,6 +67,8 @@ import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.sabot.exec.heap.HeapLowMemController;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.memory.MemoryArbiter;
+import com.dremio.sabot.threads.SendingAccountor;
+import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.jobresults.client.JobResultsClientFactory;
@@ -71,7 +77,6 @@ import com.dremio.service.spill.SpillService;
 import com.dremio.services.jobresults.common.JobResultsTunnel;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import io.netty.util.internal.OutOfDirectMemoryError;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -240,17 +245,11 @@ public class FragmentExecutorBuilder {
         Preconditions.checkNotNull(allocator, "Unable to acquire allocator");
         services.protect(allocator);
       } catch (final OutOfMemoryException e) {
-        UserException.Builder builder =
-            UserException.memoryError(e)
-                .addContext(
-                    "Fragment", handle.getMajorFragmentId() + ":" + handle.getMinorFragmentId());
-
-        OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
-        if (oom != null) {
-          nodeDebugContextProvider.addMemoryContext(builder, oom);
-        } else if (ErrorHelper.isDirectMemoryException(e)) {
-          nodeDebugContextProvider.addMemoryContext(builder);
-        }
+        String additionalInfo =
+            "Fragment" + handle.getMajorFragmentId() + ":" + handle.getMinorFragmentId();
+        UserException.Builder builder = UserException.memoryError(e);
+        nodeDebugContextProvider.addMemoryContext(builder, e);
+        builder.addContext(additionalInfo);
         throw builder.build(logger);
       } catch (final Throwable e) {
         throw new ExecutionSetupException(
@@ -339,17 +338,18 @@ public class FragmentExecutorBuilder {
         int outstandingRPCsPerTunnel =
             (int) optionManager.getOption(ExecConstants.OUTSTANDING_RPCS_PER_TUNNEL);
         final TunnelProvider tunnelProvider =
-            new TunnelProviderImpl(
+            getTunnelProvider(
                 flushable.getAccountor(),
                 jobResultsTunnel,
                 dataCreator,
                 handler,
                 sharedResources.getGroup(PIPELINE_RES_GRP),
                 fileCursorManagerFactory,
-                outstandingRPCsPerTunnel);
+                outstandingRPCsPerTunnel,
+                major);
 
         final OperatorContextCreator creator =
-            new OperatorContextCreator(
+            getOperatorContextCreator(
                 stats,
                 allocator,
                 compiler,
@@ -403,31 +403,106 @@ public class FragmentExecutorBuilder {
                 sources,
                 exception,
                 eventProvider,
-                spillService);
+                spillService,
+                nodeDebugContextProvider);
         commit.commit();
 
         injector.injectChecked(controls, INJECTOR_DO_WORK, OutOfMemoryException.class);
 
         return executor;
       } catch (Exception e) {
-        UserException.Builder builder =
-            UserException.systemError(e)
-                .message("Failure while constructing fragment.")
-                .addContext(
-                    "Location - ",
-                    String.format(
-                        "Major Fragment:%d, Minor fragment:%d",
-                        handle.getMajorFragmentId(), handle.getMinorFragmentId()));
-
-        OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
-        if (oom != null) {
-          nodeDebugContextProvider.addMemoryContext(builder, oom);
-        } else if (ErrorHelper.findWrappedCause(e, OutOfDirectMemoryError.class) != null) {
-          nodeDebugContextProvider.addMemoryContext(builder);
+        UserException.Builder builder;
+        String locationInfo =
+            String.format(
+                "Location %d:%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
+        String additionalInfo =
+            String.format(
+                "Failure while constructing fragment. " + "Location %d:%d",
+                handle.getMajorFragmentId(), handle.getMinorFragmentId());
+        if (ErrorHelper.isDirectMemoryException(e)) {
+          builder = UserException.memoryError(e);
+          nodeDebugContextProvider.addMemoryContext(builder, e);
+          builder.addContext(locationInfo);
+        } else if (ErrorHelper.isJavaHeapOutOfMemory(e)) {
+          builder = UserException.memoryError(e);
+          nodeDebugContextProvider.addHeapMemoryContext(builder, e);
+          builder.addContext(locationInfo);
+        } else {
+          builder = UserException.systemError(e).message(additionalInfo);
         }
+        nodeDebugContextProvider.addErrorOrigin(builder);
         throw builder.build(logger);
       }
     }
+  }
+
+  protected TunnelProvider getTunnelProvider(
+      SendingAccountor accountor,
+      JobResultsTunnel jobResultsTunnel,
+      ExecConnectionCreator dataCreator,
+      StatusHandler handler,
+      SharedResourceGroup sharedResourceGroup,
+      FileCursorManagerFactory fileCursorManagerFactory,
+      int outstandingRPCsPerTunnel,
+      PlanFragmentMajor planFragmentMajor) {
+    return new TunnelProviderImpl(
+        accountor,
+        jobResultsTunnel,
+        dataCreator,
+        handler,
+        sharedResourceGroup,
+        fileCursorManagerFactory,
+        outstandingRPCsPerTunnel);
+  }
+
+  protected OperatorContextCreator getOperatorContextCreator(
+      FragmentStats stats,
+      BufferAllocator allocator,
+      CodeCompiler compiler,
+      SabotConfig config,
+      DremioConfig dremioConfig,
+      FragmentHandle handle,
+      ExecutionControls controls,
+      FunctionImplementationRegistry funcRegistry,
+      FunctionImplementationRegistry decimalFuncRegistry,
+      NamespaceService namespace,
+      OptionManager fragmentOptions,
+      FragmentExecutorBuilder fragmentExecutorBuilder,
+      ExecutorService executorService,
+      SpillService spillService,
+      ContextInformation contextInfo,
+      NodeDebugContextProvider nodeDebugContextProvider,
+      TunnelProvider tunnelProvider,
+      List<FragmentAssignment> allAssignmentList,
+      EndpointsIndex endpointsIndex,
+      Provider<NodeEndpoint> nodeEndpointProvider,
+      List<MajorFragmentAssignment> extFragmentAssignmentsList,
+      ExpressionSplitCache expressionSplitCache,
+      HeapLowMemController heapLowMemController) {
+    return new OperatorContextCreator(
+        stats,
+        allocator,
+        compiler,
+        config,
+        dremioConfig,
+        handle,
+        controls,
+        funcRegistry,
+        decimalFuncRegistry,
+        namespace,
+        fragmentOptions,
+        fragmentExecutorBuilder,
+        executorService,
+        spillService,
+        contextInfo,
+        nodeDebugContextProvider,
+        tunnelProvider,
+        allAssignmentList,
+        endpointsIndex,
+        nodeEndpointProvider,
+        extFragmentAssignmentsList,
+        expressionSplitCache,
+        heapLowMemController);
   }
 
   @SuppressWarnings("serial")

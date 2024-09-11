@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
   .BreadcrumbsWrapper {
     display: flex;
@@ -37,7 +37,7 @@
         height: 20px;
         width: 20px;
         padding: 0;
-        color: var(--color--neutral--600);
+        color: var(--icon--primary);
       }
     }
     .spacing {
@@ -52,7 +52,7 @@
     .crumb {
       overflow: hidden;
       text-overflow: ellipsis;
-      color: var(--dremio--color--link);
+      color: var(--text--link);
     }
     .long-crumb {
       // these will need to be removed once a character limit is added.
@@ -70,7 +70,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     a {
-      color: @FIGMA_TEXT_MAIN !important;
+      color: var(--text--primary) !important;
       text-decoration: none !important;
     }
   }

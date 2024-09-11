@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.maestro;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.ExtendedLatch;
@@ -48,17 +50,22 @@ import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
 import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
-import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.service.jobtelemetry.instrumentation.MetricLabel;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 /** Default implementation of MaestroService. */
+@Singleton
 public class MaestroServiceImpl implements MaestroService {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(MaestroServiceImpl.class);
@@ -73,6 +80,10 @@ public class MaestroServiceImpl implements MaestroService {
 
   @VisibleForTesting
   public static final String INJECTOR_COMMAND_POOL_SUBMIT_ERROR = "commandPoolSubmitError";
+
+  @VisibleForTesting
+  public static final String INJECTOR_FINAL_EXECUTOR_PROFILE_ERROR =
+      "finalExecutorProfileUpdateError";
 
   private final Provider<ExecutorSetService> executorSetService;
   private final Provider<SabotContext> sabotContext;
@@ -92,6 +103,7 @@ public class MaestroServiceImpl implements MaestroService {
   private ExtendedLatch exitLatch =
       null; // This is used to wait to exit when things are still running
 
+  @Inject
   public MaestroServiceImpl(
       final Provider<ExecutorSetService> executorSetService,
       final Provider<SabotContext> sabotContext,
@@ -118,7 +130,7 @@ public class MaestroServiceImpl implements MaestroService {
 
   @Override
   public void start() throws Exception {
-    Metrics.newGauge(Metrics.join("maestro", "active"), activeQueryMap::size);
+    newGauge("maestro.active", activeQueryMap::size);
 
     execToCoordStatusHandlerImpl = new ExecToCoordStatusHandlerImpl(jobTelemetryClient);
     reader = sabotContext.get().getPlanReader();
@@ -304,30 +316,53 @@ public class MaestroServiceImpl implements MaestroService {
     }
 
     @Override
+    @WithSpan
     public void nodeQueryCompleted(NodeQueryCompletion completion) throws RpcException {
+      Span currentSpan = Span.current();
+      String queryId = QueryIdHelper.getQueryId(completion.getId());
       if (logger.isDebugEnabled()) {
-        logger.debug(
-            "Node query complete message came in for id {}",
-            QueryIdHelper.getQueryId(completion.getId()));
+        logger.debug("Node query complete message came in for id {}", queryId);
       }
-      updateFinalExecutorProfile(completion);
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
 
       if (queryTracker != null) {
+        currentSpan.setAttribute("is_active_query", true);
         if (logger.isDebugEnabled()) {
           logger.debug(
               "Received NodeQueryCompletion request for Query {} from {} in {}",
-              QueryIdHelper.getQueryId(completion.getId()),
+              queryId,
               completion.getEndpoint().getAddress(),
               completion.getForeman().getAddress());
+        }
+        try {
+          injector.injectChecked(
+              queryTracker.getExecutionControls(),
+              INJECTOR_FINAL_EXECUTOR_PROFILE_ERROR,
+              ExecutionSetupException.class);
+          updateFinalExecutorProfile(completion);
+        } catch (Throwable e) {
+          currentSpan.setAttribute("jts.put_executor_profile_rpc_failed", true);
+          logger.warn("Exception sending final Executor profile {}. ", queryId, e);
+          jobTelemetryClient
+              .get()
+              .getSuppressedErrorCounter()
+              .withTags(
+                  MetricLabel.JTS_METRIC_TAG_KEY_RPC,
+                  MetricLabel.JTS_METRIC_TAG_VALUE_RPC_PUT_EXECUTOR_PROFILE,
+                  MetricLabel.JTS_METRIC_TAG_KEY_ERROR_ORIGIN,
+                  MetricLabel.JTS_METRIC_TAG_VALUE_NODE_QUERY_COMPLETE)
+              .increment();
+          queryTracker.putProfileFailed();
         }
         queryTracker.nodeCompleted(completion);
 
       } else {
+        currentSpan.setAttribute("is_active_query", false);
         forwarder.get().nodeQueryCompleted(completion);
       }
     }
 
+    @WithSpan
     private void updateFinalExecutorProfile(NodeQueryCompletion completion) {
       // propagate to job-telemetry service (in-process server).
       JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub stub =
@@ -342,8 +377,16 @@ public class MaestroServiceImpl implements MaestroService {
                 + ". This is harmless since the query will be terminated shortly due to coordinator "
                 + "restarting");
       } else {
-        stub.putExecutorProfile(
-            PutExecutorProfileRequest.newBuilder().setProfile(profile).setIsFinal(true).build());
+        jobTelemetryClient
+            .get()
+            .getExponentiaRetryer()
+            .call(
+                () ->
+                    stub.putExecutorProfile(
+                        PutExecutorProfileRequest.newBuilder()
+                            .setProfile(profile)
+                            .setIsFinal(true)
+                            .build()));
       }
     }
 

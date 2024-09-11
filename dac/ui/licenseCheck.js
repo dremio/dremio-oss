@@ -212,6 +212,10 @@ const KNOWN = {
     licenses: "Unlicense",
     noFile: true,
   },
+  "@dremio/dremio-js@0.0.1": {
+    licenses: "Unlicense",
+    noFile: true,
+  },
   "https://github.com/mantinedev/mantine": {
     tagScheme: (v) => v,
   },
@@ -220,6 +224,10 @@ const KNOWN = {
   },
   hsluv: {
     licenseURL: "https://raw.githubusercontent.com/hsluv/hsluv/master/LICENSE",
+  },
+  "acorn-import-assertions": {
+    licenseURL:
+      "https://raw.githubusercontent.com/xtuc/acorn-import-attributes/main/LICENSE",
   },
   "dialog-polyfill": {
     licenses: "BSD-3-Clause",
@@ -240,7 +248,7 @@ const fetchLicense = (module) => {
     module.tagScheme(module.version);
   const url = repoVersion.replace(
     /https:\/\/github.com\//,
-    "https://raw.githubusercontent.com/"
+    "https://raw.githubusercontent.com/",
   );
 
   const urls = module.licenseURL
@@ -321,7 +329,7 @@ async function main() {
           },
           KNOWN[module.name],
           KNOWN[key],
-          KNOWN[module.repository]
+          KNOWN[module.repository],
         ); // let known override
 
         if (NORMALIZED_LICENSES[module.licenses]) {
@@ -331,7 +339,7 @@ async function main() {
         if (!BLESSED.has(module.licenses) && !IGNORED.includes(module.name)) {
           setErrorToModule(
             module,
-            `Found license type that has not been blessed yet: ${module.licenses}`
+            `Found license type that has not been blessed yet: ${module.licenses}`,
           );
           promises.push(module);
           continue;
@@ -365,9 +373,9 @@ async function main() {
             fs.readFile(module.licenseFile, "utf8", (error, licenseText) =>
               error
                 ? reject(error)
-                : resolve(Object.assign(module, { licenseText }))
+                : resolve(Object.assign(module, { licenseText })),
             );
-          })
+          }),
         );
       }
       try {
@@ -402,7 +410,7 @@ async function main() {
 
           // see if "copyright" is any markdown paragraph with a year
           match = (module.licenseText || "").match(
-            /.*(copyright|©|\(c\)).*[0-9]{4}[\s\S]*?(?:$|\n\n)/i
+            /.*(copyright|©|\(c\)).*[0-9]{4}[\s\S]*?(?:$|\n\n)/i,
           );
           if (match) {
             module.copyright = clean(match[0]);
@@ -425,7 +433,7 @@ async function main() {
 
         !NO_WRITE && fs.writeFileSync("NOTICE_UI_PRODUCTION.txt", text);
         console.log(
-          "\nNOTICE_UI_PRODUCTION.txt written for production dependencies."
+          "\nNOTICE_UI_PRODUCTION.txt written for production dependencies.",
         );
 
         const gplMatch = text.match(/.*GPL.*/i);
@@ -442,7 +450,7 @@ async function main() {
             isError = true;
             console.error(
               `module: '${module.name}@${module.version}'. ${module.errorMessage}`,
-              module
+              module,
             );
           }
         });
@@ -475,14 +483,14 @@ async function main() {
 
             !NO_WRITE && fs.writeFileSync("NOTICE_UI_PRODUCTION.csv", cvsText);
             console.log(
-              "\nNOTICE_UI_PRODUCTION.csv written for production dependencies."
+              "\nNOTICE_UI_PRODUCTION.csv written for production dependencies.",
             );
-          }
+          },
         );
       } catch (e) {
         exitWithError(e);
       }
-    }
+    },
   );
 }
 
@@ -499,7 +507,7 @@ checkNodeVersion({ npm: ">= 5.7" }, async (error, results) => {
 
   if (!results.isSatisfied) {
     exitWithError(
-      "NPM must be v5.7 or greater due to https://github.com/npm/npm/issues/19596"
+      "NPM must be v5.7 or greater due to https://github.com/npm/npm/issues/19596",
     );
     return;
   }

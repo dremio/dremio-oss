@@ -109,12 +109,12 @@ public class RecordSet implements Generator.Creator {
    * Factory method for creating a RecordSet from a schema and one or more records. All records will
    * be added to a single record batch.
    */
-  public static RecordSet rs(BatchSchema schema, Record... records) {
+  public static RecordSet rs(BatchSchema schema, RsRecord... records) {
     return rs(schema, rb(records));
   }
 
   /** Factory method for creating a record batch. */
-  public static Batch rb(Record... records) {
+  public static Batch rb(RsRecord... records) {
     return new Batch(records);
   }
 
@@ -122,8 +122,8 @@ public class RecordSet implements Generator.Creator {
    * Factory method for creating a single record. Values in the record must be ordered the same as
    * the defined field order in the schema assigned to the RecordSet.
    */
-  public static Record r(Object... values) {
-    return new Record(values);
+  public static RsRecord r(Object... values) {
+    return new RsRecord(values);
   }
 
   /**
@@ -163,15 +163,15 @@ public class RecordSet implements Generator.Creator {
   /** Represents a batch of records. */
   public static class Batch {
 
-    final Record[] records;
+    final RsRecord[] records;
 
-    public Batch(Record... records) {
+    public Batch(RsRecord... records) {
       this.records = Preconditions.checkNotNull(records);
     }
 
     public void validateRecordLength(int length) {
-      for (Record record : records) {
-        record.validateRecordLength(length);
+      for (RsRecord rec : records) {
+        rec.validateRecordLength(length);
       }
     }
   }
@@ -191,9 +191,9 @@ public class RecordSet implements Generator.Creator {
   }
 
   /** Simple representation of a single record in a RecordSet. */
-  public static class Record extends Tuple {
+  public static class RsRecord extends Tuple {
 
-    public Record(Object... values) {
+    public RsRecord(Object... values) {
       super(values);
     }
 
@@ -243,7 +243,7 @@ public class RecordSet implements Generator.Creator {
       container.allocateNew();
 
       if (currentBatch < batches.length) {
-        Record[] records = batches[currentBatch++].records;
+        RsRecord[] records = batches[currentBatch++].records;
 
         for (int i = 0; i < records.length; i++) {
           for (int c = 0; c < writers.length; c++) {

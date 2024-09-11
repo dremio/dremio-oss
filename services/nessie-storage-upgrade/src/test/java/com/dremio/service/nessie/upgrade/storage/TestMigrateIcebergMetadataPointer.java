@@ -192,7 +192,8 @@ class TestMigrateIcebergMetadataPointer {
 
     task.upgrade(storeProvider, 1);
 
-    Map<ContentKey, ContentResult> tables = unversionedStore.getValues(BranchName.of("main"), keys);
+    Map<ContentKey, ContentResult> tables =
+        unversionedStore.getValues(BranchName.of("main"), keys, false);
 
     assertThat(tables.keySet()).containsExactlyInAnyOrder(keys.toArray(new ContentKey[0]));
     assertThat(tables)
@@ -236,7 +237,8 @@ class TestMigrateIcebergMetadataPointer {
 
     task.upgrade(storeProvider, 1);
 
-    Map<ContentKey, ContentResult> tables = unversionedStore.getValues(BranchName.of("main"), keys);
+    Map<ContentKey, ContentResult> tables =
+        unversionedStore.getValues(BranchName.of("main"), keys, false);
 
     assertThat(tables.keySet()).containsExactlyInAnyOrderElementsOf(keys);
     assertThat(tables)
@@ -281,7 +283,7 @@ class TestMigrateIcebergMetadataPointer {
 
     task.upgrade(storeProvider, 1);
 
-    assertThat(unversionedStore.getValue(BranchName.of("main"), key1)).isNull();
+    assertThat(unversionedStore.getValue(BranchName.of("main"), key1, false)).isNull();
   }
 
   @Test
@@ -306,7 +308,7 @@ class TestMigrateIcebergMetadataPointer {
 
     task.upgrade(storeProvider, 5);
 
-    assertThat(unversionedStore.getValue(BranchName.of("main"), key1))
+    assertThat(unversionedStore.getValue(BranchName.of("main"), key1, false))
         .extracting(ContentResult::content)
         .asInstanceOf(type(IcebergTable.class))
         .extracting(IcebergTable::getMetadataLocation)

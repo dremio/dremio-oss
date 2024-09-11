@@ -36,6 +36,7 @@ import java.time.temporal.TemporalAmount;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 
 /**
  * A recurring task schedule.
@@ -49,11 +50,6 @@ public interface Schedule extends Iterable<Instant> {
     RUN_EXACTLY_ONCE,
     // Run task once and only once in the cluster or on an upgrade
     RUN_ONCE_EVERY_UPGRADE,
-    // Run task once and only once in the cluster, everytime the task gets a new task owner.
-    // Here the assumption is that the task switches over to a new instance if and only if the
-    // original task owner
-    // crashes.
-    RUN_ONCE_EVERY_SWITCHOVER,
     // Run task once and only once in the cluster, everytime there is a membership loss
     // Membership gains does not trigger the schedule
     RUN_ONCE_EVERY_MEMBER_DEATH,
@@ -71,6 +67,17 @@ public interface Schedule extends Iterable<Instant> {
   /** Builder interface to create {@code Schedule} instances */
   interface BaseBuilder<B, C> extends CommonBuilder<B, C> {
     B startingAt(Instant start);
+
+    /**
+     * Staggers the schedules to not overload the system
+     *
+     * @param seed Seed used to stagger the schedule
+     * @param staggerRange The tasks are scheduled within a range +- staggerRange. The max value of
+     *     the stagger is capped to half of the task period
+     * @param timeUnit The timeUnit to be used in staggering the tasks
+     * @return The schedule
+     */
+    B staggered(int seed, long staggerRange, TimeUnit timeUnit);
   }
 
   interface SingleShotBuilder
@@ -110,6 +117,23 @@ public interface Schedule extends Iterable<Instant> {
      * @return Builder for fluency
      */
     static Builder singleShotChain() {
+      return new ScheduleBuilderImpl();
+    }
+
+    /**
+     * Run once every switch over will run the task once but retain ownership for the task and rerun
+     * again everytime the task switches over to a new node, either due to an explicit migration for
+     * load balancing purpose or when the task owner shuts down or crashes.
+     *
+     * <p>If a cleanup is specified, the singleton does a best effort to ensure that the cleanup
+     * method is called before switching over. Note that this order of invocation may not be
+     * guaranteed in certain situations such as a ZK connection loss (ZK lost) and recovery. Note:
+     * for now there is no differentiation between a single shot chain or a run once every
+     * switchover task.
+     *
+     * @return Builder for fluency
+     */
+    static Builder runOnceEverySwitchOver() {
       return new ScheduleBuilderImpl();
     }
 
@@ -335,6 +359,16 @@ public interface Schedule extends Iterable<Instant> {
     ClusteredSingletonBuilder scheduleModifier(Function<Schedule, Schedule> scheduleModifier);
 
     /**
+     * Adds a supplier that provides weight of the task.
+     *
+     * <p>The assumption here is that the weight of the task will periodically change.
+     *
+     * @param weightProvider Supplier that provides the current weight of the task
+     * @return builder for fluency
+     */
+    ClusteredSingletonBuilder withWeightProvider(IntSupplier weightProvider);
+
+    /**
      * Ownership release for leader election.
      *
      * <p>TODO: DX-68199 these calls will no longer be necessary once the distributed singleton is
@@ -440,9 +474,9 @@ public interface Schedule extends Iterable<Instant> {
   boolean isToRunExactlyOnce();
 
   /**
-   * Flag specifying whether to run task once on every switch over.
+   * Gets the single shot type.
    *
-   * @return true if the single shot schedule needs to run once every switch over
+   * @return type of single shot, null if it is not a single shot
    */
   SingleShotType getSingleShotType();
 
@@ -467,6 +501,10 @@ public interface Schedule extends Iterable<Instant> {
     return () -> {
       // do nothing by default
     };
+  }
+
+  default IntSupplier getWeightProvider() {
+    return null;
   }
 
   /**

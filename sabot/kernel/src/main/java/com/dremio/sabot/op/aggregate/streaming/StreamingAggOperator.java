@@ -43,6 +43,13 @@ import com.sun.codemodel.JExpr;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.Decimal256Vector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.TransferPair;
@@ -85,7 +92,8 @@ public class StreamingAggOperator implements SingleInputOperator {
   /*
    * DRILL-2277, DRILL-2411: For straight aggregates without a group by clause we need to perform special handling when
    * the incoming batch is empty. In the case of the empty input into the streaming aggregate we need
-   * to return a single batch with one row. For count we need to return 0 and for all other aggregate
+   * to return a single batch with one row. For count and sum0 (an internal function that the planner often uses to compute
+   * the standard function like COUNT and SUM) we need to return 0 and for all other aggregate
    * functions like sum, avg etc we need to return an explicit row with NULL. Since we correctly allocate the type of
    * the outgoing vectors (required for count and nullable for other aggregate functions) all we really need to do
    * is simply set the record count to be 1 in such cases. For nullable vectors we don't need to do anything because
@@ -300,8 +308,8 @@ public class StreamingAggOperator implements SingleInputOperator {
     int exprIndex = 0;
     for (final VectorWrapper<?> vw : outgoing) {
       final ValueVector vv = vw.getValueVector();
-      if (!exprs.isEmpty() && isCount(exprs.get(exprIndex))) {
-        ((BigIntVector) vv).setSafe(0, 0);
+      if (!exprs.isEmpty() && isCountOrSum0(exprs.get(exprIndex))) {
+        setZeroValue(vv);
       }
       vv.setValueCount(SPECIAL_BATCH_COUNT);
       exprIndex++;
@@ -309,10 +317,34 @@ public class StreamingAggOperator implements SingleInputOperator {
     outgoing.setRecordCount(SPECIAL_BATCH_COUNT);
   }
 
-  private boolean isCount(NamedExpression expr) {
+  private void setZeroValue(ValueVector vv) {
+    if (vv instanceof TinyIntVector) {
+      ((TinyIntVector) vv).setSafe(0, 0);
+    } else if (vv instanceof SmallIntVector) {
+      ((SmallIntVector) vv).setSafe(0, 0);
+    } else if (vv instanceof IntVector) {
+      ((IntVector) vv).setSafe(0, 0);
+    } else if (vv instanceof BigIntVector) {
+      ((BigIntVector) vv).setSafe(0, 0);
+    } else if (vv instanceof DecimalVector) {
+      ((DecimalVector) vv).setSafe(0, 0);
+    } else if (vv instanceof Decimal256Vector) {
+      ((Decimal256Vector) vv).setSafe(0, 0);
+    } else if (vv instanceof Float4Vector) {
+      ((Float4Vector) vv).setSafe(0, 0);
+    } else if (vv instanceof Float8Vector) {
+      ((Float8Vector) vv).setSafe(0, 0);
+    } else {
+      throw new UnsupportedOperationException(
+          "Unsupported vector type: " + vv.getClass().getSimpleName());
+    }
+  }
+
+  private boolean isCountOrSum0(NamedExpression expr) {
     LogicalExpression logicalExpression = expr.getExpr();
     if (logicalExpression instanceof FunctionCall) {
-      return ((FunctionCall) logicalExpression).getName().equalsIgnoreCase("count");
+      return ((FunctionCall) logicalExpression).getName().equalsIgnoreCase("count")
+          || ((FunctionCall) logicalExpression).getName().equalsIgnoreCase("$sum0");
     }
     return false;
   }

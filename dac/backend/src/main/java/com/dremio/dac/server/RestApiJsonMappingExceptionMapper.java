@@ -16,6 +16,7 @@
 package com.dremio.dac.server;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidTypeIdException;
 import java.util.Iterator;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -33,7 +34,14 @@ public class RestApiJsonMappingExceptionMapper implements ExceptionMapper<JsonMa
   @Override
   public Response toResponse(JsonMappingException exception) {
     if (exception.getPath().isEmpty()) {
-      return errorResponse("Invalid value");
+      if (exception instanceof InvalidTypeIdException) {
+        String invalidType = ((InvalidTypeIdException) exception).getTypeId();
+        if (invalidType != null) {
+          return errorResponse("An invalid value was found: " + invalidType);
+        }
+      }
+
+      return errorResponse("Invalid value.");
     }
 
     StringBuilder errorMessage = new StringBuilder("Invalid value found at: ");

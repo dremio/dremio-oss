@@ -21,8 +21,19 @@ import com.dremio.options.TypeValidators;
 /** Set of options for configuring the UserSessionService */
 @Options
 public interface UserSessionServiceOptions {
+  /**
+   * Session option managers get evicted from cache given TTL * multiplier. This is to account for
+   * changes in the TTL, the assumption is that more than 10x increase from default will not happen.
+   */
+  int SESSION_TTL_BUFFER_MULTIPLIER = 10;
+
   /** Allows users to configure UserSession lifetime (in seconds). Default to 120 minutes. */
   TypeValidators.AdminPositiveLongValidator SESSION_TTL =
       new TypeValidators.AdminPositiveLongValidator(
           "usersessions.ttl.seconds", Integer.MAX_VALUE, 120 * 60);
+
+  /** Allows users to configure maximum number of items in session option manager cache. */
+  TypeValidators.AdminPositiveLongValidator MAX_SESSION_OPTION_MANAGERS =
+      new TypeValidators.AdminPositiveLongValidator(
+          "usersessions.max_option_managers", 500000L, 10000L);
 }

@@ -14,40 +14,40 @@
  * limitations under the License.
  */
 import {
+  DATASET_TYPES_TO_DREMIO_ICON,
   DATASET_TYPES_TO_ICEBERG_TYPES,
-  DATASET_TYPES_TO_ICON_TYPES,
 } from "@app/constants/datasetTypes";
 import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { formatMessage } from "./locale";
 
 const FILE_TYPES_TO_ICON_TYPES = {
-  database: "Database",
-  table: "PhysicalDataset",
-  dataset: "VirtualDataset",
-  physicalDatasets: "PhysicalDataset",
+  database: "sources/SAMPLEDB", //Check this one manually
+  table: "entities/dataset",
+  dataset: "entities/dataset-view",
+  physicalDatasets: "entities/dataset-table",
 };
 
 const FILE_TYPES_TO_ICEBERG_ICON_TYPES = {
-  table: "IcebergTable",
-  dataset: "IcebergView",
-  physicalDatasets: "IcebergTable",
+  table: "entities/iceberg-table",
+  dataset: "entities/iceberg-view",
+  physicalDatasets: "entities/iceberg-table",
 };
 
 export function getIconDataTypeFromEntity(entity) {
   const fileType = entity.get("fileType");
   if (fileType === "folder") {
     if (entity.get("queryable")) {
-      return "FolderData";
+      return "entities/purple-folder";
     }
-    return "Folder";
+    return "entities/blue-folder";
   }
   if (fileType === "file") {
     if (entity.get("queryable")) {
-      return "File";
+      return "entities/dataset-table";
     }
-    return "FileEmpty";
+    return "entities/empty-file";
   }
-  return FILE_TYPES_TO_ICON_TYPES[fileType] || "FileEmpty";
+  return FILE_TYPES_TO_ICON_TYPES[fileType] || "entities/empty-file";
 }
 
 export function getIcebergIconTypeFromEntity(entity) {
@@ -58,22 +58,22 @@ export function getIcebergIconTypeFromEntity(entity) {
 }
 
 export function getIconDataTypeFromDatasetType(datasetType) {
-  return DATASET_TYPES_TO_ICON_TYPES[datasetType];
+  return DATASET_TYPES_TO_DREMIO_ICON[datasetType];
 }
 
 const STATUSES_ICON_POSTFIX = {
   good: "",
-  bad: "-Bad",
-  degraded: "-Degraded",
+  bad: "-bad",
+  degraded: "-degraded",
 };
 
 const getSourceIcon = (sourceType) => {
   if (NESSIE === sourceType) {
-    return "Repository";
+    return "entities/nessie-source";
   } else if (ARCTIC === sourceType) {
-    return "ArcticCatalog";
+    return "entities/arctic-source";
   } else {
-    return "Database";
+    return "entities/datalake-source";
   }
 };
 
@@ -82,6 +82,48 @@ export function getIconStatusDatabase(status, sourceType) {
 }
 
 export function getIconByEntityType(type, isVersioned) {
+  switch (type && type.toUpperCase()) {
+    case "DATASET":
+    case "VIRTUAL":
+    case "VIRTUAL_DATASET":
+      if (isVersioned) {
+        return DATASET_TYPES_TO_ICEBERG_TYPES[type];
+      } else {
+        return "entities/dataset-view";
+      }
+    case "PHYSICALDATASET":
+    case "PHYSICAL_DATASET":
+    case "PHYSICAL":
+    case "TABLE":
+      if (isVersioned) {
+        return DATASET_TYPES_TO_ICEBERG_TYPES[type];
+      } else {
+        return "entities/dataset-table";
+      }
+    case "SPACE":
+      return "entities/space";
+    case "HOME":
+      return "entities/home";
+    case "FILE":
+      return "entities/dataset-table";
+    case "PHYSICAL_DATASET_SOURCE_FILE":
+      return "entities/dataset-table";
+    case "PHYSICAL_DATASET_SOURCE_FOLDER":
+      return "entities/purple-folder";
+    case "PHYSICAL_DATASET_HOME_FILE":
+      return "entities/dataset-table";
+    case "FOLDER":
+      return "entities/blue-folder";
+    case "SOURCE_ROOT":
+      return "sources/SAMPLEDB";
+    case "OTHERS":
+      return "entities/dataset-other";
+    default:
+      return "entities/empty-file";
+  }
+}
+
+export function oldGetIconByEntityType(type, isVersioned) {
   switch (type && type.toUpperCase()) {
     case "DATASET":
     case "VIRTUAL":
@@ -131,41 +173,48 @@ export function getSourceStatusIcon(sourceStatus, sourceType) {
   return iconType;
 }
 
-export function getFormatMessageIdByEntityIconType(iconType) {
-  switch (iconType) {
-    case "VirtualDataset":
+export function getFormatMessageIdByEntityType(type) {
+  switch (type && type.toUpperCase()) {
+    case "DATASET":
+    case "VIRTUAL":
+    case "VIRTUAL_DATASET":
       return "Dataset.VirtualDataset";
-    case "PhysicalDataset":
+    case "PHYSICALDATASET":
+    case "PHYSICAL_DATASET":
+    case "PHYSICAL":
+    case "TABLE":
       return "Dataset.PhysicalDataset";
-    case "IcebergView":
-      return "Dataset.IcebergView";
-    case "IcebergTable":
-      return "Dataset.IcebergTable";
-    case "Space":
+    case "SPACE":
       return "Space.Space";
-    case "Database":
-      return "Source.Source";
-    case "ArcticCatalog":
-    case "ArcticCatalog-Bad":
-    case "ArcticCatalog-Degraded":
-      return "Source.ArcticSource";
-    case "Repository":
-    case "Repository-Bad":
-    case "Repository-Degraded":
-      return "Source.NessieSource";
-    case "Home":
+    case "HOME":
       return "Common.Home";
-    case "File":
+    case "FILE":
+    case "PHYSICAL_DATASET_SOURCE_FILE":
+    case "PHYSICAL_DATASET_HOME_FILE":
       return "File.File";
-    case "FolderData":
+    case "PHYSICAL_DATASET_SOURCE_FOLDER":
       return "Folder.FolderData";
-    case "Folder":
+    case "FOLDER":
       return "Folder.Folder";
     default:
       return "File.FileEmpty";
   }
 }
 
-export function getIconAltTextByEntityIconType(iconType) {
-  return formatMessage(getFormatMessageIdByEntityIconType(iconType));
+export function getIconAltTextByEntityType(entityType) {
+  return formatMessage(getFormatMessageIdByEntityType(entityType));
+}
+
+function getFormatMessageIdBySourceType(sourceType) {
+  if (NESSIE === sourceType) {
+    return "Source.NessieSource";
+  } else if (ARCTIC === sourceType) {
+    return "Source.ArcticSource";
+  } else {
+    return "Source.Source";
+  }
+}
+
+export function getIconAltTextBySourceType(sourceType) {
+  return formatMessage(getFormatMessageIdBySourceType(sourceType));
 }

@@ -19,14 +19,13 @@ package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
 
-public final class BitArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<Integer, BitVector> {
+public final class BitArrayAggAccumulatorHolder extends ArrayAggAccumulatorHolder<Integer> {
   private final BitVector vector;
 
-  public BitArrayAggAccumulatorHolder(int maxValuesPerBatch, BufferAllocator allocator) {
-    super(maxValuesPerBatch, allocator);
+  public BitArrayAggAccumulatorHolder(BufferAllocator allocator, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector = new BitVector("array_agg BitArrayAggAccumulatorHolder", allocator);
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -50,5 +49,19 @@ public final class BitArrayAggAccumulatorHolder
   @Override
   public Integer getItem(int index) {
     return vector.get(index);
+  }
+
+  @Override
+  public double getSizeOfElement(Integer element) {
+    // Size of an element in BitVector is 1 bit
+    return 1.0 / 8;
+  }
+
+  @Override
+  public void reAllocIfNeeded(Integer data) {
+    super.reAllocIfNeeded(data);
+    if (numItems + 1 >= vector.getValueCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

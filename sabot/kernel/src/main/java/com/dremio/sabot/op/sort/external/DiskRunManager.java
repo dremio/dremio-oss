@@ -117,7 +117,7 @@ public class DiskRunManager implements AutoCloseable {
   private final SpillManager spillManager;
   private boolean compressSpilledBatch;
   private BufferAllocator compressSpilledBatchAllocator;
-  private final ExternalSortTracer tracer;
+  private final VectorSortTracer tracer;
   private long totalDataSpilled;
   private final long warnMaxSpillTime;
   private long batchesSpilled;
@@ -155,7 +155,7 @@ public class DiskRunManager implements AutoCloseable {
       List<Ordering> orderings,
       BatchSchema dataSchema,
       boolean compressSpilledBatch,
-      ExternalSortTracer tracer,
+      VectorSortTracer tracer,
       SpillService spillService,
       OperatorStats stats,
       ExecutionControls executionControls)
@@ -272,8 +272,8 @@ public class DiskRunManager implements AutoCloseable {
             reservation, Long.MAX_VALUE, totalMaxBatchSizeAllRuns);
         tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
         tracer.setDiskRunCopyAllocatorState(copierAllocator);
-        tracer.setExternalSortAllocatorState(parentAllocator);
-        throw tracer.prepareAndThrowException(e, message);
+        tracer.setVectorSorterAllocatorState(parentAllocator);
+        throw tracer.prepareAndThrowException(e, copierAllocator, message);
       }
       mergeState = MergeState.MERGE;
       // reattempt with smaller list
@@ -321,8 +321,8 @@ public class DiskRunManager implements AutoCloseable {
               reservation, Long.MAX_VALUE, totalMaxBatchSizeAllRuns);
           tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
           tracer.setDiskRunCopyAllocatorState(copierAllocator);
-          tracer.setExternalSortAllocatorState(parentAllocator);
-          throw tracer.prepareAndThrowException(e, message);
+          tracer.setVectorSorterAllocatorState(parentAllocator);
+          throw tracer.prepareAndThrowException(e, parentAllocator, message);
         }
       } catch (Exception e) {
         throw UserException.dataReadError(e)
@@ -568,10 +568,10 @@ public class DiskRunManager implements AutoCloseable {
         tracer.setSpillCopyAllocatorState(copyTargetAllocator);
         tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
         tracer.setDiskRunCopyAllocatorState(copierAllocator);
-        tracer.setExternalSortAllocatorState(parentAllocator);
+        tracer.setVectorSorterAllocatorState(parentAllocator);
 
         final String message = "DiskRunManager: Failure while spilling sort data to disk";
-        throw tracer.prepareAndThrowException(ex, message);
+        throw tracer.prepareAndThrowException(ex, copyTargetAllocator, message);
       }
 
       Preconditions.checkArgument(
@@ -740,10 +740,10 @@ public class DiskRunManager implements AutoCloseable {
         tracer.setSpillCopyAllocatorState(copyTargetAllocator);
         tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
         tracer.setDiskRunCopyAllocatorState(copierAllocator);
-        tracer.setExternalSortAllocatorState(parentAllocator);
+        tracer.setVectorSorterAllocatorState(parentAllocator);
 
         final String message = "DiskRunManager: Failure while spilling sort data to disk";
-        throw tracer.prepareAndThrowException(ex, message);
+        throw tracer.prepareAndThrowException(ex, copyTargetAllocator, message);
       }
 
       // 3. all records spilled ?
@@ -900,7 +900,7 @@ public class DiskRunManager implements AutoCloseable {
           producer.createGenerator(PriorityQueueCopier.TEMPLATE_DEFINITION);
 
       ClassGenerator<PriorityQueueCopier> g = cg.getRoot();
-      ExternalSortOperator.generateComparisons(g, incoming, orderings, producer);
+      VectorSorter.generateComparisons(g, incoming, orderings, producer);
       g.setMappingSet(copierMappingSet);
       CopyUtil.generateCopies(g, incoming, true);
       g.setMappingSet(mainMappingSet);

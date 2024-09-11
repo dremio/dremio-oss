@@ -35,6 +35,7 @@ public class ProjectConfigImpl implements ProjectConfig {
   public static final String METADATA_PLUGIN_SUB_PATH = "/metadata";
   public static final String GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH = "/gandiva";
   public static final String SYSTEM_ICEBERG_TABLES_PLUGIN_SUB_PATH = "/system_iceberg_tables";
+  public static final String NODE_HISTORY_PLUGIN_SUB_PATH = "/node_history";
 
   private final Provider<DremioConfig> fileProvider;
   private final Provider<ProjectConfigStore> storeProvider;
@@ -77,7 +78,12 @@ public class ProjectConfigImpl implements ProjectConfig {
         DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING, SYSTEM_ICEBERG_TABLES_PLUGIN_SUB_PATH);
   }
 
-  private DistPathConfig getDistPathConfig(String pathString, String subPath) {
+  @Override
+  public DistPathConfig getNodeHistoryConfig() {
+    return getDistPathConfig(DremioConfig.NODE_HISTORY_PATH_STRING, NODE_HISTORY_PLUGIN_SUB_PATH);
+  }
+
+  protected DistPathConfig getDistPathConfig(String pathString, String subPath) {
     URI path;
     ProjectConfigStore store = storeProvider.get();
     DataCredentials dataCredentials = null;

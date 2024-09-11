@@ -57,6 +57,10 @@ public class CompilationOptions {
     return (int) optionResolver.getOption(ExecConstants.CODE_GEN_CONSTANT_ARRAY_THRESHOLD);
   }
 
+  public long getFunctionExpressionCountThreshold() {
+    return optionResolver.getOption(ExecConstants.CODE_GEN_FUNCTION_EXPRESSION_COUNT_THRESHOLD);
+  }
+
   public OptionResolver getOptionResolver() {
     return optionResolver;
   }

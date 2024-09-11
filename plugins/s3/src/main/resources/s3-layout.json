@@ -26,12 +26,12 @@
                       "elements": [
                         {
                           "propName": "config.accessKey",
-                          "size": "half",
+                          "size": "full",
                           "errMsg": "Both access secret and key are required for private S3 buckets."
                         },
                         {
                           "propName": "config.accessSecret",
-                          "size": "half",
+                          "size": "full",
                           "errMsg": "Both access secret and key are required for private S3 buckets.",
                           "secure": true
                         },

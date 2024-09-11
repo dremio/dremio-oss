@@ -34,8 +34,9 @@ import org.apache.iceberg.io.FileIO;
 public class IcebergNessieVersionedModel extends IcebergBaseModel {
   private final List<String> tableKey;
   private final NessieClient nessieClient;
-  private ResolvedVersionContext version;
   private final String userName;
+  private final IcebergNessieFilePathSanitizer pathSanitizer;
+  private ResolvedVersionContext version;
 
   public IcebergNessieVersionedModel(
       List<String> tableKey,
@@ -46,7 +47,8 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
           operatorContext, // Used to create DremioInputFile (valid only for insert/ctas)
       ResolvedVersionContext version,
       SupportsIcebergMutablePlugin plugin,
-      String userName) {
+      String userName,
+      IcebergNessieFilePathSanitizer pathSanitizer) {
     super(null, fsConf, fileIO, operatorContext, null, plugin);
 
     this.tableKey = tableKey;
@@ -55,6 +57,7 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
 
     Preconditions.checkNotNull(version);
     this.version = version;
+    this.pathSanitizer = pathSanitizer;
   }
 
   @Override
@@ -92,7 +95,7 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
 
   @Override
   public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
-    return new IcebergNessieVersionedTableIdentifier(tableKey, rootFolder, version);
+    return new IcebergNessieVersionedTableIdentifier(tableKey, rootFolder, version, pathSanitizer);
   }
 
   private String getJobId() {

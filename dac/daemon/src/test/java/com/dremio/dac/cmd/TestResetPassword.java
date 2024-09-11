@@ -15,14 +15,11 @@
  */
 package com.dremio.dac.cmd;
 
-import com.dremio.common.perf.Timer;
-import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.GenericErrorMessage;
-import com.dremio.test.DremioTest;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response.Status;
 import org.junit.AfterClass;
@@ -33,25 +30,15 @@ import org.junit.Test;
 /** Test reset password */
 public class TestResetPassword extends BaseTestServer {
 
-  private static DACConfig dacConfig =
-      DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-          .autoPort(true)
-          .allowTestApis(true)
-          .addDefaultUser(true)
-          .serveUI(false)
-          .inMemoryStorage(false) // Need this to be a on-disk kvstore for tests.
-          .clusterMode(DACDaemon.ClusterMode.LOCAL);
-
   @BeforeClass
   public static void init() throws Exception {
+    Assume.assumeFalse(BaseTestServer.isMultinode());
+
     enableDefaultUser(false);
     inMemoryStorage(false);
     addDefaultUser(true);
-    Assume.assumeFalse(BaseTestServer.isMultinode());
-    try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      dacConfig = dacConfig.writePath(folder1.newFolder().getAbsolutePath());
-      BaseTestServer.init();
-    }
+
+    BaseTestServer.init();
   }
 
   @AfterClass
@@ -63,9 +50,9 @@ public class TestResetPassword extends BaseTestServer {
 
   @Test
   public void testResetPassword() throws Exception {
-    getCurrentDremioDaemon().close();
-    SetPassword.resetPassword(
-        getCurrentDremioDaemon().getDACConfig(), DEFAULT_USERNAME, "tshiran123456");
+    DACConfig dacConfig = getCurrentDremioDaemon().getDACConfig();
+    BaseTestServer.close();
+    SetPassword.resetPassword(dacConfig, DEFAULT_USERNAME, "tshiran123456");
     BaseTestServer.init();
 
     UserLogin userLogin = new UserLogin(DEFAULT_USERNAME, DEFAULT_PASSWORD);

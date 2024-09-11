@@ -19,7 +19,6 @@ import com.dremio.exec.planner.common.TableModifyRelBase;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.google.common.base.Preconditions;
 import java.util.List;
-import java.util.Set;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -52,7 +51,6 @@ public class TableModifyCrel extends TableModifyRelBase {
       CreateTableEntry createTableEntry,
       List<String> mergeUpdateColumnList,
       boolean hasSource,
-      Set<String> outdatedTargetColumns,
       RowLevelOperationMode dmlWriteMode) {
     super(
         Convention.NONE,
@@ -68,7 +66,6 @@ public class TableModifyCrel extends TableModifyRelBase {
         createTableEntry,
         mergeUpdateColumnList,
         hasSource,
-        outdatedTargetColumns,
         dmlWriteMode);
 
     Preconditions.checkArgument(
@@ -90,7 +87,6 @@ public class TableModifyCrel extends TableModifyRelBase {
         getCreateTableEntry(),
         getMergeUpdateColumnList(),
         hasSource(),
-        getOutdatedTargetColumns(),
         getDmlWriteMode());
   }
 
@@ -104,7 +100,6 @@ public class TableModifyCrel extends TableModifyRelBase {
       boolean flattened,
       List<String> mergeUpdateColumnList,
       boolean hasSource,
-      Set<String> outdatedTargetColumns,
       RowLevelOperationMode dmlWriteMode) {
     final RelOptCluster cluster = input.getCluster();
     final RelTraitSet traitSet = cluster.traitSetOf(Convention.NONE);
@@ -121,7 +116,6 @@ public class TableModifyCrel extends TableModifyRelBase {
         null,
         mergeUpdateColumnList,
         hasSource,
-        outdatedTargetColumns,
         dmlWriteMode);
   }
 
@@ -139,7 +133,6 @@ public class TableModifyCrel extends TableModifyRelBase {
         createTableEntry,
         getMergeUpdateColumnList(),
         hasSource(),
-        getOutdatedTargetColumns(),
         getDmlWriteMode());
   }
 
@@ -157,7 +150,6 @@ public class TableModifyCrel extends TableModifyRelBase {
         getCreateTableEntry(),
         getMergeUpdateColumnList(),
         hasSource(),
-        getOutdatedTargetColumns(),
         getDmlWriteMode());
   }
 }

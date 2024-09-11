@@ -65,6 +65,15 @@ const { InjectionResolver } = require("../scripts/injectionResolver");
 require("@babel/register")({
   configFile: path.join(__dirname, "..", ".babelrc.js"),
   extensions: [".js", ".jsx", ".ts", ".tsx"],
+  ignore: [
+    function (path) {
+      if (!path.includes("/node_modules/")) {
+        return false;
+      }
+
+      return !path.includes("/node_modules/parse-ms/");
+    },
+  ],
 });
 
 require("app-module-path").addPath(__dirname);

@@ -30,7 +30,7 @@
   <properties>
     <!-- You will also need to increase the maxSize for the MapR version, under the mapr profile. -->
     <!-- Search for "<id>mapr</id>" (without quotes) in this file and change the value of maxSize there. -->
-    <dremio.distribution.jar.maxSize>40600000</dremio.distribution.jar.maxSize>
+    <dremio.distribution.jar.maxSize>53000000</dremio.distribution.jar.maxSize>
   </properties>
 
   <dependencies>
@@ -38,6 +38,12 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <!-- Once shaded it will redirect all log messages to JUL -->
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-jdk14</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -527,10 +533,8 @@
             <classpathDependencyExclude>*:*</classpathDependencyExclude>
           </classpathDependencyExcludes>
 
-          <systemProperties>
-            <dremio.exec.http.enabled>false</dremio.exec.http.enabled>
-          </systemProperties>
           <systemPropertyVariables>
+            <dremio.exec.http.enabled>false</dremio.exec.http.enabled>
             <app.class.path>${app.class.path}</app.class.path>
             <project.version>${project.version}</project.version>
           </systemPropertyVariables>
@@ -580,10 +584,12 @@
             </includes>
             <excludes>
               <exclude>org.rocksdb:rocksdbjni</exclude>
-              <exclude>org.slf4j:jcl-over-slf4j</exclude>
+              <exclude>org.slf4j:jul-over-slf4j</exclude>
+              <exclude>net.logstash.logback:*</exclude>
               <exclude>io.protostuff:*</exclude>
               <exclude>xerces:*</exclude>
               <exclude>xalan:*</exclude>
+              <exclude>xml-apis:*</exclude>
               <exclude>org.apache.avro:*</exclude>
               <exclude>org.apache.lucene:*</exclude>
               <exclude>org.mongodb:*</exclude>
@@ -624,12 +630,13 @@
               <exclude>org.hdrhistogram:HdrHistogram:*</exclude>
               <exclude>io.grpc:*</exclude>
               <exclude>org.apache.yetus:audience-annotations</exclude>
+              <exclude>org.apache.httpcomponents.*:*</exclude>
             </excludes>
           </artifactSet>
           <relocations>
             <relocation>
               <pattern>com.</pattern>
-              <shadedPattern>cdjd.com.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.com.</shadedPattern>
               <excludes>
                 <exclude>com.dremio.jdbc.**</exclude>
                 <exclude>com.sun.**</exclude>
@@ -637,52 +644,49 @@
             </relocation>
             <relocation>
               <pattern>org.</pattern>
-              <shadedPattern>cdjd.org.</shadedPattern>
-              <excludes>
-                <exclude>org.slf4j.**</exclude>
-              </excludes>
+              <shadedPattern>com.dremio.jdbc.shaded.org.</shadedPattern>
             </relocation>
 
             <!-- Move dependencies out of path -->
             <relocation>
               <pattern>io.</pattern>
-              <shadedPattern>cdjd.io.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.io.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>javacc.</pattern>
-              <shadedPattern>cdjd.javacc.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.javacc.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>java_cup.</pattern>
-              <shadedPattern>cdjd.java_cup.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.java_cup.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>javassist.</pattern>
-              <shadedPattern>cdjd.javassist.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.javassist.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>jline.</pattern>
-              <shadedPattern>cdjd.jline.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.jline.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>license.</pattern>
-              <shadedPattern>cdjd.license.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.license.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>net.</pattern>
-              <shadedPattern>cdjd.net.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.net.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>parquet.</pattern>
-              <shadedPattern>cdjd.parquet.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.parquet.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>test.</pattern>
-              <shadedPattern>cdjd.test.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.test.</shadedPattern>
             </relocation>
             <relocation>
               <pattern>trax.</pattern>
-              <shadedPattern>cdjd.trax.</shadedPattern>
+              <shadedPattern>com.dremio.jdbc.shaded.trax.</shadedPattern>
             </relocation>
 
             <!-- Entries to relocate netty native libraries  -->
@@ -876,7 +880,7 @@
         </property>
       </activation>
       <properties>
-        <dremio.distribution.jar.maxSize>44000000</dremio.distribution.jar.maxSize>
+        <dremio.distribution.jar.maxSize>53000000</dremio.distribution.jar.maxSize>
       </properties>
     </profile>
   </profiles>

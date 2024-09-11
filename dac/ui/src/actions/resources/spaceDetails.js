@@ -40,13 +40,13 @@ export const ADD_FOLDER_SUCCESS = "ADD_FOLDER_SUCCESS";
 export const ADD_FOLDER_FAILURE = "ADD_FOLDER_FAILURE";
 
 export const addNewFolderForSpace =
-  (name, addToRoot) => (dispatch, getState) => {
+  (name, rootPath, rootName) => (dispatch, getState) => {
     const state = getState();
     const parentType = getEntityType(state);
     const parentPath = getNormalizedEntityPath(state);
 
     const [sourceName] = parentPath.replace("/source/", "").split("/");
-    const params = getRefQueryParams(state.nessie, sourceName);
+    const params = getRefQueryParams(state.nessie, rootName ?? sourceName);
 
     let resourcePath =
       parentType === ENTITY_TYPES.folder
@@ -54,8 +54,7 @@ export const addNewFolderForSpace =
         : `${parentPath}/folder/`;
 
     // Add to root path, ignoring folder subpath
-    if (addToRoot && resourcePath.includes("/folder/")) {
-      const [rootPath] = resourcePath.split("/folder/");
+    if (rootPath) {
       resourcePath = `${rootPath}/folder/`;
     }
 
@@ -76,7 +75,7 @@ export const addNewFolderForSpace =
           schemaUtils.getSuccessActionTypeWithSchema(
             ADD_FOLDER_SUCCESS,
             folderSchema,
-            { ...meta, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] }
+            { ...meta, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] },
           ),
           {
             type: ADD_FOLDER_FAILURE,
@@ -229,12 +228,12 @@ export const REMOVE_FILE_FORMAT_FAILURE = "REMOVE_FILE_FORMAT_FAILURE";
 function fetchRemoveFileFormat(file) {
   const meta = {};
   const errorMessage = laDeprecated(
-    "There was an error removing the format for the file."
+    "There was an error removing the format for the file.",
   );
   const entityRemovePaths = [["fileFormat", file.getIn(["fileFormat", "id"])]];
 
   const apiCall = new APIV2Call().fullpath(
-    file.getIn(["links", "delete_format"])
+    file.getIn(["links", "delete_format"]),
   );
 
   return {
@@ -295,7 +294,7 @@ function fetchRenameDataset(dataset, newName) {
           {
             ...meta,
             invalidateViewIds: [HOME_CONTENTS_VIEW_ID],
-          }
+          },
         ),
         {
           type: RENAME_SPACE_DATASET_FAILURE,

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner;
 
+import static com.dremio.exec.planner.physical.visitor.WriterUpdater.getCollation;
 import static com.dremio.exec.store.RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.DATAFILE_PATH;
@@ -39,12 +40,14 @@ import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.physical.SortPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.physical.ValuesPrel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.IcebergManifestListScanPrel;
 import com.dremio.exec.store.iceberg.IcebergManifestScanPrel;
 import com.dremio.exec.store.iceberg.IcebergSnapshotsPrel;
+import com.dremio.exec.store.iceberg.ManifestFileDuplicateRemovePrel;
 import com.dremio.exec.store.iceberg.PartitionStatsScanPrel;
 import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
 import com.dremio.service.namespace.PartitionChunkMetadata;
@@ -62,6 +65,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -197,10 +201,14 @@ public abstract class VacuumPlanGenerator {
     return projectFilePathAndType(filePathAndTypeProject);
   }
 
-  private Prel filePathAndTypePlanFromManifest(Prel snapshotsScanPlan) {
+  protected Prel filePathAndTypePlanFromManifest(Prel snapshotsScanPlan) {
     Prel partitionStatsScan = getPartitionStatsScanPrel(snapshotsScanPlan);
     Prel manifestListScan = getManifestListScanPrel(partitionStatsScan);
-    return getManifestScanPrel(manifestListScan);
+    // Sort the manifest file paths and remove the duplicate manifest file paths
+    Prel manifestFilePathsSortedPlan = sortManifestFilePathsPlan(manifestListScan);
+    Prel manifestFileDuplicateRemovePlan =
+        manifestFileDuplicateRemovePlan(manifestFilePathsSortedPlan);
+    return getManifestScanPrel(manifestFileDuplicateRemovePlan);
   }
 
   protected Prel snapshotsScanPlan(SnapshotsScanOptions.Mode scanMode) {
@@ -215,16 +223,25 @@ public abstract class VacuumPlanGenerator {
         storagePluginId,
         splits.iterator(),
         icebergCostEstimates.getSnapshotsCount(),
-        1);
+        1,
+        getSchemeVariate());
   }
 
-  private Prel getManifestListScanPrel(Prel input) {
+  protected String getSchemeVariate() {
+    return null;
+  }
+
+  protected Prel getManifestListScanPrel(Prel input) {
     BatchSchema manifestListsReaderSchema =
         SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA.merge(CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA);
     List<SchemaPath> manifestListsReaderColumns =
         manifestListsReaderSchema.getFields().stream()
             .map(f -> SchemaPath.getSimplePath(f.getName()))
             .collect(Collectors.toList());
+
+    // Estimate rows = number of snapshots * number of files per snapshots
+    long estimatedRows =
+        icebergCostEstimates.getEstimatedRows() * icebergCostEstimates.getSnapshotsCount();
     return new IcebergManifestListScanPrel(
         storagePluginId,
         input.getCluster(),
@@ -232,16 +249,17 @@ public abstract class VacuumPlanGenerator {
         input,
         manifestListsReaderSchema,
         manifestListsReaderColumns,
-        input.getEstimatedSize() + icebergCostEstimates.getManifestFileEstimatedCount(),
-        user);
+        estimatedRows,
+        user,
+        getSchemeVariate());
   }
 
   protected Prel getPartitionStatsScanPrel(Prel input) {
     BatchSchema partitionStatsScanSchema =
         ICEBERG_SNAPSHOTS_SCAN_SCHEMA.merge(CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA);
     // TODO: it could be further improved whether it needs to apply PartitionStatsScan, if table is
-    // written by other engines,
-    // or the partition stats metadata entry is not present.
+    // written by other engines, or the partition stats metadata entry is not present.
+
     long estimatedRows = 2L * input.getEstimatedSize();
     return new PartitionStatsScanPrel(
         storagePluginId,
@@ -251,7 +269,8 @@ public abstract class VacuumPlanGenerator {
         partitionStatsScanSchema,
         estimatedRows,
         user,
-        enableCarryForwardOnPartitionStats());
+        enableCarryForwardOnPartitionStats(),
+        getSchemeVariate());
   }
 
   protected abstract boolean enableCarryForwardOnPartitionStats();
@@ -293,7 +312,8 @@ public abstract class VacuumPlanGenerator {
         rowType,
         input.getEstimatedSize() + icebergCostEstimates.getDataFileEstimatedCount(),
         user,
-        false);
+        false,
+        getSchemeVariate());
   }
 
   private Prel projectDataFileAndType(Prel manifestPrel) {
@@ -373,7 +393,7 @@ public abstract class VacuumPlanGenerator {
         input.getCluster(), input.getTraitSet(), input, projectExpressions, newRowType);
   }
 
-  private Prel reduceDuplicateFilePaths(Prel input) {
+  private Prel reduceDuplicateFilePaths(Prel input) throws InvalidRelException {
     AggregateCall aggOnFilePath =
         AggregateCall.create(
             SqlStdOperatorTable.COUNT,
@@ -391,18 +411,14 @@ public abstract class VacuumPlanGenerator {
         ImmutableBitSet.of(
             input.getRowType().getField(FILE_PATH, false, false).getIndex(),
             input.getRowType().getField(FILE_TYPE, false, false).getIndex());
-    try {
-      return HashAggPrel.create(
-          input.getCluster(),
-          input.getTraitSet(),
-          input,
-          groupSet,
-          ImmutableList.of(groupSet),
-          ImmutableList.of(aggOnFilePath),
-          null);
-    } catch (InvalidRelException e) {
-      throw new RuntimeException("Failed to create HashAggPrel during delete file scan.", e);
-    }
+    return HashAggPrel.create(
+        input.getCluster(),
+        input.getTraitSet(),
+        input,
+        groupSet,
+        ImmutableList.of(groupSet),
+        ImmutableList.of(aggOnFilePath),
+        null);
   }
 
   protected abstract Prel deleteOrphanFilesPlan(Prel input);
@@ -487,5 +503,29 @@ public abstract class VacuumPlanGenerator {
 
     return FilterPrel.create(
         inputNode.getCluster(), inputNode.getTraitSet(), inputNode, filterCondition);
+  }
+
+  /***
+   * Sort the plan by manifest file path and file type so that it can remove the duplicate manifest file paths
+   */
+  private Prel sortManifestFilePathsPlan(Prel input) {
+    RelDataTypeField filePathField = input.getRowType().getField(FILE_PATH, false, false);
+    RelDataTypeField fileTypeField = input.getRowType().getField(FILE_TYPE, false, false);
+
+    final RelCollation collation =
+        getCollation(
+            input.getTraitSet(),
+            ImmutableList.of(filePathField.getIndex(), fileTypeField.getIndex()));
+    Prel sortPrel =
+        SortPrel.create(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
+    return sortPrel;
+  }
+
+  private Prel manifestFileDuplicateRemovePlan(Prel input) {
+    // Estimate rows = number of snapshots * number of files per snapshots
+    long estimatedRows =
+        icebergCostEstimates.getEstimatedRows() * icebergCostEstimates.getSnapshotsCount();
+    return new ManifestFileDuplicateRemovePrel(
+        input.getCluster(), input.getTraitSet(), input, estimatedRows);
   }
 }

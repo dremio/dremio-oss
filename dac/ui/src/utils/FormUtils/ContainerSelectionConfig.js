@@ -34,13 +34,13 @@ export default class ContainerSelectionConfig extends FormElementConfig {
           option.container =
             SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(
               option.container,
-              functionalElements
+              functionalElements,
             );
         } else if (option.container) {
           // container is a section
           option.container = new FormSectionConfig(
             option.container,
-            functionalElements
+            functionalElements,
           );
         } else {
           // container is not defined - error in config - skip option
@@ -62,7 +62,7 @@ export default class ContainerSelectionConfig extends FormElementConfig {
     return [this.getPropName()].concat(
       this.getOptions().reduce((accum, option) => {
         return accum.concat(option.container.getFields());
-      }, [])
+      }, []),
     );
   }
 
@@ -75,7 +75,7 @@ export default class ContainerSelectionConfig extends FormElementConfig {
     initValues = FormUtils.addInitValue(
       initValues,
       elementConfig.propName,
-      elementConfig.value
+      elementConfig.value ?? elementConfig.options?.[0]?.value,
     );
     for (const option of elementConfig.options) {
       initValues = option.container.addInitValues(initValues, state, props);

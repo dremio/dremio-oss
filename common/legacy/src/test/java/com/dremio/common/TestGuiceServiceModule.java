@@ -54,7 +54,7 @@ public class TestGuiceServiceModule {
     injector.getInstance(D.class);
     assertEquals(3, guiceServiceHandler.getServiceList().size());
 
-    guiceServiceHandler.close(injector);
+    guiceServiceHandler.close();
     assertTrue(bInstance.isStarted());
     assertTrue(bInstance.isClosed());
   }
@@ -73,7 +73,7 @@ public class TestGuiceServiceModule {
     assertEquals(bInstance, cInstance);
     assertEquals(1, bInstance.getStarted());
 
-    guiceServiceHandler.close(injector);
+    guiceServiceHandler.close();
     assertEquals(1, bInstance.getClosed());
   }
 

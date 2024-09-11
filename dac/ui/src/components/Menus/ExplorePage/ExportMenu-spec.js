@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from "enzyme";
-import localStorageUtils from "@app/utils/storageUtils/localStorageUtils.js";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import config from "dyn-load/utils/config";
 import { ExportMenu } from "./ExportMenu";
 
@@ -71,7 +71,7 @@ describe("ExportMenu", () => {
 
     it("should render appropriate menu item label", () => {
       expect(wrapper.find("MenuItem").at(0).children().text()).to.be.eql(
-        "JSON"
+        "JSON",
       );
     });
 

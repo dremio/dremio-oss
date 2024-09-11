@@ -37,10 +37,6 @@
     transition: background-color 125ms ease;
     width: 100%;
 
-    &:hover {
-      background: #eeeff1;
-    }
-
     &--stacked {
       flex-direction: column-reverse;
       justify-content: end;
@@ -60,7 +56,7 @@
     transition: height 400ms cubic-bezier(0.22, 1, 0.36, 1);
 
     &--bg-default {
-      background-color: var(--color--cyan--200);
+      background-color: var(--color--brand--200);
     }
   }
   &__label {
@@ -69,6 +65,7 @@
     font-variant-numeric: lining-nums tabular-nums;
     letter-spacing: -0.025em;
     padding: 4px;
+    text-wrap: nowrap;
   }
 }
 

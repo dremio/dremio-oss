@@ -32,7 +32,6 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.WritableBatch;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
@@ -76,7 +75,6 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         final SabotNode bit =
             new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true)) {
       bit.run();
-      final SabotContext context = bit.getContext();
 
       try (final IntVector intVector = new IntVector("int", allocator);
           final VarBinaryVector binVector = new VarBinaryVector("binary", allocator)) {
@@ -159,7 +157,6 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         final SabotNode bit =
             new SabotNode(DEFAULT_SABOT_CONFIG, clusterCoordinator, CLASSPATH_SCAN_RESULT, true)) {
       bit.run();
-      final SabotContext context = bit.getContext();
 
       final FieldType mapType =
           CompleteType.struct(
@@ -216,7 +213,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
               mapVector.getObject(i));
         }
 
-        SerDe(vectorList, true, records, context, 100, 100.375);
+        SerDe(vectorList, true, records, 100, 100.375);
       }
     }
   }
@@ -225,7 +222,6 @@ public class TestVectorAccessibleSerializable extends ExecTest {
       List<ValueVector> vectorList,
       boolean compression,
       int records,
-      SabotContext context,
       int intBaseValue,
       double doubleBaseValue)
       throws Exception {

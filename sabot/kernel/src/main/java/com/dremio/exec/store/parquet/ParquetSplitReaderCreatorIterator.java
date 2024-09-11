@@ -48,6 +48,7 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.namespace.DatasetHelper;
@@ -75,7 +76,10 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -118,7 +122,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private List<SplitAndPartitionInfo> inputSplits;
   private boolean ignoreSchemaLearning = false;
   protected List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields;
-
+  protected List<DefaultNameMapping> icebergDefaultNameMapping;
   protected Iterator<ParquetBlockBasedSplit> sortedBlockSplitsIterator;
   protected Iterator<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitIterator;
   private Iterator<SplitAndPartitionInfo>
@@ -129,12 +133,12 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private boolean isFirstRowGroup;
   private InputStreamProvider inputStreamProviderOfFirstRowGroup;
   protected InputStreamProvider lastInputStreamProvider;
-  private boolean fromRowGroupBasedSplit;
+  protected boolean fromRowGroupBasedSplit;
   private SplitsPathRowGroupsMap splitsPathRowGroupsMap;
   protected Map<String, Set<Integer>> pathToRowGroupsMap = new HashMap<>();
   private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators = new ArrayList<>();
   private final List<RuntimeFilter> partitionColumnRFs = new ArrayList<>();
-  private final List<RuntimeFilter> nonPartitionColumnRFs = new ArrayList<>();
+  private final List<RuntimeFilter> nonPartitionColumnRFs = new CopyOnWriteArrayList<>();
 
   /* this is used for prefetching across record batches in scan table function
    * This is initially set to false, in which case the iterator wont return the final prefetched splitreadercreators
@@ -198,8 +202,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
 
     if (DatasetHelper.isIcebergFile(config.getFormatSettings())) {
       this.realFields = getRealIcebergFields(config.getColumns());
-      this.icebergSchemaFields =
-          getIcebergColumnIDList(config.getExtendedProperty().asReadOnlyByteBuffer());
+      getIcebergColumnIDList(config.getExtendedProperty().asReadOnlyByteBuffer());
     } else {
       this.realFields =
           new ImplicitFilesystemColumnFinder(
@@ -349,7 +352,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     }
   }
 
-  private void processSplits() {
+  protected void processSplits() {
     if (inputSplits == null) {
       rowGroupSplitIterator = Collections.emptyIterator();
       sortedBlockSplitsIterator = Collections.emptyIterator();
@@ -631,6 +634,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
         fullSchema,
         formatSettings,
         icebergSchemaFields,
+        icebergDefaultNameMapping,
         pathToRowGroupsMap,
         this,
         splitScanXAttr,
@@ -652,7 +656,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
             ? filters.withRowLevelDeleteFilters(
                 rowLevelDeleteFilterFactory.createPositionalDeleteFilter(dataFilePath),
                 rowLevelDeleteFilterFactory.createEqualityDeleteFilter(
-                    dataFilePath, icebergSchemaFields))
+                    dataFilePath, icebergSchemaFields, icebergDefaultNameMapping))
             : filters;
     SplitReaderCreator creator = constructReaderCreator(filtersForCurrentRowGroup, splitScanXAttr);
 
@@ -711,16 +715,18 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       fileLastModificationTime = fileAttributes.lastModifiedTime().toMillis();
     }
 
-    List<Integer> rowGroupNums = new ArrayList<>();
+    NavigableMap<Integer, Long> rowGroupNums = new TreeMap<>();
     final Consumer<MutableParquetMetadata> populateRowGroupNums =
         (f) -> {
           try {
             if (rowGroupNums.isEmpty()) { // make sure rowGroupNums is populated only once
-              rowGroupNums.addAll(
-                  ParquetReaderUtility.getRowGroupNumbersFromFileSplit(
+              rowGroupNums.putAll(
+                  ParquetReaderUtility.getRowGroupNumbersWithRowIndexOffsetsFromFileSplit(
                       blockSplit.getStart(), blockSplit.getLength(), f));
               trimRowGroupsFromFooter(
-                  f, blockSplit.getPath(), rowGroupNums.stream().min(Integer::compareTo).orElse(0));
+                  f,
+                  blockSplit.getPath(),
+                  rowGroupNums.keySet().stream().min(Integer::compareTo).orElse(0));
             }
           } catch (IOException e) {
             throw UserException.ioExceptionError(e).buildSilently();
@@ -733,7 +739,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
           if (rowGroupNums.isEmpty()) {
             return -1;
           }
-          return rowGroupNums.get(0);
+          return rowGroupNums.firstKey();
         };
 
     if (lastInputStreamProvider != null
@@ -791,16 +797,17 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   }
 
   protected List<ParquetProtobuf.ParquetDatasetSplitScanXAttr> createRowGroupSplitList(
-      List<Integer> rowGroupNums,
+      NavigableMap<Integer, Long> rowGroupNums,
       Path splitPath,
       ParquetBlockBasedSplit blockSplit,
       long fileLength,
       long fileLastModificationTime) {
     List<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitAttrs = new LinkedList<>();
-    for (int rowGroupNum : rowGroupNums) {
+    for (int rowGroupNum : rowGroupNums.keySet()) {
       rowGroupSplitAttrs.add(
           ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
               .setRowGroupIndex(rowGroupNum)
+              .setRowIndexOffset(rowGroupNums.get(rowGroupNum))
               .setPath(splitPath.toString())
               .setStart(0L)
               .setLength(blockSplit.getLength()) // max row group size possible
@@ -911,6 +918,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
         ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(
             projectedColumnFields,
             icebergSchemaFields,
+            icebergDefaultNameMapping,
             isConvertedIcebergDataset,
             context,
             fullSchema);
@@ -946,7 +954,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   }
 
   public void setIcebergExtendedProperty(byte[] extendedProperty) {
-    this.icebergSchemaFields = getIcebergColumnIDList(ByteBuffer.wrap(extendedProperty));
+    getIcebergColumnIDList(ByteBuffer.wrap(extendedProperty));
     SplitReaderCreator curr = first;
     while (curr != null) {
       curr.setIcebergSchemaFields(icebergSchemaFields);
@@ -954,24 +962,27 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     }
   }
 
-  private List<IcebergProtobuf.IcebergSchemaField> getIcebergColumnIDList(
-      ByteBuffer extendedProperty) {
+  private void getIcebergColumnIDList(ByteBuffer extendedProperty) {
     if (formatSettings.getType() != FileType.ICEBERG) {
-      return null;
+      icebergSchemaFields = null;
+      icebergDefaultNameMapping = null;
+      return;
     }
 
     try {
       IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr =
           LegacyProtobufSerializer.parseFrom(
               IcebergProtobuf.IcebergDatasetXAttr.PARSER, extendedProperty);
-      return icebergDatasetXAttr.getColumnIdsList();
+      icebergSchemaFields = icebergDatasetXAttr.getColumnIdsList();
+      icebergDefaultNameMapping = icebergDatasetXAttr.getDefaultNameMappingList();
     } catch (InvalidProtocolBufferException ie) {
       try {
         ParquetProtobuf.ParquetDatasetXAttr parquetDatasetXAttr =
             LegacyProtobufSerializer.parseFrom(
                 ParquetProtobuf.ParquetDatasetXAttr.PARSER, extendedProperty);
         // found XAttr from 5.0.1 release. return null
-        return null;
+        icebergSchemaFields = null;
+        icebergDefaultNameMapping = null;
       } catch (InvalidProtocolBufferException pe) {
         throw new RuntimeException("Could not deserialize Parquet dataset info", pe);
       }

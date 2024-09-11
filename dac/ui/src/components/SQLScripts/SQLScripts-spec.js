@@ -70,7 +70,7 @@ describe("SQLScripts", () => {
 
   it.skip("should render with default/empty configs", () => {
     const { container, getByTestId, queryByText } = render(
-      <SQLScripts {...minimalProps} scripts={[]} />
+      <SQLScripts {...minimalProps} scripts={[]} />,
     );
     expect(getByTestId("sqlScripts")).to.exist;
     expect(queryByText("Date")).to.exist;
@@ -83,7 +83,7 @@ describe("SQLScripts", () => {
     expect(getByTestId("sqlScripts")).to.exist;
     expect(container.querySelector(".MuiList-root")).to.exist;
     expect(
-      container.querySelectorAll(".sqlScripts__menu-item").length
+      container.querySelectorAll(".sqlScripts__menu-item").length,
     ).to.equal(2);
     expect(container.querySelector(".sqlScripts__menu-item.--selected")).to.not
       .exist;
@@ -92,12 +92,12 @@ describe("SQLScripts", () => {
   // keyDown fireEvent isn't working
   it.skip("should render the filter the scripts by search key", async () => {
     const { container, getByTestId, getByText, queryByText } = render(
-      <SQLScripts {...minimalProps} />
+      <SQLScripts {...minimalProps} />,
     );
     expect(getByTestId("sqlScripts")).to.exist;
     expect(container.querySelector(".MuiList-root")).to.exist;
     expect(
-      container.querySelectorAll(".sqlScripts__menu-item").length
+      container.querySelectorAll(".sqlScripts__menu-item").length,
     ).to.equal(2);
     expect(getByText("NewScript1")).to.exist;
     expect(getByText("NewQuery2")).to.exist;
@@ -107,7 +107,7 @@ describe("SQLScripts", () => {
       code: "KeyS",
     });
     expect(
-      container.querySelectorAll(".sqlScripts__menu-item").length
+      container.querySelectorAll(".sqlScripts__menu-item").length,
     ).to.equal(1);
     expect(getByText("NewScript1")).to.exist;
     expect(queryByText("NewQuery2")).to.not.exist;
@@ -118,15 +118,11 @@ describe("SQLScripts", () => {
     const { container } = render(<SQLScripts {...minimalProps} />);
     expect(container.querySelector(".MuiList-root")).to.exist;
     expect(
-      container.querySelectorAll(".sqlScripts__menu-item").length
+      container.querySelectorAll(".sqlScripts__menu-item").length,
     ).to.equal(2);
     fireEvent.click(container.querySelectorAll(".sqlScripts__menu-item")[0]);
     expect(minimalProps.setActiveScript).to.be.calledWith({
-      script: {
-        ...testScripts[0],
-        colors: { backgroundColor: "#D02362", color: "#FFF" },
-        initials: "",
-      },
+      script: testScripts[0],
     });
   });
 });

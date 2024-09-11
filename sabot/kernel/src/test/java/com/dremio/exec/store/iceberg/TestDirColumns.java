@@ -62,7 +62,7 @@ public class TestDirColumns extends BaseTestQuery {
       srcFolderD0.mkdir();
       createDataFile(srcFolderD0, "file0");
 
-      try (AutoCloseable ac = enableIcebergTables()) {
+      try {
         final String ctasQuery =
             String.format(
                 "CREATE TABLE %s.%s  " + " AS SELECT * from %s.%s",

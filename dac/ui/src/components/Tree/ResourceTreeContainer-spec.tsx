@@ -34,7 +34,6 @@ describe("ResourceTreeContainer", () => {
       formatMessage: () => void;
     };
   };
-
   beforeEach(() => {
     minimalProps = {
       starredItems: [],
@@ -88,37 +87,34 @@ describe("ResourceTreeContainer", () => {
       },
     };
   });
-
   it("changes the tab when invoked", () => {
     // ResourceTreeContainer
     const { getByTestId } = render(<ResourceTreeContainer {...minimalProps} />);
     expect(getByTestId("resourceTreeContainer")).to.exist;
   });
-
   describe("handleStarredTabChange", () => {
     it("changes the tab when invoked", () => {
       const props = { ...minimalProps, ...propsForChildren };
       const { getByTestId } = render(<ResourceTreeContainer {...props} />);
-
       expect(getByTestId('{"0":{"id":"Resource.Tree.All"}}subHeaderTab')).to
         .exist;
       expect(getByTestId('{"0":{"id":"Resource.Tree.Starred"}}subHeaderTab')).to
         .exist;
       fireEvent.click(
-        getByTestId('{"0":{"id":"Resource.Tree.Starred"}}subHeaderTab')
+        getByTestId('{"0":{"id":"Resource.Tree.Starred"}}subHeaderTab'),
       );
       expect(
         getByTestId(
-          '{"0":{"id":"Resource.Tree.Starred"}}subHeaderTab--selected'
-        )
+          '{"0":{"id":"Resource.Tree.Starred"}}subHeaderTab--selected',
+        ),
       ).to.exist;
       expect(getByTestId('{"0":{"id":"Resource.Tree.All"}}subHeaderTab')).to
         .exist;
       fireEvent.click(
-        getByTestId('{"0":{"id":"Resource.Tree.All"}}subHeaderTab')
+        getByTestId('{"0":{"id":"Resource.Tree.All"}}subHeaderTab'),
       );
       expect(
-        getByTestId('{"0":{"id":"Resource.Tree.All"}}subHeaderTab--selected')
+        getByTestId('{"0":{"id":"Resource.Tree.All"}}subHeaderTab--selected'),
       ).to.exist;
       expect(getByTestId('{"0":{"id":"Resource.Tree.Starred"}}subHeaderTab')).to
         .exist;

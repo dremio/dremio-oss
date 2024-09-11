@@ -110,7 +110,7 @@ public class TestIcebergGetSnapshotDiffContext extends BaseTestQuery {
 
   @BeforeClass
   public static void init() throws Exception {
-    catalogService = getSabotContext().getCatalogService();
+    catalogService = getCatalogService();
     catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
     List<String> keyPath = Arrays.asList(TEMP_SCHEMA_HADOOP, TEST_TABLE_NAME);
     testTableNamespaceKey = new NamespaceKey(keyPath);

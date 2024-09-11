@@ -25,7 +25,6 @@ import com.dremio.exec.ops.QueryContextCreator;
 import com.dremio.exec.planner.RulesFactory;
 import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
 import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
@@ -35,6 +34,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.common.ReflectionRoutingManager;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.CoordinatorModeInfo;
 import com.dremio.service.namespace.NamespaceService;
 import java.util.Collection;
@@ -49,8 +49,6 @@ import org.apache.arrow.memory.BufferAllocator;
  */
 public interface SabotQueryContext {
   OptionValidatorListing getOptionValidatorListing();
-
-  SystemOptionManager getSystemOptionManager();
 
   CoordinationProtos.NodeEndpoint getEndpoint();
 
@@ -78,7 +76,7 @@ public interface SabotQueryContext {
 
   LogicalPlanPersistence getLpPersistence();
 
-  Collection<CoordinationProtos.NodeEndpoint> getExecutors();
+  ClusterCoordinator getClusterCoordinator();
 
   DremioConfig getDremioConfig();
 

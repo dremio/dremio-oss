@@ -20,7 +20,7 @@ import { scriptsLogger } from "../scriptsLogger";
 export const replaceScriptUrl = (scriptId: string) =>
   getApiContext().createSonarUrl(`scripts/${scriptId}`);
 
-type path = paths["/scripts/{id}"]["put"];
+type path = paths["/scripts/{id}"]["patch"];
 
 export type UpdatedScript = path["requestBody"]["content"]["application/json"];
 export type Script = components["schemas"]["Script"];

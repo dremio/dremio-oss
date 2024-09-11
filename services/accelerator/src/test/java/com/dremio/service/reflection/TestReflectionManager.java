@@ -29,7 +29,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -44,6 +47,7 @@ import com.dremio.exec.catalog.CachingCatalog;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.planner.plancache.PlanCacheInvalidationHelper;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSelection;
@@ -51,6 +55,7 @@ import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.CoordinatorModeInfo;
 import com.dremio.service.coordinator.SoftwareCoordinatorModeInfo;
 import com.dremio.service.job.DeleteJobCountsRequest;
@@ -75,6 +80,7 @@ import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationState;
+import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalHash;
@@ -109,7 +115,6 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.iceberg.ManageSnapshots;
 import org.apache.iceberg.Snapshot;
@@ -495,11 +500,13 @@ public class TestReflectionManager {
     when(subject.refreshStartHandler.startJob(any(), anyLong(), any()))
         .thenReturn(materializationJobId);
 
-    when(subject.sabotContext.getExecutors()).thenReturn(singletonList(null));
-    final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider = mock(Provider.class);
-    when(coordinatorModeInfoProvider.get()).thenReturn(new SoftwareCoordinatorModeInfo());
+    ClusterCoordinator clusterCoordinator = mock(ClusterCoordinator.class);
+    when(clusterCoordinator.getExecutorEndpoints()).thenReturn(singletonList(null));
+    when(subject.sabotContext.getClusterCoordinator()).thenReturn(clusterCoordinator);
+
+    SoftwareCoordinatorModeInfo softwareCoordinatorModeInfo = new SoftwareCoordinatorModeInfo();
     when(subject.sabotContext.getCoordinatorModeInfoProvider())
-        .thenReturn(coordinatorModeInfoProvider);
+        .thenReturn(() -> softwareCoordinatorModeInfo);
 
     when(subject.userStore.getAllNotDeleted()).thenReturn(singletonList(reflectionGoal));
     when(subject.userStore.getDeletedBefore(anyLong())).thenReturn(emptyList());
@@ -529,6 +536,182 @@ public class TestReflectionManager {
     assertEquals(0, reflectionEntry.getNumFailures().intValue());
     assertEquals(ReflectionState.REFRESHING, reflectionEntry.getState());
     assertEquals(MaterializationState.DEPRECATED, materialization.getState());
+  }
+
+  @Test
+  public void testSyncDoesNotDeleteReflectionWhenException() {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+    MaterializationId materializationId = new MaterializationId("m_id");
+    ReflectionGoalHash reflectionGoalHash = new ReflectionGoalHash("MY_HASH");
+    JobId materializationJobId = new JobId("m_job_id");
+    String dataSetId = "dataSetId";
+    ReflectionGoal reflectionGoal =
+        new ReflectionGoal()
+            .setId(reflectionId)
+            .setArrowCachingEnabled(true)
+            .setDatasetId(dataSetId)
+            .setType(ReflectionType.EXTERNAL)
+            .setState(ReflectionGoalState.ENABLED);
+
+    ReflectionEntry reflectionEntry =
+        new ReflectionEntry()
+            .setId(reflectionId)
+            .setReflectionGoalHash(reflectionGoalHash)
+            .setArrowCachingEnabled(false)
+            .setState(ReflectionState.ACTIVE);
+
+    Materialization materialization =
+        new Materialization()
+            .setId(materializationId)
+            .setReflectionId(reflectionId)
+            .setArrowCachingEnabled(false);
+
+    DatasetConfig datasetConfig = new DatasetConfig();
+    final Catalog catalog = mock(Catalog.class);
+    final DremioTable dremioTable = mock(DremioTable.class);
+    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+    when(catalog.getTable(dataSetId)).thenThrow(RuntimeException.class);
+    Subject subject = new Subject();
+
+    when(subject.contextFactory.create()).thenReturn(subject.dependencyResolutionContext);
+    when(subject.dependencyManager.shouldRefresh(
+            reflectionEntry, 5555L, subject.dependencyResolutionContext))
+        .thenReturn(false); // assuming we do not need a refresh for other reasons
+
+    when(subject.externalReflectionStore.getExternalReflections()).thenReturn(emptyList());
+
+    when(subject.materializationStore.find(reflectionId))
+        .thenReturn(singletonList(materialization));
+    when(subject.materializationStore.getAllExpiredWhen(anyLong())).thenReturn(emptyList());
+    when(subject.materializationStore.getDeletableEntriesModifiedBefore(anyLong(), anyInt()))
+        .thenReturn(emptyList());
+    when(subject.materializationStore.getAllDone(reflectionId))
+        .thenReturn(singletonList(materialization));
+    when(subject.materializationStore.getAllMaterializations()).thenReturn(emptyList());
+
+    when(subject.optionManager.getOption(ReflectionOptions.NO_DEPENDENCY_REFRESH_PERIOD_SECONDS))
+        .thenReturn(5555L);
+
+    when(subject.reflectionStore.get(reflectionId)).thenReturn(reflectionEntry);
+    when(subject.reflectionStore.find()).thenReturn(singletonList(reflectionEntry));
+
+    when(subject.reflectionGoalChecker.isEqual(reflectionGoal, reflectionEntry))
+        .thenReturn(false); // it has changed
+    when(subject.reflectionGoalChecker.checkHash(reflectionGoal, reflectionEntry))
+        .thenReturn(false); // but only fields not used to update the reflection
+    when(subject.reflectionGoalChecker.calculateReflectionGoalVersion(reflectionGoal))
+        .thenReturn(reflectionGoalHash);
+
+    when(subject.refreshStartHandler.startJob(any(), anyLong(), any()))
+        .thenReturn(materializationJobId);
+
+    ClusterCoordinator clusterCoordinator = mock(ClusterCoordinator.class);
+    when(clusterCoordinator.getExecutorEndpoints()).thenReturn(singletonList(null));
+    when(subject.sabotContext.getClusterCoordinator()).thenReturn(clusterCoordinator);
+
+    SoftwareCoordinatorModeInfo softwareCoordinatorModeInfo = new SoftwareCoordinatorModeInfo();
+    when(subject.sabotContext.getCoordinatorModeInfoProvider())
+        .thenReturn(() -> softwareCoordinatorModeInfo);
+
+    when(subject.userStore.getAllNotDeleted()).thenReturn(singletonList(reflectionGoal));
+    when(subject.userStore.getDeletedBefore(anyLong())).thenReturn(emptyList());
+    when(subject.userStore.getModifiedOrCreatedSince(anyLong()))
+        .thenReturn(singletonList(reflectionGoal));
+    when(subject.catalogService.getCatalog(any(MetadataRequestOptions.class))).thenReturn(catalog);
+
+    subject.reflectionManager.sync();
+
+    // ASSERT
+    assertTrue((subject.reflectionStore).get(reflectionId).getId().equals(reflectionId));
+  }
+
+  @Test
+  public void testSyncDeletesReflectionWhenNull() {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+    MaterializationId materializationId = new MaterializationId("m_id");
+    ReflectionGoalHash reflectionGoalHash = new ReflectionGoalHash("MY_HASH");
+    JobId materializationJobId = new JobId("m_job_id");
+    String dataSetId = "dataSetId";
+    ReflectionGoal reflectionGoal =
+        new ReflectionGoal()
+            .setId(reflectionId)
+            .setArrowCachingEnabled(true)
+            .setDatasetId(dataSetId)
+            .setType(ReflectionType.EXTERNAL)
+            .setState(ReflectionGoalState.ENABLED);
+
+    ReflectionEntry reflectionEntry =
+        new ReflectionEntry()
+            .setId(reflectionId)
+            .setReflectionGoalHash(reflectionGoalHash)
+            .setArrowCachingEnabled(false)
+            .setState(ReflectionState.ACTIVE);
+
+    Materialization materialization =
+        new Materialization()
+            .setId(materializationId)
+            .setReflectionId(reflectionId)
+            .setArrowCachingEnabled(false);
+
+    DatasetConfig datasetConfig = new DatasetConfig();
+    final Catalog catalog = mock(Catalog.class);
+    final DremioTable dremioTable = mock(DremioTable.class);
+    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+    when(catalog.getTable(dataSetId)).thenReturn(null);
+    Subject subject = new Subject();
+
+    when(subject.contextFactory.create()).thenReturn(subject.dependencyResolutionContext);
+    when(subject.dependencyManager.shouldRefresh(
+            reflectionEntry, 5555L, subject.dependencyResolutionContext))
+        .thenReturn(false); // assuming we do not need a refresh for other reasons
+
+    when(subject.externalReflectionStore.getExternalReflections()).thenReturn(emptyList());
+
+    when(subject.materializationStore.find(reflectionId))
+        .thenReturn(singletonList(materialization));
+    when(subject.materializationStore.getAllExpiredWhen(anyLong())).thenReturn(emptyList());
+    when(subject.materializationStore.getDeletableEntriesModifiedBefore(anyLong(), anyInt()))
+        .thenReturn(emptyList());
+    when(subject.materializationStore.getAllDone(reflectionId))
+        .thenReturn(singletonList(materialization));
+    when(subject.materializationStore.getAllMaterializations()).thenReturn(emptyList());
+
+    when(subject.optionManager.getOption(ReflectionOptions.NO_DEPENDENCY_REFRESH_PERIOD_SECONDS))
+        .thenReturn(5555L);
+
+    when(subject.reflectionStore.get(reflectionId)).thenReturn(reflectionEntry);
+    when(subject.reflectionStore.find()).thenReturn(singletonList(reflectionEntry));
+
+    when(subject.reflectionGoalChecker.isEqual(reflectionGoal, reflectionEntry))
+        .thenReturn(false); // it has changed
+    when(subject.reflectionGoalChecker.checkHash(reflectionGoal, reflectionEntry))
+        .thenReturn(false); // but only fields not used to update the reflection
+    when(subject.reflectionGoalChecker.calculateReflectionGoalVersion(reflectionGoal))
+        .thenReturn(reflectionGoalHash);
+
+    when(subject.refreshStartHandler.startJob(any(), anyLong(), any()))
+        .thenReturn(materializationJobId);
+
+    ClusterCoordinator clusterCoordinator = mock(ClusterCoordinator.class);
+    when(clusterCoordinator.getExecutorEndpoints()).thenReturn(singletonList(null));
+    when(subject.sabotContext.getClusterCoordinator()).thenReturn(clusterCoordinator);
+
+    SoftwareCoordinatorModeInfo softwareCoordinatorModeInfo = new SoftwareCoordinatorModeInfo();
+    when(subject.sabotContext.getCoordinatorModeInfoProvider())
+        .thenReturn(() -> softwareCoordinatorModeInfo);
+
+    when(subject.userStore.getAllNotDeleted()).thenReturn(singletonList(reflectionGoal));
+    when(subject.userStore.getDeletedBefore(anyLong())).thenReturn(emptyList());
+    when(subject.userStore.getModifiedOrCreatedSince(anyLong()))
+        .thenReturn(singletonList(reflectionGoal));
+    when(subject.userStore.get(reflectionGoal.getId())).thenReturn(reflectionGoal);
+    when(subject.catalogService.getCatalog(any(MetadataRequestOptions.class))).thenReturn(catalog);
+
+    subject.reflectionManager.sync();
+
+    // ASSERT
+    assertTrue(
+        (subject.userStore).get(reflectionId).getState().equals(ReflectionGoalState.DELETED));
   }
 
   // Checking if the deleteMaterializationOrphans removes Orphan(materialization which does not have
@@ -585,6 +768,9 @@ public class TestReflectionManager {
         .thenReturn(TimeUnit.HOURS.toSeconds(4));
     when(subject.optionManager.getOption(ReflectionOptions.REFLECTION_DELETION_NUM_ENTRIES))
         .thenReturn(3L);
+    when(subject.optionManager.getOption(
+            ReflectionOptions.SKIP_DROP_TABLE_JOB_FOR_INCREMENTAL_REFRESH))
+        .thenReturn(true);
 
     when(subject.userStore.getAllNotDeleted()).thenReturn(emptyList());
     when(subject.externalReflectionStore.getExternalReflections()).thenReturn(emptyList());
@@ -606,8 +792,8 @@ public class TestReflectionManager {
         new DependencyManager(
             subject.materializationStore,
             subject.reflectionStore,
-            subject.dependenciesStore,
-            subject.optionManager);
+            subject.optionManager,
+            new DependencyGraph(subject.dependenciesStore));
     subject.dependencyManager = dependencyManager;
 
     ReflectionManager reflectionManager = subject.newReflectionManager();
@@ -620,6 +806,9 @@ public class TestReflectionManager {
     verify(subject.materializationStore, times(3)).save(any(Materialization.class));
     verify(subject.reflectionStore, times(1)).find();
     verify(subject.reflectionStore, times(0)).contains(deletedReflectionId);
+    verify(subject.reflectionStore, times(3)).get(any(ReflectionId.class));
+    verify(subject.materializationStore, times(3))
+        .getRefreshesExclusivelyOwnedBy(any(Materialization.class));
     verify(subject.jobsService, times(3)).submitJob(any(), any());
     verifyNoMoreInteractions(subject.reflectionStore);
     assertEquals(MaterializationState.DELETED, materialization1.getState());
@@ -924,8 +1113,7 @@ public class TestReflectionManager {
 
     JobDetails job = createJobDetails();
 
-    ReflectionServiceImpl.PlanCacheInvalidationHelper helper =
-        Mockito.mock(ReflectionServiceImpl.PlanCacheInvalidationHelper.class);
+    PlanCacheInvalidationHelper helper = Mockito.mock(PlanCacheInvalidationHelper.class);
     RefreshDoneHandler handler =
         new RefreshDoneHandler(
             entry,
@@ -946,9 +1134,12 @@ public class TestReflectionManager {
     subject.reflectionManager.handleSuccessfulJob(entry, m, job, handler);
 
     assertEquals(MaterializationState.FAILED, m.getState());
-    assertEquals(
-        "Failed to handle successful REFLECTION REFRESH job m_job_id: Cannot handle job with non completed state FAILED",
-        m.getFailure().getMessage());
+    assertTrue(
+        m.getFailure()
+            .getMessage()
+            .contains(
+                "Failed to handle successful REFLECTION REFRESH job m_job_id: "
+                    + "Cannot handle job with non completed state FAILED"));
   }
 
   @Test
@@ -1057,27 +1248,9 @@ public class TestReflectionManager {
     DependencyResolutionContextFactory factory =
         new DependencyResolutionContextFactory(settings, requestsStore, subject.optionManager);
 
-    ReflectionManager reflectionManager =
-        new ReflectionManager(
-            subject.sabotContext,
-            subject.jobsService,
-            subject.catalogService,
-            subject.namespaceService,
-            subject.optionManager,
-            subject.userStore,
-            subject.reflectionStore,
-            subject.externalReflectionStore,
-            subject.materializationStore,
-            subject.materializationPlanStore,
-            subject.dependencyManager,
-            subject.descriptorCache,
-            subject.wakeUpCallback,
-            subject.expansionHelper,
-            subject.planCacheInvalidationHelper,
-            subject.allocator,
-            subject.reflectionGoalChecker,
-            subject.refreshStartHandler,
-            factory);
+    subject.contextFactory = factory;
+
+    ReflectionManager reflectionManager = subject.newReflectionManager();
 
     ReflectionId reflectionId = new ReflectionId("r_id");
 
@@ -1453,7 +1626,7 @@ public class TestReflectionManager {
 
   /**
    * Verifies that the reflection manager correctly updates materialization and snapshot ids in
-   * dependencyManager.materializationInfoCache.
+   * dependencyManager.materializationInfoCache with handleMaterializationDone method.
    */
   @Test
   public void testDependencyManagerMaterializationInfoUpdates() throws Exception {
@@ -1462,7 +1635,7 @@ public class TestReflectionManager {
     ReflectionEntry entry =
         new ReflectionEntry()
             .setId(reflectionId)
-            .setState(ReflectionState.METADATA_REFRESH)
+            .setState(ReflectionState.REFRESHING)
             .setType(ReflectionType.RAW)
             .setDatasetId(dataSetId)
             .setRefreshMethod(RefreshMethod.INCREMENTAL);
@@ -1522,15 +1695,34 @@ public class TestReflectionManager {
     final IcebergMetadata icebergMetadata = mock(IcebergMetadata.class);
     long testSnapshot = 2L;
 
-    when(subject.materializationStore.getLastMaterialization(reflectionId)).thenReturn(m);
-    when(subject.jobsService.getJobDetails(any())).thenReturn(job);
-    AccelerationStoragePluginConfig pluginConfig =
-        Mockito.mock(AccelerationStoragePluginConfig.class);
-    when(pluginConfig.getPath()).thenReturn(Path.of("."));
-    when(subject.accelerationPlugin.getConfig()).thenReturn(pluginConfig);
-    when(subject.catalogService.getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME))
-        .thenReturn(subject.accelerationPlugin);
-    when(subject.materializationStore.get(materializationId)).thenReturn(m);
+    RefreshDoneHandler handler = mock(RefreshDoneHandler.class);
+    AccelerationSettings accelerationSettings = new AccelerationSettings();
+    accelerationSettings.setMethod(RefreshMethod.INCREMENTAL);
+    accelerationSettings.setRefreshField("refreshField");
+    accelerationSettings.setSnapshotBased(true);
+    RefreshDecision decision = new RefreshDecision();
+    decision.setAccelerationSettings(accelerationSettings);
+    decision.setDatasetHash(111);
+    doReturn(decision).when(handler).handle();
+
+    when(subject.materializationStore.getRefreshes(m))
+        .thenReturn(FluentIterable.from(new Refresh[0]));
+
+    // required for maybeOptimizeIncrementalReflectionFiles to skip OPTIMIZE,
+    // which is unrelated to this test
+    ReflectionGoal reflectionGoal =
+        new ReflectionGoal()
+            .setId(reflectionId)
+            .setArrowCachingEnabled(true)
+            .setDatasetId(dataSetId)
+            .setType(ReflectionType.RAW)
+            .setDetails(new ReflectionDetails())
+            .setState(ReflectionGoalState.ENABLED);
+    when(subject.userStore.get(entry.getId())).thenReturn(reflectionGoal);
+    when(subject.optionManager.getOption(
+            ReflectionOptions.ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS))
+        .thenReturn(false);
+
     when(subject.catalogService.getCatalog(any(MetadataRequestOptions.class))).thenReturn(catalog);
     when(catalog.getTable(namespaceKey)).thenReturn(dremioTable);
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
@@ -1538,9 +1730,15 @@ public class TestReflectionManager {
     when(physicalDataset.getIcebergMetadata()).thenReturn(icebergMetadata);
     when(icebergMetadata.getSnapshotId()).thenReturn(testSnapshot);
 
+    PlanCacheInvalidationHelper planCacheInvalidationHelper =
+        mock(PlanCacheInvalidationHelper.class);
+    when(subject.planCacheInvalidationHelper.get()).thenReturn(planCacheInvalidationHelper);
+    doNothing()
+        .when(planCacheInvalidationHelper)
+        .invalidateReflectionAssociatedPlanCache(entry.getDatasetId());
+
     // TEST
-    subject.reflectionManager.handleEntry(
-        entry, 0, new ReflectionManager.EntryCounts(), subject.dependencyResolutionContext);
+    subject.reflectionManager.handleSuccessfulJob(entry, m, job, handler);
 
     // ASSERT
     // Verify the map was updated
@@ -1611,8 +1809,7 @@ class Subject {
       Mockito.mock(Function.class);
 
   @VisibleForTesting
-  Supplier<ReflectionServiceImpl.PlanCacheInvalidationHelper> planCacheInvalidationHelper =
-      Mockito.mock(Supplier.class);
+  Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper = Mockito.mock(Supplier.class);
 
   @VisibleForTesting BufferAllocator allocator = Mockito.mock(BufferAllocator.class);
 
@@ -1633,34 +1830,37 @@ class Subject {
   DependencyResolutionContext dependencyResolutionContext =
       Mockito.mock(DependencyResolutionContext.class);
 
-  @VisibleForTesting ReflectionManager reflectionManager = newReflectionManager();
   @VisibleForTesting SabotConfig sabotConfig = SabotConfig.create();
+  @VisibleForTesting DatasetEventHub datasetEventHub = new DatasetEventHub();
+  @VisibleForTesting ReflectionManager reflectionManager;
 
   public Subject() {
     when(sabotContext.getConfig()).thenReturn(sabotConfig);
+    reflectionManager = newReflectionManager();
   }
 
   @VisibleForTesting
   ReflectionManager newReflectionManager() {
-    return new ReflectionManager(
-        sabotContext,
-        jobsService,
-        catalogService,
-        namespaceService,
-        optionManager,
-        userStore,
-        reflectionStore,
-        externalReflectionStore,
-        materializationStore,
-        materializationPlanStore,
-        dependencyManager,
-        descriptorCache,
-        wakeUpCallback,
-        expansionHelper,
-        planCacheInvalidationHelper,
-        allocator,
-        reflectionGoalChecker,
-        refreshStartHandler,
-        contextFactory);
+    return spy(
+        new ReflectionManager(
+            sabotContext,
+            jobsService,
+            catalogService,
+            namespaceService,
+            optionManager,
+            userStore,
+            reflectionStore,
+            externalReflectionStore,
+            materializationStore,
+            materializationPlanStore,
+            dependencyManager,
+            descriptorCache,
+            wakeUpCallback,
+            expansionHelper,
+            allocator,
+            reflectionGoalChecker,
+            refreshStartHandler,
+            contextFactory,
+            datasetEventHub));
   }
 }

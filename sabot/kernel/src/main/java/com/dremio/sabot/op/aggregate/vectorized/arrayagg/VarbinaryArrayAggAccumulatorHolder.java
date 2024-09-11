@@ -21,14 +21,14 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VarBinaryVector;
 
 public final class VarbinaryArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<ByteArrayWrapper, VarBinaryVector> {
+    extends ArrayAggAccumulatorHolder<ByteArrayWrapper> {
   private final VarBinaryVector vector;
+  private double accumulatedBytes = 0;
 
-  public VarbinaryArrayAggAccumulatorHolder(
-      int maxValuesPerBatch, final BufferAllocator allocator) {
-    super(maxValuesPerBatch, allocator);
+  public VarbinaryArrayAggAccumulatorHolder(final BufferAllocator allocator, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector = new VarBinaryVector("array_agg VarbinaryArrayAggAccumulatorHolder", allocator);
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -48,11 +48,25 @@ public final class VarbinaryArrayAggAccumulatorHolder
   @Override
   public void addItemToVector(ByteArrayWrapper data, int index) {
     vector.set(index, data.getBytes());
+    accumulatedBytes += getSizeOfElement(data);
   }
 
   @Override
   public ByteArrayWrapper getItem(int index) {
     byte[] element = vector.get(index);
     return new ByteArrayWrapper(element);
+  }
+
+  @Override
+  public double getSizeOfElement(ByteArrayWrapper element) {
+    return element.getLength();
+  }
+
+  @Override
+  public void reAllocIfNeeded(ByteArrayWrapper data) {
+    super.reAllocIfNeeded(data);
+    if (accumulatedBytes + getSizeOfElement(data) > vector.getByteCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

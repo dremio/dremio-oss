@@ -27,7 +27,7 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.cmd.upgrade.Upgrade;
 import com.dremio.dac.server.DACConfig;
-import com.dremio.exec.util.GuavaPatcher;
+import com.dremio.exec.proto.beans.DremioExitCodes;
 import com.google.common.base.Preconditions;
 
 /** Starts the Dremio daemon and inject dependencies */
@@ -36,13 +36,6 @@ public class DremioDaemon {
       org.slf4j.LoggerFactory.getLogger(DremioDaemon.class);
 
   static {
-    /*
-     * HBase client uses older version of Guava's Stopwatch API,
-     * while Dremio ships with 18.x which has changes the scope of
-     * these API to 'package', this code make them accessible.
-     */
-    GuavaPatcher.patch();
-
     /*
      * Route JUL logging messages to SLF4J.
      */
@@ -111,7 +104,8 @@ public class DremioDaemon {
         daemon.awaitClose();
       }
     } catch (final Throwable ex) {
-      ProcessExit.exit(ex, "Failure while starting services.", 4);
+      ProcessExit.exit(
+          ex, "Failure while starting services.", DremioExitCodes.SERVICE_START_FAILURE);
     }
   }
 }

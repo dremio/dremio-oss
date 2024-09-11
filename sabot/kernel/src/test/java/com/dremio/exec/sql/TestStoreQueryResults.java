@@ -18,14 +18,12 @@ package com.dremio.exec.sql;
 import static java.lang.String.format;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.LocalSimpleJobRunner;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.DeferredException;
 import com.dremio.common.util.TestTools;
-import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.protos.AttemptId;
-import com.dremio.common.utils.protos.ExternalIdHelper;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PlannerPhase;
@@ -38,22 +36,15 @@ import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
-import com.dremio.exec.proto.UserProtos.RunQuery;
-import com.dremio.exec.proto.UserProtos.SubmissionSource;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.protector.UserResult;
-import com.dremio.exec.work.user.LocalExecutionConfig;
-import com.dremio.exec.work.user.LocalQueryExecutor;
-import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -70,13 +61,13 @@ import org.junit.Test;
  */
 public class TestStoreQueryResults extends BaseTestQuery {
 
-  private static class TestQueryObserver extends AbstractQueryObserver {
+  public static class TestQueryObserver extends AbstractQueryObserver {
     private final CountDownLatch latch = new CountDownLatch(1);
     private final DeferredException exception = new DeferredException();
     private final boolean checkPlanWriterDistribution;
     private volatile AttemptId attemptId;
 
-    TestQueryObserver(boolean checkPlanWriterDistribution) {
+    public TestQueryObserver(boolean checkPlanWriterDistribution) {
       this.checkPlanWriterDistribution = checkPlanWriterDistribution;
     }
 
@@ -157,7 +148,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
       latch.countDown();
     }
 
-    void waitForCompletion() throws Exception {
+    public void waitForCompletion() throws Exception {
       latch.await();
       exception.throwNoClearRuntime();
     }
@@ -311,40 +302,15 @@ public class TestStoreQueryResults extends BaseTestQuery {
 
   private static String localQueryHelper(
       String query, String storeTblName, boolean checkWriterDistributionTrait) throws Exception {
-    LocalQueryExecutor localQueryExecutor = getLocalQueryExecutor();
-
-    RunQuery queryCmd =
-        RunQuery.newBuilder()
-            .setType(UserBitShared.QueryType.SQL)
-            .setSource(SubmissionSource.LOCAL)
-            .setPlan(query)
+    LocalSimpleJobRunner localSimpleJobRunner =
+        new LocalSimpleJobRunner.LocalSimpleJobRunnerBuilder()
+            .setTempSchema(TEMP_SCHEMA)
+            .setTblName(storeTblName)
+            .setCheckWriterDistributionTrait(checkWriterDistributionTrait)
+            .setLocalQueryExecutor(getLocalQueryExecutor())
             .build();
-
-    String queryResultsStorePath = format("%s.\"%s\"", TEMP_SCHEMA, storeTblName);
-    LocalExecutionConfig config =
-        LocalExecutionConfig.newBuilder()
-            .setEnableLeafLimits(false)
-            .setFailIfNonEmptySent(false)
-            .setUsername(StandardSystemProperty.USER_NAME.value())
-            .setSqlContext(Collections.<String>emptyList())
-            .setInternalSingleThreaded(false)
-            .setQueryResultsStorePath(queryResultsStorePath)
-            .setAllowPartitionPruning(true)
-            .setExposeInternalSources(false)
-            .setSubstitutionSettings(SubstitutionSettings.of())
-            .build();
-
-    TestQueryObserver queryObserver = new TestQueryObserver(checkWriterDistributionTrait);
-    localQueryExecutor.submitLocalQuery(
-        ExternalIdHelper.generateExternalId(), queryObserver, queryCmd, false, config, false, null);
-
-    queryObserver.waitForCompletion();
-
-    return toTableName(TEMP_SCHEMA, storeTblName, queryObserver.getAttemptId());
-  }
-
-  private static String toTableName(String schema1, String schema2, final AttemptId id) {
-    return PathUtils.constructFullPath(
-        Arrays.asList(schema1, schema2, QueryIdHelper.getQueryId(id.toQueryId())));
+    localSimpleJobRunner.runQueryAsJob(
+        query, StandardSystemProperty.USER_NAME.value(), "SQL", "NONE");
+    return localSimpleJobRunner.getResultTablePath();
   }
 }

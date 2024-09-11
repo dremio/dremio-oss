@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/variables.less";
-@import "~@app/uiTheme/less/variables.complex.less";
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 
 .align-left {
@@ -27,11 +25,11 @@
 }
 
 .background1 {
-  background-color: @PALE_BLUE;
+  background-color: var(--color--brand--50);
 }
 
 .border-default {
-  border: @border-default;
+  border: 1px solid var(--border--neutral);
 }
 
 .horizontal-content-padding {

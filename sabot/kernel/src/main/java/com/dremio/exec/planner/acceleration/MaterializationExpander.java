@@ -20,14 +20,17 @@ import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.acceleration.StrippingFactory.StripResult;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.UnexpandedMaterializationDescriptor;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityComparer;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityComparer.Options;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.exec.planner.sql.DremioToRelContext;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.NamespaceTable;
@@ -59,7 +62,7 @@ public class MaterializationExpander {
     this.catalogService = catalogService;
   }
 
-  public DremioMaterialization expand(MaterializationDescriptor descriptor) {
+  public DremioMaterialization expand(UnexpandedMaterializationDescriptor descriptor) {
     try (WarningTimer timer =
         new WarningTimer(
             String.format(
@@ -99,7 +102,7 @@ public class MaterializationExpander {
       }
 
       // if the row types don't match, ignoring the nullability, fail immediately
-      if (!areRowTypesEqual(tableRel.getRowType(), strippedQueryRowType, true)) {
+      if (!areRowTypesEqual(tableRel.getRowType(), strippedQueryRowType)) {
         throw new ExpansionException(
             String.format(
                 "Materialization %s have different row types for its table and query rels.%n"
@@ -123,6 +126,10 @@ public class MaterializationExpander {
                 CalciteArrowHelper.fromCalciteRowType(strippedQueryRowType))
             .build(logger);
       }
+
+      // Wiping out RelMetadataCache. It will be holding the RelNodes from the prior
+      // planning phases.
+      queryRel.getCluster().invalidateMetadataQuery();
 
       return new DremioMaterialization(
           tableRel,
@@ -168,8 +175,8 @@ public class MaterializationExpander {
    * Compare row types ignoring field names, nullability, ANY and CHAR/VARCHAR types. When
    * allowNullMismatch boolean is set, it allows INTEGER and NULL type match.
    */
-  static boolean areRowTypesEqual(
-      RelDataType rowType1, RelDataType rowType2, boolean allowNullMismatch) {
+  @VisibleForTesting
+  static boolean areRowTypesEqual(RelDataType rowType1, RelDataType rowType2) {
     if (rowType1 == rowType2) {
       return true;
     }
@@ -182,25 +189,22 @@ public class MaterializationExpander {
     final List<RelDataTypeField> f2 =
         rowType2.getFieldList(); // original materialization query field
     for (Pair<RelDataTypeField, RelDataTypeField> pair : Pair.zip(f1, f2)) {
-      // remove nullability
-      final RelDataType type1 =
-          JavaTypeFactoryImpl.INSTANCE.createTypeWithNullability(pair.left.getType(), false);
-      final RelDataType type2 =
-          JavaTypeFactoryImpl.INSTANCE.createTypeWithNullability(pair.right.getType(), false);
 
-      // are types equal ?
-      if (type1.equals(type2)) {
+      final RelDataType type1 = pair.left.getType();
+      final RelDataType type2 = pair.right.getType();
+
+      Options options =
+          Options.builder()
+              .withConsiderNullability(false)
+              .withConsiderPrecision(false)
+              .withMatchAnyToAll(true)
+              .build();
+      if (RelDataTypeEqualityComparer.areEquals(type1, type2, options)) {
         continue;
       }
 
-      if (allowNullMismatch
-          && type2.getSqlTypeName() == SqlTypeName.NULL
+      if (type2.getSqlTypeName() == SqlTypeName.NULL
           && type1.getSqlTypeName() == SqlTypeName.INTEGER) {
-        continue;
-      }
-
-      // ignore ANY types
-      if (type1.getSqlTypeName() == SqlTypeName.ANY || type2.getSqlTypeName() == SqlTypeName.ANY) {
         continue;
       }
 
@@ -221,11 +225,6 @@ public class MaterializationExpander {
     }
 
     return true;
-  }
-
-  @VisibleForTesting
-  static boolean areRowTypesEqual(RelDataType rowType1, RelDataType rowType2) {
-    return areRowTypesEqual(rowType1, rowType2, false);
   }
 
   private static boolean isSumAggOutput(RelDataType type1, RelDataType type2) {
@@ -275,7 +274,8 @@ public class MaterializationExpander {
                   parent.getCluster(),
                   dremioCatalogReader,
                   DremioCompositeSqlOperatorTable.create(
-                      parent.getFunctionImplementationRegistry()),
+                      parent.getFunctionImplementationRegistry(),
+                      parent.getSettings().getOptions()),
                   catalogService);
       return deserializer.deserialize(planBytes);
     } catch (Exception ex) {
@@ -288,7 +288,8 @@ public class MaterializationExpander {
                     parent.getCluster(),
                     dremioCatalogReader,
                     DremioCompositeSqlOperatorTable.create(
-                        parent.getFunctionImplementationRegistry()),
+                        parent.getFunctionImplementationRegistry(),
+                        parent.getSettings().getOptions()),
                     catalogService);
         return deserializer.deserialize(planBytes);
       } catch (Exception ignored) {

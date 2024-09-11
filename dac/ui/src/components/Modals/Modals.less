@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/components/colors.less";
-@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
@@ -148,7 +147,7 @@
   }
 
   .modal-header {
-    border-bottom: 1px solid @solitude;
+    border-bottom: 1px solid var(--border--neutral);
     border-radius: 4px 4px 0 0;
   }
 
@@ -165,18 +164,18 @@
   }
 
   .--newModalStyles {
-    background: @WHITE;
+    background: var(--fill--primary);
     inset: 10% 40px;
     position: absolute;
     max-width: 600px;
 
     .modal-header {
-      background: @WHITE;
-      border-bottom: 1px solid @solitude;
+      background: var(--fill--primary);
+      border-bottom: 1px solid var(--border--neutral);
       height: 56px !important;
 
       .EllipsedText {
-        color: #060607 !important;
+        color: var(--text--primary) !important;
         font-size: 16px !important;
         line-height: 24px;
         font-weight: 600 !important;
@@ -207,7 +206,7 @@
       height: 24px;
       width: 24px;
       margin-right: 8px;
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
     }
   }
 }

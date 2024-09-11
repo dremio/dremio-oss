@@ -559,8 +559,10 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(
-        Iterables.concat(Collections.singletonList(pool), concreteServices.values()));
+    AutoCloseables.close(pool);
+    if (concreteServices != null) {
+      AutoCloseables.close(concreteServices.values());
+    }
   }
 
   @Override

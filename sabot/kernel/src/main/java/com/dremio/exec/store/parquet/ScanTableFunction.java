@@ -68,7 +68,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   private VarBinaryVector inputSplits;
   private VarBinaryVector inputColIds;
   private int batchSize;
-  private int currentRow;
+  private int recordRow;
   private long maxRecordCount;
   private long currentReaderRecordCount;
   private BatchSchema schema;
@@ -108,15 +108,18 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
         .materializeVectors(selectedColumns, mutator);
     outgoing.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     callBack.getSchemaChangedAndReset();
+    initializeIncomingVectors();
+    createRecordReaderIterator();
+    return outgoing;
+  }
 
+  protected void initializeIncomingVectors() {
     inputSplits =
         (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.SPLIT_INFORMATION);
     if (DatasetHelper.isIcebergFile(functionConfig.getFunctionContext().getFormatSettings())) {
       inputColIds = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.COL_IDS);
       isColIdMapSet = false;
     }
-    createRecordReaderIterator();
-    return outgoing;
   }
 
   private byte[] getExtendedProperties() {
@@ -137,7 +140,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
 
   @Override
   public void startRow(int row) throws Exception {
-    currentRow = row;
+    recordRow = row;
     if (row != 0) {
       return;
     }
@@ -165,15 +168,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
 
     // getReaders
     List<SplitAndPartitionInfo> splits = new ArrayList<>();
-    for (int record = 0; record < batchSize; ++record) {
-      try (ByteArrayInputStream bis = new ByteArrayInputStream(inputSplits.get(record));
-          ObjectInput in = new ObjectInputStream(bis)) {
-        splits.add((SplitAndPartitionInfo) in.readObject());
-      } catch (Exception e) {
-        throw UserException.dataReadError(e)
-            .message("Failed to read input split information.")
-            .build(logger);
-      }
+    for (int recordIndex = 0; recordIndex < batchSize; ++recordIndex) {
+      splits.add(getSplitAndPartitionInfo(recordIndex));
     }
 
     try {
@@ -204,9 +200,20 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     stats.addLongStat(ScanOperator.Metric.NUM_READERS, 1);
   }
 
+  protected SplitAndPartitionInfo getSplitAndPartitionInfo(int idx) {
+    try (ByteArrayInputStream bis = new ByteArrayInputStream(inputSplits.get(idx));
+        ObjectInput in = new ObjectInputStream(bis)) {
+      return (SplitAndPartitionInfo) in.readObject();
+    } catch (Exception e) {
+      throw UserException.dataReadError(e)
+          .message("Failed to read input split information.")
+          .build(logger);
+    }
+  }
+
   @Override
   public int processRow(int startOutIndex, int maxRecords) throws Exception {
-    if (currentRow != 0) {
+    if (recordRow != 0) {
       return 0;
     }
     if (currentRecordReader == null) {
@@ -239,7 +246,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
 
   @Override
   public void closeRow() throws Exception {
-    if (currentRow == 0) {
+    if (recordRow == 0) {
       AutoCloseables.close(currentRecordReader);
       currentRecordReader = null;
     }

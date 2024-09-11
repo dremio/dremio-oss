@@ -21,7 +21,6 @@ import com.dremio.exec.planner.logical.BridgeExchangePrule;
 import com.dremio.exec.planner.logical.BridgeReaderPrule;
 import com.dremio.exec.planner.logical.CopyIntoTableRule;
 import com.dremio.exec.planner.logical.CorrelateRule;
-import com.dremio.exec.planner.logical.DremioAggregateProjectPullUpConstantsRule;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule;
 import com.dremio.exec.planner.logical.DremioExpandDistinctAggregatesRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
@@ -147,6 +146,11 @@ public enum PlannerPhase {
     public RuleSet getRules(OptimizerRulesContext context) {
       throw new RuntimeException();
     }
+
+    @Override
+    public boolean forceVerbose() {
+      return true;
+    }
   },
 
   OPERATOR_EXPANSION("Operator Expansion") {
@@ -238,7 +242,6 @@ public enum PlannerPhase {
           PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
           JoinFilterCanonicalizationRule.INSTANCE,
           DremioCoreRules.FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
-          DremioCoreRules.FILTER_SET_OP_TRANSPOSE_RULE,
           DremioCoreRules.FILTER_MERGE_CALCITE_RULE,
           FilterWindowTransposeRule.INSTANCE,
           DremioCoreRules.LOGICAL_FILTER_CORRELATE_RULE,
@@ -248,9 +251,21 @@ public enum PlannerPhase {
         b.add(PushFilterPastFlattenrule.INSTANCE);
       }
 
+      if (!ps.isEnhancedFilterJoinPushdownEnabled() || ps.useEnhancedFilterJoinGuardRail()) {
+        b.add(DremioCoreRules.FILTER_SET_OP_TRANSPOSE_CALCITE_RULE);
+      } else {
+        b.add(DremioCoreRules.FILTER_SET_OP_TRANSPOSE_RULE);
+      }
+
       if (ps.isEnhancedFilterJoinPushdownEnabled()) {
-        b.add(EnhancedFilterJoinRule.WITH_FILTER);
-        b.add(EnhancedFilterJoinRule.NO_FILTER);
+        b.add(
+            EnhancedFilterJoinRule.Config.WITH_FILTER
+                .withUseGuardRail(ps.useEnhancedFilterJoinGuardRail())
+                .toRule());
+        b.add(
+            EnhancedFilterJoinRule.Config.WITHOUT_FILTER
+                .withUseGuardRail(ps.useEnhancedFilterJoinGuardRail())
+                .toRule());
       }
 
       if (ps.isTransitiveFilterPushdownEnabled()) {
@@ -310,6 +325,20 @@ public enum PlannerPhase {
     }
   },
 
+  AGG_JOIN_PUSHDOWN("Agg-Join Pushdown") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      List<RelOptRule> rules = new ArrayList<>();
+      if (context.getPlannerSettings().isSimpleAggJoinEnabled()) {
+        if (context.getPlannerSettings().isSimpleAggJoinEnabled()) {
+          rules.add(DremioCoreRules.AGGREGATE_JOIN_TRANSPOSE_RULE);
+          rules.add(DremioCoreRules.AGGREGATE_PROJECT_MERGE_RULE);
+          rules.add(DremioCoreRules.PROJECT_REMOVE_DRULE);
+        }
+      }
+      return RuleSets.ofList(rules);
+    }
+  },
   /** Initial phase of join planning */
   JOIN_PLANNING_MULTI_JOIN("Multi-Join analysis") {
     @Override
@@ -452,6 +481,12 @@ public enum PlannerPhase {
       final ImmutableList.Builder<RelOptRule> rules = ImmutableList.builder();
       rules.add(InClauseCommonSubexpressionEliminationRule.INSTANCE);
       rules.add(RollupWithBridgeExchangeRule.INSTANCE);
+      if (context.getPlannerSettings().isSimpleAggJoinEnabled()) {
+        rules
+            .add(DremioCoreRules.PROJECT_REMOVE_DRULE)
+            .add(DremioCoreRules.PUSH_PROJECT_INPUT_REF_PAST_FILTER_LOGICAL_INSTANCE)
+            .add(DremioCoreRules.PUSH_PROJECT_INPUT_REF_PAST_JOIN_RULE);
+      }
       return RuleSets.ofList(rules.build());
     }
   },
@@ -510,7 +545,7 @@ public enum PlannerPhase {
   static ImmutableList<RelOptRule> getPreLogicalCommonRules(OptimizerRulesContext context) {
     ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
     b.add(
-        DremioAggregateProjectPullUpConstantsRule.INSTANCE2_REMOVE_ALL,
+        DremioCoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
         LogicalAggregateGroupKeyFixRule.RULE,
 
         // Need to remove this rule as it has already been applied in the filter pushdown phase.
@@ -685,6 +720,8 @@ public enum PlannerPhase {
   /** Phase names during planning */
   public static final String PLAN_REFRESH_DECISION = "Refresh Decision";
 
+  public static final String PLAN_RESOURCES_PLANNED = "Execution Resources Planned";
+  public static final String PLAN_RESOURCES_ALLOCATED = "Execution Resources Allocated";
   public static final String PLAN_CONVERTED_SCAN = "Convert Scan";
   public static final String PLAN_VALIDATED = "Validation";
   public static final String PLAN_CONVERTED_TO_REL = "Convert To Rel";

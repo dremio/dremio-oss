@@ -23,15 +23,19 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.CopyIntoExtendedProperties;
+import com.dremio.exec.physical.config.CopyIntoExtendedProperties.PropertyKey;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.physical.config.SimpleQueryContext;
-import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.Builder;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState;
 import com.dremio.exec.physical.config.copyinto.CopyIntoHistoryExtendedProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties.OnErrorOption;
+import com.dremio.exec.physical.config.copyinto.IngestionProperties;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.dfs.FileLoadInfo;
+import com.dremio.exec.store.dfs.copyinto.CopyIntoExceptionUtils;
 import com.dremio.exec.store.dfs.easy.ExtendedEasyReaderProperties;
 import com.dremio.exec.store.easy.text.compliant.TextReader.RecordReaderStatus;
 import com.dremio.exec.tablefunctions.copyerrors.ValidationErrorRowWriter;
@@ -63,7 +67,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.mapred.FileSplit;
-import org.apache.poi.hssf.util.CellReference;
 
 // New text reader, complies with the RFC 4180 standard for text/csv files
 public class CompliantTextRecordReader extends AbstractRecordReader {
@@ -94,6 +97,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   private ExtendedFormatOptions extendedFormatOptions;
   private CopyIntoQueryProperties copyIntoQueryProperties;
   private SimpleQueryContext queryContext;
+  private IngestionProperties ingestionProperties;
 
   private int linesToSkip;
 
@@ -111,6 +115,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   private RecordBatchReadingStatus recordBatchReadingStatus = RecordBatchReadingStatus.NORMAL;
   private final List<AutoCloseable> closeables = new ArrayList<>();
   private boolean isFileLoadEventRecorded = false;
+  private long processingStartTime;
 
   public CompliantTextRecordReader(
       FileSplit split,
@@ -158,8 +163,11 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
         CopyIntoHistoryExtendedProperties copyIntoHistoryExtendedProperties =
             copyIntoExtendedProperties.getProperty(
-                CopyIntoExtendedProperties.PropertyKey.COPY_INTO_HISTORY_PROPERTIES,
-                CopyIntoHistoryExtendedProperties.class);
+                PropertyKey.COPY_INTO_HISTORY_PROPERTIES, CopyIntoHistoryExtendedProperties.class);
+        this.ingestionProperties =
+            copyIntoExtendedProperties.getProperty(
+                CopyIntoExtendedProperties.PropertyKey.INGESTION_PROPERTIES,
+                IngestionProperties.class);
 
         if (copyIntoHistoryExtendedProperties != null) {
           this.isValidationMode = true;
@@ -197,33 +205,16 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
    */
   @Override
   public void setup(OutputMutator outputMutator) throws ExecutionSetupException {
+    processingStartTime = System.currentTimeMillis();
     // setup Output, Input, and Reader
+    TextInput input = null;
+    final TextOutput output;
+    final int sizeLimit =
+        Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
     try {
       try {
-        final TextInput input;
-        final TextOutput output;
-
-        final int sizeLimit =
-            Math.toIntExact(
-                this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
-
         // setup Input using InputStream
-        try {
-          input = createInput();
-        } catch (IOException e) {
-          if (onErrorHandlingRequired) {
-            SchemaImposedOutput imposedOutput =
-                new SchemaImposedOutput(
-                    outputMutator,
-                    sizeLimit,
-                    extendedFormatOptions,
-                    isValidationMode,
-                    validatedTableSchema,
-                    validationErrorRowWriter);
-            reader = createReader(null, imposedOutput, copyIntoQueryProperties);
-          }
-          throw e;
-        }
+        input = createInput();
         // Setup a separate input for pre-validation
         TextInput inputForPreValidation =
             !isValidationMode
@@ -261,18 +252,9 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
                         validationErrorRowWriter,
                         onErrorHandlingRequired);
               } catch (SchemaMismatchException e) {
-                if (onErrorHandlingRequired) {
-                  SchemaImposedOutput imposedOutput =
-                      new SchemaImposedOutput(
-                          outputMutator,
-                          sizeLimit,
-                          extendedFormatOptions,
-                          isValidationMode,
-                          validatedTableSchema,
-                          validationErrorRowWriter);
-                  reader = createReader(input, imposedOutput, copyIntoQueryProperties);
-                }
-                throw UserException.dataReadError().message(e.getMessage()).buildSilently();
+                throw UserException.dataReadError()
+                    .message(CopyIntoExceptionUtils.redactMessage(e.getMessage()))
+                    .buildSilently();
               }
             } else {
               output =
@@ -290,31 +272,61 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
             output =
                 new FieldVarCharOutput(
                     outputMutator, fieldNames, getColumns(), isStarQuery(), sizeLimit);
+            output.init();
           } else if (settings.isAutoGenerateColumnNames()) {
             String[] fieldNames = generateColumnNames();
             output =
                 new FieldVarCharOutput(
                     outputMutator, fieldNames, getColumns(), isStarQuery(), sizeLimit);
+            output.init();
           } else {
             // simply use RepeatedVarCharVector
             output =
                 new RepeatedVarCharOutput(outputMutator, getColumns(), isStarQuery(), sizeLimit);
+            output.init();
           }
         }
 
         if (inputForPreValidation == null) {
-          reader = createReader(input, output, copyIntoQueryProperties);
+          reader =
+              createReader(
+                  input, output, copyIntoQueryProperties, ingestionProperties, processingStartTime);
         } else {
-          preValidatorReader = createReader(inputForPreValidation, output, copyIntoQueryProperties);
+          preValidatorReader =
+              createReader(
+                  inputForPreValidation,
+                  output,
+                  copyIntoQueryProperties,
+                  ingestionProperties,
+                  processingStartTime);
           preValidatorReader.start();
           // In case of pre-validation the normal reader is similar to the "abort" option
-          reader = createReader(input, output, null);
+          reader =
+              createReader(
+                  input, output, copyIntoQueryProperties, ingestionProperties, processingStartTime);
           recordBatchReadingStatus = RecordBatchReadingStatus.PRE_VALIDATION;
         }
         reader.start();
       } catch (Throwable e) {
         if (isValidationMode || onErrorHandlingRequired) {
-          this.setupError = e.getMessage();
+          this.setupError = CopyIntoExceptionUtils.redactException(e).getMessage();
+          if (reader == null || !(reader.getOutput() instanceof SchemaImposedOutput)) {
+            SchemaImposedOutput imposedOutput =
+                new SchemaImposedOutput(
+                    outputMutator,
+                    sizeLimit,
+                    extendedFormatOptions,
+                    isValidationMode,
+                    validatedTableSchema,
+                    validationErrorRowWriter);
+            reader =
+                createReader(
+                    input,
+                    imposedOutput,
+                    copyIntoQueryProperties,
+                    ingestionProperties,
+                    processingStartTime);
+          }
         } else {
           throw e;
         }
@@ -350,7 +362,11 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   }
 
   private TextReader createReader(
-      TextInput input, TextOutput output, CopyIntoQueryProperties copyIntoQueryProperties) {
+      TextInput input,
+      TextOutput output,
+      CopyIntoQueryProperties copyIntoQueryProperties,
+      IngestionProperties ingestionProperties,
+      long processingStartTime) {
     ArrowBuf whitespaceBuffer = closeLater(this.context.getAllocator().buffer(WHITE_SPACE_BUFFER));
     return closeLater(
         new TextReader(
@@ -359,10 +375,13 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
             output,
             whitespaceBuffer,
             filePathForError,
+            split.getLength(),
             schemaImposedMode,
             copyIntoQueryProperties,
+            ingestionProperties,
             queryContext,
-            isValidationMode));
+            isValidationMode,
+            processingStartTime));
   }
 
   private void setupForValidationMode(OutputMutator outputMutator) {
@@ -395,6 +414,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
               this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
       final RepeatedVarCharOutput hOutput =
           new RepeatedVarCharOutput(hOutputMutator, getColumns(), true, sizeLimit);
+      hOutput.init();
       this.allocate(hOutputMutator.fieldVectorMap);
 
       // setup Input using InputStream
@@ -432,6 +452,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
         }
         return fieldNames;
       } finally {
+        hOutput.close();
         // cleanup and set to skip the first line next time we read input
         reader.close();
       }
@@ -473,7 +494,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     if (fieldNames != null) {
       for (int i = 0; i < fieldNames.length; ++i) {
         if (fieldNames[i].isEmpty()) {
-          fieldNames[i] = CellReference.convertNumToColString(i);
+          fieldNames[i] = TextColumnNameGenerator.columnNameForIndex(i);
         }
         // If we have seen this column name before, add a suffix
         final Integer count = uniqueFieldNames.get(fieldNames[i]);
@@ -506,7 +527,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     if (columns != null && columns.length > 0) {
       String[] fieldNames = new String[columns.length];
       for (int i = 0; i < columns.length; ++i) {
-        fieldNames[i] = CellReference.convertNumToColString(i);
+        fieldNames[i] = TextColumnNameGenerator.columnNameForIndex(i);
       }
       return fieldNames;
     } else {
@@ -668,6 +689,14 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     }
   }
 
+  /**
+   * Writes setup error information.
+   *
+   * <p>This method checks if error handling is required and if the schema-imposed mode is enabled
+   * and the reader's output is an instance of SchemaImposedOutput. If so, it retrieves the index of
+   * the file history column and writes setup error information to the output. If error handling is
+   * not required, the setup error information is written using the validation error row writer.
+   */
   private void writeSetupError() {
     if (onErrorHandlingRequired) {
       if (schemaImposedMode && reader.getOutput() instanceof SchemaImposedOutput) {
@@ -675,24 +704,38 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
         OptionalInt fileHistoryColIndex = schemaImposedOutput.getFileHistoryColIndex();
         if (fileHistoryColIndex.isPresent()) {
           schemaImposedOutput.startField(fileHistoryColIndex.getAsInt());
-          String infoJson =
-              FileLoadInfo.Util.getJson(
-                  new CopyIntoFileLoadInfo.Builder(
-                          queryContext.getQueryId(),
-                          queryContext.getUserName(),
-                          queryContext.getTableNamespace(),
-                          copyIntoQueryProperties.getStorageLocation(),
-                          filePathForError,
-                          extendedFormatOptions,
-                          FileType.CSV.name(),
-                          CopyIntoFileLoadInfo.CopyIntoFileState.SKIPPED)
-                      .setRecordsLoadedCount(0)
-                      .setRecordsRejectedCount(0)
-                      .setRecordDelimiter(new String(settings.getNewLineDelimiter()))
-                      .setFieldDelimiter(new String(settings.getDelimiter()))
-                      .setQuoteChar(new String(settings.getQuote()))
-                      .setEscapeChar(new String(settings.getQuoteEscape()))
-                      .build());
+          Builder builder =
+              new Builder(
+                      queryContext.getQueryId(),
+                      queryContext.getUserName(),
+                      queryContext.getTableNamespace(),
+                      copyIntoQueryProperties.getStorageLocation(),
+                      filePathForError,
+                      extendedFormatOptions,
+                      FileType.CSV.name(),
+                      CopyIntoFileState.SKIPPED)
+                  .setRecordsLoadedCount(0)
+                  .setRecordsRejectedCount(0)
+                  .setRecordDelimiter(new String(settings.getNewLineDelimiter()))
+                  .setFieldDelimiter(new String(settings.getDelimiter()))
+                  .setQuoteChar(new String(settings.getQuote()))
+                  .setEscapeChar(new String(settings.getQuoteEscape()))
+                  .setBranch(copyIntoQueryProperties.getBranch())
+                  .setProcessingStartTime(processingStartTime)
+                  .setFileSize(split.getLength())
+                  .setFirstErrorMessage(setupError);
+
+          if (ingestionProperties != null) {
+            builder
+                .setPipeId(ingestionProperties.getPipeId())
+                .setPipeName(ingestionProperties.getPipeName())
+                .setFileNotificationTimestamp(ingestionProperties.getNotificationTimestamp())
+                .setIngestionSourceType(ingestionProperties.getIngestionSourceType())
+                .setRequestId(ingestionProperties.getRequestId());
+          }
+
+          String infoJson = FileLoadInfo.Util.getJson(builder.build());
+
           for (byte b : infoJson.getBytes()) {
             schemaImposedOutput.append(b);
           }

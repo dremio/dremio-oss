@@ -16,17 +16,26 @@
 
 package com.dremio.sabot.exec;
 
+import static com.dremio.telemetry.api.metrics.CommonTags.TAGS_OUTCOME_SUCCESS;
+
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Metrics;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 /** Abstract strategy for reducing heap usage. */
 public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrategy {
-  public static final String FAIL_CONTEXT = "Query canceled by executor heap monitor";
 
   protected FragmentExecutors fragmentExecutors;
   protected QueriesClerk queriesClerk;
+
+  private static final Meter.MeterProvider<Counter> clawBackCounter =
+      Counter.builder("query_execution_clawback_total")
+          .description("Tracks how many queries were failed as a part of heap clawbacks")
+          .withRegistry(Metrics.globalRegistry);
 
   public AbstractHeapClawBackStrategy(
       FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
@@ -34,7 +43,7 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
     this.fragmentExecutors = fragmentExecutors;
   }
 
-  public class ActiveQuery {
+  public static class ActiveQuery {
     QueryId queryId;
     long directMemoryUsed;
 
@@ -68,13 +77,22 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
   /**
    * Fail the queries in the input list.
    *
-   * @param queries list of queries to be cancelled.
+   * @param queries list of queries to be canceled.
    */
-  protected void failQueries(
-      List<QueryId> queries, Throwable throwable, String failContext, String extraDebugInfo) {
+  protected void failQueries(List<QueryId> queries, HeapClawBackContext clawBackContext) {
+    final String normalizedTriggerName = clawBackContext.getTrigger().name().toLowerCase();
+
+    clawBackCounter
+        .withTags(TAGS_OUTCOME_SUCCESS.and("trigger", normalizedTriggerName))
+        .increment(queries.size());
+
     for (QueryId queryId : queries) {
       fragmentExecutors.failFragments(
-          queryId, queriesClerk, throwable, failContext, extraDebugInfo);
+          queryId,
+          queriesClerk,
+          clawBackContext.getCause(),
+          clawBackContext.getFailContext(),
+          clawBackContext.getTrigger());
     }
   }
 }

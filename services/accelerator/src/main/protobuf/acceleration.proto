@@ -42,6 +42,7 @@ message DatasetDetails {
   optional string id = 1;
   repeated string path = 2;
   optional DatasetType type = 3;
+  optional string versionContext = 4;
 }
 
 message MaterializationDetails {

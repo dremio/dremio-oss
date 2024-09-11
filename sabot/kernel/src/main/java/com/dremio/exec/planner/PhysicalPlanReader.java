@@ -29,9 +29,7 @@ import com.dremio.exec.physical.base.FragmentRoot;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalOperatorUtil;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.MajorTypeSerDe;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginResolver;
@@ -62,7 +60,6 @@ import javax.inject.Provider;
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
-@SuppressWarnings("serial")
 public class PhysicalPlanReader {
   static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(PhysicalPlanReader.class);
@@ -70,16 +67,14 @@ public class PhysicalPlanReader {
   private final ObjectReader physicalPlanReader;
   private final ObjectMapper mapper;
   private final ObjectReader optionListReader;
-  private final ObjectReader operatorReader;
   private final LogicalPlanPersistence lpPersistance;
   private final Map<String, Object> injectables;
 
   public PhysicalPlanReader(
       ScanResult scanResult,
       LogicalPlanPersistence lpPersistance,
-      final NodeEndpoint endpoint,
       final Provider<CatalogService> catalogService,
-      SabotContext context) {
+      ConnectionReader connectionReader) {
 
     this.lpPersistance = lpPersistance;
 
@@ -99,7 +94,7 @@ public class PhysicalPlanReader {
 
     lpMapper.registerModule(deserModule);
 
-    ConnectionConf.registerSubTypes(lpMapper, context.getConnectionReaderProvider().get());
+    ConnectionConf.registerSubTypes(lpMapper, connectionReader);
 
     Set<Class<? extends PhysicalOperator>> subTypes = PhysicalOperatorUtil.getSubTypes(scanResult);
     for (Class<? extends PhysicalOperator> subType : subTypes) {
@@ -117,10 +112,7 @@ public class PhysicalPlanReader {
     // store this map so that we can use later for fragment plan reader
     this.injectables = new HashMap<>();
     this.injectables.put(StoragePluginResolver.class.getName(), storagePluginResolver);
-    this.injectables.put(
-        ConnectionReader.class.getName(), context.getConnectionReaderProvider().get());
-    this.injectables.put(SabotContext.class.getName(), context);
-    this.injectables.put(NodeEndpoint.class.getName(), endpoint);
+    this.injectables.put(ConnectionReader.class.getName(), connectionReader);
 
     InjectableValues.Std injectableValues = new InjectableValues.Std(this.injectables);
     this.injectables.forEach(injectableValues::addValue);
@@ -128,7 +120,6 @@ public class PhysicalPlanReader {
     this.mapper = lpMapper;
     this.physicalPlanReader = mapper.readerFor(PhysicalPlan.class).with(injectableValues);
     this.optionListReader = mapper.readerFor(OptionList.class).with(injectableValues);
-    this.operatorReader = mapper.readerFor(PhysicalOperator.class).with(injectableValues);
   }
 
   public static class ByteStringDeser extends StdDeserializer<ByteString> {
@@ -138,8 +129,7 @@ public class PhysicalPlanReader {
     }
 
     @Override
-    public ByteString deserialize(JsonParser p, DeserializationContext ctxt)
-        throws IOException, JsonProcessingException {
+    public ByteString deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
       return ByteString.copyFrom(p.getBinaryValue());
     }
   }
@@ -202,29 +192,29 @@ public class PhysicalPlanReader {
     }
   }
 
-  public PhysicalPlan readPhysicalPlan(String json) throws JsonProcessingException, IOException {
+  public PhysicalPlan readPhysicalPlan(String json) throws IOException {
     logger.debug("Reading physical plan {}", json);
     return physicalPlanReader.readValue(json);
   }
 
   public PhysicalPlan readPhysicalPlan(com.google.protobuf.ByteString json, FragmentCodec codec)
-      throws JsonProcessingException, IOException {
+      throws IOException {
     return readValue(physicalPlanReader, json, codec);
   }
 
   public OptionList readOptionList(com.google.protobuf.ByteString json, FragmentCodec codec)
-      throws JsonProcessingException, IOException {
+      throws IOException {
     return readValue(optionListReader, json, codec);
   }
 
   public <T> T readObject(Class<T> clazz, com.google.protobuf.ByteString json, FragmentCodec codec)
-      throws JsonProcessingException, IOException {
+      throws IOException {
     ObjectReader objectReader = mapper.readerFor(clazz);
     return readValue(objectReader, json, codec);
   }
 
   public FragmentRoot readFragmentOperator(com.google.protobuf.ByteString json, FragmentCodec codec)
-      throws JsonProcessingException, IOException {
+      throws IOException {
     final InjectableValues.Std injectableValues =
         new InjectableValues.Std(new HashMap<>(injectables));
     PhysicalOperator op =

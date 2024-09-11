@@ -18,6 +18,8 @@ package com.dremio.dac.api;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import javax.annotation.Nullable;
+import javax.validation.constraints.Pattern;
 
 /** Space */
 public class Space implements CatalogEntity {
@@ -26,6 +28,11 @@ public class Space implements CatalogEntity {
   private final String tag;
   @JsonISODateTime private final Long createdAt;
   private final List<CatalogItem> children;
+  private final String nextPageToken;
+
+  public Space(String id, String name, String tag, Long createdAt, List<CatalogItem> children) {
+    this(id, name, tag, createdAt, children, null);
+  }
 
   @JsonCreator
   public Space(
@@ -33,18 +40,23 @@ public class Space implements CatalogEntity {
       @JsonProperty("name") String name,
       @JsonProperty("tag") String tag,
       @JsonProperty("createdAt") Long createdAt,
-      @JsonProperty("children") List<CatalogItem> children) {
+      @JsonProperty("children") List<CatalogItem> children,
+      @JsonProperty("nextPageToken") @Nullable String nextPageToken) {
     this.id = id;
     this.name = name;
     this.tag = tag;
     this.createdAt = createdAt;
     this.children = children;
+    this.nextPageToken = nextPageToken;
   }
 
   public List<CatalogItem> getChildren() {
     return children;
   }
 
+  @Pattern(
+      regexp = "^[^.\"@]+$",
+      message = "Space name can not contain periods, double quotes or @.")
   public String getName() {
     return name;
   }
@@ -60,5 +72,11 @@ public class Space implements CatalogEntity {
 
   public Long getCreatedAt() {
     return createdAt;
+  }
+
+  @Nullable
+  @Override
+  public String getNextPageToken() {
+    return nextPageToken;
   }
 }

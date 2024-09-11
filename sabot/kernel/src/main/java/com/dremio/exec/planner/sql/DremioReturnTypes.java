@@ -18,6 +18,8 @@ package com.dremio.exec.planner.sql;
 import static org.apache.calcite.sql.type.ReturnTypes.ARG0_NULLABLE;
 
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
+import java.util.LinkedList;
+import java.util.List;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
@@ -133,6 +135,31 @@ public class DremioReturnTypes {
           RelDataType arrayItemType = opBinding.getOperandType(0);
           RelDataType arrayType = opBinding.getTypeFactory().createArrayType(arrayItemType, -1);
           return arrayType;
+        }
+      };
+
+  public static final SqlReturnTypeInference TO_MAP =
+      new SqlReturnTypeInference() {
+        @Override
+        public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+          RelDataType mapKeyType = opBinding.getOperandType(0);
+          List<RelDataType> valuesTypes = new LinkedList<>();
+          for (int i = 1; i < opBinding.getOperandCount(); i += 2) {
+            valuesTypes.add(opBinding.getOperandType(i));
+          }
+          RelDataType mapValueType = opBinding.getTypeFactory().leastRestrictive(valuesTypes);
+          RelDataType mapType = opBinding.getTypeFactory().createMapType(mapKeyType, mapValueType);
+          return mapType;
+        }
+      };
+  public static final SqlReturnTypeInference ARRAYS_TO_MAP =
+      new SqlReturnTypeInference() {
+        @Override
+        public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+          RelDataType mapKeyType = opBinding.getOperandType(0).getComponentType();
+          RelDataType mapValueType = opBinding.getOperandType(1).getComponentType();
+          RelDataType mapType = opBinding.getTypeFactory().createMapType(mapKeyType, mapValueType);
+          return mapType;
         }
       };
 

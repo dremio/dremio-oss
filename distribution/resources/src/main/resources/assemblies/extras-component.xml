@@ -38,7 +38,7 @@
 
     <dependencySet>
       <fileMode>0755</fileMode>
-      <outputDirectory>lib/</outputDirectory>
+      <outputDirectory>lib/x86_64</outputDirectory>
       <unpack>true</unpack>
       <unpackOptions>
         <excludes>
@@ -47,9 +47,24 @@
       </unpackOptions>
       <useProjectArtifact>false</useProjectArtifact>
       <includes>
-        <include>org.apache.hadoop:hadoop-common-native</include>
-        <include>org.apache.hadoop:hadoop-native-libraries</include>
+        <include>org.apache.hadoop:hadoop-common-native:jar:linux</include>
+        <include>org.apache.hadoop:hadoop-native-libraries:jar:linux</include>
       </includes>
     </dependencySet>
-  </dependencySets>
+  <dependencySet>
+    <fileMode>0755</fileMode>
+    <outputDirectory>lib/aarch64</outputDirectory>
+    <unpack>true</unpack>
+    <unpackOptions>
+      <excludes>
+        <exclude>META-INF/**</exclude>
+      </excludes>
+    </unpackOptions>
+    <useProjectArtifact>false</useProjectArtifact>
+    <includes>
+      <include>org.apache.hadoop:hadoop-common-native:jar:linux-aarch64</include>
+      <include>org.apache.hadoop:hadoop-native-libraries:jar:linux-aarch64</include>
+    </includes>
+  </dependencySet>
+</dependencySets>
 </component>

@@ -26,6 +26,7 @@ import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.MajorTypeHelper;
@@ -35,6 +36,7 @@ import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.expr.ExpressionSplitter;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.ProjectOperator;
@@ -92,8 +94,17 @@ public class NonVarcharCoercionReader implements AutoCloseable {
             .orElse(false);
   }
 
-  protected void addExpression(Field field, FieldReference inputRef) {
+  protected void addExpression(
+      Field field, FieldReference inputRef, ExpressionEvaluationOptions projectorOptions) {
     TypeProtos.MajorType majorType = typeCoercion.getType(field);
+    if (projectorOptions.isTrackRecordLevelErrors()
+        && ColumnUtils.COPY_HISTORY_COLUMN_NAME.equals(field.getName())) {
+      // adding this will make Projector write errors to this column
+      exprs.add(
+          new NamedExpression(
+              new TypedNullConstant(CompleteType.fromMajorType(majorType)), inputRef));
+      return;
+    }
     LogicalExpression cast;
     if (inputRef.getCompleteType().isText()
         && (majorType.getMinorType().equals(VARCHAR)
@@ -111,7 +122,7 @@ public class NonVarcharCoercionReader implements AutoCloseable {
     exprs.add(new NamedExpression(cast, inputRef));
   }
 
-  protected void createCoercions() {
+  protected void createCoercions(ExpressionEvaluationOptions projectorOptions) {
     for (Field field : targetSchema.getFields()) {
       final FieldReference inputRef = FieldReference.getWithQuotedRef(field.getName());
       final CompleteType targetType = CompleteType.fromField(field);
@@ -119,7 +130,7 @@ public class NonVarcharCoercionReader implements AutoCloseable {
         // do not add any expressions for non primitive fields
         exprs.add(null);
       } else {
-        addExpression(field, inputRef);
+        addExpression(field, inputRef, projectorOptions);
       }
     }
   }
@@ -130,7 +141,7 @@ public class NonVarcharCoercionReader implements AutoCloseable {
 
   public void setupProjector(
       VectorContainer projectorOutput, ExpressionEvaluationOptions projectorOptions) {
-    createCoercions();
+    createCoercions(projectorOptions);
     if (incoming.getSchema() == null || incoming.getSchema().getFieldCount() == 0) {
       return;
     }
@@ -174,7 +185,12 @@ public class NonVarcharCoercionReader implements AutoCloseable {
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
     this.projector.setup(
-        context.getFunctionContext(), incoming, projectorOutput, transfers, name -> null);
+        context.getFunctionContext(),
+        incoming,
+        projectorOutput,
+        transfers,
+        name -> null,
+        projectorOptions);
     javaCodeGenWatch.stop();
     OperatorStats stats = context.getStats();
     stats.addLongStat(

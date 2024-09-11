@@ -57,12 +57,10 @@ public class TestMultiNodeSupportService extends BaseTestServer {
 
   @Test
   public void getClusterIdOnExecutor() throws Exception {
-    SupportService masterSupport =
-        getMasterDremioDaemon().getBindingProvider().lookup(SupportService.class);
+    SupportService masterSupport = getMasterDremioDaemon().getInstance(SupportService.class);
     ClusterIdentity masterId = masterSupport.getClusterId();
 
-    SupportService executorSupport =
-        getExecutorDaemon().getBindingProvider().lookup(SupportService.class);
+    SupportService executorSupport = getExecutorDaemon().getInstance(SupportService.class);
     ClusterIdentity executorId = executorSupport.getClusterId();
 
     Assert.assertTrue(masterId.equals(executorId));

@@ -18,14 +18,14 @@ package com.dremio.exec.planner.sql.convertlet;
 import com.dremio.exec.planner.ReduceTrigFunctionsRule;
 import org.apache.calcite.rex.RexCall;
 
-public final class SimpleTrigArithmeticConvertlet implements FunctionConvertlet {
+public final class SimpleTrigArithmeticConvertlet extends RexCallConvertlet {
   public static final SimpleTrigArithmeticConvertlet INSTANCE =
       new SimpleTrigArithmeticConvertlet();
 
   private SimpleTrigArithmeticConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return true;
   }
 

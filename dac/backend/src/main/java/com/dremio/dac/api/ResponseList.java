@@ -15,25 +15,24 @@
  */
 package com.dremio.dac.api;
 
+import com.dremio.dac.server.GenericErrorMessage;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /** Generic list model for the public REST API. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ResponseList<T> {
-  private List<T> data;
-  private List<Object> included;
+  private final List<T> data = new ArrayList<>();
+  private final List<Object> included = new ArrayList<>();
+  private final List<GenericErrorMessage> errors = new ArrayList<>();
 
-  public ResponseList() {
-    data = new ArrayList<>();
-    included = new ArrayList<>();
-  }
+  public ResponseList() {}
 
-  public ResponseList(List<T> data) {
-    this.data = new ArrayList<>(data);
-    included = new ArrayList<>();
+  public ResponseList(Collection<T> data) {
+    this.data.addAll(data);
   }
 
   public void add(T item) {
@@ -44,6 +43,10 @@ public class ResponseList<T> {
     included.add(item);
   }
 
+  public void addError(GenericErrorMessage error) {
+    errors.add(error);
+  }
+
   public List<T> getData() {
     return data;
   }
@@ -51,5 +54,10 @@ public class ResponseList<T> {
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<Object> getIncluded() {
     return included;
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<GenericErrorMessage> getErrors() {
+    return errors;
   }
 }

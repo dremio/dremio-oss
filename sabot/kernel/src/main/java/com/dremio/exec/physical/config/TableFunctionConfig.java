@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 /** Table function config */
 @JsonTypeName("table-function-config")
 public class TableFunctionConfig {
+
   public enum FunctionType {
     UNKNOWN,
     METADATA_MANIFEST_FILE_SCAN,
@@ -49,9 +50,11 @@ public class TableFunctionConfig {
     ICEBERG_PARTITION_STATS_SCAN,
     DIR_LISTING,
     ICEBERG_TABLE_LOCATION_FINDER,
-    ICEBERG_SNAPSHOTS_SCAN,
     ICEBERG_INCREMENTAL_REFRESH_JOIN_KEY,
-    DELTALAKE_HISTORY_SCAN
+    DELTALAKE_HISTORY_SCAN,
+    TRIGGER_PIPE_EASY_DATA_SCAN,
+    MERGE_ON_READ_ROW_SPLITTER,
+    MANIFEST_FILE_DUPLICATE_REMOVE
   }
 
   private final FunctionType type;

@@ -80,7 +80,14 @@ export default function exploreJobs(
       };
 
     // used in /summary polling
-    case UPDATE_JOB_STATE:
+    case UPDATE_JOB_STATE: {
+      // checking if job exists prevents it from appearing in other scripts
+      if (
+        !(state.jobSummaries[action.jobId] ?? state.jobDetails[action.jobId])
+      ) {
+        return state;
+      }
+
       return {
         ...state,
         jobSummaries: {
@@ -88,6 +95,7 @@ export default function exploreJobs(
           [action.jobId]: action.payload,
         },
       };
+    }
 
     case REMOVE_EXPLORE_JOB: {
       const nextState = { ...state };

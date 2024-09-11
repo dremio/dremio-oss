@@ -16,7 +16,7 @@
 
 .popover {
   z-index: 1000;
-
+  background-color: var(--popover--background);
   &--bottom {
     transform-origin: bottom;
   }

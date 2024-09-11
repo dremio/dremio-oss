@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;

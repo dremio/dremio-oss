@@ -39,6 +39,7 @@ export const ADX = "ADX";
 export const MSACCESS = "MSAccess";
 export const SPARK = "SPARK";
 export const SNOWFLAKE = "SNOWFLAKE";
+export const DB2 = "DB2";
 export const DREMIOTODREMIO = "DREMIOTODREMIO";
 export const DRUID = "DRUID";
 export const AZURE_SAMPLE_SOURCE = "SAMPLE_SOURCE";
@@ -80,6 +81,7 @@ export const sourceProperties = [
   { label: "Snowflake", sourceType: SNOWFLAKE },
   { label: "Dremio to Dremio", sourceType: DREMIOTODREMIO },
   { label: "Druid", sourceType: DRUID },
+  { label: "IBM Db2", sourceType: DB2 },
 ];
 
 export const metastoresSourceType = {

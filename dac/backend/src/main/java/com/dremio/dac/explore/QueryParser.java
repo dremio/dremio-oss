@@ -35,7 +35,6 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotQueryContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.util.QueryVersionUtils;
@@ -80,7 +79,7 @@ public final class QueryParser {
   // accumulating
   // new uses of this method.
   @Deprecated
-  public static QueryMetadata extract(SqlQuery query, SabotContext context) {
+  public static QueryMetadata extract(SqlQuery query, SabotQueryContext context) {
     QueryParser parser = new QueryParser(context);
     return parser.extract(query);
   }

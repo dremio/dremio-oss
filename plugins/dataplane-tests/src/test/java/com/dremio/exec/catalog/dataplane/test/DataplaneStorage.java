@@ -20,10 +20,13 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import org.apache.iceberg.io.FileIO;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
@@ -35,13 +38,26 @@ public interface DataplaneStorage extends ExtensionContext.Store.CloseableResour
   void start();
 
   enum StorageType {
-    AWS_S3_MOCK("s3mock", () -> true),
+    AWS_S3_MOCK("s3mock", () -> isStorageTypeEnabled("aws")),
     AZURE(
         "azure",
         () ->
-            // Only use this type if we have credentials
-            System.getenv("AZURE_STORAGE_DATAPLANE_ACCOUNT_NAME") != null
-                && System.getenv("AZURE_STORAGE_DATAPLANE_ACCOUNT_KEY") != null);
+            isStorageTypeEnabled("azure")
+                &&
+                // Only use this type if we have credentials
+                System.getenv("AZURE_STORAGE_DATAPLANE_ACCOUNT_NAME") != null
+                && System.getenv("AZURE_STORAGE_DATAPLANE_ACCOUNT_KEY") != null),
+    GCS_MOCK("gcsMock", () -> isStorageTypeEnabled("gcs"));
+
+    private static final Set<String> ENABLED_STORAGE_TYPES =
+        Set.of(
+            System.getProperty("tests.dataplane.enabled.storage_types", "aws,azure,gcs")
+                .toLowerCase(Locale.ROOT)
+                .split(","));
+
+    private static boolean isStorageTypeEnabled(String storageType) {
+      return ENABLED_STORAGE_TYPES.contains(storageType.toLowerCase(Locale.ROOT));
+    }
 
     private static final Map<String, StorageType> friendlyNameToStorageTypeMap = new HashMap<>();
 
@@ -86,7 +102,7 @@ public interface DataplaneStorage extends ExtensionContext.Store.CloseableResour
 
   boolean doesObjectExist(BucketSelection bucketSelection, String objectPath);
 
-  void putObject(BucketSelection bucketSelection, String objectPath, File file);
+  void putObject(String objectPath, File file);
 
   void deleteObject(BucketSelection bucketSelection, String objectPath);
 
@@ -100,4 +116,8 @@ public interface DataplaneStorage extends ExtensionContext.Store.CloseableResour
       BucketSelection bucketSelection, String filterPath, Predicate<String> objectNameFilter);
 
   NessiePluginConfig preparePluginConfig(BucketSelection bucketSelection, String nessieEndpoint);
+
+  FileIO getFileIO();
+
+  String getWarehousePath();
 }

@@ -16,7 +16,6 @@
 import { resolve } from "path";
 
 import { dynLoadPath } from "./dyn-load";
-import { dremioBeta } from "./version";
 
 export const alias = {
   "@app": resolve(__dirname, "../src"),
@@ -24,16 +23,10 @@ export const alias = {
   "@ee": dynLoadPath,
   "@mui": resolve(__dirname, "../node_modules/@mui"),
   "@root": resolve(__dirname, "../"),
-  "Narwhal-Logo-With-Name-Light": resolve(
-    __dirname,
-    dremioBeta
-      ? "../src/components/Icon/icons/Narwhal-Logo-With-Name-Light-Beta.svg"
-      : "../src/components/Icon/icons/Narwhal-Logo-With-Name-Light.svg"
-  ),
   react: resolve(__dirname, "../node_modules/react"),
 
   "leantable/react": resolve(
     __dirname,
-    "../node_modules/leantable/dist-cjs/react"
+    "../node_modules/leantable/dist-cjs/react",
   ),
 };

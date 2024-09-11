@@ -70,3 +70,11 @@ signatures:
   - call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi)\n\
       FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
     result: 1.5543122344752192e-15
+  - call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi ORDER\
+      \ BY pickup_datetime RANGE BETWEEN CURRENT ROW  AND UNBOUNDED FOLLOWING)\n\
+      FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+    result: "EXPR$0\n0.011551345148774872\n0.011546248495294509\n0.011542725341032845"
+  - call: "SELECT COVAR_POP(trip_distance_mi, fare_amount)\n  OVER (PARTITION BY trip_distance_mi ORDER\
+       \ BY pickup_datetime ROWS BETWEEN 1 PRECEDING  AND 2 FOLLOWING)\n\
+     FROM Samples.\"samples.dremio.com\".\"NYC-taxi-trips\"\n"
+    result: "EXPR$0\n0.0\n2.7755575615628914E-17\n0.0"

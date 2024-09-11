@@ -47,7 +47,7 @@ public class TestDropView extends BaseTestServer {
     NamespaceKey key = new NamespaceKey("space");
     SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName("space");
-    newNamespaceService().addOrUpdateSpace(key, spaceConfig);
+    getNamespaceService().addOrUpdateSpace(key, spaceConfig);
   }
 
   @Test
@@ -96,7 +96,7 @@ public class TestDropView extends BaseTestServer {
             + " AS SELECT * FROM INFORMATION_SCHEMA.\"tables\"";
     submitJob(query);
 
-    return newNamespaceService().getDataset(datasetPath);
+    return getNamespaceService().getDataset(datasetPath);
   }
 
   private void dropView(List<String> path) {
@@ -121,7 +121,7 @@ public class TestDropView extends BaseTestServer {
 
   private void verifyViewDeleted(List<String> path) {
     NamespaceKey datasetPath = new NamespaceKey(path);
-    assertThatThrownBy(() -> newNamespaceService().getDataset(datasetPath))
+    assertThatThrownBy(() -> getNamespaceService().getDataset(datasetPath))
         .isExactlyInstanceOf(NamespaceNotFoundException.class);
   }
 }

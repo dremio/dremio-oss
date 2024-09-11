@@ -26,13 +26,13 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.NlsString;
 
 /** Rewrites CONVERT_FROM(x, TYPE) to CONVERT_FROMTYPE(x) */
-public final class ConvertFromConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new ConvertFromConvertlet();
+public final class ConvertFromConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE = new ConvertFromConvertlet();
 
   private ConvertFromConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator() == CONVERT_FROM;
   }
 

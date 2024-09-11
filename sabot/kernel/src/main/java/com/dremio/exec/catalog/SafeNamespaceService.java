@@ -18,12 +18,14 @@ package com.dremio.exec.catalog;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.datastore.SearchTypes.SearchQuery;
-import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
-import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
+import com.dremio.datastore.api.FindByRange;
 import com.dremio.exec.catalog.ManagedStoragePlugin.SafeRunner;
 import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.DatasetConfigAndEntitiesOnPath;
 import com.dremio.service.namespace.DatasetMetadataSaver;
+import com.dremio.service.namespace.EntityNamespaceFindOption;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -49,7 +51,7 @@ import java.io.IOException;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Optional;
 
 /**
  * A decorator for namespace service that only does operations underneath a safe runner to avoid
@@ -182,13 +184,14 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(LegacyFindByCondition arg0) {
-    return runner.doSafeIterable(() -> delegate.find(arg0));
+  public Iterable<Document<NamespaceKey, NameSpaceContainer>> find(
+      FindByCondition arg0, EntityNamespaceFindOption... arg1) {
+    return runner.doSafeIterable(() -> delegate.find(arg0, arg1));
   }
 
   @Override
-  public DatasetConfig findDatasetByUUID(String arg0) {
-    return runner.doSafe(() -> delegate.findDatasetByUUID(arg0));
+  public Optional<DatasetConfig> getDatasetById(EntityId arg0) {
+    return runner.doSafe(() -> delegate.getDatasetById(arg0));
   }
 
   @Override
@@ -197,12 +200,12 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public Iterable<PartitionChunkMetadata> findSplits(LegacyFindByCondition arg0) {
+  public Iterable<PartitionChunkMetadata> findSplits(FindByCondition arg0) {
     return runner.doSafeIterable(() -> delegate.findSplits(arg0));
   }
 
   @Override
-  public Iterable<PartitionChunkMetadata> findSplits(LegacyFindByRange<PartitionChunkId> arg0) {
+  public Iterable<PartitionChunkMetadata> findSplits(FindByRange<PartitionChunkId> arg0) {
     return runner.doSafeIterable(() -> delegate.findSplits(arg0));
   }
 
@@ -251,19 +254,17 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public List<NameSpaceContainer> getEntities(List<NamespaceKey> arg0)
-      throws NamespaceNotFoundException {
+  public List<NameSpaceContainer> getEntities(List<NamespaceKey> arg0) {
     return runner.doSafe(() -> delegate.getEntities(arg0));
   }
 
   @Override
-  public NameSpaceContainer getEntityById(String arg0) throws NamespaceNotFoundException {
+  public Optional<NameSpaceContainer> getEntityById(EntityId arg0) {
     return runner.doSafe(() -> delegate.getEntityById(arg0));
   }
 
   @Override
-  public List<NameSpaceContainer> getEntitiesByIds(List<String> arg0)
-      throws NamespaceNotFoundException {
+  public List<NameSpaceContainer> getEntitiesByIds(List<EntityId> arg0) {
     return runner.doSafe(() -> delegate.getEntitiesByIds(arg0));
   }
 
@@ -294,7 +295,7 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public int getPartitionChunkCount(LegacyFindByCondition arg0) {
+  public int getPartitionChunkCount(FindByCondition arg0) {
     return runner.doSafe(() -> delegate.getPartitionChunkCount(arg0));
   }
 
@@ -311,18 +312,13 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public SourceConfig getSourceById(String arg0) throws NamespaceException {
+  public SourceConfig getSourceById(EntityId arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getSourceById(arg0));
   }
 
   @Override
   public List<SourceConfig> getSources() {
     return runner.doSafe(() -> delegate.getSources());
-  }
-
-  @Override
-  public List<DatasetConfig> getDatasets() {
-    return runner.doSafe(() -> delegate.getDatasets());
   }
 
   @Override
@@ -336,11 +332,6 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public SpaceConfig getSpaceById(String arg0) throws NamespaceException {
-    return runner.doSafe(() -> delegate.getSpaceById(arg0));
-  }
-
-  @Override
   public List<SpaceConfig> getSpaces() {
     return runner.doSafe(() -> delegate.getSpaces());
   }
@@ -351,8 +342,14 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public List<NameSpaceContainer> list(NamespaceKey entityPath) throws NamespaceException {
-    return runner.doSafe(() -> delegate.list(entityPath));
+  public List<FunctionConfig> getTopLevelFunctions() {
+    return runner.doSafe(() -> delegate.getTopLevelFunctions());
+  }
+
+  @Override
+  public List<NameSpaceContainer> list(
+      NamespaceKey entityPath, String startChildName, int maxResults) throws NamespaceException {
+    return runner.doSafe(() -> delegate.list(entityPath, startChildName, maxResults));
   }
 
   @Override

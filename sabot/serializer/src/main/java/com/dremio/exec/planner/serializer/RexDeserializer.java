@@ -18,6 +18,7 @@ package com.dremio.exec.planner.serializer;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.sql.SqlFlattenOperator;
 import com.dremio.plan.serialization.PBoundOption;
+import com.dremio.plan.serialization.POptionality;
 import com.dremio.plan.serialization.PRelList;
 import com.dremio.plan.serialization.PRexCall;
 import com.dremio.plan.serialization.PRexCorrelVariable;
@@ -32,8 +33,10 @@ import com.dremio.plan.serialization.PRexOver;
 import com.dremio.plan.serialization.PRexPatternFieldRef;
 import com.dremio.plan.serialization.PRexRangeRef;
 import com.dremio.plan.serialization.PRexSubQuery;
+import com.dremio.plan.serialization.PRexWinAggCall;
 import com.dremio.plan.serialization.PRexWindow;
 import com.dremio.plan.serialization.PRexWindowBound;
+import com.dremio.plan.serialization.PSqlAggFunction;
 import com.dremio.plan.serialization.PSqlTypeName;
 import com.dremio.plan.serialization.PSymbol;
 import com.google.common.base.Preconditions;
@@ -50,8 +53,10 @@ import javax.annotation.Nullable;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexDynamicParam;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexLocalRef;
@@ -72,6 +77,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.NlsString;
+import org.apache.calcite.util.Optionality;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
@@ -108,6 +114,9 @@ class RexDeserializer {
 
   public RexNode convert(PRexNode node, RelDataType rowType) {
     switch (node.getRexTypeCase()) {
+      case REX_WINDOW_AGG_CALL:
+        return convertWindowAggCall(node.getRexWindowAggCall());
+
       case REX_CALL:
         return convertCall(node.getRexCall());
 
@@ -262,14 +271,18 @@ class RexDeserializer {
     }
   }
 
-  private RexWindowBound convert(PRexWindowBound bound) {
+  public RexWindowBound convert(PRexWindowBound bound) {
     SqlNode sqlNode;
     RexNode rexNode;
     switch (bound.getRexWindowBoundCase()) {
       case BOUNDED:
         RexNode offset = convert(bound.getBounded().getOffset());
         sqlNode = SqlNodeList.EMPTY;
-        rexNode = offset;
+        SqlOperator boundOption =
+            bound.getBounded().getBoundOption() == PBoundOption.PRECEDING
+                ? SqlWindow.PRECEDING_OPERATOR
+                : SqlWindow.FOLLOWING_OPERATOR;
+        rexNode = rexBuilder.makeCall(boundOption, offset);
         break;
 
       case CURRENT_ROW:
@@ -460,6 +473,48 @@ class RexDeserializer {
       return Enum.valueOf((Class<Enum>) Class.forName(clazz), symbol.getName());
     } catch (ClassNotFoundException ex) {
       throw new RuntimeException(ex);
+    }
+  }
+
+  private RexWinAggCall convertWindowAggCall(PRexWinAggCall pRexWinAggCall) {
+    RexCall rexCall = (RexCall) convertCall(pRexWinAggCall.getRexCall());
+    SqlAggFunction sqlAggFunction = (SqlAggFunction) rexCall.getOperator();
+    /*
+     RexWinAggCall contains SqlAggFunction which is an instance of SqlOperator. SqlOperator contains
+     few properties which is not serializable. So we have a hack in SqlOperatorSerde which serializes
+     and deserializes only sqlOperator's name and from that name it looks up DremioSqlStdOperator table
+     to fetch the respective sql operator. We are assuming that there is only one overload of each
+     agg function/Sql operator, which is why this hack works in the first place.
+     Here are assertions to validate that assumption.
+    */
+    assert isValidSqlAggFunction(sqlAggFunction, pRexWinAggCall.getSqlAggFunction());
+    return new RexWinAggCall(
+        sqlAggFunction,
+        rexCall.getType(),
+        rexCall.getOperands(),
+        pRexWinAggCall.getOrdinal(),
+        pRexWinAggCall.getDistinct(),
+        pRexWinAggCall.getIgnoreNulls());
+  }
+
+  private boolean isValidSqlAggFunction(
+      SqlAggFunction sqlAggFunction, PSqlAggFunction pSqlAggFunction) {
+    return sqlAggFunction.requiresOrder() == pSqlAggFunction.getRequiresOrder()
+        && sqlAggFunction.requiresOver() == pSqlAggFunction.getRequiresOver()
+        && sqlAggFunction.requiresGroupOrder()
+            == fromProto(pSqlAggFunction.getRequiresGroupOrder());
+  }
+
+  private Optionality fromProto(POptionality pOptionality) {
+    switch (pOptionality) {
+      case OPTIONAL:
+        return Optionality.OPTIONAL;
+      case MANDATORY:
+        return Optionality.MANDATORY;
+      case FORBIDDEN:
+        return Optionality.FORBIDDEN;
+      default:
+        return Optionality.IGNORED;
     }
   }
 

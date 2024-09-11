@@ -57,6 +57,11 @@ Sonar.Job.QueryType.InternalIcebergMetadataRemoval: "Internal Iceberg Metadata (
 Sonar.File.Unknown: Unknown
 Sonar.Scripts.Label: Scripts
 Sonar.Scripts.LimitReached: You have reached the limit of 1000 scripts. Open and edit an existing script or delete one or more scripts before you create new scripts.
+Sonar.Scripts.NumSelected: "{numSelected, plural, =1 {1 script} other {# scripts}} selected"
+Sonar.Scripts.BulkDelete.Title: Bulk Delete scripts
+Sonar.Scripts.BulkDelete.Message: Deleting the script will result in the loss of its content.<br></br><br></br>In the event that all scripts are deleted, a new script will be generated with the current timestamp. Would you like to proceed?
+Sonar.Scripts.BulkDelete.NoPrivilege: You don’t have DELETE privilege for this script.
+Sonar.Scripts.BulkDelete.GenericError: One or more scripts could not be deleted.
 Sonar.Search: Search Spaces and Datasets
 Sonar.Source.Add: Add Source
 Sonar.Sql.Label: SQL Runner
@@ -64,80 +69,6 @@ Sonar.Description: Sonar is a lakehouse query engine that lets analysts explore 
 Sonar.Project.AddFirst: Add your first project
 Sonar.Project.UpdateRequired: Update required
 Sonar.Tagline: Explore data with sub-second query response times
-Sonar.Reflection.Remove: Remove Reflection
-Sonar.Reflection.Remove.Prompt: Are you sure you want to remove Reflection “{reflectionName}”?
-Sonar.Reflection.RefreshStatus.SCHEDULED: Scheduled
-Sonar.Reflection.RefreshStatus.GIVEN_UP: Given up
-Sonar.Reflection.RefreshStatus.MANUAL: Manual
-Sonar.Reflection.RefreshStatus.RUNNING: Running
-Sonar.Reflection.RefreshStatus.PENDING: Pending
-Sonar.Reflection.RefreshMethod.FULL: Full
-Sonar.Reflection.RefreshMethod.NONE: None
-Sonar.Reflection.RefreshMethod.INCREMENTAL: Incremental
-Sonar.Reflection.LostFieldsPreamble: "The following {fieldNames} column(s) are no longer a part of the dataset and will be removed from the reflection:"
-Sonar.Reflection.StatusDisabled: Reflection is disabled.
-Sonar.Reflection.StatusInvalidConfiguration: "{status}\n\nReflection configuration is outdated. Please re-configure."
-Sonar.Reflection.StatusFailedFinal: "{status}\n\nMultiple attempts to build Reflection failed, will not reattempt."
-Sonar.Reflection.StatusIncomplete: "{status}\n\nMost recent version of the reflection is unreachable."
-Sonar.Reflection.StatusExpired: "{status}\n\nMost recent version of the reflection is expired."
-Sonar.Reflection.StatusRefreshing: "{status}\n\nA refresh job is currently running."
-Sonar.Reflection.StatusPending: "{status}\n\nA refresh job is currently pending."
-Sonar.Reflection.StatusBuilding: "{status}\n\nReflection in progress."
-Sonar.Reflection.StatusFailedNonFinal: "{status}\n\n{failCount} refresh job attempts failed, will reattempt."
-Sonar.Reflection.StatusFailedNoReattempt: "{status}\n\n{failCount} refresh job attempts failed, will not reattempt."
-Sonar.Reflection.StatusManual: "{status}\n\nReflection is configured to never refresh."
-Sonar.Reflection.StatusCanAccelerate: "Reflection can accelerate."
-Sonar.Reflection.StatusCannotAccelerate: "Reflection cannot accelerate."
-Sonar.Reflection.Scheduled: "Reflection refresh is scheduled according to the dataset refresh policies."
-Sonar.Reflection.AccelerationStatus.INVALID.Hint: "Reflection’s definition has an invalid configuration because the underlying dataset has changed."
-Sonar.Reflection.AccelerationStatus.DISABLED.Hint: "Reflection has been manually disabled and will not be used to accelerate queries."
-Sonar.Reflection.AccelerationStatus.AVAILABLE.Hint: "Reflection can accelerate queries."
-Sonar.Reflection.AccelerationStatus.NONE.Hint: "Reflection is not available to accelerate queries because it is new, has zero records or requires manual refresh/reactivation."
-Sonar.Reflection.AccelerationStatus.EXPIRED.Hint: "Reflection has expired based on the refresh policy of the queried dataset. Expired reflection cannot accelerate queries."
-Sonar.Reflection.AccelerationStatus.CANNOT_ACCELERATE_INITIALIZING.Hint: "Reflection cannot accelerate. The materialization cache is currently being initialized; Reflections will be available to accelerate queries momentarily."
-Sonar.Reflection.RefreshStatus.SCHEDULED.Hint: "Refreshes of the reflection occur according to the schedule defined in the refresh policy of the queried dataset."
-Sonar.Reflection.RefreshStatus.GIVEN_UP.Hint: "Multiple attempts to refresh the reflection have failed. Dremio will not make further attempts and require user reactivation."
-Sonar.Reflection.RefreshStatus.MANUAL.Hint: "The refresh policy of the queried dataset is set to never refresh, so refresh must be triggered manually."
-Sonar.Reflection.RefreshStatus.RUNNING.Hint: "Dremio is in the process of refreshing the reflection."
-Sonar.Reflection.RefreshStatus.PENDING.Hint: "Reflection refresh is pending because its direct/indirect dependencies are still refreshing."
-Sonar.Reflection.Materialization.CacheUninitialized: "The materialization cache is currently being initialized; Reflections will be available to accelerate queries momentarily."
-Sonar.Reflection.Column.Name.Label: "Name"
-Sonar.Reflection.Column.Type.Label: "Type"
-Sonar.Reflection.Column.Dataset.Label: "Dataset"
-Sonar.Reflection.Column.RefreshStatus.Label: "Refresh Status"
-Sonar.Reflection.Column.RefreshStatus.Hint: "Refresh status based on refresh policy."
-Sonar.Reflection.Column.CurrentFootprint.Label: "<b>Current Footprint</b>"
-Sonar.Reflection.Column.CurrentFootprint.Hint: "Size of the current reflection."
-Sonar.Reflection.Column.TotalFootprint.Label: "<b>Total Footprint</b>"
-Sonar.Reflection.Column.TotalFootprint.Hint: "Total size of this reflection across all refreshes."
-Sonar.Reflection.Column.LastRefreshDuration.Label: "Last Refresh Duration"
-Sonar.Reflection.Column.LastRefreshDuration.Hint: "Time taken to build the current reflection."
-Sonar.Reflection.Column.LastRefreshFromTable.Label: "Last Refresh From Table"
-Sonar.Reflection.Column.LastRefreshFromTable.Hint: "Reflection contains data from the base table(s) as of this timestamp."
-Sonar.Reflection.Column.RefreshMethod.Label: "Refresh Method"
-Sonar.Reflection.Column.RefreshMethod.Hint: "Refresh method based on refresh policy or the view definition."
-Sonar.Reflection.Column.AvailableUntil.Label: "Available Until"
-Sonar.Reflection.Column.AvailableUntil.Hint: "Time at which the reflection will expire based on the refresh policy."
-Sonar.Reflection.Column.RecordCount.Label: "Record Count"
-Sonar.Reflection.Column.RecordCount.Hint: "Number of records in the current reflection."
-Sonar.Reflection.Column.ConsideredCount.Label: "Considered Count"
-Sonar.Reflection.Column.ConsideredCount.Hint: "Number of jobs that considered this reflection in the planning phase."
-Sonar.Reflection.Column.MatchedCount.Label: "Matched Count"
-Sonar.Reflection.Column.MatchedCount.Hint: "Number of jobs that matched this reflection in the planning phase."
-Sonar.Reflection.Column.AcceleratedCount.Label: "Accelerated Count"
-Sonar.Reflection.Column.AcceleratedCount.Hint: "Number of user jobs that were accelerated by the reflection."
-Sonar.Reflection.Column.RefreshHistory.Label: "Refresh Job History"
-Sonar.Reflection.Column.RefreshHistory.Link: "History"
-Sonar.Reflection.RefreshStatus.LastRefreshAt: "Last refresh at"
-Sonar.Reflection.RefreshStatus.RetryCount: "Retry count"
-Sonar.Reflection.RefreshStatus.ViewJobHistory: "View refresh job history"
-Sonar.Reflection.RefreshStatus.ViewErrorMessage: "View full error message"
-Sonar.Reflection.RefreshStatus.Link: "History"
-Sonar.Reflection.RefreshStatus.ErrorMessage.Title: "Error message"
-Sonar.Reflection.TableError: Something went wrong when we tried to display the list of Reflections.
-Sonar.Reflection.Refresh.Now: "Refresh now"
-Sonar.Reflection.Refresh.Running: "Reflection refresh running"
-Sonar.Reflection.Refresh.Pending: "Reflection refresh pending"
 Sonar.Job.Column.JobId.Label: "Job ID"
 Sonar.Job.Column.User.Label: "User"
 Sonar.Job.Column.Dataset.Label: "Dataset"
@@ -170,3 +101,14 @@ Sonar.Job.Status.ENGINE_START: "Engine Start"
 Sonar.Job.Status.EXECUTION_PLANNING: "Execution Planning"
 Sonar.Source.Settings.Arctic.Info.Message: "For optimization configuration, table cleanup settings and catalog privileges, please visit Arctic > Arctic catalog > "
 Sonar.SqlRunner.Tab.Actions.CloseOthers: "Close others"
+Sonar.SqlRunner.Download.Menu.Label: "Download"
+Sonar.SqlRunner.Download.Menu.Limited: "Download (limited)"
+Sonar.SqlRunner.Download.Menu.LimitedHelper: "A subset ({rows}) of the total number of rows has been returned for optimized performance. Execute using ODBC/JDBC to retrieve the complete result set."
+Sonar.SqlRunner.Download.Menu.Sample: "Download (sample)"
+Sonar.SqlRunner.Download.Menu.SampleHelper: "Results based on sub-sample of data from external sources."
+Sonar.SqlRunner.Download.Preparing: "Preparing download. The processing time depends on the query complexity, result size, and file format."
+Sonar.SqlRunner.Download.Complete: "{type} has been downloaded."
+Reflection.CurrentFootprint.Label: "<b>Current Footprint</b>"
+Reflection.CurrentFootprint.Hint: "Size of the current reflection."
+Reflection.TotalFootprint.Label: "<b>Total Footprint</b>"
+Reflection.TotalFootprint.Hint: "Total size of this reflection across all refreshes."

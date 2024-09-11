@@ -17,7 +17,6 @@ package com.dremio.dac.explore;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import java.util.Arrays;
@@ -33,7 +32,7 @@ public class TestQueryParser extends BaseTestServer {
 
   public void validateAncestors(String sql, String... ancestors) {
     QueryMetadata metadata =
-        QueryParser.extract(new SqlQuery(sql, null, DEFAULT_USERNAME), l(SabotContext.class));
+        QueryParser.extract(new SqlQuery(sql, null, DEFAULT_USERNAME), getSabotContext());
     List<SqlIdentifier> actualAncestors = metadata.getAncestors().get();
     String message = "expected: " + Arrays.toString(ancestors) + " actual: " + actualAncestors;
     Assert.assertEquals(message, ancestors.length, actualAncestors.size());

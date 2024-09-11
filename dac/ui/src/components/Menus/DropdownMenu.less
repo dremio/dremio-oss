@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .dropdownMenu {
@@ -53,13 +52,13 @@
     }
 
     &__icon {
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
       height: 24px;
       width: 24px;
     }
 
     &__divider {
-      border-left: 1px solid @mercury;
+      border-left: 1px solid var(--border--neutral);
       display: block;
       height: 20px;
       margin: 0 4px;
@@ -67,8 +66,8 @@
 
     &.--button {
       background-color: transparent;
-      color: @TROUT;
-      border: 1px solid @IRON;
+      color: var(--text--faded);
+      border: 1px solid var(--border--neutral--solid);
       border-radius: 4px;
       height: 32px;
       margin-right: 5px;
@@ -76,12 +75,12 @@
       transition: 300ms ease all;
 
       &.--disabled {
-        background-color: @FIGMA_NEUTRAL_150;
+        background-color: var(--fill--disabled);
       }
 
       &:hover {
-        background-color: var(--color--neutral--25);
-        border: 1px solid @IRON;
+        background-color: var(--fill--secondary);
+        border: 1px solid var(--border--neutral--solid);
 
         .dropdownMenu__icon {
           filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg)
@@ -91,9 +90,9 @@
     }
 
     &.--solidButton {
-      background-color: @PELOROUS;
+      background-color: var(--color--brand--300);
       border: 1px solid transparent;
-      color: @WHITE;
+      color: white;
       border-radius: 4px;
       height: 32px;
       margin-right: 5px;
@@ -103,7 +102,7 @@
 
       &:hover {
         background-color: transparent;
-        color: @PELOROUS;
+        color: var(--color--brand--300);
 
         .dropdownMenu__icon {
           filter: invert(64%) sepia(28%) saturate(773%) hue-rotate(139deg)
@@ -113,13 +112,13 @@
     }
 
     &.--disabled {
-      border-color: @alto;
-      color: @FIGMA_TEXT_DISABLED;
+      border-color: var(--border--neutral);
+      color: var(--text--disabled);
       pointer-events: none;
 
       &:hover {
         background: inherit;
-        color: @silver-chalice;
+        color: var(--text--disabled);
 
         .dropdownMenu__icon {
           filter: invert(80%) sepia(15%) saturate(10%) hue-rotate(354deg)

@@ -19,6 +19,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.explore.bi.PowerBIMessageBodyGenerator;
 import com.dremio.dac.explore.bi.QlikAppMessageBodyGenerator;
@@ -41,7 +42,7 @@ public class TestRestServerV2ClassRegister {
             Collections.EMPTY_LIST);
 
     // Test
-    final RestServerV2 server = new RestServerV2(scanResult);
+    final RestServerV2 server = new RestServerV2(new DACConfig(DremioConfig.create()), scanResult);
 
     // Verify
     assertTrue(server.isRegistered(TableauMessageBodyGenerator.class));

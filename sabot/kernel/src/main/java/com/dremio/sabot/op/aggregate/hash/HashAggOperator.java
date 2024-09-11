@@ -317,10 +317,11 @@ public class HashAggOperator implements SingleInputOperator {
     switch (incoming.getSchema().getSelectionVectorMode()) {
       case FOUR_BYTE:
         {
-          JVar var = cg.declareClassField("sv4_", cg.getModel()._ref(SelectionVector4.class));
+          JVar jvar = cg.declareClassField("sv4_", cg.getModel()._ref(SelectionVector4.class));
           cg.getBlock("doSetup")
-              .assign(var, JExpr.direct("incoming").invoke("getSelectionVector4"));
-          cg.getBlock("getVectorIndex")._return(var.invoke("get").arg(JExpr.direct("recordIndex")));
+              .assign(jvar, JExpr.direct("incoming").invoke("getSelectionVector4"));
+          cg.getBlock("getVectorIndex")
+              ._return(jvar.invoke("get").arg(JExpr.direct("recordIndex")));
           return;
         }
       case NONE:
@@ -330,11 +331,11 @@ public class HashAggOperator implements SingleInputOperator {
         }
       case TWO_BYTE:
         {
-          JVar var = cg.declareClassField("sv2_", cg.getModel()._ref(SelectionVector2.class));
+          JVar jvar = cg.declareClassField("sv2_", cg.getModel()._ref(SelectionVector2.class));
           cg.getBlock("doSetup")
-              .assign(var, JExpr.direct("incoming").invoke("getSelectionVector2"));
+              .assign(jvar, JExpr.direct("incoming").invoke("getSelectionVector2"));
           cg.getBlock("getVectorIndex")
-              ._return(var.invoke("getIndex").arg(JExpr.direct("recordIndex")));
+              ._return(jvar.invoke("getIndex").arg(JExpr.direct("recordIndex")));
           return;
         }
       default:

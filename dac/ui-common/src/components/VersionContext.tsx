@@ -65,7 +65,7 @@ const VersionContext = ({
           height: 16,
           width: 16,
           marginRight: 2,
-          color: "var(--dremio--color--text--faded)",
+          color: "var(--icon--primary)",
         }}
       />
       {refValue}

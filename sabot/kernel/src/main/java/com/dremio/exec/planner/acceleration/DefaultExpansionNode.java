@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.acceleration;
 
 import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.service.namespace.NamespaceKey;
 import java.util.List;
 import org.apache.calcite.plan.CopyWithCluster;
@@ -32,14 +33,19 @@ public class DefaultExpansionNode extends ExpansionNode {
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode input,
-      TableVersionContext versionContext) {
-    super(path, rowType, cluster, traits, input, versionContext);
+      TableVersionContext versionContext,
+      ViewTable viewTable) {
+    super(path, rowType, cluster, traits, input, versionContext, viewTable);
   }
 
   public static DefaultExpansionNode wrap(
-      NamespaceKey path, RelNode node, RelDataType rowType, TableVersionContext versionContext) {
+      NamespaceKey path,
+      RelNode node,
+      RelDataType rowType,
+      TableVersionContext versionContext,
+      ViewTable viewTable) {
     return new DefaultExpansionNode(
-        path, rowType, node.getCluster(), node.getTraitSet(), node, versionContext);
+        path, rowType, node.getCluster(), node.getTraitSet(), node, versionContext, viewTable);
   }
 
   @Override
@@ -50,7 +56,13 @@ public class DefaultExpansionNode extends ExpansionNode {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new DefaultExpansionNode(
-        getPath(), rowType, this.getCluster(), traitSet, inputs.get(0), getVersionContext());
+        getPath(),
+        rowType,
+        this.getCluster(),
+        traitSet,
+        inputs.get(0),
+        getVersionContext(),
+        getViewTable());
   }
 
   @Override
@@ -61,6 +73,7 @@ public class DefaultExpansionNode extends ExpansionNode {
         copier.getCluster(),
         copier.copyOf(getTraitSet()),
         getInput().accept(copier),
-        getVersionContext());
+        getVersionContext(),
+        getViewTable());
   }
 }

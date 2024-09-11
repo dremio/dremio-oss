@@ -61,12 +61,12 @@ public class TestCopiers extends BaseTestOperator {
     inputHyper = new Sv4HyperContainer(inputAlloc, dataGenerator.getSchema());
     sv4 = new SelectionVector4(inputAlloc.buffer(recordCount * 4), recordCount, targetBatchSize);
 
-    int record = 0;
+    int recordIndex = 0;
     for (int i = 0; i < 10; i++) {
       int numRecords = dataGenerator.next(targetBatchSize);
       inputHyper.addBatch(dataGenerator.getOutput());
       for (int j = 0; j < numRecords; j++) {
-        sv4.set(record++, i, j);
+        sv4.set(recordIndex++, i, j);
       }
     }
     inputHyper.setSelectionVector4(sv4);

@@ -96,7 +96,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
   }
 
   @Override
-  public boolean containerExists(EntityPath containerPath) {
+  public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
     return true;
   }
 

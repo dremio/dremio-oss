@@ -30,15 +30,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 /** Product implementation of ExecutorSetService. */
+@Singleton
 public class LocalExecutorSetService implements ExecutorSetService {
   private final Provider<ClusterCoordinator> coordinator;
   private final Provider<OptionManager> optionManagerProvider;
   private ListenableSet executorSet = null;
   private boolean isVersionCheckEnabled = true;
 
+  @Inject
   public LocalExecutorSetService(
       Provider<ClusterCoordinator> coordinator, Provider<OptionManager> optionManagerProvider) {
     this.coordinator = coordinator;

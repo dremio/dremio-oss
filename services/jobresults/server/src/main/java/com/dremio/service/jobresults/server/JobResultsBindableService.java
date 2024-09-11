@@ -36,7 +36,7 @@ public class JobResultsBindableService implements CloseableBindableService {
 
   public JobResultsBindableService(
       BufferAllocator allocator, JobResultsGrpcServerFacade jobResultsGrpcServerFacade) {
-    this.allocator = allocator;
+    this.allocator = allocator.newChildAllocator("JobResultsBindableService", 0, Long.MAX_VALUE);
     this.jobResultsGrpcServerFacade = jobResultsGrpcServerFacade;
   }
 
@@ -52,7 +52,9 @@ public class JobResultsBindableService implements CloseableBindableService {
   }
 
   @Override
-  public void close() throws Exception {}
+  public void close() throws Exception {
+    allocator.close();
+  }
 
   public class JobResultsMethod
       implements ServerCalls.BidiStreamingMethod<JobResultsRequestWrapper, JobResultsResponse> {

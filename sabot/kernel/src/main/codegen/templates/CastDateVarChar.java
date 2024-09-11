@@ -54,13 +54,18 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
   @Param ${type.from}Holder in;
   @Param BigIntHolder len;
   @Inject ArrowBuf buffer;
+  <#if type.from == "TimeMilli">
+  @Workspace java.time.format.DateTimeFormatter format;
+  @Workspace java.time.LocalTime time;
+  <#else>
   @Workspace org.joda.time.format.DateTimeFormatter format;
+  </#if>
   @Output ${type.to}Holder out;
 
   public void setup() {
     buffer = buffer.reallocIfNeeded((int) len.value);
     <#if type.from == "TimeMilli">
-    format = org.joda.time.format.ISODateTimeFormat.dateTime().withZoneUTC();
+    format = com.dremio.common.util.LocalTimeUtility.getFormaterForTime();
     <#elseif type.from == "DateMilli">
     format = com.dremio.common.util.JodaDateUtility.formatDate.withZoneUTC();
     <#else>
@@ -69,7 +74,12 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
   }
 
   public void eval() {
+    <#if type.from == "TimeMilli">
+      java.time.LocalTime utcTime = com.dremio.common.util.LocalTimeUtility.getTimeFromMillis(in.value);
+      String str = utcTime.format(format);
+    <#else>
       String str = format.print(in.value);
+    </#if>
       out.buffer = buffer;
       out.start = 0;
       out.end = Math.min((int)len.value, str.length()); // truncate if target type has length smaller than that of input's string

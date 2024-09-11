@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -101,18 +102,15 @@ public interface MaestroObserver {
   void plansDistributionComplete(QueryWorkUnit unit);
 
   /**
-   * Number of records processed
-   *
-   * @param recordCount records processed
-   */
-  void recordsProcessed(long recordCount);
-
-  /**
    * Number of output records
    *
+   * @param endpoint Executor Node Endpoint
    * @param recordCount output records
    */
-  void recordsOutput(long recordCount);
+  void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount);
+
+  /** Mark output limited */
+  void outputLimited();
 
   /**
    * Time taken for sending start fragment rpcs to all nodes.
@@ -141,6 +139,9 @@ public interface MaestroObserver {
    * @param resourceSchedulingDecisionInfo Information of completed resource allocation
    */
   void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo);
+
+  /** Failed to update query profile. Called when tail or final executor profile update fails. */
+  void putProfileFailed();
 
   /** Signals movement to next stage within maestro */
   interface ExecutionStageChangeListener {

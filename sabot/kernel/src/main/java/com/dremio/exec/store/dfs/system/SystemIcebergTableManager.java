@@ -15,12 +15,20 @@
  */
 package com.dremio.exec.store.dfs.system;
 
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
@@ -45,7 +53,7 @@ public class SystemIcebergTableManager {
   private final SystemIcebergTablesStoragePlugin plugin;
   private final OperatorContext context;
   private final SystemIcebergTableMetadata tableMetadata;
-  private Table table;
+  private final Table table;
   private AppendFiles appendFiles;
 
   /**
@@ -62,20 +70,31 @@ public class SystemIcebergTableManager {
     this.plugin = plugin;
     this.context = context;
     this.tableMetadata = tableMetadata;
-    this.table = plugin.getTable(tableMetadata.getTableLocation());
+    this.table =
+        Preconditions.checkNotNull(
+            plugin.getTable(tableMetadata.getTableLocation()),
+            "Failed to load table %s",
+            tableMetadata.getTableName());
+  }
+
+  @VisibleForTesting
+  public void setAppendFiles(AppendFiles appendFiles) {
+    this.appendFiles = appendFiles;
   }
 
   /**
    * Write records to the system iceberg table.
    *
    * @param container The vector container object to be included in the data file.
+   * @param partitionValueVectors List of vectors that contain the partition transformed values.
    * @throws IOException If an I/O error occurs while writing the records.
    */
-  public void writeRecords(VectorContainer container) throws Exception {
+  public void writeRecords(VectorContainer container, List<ValueVector> partitionValueVectors)
+      throws Exception {
     if (appendFiles == null) {
       appendFiles = table.newAppend();
     }
-    appendFiles.appendFile(getDataFile(container));
+    appendFiles.appendFile(getDataFile(container, partitionValueVectors));
     logger.debug(
         "Data file appended to {} system iceberg table at location {}",
         table.name(),
@@ -84,6 +103,8 @@ public class SystemIcebergTableManager {
 
   public void commit() {
     if (appendFiles != null) {
+      IcebergUtils.stampSnapshotUpdateWithDremioJobId(
+          appendFiles, QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId()));
       appendFiles.commit();
       logger.debug("System iceberg table {} data files committed.", table.name());
     } else {
@@ -95,43 +116,56 @@ public class SystemIcebergTableManager {
    * Get the DataFile representing the data file for the given record.
    *
    * @param container The vector container object to be included in the data file.
+   * @param partitionValueVectors List of vectors that contain the partition transformed values.
    * @return The DataFile representing the data file with the given record.
    * @throws IOException If an I/O error occurs while creating the data file.
    */
-  private DataFile getDataFile(VectorContainer container) throws Exception {
+  private DataFile getDataFile(VectorContainer container, List<ValueVector> partitionValueVectors)
+      throws Exception {
     FileSystem fs = plugin.getSystemUserFS();
     Path dataFilePath = getDataFilePath(fs);
-    long fileSize = writeDataFile(fs, container, dataFilePath);
-    return new DataFiles.Builder(PartitionSpec.unpartitioned())
+    SystemIcebergTableRecordWriter recordWriter =
+        new SystemIcebergTableRecordWriter(context, plugin, tableMetadata, getDataDirPath(fs));
+    IcebergPartitionData icebergPartitionData =
+        getIcebergPartitionData(tableMetadata.getPartitionSpec(), partitionValueVectors);
+
+    logger.debug("Writing copy into error data to file at {}", dataFilePath);
+    try {
+      recordWriter.write(container, dataFilePath);
+    } finally {
+      recordWriter.close();
+    }
+
+    return new DataFiles.Builder(tableMetadata.getPartitionSpec())
         .withFormat(FileFormat.PARQUET)
         .withSortOrder(SortOrder.unsorted())
         .withPath(dataFilePath.toString())
         .withRecordCount(container.getRecordCount())
-        .withFileSizeInBytes(fileSize)
+        .withFileSizeInBytes(recordWriter.getFileSize())
+        .withMetrics(recordWriter.getIcebergMetrics())
+        .withPartition(icebergPartitionData)
         .build();
   }
 
   /**
-   * Writes the contents of a {@link VectorContainer} to a Parquet data file and returns the size of
-   * the written file.
+   * Builds the Iceberg partition data from the provided partition specification and partition value
+   * vectors. For each partition spec field retrieves the appropriate partition value vector from
+   * the given input list and sets it to the created partition data object.
    *
-   * @param fs The {@link FileSystem} instance used for writing the data file.
-   * @param container The {@link VectorContainer} containing the data to be written.
-   * @param dataFilePath The path where the Parquet data file will be created.
-   * @return The size of the written Parquet file in bytes.
-   * @throws Exception If an error occurs during the writing process.
+   * @param spec The Iceberg partition specification.
+   * @param partitionValueVectors The list of partition value vectors.
+   * @return The Iceberg partition data.
    */
-  private long writeDataFile(FileSystem fs, VectorContainer container, Path dataFilePath)
-      throws Exception {
-    SystemIcebergTableRecordWriter writer =
-        new SystemIcebergTableRecordWriter(context, plugin, tableMetadata, getDataDirPath(fs));
-    logger.debug("Writing copy into error data to file at {}", dataFilePath);
-    try {
-      writer.write(container, dataFilePath);
-    } finally {
-      writer.close();
+  private IcebergPartitionData getIcebergPartitionData(
+      PartitionSpec spec, List<ValueVector> partitionValueVectors) {
+    IcebergPartitionData icebergPartitionData =
+        new IcebergPartitionData(tableMetadata.partitionSpec.partitionType());
+    for (int i = 0; i < spec.fields().size(); i++) {
+      ValueVector valueVector = partitionValueVectors.get(i);
+      icebergPartitionData.set(
+          i, new CompleteType(valueVector.getMinorType().getType()), valueVector, 0);
     }
-    return writer.getFileSize();
+    return icebergPartitionData;
   }
 
   /**

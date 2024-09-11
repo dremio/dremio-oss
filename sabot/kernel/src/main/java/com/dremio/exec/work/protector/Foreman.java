@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.work.protector;
 
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
-
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.tracing.TracingUtils;
 import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.common.util.Retryer;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -32,7 +31,6 @@ import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
 import com.dremio.exec.exception.SchemaChangeExceptionContext;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -40,6 +38,7 @@ import com.dremio.exec.planner.observer.DelegatingAttemptObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.plancache.LegacyPlanCache;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.planner.sql.handlers.query.SupportsSystemIcebergTables;
 import com.dremio.exec.proto.GeneralRPCProtos;
@@ -68,6 +67,7 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
+import com.dremio.service.jobtelemetry.instrumentation.MetricLabel;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.telemetry.utils.TracerFacade;
@@ -118,7 +118,7 @@ public class Foreman {
   private final QueryObserver observer;
   private final ReAttemptHandler attemptHandler;
   private final Cache<Long, PreparedPlan> preparedPlans;
-  private final PlanCache planCache;
+  private final LegacyPlanCache planCache;
   private final PartitionStatsCache partitionStatsCache;
   protected final MaestroService maestroService;
   protected final JobTelemetryClient jobTelemetryClient;
@@ -143,7 +143,7 @@ public class Foreman {
       final OptionProvider config,
       final ReAttemptHandler attemptHandler,
       Cache<Long, PreparedPlan> preparedPlans,
-      PlanCache planCache,
+      LegacyPlanCache planCache,
       final MaestroService maestroService,
       final JobTelemetryClient jobTelemetryClient,
       final RuleBasedEngineSelector ruleBasedEngineSelector,
@@ -176,6 +176,10 @@ public class Foreman {
     }
   }
 
+  public AttemptObserver getNewObserver(final AttemptObserver delegate) {
+    return new Observer(delegate);
+  }
+
   private void newAttempt(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
     attemptSpan = TracingUtils.buildChildSpan(TracerFacade.INSTANCE, "job-attempt");
     attemptSpan.setTag("attemptId", attemptId.toString());
@@ -185,7 +189,8 @@ public class Foreman {
       // things as the observer expects a query profile at completion and this may not be available
       // if the cancellation
       // is too early
-      final AttemptObserver attemptObserver = new Observer(observer.newAttempt(attemptId, reason));
+      final AttemptObserver attemptObserver =
+          getNewObserver(observer.newAttempt(attemptId, reason));
 
       attemptHandler.newAttempt();
 
@@ -227,13 +232,25 @@ public class Foreman {
               .setEnd(System.currentTimeMillis());
       try {
         jobTelemetryClient
-            .getBlockingStub()
-            .putQueryTailProfile(
-                PutTailProfileRequest.newBuilder()
-                    .setQueryId(attemptId.toQueryId())
-                    .setProfile(profileBuilder.build())
-                    .build());
+            .getRetryer()
+            .call(
+                () ->
+                    jobTelemetryClient
+                        .getBlockingStub()
+                        .putQueryTailProfile(
+                            PutTailProfileRequest.newBuilder()
+                                .setQueryId(attemptId.toQueryId())
+                                .setProfile(profileBuilder.build())
+                                .build()));
       } catch (Exception telemetryEx) {
+        jobTelemetryClient
+            .getSuppressedErrorCounter()
+            .withTags(
+                MetricLabel.JTS_METRIC_TAG_KEY_RPC,
+                MetricLabel.JTS_METRIC_TAG_VALUE_RPC_PUT_QUERY_TAIL_PROFILE,
+                MetricLabel.JTS_METRIC_TAG_KEY_ERROR_ORIGIN,
+                MetricLabel.JTS_METRIC_TAG_VALUE_NEW_ATTEMPT)
+            .increment();
         uex.addSuppressed(telemetryEx);
       }
 
@@ -269,7 +286,7 @@ public class Foreman {
       UserSession session,
       OptionProvider options,
       Cache<Long, PreparedPlan> preparedPlans,
-      PlanCache planCache,
+      LegacyPlanCache planCache,
       Predicate<DatasetConfig> datasetValidityChecker,
       CommandPool commandPool,
       PartitionStatsCache partitionStatsCache) {
@@ -349,17 +366,20 @@ public class Foreman {
     if (attemptManager == null) {
       return Optional.empty();
     }
-
-    QueryProfile profile = attemptManager.getQueryProfile();
-    QueryState state = attemptManager.getState();
-
-    if (state == QueryState.RUNNING
-        || state == QueryState.STARTING
-        || state == QueryState.ENQUEUED
-        || state == QueryState.CANCELED) {
-      return Optional.of(profile);
+    try {
+      QueryProfile profile = attemptManager.getQueryProfile();
+      QueryState state = attemptManager.getState();
+      if (state == QueryState.RUNNING
+          || state == QueryState.STARTING
+          || state == QueryState.ENQUEUED
+          || state == QueryState.CANCELED) {
+        return Optional.of(profile);
+      }
+    } catch (Exception e) {
+      logger.warn(
+          "Error while fetching current profile for query {}", attemptManager.getQueryId(), e);
+      // Return empty if an exception occurs
     }
-
     return Optional.empty();
   }
 
@@ -374,8 +394,7 @@ public class Foreman {
     }
 
     QueryState state = attemptManager.getState();
-    if (state == QueryState.RUNNING
-        || state == QueryState.STARTING
+    if (state == QueryState.STARTING
         || state == QueryState.ENQUEUED
         || state == QueryState.CANCELED) {
       return Optional.of(attemptManager.sendPlanningProfile());
@@ -440,13 +459,13 @@ public class Foreman {
     return false;
   }
 
-  private class Observer extends DelegatingAttemptObserver {
+  protected class Observer extends DelegatingAttemptObserver {
 
     private boolean isCTAS = false;
     private List<String> systemIcebergTablesToRefresh;
     private boolean containsHashAgg = false;
 
-    Observer(final AttemptObserver delegate) {
+    public Observer(final AttemptObserver delegate) {
       super(delegate);
     }
 
@@ -536,11 +555,7 @@ public class Foreman {
         try {
           NamespaceKey datasetKey = new NamespaceKey(data.getOriginTablePath());
           final DatasetCatalog datasetCatalog =
-              sabotContext
-                  .getCatalogService()
-                  .getCatalog(
-                      MetadataRequestOptions.of(
-                          SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
+              sabotContext.getCatalogService().getSystemUserCatalog();
           datasetCatalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
 
           // Update successful, populate return exception.
@@ -566,8 +581,22 @@ public class Foreman {
                 .getCatalogService()
                 .getSource(
                     SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
+        Retryer refreshRetryer =
+            Retryer.newBuilder()
+                .retryIfExceptionOfType(Exception.class)
+                .setMaxRetries(10)
+                .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 5, 500)
+                .build();
+
         for (String tableName : systemIcebergTablesToRefresh) {
-          plugin.refreshDataset(ImmutableList.of(tableName));
+          try {
+            refreshRetryer.run(
+                () -> {
+                  plugin.refreshDataset(ImmutableList.of(tableName));
+                });
+          } catch (Retryer.OperationFailedAfterRetriesException ex) {
+            logger.warn("Unable to refresh system_iceberg_table={}", tableName, ex);
+          }
         }
       }
     }

@@ -238,7 +238,8 @@ public class TextRecordWriter extends StringOutputRecordWriter {
           null,
           null,
           null,
-          0L);
+          0L,
+          null);
       stream.close();
       stream = null;
       dos = null;

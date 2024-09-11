@@ -47,13 +47,13 @@ public final class ExternalQueryTranslatableTable implements TranslatableTable {
   }
 
   public static ExternalQueryTranslatableTable create(
-      Function<String, BatchSchema> schemaBuilder,
+      Function<ExternalQuery.ExternalQueryRequest, BatchSchema> schemaBuilder,
       Function<BatchSchema, RelDataType> rowTypeBuilder,
       StoragePluginId pluginId,
-      String sql) {
-    final BatchSchema schema = schemaBuilder.apply(sql);
+      ExternalQuery.ExternalQueryRequest request) {
+    final BatchSchema schema = schemaBuilder.apply(request);
     final RelDataType rowType = rowTypeBuilder.apply(schema);
-    return new ExternalQueryTranslatableTable(schema, rowType, pluginId, sql);
+    return new ExternalQueryTranslatableTable(schema, rowType, pluginId, request.getQuery());
   }
 
   @Override

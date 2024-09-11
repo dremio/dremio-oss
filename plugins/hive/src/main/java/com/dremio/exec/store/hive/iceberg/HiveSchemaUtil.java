@@ -89,6 +89,10 @@ public final class HiveSchemaUtil {
       case LIST:
         final Types.ListType listType = type.asListType();
         return String.format("array<%s>", convert(listType.elementType()));
+      case MAP:
+        final Types.MapType mapType = type.asMapType();
+        return String.format(
+          "map<%s,%s>", convert(mapType.keyType()), convert(mapType.valueType()));
       default:
         throw new UnsupportedOperationException(type + " is not supported");
     }

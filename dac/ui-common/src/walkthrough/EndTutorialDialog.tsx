@@ -26,7 +26,7 @@ export const EndTutorialDialog = (props: EndTutorialDialogProps) => {
   const { t } = getIntlContext();
   return (
     <div
-      className="bg-brand-600 rounded p-2 leading-normal"
+      className="bg-brand-500 rounded p-2 leading-normal"
       style={{ maxWidth: "357px" }}
     >
       <p className="text-semibold mb-05 text-base">

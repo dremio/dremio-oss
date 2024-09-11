@@ -19,8 +19,6 @@ import static org.apache.calcite.sql.SqlKind.AVG_AGG_FUNCTIONS;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.logical.RollupWithBridgeExchangeRule;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.PrelUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.math.BigDecimal;
@@ -37,6 +35,7 @@ import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
+import org.apache.calcite.plan.RelRule.Config;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -52,6 +51,7 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.util.ImmutableBeans;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.mapping.Mapping;
 import org.apache.calcite.util.mapping.MappingType;
@@ -363,9 +363,7 @@ public class GroupSetToCrossJoinCaseStatement {
         return;
       }
 
-      if (PrelUtil.getSettings(cluster)
-              .getOptions()
-              .getOption(PlannerSettings.ROLLUP_BRIDGE_EXCHANGE)
+      if (!config.isRollup()
           && RollupWithBridgeExchangeRule.isRollup(agg.getGroupSets())
           && !agg.containsDistinctCall()) {
         return;
@@ -380,7 +378,7 @@ public class GroupSetToCrossJoinCaseStatement {
     }
 
     public interface Config extends RelRule.Config {
-      Rule.Config DEFUALT =
+      Rule.Config DEFAULT =
           RelRule.Config.EMPTY
               .withDescription("GroupSetToCrossJoinCaseStatement")
               .withOperandSupplier(
@@ -396,6 +394,13 @@ public class GroupSetToCrossJoinCaseStatement {
                                                   .belongsTo(AVG_AGG_FUNCTIONS)))
                           .anyInputs())
               .as(Rule.Config.class);
+
+      @ImmutableBeans.Property
+      @ImmutableBeans.BooleanDefault(false)
+      boolean isRollup();
+
+      /** Sets {@link #isRollup()}. */
+      Config withRollup(boolean withRollup);
 
       @Override
       default Rule toRule() {

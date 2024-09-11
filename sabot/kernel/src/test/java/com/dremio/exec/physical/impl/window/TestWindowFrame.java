@@ -52,7 +52,7 @@ public class TestWindowFrame extends BaseTestQuery {
   public void testUnboundedFollowing() throws Exception {
     testBuilder()
         .sqlQuery(getFile("window/q3.sql"), TEST_RES_PATH)
-        .ordered()
+        .unOrdered()
         .sqlBaselineQuery(getFile("window/q4.sql"), TEST_RES_PATH)
         .build()
         .run();

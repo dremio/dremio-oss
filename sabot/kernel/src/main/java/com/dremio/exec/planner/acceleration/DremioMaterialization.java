@@ -16,7 +16,7 @@
 package com.dremio.exec.planner.acceleration;
 
 import com.dremio.exec.planner.RoutingShuttle;
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor.ReflectionInfo;
+import com.dremio.exec.planner.acceleration.descriptor.ReflectionInfo;
 import com.dremio.exec.planner.physical.visitor.CrelUniqifier;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
@@ -33,10 +33,13 @@ import org.apache.calcite.rel.logical.LogicalJoin;
  * This extension of RelOptMaterialization is used in Dremio acceleration. It stores and makes
  * accessible information about incremental updates.
  *
- * <p>A DremioMaterialization is immutable so as we transform and normalize target materializations
- * we will clone the DremioMaterialization accordingly.
+ * <p>A DremioMaterialization is immutable so as we transform and normalize target materializations,
+ * we will clone the DremioMaterialization accordingly. The starting plan for each
+ * DremioMaterialization is the expanded reflection plan and is stored in the original variable for
+ * query profile purposes.
  */
 public class DremioMaterialization {
+  private final RelNode original;
   private final RelNode tableRel;
   private final RelNode queryRel;
   private final IncrementalUpdateSettings incrementalUpdateSettings;
@@ -46,7 +49,6 @@ public class DremioMaterialization {
   private final BatchSchema schema;
   private final long expirationTimestamp;
   private final boolean snowflake;
-  private final DremioMaterialization original;
   private final RelTransformer postStripTransformer;
   private boolean hasJoin;
   private boolean hasAgg;
@@ -67,6 +69,7 @@ public class DremioMaterialization {
       int stripVersion,
       RelTransformer postStripTransformer) {
     this(
+        null,
         tableRel,
         queryRel,
         incrementalUpdateSettings,
@@ -76,7 +79,6 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         false,
-        null,
         stripVersion,
         postStripTransformer,
         "",
@@ -84,6 +86,7 @@ public class DremioMaterialization {
   }
 
   private DremioMaterialization(
+      RelNode original,
       RelNode tableRel,
       RelNode queryRel,
       IncrementalUpdateSettings incrementalUpdateSettings,
@@ -93,11 +96,11 @@ public class DremioMaterialization {
       BatchSchema schema,
       long expirationTimestamp,
       boolean snowflake,
-      DremioMaterialization original,
       int stripVersion,
       RelTransformer postStripTransformer,
       String info,
       Duration duration) {
+    this.original = original == null ? queryRel : original;
     this.tableRel = tableRel;
     this.queryRel = queryRel;
     this.incrementalUpdateSettings = Preconditions.checkNotNull(incrementalUpdateSettings);
@@ -107,7 +110,6 @@ public class DremioMaterialization {
     this.layoutInfo = Preconditions.checkNotNull(layoutInfo);
     this.expirationTimestamp = expirationTimestamp;
     this.snowflake = snowflake;
-    this.original = original == null ? this : original;
     this.stripVersion = stripVersion;
     this.postStripTransformer =
         postStripTransformer == null ? RelTransformer.NO_OP_TRANSFORMER : postStripTransformer;
@@ -143,6 +145,10 @@ public class DremioMaterialization {
     return layoutInfo.getType();
   }
 
+  public RelNode getOriginal() {
+    return original;
+  }
+
   public RelNode getQueryRel() {
     return queryRel;
   }
@@ -169,6 +175,7 @@ public class DremioMaterialization {
 
   public DremioMaterialization uniqify() {
     return new DremioMaterialization(
+        original,
         tableRel,
         CrelUniqifier.uniqifyGraph(queryRel),
         incrementalUpdateSettings,
@@ -178,7 +185,6 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         snowflake,
-        original,
         stripVersion,
         postStripTransformer,
         info,
@@ -203,6 +209,7 @@ public class DremioMaterialization {
 
   public DremioMaterialization cloneWithNewQuery(RelNode query) {
     return new DremioMaterialization(
+        original,
         tableRel,
         query,
         incrementalUpdateSettings,
@@ -212,7 +219,6 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         snowflake,
-        original,
         stripVersion,
         postStripTransformer,
         info,
@@ -221,6 +227,7 @@ public class DremioMaterialization {
 
   public DremioMaterialization cloneWith(RelNode query, String info, Duration duration) {
     return new DremioMaterialization(
+        original,
         tableRel,
         query,
         incrementalUpdateSettings,
@@ -230,7 +237,6 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         snowflake,
-        original,
         stripVersion,
         postStripTransformer,
         info,
@@ -239,6 +245,7 @@ public class DremioMaterialization {
 
   public DremioMaterialization cloneWith(RelNode tableRel, RelNode queryRel, Duration duration) {
     return new DremioMaterialization(
+        original,
         tableRel,
         queryRel,
         incrementalUpdateSettings,
@@ -248,7 +255,6 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         snowflake,
-        original,
         stripVersion,
         postStripTransformer,
         info,
@@ -257,6 +263,7 @@ public class DremioMaterialization {
 
   public DremioMaterialization createSnowflakeMaterialization(RelNode query) {
     return new DremioMaterialization(
+        query,
         tableRel,
         query,
         incrementalUpdateSettings,
@@ -266,7 +273,6 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         true,
-        null, // consider the new materialization as original for reporting purposes
         stripVersion,
         postStripTransformer,
         info,
@@ -277,17 +283,9 @@ public class DremioMaterialization {
     return schema;
   }
 
-  /**
-   * The original materialization before any transformations were done.
-   *
-   * @return The original materialization (possibly the same as this object).
-   */
-  public DremioMaterialization getOriginal() {
-    return original;
-  }
-
   public DremioMaterialization accept(RelShuttle shuttle) {
     return new DremioMaterialization(
+        original,
         tableRel.accept(shuttle),
         queryRel.accept(shuttle),
         incrementalUpdateSettings,
@@ -297,7 +295,6 @@ public class DremioMaterialization {
         schema,
         expirationTimestamp,
         snowflake,
-        original,
         stripVersion,
         postStripTransformer,
         info,

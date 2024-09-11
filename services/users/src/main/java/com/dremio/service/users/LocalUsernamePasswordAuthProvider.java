@@ -19,16 +19,20 @@ import com.dremio.authenticator.AuthException;
 import com.dremio.authenticator.AuthProvider;
 import com.dremio.authenticator.AuthRequest;
 import com.dremio.authenticator.AuthResult;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import org.jetbrains.annotations.NotNull;
 
 /** Validate username/local password */
+@Singleton
 public class LocalUsernamePasswordAuthProvider implements AuthProvider {
   public static final String TOKEN_TYPE = "local_password";
   private final Provider<SimpleUserService> simpleUserServiceProvider;
 
   private SimpleUserService simpleUserService;
 
+  @Inject
   public LocalUsernamePasswordAuthProvider(Provider<SimpleUserService> simpleUserServiceProvider) {
     this.simpleUserServiceProvider = simpleUserServiceProvider;
   }

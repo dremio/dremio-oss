@@ -129,7 +129,7 @@ public interface PlannerCatalog {
    * @param functionType
    * @return
    */
-  Collection<Function> getFunctions(NamespaceKey path, SimpleCatalog.FunctionType functionType);
+  Collection<Function> getFunctions(CatalogEntityKey path, SimpleCatalog.FunctionType functionType);
 
   /**
    * @return all tables that have been requested from this catalog.

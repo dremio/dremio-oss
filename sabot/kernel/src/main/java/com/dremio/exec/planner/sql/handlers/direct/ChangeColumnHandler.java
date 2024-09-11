@@ -119,7 +119,7 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
     SqlHandlerUtil.checkNestedFieldsForDuplicateNameDeclarations(
         sql, newColumnSpec.getDataType().getTypeName());
 
-    Field columnField = SqlHandlerUtil.fieldFromSqlColDeclaration(config, newColumnSpec, sql);
+    Field columnField = SqlHandlerUtil.fieldFromSqlColDeclaration(newColumnSpec, sql);
 
     catalog.changeColumn(
         resolvedPath,

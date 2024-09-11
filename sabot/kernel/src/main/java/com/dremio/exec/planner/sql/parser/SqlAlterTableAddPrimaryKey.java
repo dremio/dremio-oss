@@ -19,7 +19,9 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.direct.AddPrimaryKeyHandler;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -97,7 +99,7 @@ public class SqlAlterTableAddPrimaryKey extends SqlAlterTable
   }
 
   @Override
-  public SimpleDirectHandler toDirectHandler(QueryContext context) {
+  public SqlDirectHandler<SimpleCommandResult> toDirectHandler(QueryContext context) {
     return new AddPrimaryKeyHandler(context.getCatalog());
   }
 

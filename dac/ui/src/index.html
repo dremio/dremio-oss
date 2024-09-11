@@ -15,7 +15,7 @@
     limitations under the License.
 
 -->
-<!DOCTYPE html>
+<!doctype html>
 <% /* Template file for index.html This file is rendered by webpack when added
 to the bundle, and rendered again by the FreeMarker template engine when served
 by the Dremio Web server. Check webpack.config.js for more information. */ %>
@@ -34,7 +34,7 @@ by the Dremio Web server. Check webpack.config.js for more information. */ %>
       window.dremioConfig = <%= htmlWebpackPlugin.options.dremioConfig %>;
     </script>
   </head>
-  <body>
+  <body class="bg-primary">
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>

@@ -502,8 +502,9 @@ public class RelToSqlConverter extends SqlImplementor implements ReflectiveVisit
 
     final List<SqlNode> partitionSqlList = new ArrayList<>();
     if (e.getPartitionKeys() != null) {
-      for (RexNode rex : e.getPartitionKeys()) {
-        SqlNode sqlNode = context.toSql(null, rex);
+      for (int key : e.getPartitionKeys()) {
+        SqlNode sqlNode =
+            context.toSql(null, e.getCluster().getRexBuilder().makeInputRef(input, key));
         partitionSqlList.add(sqlNode);
       }
     }

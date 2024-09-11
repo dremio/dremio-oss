@@ -13,13 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
+  .MuiMenuItem-root,
+  .MuiListItem-root {
+    &:focus-visible {
+      background-color: var(--fill--primary--hover) !important;
+      outline: -webkit-focus-ring-color auto 1px !important;
+      .menu-item-inner {
+        background: none;
+      }
+    }
+  }
+
   .menu-item-inner {
-    background: #fff;
+    background: var(--fill--popover);
     position: relative;
     display: flex;
     flex-direction: row;
@@ -28,7 +38,7 @@
     height: 100%;
 
     &.danger {
-      color: var(--dremio--color--status--delete--background);
+      color: var(--fill--danger--bold);
     }
 
     &__icon {
@@ -47,11 +57,11 @@
     }
 
     &.disabled {
-      background: #fff !important;
-      color: @FIGMA_TEXT_DISABLED !important;
+      background: var(--fill--primary) !important;
+      color: var(--text--disabled) !important;
       position: relative;
       * {
-        color: @FIGMA_TEXT_DISABLED !important;
+        color: var(--text--disabled) !important;
       }
     }
 
@@ -67,14 +77,14 @@
     }
 
     &:hover {
-      background: @FIGMA_PRIMARY_100;
+      background: var(--fill--primary--hover);
     }
 
     &.--selected {
-      background: @FIGMA_PRIMARY_150;
+      background: var(--fill--primary--selected);
 
       &:hover {
-        background: @FIGMA_PRIMARY_200;
+        background: var(--fill--primary--hover);
       }
     }
   }

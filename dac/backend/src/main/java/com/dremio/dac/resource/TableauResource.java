@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.resource;
 
+import static com.dremio.dac.options.TableauResourceOptions.CLIENT_TOOLS_TABLEAU;
 import static com.dremio.dac.server.WebServer.MediaType.APPLICATION_TDS;
 import static com.dremio.dac.server.WebServer.MediaType.APPLICATION_TDS_DRILL;
 
@@ -23,7 +24,6 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.server.options.ProjectOptionManager;
-import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -41,12 +41,7 @@ import javax.ws.rs.core.Response;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/tableau/{path: .*}")
-@Options
 public class TableauResource extends BaseBIToolResource {
-  // Special option for enabling the Tableau TDS endpoint.
-  public static final TypeValidators.BooleanValidator CLIENT_TOOLS_TABLEAU =
-      new TypeValidators.BooleanValidator("client.tools.tableau", true);
-
   @Inject
   public TableauResource(
       ProjectOptionManager optionManager,

@@ -383,7 +383,7 @@ public class IcebergTableWrapper {
       this.fs = fs;
       this.datasetColumnValueCounts = datasetColumnValueCounts;
 
-      for (NodeEndpoint endpoint : context.getExecutors()) {
+      for (NodeEndpoint endpoint : context.getClusterCoordinator().getExecutorEndpoints()) {
         activeHostMap.add(HostAndPort.fromHost(endpoint.getAddress()));
         activeHostPortMap.add(
             HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));

@@ -44,7 +44,7 @@ class DremioJavaFileManager extends ForwardingJavaFileManager<JavaFileManager> {
   }
 
   @Override
-  public Iterable<JavaFileObject> list(
+  public synchronized Iterable<JavaFileObject> list(
       Location location, String packageName, Set<Kind> kinds, boolean recurse) throws IOException {
     return super.list(location, packageName, Sets.filter(kinds, NO_SOURCES_KIND), recurse);
   }

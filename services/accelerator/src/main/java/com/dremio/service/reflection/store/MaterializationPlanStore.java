@@ -126,8 +126,9 @@ public class MaterializationPlanStore {
 
     @Override
     public void convert(
-        DocumentWriter writer, MaterializationPlanId key, MaterializationPlan record) {
-      writer.write(MATERIALIZATION_PLAN_MATERIALIZATION_ID, record.getMaterializationId().getId());
+        DocumentWriter writer, MaterializationPlanId key, MaterializationPlan document) {
+      writer.write(
+          MATERIALIZATION_PLAN_MATERIALIZATION_ID, document.getMaterializationId().getId());
     }
   }
 

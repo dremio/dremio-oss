@@ -37,12 +37,12 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tableP
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasCommitForTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import com.dremio.service.namespace.proto.EntityId;
 import java.util.Collections;
@@ -645,9 +645,9 @@ public class ITDataplanePluginId extends ITDataplanePluginTestSetup {
     // Assert
     // The uniqueId, contentId should be the same for the table in both branches.
     // The datasetId would be different (version context part)
-    assertThat(contentIdFromBranch.equals(contentIdFromMain)).isTrue();
-    assertThat(uniqueIdFromBranch.equals(uniqueIdFromMain)).isTrue();
-    assertThat(datasetIdFromMain.equals(datasetIdIdFromBranch)).isFalse();
+    assertThat(contentIdFromBranch).isEqualTo(contentIdFromMain);
+    assertThat(uniqueIdFromBranch).isEqualTo(uniqueIdFromMain);
+    assertThat(datasetIdFromMain).isNotEqualTo(datasetIdIdFromBranch);
   }
 
   @Test

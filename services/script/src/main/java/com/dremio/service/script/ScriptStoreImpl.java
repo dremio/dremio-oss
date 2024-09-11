@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import javax.inject.Inject;
 import javax.inject.Provider;
+import org.apache.commons.lang3.StringUtils;
 
 /** ScriptStore to store scripts */
 public class ScriptStoreImpl implements ScriptStore {
@@ -120,6 +121,12 @@ public class ScriptStoreImpl implements ScriptStore {
     return store.get().getCounts(condition).get(0);
   }
 
+  @Override
+  public boolean contains(String scriptId) {
+    Preconditions.checkNotNull(scriptId);
+    return store.get().contains(scriptId);
+  }
+
   /** StoreCreator */
   public static final class StoreCreator implements IndexedStoreCreationFunction<String, Script> {
     @Override
@@ -135,15 +142,20 @@ public class ScriptStoreImpl implements ScriptStore {
 
   static final class ScriptDocumentConverter implements DocumentConverter<String, Script> {
 
-    private final Integer version = 0;
+    private final Integer version = 1;
 
     @Override
-    public void convert(DocumentWriter writer, String key, Script record) {
-      writer.write(ScriptStoreIndexedKeys.ID, record.getScriptId());
-      writer.write(ScriptStoreIndexedKeys.NAME, record.getName());
-      writer.write(ScriptStoreIndexedKeys.CREATED_AT, record.getCreatedAt());
-      writer.write(ScriptStoreIndexedKeys.CREATED_BY, record.getCreatedBy());
-      writer.write(ScriptStoreIndexedKeys.MODIFIED_AT, record.getModifiedAt());
+    public void convert(DocumentWriter writer, String key, Script document) {
+      writer.write(ScriptStoreIndexedKeys.ID, document.getScriptId());
+      writer.write(ScriptStoreIndexedKeys.NAME, document.getName());
+      writer.write(ScriptStoreIndexedKeys.CREATED_AT, document.getCreatedAt());
+      writer.write(ScriptStoreIndexedKeys.CREATED_BY, document.getCreatedBy());
+      writer.write(ScriptStoreIndexedKeys.MODIFIED_AT, document.getModifiedAt());
+      writer.write(
+          ScriptStoreIndexedKeys.OWNED_BY,
+          StringUtils.isNotEmpty(document.getOwnedBy())
+              ? document.getOwnedBy()
+              : document.getCreatedBy());
     }
 
     @Override

@@ -16,28 +16,7 @@
 package com.dremio.exec.catalog.dataplane;
 
 import static com.dremio.exec.catalog.dataplane.test.DataplaneStorage.BucketSelection.PRIMARY_BUCKET;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtBranchQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtSpecifierQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.dropTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueBranchName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTagName;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableWithValuesQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.joinedTableKey;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.selectStarQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.updateAtQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.updateAtQueryWithAtRef;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.updateByIdFromAnotherBranchQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.updateByIdQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useContextQuery;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -119,6 +98,7 @@ public class ITDataplanePluginUpdate extends ITDataplanePluginTestSetup {
   @Test
   public void updateOneFromAnotherBranch() throws Exception {
     // Arrange
+    setupForAnotherPlugin();
     final String tableName = generateUniqueTableName();
     final List<String> tablePath = tablePathWithFolders(tableName);
     final String devBranch = generateUniqueBranchName();
@@ -228,6 +208,51 @@ public class ITDataplanePluginUpdate extends ITDataplanePluginTestSetup {
     String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
     String tableName = "myTable";
     runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME)));
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
+    runSQL(createBranchAtSpecifierQuery(branchName, mainBranch));
+    runSQL(updateAtQuery(DATAPLANE_PLUGIN_NAME, tableName, branchName));
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, tableName, branchName)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("2", "2", "3")));
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, tableName, DEFAULT_BRANCH_NAME)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "2", "3")));
+  }
+
+  @Test
+  public void testDmlUpdateWithAtWithoutContext() throws Exception {
+    String branchName = "devBranch";
+    String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
+    String tableName = "myTable";
+    runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
+    runSQL(createBranchAtSpecifierQuery(branchName, mainBranch));
+    runSQL(updateAtQuery(DATAPLANE_PLUGIN_NAME, tableName, branchName));
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, tableName, branchName)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("2", "2", "3")));
+    assertThat(
+            runSqlWithResults(
+                String.format(
+                    "select * from %s.%s at branch %s",
+                    DATAPLANE_PLUGIN_NAME, tableName, DEFAULT_BRANCH_NAME)))
+        .isEqualTo(Collections.singletonList(Arrays.asList("1", "2", "3")));
+  }
+
+  @Test
+  public void testDmlUpdateWithSettingToAnotherContext() throws Exception {
+    String branchName = "devBranch";
+    String mainBranch = String.format("BRANCH %s", DEFAULT_BRANCH_NAME);
+    String tableName = "myTable";
+    runSQL(useContextQuery(Collections.singletonList(DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST)));
     runSQL(String.format("CREATE table %s.%s as select 1,2,3", DATAPLANE_PLUGIN_NAME, tableName));
     runSQL(createBranchAtSpecifierQuery(branchName, mainBranch));
     runSQL(updateAtQuery(DATAPLANE_PLUGIN_NAME, tableName, branchName));

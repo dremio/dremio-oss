@@ -161,8 +161,7 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
                 FileUtils.getResourceAsFile("/probe_side_input.json").toURI().toString());
 
     List<QueryDataBatch> results = testRunAndReturn(QueryType.PHYSICAL, plan);
-    try (RecordBatchLoader batchLoader =
-        new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
+    try (RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator())) {
 
       QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -200,8 +199,7 @@ public class TestHashJoinAdvanced extends BaseTestQuery {
                 FileUtils.getResourceAsFile("/probe_side_input.json").toURI().toString());
 
     List<QueryDataBatch> results = testRunAndReturn(QueryType.PHYSICAL, plan);
-    try (RecordBatchLoader batchLoader =
-        new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
+    try (RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator())) {
       final QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 

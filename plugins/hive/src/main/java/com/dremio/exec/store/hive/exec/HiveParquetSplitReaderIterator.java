@@ -20,6 +20,7 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -125,7 +126,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
         pathRowGroupsMap = new HiveSplitsPathRowGroupsMap(sortedSplits);
         this.runtimeFilterEvaluators = new ArrayList<>();
         this.partitionColumnRFs = new ArrayList<>();
-        this.nonPartitionColumnRFs = new ArrayList<>();
+        this.nonPartitionColumnRFs = new CopyOnWriteArrayList<>();
         this.produceFromBufferedSplits = produceBuffered;
   }
 

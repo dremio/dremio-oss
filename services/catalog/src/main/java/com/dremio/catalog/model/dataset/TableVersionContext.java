@@ -49,6 +49,8 @@ public class TableVersionContext {
   private final Object value;
   private final Instant timestamp;
 
+  // TODO: DX-85701
+  // We should remove NOT_SPECIFIED (or disallow TableVersionContext to be null)
   public static final TableVersionContext NOT_SPECIFIED =
       new TableVersionContext(TableVersionType.NOT_SPECIFIED, "");
 
@@ -258,7 +260,7 @@ public class TableVersionContext {
 
   @JsonIgnore
   public boolean isTimeTravelType() {
-    return type == TableVersionType.TIMESTAMP || type == TableVersionType.SNAPSHOT_ID;
+    return type.isTimeTravel();
   }
 
   public static Optional<TableVersionContext> tryParse(String type, String value) {

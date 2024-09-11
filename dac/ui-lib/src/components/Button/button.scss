@@ -15,7 +15,6 @@
  */
 
 @import "../../styles/constants/index.scss";
-@import "../../styles/constants/colorConstants.scss";
 
 .btn {
   align-items: center;
@@ -36,18 +35,18 @@
 
   &__primary {
     &.--contained {
-      background-color: $FIGMA_PRIMARY_500;
-      color: $white;
+      background-color: var(--color--brand--300);
+      color: white;
       &:hover {
         border: none;
-        background-color: $FIGMA_PRIMARY_600;
+        background-color: var(--color--brand--400);
       }
     }
 
     &.--outlined {
-      background-color: $white;
-      border: 1px solid $FIGMA_NEUTRAL_200;
-      color: $dark-gray;
+      background-color: var(--fill--primary);
+      border: 1px solid var(--border--neutral--solid);
+      color: var(--text--primary);
 
       img {
         filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg)
@@ -55,7 +54,7 @@
       }
 
       &:hover {
-        background-color: $cultured;
+        background-color: var(--fill--secondary);
       }
 
       &.-noImgHover img {
@@ -66,16 +65,16 @@
     &.--text {
       background-color: transparent;
       border: none;
-      color: $primary-color;
+      color: var(--color--brand--300);
       min-width: auto;
       &:hover {
-        background-color: $lighter-neutral-color;
+        background-color: var(--fill--secondary);
       }
     }
 
     &.--disabled {
-      background-color: $FIGMA_NEUTRAL_150;
-      color: $FIGMA_TEXT_DISABLED;
+      background-color: var(--color--neutral--75);
+      color: var(--text--disabled);
       border: none;
       opacity: 0.7;
       pointer-events: none;
@@ -89,19 +88,19 @@
 
   &__secondary,
   &__default {
-    color: var(--dremio--color--text--faded);
-    border: 1px solid $FIGMA_NEUTRAL_200;
+    color: var(--text--faded);
+    border: 1px solid var(--border--neutral--solid);
 
     &.--contained {
-      background-color: $white;
+      background-color: var(--fill--primary);
       &:hover {
-        background-color: $cultured;
+        background-color: var(--fill--secondary);
       }
     }
 
     &.--disabled {
-      background-color: $FIGMA_NEUTRAL_150;
-      color: $FIGMA_TEXT_DISABLED;
+      background-color: var(--color--neutral--75);
+      color: var(--text--disabled);
       border: none;
       opacity: unset;
       pointer-events: none;
@@ -110,18 +109,18 @@
     &.--text {
       background-color: transparent;
       border: none;
-      color: $trout;
+      color: var(--text--faded);
       min-width: auto;
     }
   }
 
   &__warn {
-    border: 1px solid $bridesmaid;
+    border: 1px solid var(--fill--danger);
 
-    color: $sunglo;
+    color: var(--fill--danger--solid);
     &.--contained,
     &.--text {
-      background-color: $bridesmaid;
+      background-color: var(--fill--danger);
     }
 
     &.--disabled {

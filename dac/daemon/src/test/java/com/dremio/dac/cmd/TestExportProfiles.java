@@ -75,7 +75,7 @@ public class TestExportProfiles extends BaseTestServer {
   public static void init() throws Exception {
     fs = HadoopFileSystem.getLocal(new Configuration());
     Assume.assumeFalse(BaseTestServer.isMultinode());
-    try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
+    try (Timer.TimedBlock b = Timer.time("TestExportProfiles.init")) {
       dacConfig = dacConfig.writePath(folder1.newFolder().getAbsolutePath());
       startDaemon();
       queryProfile = runDummyJob();
@@ -84,10 +84,8 @@ public class TestExportProfiles extends BaseTestServer {
 
   public static void startDaemon() throws Exception {
     setCurrentDremioDaemon(DACDaemon.newDremioDaemon(dacConfig, DremioTest.CLASSPATH_SCAN_RESULT));
-    setMasterDremioDaemon(null);
     getCurrentDremioDaemon().init();
     initClient();
-    setBinder(createBinder(getCurrentDremioDaemon().getBindingProvider()));
     BaseTestServer.getPopulator().populateTestUsers();
   }
 

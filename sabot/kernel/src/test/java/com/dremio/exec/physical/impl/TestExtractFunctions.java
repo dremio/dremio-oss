@@ -178,7 +178,7 @@ public class TestExtractFunctions extends BaseTestFunction {
   //        .replace("#{TEST_FILE}", testDataFile)
   //        .replace("#{COLUMN_NAME}", columnName));
   //
-  //      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+  //      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
   //
   //      QueryDataBatch batch = results.get(0);
   //      assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));

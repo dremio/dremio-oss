@@ -16,7 +16,7 @@
 package com.dremio.exec.planner.sql.parser;
 
 import static com.dremio.exec.calcite.SqlNodes.DREMIO_DIALECT;
-import static com.dremio.exec.planner.sql.parser.SqlVacuum.MAX_FILE_AGE_MS_DEFAULT;
+import static com.dremio.exec.planner.sql.parser.SqlVacuum.MIN_FILE_AGE_MS_DEFAULT;
 import static com.dremio.exec.planner.sql.parser.TestParserUtil.parse;
 import static org.apache.iceberg.TableProperties.MAX_SNAPSHOT_AGE_MS_DEFAULT;
 import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
@@ -89,7 +89,7 @@ public class TestSqlVacuumTable {
     SqlVacuumTable sqlVacuumTable = (SqlVacuumTable) parsed;
     VacuumOptions vacuumOptions = sqlVacuumTable.getVacuumOptions();
 
-    long expectedSnapshotCutoff = System.currentTimeMillis() - MAX_FILE_AGE_MS_DEFAULT;
+    long expectedSnapshotCutoff = System.currentTimeMillis() - MIN_FILE_AGE_MS_DEFAULT;
     assertThat(vacuumOptions.getOlderThanInMillis())
         .isCloseTo(expectedSnapshotCutoff, Percentage.withPercentage(0.1));
 

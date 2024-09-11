@@ -1,18 +1,21 @@
-import clsx from "clsx";
 import * as React from "react";
 
 type CheckboxProps = {
   className?: string;
-  label?: string;
+  label?: string | JSX.Element;
+  labelClassName?: string;
+  onClick?: any;
+  value?: string;
+  checked?: boolean;
+  style?: Record<string, any>;
 };
 
-export const Checkbox = (props: CheckboxProps) => (
-  <label>
-    <input
-      {...props}
-      className={clsx(props.className, "form-control")}
-      type="checkbox"
-    />
-    {props.label}
-  </label>
-);
+export const Checkbox = (props: CheckboxProps) => {
+  const { label, className, ...inputProps } = props;
+  return (
+    <label className={className}>
+      <input {...inputProps} className="form-control" type="checkbox" />
+      {label}
+    </label>
+  );
+};

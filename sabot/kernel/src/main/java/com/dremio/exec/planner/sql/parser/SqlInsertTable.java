@@ -92,11 +92,6 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   }
 
   @Override
-  public SqlNode getTargetTableWithoutExtendedCols() {
-    return super.getTargetTable();
-  }
-
-  @Override
   public SqlOperator getOperator() {
     return OPERATOR;
   }

@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.cmd;
 
+import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.DATASET;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -29,6 +31,8 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyIndexedStore;
@@ -45,11 +49,11 @@ import com.dremio.service.jobs.cleanup.JobsAndDependenciesCleanerImpl;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore.KVProfileStoreCreator;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -240,9 +244,9 @@ public class Clean {
       }
 
       if (options.deleteOrphans) {
-        deleteDatasetOrphans(provider.asLegacy());
-        deleteSplitOrphans(provider.asLegacy());
-        deleteCollaborationOrphans(provider.asLegacy());
+        deleteDatasetOrphans(provider.asLegacy(), provider);
+        deleteSplitOrphans(provider.asLegacy(), provider);
+        deleteCollaborationOrphans(provider.asLegacy(), provider);
       }
 
       if (options.maxJobDays < Integer.MAX_VALUE) {
@@ -384,29 +388,34 @@ public class Clean {
     AdminLogger.log("Completed. Deleted {} orphan profiles.", profilesDeleted);
   }
 
-  private static void deleteSplitOrphans(LegacyKVStoreProvider provider) {
+  private static void deleteSplitOrphans(
+      LegacyKVStoreProvider legacyKVStoreProvider, KVStoreProvider kvStoreProvider) {
     AdminLogger.log("Deleting split orphans... ");
     NamespaceServiceImpl service =
-        new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
     AdminLogger.log(
         "Completed. Deleted {} orphans.",
         service.deleteSplitOrphans(
             PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY, true));
   }
 
-  private static void deleteCollaborationOrphans(LegacyKVStoreProvider provider) {
+  private static void deleteCollaborationOrphans(
+      LegacyKVStoreProvider legacyKVStoreProvider, KVStoreProvider kvStoreProvider) {
     AdminLogger.log("Deleting collaboration orphans... ");
-    AdminLogger.log("Completed. Deleted {} orphans.", CollaborationHelper.pruneOrphans(provider));
+    AdminLogger.log(
+        "Completed. Deleted {} orphans.",
+        CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider));
   }
 
   @VisibleForTesting
-  protected static void deleteDatasetOrphans(LegacyKVStoreProvider provider)
+  protected static void deleteDatasetOrphans(
+      LegacyKVStoreProvider legacyKVStoreProvider, KVStoreProvider kvStoreProvider)
       throws NamespaceException {
     AdminLogger.log("Deleting dataset orphans... ");
 
     int deleted = 0;
     NamespaceServiceImpl service =
-        new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
     Set<String> rootPaths = new HashSet<>();
     List<SourceConfig> sourceConfigs = service.getSources();
     for (SourceConfig s : sourceConfigs) {
@@ -421,12 +430,18 @@ public class Clean {
       rootPaths.add(HomeName.getUserHomePath(h.getOwner()).getName());
     }
 
-    List<DatasetConfig> datasets = service.getDatasets();
-    for (DatasetConfig d : datasets) {
-      List<String> fullPath = d.getFullPathList();
-      if (fullPath.size() > 1 && !rootPaths.contains(fullPath.get(0))) {
-        service.deleteEntity(new NamespaceKey(fullPath));
-        deleted++;
+    IndexedStore<String, NameSpaceContainer> namespace =
+        kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+
+    for (Document<String, NameSpaceContainer> entry : namespace.find()) {
+      NameSpaceContainer container = entry.getValue();
+      if (container.getType() == DATASET) {
+        DatasetConfig dataset = container.getDataset();
+        List<String> fullPath = dataset.getFullPathList();
+        if (fullPath.size() > 1 && !rootPaths.contains(fullPath.get(0))) {
+          namespace.delete(entry.getKey());
+          deleted++;
+        }
       }
     }
 

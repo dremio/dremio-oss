@@ -20,12 +20,13 @@ import java.util.Map;
 
 /** Type of operation on metadata files. */
 public enum OperationType {
-  ADD_DATAFILE(0),
-  DELETE_DATAFILE(1),
-  ADD_MANIFESTFILE(2),
-  DELETE_DELETEFILE(3),
-  ORPHAN_DATAFILE(4),
-  COPY_HISTORY_EVENT(5);
+  ADD_DATAFILE(0), // Add data file(s) to the table
+  DELETE_DATAFILE(1), // Remove data file(s) from the table
+  ADD_MANIFESTFILE(2), // Add manifest file(s) to the table metadata
+  DELETE_DELETEFILE(3), // Remove Positional-delete || Equality-delete file(s) from the table
+  ORPHAN_DATAFILE(4), // Add orphan data file(s) to the table
+  COPY_HISTORY_EVENT(5),
+  ADD_DELETEFILE(6); // Add positional-delete file(s) to the table
 
   public final Integer value;
 

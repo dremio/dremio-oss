@@ -75,7 +75,9 @@ public class EasyGroupScanUtils {
     this.selection = selection;
     BlockMapBuilder b =
         new BlockMapBuilder(
-            plugin.getCompressionCodecFactory(), dfs, plugin.getContext().getExecutors());
+            plugin.getCompressionCodecFactory(),
+            dfs,
+            plugin.getContext().getClusterCoordinator().getExecutorEndpoints());
     this.chunks =
         b.generateFileWork(selection.getFileAttributesList(), formatPlugin.isBlockSplittable());
   }

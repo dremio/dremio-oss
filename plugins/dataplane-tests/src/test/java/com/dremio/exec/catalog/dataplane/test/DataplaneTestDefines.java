@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.catalog.dataplane.test;
 
+import static com.dremio.exec.planner.sql.parser.ParserUtil.mergeBehaviorToSql;
+
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.plugins.MergeBranchOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Suppliers;
@@ -27,10 +30,15 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import org.projectnessie.model.ContentKey;
+import org.projectnessie.model.MergeBehavior;
 
 /** All the constant declarations for OSS Dataplane Integration Tests */
 public final class DataplaneTestDefines {
@@ -41,11 +49,13 @@ public final class DataplaneTestDefines {
   public static final String BUCKET_NAME = "testdataplanebucket";
   public static final String ALTERNATIVE_BUCKET_NAME = "testalternativebucket";
   public static final String DATAPLANE_PLUGIN_NAME = "dataPlane_Test";
-  public static final String DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST = "dataPlane_Test2";
+  public static final String DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST =
+      "dataPlane_test_reflection";
   public static final String METADATA_FOLDER = "metadata";
   public static final String DEFAULT_BRANCH_NAME = "main";
   private static final String DEFAULT_TABLE_NAME_PREFIX = "table";
   private static final String DEFAULT_VIEW_NAME_PREFIX = "view";
+  private static final String DEFAULT_FUNCTION_NAME_PREFIX = "function";
   private static final String DEFAULT_FOLDER_NAME_PREFIX = "folder";
   private static final String DEFAULT_BRANCH_NAME_PREFIX = "branch";
   private static final String DEFAULT_TAG_NAME_PREFIX = "tag";
@@ -71,6 +81,7 @@ public final class DataplaneTestDefines {
   public static final String DEFAULT_COUNT_COLUMN = "C";
   public static final String USER_NAME = "anonymous";
   public static final String DEFAULT_RECORD_DELIMITER = "(RECORD_DELIMITER '\n')";
+  public static final String ON_ERROR_DELIMITER = "(ON_ERROR 'continue')";
   public static final String folderA = "folderA";
   public static final String folderB = "folderB";
   public static final String tableA = "tableA";
@@ -103,6 +114,10 @@ public final class DataplaneTestDefines {
     return DEFAULT_VIEW_NAME_PREFIX + uniqueInt();
   }
 
+  public static String generateUniqueFunctionName() {
+    return DEFAULT_FUNCTION_NAME_PREFIX + uniqueInt();
+  }
+
   public static String generateUniqueFolderName() {
     return DEFAULT_FOLDER_NAME_PREFIX + uniqueInt();
   }
@@ -122,6 +137,11 @@ public final class DataplaneTestDefines {
   public static List<String> tablePathWithFolders(final String tableName) {
     Preconditions.checkNotNull(tableName);
     return Arrays.asList(generateUniqueFolderName(), generateUniqueFolderName(), tableName);
+  }
+
+  public static List<String> pathWithoutTableName(final List<String> tablePath) {
+    Preconditions.checkNotNull(tablePath);
+    return tablePath.subList(0, tablePath.size() - 1);
   }
 
   public static List<String> tablePathWith4Folders(final String tableName) {
@@ -272,6 +292,107 @@ public final class DataplaneTestDefines {
         branchName,
         DATAPLANE_PLUGIN_NAME,
         joinedTableKey(tablePath));
+  }
+
+  public static String createUdfQuery(final List<String> functionPath) {
+    return createUdfQuery(DATAPLANE_PLUGIN_NAME, functionPath);
+  }
+
+  public static String createUdfQuery(String sourceName, final List<String> functionPath) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format(
+        "CREATE FUNCTION %s.%s (x INT, y INT) RETURNS INT RETURN SELECT x * y",
+        sourceName, joinedTableKey(functionPath));
+  }
+
+  public static String createOrReplaceUdfQuery(final List<String> functionPath) {
+    return createOrReplaceUdfQuery(DATAPLANE_PLUGIN_NAME, functionPath);
+  }
+
+  public static String createOrReplaceUdfQuery(String sourceName, final List<String> functionPath) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format(
+        "CREATE OR REPLACE FUNCTION %s.%s (x INT, y INT, z INT) RETURNS INT RETURN SELECT x + y + z",
+        sourceName, joinedTableKey(functionPath));
+  }
+
+  public static String createUdfQueryWithAt(final List<String> functionPath, String branchName) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format(
+        "CREATE FUNCTION %s.%s (x INT, y INT) AT BRANCH %s RETURNS INT RETURN SELECT x * y",
+        DATAPLANE_PLUGIN_NAME, joinedTableKey(functionPath), branchName);
+  }
+
+  public static String createTabularUdfQuery(
+      final List<String> functionPath, final List<String> tablePath) {
+    return createTabularUdfQuery(DATAPLANE_PLUGIN_NAME, functionPath, tablePath);
+  }
+
+  public static String createTabularUdfQuery(
+      String sourceName, final List<String> functionPath, final List<String> tablePath) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format(
+        "CREATE FUNCTION %s.%s() RETURNS TABLE %s RETURN SELECT * FROM %s.%s WHERE distance <= 2000",
+        sourceName,
+        joinedTableKey(functionPath),
+        DEFAULT_COLUMN_DEFINITION,
+        sourceName,
+        joinedTableKey(tablePath));
+  }
+
+  public static String createTabularUdfQueryNonQualifiedTableName(
+      String sourceName, final List<String> functionPath, final String tableName) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format(
+        "CREATE FUNCTION %s.%s() RETURNS TABLE %s RETURN SELECT * FROM %s WHERE distance <= 2000",
+        sourceName, joinedTableKey(functionPath), DEFAULT_COLUMN_DEFINITION, tableName);
+  }
+
+  public static String dropUdfQuery(final List<String> functionPath) {
+    return dropUdfQuery(DATAPLANE_PLUGIN_NAME, functionPath);
+  }
+
+  public static String dropUdfQuery(String sourceName, final List<String> functionPath) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format("DROP FUNCTION %s.%s", sourceName, joinedTableKey(functionPath));
+  }
+
+  public static String dropUdfQueryWithAt(final List<String> functionPath, String branchName) {
+    return dropUdfQueryWithAt(DATAPLANE_PLUGIN_NAME, functionPath, branchName);
+  }
+
+  public static String dropUdfQueryWithAt(
+      String sourceName, final List<String> functionPath, String branchName) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format(
+        "DROP FUNCTION %s.%s AT BRANCH %s", sourceName, joinedTableKey(functionPath), branchName);
+  }
+
+  public static String selectUdfQuery(final List<String> functionPath, int param1, int param2) {
+    return selectUdfQuery(DATAPLANE_PLUGIN_NAME, functionPath, param1, param2);
+  }
+
+  public static String selectUdfQuery(
+      String sourceName, final List<String> functionPath, int param1, int param2) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format(
+        "SELECT %s.%s(%d, %d)", sourceName, joinedTableKey(functionPath), param1, param2);
+  }
+
+  public static String selectUdfQueryInWhereClause(
+      String sourceName, final List<String> functionPath, int param1, int param2) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format(
+        "SELECT %s.%s(%d, %d)", sourceName, joinedTableKey(functionPath), param1, param2);
+  }
+
+  public static String selectTabularUdfQuery(final List<String> functionPath) {
+    return selectTabularUdfQuery(DATAPLANE_PLUGIN_NAME, functionPath);
+  }
+
+  public static String selectTabularUdfQuery(String sourceName, final List<String> functionPath) {
+    Preconditions.checkNotNull(functionPath);
+    return String.format("SELECT * from TABLE(%s.%s())", sourceName, joinedTableKey(functionPath));
   }
 
   public static String createFolderQuery(String sourceName, final List<String> sqlFolderPath) {
@@ -797,7 +918,11 @@ public final class DataplaneTestDefines {
   }
 
   public static String copyIntoTableQueryWithAt(
-      final List<String> tablePath, String filePath, String fileName, String branchName) {
+      final List<String> tablePath,
+      String filePath,
+      String fileName,
+      String branchName,
+      String delimiter) {
     Preconditions.checkNotNull(tablePath);
     Preconditions.checkNotNull(filePath);
     return String.format(
@@ -807,7 +932,7 @@ public final class DataplaneTestDefines {
         branchName,
         filePath,
         fileName,
-        DEFAULT_RECORD_DELIMITER);
+        delimiter);
   }
 
   public static String optimizeTableQuery(final List<String> tablePath, OptimizeMode mode) {
@@ -1040,6 +1165,51 @@ public final class DataplaneTestDefines {
 
     return String.format(
         "MERGE BRANCH %s INTO %s in %s", branchName, targetBranchName, DATAPLANE_PLUGIN_NAME);
+  }
+
+  public static String mergeBranchWithMergeOptions(
+      final String branchName,
+      final String targetBranchName,
+      final MergeBranchOptions mergeBranchOptions) {
+    Preconditions.checkNotNull(branchName);
+    Preconditions.checkNotNull(targetBranchName);
+
+    StringBuilder sb = new StringBuilder();
+    sb.append("MERGE BRANCH");
+
+    if (mergeBranchOptions.dryRun()) {
+      sb.append(" DRY RUN");
+    }
+
+    sb.append(
+        String.format(" %s INTO %s in %s", branchName, targetBranchName, DATAPLANE_PLUGIN_NAME));
+
+    if (mergeBranchOptions.defaultMergeBehavior() != null) {
+      sb.append(
+          String.format(
+              " ON CONFLICT %s", mergeBehaviorToSql(mergeBranchOptions.defaultMergeBehavior())));
+    }
+
+    if (!mergeBranchOptions.mergeBehaviorMap().isEmpty()) {
+      Map<MergeBehavior, List<ContentKey>> categorizedMergeKeyBehavior = new HashMap<>();
+      for (Map.Entry<ContentKey, MergeBehavior> entry :
+          mergeBranchOptions.mergeBehaviorMap().entrySet()) {
+        categorizedMergeKeyBehavior.putIfAbsent(entry.getValue(), new ArrayList<>());
+        categorizedMergeKeyBehavior.get(entry.getValue()).add(entry.getKey());
+      }
+
+      for (Map.Entry<MergeBehavior, List<ContentKey>> entry :
+          categorizedMergeKeyBehavior.entrySet()) {
+        sb.append(String.format(" EXCEPT %s ", mergeBehaviorToSql(entry.getKey())));
+        sb.append(
+            entry.getValue().stream()
+                .map(ContentKey::getElements)
+                .map(DataplaneTestDefines::joinedTableKey)
+                .collect(Collectors.joining(", ")));
+      }
+    }
+
+    return sb.toString();
   }
 
   public static String createTagQuery(final String tagName, final String branchName) {
@@ -1430,5 +1600,16 @@ public final class DataplaneTestDefines {
   private static String getTimestampFromMillis(long timestampInMillis) {
     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS000000");
     return simpleDateFormat.format(new Date(timestampInMillis));
+  }
+
+  public static List<List<String>> getFakeEmployeeData() {
+    List<List<String>> data = new ArrayList<>();
+    data.add(List.of("1", "John Doe", "IT", "60000.00"));
+    data.add(List.of("2", "Jane Smith", "HR", "55000.00"));
+    data.add(List.of("3", "Mike Johnson", "IT", "65000.00"));
+    data.add(List.of("4", "Emily Brown", "Finance", "70000.00"));
+    data.add(List.of("5", "Chris Lee", "IT", "62000.00"));
+    data.add(List.of("6", "Sarah Williams", "Finance", "72000.00"));
+    return data;
   }
 }

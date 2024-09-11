@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * extra copy.
  *
  * <p>Adapted from
- * https://github.com/apache/arrow/tree/master/java/flight/flight-core/src/main/java/org/apache/arrow/flight/grpc
+ * https://github.com/apache/arrow/blob/53859262ea988f31ce33a469305251064b5a53b8/java/flight/flight-core/src/main/java/org/apache/arrow/flight/grpc/AddWritableBuffer.java
  */
 @SuppressForbidden
 public class ByteBufToStreamCopier {
@@ -93,12 +93,17 @@ public class ByteBufToStreamCopier {
     Method tmpListAdd = null;
 
     try {
-      // For this to work, make sure to not have grpc-netty-shaded-XXXX.jar in classpath or mvn
-      // dependencies
-      // otherwise we observe below error
-      // Caused by: java.lang.ClassCastException: io.grpc.netty.NettyWritableBuffer cannot be
-      // cast to io.grpc.netty.shaded.io.grpc.netty.NettyWritableBuffer
-      Class<?> nwb = Class.forName("io.grpc.netty.NettyWritableBuffer");
+      Class<?> nwb;
+      try {
+        // if the grpc-netty-shaded jar is on the classpath it seems grpc will automatically prefer
+        // those classes, and we need to inject the shaded variant of the buffer.
+        // otherwise the following exception can be seen:
+        // java.lang.ClassCastException: io.grpc.netty.NettyWritableBuffer cannot be cast to
+        // io.grpc.netty.shaded.io.grpc.netty.NettyWritableBuffer
+        nwb = Class.forName("io.grpc.netty.shaded.io.grpc.netty.NettyWritableBuffer");
+      } catch (ClassNotFoundException e) {
+        nwb = Class.forName("io.grpc.netty.NettyWritableBuffer");
+      }
       Constructor<?> tmpConstruct2 = nwb.getDeclaredConstructor(ByteBuf.class);
       tmpConstruct2.setAccessible(true);
       Class<?> tmpBufChainOut2 =

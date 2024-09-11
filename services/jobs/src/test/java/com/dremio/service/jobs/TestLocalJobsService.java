@@ -34,7 +34,6 @@ import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.SearchProtos;
 import com.dremio.exec.proto.UserBitShared;
@@ -54,6 +53,7 @@ import com.dremio.options.OptionValidatorListing;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
 import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobState;
@@ -89,10 +89,8 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import org.apache.arrow.memory.BufferAllocator;
@@ -115,7 +113,6 @@ public class TestLocalJobsService {
       DremioConfig.create(null, DremioTest.DEFAULT_SABOT_CONFIG)
           .withValue(DremioConfig.SCHEDULER_LEADERLESS_CLUSTERED_SINGLETON, "true");
   private LocalJobsService localJobsService;
-  private final Set<CoordinationProtos.NodeEndpoint> nodeEndpoints = new HashSet<>();
   private static MockSettings INLINE_MOCK_SETTINGS =
       Mockito.withSettings().mockMaker(MockMakers.INLINE);
   private final QueryProfile queryProfile =
@@ -134,6 +131,7 @@ public class TestLocalJobsService {
   @Mock private LocalQueryExecutor localQueryExecutor;
   @Mock private CoordTunnelCreator coordTunnelCreator;
   @Mock private ForemenTool foremenTool;
+  @Mock private ClusterCoordinator clusterCoordinator;
   private CoordinationProtos.NodeEndpoint nodeEndpoint;
   @Mock private NamespaceService namespaceService;
   @Mock private OptionManager optionManager;
@@ -184,7 +182,7 @@ public class TestLocalJobsService {
         () -> coordTunnelCreator,
         () -> foremenTool,
         () -> nodeEndpoint,
-        () -> nodeEndpoints,
+        () -> clusterCoordinator,
         () -> namespaceService,
         () -> optionManager,
         () -> accelerationManager,
@@ -277,11 +275,9 @@ public class TestLocalJobsService {
     when(schedulerService.schedule(any(Schedule.class), any(Runnable.class))).thenReturn(mockTask);
     when(optionManager.getOption(ENABLE_DEPRECATED_JOBS_USER_STATS_API))
         .thenReturn(ENABLE_DEPRECATED_JOBS_USER_STATS_API.getDefault().getBoolVal());
-    when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
-    when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
     localJobsService.start();
 
-    verify(schedulerService, times(6)).schedule(any(Schedule.class), any(Runnable.class));
+    verify(schedulerService, times(5)).schedule(any(Schedule.class), any(Runnable.class));
   }
 
   @Test
@@ -316,8 +312,6 @@ public class TestLocalJobsService {
     jobResultsStoreConfig = new JobResultsStoreConfig("dummy", Path.of("UNKNOWN"), null);
     Cancellable mockTask = mock(Cancellable.class);
     when(schedulerService.schedule(any(Schedule.class), any(Runnable.class))).thenReturn(mockTask);
-    when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
-    when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
 
     localJobsService =
         createLocalJobsService(true, localQueryExecutor, commandPool, legacyKVStoreProvider);
@@ -340,6 +334,8 @@ public class TestLocalJobsService {
     Assert.assertEquals(
         jobResults.get(jobResults.size() - 1).getAttemptsList().get(0).getState(),
         com.dremio.service.job.proto.JobState.FAILED);
+
+    commandPool.close();
   }
 
   private StreamObserver<JobEvent> getEventObserver(CountDownLatch latch) {
@@ -379,8 +375,6 @@ public class TestLocalJobsService {
 
     when(jobTelemetryServiceStub.getQueryProfile(Mockito.any()))
         .thenReturn(getQueryProfileResponse);
-    when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
-    when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
 
     ExternalId externalId = ExternalIdHelper.generateExternalId();
     JobId jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
@@ -414,8 +408,6 @@ public class TestLocalJobsService {
 
     Cancellable mockTask = mock(Cancellable.class);
     when(schedulerService.schedule(any(Schedule.class), any(Runnable.class))).thenReturn(mockTask);
-    when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
-    when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
 
     ExternalId externalId = ExternalIdHelper.generateExternalId();
     JobId jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
@@ -453,8 +445,6 @@ public class TestLocalJobsService {
 
     when(jobTelemetryServiceStub.getQueryProfile(Mockito.any()))
         .thenReturn(getQueryProfileResponse);
-    when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
-    when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
 
     ExternalId externalId = ExternalIdHelper.generateExternalId();
     JobId jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
@@ -489,8 +479,6 @@ public class TestLocalJobsService {
 
     Cancellable mockTask = mock(Cancellable.class);
     when(schedulerService.schedule(any(Schedule.class), any(Runnable.class))).thenReturn(mockTask);
-    when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
-    when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
 
     ExternalId externalId = ExternalIdHelper.generateExternalId();
     JobId jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
@@ -558,8 +546,6 @@ public class TestLocalJobsService {
 
     Cancellable mockTask = mock(Cancellable.class);
     when(schedulerService.schedule(any(Schedule.class), any(Runnable.class))).thenReturn(mockTask);
-    when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
-    when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
 
     // Failed Job
     ExternalId externalId = ExternalIdHelper.generateExternalId();

@@ -69,6 +69,8 @@ message ParentDatasetInfo {
 message DownloadInfo {
   optional string downloadId = 1;
   optional string fileName = 2;
+  optional string triggeringJobId = 3;
+  optional string extension = 4;
 }
 
 message MaterializationSummary {
@@ -317,6 +319,7 @@ message JobAttempt {
   optional bytes snowflake_details = 9;
   repeated ExtraInfo extra_info = 10;
   repeated exec.shared.AttemptEvent state_list = 11;
+  optional bool is_profile_incomplete = 12 [default = false];
 }
 
 message ExtraInfo {
@@ -378,7 +381,7 @@ message JobDetails {
   optional int64 timeSpentInPlanning = 2;
   optional int64 waitInClient = 3;
   optional int64 dataVolume = 4;
-  optional int64 outputRecords = 5;
+  optional int64 outputRecords = 5 [deprecated = true];
   optional int64 peakMemory = 6;
   repeated TableDatasetProfile tableDatasetProfiles = 7;
   repeated FileSystemDatasetProfile fsDatasetProfiles = 8;

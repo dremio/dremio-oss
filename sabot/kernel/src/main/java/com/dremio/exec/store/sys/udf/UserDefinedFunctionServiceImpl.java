@@ -15,20 +15,30 @@
  */
 package com.dremio.exec.store.sys.udf;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.FunctionRPC;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
@@ -38,6 +48,8 @@ import org.slf4j.LoggerFactory;
 public class UserDefinedFunctionServiceImpl implements UserDefinedFunctionService {
   public static final Logger logger = LoggerFactory.getLogger(UserDefinedFunctionServiceImpl.class);
   protected final Provider<NamespaceService> namespaceServiceProvider;
+  protected final Provider<CatalogService> catalogServiceProvider;
+  protected final Provider<OptionManager> optionManagerProvider;
   protected final Provider<Optional<CoordinationProtos.NodeEndpoint>> serviceLeaderProvider;
   protected final Provider<FabricService> fabric;
   protected final Provider<BufferAllocator> allocatorProvider;
@@ -48,6 +60,8 @@ public class UserDefinedFunctionServiceImpl implements UserDefinedFunctionServic
 
   public UserDefinedFunctionServiceImpl(
       Provider<NamespaceService> namespaceServiceProvider,
+      Provider<CatalogService> catalogServiceProvider,
+      Provider<OptionManager> optionManagerProvider,
       Provider<Optional<CoordinationProtos.NodeEndpoint>> serviceLeaderProvider,
       final Provider<FabricService> fabric,
       Provider<BufferAllocator> allocatorProvider,
@@ -56,6 +70,10 @@ public class UserDefinedFunctionServiceImpl implements UserDefinedFunctionServic
       boolean isCoordinator) {
     this.namespaceServiceProvider =
         Preconditions.checkNotNull(namespaceServiceProvider, "NamespaceService service required");
+    this.catalogServiceProvider =
+        Preconditions.checkNotNull(catalogServiceProvider, "CatalogService service required");
+    this.optionManagerProvider =
+        Preconditions.checkNotNull(optionManagerProvider, "OptionManager service required");
     this.allocatorProvider =
         Preconditions.checkNotNull(allocatorProvider, "buffer allocator required");
     this.fabric = Preconditions.checkNotNull(fabric, "fabric service required");
@@ -70,15 +88,44 @@ public class UserDefinedFunctionServiceImpl implements UserDefinedFunctionServic
   @Override
   public Iterable<FunctionInfo> functionInfos() {
     if (isMaster || (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
-      return namespaceServiceProvider.get().getFunctions().stream()
-          .map(
-              functionConfig -> {
-                FunctionInfo functionInfo =
-                    UserDefinedFunctionService.getFunctionInfoFromConfig(functionConfig);
-                functionInfo.setOwner(getOwnerNameFromFunctionConfig(functionConfig));
-                return functionInfo;
-              })
-          .collect(Collectors.toList());
+      // Handle VersionedPlugin
+      List<Iterator<FunctionInfo>> allIterators = new ArrayList<>();
+      if (optionManagerProvider.get().getOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED)) {
+        Stream<VersionedPlugin> versionedPlugins =
+            catalogServiceProvider.get().getAllVersionedPlugins();
+        versionedPlugins.forEach(
+            versionedPlugin -> {
+              Iterator<FunctionInfo> versionedFunctionInfoIterator =
+                  versionedPlugin
+                      .getFunctions(VersionContext.ofBranch(versionedPlugin.getDefaultBranch()))
+                      .stream()
+                      .map(
+                          functionConfig -> {
+                            FunctionInfo functionInfo =
+                                UserDefinedFunctionService.getFunctionInfoFromConfig(
+                                    functionConfig);
+                            functionInfo.setOwner(getVersionedUdfOwnerName(functionConfig));
+                            return functionInfo;
+                          })
+                      .iterator();
+              allIterators.add(versionedFunctionInfoIterator);
+            });
+      }
+      Iterator<FunctionInfo> namespaceFunctionIterator =
+          namespaceServiceProvider.get().getFunctions().stream()
+              .map(
+                  functionConfig -> {
+                    FunctionInfo functionInfo =
+                        UserDefinedFunctionService.getFunctionInfoFromConfig(functionConfig);
+                    functionInfo.setOwner(getOwnerNameFromFunctionConfig(functionConfig));
+                    return functionInfo;
+                  })
+              .collect(Collectors.toList())
+              .iterator();
+      allIterators.add(namespaceFunctionIterator);
+      Iterator<FunctionInfo> res = Iterators.concat(allIterators.iterator());
+
+      return () -> res;
     }
     Optional<CoordinationProtos.NodeEndpoint> master = serviceLeaderProvider.get();
     if (!master.isPresent()) {
@@ -117,6 +164,10 @@ public class UserDefinedFunctionServiceImpl implements UserDefinedFunctionServic
   public void close() throws Exception {}
 
   protected String getOwnerNameFromFunctionConfig(FunctionConfig functionConfig) {
+    return null;
+  }
+
+  protected String getVersionedUdfOwnerName(FunctionConfig functionConfig) {
     return null;
   }
 

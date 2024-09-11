@@ -21,7 +21,6 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.protobuf.ByteString;
 import java.util.List;
-import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.util.SchemaChangeRuntimeException;
 import org.slf4j.Logger;
 
@@ -62,6 +61,7 @@ public class UserException extends RuntimeException {
 
   public static final String REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG =
       "Unable to refresh metadata for the dataset (due to concurrent updates). Please retry.";
+  public static final String UNCLASSIFIED_ERROR_ORIGIN = "UNCLASSIFIED_ERROR_ORIGIN";
 
   // reasons for cancelling a query using UserException
   public enum AttemptCompletionState {
@@ -756,11 +756,11 @@ public class UserException extends RuntimeException {
         this.context = uex.context;
         this.cause = cause;
       } else {
-        OutOfMemoryException oom = ErrorHelper.findWrappedCause(cause, OutOfMemoryException.class);
-        if (oom != null) {
+        if (ErrorHelper.isDirectMemoryException(cause)
+            || ErrorHelper.isJavaHeapOutOfMemory(cause)) {
           this.errorType = DremioPBError.ErrorType.OUT_OF_MEMORY;
           this.message = MEMORY_ERROR_MSG;
-          this.cause = oom;
+          this.cause = cause;
           fixedMessage = true;
         } else {
           // we will create a new user exception
@@ -816,6 +816,11 @@ public class UserException extends RuntimeException {
      */
     public Builder addIdentity(final CoordinationProtos.NodeEndpoint endpoint) {
       context.add(endpoint);
+      return this;
+    }
+
+    public Builder addErrorOrigin(String errorOrigin) {
+      context.addErrorOrigin(errorOrigin);
       return this;
     }
 
@@ -1141,6 +1146,9 @@ public class UserException extends RuntimeException {
     if (context.getEndpoint() != null) {
       builder.setEndpoint(context.getEndpoint());
     }
+    if (context.getErrorOrigin() != null) {
+      builder.setErrorOrigin(context.getErrorOrigin());
+    }
     builder.setMessage(getVerboseMessage());
     builder.setOriginalMessage(getOriginalMessage());
 
@@ -1177,6 +1185,14 @@ public class UserException extends RuntimeException {
 
   public DremioPBError.ErrorType getErrorType() {
     return errorType;
+  }
+
+  public void addErrorOrigin(String role) {
+    context.addErrorOrigin(role);
+  }
+
+  public String getErrorOrigin() {
+    return context.getErrorOrigin();
   }
 
   public String getErrorLocation() {

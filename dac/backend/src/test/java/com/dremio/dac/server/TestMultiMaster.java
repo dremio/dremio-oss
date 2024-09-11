@@ -29,10 +29,7 @@ import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.daemon.ZkServer;
-import com.dremio.dac.explore.model.DataPOJO;
-import com.dremio.dac.explore.model.ViewFieldTypeMixin;
 import com.dremio.dac.model.folder.Folder;
-import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobsUI;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.SourceUI;
@@ -48,16 +45,14 @@ import com.dremio.dac.service.exec.MasterElectionService;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ConnectionReaderImpl;
 import com.dremio.exec.ops.ReflectionContext;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.options.OptionManager;
-import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -66,17 +61,10 @@ import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -85,7 +73,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import java.io.File;
-import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -93,12 +80,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import javax.inject.Provider;
 import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import org.eclipse.jetty.http.HttpHeader;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
@@ -112,9 +96,6 @@ import org.junit.rules.TemporaryFolder;
  * the first one to terminate (or disconnect from ZooKeeper).
  */
 public class TestMultiMaster extends BaseClientUtils {
-
-  private static final String API_LOCATION = "apiv2";
-  private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
 
   private static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   private static final String DEFAULT_PASSWORD = SampleDataPopulator.PASSWORD;
@@ -131,14 +112,14 @@ public class TestMultiMaster extends BaseClientUtils {
   private DACDaemon masterDremioDaemon2;
 
   private Provider<Integer> jobsPortProvider =
-      () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
+      () -> currentDremioDaemon.getInstance(ConduitServer.class).getPort();
 
   @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Before
   public void init() throws Exception {
     Assume.assumeTrue(BaseTestServer.isMultinode());
-    try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
+    try (Timer.TimedBlock b = Timer.time("TestMultiMaster.init")) {
       zkServer = new ZkServer(temporaryFolder.newFolder("zk").getAbsolutePath(), 2181, true);
       zkServer.start();
 
@@ -261,28 +242,7 @@ public class TestMultiMaster extends BaseClientUtils {
   }
 
   private static Client newClient() {
-    JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-    ObjectMapper objectMapper = JSONUtil.prettyMapper();
-    JSONUtil.registerStorageTypes(
-        objectMapper,
-        DremioTest.CLASSPATH_SCAN_RESULT,
-        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG));
-    objectMapper
-        .registerModule(
-            new SimpleModule()
-                .addDeserializer(
-                    JobDataFragment.class,
-                    new JsonDeserializer<JobDataFragment>() {
-                      @Override
-                      public JobDataFragment deserialize(
-                          JsonParser jsonParser, DeserializationContext deserializationContext)
-                          throws IOException {
-                        return jsonParser.readValueAs(DataPOJO.class);
-                      }
-                    }))
-        .addMixIn(ViewFieldType.class, ViewFieldTypeMixin.class);
-    provider.setMapper(objectMapper);
-    return ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
+    return newClient(newClientObjectMapper());
   }
 
   private static WebTarget newApiV2Target(Client client, DACDaemon daemon) {
@@ -401,8 +361,7 @@ public class TestMultiMaster extends BaseClientUtils {
                 try {
                   currentDremioDaemon.startServices(); // waiting
                   currentDremioDaemon
-                      .getBindingProvider()
-                      .lookup(HybridJobsService.class)
+                      .getInstance(HybridJobsService.class)
                       .setPortProvider(jobsPortProvider);
                 } catch (Exception e) {
                   throw Throwables.propagate(e);
@@ -410,8 +369,9 @@ public class TestMultiMaster extends BaseClientUtils {
               }
             });
 
-    BindingProvider mp = currentDremioDaemon.getBindingProvider();
-    assertEquals(ServerStatus.MASTER_DOWN, mp.lookup(ServerHealthMonitor.class).getStatus());
+    assertEquals(
+        ServerStatus.MASTER_DOWN,
+        currentDremioDaemon.getInstance(ServerHealthMonitor.class).getStatus());
 
     List<ListenableFuture<DACDaemon>> masterDremioDaemonsStarted = new ArrayList<>();
     final DACDaemon[] dacDaemons = new DACDaemon[] {masterDremioDaemon1, masterDremioDaemon2};
@@ -424,10 +384,7 @@ public class TestMultiMaster extends BaseClientUtils {
                   try {
                     daemon.startPreServices();
                     daemon.startServices();
-                    daemon
-                        .getBindingProvider()
-                        .lookup(HybridJobsService.class)
-                        .setPortProvider(jobsPortProvider);
+                    daemon.getInstance(HybridJobsService.class).setPortProvider(jobsPortProvider);
                     return daemon;
                   } catch (Exception e) {
                     throw Throwables.propagate(e);
@@ -466,18 +423,24 @@ public class TestMultiMaster extends BaseClientUtils {
       initHotMasterClient(hotMasterDremioDaemon);
       checkHotMasterOk();
       checkNodeOk();
-      NamespaceService ns = mp.lookup(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
-      final SabotContext sabotContext = mp.lookup(SabotContext.class);
+      NamespaceService ns =
+          currentDremioDaemon.getInstance(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
+      SabotContext sabotContext = currentDremioDaemon.getInstance(SabotContext.class);
+      OptionManager optionManager = currentDremioDaemon.getInstance(OptionManager.class);
+      CatalogService catalogService = currentDremioDaemon.getInstance(CatalogService.class);
+      UserService userService = currentDremioDaemon.getInstance(UserService.class);
+      LegacyKVStoreProvider legacyKVStoreProvider =
+          currentDremioDaemon.getInstance(LegacyKVStoreProvider.class);
 
       final DatasetVersionMutator datasetVersionMutator =
           new DatasetVersionMutator(
-              mp.lookup(LegacyKVStoreProvider.class),
-              mp.lookup(JobsService.class),
-              mp.lookup(CatalogService.class),
-              sabotContext.getOptionManager(),
-              mp.lookup(ContextService.class));
+              legacyKVStoreProvider,
+              currentDremioDaemon.getInstance(JobsService.class),
+              catalogService,
+              optionManager,
+              sabotContext);
 
-      TestUtilities.addClasspathSourceIf(sabotContext.getCatalogService());
+      TestUtilities.addClasspathSourceIf(catalogService);
 
       currentDremioDaemon
           .getBindingCreator()
@@ -485,7 +448,7 @@ public class TestMultiMaster extends BaseClientUtils {
               ReflectionAdministrationService.class,
               () -> {
                 ReflectionAdministrationService.Factory factory =
-                    mp.lookup(ReflectionAdministrationService.Factory.class);
+                    currentDremioDaemon.getInstance(ReflectionAdministrationService.Factory.class);
                 return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
               });
 
@@ -494,30 +457,29 @@ public class TestMultiMaster extends BaseClientUtils {
               new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
       CollaborationHelper collaborationService =
           new CollaborationHelper(
-              mp.lookup(LegacyKVStoreProvider.class),
-              mp.lookup(NamespaceService.class),
+              legacyKVStoreProvider,
+              currentDremioDaemon.getInstance(NamespaceService.class),
               dacSecurityContext,
-              mp.lookup(SearchService.class),
-              sabotContext.getUserService(),
-              mp.lookup(CatalogService.class),
-              mp.lookup(OptionManager.class));
+              currentDremioDaemon.getInstance(SearchService.class),
+              userService,
+              catalogService,
+              optionManager);
 
       SampleDataPopulator populator =
           new SampleDataPopulator(
               sabotContext,
               new SourceService(
                   Clock.systemUTC(),
-                  sabotContext,
+                  optionManager,
                   ns,
                   datasetVersionMutator,
-                  sabotContext.getCatalogService(),
-                  mp.lookup(ReflectionServiceHelper.class),
+                  catalogService,
+                  currentDremioDaemon.getInstance(ReflectionServiceHelper.class),
                   collaborationService,
-                  ConnectionReader.of(
-                      DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
+                  ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, ConnectionReaderImpl.class),
                   dacSecurityContext),
               datasetVersionMutator,
-              mp.lookup(UserService.class),
+              userService,
               ns,
               DEFAULT_USERNAME,
               collaborationService);
@@ -562,8 +524,7 @@ public class TestMultiMaster extends BaseClientUtils {
                 try {
                   currentDremioDaemon.startServices(); // waiting
                   currentDremioDaemon
-                      .getBindingProvider()
-                      .lookup(HybridJobsService.class)
+                      .getInstance(HybridJobsService.class)
                       .setPortProvider(jobsPortProvider);
                 } catch (Exception e) {
                   throw Throwables.propagate(e);
@@ -571,8 +532,9 @@ public class TestMultiMaster extends BaseClientUtils {
               }
             });
 
-    BindingProvider mp = currentDremioDaemon.getBindingProvider();
-    assertEquals(ServerStatus.MASTER_DOWN, mp.lookup(ServerHealthMonitor.class).getStatus());
+    assertEquals(
+        ServerStatus.MASTER_DOWN,
+        currentDremioDaemon.getInstance(ServerHealthMonitor.class).getStatus());
 
     List<ListenableFuture<DACDaemon>> masterDremioDaemonsStarted = new ArrayList<>();
     final DACDaemon[] dacDaemons = new DACDaemon[] {masterDremioDaemon1, masterDremioDaemon2};
@@ -585,10 +547,7 @@ public class TestMultiMaster extends BaseClientUtils {
                   try {
                     daemon.startPreServices();
                     daemon.startServices();
-                    daemon
-                        .getBindingProvider()
-                        .lookup(HybridJobsService.class)
-                        .setPortProvider(jobsPortProvider);
+                    daemon.getInstance(HybridJobsService.class).setPortProvider(jobsPortProvider);
                     return daemon;
                   } catch (Exception e) {
                     throw Throwables.propagate(e);
@@ -627,18 +586,24 @@ public class TestMultiMaster extends BaseClientUtils {
       initHotMasterClient(hotMasterDremioDaemon);
       checkHotMasterOk();
       checkNodeOk();
-      NamespaceService ns = mp.lookup(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
-      final SabotContext sabotContext = mp.lookup(SabotContext.class);
+      NamespaceService ns =
+          currentDremioDaemon.getInstance(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
+      SabotContext sabotContext = currentDremioDaemon.getInstance(SabotContext.class);
+      OptionManager optionManager = currentDremioDaemon.getInstance(OptionManager.class);
+      CatalogService catalogService = currentDremioDaemon.getInstance(CatalogService.class);
+      UserService userService = currentDremioDaemon.getInstance(UserService.class);
+      LegacyKVStoreProvider legacyKVStoreProvider =
+          currentDremioDaemon.getInstance(LegacyKVStoreProvider.class);
 
       final DatasetVersionMutator datasetVersionMutator =
           new DatasetVersionMutator(
-              mp.lookup(LegacyKVStoreProvider.class),
-              mp.lookup(JobsService.class),
-              mp.lookup(CatalogService.class),
-              sabotContext.getOptionManager(),
-              mp.lookup(ContextService.class));
+              legacyKVStoreProvider,
+              currentDremioDaemon.getInstance(JobsService.class),
+              catalogService,
+              optionManager,
+              sabotContext);
 
-      TestUtilities.addClasspathSourceIf(mp.lookup(CatalogService.class));
+      TestUtilities.addClasspathSourceIf(catalogService);
       DACSecurityContext dacSecurityContext =
           new DACSecurityContext(
               new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
@@ -649,35 +614,34 @@ public class TestMultiMaster extends BaseClientUtils {
               ReflectionAdministrationService.class,
               () -> {
                 ReflectionAdministrationService.Factory factory =
-                    mp.lookup(ReflectionAdministrationService.Factory.class);
+                    currentDremioDaemon.getInstance(ReflectionAdministrationService.Factory.class);
                 return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
               });
 
       CollaborationHelper collaborationService =
           new CollaborationHelper(
-              mp.lookup(LegacyKVStoreProvider.class),
-              mp.lookup(NamespaceService.class),
+              legacyKVStoreProvider,
+              currentDremioDaemon.getInstance(NamespaceService.class),
               dacSecurityContext,
-              mp.lookup(SearchService.class),
-              sabotContext.getUserService(),
-              mp.lookup(CatalogService.class),
-              mp.lookup(OptionManager.class));
+              currentDremioDaemon.getInstance(SearchService.class),
+              userService,
+              catalogService,
+              optionManager);
       SampleDataPopulator populator =
           new SampleDataPopulator(
               sabotContext,
               new SourceService(
                   Clock.systemUTC(),
-                  sabotContext,
+                  optionManager,
                   ns,
                   datasetVersionMutator,
-                  sabotContext.getCatalogService(),
-                  mp.lookup(ReflectionServiceHelper.class),
+                  catalogService,
+                  currentDremioDaemon.getInstance(ReflectionServiceHelper.class),
                   collaborationService,
-                  ConnectionReader.of(
-                      DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
+                  ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, ConnectionReaderImpl.class),
                   dacSecurityContext),
               datasetVersionMutator,
-              mp.lookup(UserService.class),
+              userService,
               ns,
               DEFAULT_USERNAME,
               collaborationService);
@@ -689,8 +653,7 @@ public class TestMultiMaster extends BaseClientUtils {
 
       // "kill" zookeeper connection and check hot is killed
       KillZkSession.kill(
-          (ZKClusterCoordinator)
-              hotMasterDremioDaemon.getBindingProvider().lookup(ClusterCoordinator.class));
+          (ZKClusterCoordinator) hotMasterDremioDaemon.getInstance(ClusterCoordinator.class));
       coldMasterDremioDaemonStarted.get();
       // can only init client once server is started (because of port hunting)
       initColdMasterClient(coldMasterDremioDaemon);

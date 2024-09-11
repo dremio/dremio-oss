@@ -21,6 +21,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPL
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_COUNT_COLUMN;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_RECORD_DELIMITER;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.ON_ERROR_DELIMITER;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.copyIntoTableQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.copyIntoTableQueryWithAt;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtBranchQuery;
@@ -47,6 +48,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tableP
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useContextQuery;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertIcebergFilesExistAtSubPath;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dremio.catalog.model.VersionContext;
@@ -117,7 +119,30 @@ public class ITDataplanePluginCopyInto extends ITDataplanePluginTestSetup {
     runSQL(createEmptyTableQueryWithAt(tablePath, devBranch));
 
     // Act
-    runSQL(copyIntoTableQueryWithAt(tablePath, storageLocation, fileNameCsv, devBranch));
+    runSQL(
+        copyIntoTableQueryWithAt(
+            tablePath, storageLocation, fileNameCsv, devBranch, DEFAULT_RECORD_DELIMITER));
+
+    // Assert
+    assertTableAtBranchHasExpectedNumRows(tablePath, devBranch, 3);
+
+    // cleanup
+    runSQL(dropTableQueryWithAt(tablePath, devBranch));
+  }
+
+  @Test
+  public void copyIntoEmptyTableWithAtSyntaxAndOnErrorFileFormat() throws Exception {
+    // Arrange
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = Collections.singletonList(tableName);
+    final String devBranch = generateUniqueBranchName();
+    runSQL(createBranchAtBranchQuery(devBranch, DEFAULT_BRANCH_NAME));
+    runSQL(createEmptyTableQueryWithAt(tablePath, devBranch));
+
+    // Act
+    runSQL(
+        copyIntoTableQueryWithAt(
+            tablePath, storageLocation, fileNameJson, devBranch, ON_ERROR_DELIMITER));
 
     // Assert
     assertTableAtBranchHasExpectedNumRows(tablePath, devBranch, 3);
@@ -140,7 +165,9 @@ public class ITDataplanePluginCopyInto extends ITDataplanePluginTestSetup {
     assertTableAtBranchHasExpectedNumRows(tablePath, devBranch, 3);
 
     // Act
-    runSQL(copyIntoTableQueryWithAt(tablePath, storageLocation, fileNameCsv, devBranch));
+    runSQL(
+        copyIntoTableQueryWithAt(
+            tablePath, storageLocation, fileNameCsv, devBranch, DEFAULT_RECORD_DELIMITER));
 
     // Assert
     assertTableAtBranchHasExpectedNumRows(tablePath, devBranch, 6);
@@ -170,7 +197,9 @@ public class ITDataplanePluginCopyInto extends ITDataplanePluginTestSetup {
     assertTableAtBranchHasExpectedNumRows(tablePath, devBranch, 0);
 
     // Act
-    runSQL(copyIntoTableQueryWithAt(tablePath, storageLocation, fileNameCsv, devBranch));
+    runSQL(
+        copyIntoTableQueryWithAt(
+            tablePath, storageLocation, fileNameCsv, devBranch, DEFAULT_RECORD_DELIMITER));
 
     // Assert
     assertTableAtBranchHasExpectedNumRows(tablePath, devBranch, 3);
@@ -278,13 +307,18 @@ public class ITDataplanePluginCopyInto extends ITDataplanePluginTestSetup {
     assertTableHasExpectedNumRows(tablePath, 3);
 
     // Act and Assert
-    assertQueryThrowsExpectedError(
-        mergeBranchQuery(devBranchName, DEFAULT_BRANCH_NAME),
-        String.format(
-            ("VALIDATION ERROR: Merge branch %s into branch %s failed due to commit conflict on source %s"),
-            devBranchName,
-            DEFAULT_BRANCH_NAME,
-            DATAPLANE_PLUGIN_NAME));
+    assertThat(runSqlWithResults(mergeBranchQuery(devBranchName, DEFAULT_BRANCH_NAME)))
+        .matches(row -> row.get(0).get(0).contains("Failed to merge"))
+        .matches(
+            row ->
+                row.get(1)
+                    .get(0)
+                    .contains(
+                        String.format(
+                            ("values of existing and expected content for key '%s.%s.%s' are different"),
+                            tablePath.get(0),
+                            tablePath.get(1),
+                            tablePath.get(2))));
 
     // Cleanup
     runSQL(useBranchQuery(DEFAULT_BRANCH_NAME));
@@ -302,7 +336,8 @@ public class ITDataplanePluginCopyInto extends ITDataplanePluginTestSetup {
 
     // Act and Assert
     assertQueryThrowsExpectedError(
-        copyIntoTableQueryWithAt(tablePath, storageLocation, fileNameCsv, nonExistentBranch),
+        copyIntoTableQueryWithAt(
+            tablePath, storageLocation, fileNameCsv, nonExistentBranch, DEFAULT_RECORD_DELIMITER),
         String.format("Table [%s] does not exist.", tablePathKey));
   }
 
@@ -436,7 +471,9 @@ public class ITDataplanePluginCopyInto extends ITDataplanePluginTestSetup {
     assertTableAtBranchHasExpectedNumRows(devTablePath, devBranchName, 0);
 
     // Copy into table dev
-    runSQL(copyIntoTableQueryWithAt(devTablePath, storageLocation, fileNameCsv, devBranchName));
+    runSQL(
+        copyIntoTableQueryWithAt(
+            devTablePath, storageLocation, fileNameCsv, devBranchName, DEFAULT_RECORD_DELIMITER));
     assertTableAtBranchHasExpectedNumRows(devTablePath, devBranchName, 3);
 
     // Act

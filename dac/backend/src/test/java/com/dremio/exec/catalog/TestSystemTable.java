@@ -66,7 +66,9 @@ public class TestSystemTable extends BaseTestQuery {
                     new SysFlightProducer(
                         () ->
                             new SystemTableManagerImpl(
-                                testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)),
+                                testAllocator,
+                                SYS_FLIGHT_RESOURCE::getTablesProvider,
+                                SYS_FLIGHT_RESOURCE::getTableFunctionsProvider)),
                     null,
                     null);
             conduitServiceRegistry.registerService(flightService);
@@ -119,15 +121,18 @@ public class TestSystemTable extends BaseTestQuery {
             "queue_name",
             "engine",
             "error_msg",
-            "query")
+            "query",
+            "is_profile_incomplete",
+            "execution_allocated_bytes",
+            "execution_cpu_time_millis")
         .baselineValues(
             "1", "RUNNING", "UI_RUN", "user", "", "", 0, dateTime, dateTime, dateTime, dateTime,
             dateTime, dateTime, dateTime, dateTime, dateTime, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
-            0.0d, 0L, 0L, 0L, 0L, false, "", "", "err", "")
+            0.0d, 0L, 0L, 0L, 0L, false, "", "", "err", "", true, 1000L, 10L)
         .baselineValues(
             "", "", "", "", "", "", 0, dateTime, dateTime, dateTime, dateTime, dateTime, dateTime,
             dateTime, dateTime, dateTime, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0.0d, 0L, 0L, 0L, 0L,
-            false, "", "", "", "")
+            false, "", "", "", "", false, 0L, 0L)
         .build()
         .run();
   }
@@ -174,15 +179,18 @@ public class TestSystemTable extends BaseTestQuery {
             "queue_name",
             "engine",
             "error_msg",
-            "query")
+            "query",
+            "is_profile_incomplete",
+            "execution_allocated_bytes",
+            "execution_cpu_time_millis")
         .baselineValues(
             "2", "RUNNING", "UI_RUN", "user", "", "", 0, dateTime, dateTime, dateTime, dateTime,
             dateTime, dateTime, dateTime, dateTime, dateTime, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
-            0.0d, 0L, 0L, 0L, 0L, true, "", "", "errmsg", "")
+            0.0d, 0L, 0L, 0L, 0L, true, "", "", "errmsg", "", true, 2000L, 20L)
         .baselineValues(
             "", "", "", "", "", "", 0, dateTime, dateTime, dateTime, dateTime, dateTime, dateTime,
             dateTime, dateTime, dateTime, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0.0d, 0L, 0L, 0L, 0L,
-            false, "", "", "", "")
+            false, "", "", "", "", false, 0L, 0L)
         .build()
         .run();
   }

@@ -17,6 +17,7 @@ package com.dremio.service.reflection;
 
 import static com.dremio.service.reflection.DatasetHashUtils.isPhysicalDataset;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -29,7 +30,6 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
-import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.sabot.kernel.proto.ReflectionExplanation;
@@ -169,9 +169,6 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   }
 
   @Override
-  public void attemptCompleted(QueryProfile profile) {}
-
-  @Override
   public void substitutionFailures(Iterable<String> errors) {
     if (errors != null) {
       errors.forEach(x -> substitutionInfos.add(x));
@@ -249,6 +246,16 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
 
             final AccelerationSettings settings = getAccelerationSettings(datasetConfig);
 
+            DatasetDetails datasetDetails =
+                new DatasetDetails()
+                    .setId(datasetConfig.getId().getId())
+                    .setPathList(datasetConfig.getFullPathList())
+                    .setType(datasetConfig.getType());
+            VersionedDatasetId versionedDatasetId =
+                VersionedDatasetId.tryParse(reflection.getDatasetId());
+            if (versionedDatasetId != null) {
+              datasetDetails.setVersionContext(versionedDatasetId.getVersionContext().toSql());
+            }
             relationships.add(
                 new ReflectionRelationship()
                     .setState(reflectionState.getSubstitutionState())
@@ -256,11 +263,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
                         new MaterializationDetails()
                             .setId(materializationId)
                             .setRefreshChainStartTime(refreshChainStartTime))
-                    .setDataset(
-                        new DatasetDetails()
-                            .setId(datasetConfig.getId().getId())
-                            .setPathList(datasetConfig.getFullPathList())
-                            .setType(datasetConfig.getType()))
+                    .setDataset(datasetDetails)
                     .setAccelerationSettings(settings)
                     .setReflectionType(
                         reflection.getType() == ReflectionType.RAW

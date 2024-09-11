@@ -19,19 +19,23 @@ import com.dremio.authenticator.AuthException;
 import com.dremio.authenticator.AuthRequest;
 import com.dremio.authenticator.AuthResult;
 import com.dremio.authenticator.Authenticator;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * A Basic Authenticator that uses the LocalUsernamePasswordAuthProvider for username/password
  * authentication.
  */
+@Singleton
 public class BasicAuthenticator implements Authenticator {
 
   private final Provider<LocalUsernamePasswordAuthProvider> usernamePasswordAuthProviderProvider;
 
   private LocalUsernamePasswordAuthProvider usernamePasswordAuthProvider;
 
+  @Inject
   public BasicAuthenticator(
       Provider<LocalUsernamePasswordAuthProvider> usernamePasswordAuthProviderProvider) {
     this.usernamePasswordAuthProviderProvider = usernamePasswordAuthProviderProvider;

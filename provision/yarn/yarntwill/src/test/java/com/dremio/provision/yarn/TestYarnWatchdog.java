@@ -370,18 +370,18 @@ public class TestYarnWatchdog {
 
   @Test
   public void testLog() throws Exception {
-    LogRecord record = new LogRecord(Level.INFO, "test message {0} {1} {2} {3}");
-    record.setLoggerName("foo.bar");
-    record.setInstant(Instant.EPOCH);
-    record.setParameters(new Object[] {"arg1", "arg2", "arg3", "arg4"});
-    record.setSourceClassName(TestYarnWatchdog.class.getName());
-    record.setSourceMethodName("testLog");
+    LogRecord logRecord = new LogRecord(Level.INFO, "test message {0} {1} {2} {3}");
+    logRecord.setLoggerName("foo.bar");
+    logRecord.setInstant(Instant.EPOCH);
+    logRecord.setParameters(new Object[] {"arg1", "arg2", "arg3", "arg4"});
+    logRecord.setSourceClassName(TestYarnWatchdog.class.getName());
+    logRecord.setSourceMethodName("testLog");
 
     final FutureTask<String> task =
         new FutureTask<>(
             () -> {
               Formatter formatter = new YarnWatchdog.YarnWatchdogFormatter();
-              return formatter.format(record);
+              return formatter.format(logRecord);
             });
     Thread t = new Thread(task, "test-log-thread");
     t.start();

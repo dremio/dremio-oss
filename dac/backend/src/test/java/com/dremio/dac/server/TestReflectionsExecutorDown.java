@@ -38,7 +38,7 @@ import org.junit.Test;
 /** Test what happens when we try to refresh a reflection while an executor is down. */
 public class TestReflectionsExecutorDown extends BaseTestReflection {
 
-  private ReflectionMonitor monitor = newReflectionMonitor(100, 10_000);
+  private ReflectionMonitor monitor = newReflectionMonitor();
 
   @BeforeClass
   public static void setup() throws ExecutionSetupException, IOException, NamespaceException {

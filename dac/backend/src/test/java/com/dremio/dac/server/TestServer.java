@@ -150,7 +150,8 @@ public class TestServer extends BaseTestServer {
             BAD_REQUEST,
             getBuilder(getAPIv2().path(sourceResource)).buildDelete(),
             GenericErrorMessage.class);
-    assertErrorMessage(errorDelete, GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
+    assertThat(errorDelete.getErrorMessage())
+        .isEqualTo(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
 
     doc("delete with bad version");
     long badVersion = 1234L;
@@ -163,7 +164,7 @@ public class TestServer extends BaseTestServer {
             CONFLICT,
             getBuilder(getAPIv2().path(sourceResource).queryParam("version", 1234L)).buildDelete(),
             GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, expectedErrorMessage);
+    assertThat(errorDelete2.getErrorMessage()).isEqualTo(expectedErrorMessage);
 
     doc("delete");
     expectSuccess(
@@ -186,7 +187,7 @@ public class TestServer extends BaseTestServer {
     int dataSetFiles = dataSetDir.listFiles().length - directories.length;
 
     // create a NAS space that points to some sub-folder of the file system
-    final SourceService sourceService = newSourceService();
+    final SourceService sourceService = getSourceService();
     {
       SourceUI sourceUI = new SourceUI();
       sourceUI.setName("nas_sub");
@@ -262,7 +263,7 @@ public class TestServer extends BaseTestServer {
 
   @Test
   public void testSpaces() throws Exception {
-    final NamespaceService namespaceService = newNamespaceService();
+    final NamespaceService namespaceService = getNamespaceService();
     final SpaceConfig config1 = new SpaceConfig();
     final SpaceConfig config2 = new SpaceConfig();
 
@@ -293,7 +294,7 @@ public class TestServer extends BaseTestServer {
             new GenericType<com.dremio.dac.api.Space>() {});
     assertEquals("space3", space3.getName());
 
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
     User dt =
         SimpleUser.newBuilder()
             .setUserName("user")
@@ -416,7 +417,7 @@ public class TestServer extends BaseTestServer {
       assertEquals(2, dataB.getColumns().size());
       assertEquals(DataType.INTEGER, dataB.getColumns().get(0).getType());
       assertEquals(DataType.INTEGER, dataB.getColumns().get(1).getType());
-      TestSpacesStoragePlugin.cleanup(getCurrentDremioDaemon());
+      TestSpacesStoragePlugin.cleanup();
 
       final WebTarget moreDataB =
           getAPIv2()
@@ -462,7 +463,8 @@ public class TestServer extends BaseTestServer {
             BAD_REQUEST,
             getBuilder(getAPIv2().path(spaceResource)).buildDelete(),
             GenericErrorMessage.class);
-    assertErrorMessage(errorDelete, GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
+    assertThat(errorDelete.getErrorMessage())
+        .isEqualTo(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
 
     doc("delete with bad version");
     long badVersion = 1234L;
@@ -476,7 +478,7 @@ public class TestServer extends BaseTestServer {
             getBuilder(getAPIv2().path(spaceResource).queryParam("version", badVersion))
                 .buildDelete(),
             GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, expectedErrorMessage);
+    assertThat(errorDelete2.getErrorMessage()).isEqualTo(expectedErrorMessage);
 
     doc("delete");
     expectSuccess(
@@ -681,7 +683,7 @@ public class TestServer extends BaseTestServer {
   @Ignore // TODO DX-3144
   public void testTestApis() {
     doc("Creating test dataset");
-    NamespaceService ns = newNamespaceService();
+    NamespaceService ns = getNamespaceService();
     expectSuccess(getBuilder(getAPIv2().path("/test/create")).buildPost(Entity.json("")));
     assertEquals(4, ns.getSpaces().size());
     assertEquals(1, ns.getHomeSpaces().size());
@@ -713,7 +715,7 @@ public class TestServer extends BaseTestServer {
   @Test
   public void testDatasetJobCount() throws Exception {
     // create home
-    final NamespaceService ns = newNamespaceService();
+    final NamespaceService ns = getNamespaceService();
     getPopulator().populateTestUsers();
     addSpace(ns, "space1");
     addFolder(ns, "@" + DEFAULT_USERNAME + ".f1");
@@ -805,6 +807,8 @@ public class TestServer extends BaseTestServer {
     assertEquals("dremio", summary.getLastModifyingUserName());
     assertEquals("dremio@dremio.test", summary.getLastModifyingUserEmail());
     assertTrue(summary.getCreatedAt() <= summary.getLastModified());
+    assertTrue(summary.getViewSpecVersion() == null);
+    assertTrue(summary.getViewDialect() == null);
     doc("get dataset summary for virtual dataset DG.dsg4 with empty tags");
     summary =
         expectSuccess(
@@ -828,6 +832,8 @@ public class TestServer extends BaseTestServer {
     assertEquals("dremio", summary.getLastModifyingUserName());
     assertEquals("dremio@dremio.test", summary.getLastModifyingUserEmail());
     assertTrue(summary.getCreatedAt() <= summary.getLastModified());
+    assertTrue(summary.getViewSpecVersion() == null);
+    assertTrue(summary.getViewDialect() == null);
     doc("get dataset summary for physical dataset with empty tags");
     summary =
         expectSuccess(
@@ -915,7 +921,7 @@ public class TestServer extends BaseTestServer {
   @SuppressWarnings("unchecked")
   public void testDatasetParents() throws Exception {
     populateInitialData();
-    VirtualDatasetUI dsg10 = newDatasetVersionMutator().get(new DatasetPath("DG.dsg10"));
+    VirtualDatasetUI dsg10 = getDatasetVersionMutator().get(new DatasetPath("DG.dsg10"));
     doc("get parents for virtual dataset DG.dsg10");
     List<ParentDatasetUI> parents =
         expectSuccess(
@@ -983,7 +989,7 @@ public class TestServer extends BaseTestServer {
     assertEquals(1, error.getDetails().getErrors().size());
     QueryError queryError = error.getDetails().getErrors().get(0);
 
-    assertContains("Was expecting one of", queryError.getMessage());
+    assertThat(queryError.getMessage()).contains("Was expecting one of");
     assertEquals(1, queryError.getRange().getStartLine());
     assertEquals(10, queryError.getRange().getStartColumn());
     assertEquals(1, queryError.getRange().getEndLine());

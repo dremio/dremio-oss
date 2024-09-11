@@ -25,8 +25,8 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceType;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.EntityId;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** Namespace operations for Datasets. */
 public interface DatasetNamespaceService {
@@ -87,8 +87,6 @@ public interface DatasetNamespaceService {
   DatasetConfigAndEntitiesOnPath getDatasetAndEntitiesOnPath(NamespaceKey datasetPath)
       throws NamespaceException;
 
-  List<DatasetConfig> getDatasets();
-
   //// LIST or COUNT datasets under folder/space/home/source
   //// Note: use sparingly!
   Iterable<NamespaceKey> getAllDatasets(final NamespaceKey parent) throws NamespaceException;
@@ -110,12 +108,12 @@ public interface DatasetNamespaceService {
       throws NamespaceException;
 
   /**
-   * finds a dataset using UUID
+   * finds a dataset using an EntityId
    *
-   * @param uuid
-   * @return a dataset, or null if not found.
+   * @param entityId
+   * @return an optional dataset
    */
-  DatasetConfig findDatasetByUUID(String uuid);
+  Optional<DatasetConfig> getDatasetById(EntityId entityId);
 
   /** Returns a mapping of valid input namespace keys to the NamespaceType of their parent. */
   Map<NamespaceKey, NamespaceType> getDatasetNamespaceTypes(NamespaceKey... datasetPaths);

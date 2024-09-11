@@ -35,6 +35,23 @@
       <artifactId>javax.ws.rs-api</artifactId>
       <version>${javax.ws.rs-api.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-options</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -42,14 +59,6 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <configuration>
-          <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
-          <!-- include dremio-common -->
-          <includePluginDependencies>true</includePluginDependencies>
-          <arguments>
-            <argument>${project.build.outputDirectory}</argument>
-          </arguments>
-        </configuration>
         <dependencies>
           <dependency>
             <groupId>com.dremio</groupId>
@@ -62,7 +71,15 @@
             <goals>
               <goal>java</goal>
             </goals>
-            <phase>process-classes</phase>
+            <phase>${buildtimescan.phase}</phase>
+            <configuration>
+              <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
+              <!-- include dremio-common -->
+              <includePluginDependencies>true</includePluginDependencies>
+              <arguments>
+                <argument>${project.build.outputDirectory}</argument>
+              </arguments>
+            </configuration>
           </execution>
         </executions>
       </plugin>

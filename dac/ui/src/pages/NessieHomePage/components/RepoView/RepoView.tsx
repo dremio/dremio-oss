@@ -19,7 +19,6 @@ import { createContext, useEffect } from "react";
 import { Reference } from "@app/types/nessie";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 import { useNessieContext } from "../../utils/context";
-import RepoViewHeader from "./components/RepoViewHeader/RepoViewHeader";
 import RepoViewBody from "./components/RepoViewBody/RepoViewBody";
 
 import { RepoViewContextType, useRepoViewContext } from "./utils";
@@ -28,11 +27,7 @@ import "./RepoView.less";
 
 export const RepoViewContext = createContext({} as RepoViewContextType);
 
-type RepoViewProps = {
-  showHeader?: boolean;
-};
-function RepoView(props: RepoViewProps) {
-  const { showHeader = true } = props;
+function RepoView() {
   const { state, apiV2 } = useNessieContext();
   const defaultReferenceLoading = isDefaultReferenceLoading(state);
   const repoViewContext = useRepoViewContext(apiV2);
@@ -51,13 +46,8 @@ function RepoView(props: RepoViewProps) {
   return (
     <RepoViewContext.Provider value={repoViewContext}>
       <div className="repo-view">
-        {showHeader && (
-          <div className="repo-view-header-div">
-            <RepoViewHeader />
-          </div>
-        )}
         <div className="repo-view-body-div">
-          <RepoViewBody hideTitle={showHeader} />
+          <RepoViewBody />
         </div>
       </div>
     </RepoViewContext.Provider>

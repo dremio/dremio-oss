@@ -52,6 +52,10 @@ a.dremio-button {
   text-decoration: none !important;
 }
 
+a.dremio-button:focus-visible {
+  outline: -webkit-focus-ring-color auto 1px !important;
+}
+
 button.dremio-button {
   padding: 0;
 }

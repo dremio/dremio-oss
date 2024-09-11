@@ -15,9 +15,11 @@
  */
 package com.dremio.service.jobs;
 
-import static com.dremio.dac.server.UIOptions.JOBS_UI_CHECK;
+import static com.dremio.dac.options.UIOptions.JOBS_UI_CHECK;
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
+import static com.dremio.service.reflection.ReflectionOptions.LOAD_MATERIALIZATION_JOB_ENABLED;
 import static com.google.common.collect.Iterables.isEmpty;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -68,6 +70,7 @@ import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Test get job info with reflectionId. */
@@ -90,7 +93,7 @@ public class TestReflectionJob extends BaseTestReflection {
   private static final AtomicInteger DATA_ID = new AtomicInteger();
   private static final long REFRESH_DELAY_IN_SECONDS = 2;
 
-  private ReflectionMonitor monitor = newReflectionMonitor(100, 10000);
+  private ReflectionMonitor monitor = newReflectionMonitor();
   private WebSocketClient client = new WebSocketClient();
   private TestWebSocket.TestSocket socket;
 
@@ -193,15 +196,18 @@ public class TestReflectionJob extends BaseTestReflection {
     assertEquals(
         getAuthHeaderValue(), socket.getSession().getUpgradeResponse().getAcceptedSubProtocol());
     OptionValue option = OptionValue.createBoolean(SYSTEM, JOBS_UI_CHECK.getOptionName(), false);
-    getSabotContext().getOptionManager().setOption(option);
+    getOptionManager().setOption(option);
+  }
+
+  @BeforeClass
+  public static void prepareClass() {
+    // ignore the tests if multinode.
+    assumeFalse(isMultinode());
   }
 
   @Before
   public void prepare() throws Exception {
-    // ignore the tests if multinode.
-    assumeFalse(isMultinode());
-
-    setDeletionGracePeriod(60);
+    setDeletionGracePeriod();
     setManagerRefreshDelay(REFRESH_DELAY_IN_SECONDS);
 
     setMaterializationCacheSettings(false, 1000);
@@ -215,7 +221,7 @@ public class TestReflectionJob extends BaseTestReflection {
 
   @After
   public void clearAll() throws Exception {
-    setDeletionGracePeriod(1);
+    setDeletionGracePeriod();
     getReflectionService().clearAll();
     Thread.sleep(1);
     monitor.waitUntilNoMaterializationsAvailable();
@@ -302,7 +308,11 @@ public class TestReflectionJob extends BaseTestReflection {
     Iterable<JobSummary> jobSummaries = searchJobs(reflectionId.getId(), DEFAULT_USERNAME);
     jobSummaries.forEach(
         jobSummary -> assertTrue(jobSummary.getSql().contains(reflectionId.getId())));
-    assertEquals(2, Iterables.size(jobSummaries));
+    if (getOptionManager().getOption(LOAD_MATERIALIZATION_JOB_ENABLED)) {
+      assertEquals(2, Iterables.size(jobSummaries));
+    } else {
+      assertEquals(1, Iterables.size(jobSummaries));
+    }
   }
 
   @Test
@@ -324,7 +334,7 @@ public class TestReflectionJob extends BaseTestReflection {
 
     UserBitShared.QueryProfile queryProfile =
         getQueryProfile(reflectionEntry.getRefreshJobId(), reflectionId.getId(), DEFAULT_USERNAME);
-    assertContains(reflectionId.getId(), queryProfile.getQuery());
+    assertThat(queryProfile.getQuery()).contains(reflectionId.getId());
   }
 
   @Test

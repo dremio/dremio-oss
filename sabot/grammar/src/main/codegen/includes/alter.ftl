@@ -42,7 +42,6 @@
     SqlNodeList tablePropertyNameList;
     SqlNodeList tablePropertyValueList;
     SqlNodeList sortList;
-
 }
 {
     {
@@ -56,6 +55,8 @@
         tblName = SimpleIdentifier()
         (
           <REFRESH> <STATUS> {return new SqlRefreshSourceStatus(pos, tblName);}
+          |
+          <CLEAR> <PERMISSION> <CACHE> {return new SqlClearSourcePermissionCache(pos, tblName); }
         )
       )
       |
@@ -81,6 +82,9 @@
       |
       (<TABLE> | <VDS> | <VIEW> | <PDS> | <DATASET>)
         tblName = CompoundIdentifier()
+        // This is a special case where ATVersionSpec() normally meant for READ queries is being used. This is because
+        // the ATVersionSpec() is used to specify the version of the table that the Reflection is being created on.
+        // It is valid to create a Reflection on a table specified with a COMMIT, TAG, SNAPSHOT or TIMESTAMP.
         [ sqlTableVersionSpec = ATVersionSpec() ]
           (
           <ADD> <ROW> <ACCESS> <POLICY> sqlPolicy = Policy()

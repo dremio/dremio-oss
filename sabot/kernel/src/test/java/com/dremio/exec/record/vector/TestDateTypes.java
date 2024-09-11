@@ -56,7 +56,7 @@ public class TestDateTypes extends PopUnitTestBase {
               readResourceAsString("/record/vector/test_date.json")
                   .replace("#{TEST_FILE}", "/test_simple_date.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -93,7 +93,7 @@ public class TestDateTypes extends PopUnitTestBase {
               readResourceAsString("/record/vector/test_sort_date.json")
                   .replace("#{TEST_FILE}", "/test_simple_date.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -130,7 +130,7 @@ public class TestDateTypes extends PopUnitTestBase {
               readResourceAsString("/record/vector/test_timestamp.json")
                   .replace("#{TEST_FILE}", "/test_simple_date.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -168,7 +168,7 @@ public class TestDateTypes extends PopUnitTestBase {
               readResourceAsString("/record/vector/test_interval.json")
                   .replace("#{TEST_FILE}", "/test_simple_interval.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -229,7 +229,7 @@ public class TestDateTypes extends PopUnitTestBase {
               readResourceAsString("/record/vector/test_all_date_literals.json")
                   .replace("#{TEST_FILE}", "/test_simple_date.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -269,7 +269,7 @@ public class TestDateTypes extends PopUnitTestBase {
               readResourceAsString("/record/vector/test_date_add.json")
                   .replace("#{TEST_FILE}", "/test_simple_date.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));

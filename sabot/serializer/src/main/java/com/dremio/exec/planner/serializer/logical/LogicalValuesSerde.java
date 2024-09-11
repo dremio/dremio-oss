@@ -60,8 +60,8 @@ public final class LogicalValuesSerde implements RelNodeSerde<LogicalValues, PLo
             .build();
   }
 
-  private List<RexLiteral> toLiterals(PLogicalValueRecord record, RelFromProto s) {
-    return record.getLiteralList().stream()
+  private List<RexLiteral> toLiterals(PLogicalValueRecord rec, RelFromProto s) {
+    return rec.getLiteralList().stream()
         .map(s::toRex)
         .map(l -> ((RexLiteral) l))
         .collect(Collectors.toList());

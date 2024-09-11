@@ -44,14 +44,6 @@ service JobTelemetryService {
   // Get the query profile.
   rpc getQueryProfile(GetQueryProfileRequest) returns (GetQueryProfileResponse);
 
-  // get progress metrics for a query.
-  rpc getQueryProgressMetricsUnary(GetQueryProgressMetricsRequest) returns
-  (GetQueryProgressMetricsResponse);
-
-  // get progress metrics for a query.
-  rpc getQueryProgressMetrics(stream GetQueryProgressMetricsRequest) returns
-  (stream GetQueryProgressMetricsResponse);
-
   // Delete the profile and metrics for a query.
   rpc deleteProfile(DeleteProfileRequest) returns (google.protobuf.Empty);
 }
@@ -77,14 +69,6 @@ message GetQueryProfileRequest {
 
 message GetQueryProfileResponse {
   exec.shared.QueryProfile profile = 1;
-}
-
-message GetQueryProgressMetricsRequest {
-  exec.shared.QueryId query_id = 1;
-}
-
-message GetQueryProgressMetricsResponse {
-  exec.bit.control.QueryProgressMetrics metrics = 1;
 }
 
 message DeleteProfileRequest {

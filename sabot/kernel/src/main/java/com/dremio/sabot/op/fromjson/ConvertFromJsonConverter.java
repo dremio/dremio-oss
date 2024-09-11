@@ -19,8 +19,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
-import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
@@ -28,14 +27,14 @@ import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
 import com.dremio.exec.record.VectorAccessibleComplexWriter;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
 import com.dremio.exec.vector.complex.fn.JsonReader;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.OriginType;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.users.SystemUser;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
@@ -201,16 +200,11 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
     // datasetFieldsList info.
     // Get datasetFieldsList from query context catalog instead.
     return Optional.ofNullable(context)
-        .map(v -> v.getCatalogService())
-        .map(
-            v ->
-                v.getCatalog(
-                    MetadataRequestOptions.of(
-                        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-                            .build())))
+        .map(QueryContext::getCatalogService)
+        .map(CatalogService::getSystemUserCatalog)
         .map(v -> v.getTable(new NamespaceKey(tableSchemaPath)))
-        .map(v -> v.getDatasetConfig())
-        .map(v -> v.getDatasetFieldsList())
+        .map(DremioTable::getDatasetConfig)
+        .map(DatasetConfig::getDatasetFieldsList)
         // do we have a known schema for the converted field ?
         .map(v -> Iterables.find(v, input -> fieldname.equals(input.getFieldName()), null))
         // yes we do

@@ -16,7 +16,6 @@
 package com.dremio.exec.catalog.dataplane;
 
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
-import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTableAsQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.joinedTableKey;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithSource;
@@ -25,12 +24,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.service.jobs.JobStatusListener;
-import com.dremio.service.jobs.JobsService;
 import java.util.Collections;
 import java.util.List;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,18 +42,9 @@ public class ITTestExternalReflections extends ITBaseTestReflection {
   private static final List<String> tablePath =
       tablePathWithSource(DATAPLANE_PLUGIN_NAME, Collections.singletonList(tableName));
 
-  @BeforeAll
-  public static void testSetup() {
-    JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
-        l(JobsService.class),
-        createNewJobRequestFromSql(createTableAsQuery(Collections.singletonList(tableName), 1000)),
-        JobStatusListener.NO_OP);
-  }
-
   @BeforeEach
   public void setUp() {
-    allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @AfterEach
@@ -70,7 +58,7 @@ public class ITTestExternalReflections extends ITBaseTestReflection {
     assertThatThrownBy(
             () ->
                 JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
-                    l(JobsService.class),
+                    getJobsService(),
                     createNewJobRequestFromSql(
                         createExternalReflection(tablePath, tablePath, "ext_ref")),
                     JobStatusListener.NO_OP))

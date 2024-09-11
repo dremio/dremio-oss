@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import "core-js/full/array/from-async";
 import { additionalSetup } from "./additionalSetup";
 import { createRoot } from "react-dom/client";
 
@@ -25,10 +26,11 @@ import "dremio-ui-lib/dist-themes/base/assets/fonts/inter-ui/inter.css";
 import "dremio-ui-lib/dist-themes/base/assets/fonts/FiraCode/FiraCode.css";
 import "dremio-ui-lib/dist-themes/dremio/index.css";
 import "dremio-ui-lib/dist/index.css";
+import "./index.scss";
 import "./main.less";
 import "./uiTheme/css/typography.css";
 
-import { iconBasePath } from "@app/utils/getIconPath";
+import { dremioSpritePath } from "@app/utils/getIconPath";
 import Root from "./containers/Root";
 import configureStore from "./store/configureStore";
 import { configureDremioIcon } from "dremio-ui-lib/components";
@@ -39,6 +41,8 @@ import $ from "jquery";
 
 import { applyTheme } from "dremio-ui-common/appTheme";
 
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./queryClient";
 setupMetrics();
 
 window.laDeprecated = (key) => {
@@ -64,7 +68,7 @@ const initApp = async () => {
     await (await import("@inject/setupMsw")).browserMocks();
   }
 
-  configureDremioIcon(iconBasePath);
+  configureDremioIcon(dremioSpritePath as unknown as any);
   startup.run();
   await additionalSetup();
 
@@ -72,8 +76,10 @@ const initApp = async () => {
     <ErrorBoundary
       title={getIntlContext().t("Common.Errors.UnexpectedError.Root")}
     >
-      <Root store={store} />
-    </ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Root store={store} />
+      </QueryClientProvider>
+    </ErrorBoundary>,
   );
 };
 applyTheme();

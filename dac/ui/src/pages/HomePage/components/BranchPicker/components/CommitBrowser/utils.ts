@@ -33,7 +33,7 @@ type ActionTypes =
 
 export function CommitBrowserReducer(
   state: CommitBrowserState,
-  action: ActionTypes
+  action: ActionTypes,
 ) {
   switch (action.type) {
     case "SET_SEARCH": {
@@ -58,7 +58,7 @@ export function CommitBrowserReducer(
 export function formatQuery(
   search: string | undefined,
   path: string[] | undefined,
-  tableName: string | undefined
+  tableName: string | undefined,
 ) {
   let clauses: string[] = [];
   if (search) {
@@ -73,7 +73,13 @@ export function formatQuery(
 
   const opClauses = [];
   if (path?.length) {
-    const namespace = path.map((c) => decodeURIComponent(c)).join(".");
+    const namespace = path
+      .map((c) =>
+        decodeURIComponent(c)
+          //Hyphenated paths are surrounded by double-quotes on SQL runner page, remove the quotes
+          .replaceAll('"', ""),
+      )
+      .join(".");
     opClauses.push(`op.namespace == '${namespace}'`);
   } else {
     //Only add this filter clause if tableName is provided since we're looking for a specific one
@@ -82,7 +88,7 @@ export function formatQuery(
 
   if (tableName) {
     opClauses.push(
-      `op.name == '${decodeURIComponent(tableName).replace(/"/g, "")}'`
+      `op.name == '${decodeURIComponent(tableName).replace(/"/g, "")}'`,
     );
   }
 

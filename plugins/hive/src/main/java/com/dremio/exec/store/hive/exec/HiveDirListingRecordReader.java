@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive.exec;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import com.dremio.common.util.Closeable;
 import com.dremio.exec.record.BatchSchema;
@@ -32,9 +33,10 @@ public class HiveDirListingRecordReader extends DirListingRecordReader {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveDirListingRecordReader.class);
 
-  public HiveDirListingRecordReader(OperatorContext context, FileSystem fs, DirListInputSplitProto.DirListInputSplit dirListInputSplit, boolean isRecursive,
-                                    BatchSchema tableSchema, List<PartitionProtobuf.PartitionValue> partitionValues, boolean discoverPartitions) {
-    super(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, discoverPartitions, false);
+  public HiveDirListingRecordReader(OperatorContext context, FileSystem fs, DirListInputSplitProto.DirListInputSplit dirListInputSplit,
+                                    boolean isRecursive, BatchSchema tableSchema, List<PartitionProtobuf.PartitionValue> partitionValues,
+                                    boolean discoverPartitions, Iterable<Map.Entry<String, String>> fsConf) {
+    super(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, discoverPartitions, false, fsConf);
   }
 
   @Override

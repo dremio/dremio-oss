@@ -478,7 +478,7 @@
             <goals>
               <goal>java</goal>
             </goals>
-            <phase>process-classes</phase>
+            <phase>${buildtimescan.phase}</phase>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <includePluginDependencies>true</includePluginDependencies>
@@ -681,7 +681,7 @@
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-native-libraries</artifactId>
-          <version>1.0.1</version>
+          <version>${hadoop.native.libraries.version}</version>
           <classifier>linux</classifier>
           <scope>test</scope>
         </dependency>
@@ -713,7 +713,7 @@
                       <groupId>org.apache.hadoop</groupId>
                       <artifactId>hadoop-native-libraries</artifactId>
                       <classifier>linux</classifier>
-                      <version>1.0.1</version>
+                      <version>${hadoop.native.libraries.version}</version>
                       <outputDirectory>${project.build.directory}/native-libraries</outputDirectory>
                     </artifactItem>
                   </artifactItems>

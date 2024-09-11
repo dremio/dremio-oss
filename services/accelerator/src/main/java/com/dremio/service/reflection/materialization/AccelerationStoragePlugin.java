@@ -56,6 +56,7 @@ import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.iceberg.IcebergExecutionDatasetAccessor;
 import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
+import com.dremio.exec.store.iceberg.IcebergPathSanitizer;
 import com.dremio.exec.store.iceberg.TableSchemaProvider;
 import com.dremio.exec.store.iceberg.TableSnapshotProvider;
 import com.dremio.exec.store.iceberg.TimeTravelProcessors;
@@ -69,6 +70,7 @@ import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.io.file.UriSchemes;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceKey;
@@ -91,10 +93,12 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -123,7 +127,8 @@ import org.apache.iceberg.Table;
  * logical path) to track the refresh and updated expiry.
  */
 public class AccelerationStoragePlugin
-    extends MayBeDistFileSystemPlugin<AccelerationStoragePluginConfig> {
+    extends MayBeDistFileSystemPlugin<AccelerationStoragePluginConfig>
+    implements IcebergPathSanitizer {
 
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(AccelerationStoragePlugin.class);
@@ -653,5 +658,16 @@ public class AccelerationStoragePlugin
     }
     return super.createNewTable(
         tableSchemaPath, config, icebergTableProps, writerOptions, storageOptions, isResultsTable);
+  }
+
+  @Override
+  public String sanitizePath(String location) {
+    // first, get the URI to determine if any stripping needs to happen.
+    URI pathUri = Path.of(location).toURI();
+    String scheme = pathUri.getScheme().toLowerCase(Locale.ROOT);
+    if (UriSchemes.HDFS_SCHEME.contains(scheme)) {
+      return pathUri.getPath();
+    }
+    return location;
   }
 }

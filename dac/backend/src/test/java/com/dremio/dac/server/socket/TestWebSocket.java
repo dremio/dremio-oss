@@ -15,8 +15,8 @@
  */
 package com.dremio.dac.server.socket;
 
+import static com.dremio.dac.options.UIOptions.JOBS_UI_CHECK;
 import static com.dremio.dac.proto.model.dataset.OrderDirection.ASC;
-import static com.dremio.dac.server.UIOptions.JOBS_UI_CHECK;
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static javax.ws.rs.client.Entity.entity;
@@ -92,7 +92,7 @@ public class TestWebSocket extends BaseTestServer {
     this.socket = new TestSocket();
     client.connect(socket, socketUri, request);
     socket.awaitConnection(2);
-    getSabotContext().getOptionManager().setOption(option);
+    getOptionManager().setOption(option);
     assertEquals(
         getAuthHeaderValue(), socket.session.getUpgradeResponse().getAcceptedSubProtocol());
   }

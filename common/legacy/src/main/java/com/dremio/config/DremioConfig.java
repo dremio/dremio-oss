@@ -68,6 +68,10 @@ public class DremioConfig extends NestedConfig {
       "services.coordinator.master.embedded-zookeeper.port";
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING =
       "services.coordinator.master.embedded-zookeeper.path";
+  public static final String EMBEDDED_MASTER_ZK_WATCHDOG_FAILURE_COUNT_THRESHOLD =
+      "services.executor.embedded-zookeeper.watchdog.failure_count_threshold";
+  public static final String EMBEDDED_MASTER_ZK_WATCHDOG_FAILURE_DURATION_THRESHOLD =
+      "services.executor.embedded-zookeeper.watchdog.failure_duration_threshold";
   public static final String WEB_ENABLED_BOOL = "services.coordinator.web.enabled";
   public static final String WEB_AUTH_TYPE = "services.coordinator.web.auth.type";
   public static final String WEB_PORT_INT = "services.coordinator.web.port";
@@ -150,6 +154,7 @@ public class DremioConfig extends NestedConfig {
   public static final String METADATA_PATH_STRING = "paths.metadata";
   public static final String GANDIVA_CACHE_PATH_STRING = "paths.gandiva";
   public static final String SYSTEM_ICEBERG_TABLES_PATH_STRING = "paths.system_iceberg_tables";
+  public static final String NODE_HISTORY_PATH_STRING = "paths.node_history";
 
   public static final Set<String> DEPRECATED_PATHS = ImmutableSet.of("paths.copyintoerrors");
 

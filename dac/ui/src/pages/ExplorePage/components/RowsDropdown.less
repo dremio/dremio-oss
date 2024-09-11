@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -25,7 +24,7 @@
     display: flex;
     color: gray;
     cursor: pointer;
-    border: 1px solid @CONTAINER_BORDER;
+    border: 1px solid var(--color--neutral--200);
     border-radius: 5px;
     height: 26px;
     align-items: center;
@@ -33,7 +32,7 @@
     margin-right: 10px;
     padding-top: 2px;
     padding-bottom: 2px;
-    background-color: #fff;
+    background-color: var(--fill--primary);
     position: relative;
     color: #000;
 
@@ -41,10 +40,10 @@
       position: absolute;
       left: 0;
       width: 160px;
-      border: 1px solid @CONTAINER_BORDER;
+      border: 1px solid var(--color--neutral--200);
       top: 30px;
       z-index: 3;
-      background-color: #fff;
+      background-color: var(--fill--primary);
       border-radius: 5px;
       box-shadow: var(--dremio--shadow--layer-1);
 

@@ -18,8 +18,10 @@ package com.dremio.service.reflection.refresh;
 import static com.dremio.service.reflection.ReflectionUtils.removeUpdateColumn;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.MaterializationShuttle;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
@@ -47,7 +49,7 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.proto.RefreshDecision;
-import com.dremio.service.reflection.refresh.ReflectionPlanGenerator.NonIncrementalRefreshFunctionEventHandler;
+import com.dremio.service.reflection.refresh.ReflectionPlanGenerator.NonIncrementalRefreshFunctionDetectedEventHandler;
 import com.dremio.service.reflection.refresh.ReflectionPlanGenerator.RefreshDecisionWrapper;
 import com.dremio.service.reflection.store.DependenciesStore;
 import com.dremio.service.reflection.store.MaterializationStore;
@@ -75,7 +77,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
   private final boolean matchingPlanOnly;
   private ByteString matchingPlanBytes;
   private RefreshDecisionWrapper refreshDecisionWrapper;
-  private NonIncrementalRefreshFunctionEventHandler nonIncrementalRefreshFunctionEventHandler;
+  private final NonIncrementalRefreshFunctionDetectedEventHandler
+      nonIncrementalRefreshFunctionDetectedEventHandler;
 
   public ReflectionPlanNormalizer(
       SqlHandlerConfig sqlHandlerConfig,
@@ -90,7 +93,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
       boolean forceFullUpdate,
       boolean matchingPlanOnly,
       RefreshDecisionWrapper noDefaultReflectionDecisionWrapper,
-      NonIncrementalRefreshFunctionEventHandler nonIncrementalRefreshFunctionEventHandler) {
+      NonIncrementalRefreshFunctionDetectedEventHandler
+          nonIncrementalRefreshFunctionDetectedEventHandler) {
     this.sqlHandlerConfig = sqlHandlerConfig;
     this.goal = goal;
     this.entry = entry;
@@ -104,7 +108,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
     this.forceFullUpdate = forceFullUpdate;
     this.matchingPlanOnly = matchingPlanOnly;
     this.refreshDecisionWrapper = noDefaultReflectionDecisionWrapper;
-    this.nonIncrementalRefreshFunctionEventHandler = nonIncrementalRefreshFunctionEventHandler;
+    this.nonIncrementalRefreshFunctionDetectedEventHandler =
+        nonIncrementalRefreshFunctionDetectedEventHandler;
   }
 
   public RefreshDecisionWrapper getRefreshDecisionWrapper() {
@@ -150,7 +155,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
         serializerFactory.getSerializer(
             expandedPlan.getCluster(),
             DremioCompositeSqlOperatorTable.create(
-                sqlHandlerConfig.getContext().getFunctionRegistry()));
+                sqlHandlerConfig.getContext().getFunctionRegistry(), optionManager));
     matchingPlanBytes = ByteString.copyFrom(serializer.serializeToBytes(expandedPlan));
     if (matchingPlanOnly) {
       return new EmptyRel(
@@ -173,7 +178,15 @@ class ReflectionPlanNormalizer implements RelTransformer {
                 false,
                 StrippingFactory.LATEST_STRIP_VERSION)
             .getNormalized();
-
+    if (sqlHandlerConfig.getResultMode().equals(ResultMode.LOGICAL)) {
+      RefreshDecision refreshDecision = new RefreshDecision();
+      AccelerationSettings accelerationSettings =
+          new AccelerationSettings().setMethod(RefreshMethod.FULL);
+      refreshDecision.setAccelerationSettings(accelerationSettings);
+      this.refreshDecisionWrapper =
+          new RefreshDecisionWrapper(refreshDecision, SnapshotDiffContext.NO_SNAPSHOT_DIFF, "", 0L);
+      return strippedPlan;
+    }
     // if we detect that the plan is in fact incrementally updatable, we want to strip again with
     // isIncremental flag set to true to get the proper stripping (such as removing top level
     // projects)
@@ -186,7 +199,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
                 service,
                 optionManager,
                 config,
-                nonIncrementalRefreshFunctionEventHandler.isEventReceived())
+                nonIncrementalRefreshFunctionDetectedEventHandler
+                    .getNonIncrementalRefreshFunctions())
             .getRefreshMethod()
         == RefreshMethod.INCREMENTAL) {
       strippedPlan =
@@ -220,7 +234,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
               optionManager,
               sqlHandlerConfig,
               config,
-              nonIncrementalRefreshFunctionEventHandler.isEventReceived());
+              nonIncrementalRefreshFunctionDetectedEventHandler
+                  .getNonIncrementalRefreshFunctions());
     }
 
     final RefreshDecision refreshDecision = refreshDecisionWrapper.getRefreshDecision();

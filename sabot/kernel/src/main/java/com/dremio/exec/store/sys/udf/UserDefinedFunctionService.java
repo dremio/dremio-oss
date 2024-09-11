@@ -79,6 +79,7 @@ public interface UserDefinedFunctionService extends Service {
           .setArgList((argList == null) ? "null" : argList)
           .setReturnType((returnType == null) ? "null" : returnType)
           .setCreatedAt(createdAt.getTime())
+          .setOwner((owner == null) ? "null" : owner)
           .build();
     }
   }

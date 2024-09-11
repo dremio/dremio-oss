@@ -45,6 +45,7 @@
       <excludes>
         <!-- exclude native libraries -->
         <exclude>*:*:jar:linux:*</exclude>
+        <exclude>*:*:jar:linux-aarch64:*</exclude>
       </excludes>
       <unpack>true</unpack>
       <unpackOptions>
@@ -55,11 +56,25 @@
       </unpackOptions>
     </dependencySet>
     <dependencySet>
-      <outputDirectory>PF4J-INF/native-libs</outputDirectory>
+      <outputDirectory>PF4J-INF/native-libs/x86_64</outputDirectory>
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
         <!-- include native libraries -->
         <include>*:*:jar:linux:*</include>
+      </includes>
+      <unpack>true</unpack>
+      <unpackOptions>
+        <excludes>
+          <exclude>META-INF/**</exclude>
+        </excludes>
+      </unpackOptions>
+    </dependencySet>
+    <dependencySet>
+      <outputDirectory>PF4J-INF/native-libs/aarch64</outputDirectory>
+      <useStrictFiltering>true</useStrictFiltering>
+      <includes>
+        <!-- include native libraries -->
+        <include>*:*:jar:linux-aarch64:*</include>
       </includes>
       <unpack>true</unpack>
       <unpackOptions>

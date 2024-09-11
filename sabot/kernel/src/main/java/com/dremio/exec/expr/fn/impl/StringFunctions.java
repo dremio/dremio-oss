@@ -435,7 +435,7 @@ public class StringFunctions {
               .addContext("exception", e.getMessage())
               .build();
         }
-        final byte[] bytea = r.getBytes(java.nio.charset.Charset.forName("UTF-8"));
+        final byte[] bytea = r.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         buffer = buffer.reallocIfNeeded(bytea.length);
         out.buffer = buffer;
         out.buffer.setBytes(out.start, bytea);
@@ -1252,6 +1252,69 @@ public class StringFunctions {
           charLen = charCount - fromCharIdx + 1;
         } else { // length.value < 0
           fromCharIdx = Math.abs((int) length.value) + 1;
+          charLen = charCount - fromCharIdx + 1;
+        }
+
+        // invalid length :  right('abc', -5) -> ''
+        if (charLen <= 0) {
+          out.start = 0;
+          out.end = 0;
+        } else {
+          // Do 2nd scan of string. Get bytes corresponding chars in range.
+          out.start =
+              com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
+                  io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer),
+                  string.start,
+                  string.end,
+                  fromCharIdx - 1,
+                  errCtx);
+          out.end =
+              com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
+                  io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer),
+                  out.start,
+                  string.end,
+                  charLen,
+                  errCtx);
+        }
+      }
+    }
+  }
+
+  @FunctionTemplate(name = "right", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class RightInt implements SimpleFunction {
+    @Param VarCharHolder string;
+    @Param IntHolder length;
+
+    @Output VarCharHolder out;
+    @Workspace ByteBuf buffer;
+    @Inject FunctionErrorContext errCtx;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.buffer = string.buffer;
+      // invalid length.
+      if (length.value == 0 || string.end <= string.start) {
+        out.start = 0;
+        out.end = 0;
+      } else {
+        // Do 1st scan to counter # of character in string.
+        final int charCount =
+            com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
+                io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer),
+                string.start,
+                string.end,
+                errCtx);
+        final int fromCharIdx; // the start position of char (inclusive)
+        final int charLen; // the end position of char (inclusive)
+        if (length.value > 0) {
+          fromCharIdx =
+              Math.max(charCount - length.value + 1, 1); // right('abc', 5) ==> 'abc' fromCharIdx=1.
+          charLen = charCount - fromCharIdx + 1;
+        } else { // length.value < 0
+          fromCharIdx = Math.abs(length.value) + 1;
           charLen = charCount - fromCharIdx + 1;
         }
 

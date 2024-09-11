@@ -1,6 +1,7 @@
 {
   "private": true,
   "dependencies": {
+    "@dremio/icons": "link:../../../ui/icons",
     "leantable": "^0.4.12",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -20,9 +21,9 @@
     "@vitejs/plugin-react": "^4.1.0",
     "prop-types": "^15.8.1",
     "storybook": "^7.4.6",
-    "typescript": "5.3.3",
+    "typescript": "5.4.2",
     "vite": "^4.4.11",
     "vite-plugin-static-copy": "^0.17.0"
   },
-  "packageManager": "pnpm@8.9.0"
+  "packageManager": "pnpm@9.3.0"
 }

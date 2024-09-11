@@ -15,95 +15,123 @@
  */
 import { connect } from "react-redux";
 import { useIntl } from "react-intl";
+import { Link } from "react-router";
+import { useRef } from "react";
 
 import { getLocation } from "@app/selectors/routing";
 import config from "@app/utils/config";
 
-import Menu from "components/Menus/Menu";
-import MenuItemLink from "components/Menus/MenuItemLink";
-import MenuItem from "components/Menus/MenuItem";
 import SideNavHelpExtra from "@inject/components/SideNav/SideNavHelpExtra";
 import SideNavHelpCopyright from "@inject/components/SideNav/SideNavHelpCopyright";
-import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { PRODUCT_TUTORIALS } from "@inject/featureFlags/flags/PRODUCT_TUTORIALS";
 import { useTutorialController } from "dremio-ui-common/walkthrough/TutorialController";
 import { useIsOrgCreator } from "@inject/utils/orgUtils";
 
+import * as classes from "./HelpMenu.module.less";
+
 type HelpMenuProps = {
-  closeMenu: () => void;
+  close: () => void;
   location: any;
   organizationLanding: boolean;
 };
 
-const HelpMenu = ({
-  closeMenu,
-  location,
-  organizationLanding,
-}: HelpMenuProps) => {
+const HelpMenu = ({ close, location, organizationLanding }: HelpMenuProps) => {
   const intl = useIntl();
+  const menuRef = useRef<HTMLUListElement | null>(null);
   const externalLink = (
     <span className={"externalLinkIcon dremioIcon-External-link"}></span>
   );
   const { isTutorialHidden, hideTutorial } = useTutorialController();
   const isOrgCreator = useIsOrgCreator?.();
+  const showTutorial = organizationLanding && isOrgCreator && isTutorialHidden;
+  const onBlur = (e: any) => {
+    if (!menuRef.current?.contains(e.relatedTarget)) {
+      close();
+    }
+  };
 
   return (
-    <Menu style={menuListStyle}>
-      <MenuItemLink
-        href={intl.formatMessage({ id: "SideNav.HelpDocUrl" })}
-        external
-        newWindow
-        closeMenu={closeMenu}
-        text={intl.formatMessage({ id: "SideNav.HelpDoc" })}
-        rightIcon={externalLink}
-      />
+    <ul ref={menuRef} className={classes["help-menu"]}>
+      <li tabIndex={-1}>
+        <a
+          target="_blank"
+          rel="noreferrer"
+          href={intl.formatMessage({ id: "SideNav.HelpDocUrl" })}
+          className={classes["help-menu-item"]}
+          onClick={() => close()}
+        >
+          {intl.formatMessage({ id: "SideNav.HelpDoc" })}
+          {externalLink}
+        </a>
+      </li>
       {config.displayTutorialsLink && (
-        <MenuItemLink
-          href={intl.formatMessage({ id: "SideNav.TutorialsUrl" })}
-          external
-          newWindow
-          closeMenu={closeMenu}
-          text={intl.formatMessage({ id: "SideNav.Tutorials" })}
-          rightIcon={externalLink}
+        <li tabIndex={-1}>
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href={intl.formatMessage({ id: "SideNav.TutorialsUrl" })}
+            className={classes["help-menu-item"]}
+            onClick={() => close()}
+          >
+            {intl.formatMessage({ id: "SideNav.Tutorials" })}
+            {externalLink}
+          </a>
+        </li>
+      )}
+      <li tabIndex={-1}>
+        <a
+          target="_blank"
+          rel="noreferrer"
+          href={intl.formatMessage({ id: "SideNav.CommunityUrl" })}
+          className={classes["help-menu-item"]}
+          onClick={() => close()}
+        >
+          {intl.formatMessage({ id: "SideNav.CommunitySite" })}
+          {externalLink}
+        </a>
+      </li>
+      {/* @ts-ignore */}
+      {SideNavHelpExtra && (
+        <SideNavHelpExtra
+          close={close}
+          className={classes["help-menu-item"]}
+          onBlur={SideNavHelpCopyright() && !showTutorial ? onBlur : undefined}
         />
       )}
-      <MenuItemLink
-        href={intl.formatMessage({ id: "SideNav.CommunityUrl" })}
-        external
-        newWindow
-        closeMenu={closeMenu}
-        text={intl.formatMessage({ id: "SideNav.CommunitySite" })}
-        rightIcon={externalLink}
-      />
-      {/* @ts-ignore */}
-      {SideNavHelpExtra && <SideNavHelpExtra closeMenu={closeMenu} />}
-      {organizationLanding && isOrgCreator && isTutorialHidden && (
-        <FeatureSwitch
-          flag={PRODUCT_TUTORIALS}
-          renderEnabled={() => (
-            <MenuItem
-              onClick={() => {
-                hideTutorial(false);
-                closeMenu();
-              }}
-            >
-              {intl.formatMessage({ id: "SideNav.GetStartedSonarTutorial" })}
-            </MenuItem>
-          )}
-        />
+      {showTutorial && (
+        <li
+          tabIndex={0}
+          onClick={() => {
+            hideTutorial(false);
+            close();
+          }}
+          onKeyPress={(e) => {
+            if (e.code === "Enter" || e.code === "Space") {
+              hideTutorial(false);
+              close();
+            }
+          }}
+          className={classes["help-menu-item"]}
+          {...(SideNavHelpCopyright() && { onBlur: onBlur })}
+        >
+          {intl.formatMessage({ id: "SideNav.GetStartedSonarTutorial" })}
+        </li>
       )}
       {/* This will render the support dialogue in OSS/ENT and Copyright for DCS*/}
       {SideNavHelpCopyright() ? (
         <SideNavHelpCopyright />
       ) : (
-        <MenuItemLink
-          href={{ ...location, state: { modal: "AboutModal" } }}
-          closeMenu={closeMenu}
-          text={intl.formatMessage({ id: "App.AboutHeading" })}
-        />
+        <li>
+          <Link
+            to={{ ...location, state: { modal: "AboutModal" } }}
+            onClick={() => close()}
+            onBlur={onBlur}
+            className={classes["help-menu-item"]}
+          >
+            {intl.formatMessage({ id: "App.AboutHeading" })}
+          </Link>
+        </li>
       )}
-    </Menu>
+    </ul>
   );
 };
 

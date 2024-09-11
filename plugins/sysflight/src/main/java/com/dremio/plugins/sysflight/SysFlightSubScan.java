@@ -22,6 +22,7 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
 import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
 import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
+import com.dremio.exec.proto.FlightProtos.SysTableFunction;
 import com.dremio.exec.proto.SearchProtos.SearchQuery;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
@@ -42,6 +43,7 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
   private final StoragePluginId pluginId;
   private final BatchSchema schema;
   private final SearchQuery query;
+  private final SysTableFunction sysTableFunction;
 
   @JsonCreator
   public SysFlightSubScan(
@@ -50,13 +52,15 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
       @JsonProperty("schema") BatchSchema schema,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("query") SearchQuery query,
-      @JsonProperty("pluginId") StoragePluginId pluginId) {
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("sysTableFunction") SysTableFunction sysTableFunction) {
     super(props, schema, datasetPath);
     this.schema = schema;
     this.columns = columns;
     this.datasetPath = datasetPath;
     this.pluginId = pluginId;
     this.query = query;
+    this.sysTableFunction = sysTableFunction;
   }
 
   CoordinatorFlightTicket getTicket() {
@@ -66,6 +70,9 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
             .setUserName(props.getUserName());
     if (query != null) {
       ticketBuilder.setQuery(query);
+    }
+    if (sysTableFunction != null && !sysTableFunction.getName().isEmpty()) {
+      ticketBuilder.setTableFunction(sysTableFunction);
     }
     return CoordinatorFlightTicket.newBuilder().setSyFlightTicket(ticketBuilder.build()).build();
   }
@@ -114,5 +121,9 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
 
   public BatchSchema getSchema() {
     return schema;
+  }
+
+  public SysTableFunction getSysTableFunction() {
+    return sysTableFunction;
   }
 }

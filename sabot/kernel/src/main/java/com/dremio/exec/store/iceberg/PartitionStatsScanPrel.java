@@ -24,7 +24,6 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.config.CarryForwardAwareTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
-import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
@@ -49,17 +48,15 @@ public class PartitionStatsScanPrel extends TableFunctionPrel {
       BatchSchema schema,
       Long survivingRecords,
       String user,
-      boolean isCarryForwardEnabled) {
+      boolean isCarryForwardEnabled,
+      String schemeVariate) {
     this(
         storagePluginId,
         cluster,
         traitSet,
         child,
-        getTableFunctionConfig(schema, storagePluginId, isCarryForwardEnabled),
-        CalciteArrowHelper.wrap(schema)
-            .toCalciteRecordType(
-                cluster.getTypeFactory(),
-                PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()),
+        getTableFunctionConfig(schema, storagePluginId, isCarryForwardEnabled, schemeVariate),
+        CalciteArrowHelper.wrap(schema).toCalciteRecordType(cluster.getTypeFactory(), true),
         survivingRecords,
         user);
     this.storagePluginId = storagePluginId;
@@ -90,7 +87,10 @@ public class PartitionStatsScanPrel extends TableFunctionPrel {
   }
 
   private static TableFunctionConfig getTableFunctionConfig(
-      BatchSchema schema, StoragePluginId storagePluginId, boolean isCarryForwardEnabled) {
+      BatchSchema schema,
+      StoragePluginId storagePluginId,
+      boolean isCarryForwardEnabled,
+      String schemeVariate) {
     TableFunctionContext tableFunctionContext =
         new CarryForwardAwareTableFunctionContext(
             schema,
@@ -99,7 +99,8 @@ public class PartitionStatsScanPrel extends TableFunctionPrel {
             ImmutableMap.of(
                 SchemaPath.getSimplePath(METADATA_FILE_PATH), SchemaPath.getSimplePath(FILE_PATH)),
             FILE_TYPE,
-            IcebergFileType.METADATA_JSON.name());
+            IcebergFileType.METADATA_JSON.name(),
+            schemeVariate);
     return new TableFunctionConfig(
         TableFunctionConfig.FunctionType.ICEBERG_PARTITION_STATS_SCAN, true, tableFunctionContext);
   }

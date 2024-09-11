@@ -23,6 +23,7 @@ import static org.apache.calcite.plan.RelOptRule.some;
 import com.dremio.exec.planner.DremioJoinToMuliJoinRule;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.Conditions;
+import com.dremio.exec.planner.logical.DremioAggregateProjectPullUpConstantsRule;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule;
 import com.dremio.exec.planner.logical.DremioProjectJoinTransposeRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
@@ -39,6 +40,7 @@ import com.dremio.exec.planner.logical.rule.DremioReduceExpressionsRule.FilterRe
 import com.dremio.exec.planner.logical.rule.DremioReduceExpressionsRule.JoinReduceExpressionsRule.JoinReduceExpressionsRuleConfig;
 import com.dremio.exec.planner.logical.rule.DremioReduceExpressionsRule.ProjectReduceExpressionsRule.ProjectReduceExpressionsRuleConfig;
 import com.dremio.exec.planner.logical.rule.GroupSetToCrossJoinCaseStatement;
+import com.dremio.exec.planner.normalizer.DremioArraySubQueryRemoveRule;
 import java.util.EnumSet;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -53,6 +55,8 @@ import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
+import org.apache.calcite.rel.rules.AggregateProjectMergeRule;
 import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule;
 import org.apache.calcite.rel.rules.DremioLoptOptimizeJoinRule;
 import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
@@ -75,6 +79,14 @@ import org.apache.calcite.rel.rules.SubQueryRemoveRule;
 import org.apache.calcite.rel.rules.UnionMergeRule;
 
 public interface DremioCoreRules {
+
+  AggregateProjectMergeRule AGGREGATE_PROJECT_MERGE_RULE = new AggregateProjectMergeDrule();
+
+  AggregateJoinTransposeRule AGGREGATE_JOIN_TRANSPOSE_RULE = new SimpleAggJoinTransposeRule();
+
+  DremioAggregateProjectPullUpConstantsRule AGGREGATE_PROJECT_PULL_UP_CONSTANTS =
+      DremioAggregateProjectPullUpConstantsRule.Config.DEFAULT.toRule();
+
   AggregateReduceFunctionsRule CALCITE_AGG_REDUCE_FUNCTIONS_NO_REDUCE_SUM =
       AggregateReduceFunctionsRule.Config.DEFAULT
           .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
@@ -90,17 +102,16 @@ public interface DremioCoreRules {
           .toRule();
 
   RelOptRule CONVERT_FILTER_SUB_QUERY_TO_CORRELATE =
-      SubQueryRemoveRule.Config.FILTER
-          .withRelBuilderFactory(DremioRelFactories.CALCITE_LOGICAL_BUILDER)
-          .toRule();
+      new DremioArraySubQueryRemoveRule(SubQueryRemoveRule.Config.FILTER);
 
   RelOptRule CONVERT_PROJECT_SUB_QUERY_TO_CORRELATE =
-      SubQueryRemoveRule.Config.PROJECT
-          .withRelBuilderFactory(DremioRelFactories.CALCITE_LOGICAL_BUILDER)
-          .toRule();
+      new DremioArraySubQueryRemoveRule(SubQueryRemoveRule.Config.PROJECT);
 
-  GroupSetToCrossJoinCaseStatement.Rule GROUP_SET_TO_CROSS_JOIN_CASE_STATEMENT_RULE =
-      GroupSetToCrossJoinCaseStatement.Rule.Config.DEFUALT.toRule();
+  GroupSetToCrossJoinCaseStatement.Rule GROUP_SET_TO_CROSS_JOIN_RULE_ROLLUP =
+      GroupSetToCrossJoinCaseStatement.Rule.Config.DEFAULT.withRollup(true).toRule();
+
+  GroupSetToCrossJoinCaseStatement.Rule GROUPSET_TO_CROSS_JOIN_RULE =
+      GroupSetToCrossJoinCaseStatement.Rule.Config.DEFAULT.toRule();
 
   /**
    * Planner rule that pushes a {@link org.apache.calcite.rel.core.Filter} past a {@link

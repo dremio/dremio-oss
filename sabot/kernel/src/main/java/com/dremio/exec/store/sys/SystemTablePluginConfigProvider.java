@@ -17,10 +17,14 @@ package com.dremio.exec.store.sys;
 
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.Service;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
+@Singleton
 public class SystemTablePluginConfigProvider implements Service, Provider<ConnectionConf<?, ?>> {
 
+  @Inject
   public SystemTablePluginConfigProvider() {}
 
   @Override

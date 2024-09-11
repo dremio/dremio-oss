@@ -21,8 +21,8 @@ import com.google.common.base.Preconditions;
 import java.util.Collections;
 import javax.enterprise.inject.Produces;
 import javax.inject.Singleton;
+import org.projectnessie.client.NessieClientBuilder;
 import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.client.http.HttpClientBuilder;
 
 /**
  * this client connects to the externally running nessie server whose REST services we are proxying
@@ -33,7 +33,7 @@ public class RestClientProducer {
   @Produces
   @Singleton
   public NessieApiV2 createClient() {
-    return HttpClientBuilder.builder()
+    return NessieClientBuilder.createClientBuilder("HTTP", null)
         .fromConfig(Collections.singletonMap(CONF_FORCE_URL_CONNECTION_CLIENT, "true")::get)
         .withUri(createNessieURIString())
         .build(NessieApiV2.class);

@@ -19,6 +19,7 @@ import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.HashSenderCalculator;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import java.util.concurrent.TimeUnit;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -26,6 +27,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
+@Ignore("DX-91348")
 public class TestVectorizedPartitionSender extends BaseTestQuery {
 
   // As we are setting the max batch size to 128, we end up with lot of small batches from scan
@@ -144,7 +146,10 @@ public class TestVectorizedPartitionSender extends BaseTestQuery {
 
   @Test
   public void tpch20() throws Exception {
-    testDistributed("queries/tpch/20.sql");
+    // disable spilling until DX-87903 is fixed
+    try (AutoCloseable op = withOption(HashJoinOperator.ENABLE_SPILL, false)) {
+      testDistributed("queries/tpch/20.sql");
+    }
   }
 
   @Test

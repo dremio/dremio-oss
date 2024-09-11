@@ -16,6 +16,7 @@
 
 package com.dremio.exec.planner.sql.handlers;
 
+import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
@@ -40,6 +41,7 @@ public class SqlHandlerConfig {
   private final MaterializationList materializations;
   private final RelNormalizerTransformer relNormalizerTransformer;
   private final PlannerEventBus plannerEventBus;
+  private ResultMode resultMode;
 
   public SqlHandlerConfig(
       QueryContext context,
@@ -51,7 +53,8 @@ public class SqlHandlerConfig {
         converter,
         toAttemptObservers(observer),
         materializations,
-        new PlannerEventBusImpl());
+        new PlannerEventBusImpl(),
+        ResultMode.EXEC);
   }
 
   private SqlHandlerConfig(
@@ -59,13 +62,15 @@ public class SqlHandlerConfig {
       SqlConverter converter,
       AttemptObservers observer,
       MaterializationList materializations,
-      PlannerEventBus plannerEventBus) {
+      PlannerEventBus plannerEventBus,
+      ResultMode resultMode) {
     super();
     this.context = context;
     this.converter = converter;
     this.observer = observer;
     this.materializations = materializations;
     this.plannerEventBus = plannerEventBus;
+    this.resultMode = resultMode;
 
     PlannerNormalizerComponent plannerNormalizerComponent =
         context.createPlannerNormalizerComponent(
@@ -107,7 +112,12 @@ public class SqlHandlerConfig {
   public SqlHandlerConfig cloneWithNewObserver(AttemptObserver replacementObserver) {
     AttemptObservers observer = toAttemptObservers(replacementObserver);
     return new SqlHandlerConfig(
-        this.context, this.converter, observer, this.materializations, this.plannerEventBus);
+        this.context,
+        this.converter,
+        observer,
+        this.materializations,
+        this.plannerEventBus,
+        this.resultMode);
   }
 
   public SqlConverter getConverter() {
@@ -120,6 +130,14 @@ public class SqlHandlerConfig {
 
   public RelNormalizerTransformer getRelNormalizerTransformer() {
     return relNormalizerTransformer;
+  }
+
+  public void setResultMode(ResultMode resultMode) {
+    this.resultMode = resultMode;
+  }
+
+  public ResultMode getResultMode() {
+    return resultMode;
   }
 
   public PlannerEventBus getPlannerEventBus() {

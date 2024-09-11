@@ -23,8 +23,11 @@ import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.proto.model.search.SearchConfiguration;
 import com.dremio.dac.service.collaboration.CollaborationTagStore;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.api.FindByCondition;
+import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.indexed.AuxiliaryIndex;
 import com.dremio.datastore.indexed.IndexKey;
@@ -126,7 +129,7 @@ public class SearchIndexManager implements Runnable {
 
     // fetch all modified namespace entities since the last wakeup and the entities that have
     // modified collaboration tags
-    final Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> namespaceEntries =
+    final Iterable<Document<NamespaceKey, NameSpaceContainer>> namespaceEntries =
         getModifiedNamespaceContainers(previousWakeupTime, collaborationTagMap);
 
     final AtomicInteger indexCount = new AtomicInteger();
@@ -188,7 +191,7 @@ public class SearchIndexManager implements Runnable {
     logger.debug("  Indexed {} entities modified since {}", indexCount, previousWakeupTime);
   }
 
-  private Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> getModifiedNamespaceContainers(
+  private Iterable<Document<NamespaceKey, NameSpaceContainer>> getModifiedNamespaceContainers(
       long previousWakeupTime, Map<String, CollaborationTag> collaborationTagMap) {
     // if this is our first time, index everything as entities created in the previous versions will
     // have a null last
@@ -213,7 +216,8 @@ public class SearchIndexManager implements Runnable {
             .map(input -> newTermQuery(DatasetIndexKeys.DATASET_UUID.getIndexFieldName(), input))
             .collect(Collectors.toList()));
 
-    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(or(queries));
+    final FindByCondition condition =
+        new ImmutableFindByCondition.Builder().setCondition(or(queries)).build();
     return namespaceService.get().find(condition);
   }
 
@@ -262,8 +266,8 @@ public class SearchIndexManager implements Runnable {
     }
 
     @Override
-    public void convert(DocumentWriter writer, String id, SearchContainer record) {
-      final NameSpaceContainer namespaceContainer = record.getNamespaceContainer();
+    public void convert(DocumentWriter writer, String id, SearchContainer document) {
+      final NameSpaceContainer namespaceContainer = document.getNamespaceContainer();
 
       final List<String> fullPathList = namespaceContainer.getFullPathList();
       writer.write(
@@ -278,7 +282,7 @@ public class SearchIndexManager implements Runnable {
       }
 
       // check if the namespace entity has any tags and index them
-      final CollaborationTag collaborationTag = record.getCollaborationTag();
+      final CollaborationTag collaborationTag = document.getCollaborationTag();
       if (collaborationTag != null && collaborationTag.getTagsList() != null) {
         // store lowercase and all permutations
         writer.write(

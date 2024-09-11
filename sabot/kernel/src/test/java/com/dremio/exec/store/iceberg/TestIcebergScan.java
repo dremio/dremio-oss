@@ -16,8 +16,6 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.ExecConstants.ENABLE_EXTEND_ON_SELECT;
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -136,23 +134,6 @@ public class TestIcebergScan extends BaseTestQuery {
           .run();
     } finally {
       setSystemOption(ENABLE_EXTEND_ON_SELECT, "false");
-    }
-  }
-
-  @Test
-  public void testExceptionOnDeleteFile() throws Exception {
-    try {
-      setSystemOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN, "false");
-      testRootPath = "/tmp/iceberg";
-      copyFromJar("iceberg/table_with_delete", testRootPath);
-      assertThatThrownBy(
-              () -> {
-                runSQL("alter table dfs_hadoop.tmp.iceberg refresh metadata");
-              })
-          .isInstanceOf(Exception.class)
-          .hasMessageContaining("Iceberg V2 tables with delete files are not supported");
-    } finally {
-      resetSystemOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN.getOptionName());
     }
   }
 

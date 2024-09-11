@@ -27,6 +27,9 @@ abstract class TextOutput {
     this.maxCellLimit = maxCellLimit;
   }
 
+  /** Initialise the object */
+  public void init() {}
+
   /**
    * Start processing a new field within a record.
    *

@@ -20,6 +20,7 @@ import schemaUtils from "utils/apiUtils/schemaUtils";
 import Immutable from "immutable";
 import { APIV2Call } from "@app/core/APICall";
 import { ApiError } from "redux-api-middleware";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 const COMMON = { headers: { "Content-Type": "application/json" } };
 
@@ -58,6 +59,21 @@ export default (schemaOrName, { useLegacyPluralization = false } = {}) => {
         }
       }
 
+      const failurePayload = isNotSoftware()
+        ? {
+            payload: (action, state, res) => {
+              return res
+                .json()
+                .then((res) => {
+                  return res;
+                })
+                .catch((e) => {
+                  return new ApiError(res.status, e, undefined);
+                });
+            },
+          }
+        : {};
+
       const req = {
         [call.mock ? CALL_MOCK_API : RSAA]: {
           ...COMMON,
@@ -66,18 +82,12 @@ export default (schemaOrName, { useLegacyPluralization = false } = {}) => {
             schemaUtils.getSuccessActionTypeWithSchema(
               `${upper}_${method}_SUCCESS`,
               schema,
-              successMeta
+              successMeta,
             ),
             {
               type: `${upper}_${method}_FAILURE`,
               meta,
-              payload: (action, state, res) => {
-                return res
-                  .json()
-                  .catch(
-                    () => new ApiError(res.status, res.statusText, undefined)
-                  );
-              },
+              ...failurePayload,
             }, // todo: failure not called? start called instead?!
           ],
           method,
@@ -108,7 +118,7 @@ export default (schemaOrName, { useLegacyPluralization = false } = {}) => {
     const successMeta = { ...meta, entityClears: [entityName] }; // trigger a clear, since records may now be gone;
 
     const apiCall = new APIV2Call().paths(
-      `${path}${useLegacyPluralization ? "s" : ""}`
+      `${path}${useLegacyPluralization ? "s" : ""}`,
     );
 
     const req = {
@@ -119,7 +129,7 @@ export default (schemaOrName, { useLegacyPluralization = false } = {}) => {
           schemaUtils.getSuccessActionTypeWithSchema(
             `${upper}_${method}_SUCCESS`,
             listSchema, // todo: simplify and normalize responses
-            successMeta
+            successMeta,
           ),
           { type: `${upper}_${method}_FAILURE`, meta },
         ],

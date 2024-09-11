@@ -22,6 +22,7 @@ import static com.dremio.exec.store.SystemSchemas.SNAPSHOT_ID;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.CarryForwardAwareTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.VectorAccessible;
@@ -33,6 +34,7 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.ScanOperator.ScanMutator;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
+import com.google.common.base.Preconditions;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
@@ -43,8 +45,6 @@ import org.apache.iceberg.expressions.Expressions;
 
 /** Table function for Iceberg manifest list file scan */
 public class ManifestListScanTableFunction extends AbstractTableFunction {
-  private static final org.slf4j.Logger LOGGER =
-      org.slf4j.LoggerFactory.getLogger(ManifestListScanTableFunction.class);
   private final FragmentExecutionContext fragmentExecutionContext;
   private final OperatorStats operatorStats;
   private final OpProps props;
@@ -105,6 +105,13 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
     inputIndex = row;
     TableFunctionContext functionContext = functionConfig.getFunctionContext();
 
+    Preconditions.checkState(
+        functionContext instanceof CarryForwardAwareTableFunctionContext,
+        "CarryForwardAwareTableFunctionContext is expected");
+    CarryForwardAwareTableFunctionContext manifestListScanContext =
+        (CarryForwardAwareTableFunctionContext) functionContext;
+    final String schemeVariate = manifestListScanContext.getSchemeVariate();
+
     if (!inputManifestListLocation.isNull(inputIndex)) {
       byte[] manifestListPathBytes = inputManifestListLocation.get(inputIndex);
       String manifestListLocation = new String(manifestListPathBytes, StandardCharsets.UTF_8);
@@ -119,7 +126,9 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
                 functionContext.getFullSchema(),
                 props,
                 functionContext.getPartitionColumns(),
-                Optional.empty());
+                Optional.empty(),
+                schemeVariate,
+                true);
       }
     } else {
       // Initialize the reader for the current processing snapshot id
@@ -143,7 +152,9 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
               functionContext.getPartitionColumns(),
               icebergExtendedProp,
               ManifestContentType.ALL,
-              false);
+              false,
+              schemeVariate,
+              true);
     }
     manifestListRecordReader.setup(mutator);
     operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_SNAPSHOT_IDS, 1L);

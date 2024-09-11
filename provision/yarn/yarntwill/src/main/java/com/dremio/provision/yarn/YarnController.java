@@ -30,17 +30,19 @@ import com.dremio.config.DremioConfig;
 import com.dremio.provision.ClusterId;
 import com.dremio.provision.Property;
 import com.dremio.provision.PropertyType;
-import com.dremio.provision.yarn.service.YarnDefaultsConfigurator.MapRYarnDefaults;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -60,6 +62,12 @@ public class YarnController {
 
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(YarnController.class);
+
+  // List of add-opens directives required for reflective access
+  private static List<String> ADD_OPENS_DIRECTIVES =
+      ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
+          .filter(arg -> arg.startsWith("--add-opens ") || arg.startsWith("--add-opens="))
+          .collect(Collectors.toUnmodifiableList());
 
   @VisibleForTesting
   final ConcurrentMap<ClusterId, TwillRunnerService> twillRunners = Maps.newConcurrentMap();
@@ -188,8 +196,8 @@ public class YarnController {
       zkStr = String.format("%s:%d", dremioConfig.getThisNode(), defaultZkPort);
     }
 
-    final Map<String, String> basicJVMOptions = Maps.newHashMap();
-    final Map<String, String> systemOptions = Maps.newHashMap();
+    final Map<String, String> basicJVMOptions = new HashMap<>();
+    final Map<String, String> systemOptions = new HashMap<>();
 
     basicJVMOptions.put(DremioConfig.ZOOKEEPER_QUORUM, zkStr);
     // note that DremioConfig.LOCAL_WRITE_PATH_STRING is unset; YarnDaemon creates the local write
@@ -203,10 +211,6 @@ public class YarnController {
     basicJVMOptions.put(DremioConfig.ENABLE_COORDINATOR_BOOL, "false");
     basicJVMOptions.put(DremioConfig.ENABLE_EXECUTOR_BOOL, "true");
     basicJVMOptions.put(DremioConfig.YARN_ENABLED_BOOL, "true");
-    basicJVMOptions.put(MapRYarnDefaults.MAPR_IMPALA_RA_THROTTLE_BOOL, "true");
-    basicJVMOptions.put(
-        MapRYarnDefaults.MAPR_MAX_RA_STREAMS,
-        yarnConfiguration.get(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, "400"));
     basicJVMOptions.put(VM.DREMIO_CPU_AVAILABLE_PROPERTY, yarnConfiguration.get(YARN_CPU));
     basicJVMOptions.put(DremioConfig.NETTY_REFLECTIONS_ACCESSIBLE, "true");
 
@@ -219,11 +223,11 @@ public class YarnController {
     }
 
     systemOptions.put("-XX:MaxDirectMemorySize", directMemory + "m");
-    if ("1.8".equals(System.getProperty("java.specification.version"))) {
-      systemOptions.put("-XX:+PrintClassHistogramBeforeFullGC", "");
-      systemOptions.put("-XX:+PrintClassHistogramAfterFullGC", "");
-    }
 
+    // Add required directives to allow reflective access
+    ADD_OPENS_DIRECTIVES.forEach(directive -> systemOptions.put(directive, ""));
+
+    // Add user properties
     for (Property prop : propertyList) {
       // don't add if it is env var
       if (PropertyType.ENV_VAR.equals(prop.getType())) {

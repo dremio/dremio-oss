@@ -19,7 +19,6 @@ import com.dremio.common.util.Closeable;
 
 /** A basic event bus interface for planning to limit coupling between planning components. */
 public interface PlannerEventBus {
-
   /**
    * Register a handler for a specific type of event.
    *
@@ -27,6 +26,14 @@ public interface PlannerEventBus {
    * @return a closeable that can be used to unregister the handler
    */
   Closeable register(PlannerEventHandler<? extends PlannerEvent> plannerEventHandler);
+
+  /**
+   * Register handlers for specific event.
+   *
+   * @param plannerEventHandler the handler to register
+   * @return a closeable that can be used to unregister the handler.
+   */
+  Closeable register(PlannerEventHandler<? extends PlannerEvent>... handlers);
 
   /**
    * Dispatch an event to all handlers that support it.

@@ -20,8 +20,8 @@ import com.dremio.datastore.indexed.IndexKey;
 /**
  * Converter that converts a value into a indexable document.
  *
- * @param <K> The Key type to convert.
- * @param <V> The value type to convert.
+ * @param <K> The key type.
+ * @param <V> The document type.
  */
 public interface DocumentConverter<K, V> {
   IndexKey VERSION_INDEX_KEY = IndexKey.newBuilder("version", "version", Integer.class).build();
@@ -32,11 +32,11 @@ public interface DocumentConverter<K, V> {
    *
    * @param writer the document writer.
    * @param key the key of the document.
-   * @param record the value of the document.
+   * @param document the value of the document.
    */
-  default void doConvert(DocumentWriter writer, K key, V record) {
+  default void doConvert(DocumentWriter writer, K key, V document) {
     writer.write(VERSION_INDEX_KEY, getVersion());
-    convert(writer, key, record);
+    convert(writer, key, document);
   }
 
   /**
@@ -45,9 +45,9 @@ public interface DocumentConverter<K, V> {
    *
    * @param writer the document writer.
    * @param key the key of the document.
-   * @param record the value of the document.
+   * @param document the value of the document.
    */
-  void convert(DocumentWriter writer, K key, V record);
+  void convert(DocumentWriter writer, K key, V document);
 
   /**
    * Version of the Indices.

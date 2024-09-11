@@ -37,10 +37,12 @@ import java.util.stream.Collectors;
 /** Iceberg snapshots subscan POP */
 @JsonTypeName("iceberg-snapshots-sub-scan")
 public class IcebergSnapshotsSubScan extends SubScanWithProjection {
+  private static final Collection<List<String>> NO_REFERENCED_TABLES = Collections.EMPTY_LIST;
+
   private final StoragePluginId pluginId;
   private final SnapshotsScanOptions snapshotsScanOptions;
   @JsonIgnore private List<SplitAndPartitionInfo> splits;
-  private static final Collection<List<String>> NO_REFERENCED_TABLES = Collections.EMPTY_LIST;
+  private final String schemeVariate;
 
   public IcebergSnapshotsSubScan(
       @JsonProperty("props") OpProps props,
@@ -48,10 +50,12 @@ public class IcebergSnapshotsSubScan extends SubScanWithProjection {
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("snapshotsScanOptions") SnapshotsScanOptions snapshotsScanOptions,
-      @JsonProperty("splitWorks") List<SplitWork> splitWorks) {
+      @JsonProperty("splitWorks") List<SplitWork> splitWorks,
+      @JsonProperty("schemeVariate") String schemeVariate) {
     super(props, fullSchema, NO_REFERENCED_TABLES, columns);
     this.pluginId = pluginId;
     this.snapshotsScanOptions = snapshotsScanOptions;
+    this.schemeVariate = schemeVariate;
     if (splitWorks != null) {
       this.splits =
           splitWorks.stream().map(SplitWork::getSplitAndPartitionInfo).collect(Collectors.toList());
@@ -68,6 +72,10 @@ public class IcebergSnapshotsSubScan extends SubScanWithProjection {
 
   public SnapshotsScanOptions getSnapshotsScanOptions() {
     return snapshotsScanOptions;
+  }
+
+  public String getSchemeVariate() {
+    return schemeVariate;
   }
 
   @Override

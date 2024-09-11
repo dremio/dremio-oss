@@ -18,7 +18,9 @@ package com.dremio.sabot.exec;
 import static com.dremio.exec.ExecConstants.COORDINATOR_ENABLE_HEAP_MONITORING;
 import static com.dremio.exec.ExecConstants.COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
 import static com.dremio.exec.ExecConstants.COORDINATOR_HEAP_MONITOR_DELAY_MILLIS;
+import static com.dremio.exec.ExecConstants.EXECUTOR_DUMP_USAGE_DATA;
 import static com.dremio.exec.ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING;
+import static com.dremio.exec.ExecConstants.EXECUTOR_ENABLE_HEAP_USAGE_COLLECTION;
 import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITORING_AGGRESSIVE_WIDTH_LOWER_BOUND;
 import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
 import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITORING_LOW_MEM_THRESH_PERCENTAGE;
@@ -28,6 +30,7 @@ import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators.AdminBooleanValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
+import com.dremio.sabot.exec.context.HeapAllocatedMXBeanWrapper;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.google.common.annotations.VisibleForTesting;
@@ -42,18 +45,22 @@ public class HeapMonitorManager implements Service {
       org.slf4j.LoggerFactory.getLogger(HeapMonitorManager.class);
   private final Provider<OptionManager> optionManagerProvider;
   private final HeapClawBackStrategy heapClawBackStrategy;
+  private final DumpUsageObserver dumpUsageObserver;
   private final List<HeapLowMemListener> lowMemListeners;
   private HeapMonitorThread heapMonitorThread;
+  private final AdminBooleanValidator enableHeapUsageCollectionOption;
   private final AdminBooleanValidator enableHeapMonitoringOption;
   private final RangeLongValidator clawBackThresholdOption;
   private final RangeLongValidator lowMemThresholdOption;
   private final RangeLongValidator aggressiveWidthOption;
   private final RangeLongValidator heapMonitorDelayOption;
+  private final RangeLongValidator dumpUsageDataOption;
   private final Role role;
 
   public HeapMonitorManager(
       Provider<OptionManager> optionManagerProvider,
       HeapClawBackStrategy heapClawBackStrategy,
+      DumpUsageObserver usageObserver,
       Role role) {
     Preconditions.checkNotNull(optionManagerProvider);
     Preconditions.checkNotNull(heapClawBackStrategy);
@@ -61,6 +68,7 @@ public class HeapMonitorManager implements Service {
     this.heapClawBackStrategy = heapClawBackStrategy;
     this.role = role;
     this.lowMemListeners = new ArrayList<>();
+    this.dumpUsageObserver = usageObserver;
 
     switch (role) {
       case COORDINATOR:
@@ -70,6 +78,8 @@ public class HeapMonitorManager implements Service {
         this.lowMemThresholdOption = null;
         this.aggressiveWidthOption = null;
         this.heapMonitorDelayOption = COORDINATOR_HEAP_MONITOR_DELAY_MILLIS;
+        this.enableHeapUsageCollectionOption = null;
+        this.dumpUsageDataOption = null;
         break;
       case EXECUTOR:
         this.enableHeapMonitoringOption = EXECUTOR_ENABLE_HEAP_MONITORING;
@@ -77,6 +87,13 @@ public class HeapMonitorManager implements Service {
         this.lowMemThresholdOption = EXECUTOR_HEAP_MONITORING_LOW_MEM_THRESH_PERCENTAGE;
         this.aggressiveWidthOption = EXECUTOR_HEAP_MONITORING_AGGRESSIVE_WIDTH_LOWER_BOUND;
         this.heapMonitorDelayOption = EXECUTOR_HEAP_MONITOR_DELAY_MILLIS;
+        this.enableHeapUsageCollectionOption = EXECUTOR_ENABLE_HEAP_USAGE_COLLECTION;
+        if (dumpUsageObserver == null) {
+          logger.warn("Disabling dump usage data option as there is no usage observer installed");
+          this.dumpUsageDataOption = null;
+        } else {
+          this.dumpUsageDataOption = EXECUTOR_DUMP_USAGE_DATA;
+        }
         break;
       default:
         throw new UnsupportedOperationException(
@@ -108,7 +125,9 @@ public class HeapMonitorManager implements Service {
         optionManager.getOption(clawBackThresholdOption),
         lowMemThresholdOption != null ? optionManager.getOption(lowMemThresholdOption) : 0,
         aggressiveWidthOption != null ? optionManager.getOption(aggressiveWidthOption) : 0,
-        optionManager.getOption(heapMonitorDelayOption));
+        optionManager.getOption(heapMonitorDelayOption),
+        enableHeapUsageCollectionOption != null
+            && optionManager.getOption(enableHeapUsageCollectionOption));
     optionManager.addOptionChangeListener(new HeapOptionChangeListener(optionManager));
   }
 
@@ -118,9 +137,11 @@ public class HeapMonitorManager implements Service {
       long thresholdPercentage,
       long lowMemThreshold,
       long aggressiveWidthLowerBound,
-      long heapMonitorDelayMillis) {
+      long heapMonitorDelayMillis,
+      boolean enableHeapUsageCollection) {
     if (enableHeapMonitoring) {
       logger.info("Starting heap monitor thread in " + role.name().toLowerCase());
+      HeapAllocatedMXBeanWrapper.setFeatureSupported(enableHeapUsageCollection);
       lowMemListeners.forEach(
           (x) -> x.changeLowMemOptions(lowMemThreshold, aggressiveWidthLowerBound));
       heapMonitorThread =
@@ -141,11 +162,13 @@ public class HeapMonitorManager implements Service {
   }
 
   private class HeapOptionChangeListener implements OptionChangeListener {
+    private boolean enableHeapUsageCollection;
     private boolean enableHeapMonitoring;
     private long thresholdPercentage;
     private long lowMemThreshold;
     private long aggressiveWidthLowerBound;
     private long heapMonitorDelayMillis;
+    private long dumpUsageData;
     private final OptionManager optionManager;
 
     public HeapOptionChangeListener(OptionManager optionManager) {
@@ -157,6 +180,11 @@ public class HeapMonitorManager implements Service {
           (lowMemThresholdOption != null) ? optionManager.getOption(lowMemThresholdOption) : 0;
       this.aggressiveWidthLowerBound =
           (aggressiveWidthOption != null) ? optionManager.getOption(aggressiveWidthOption) : 0;
+      this.enableHeapUsageCollection =
+          enableHeapUsageCollectionOption != null
+              && optionManager.getOption(enableHeapUsageCollectionOption);
+      this.dumpUsageData =
+          (dumpUsageDataOption != null) ? optionManager.getOption(dumpUsageDataOption) : 0;
     }
 
     @Override
@@ -168,6 +196,21 @@ public class HeapMonitorManager implements Service {
           (lowMemThresholdOption != null) ? optionManager.getOption(lowMemThresholdOption) : 0;
       long newAggressiveWidthLowerBound =
           (aggressiveWidthOption != null) ? optionManager.getOption(aggressiveWidthOption) : 0;
+      boolean newEnableHeapUsageCollection =
+          enableHeapUsageCollectionOption != null
+              && optionManager.getOption(enableHeapUsageCollectionOption);
+      long newDumpUsageData =
+          (dumpUsageDataOption != null) ? optionManager.getOption(dumpUsageDataOption) : 0;
+      if (newEnableHeapUsageCollection != enableHeapUsageCollection) {
+        logger.info(
+            "Heap Usage Collection is {}", newEnableHeapUsageCollection ? "enabled" : "disabled");
+        HeapAllocatedMXBeanWrapper.setFeatureSupported(newEnableHeapMonitoring);
+        enableHeapUsageCollection = newEnableHeapUsageCollection;
+      }
+      if (newDumpUsageData != dumpUsageData && dumpUsageObserver != null) {
+        dumpUsageObserver.dumpUsageData();
+        dumpUsageData = newDumpUsageData;
+      }
       if (newEnableHeapMonitoring != enableHeapMonitoring
           || newThresholdPercentage != thresholdPercentage
           || newLowMemThreshold != lowMemThreshold
@@ -185,7 +228,8 @@ public class HeapMonitorManager implements Service {
             thresholdPercentage,
             lowMemThreshold,
             aggressiveWidthLowerBound,
-            heapMonitorDelayMillis);
+            heapMonitorDelayMillis,
+            enableHeapUsageCollection);
       }
     }
   }

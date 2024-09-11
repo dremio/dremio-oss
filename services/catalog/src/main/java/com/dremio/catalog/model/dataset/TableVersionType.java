@@ -37,6 +37,16 @@ public enum TableVersionType {
     return sqlRepresentation;
   }
 
+  public boolean isTimeTravel() {
+    switch (this) {
+      case SNAPSHOT_ID:
+      case TIMESTAMP:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   public static TableVersionType getType(String type) {
     return Stream.of(values())
         .filter(tableVersionType -> tableVersionType.sqlRepresentation.equals(type))

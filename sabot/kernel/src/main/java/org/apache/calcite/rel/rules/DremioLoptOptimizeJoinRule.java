@@ -561,8 +561,9 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
         ImmutableBitSet jk = joinKeys.build();
         return RelMdRowCount.isKey(rel, jk, mq) ? 1.0 : 0;
       } else {
+        RexBuilder rexBuilder = multiJoin.getMultiJoinRel().getCluster().getRexBuilder();
         return mq.getDistinctRowCount(
-            semiJoinOpt.getChosenSemiJoin(factor), joinKeys.build(), null);
+            semiJoinOpt.getChosenSemiJoin(factor), joinKeys.build(), rexBuilder.makeLiteral(true));
       }
     }
   }

@@ -26,4 +26,6 @@ public interface SupportsGlobalKeys {
   void setGlobalKeys(List<Property> globalKeys);
 
   List<Property> getGlobalKeys();
+
+  boolean isUsingGlobalKeys();
 }

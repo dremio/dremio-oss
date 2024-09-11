@@ -97,7 +97,6 @@ public class TestViewCreator extends BaseTestServer {
 
   @Test
   public void createQueryDDLSql() {
-    enableVersionedViews();
     expectSuccess(
         getBuilder(getPublicAPI(3).path("/catalog/"))
             .buildPost(

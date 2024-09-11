@@ -22,7 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dremio.connector.metadata.EntityPath;
-import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.FindByRange;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -165,8 +165,7 @@ public class TestFileSystemPlugin {
         new PartitionChunkMetadataImpl(
             getParquetSplitsPartition(TEST_PARQUET_FILE_PATH), null, () -> {}, () -> null);
     Iterable<PartitionChunkMetadata> partitionsIterable = ImmutableList.of(partitionChunkMetadata);
-    when(namespaceService.findSplits(any(LegacyKVStore.LegacyFindByRange.class)))
-        .thenReturn(partitionsIterable);
+    when(namespaceService.findSplits(any(FindByRange.class))).thenReturn(partitionsIterable);
     boolean hasAccess = fileSystemPlugin.hasAccessPermission(TEST_USER, TEST_KEY, datasetConfig);
     Assert.assertTrue(hasAccess);
   }
@@ -203,8 +202,7 @@ public class TestFileSystemPlugin {
         new PartitionChunkMetadataImpl(
             getEasySplitsPartition(TEST_PARQUET_FILE_PATH), null, () -> {}, () -> null);
     Iterable<PartitionChunkMetadata> partitionsIterable = ImmutableList.of(partitionChunkMetadata);
-    when(namespaceService.findSplits(any(LegacyKVStore.LegacyFindByRange.class)))
-        .thenReturn(partitionsIterable);
+    when(namespaceService.findSplits(any(FindByRange.class))).thenReturn(partitionsIterable);
     boolean hasAccess = fileSystemPlugin.hasAccessPermission(TEST_USER, TEST_KEY, datasetConfig);
     Assert.assertTrue(hasAccess);
   }
@@ -234,8 +232,7 @@ public class TestFileSystemPlugin {
         new PartitionChunkMetadataImpl(
             getEasySplitsPartition(TEST_CSV_FILE_PATH), null, () -> {}, () -> null);
     Iterable<PartitionChunkMetadata> partitionsIterable = ImmutableList.of(partitionChunkMetadata);
-    when(namespaceService.findSplits(any(LegacyKVStore.LegacyFindByRange.class)))
-        .thenReturn(partitionsIterable);
+    when(namespaceService.findSplits(any(FindByRange.class))).thenReturn(partitionsIterable);
     boolean hasAccess = fileSystemPlugin.hasAccessPermission(TEST_USER, TEST_KEY, datasetConfig);
     Assert.assertTrue(hasAccess);
   }

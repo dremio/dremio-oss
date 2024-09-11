@@ -31,6 +31,7 @@ import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.HadoopFileSystem.FetchOnDemandDirectoryStream;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
@@ -56,6 +57,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.RemoteIterator;
@@ -182,8 +184,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     mutator.getContainer().buildSchema();
   }
 
-  protected static void setupFsListIteratorMock(HadoopFileSystem fs, Path inputPath)
-      throws IOException {
+  protected static void setupFsListIteratorMock(FileSystem fs, Path inputPath) throws IOException {
 
     /*FS Structure
 
@@ -814,7 +815,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     setupFsListIteratorMock(fs, inputPath);
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
-    reader = new DirListingRecordReader(getCtx(), fs, split, true, null, null, true, false);
+    reader = new DirListingRecordReader(getCtx(), fs, split, true, null, null, true, false, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -901,7 +902,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
     reader =
         new DirListingRecordReader(
-            getCtx(), fs, split, true, tableSchema, partitionValues, false, false);
+            getCtx(), fs, split, true, tableSchema, partitionValues, false, false, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -960,7 +961,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     setupMutator();
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, false);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, false, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1030,7 +1031,8 @@ public class TestDirListingRecordReader extends BaseTestQuery {
 
       DirListInputSplitProto.DirListInputSplit split =
           getDirListInputSplit(operatingPath.toString(), rootPath.toString());
-      reader = new DirListingRecordReader(getCtx(), fs, split, false, null, null, true, false);
+      reader =
+          new DirListingRecordReader(getCtx(), fs, split, false, null, null, true, false, null);
       reader.allocate(mutator.getFieldVectorMap());
       reader.setup(mutator);
 
@@ -1084,7 +1086,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     setupMutator();
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, false);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, false, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1123,7 +1125,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
 
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1179,7 +1181,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
 
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1270,7 +1272,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
 
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1297,7 +1299,8 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     setupFsListIteratorMock(fs, inputPath);
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
-    reader = new DirListingRecordReader(getCtx(false), fs, split, true, null, null, true, false);
+    reader =
+        new DirListingRecordReader(getCtx(false), fs, split, true, null, null, true, false, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1371,7 +1374,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
 
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1439,7 +1442,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
 
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1508,7 +1511,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
 
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1588,7 +1591,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
 
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1647,7 +1650,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     DirListInputSplitProto.DirListInputSplit split =
         getDirListInputSplit(inputPath.toString(), inputPath.toString());
 
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true, null);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -1664,5 +1667,75 @@ public class TestDirListingRecordReader extends BaseTestQuery {
 
     // Reset the vectors for the second batch
     mutator.close();
+  }
+
+  @Test
+  public void testFullPathSchemeVariateHdfs() throws Exception {
+    Path inputPath = Path.of("hdfs://testcontainer1/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+
+    setupMutator();
+    setupFsListIteratorMock(fs, inputPath);
+    DirListInputSplitProto.DirListInputSplit split =
+        DirListInputSplitProto.DirListInputSplit.newBuilder()
+            .setOperatingPath(inputPath.toString())
+            .setReadSignature(Long.MAX_VALUE)
+            .setRootPath(inputPath.toString())
+            .setSchemeVariate("hdfs")
+            .build();
+    Configuration fsConf = new Configuration();
+    reader = new DirListingRecordReader(getCtx(), fs, split, true, null, null, true, false, fsConf);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    int generatedRecords = reader.next();
+    assertEquals(generatedRecords, 5);
+
+    Map<String, ValueVector> fieldVectorMap = mutator.getFieldVectorMap();
+    VarCharVector outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
+
+    assertEquals(
+        "hdfs://testcontainer1/foo.parquet?version=1", outputpaths.getObject(0).toString());
+    assertEquals(
+        "hdfs://testcontainer1/bar/file1.parquet?version=31", outputpaths.getObject(1).toString());
+    // Not testing all paths
+  }
+
+  @Test
+  public void testFullPathSchemeVariateAzure() throws Exception {
+    Path inputPath = Path.of("/testcontainer2/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    when(fs.getScheme())
+        .thenReturn(
+            FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme());
+
+    setupMutator();
+    setupFsListIteratorMock(fs, inputPath);
+    DirListInputSplitProto.DirListInputSplit split =
+        DirListInputSplitProto.DirListInputSplit.newBuilder()
+            .setOperatingPath(inputPath.toString())
+            .setReadSignature(Long.MAX_VALUE)
+            .setRootPath(inputPath.toString())
+            .setSchemeVariate("wasbs")
+            .build();
+    Configuration fsConf = new Configuration();
+    fsConf.set("dremio.azure.account", "account1");
+    reader = new DirListingRecordReader(getCtx(), fs, split, true, null, null, true, false, fsConf);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    int generatedRecords = reader.next();
+    assertEquals(5, generatedRecords);
+
+    Map<String, ValueVector> fieldVectorMap = mutator.getFieldVectorMap();
+    VarCharVector outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
+
+    assertEquals(
+        "wasbs://testcontainer2@account1.blob.core.windows.net/foo.parquet?version=1",
+        outputpaths.getObject(0).toString());
+    assertEquals(
+        "wasbs://testcontainer2@account1.blob.core.windows.net/bar/file1.parquet?version=31",
+        outputpaths.getObject(1).toString());
+    // Not testing all paths
   }
 }

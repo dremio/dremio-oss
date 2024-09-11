@@ -17,14 +17,11 @@ package com.dremio.service.reflection.analysis;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.VersionedDatasetPath;
@@ -36,12 +33,10 @@ import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.users.SystemUser;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.dremio.service.reflection.analysis.ReflectionSuggester.ReflectionSuggestionType;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
@@ -49,6 +44,7 @@ import com.google.common.collect.Multimap;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.rel.type.RelDataType;
@@ -106,33 +102,22 @@ public class ReflectionAnalyzer {
   }
 
   public TableStats analyze(final String datasetId) {
-    final DremioTable table =
-        catalogService
-            .getCatalog(
-                MetadataRequestOptions.of(
-                    SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()))
-            .getTable(datasetId);
+    final DremioTable table = catalogService.getSystemUserCatalog().getTable(datasetId);
     Preconditions.checkNotNull(table, "Unknown datasetId %s", datasetId);
     final RelDataType rowType = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
 
-    final List<RelDataTypeField> fields =
-        FluentIterable.from(rowType.getFieldList())
-            .filter(
-                new Predicate<RelDataTypeField>() {
-                  @Override
-                  public boolean apply(@Nullable final RelDataTypeField input) {
-                    final RField field = TypeUtils.fromCalciteField(input);
+    TableStats tableStats =
+        new TableStats()
+            .setColumns(
+                rowType.getFieldList().stream()
+                    .map(field -> buildColumn(null, field))
+                    .collect(Collectors.toList()))
+            .setCount(0L);
 
-                    return TypeUtils.isBoolean(field)
-                        || TypeUtils.isTemporal(field)
-                        || TypeUtils.isText(field)
-                        || TypeUtils.isNumeric(field);
-                  }
-                })
-            .toList();
+    final List<RelDataTypeField> fields = rowType.getFieldList();
 
     if (fields.isEmpty()) {
-      return new TableStats().setColumns(Collections.<ColumnStats>emptyList()).setCount(0L);
+      return tableStats.setColumns(Collections.<ColumnStats>emptyList());
     }
 
     final Iterable<StatColumn> statColumns =
@@ -149,14 +134,8 @@ public class ReflectionAnalyzer {
 
     String pathString = table.getPath().getSchemaPath();
     // Append version context to dataset path if versioned
-    if (VersionedDatasetId.isVersionedDatasetId(datasetId)) {
-      final VersionedDatasetId versionedDatasetId;
-      try {
-        versionedDatasetId = VersionedDatasetId.fromString(datasetId);
-      } catch (JsonProcessingException e) {
-        throw new IllegalStateException(
-            String.format("Unable to parse versionedDatasetId %s", datasetId), e);
-      }
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datasetId);
+    if (versionedDatasetId != null) {
       pathString += " at " + versionedDatasetId.getVersionContext().toSql();
     }
 
@@ -213,14 +192,122 @@ public class ReflectionAnalyzer {
 
       Long count = getCount(data);
 
-      return new TableStats().setColumns(columns).setCount(count);
+      return tableStats.setColumns(columns).setCount(count);
+    }
+  }
+
+  /**
+   * New version of public TableStats analyze(final String datasetId) with additional parameter
+   * ReflectionSuggestionType type, controlled by support key SUGGEST_REFLECTION_BASED_ON_TYPE
+   */
+  public TableStats analyzeForType(final String datasetId, final ReflectionSuggestionType type) {
+    final DremioTable table = catalogService.getSystemUserCatalog().getTable(datasetId);
+    Preconditions.checkNotNull(table, "Unknown datasetId %s", datasetId);
+    final RelDataType rowType = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
+
+    TableStats tableStats =
+        new TableStats()
+            .setColumns(
+                rowType.getFieldList().stream()
+                    .map(field -> buildColumn(null, field))
+                    .collect(Collectors.toList()))
+            .setCount(0L);
+
+    // early-out for raw reflection because there is no need to collect data of statColumns
+    // for each field
+    if (type == ReflectionSuggestionType.RAW) {
+      return tableStats;
+    }
+
+    final List<RelDataTypeField> fields = rowType.getFieldList();
+
+    if (fields.isEmpty()) {
+      return tableStats.setColumns(Collections.<ColumnStats>emptyList());
+    }
+
+    final Iterable<StatColumn> statColumns =
+        FluentIterable.from(fields)
+            .transformAndConcat(
+                new Function<RelDataTypeField, Iterable<? extends StatColumn>>() {
+                  @Nullable
+                  @Override
+                  public Iterable<? extends StatColumn> apply(
+                      @Nullable final RelDataTypeField field) {
+                    return getStatColumnsPerField(field);
+                  }
+                });
+
+    String pathString = table.getPath().getSchemaPath();
+    // Append version context to dataset path if versioned
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datasetId);
+    if (versionedDatasetId != null) {
+      pathString += " at " + versionedDatasetId.getVersionContext().toSql();
+    }
+
+    final String selection =
+        Joiner.on(", ")
+            .join(
+                FluentIterable.from(statColumns)
+                    .transform(
+                        new Function<StatColumn, String>() {
+                          @Override
+                          public String apply(StatColumn input) {
+                            return input.toString();
+                          }
+                        })
+                    .append(SELECT_COUNT_STAR));
+
+    final String sql = String.format("select %s from %s", selection, pathString);
+
+    final SqlQuery query =
+        SqlQuery.newBuilder()
+            .setSql(sql)
+            .addAllContext(Collections.<String>emptyList())
+            .setUsername(SYSTEM_USERNAME)
+            .build();
+
+    final CompletionListener completionListener = new CompletionListener();
+    final JobId jobId =
+        jobsService
+            .submitJob(
+                SubmitJobRequest.newBuilder()
+                    .setSqlQuery(query)
+                    .setQueryType(JobsProtoUtil.toBuf(QueryType.UI_INTERNAL_PREVIEW))
+                    .setVersionedDataset(
+                        VersionedDatasetPath.newBuilder()
+                            .addAllPath(NONE_PATH.getPathComponents())
+                            .build())
+                    .build(),
+                completionListener)
+            .getJobId();
+    completionListener.awaitUnchecked();
+    try (JobDataFragment data =
+        JobDataClientUtils.getJobData(jobsService, bufferAllocator, jobId, 0, 1)) {
+      final List<ColumnStats> columns =
+          FluentIterable.from(fields)
+              .transform(
+                  new Function<RelDataTypeField, ColumnStats>() {
+                    @Nullable
+                    @Override
+                    public ColumnStats apply(@Nullable final RelDataTypeField input) {
+                      return buildColumn(data, input);
+                    }
+                  })
+              .toList();
+
+      Long count = getCount(data);
+
+      return tableStats.setColumns(columns).setCount(count);
     }
   }
 
   protected Iterable<StatColumn> getStatColumnsPerField(final RelDataTypeField field) {
     final RelDataTypeFamily family = field.getType().getFamily();
+
     Collection<StatType> dims = DIMENSIONS.get(family);
-    if (dims.isEmpty()) {
+    final RField rfield = TypeUtils.fromCalciteField(field);
+    // for field that is eligible for agg reflection, it belongs to SqlTypeFamily.ANY
+    if (dims.isEmpty() && isEligibleForAggReflection(rfield)) {
       dims = DIMENSIONS.get(SqlTypeFamily.ANY);
     }
 
@@ -232,6 +319,14 @@ public class ReflectionAnalyzer {
                 return new StatColumn(type, field);
               }
             });
+  }
+
+  /** Decide whether a field is eligible for collecting statistics for agg reflection */
+  public static boolean isEligibleForAggReflection(final RField field) {
+    return TypeUtils.isBoolean(field)
+        || TypeUtils.isTemporal(field)
+        || TypeUtils.isText(field)
+        || TypeUtils.isNumeric(field);
   }
 
   Long getCount(final JobDataFragment data) {
@@ -489,6 +584,10 @@ public class ReflectionAnalyzer {
     }
 
     public Object toValue(final JobDataFragment data) {
+      if (data == null) {
+        return null;
+      }
+
       return data.extractValue(alias, 0);
     }
 

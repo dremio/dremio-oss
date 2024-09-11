@@ -15,13 +15,11 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { connect } from "react-redux";
 import { intl } from "@app/utils/intl";
 import { cloneDeep, debounce } from "lodash";
 import Immutable from "immutable";
 import { WithRouterProps, withRouter } from "react-router";
 import { useResourceSnapshot } from "smart-resource/react";
-import { CellMeasurerCache } from "react-virtualized";
 
 import ContainsText from "@app/pages/JobPage/components/JobsFilters/ContainsText";
 import StartTimeSelect from "@app/pages/JobPage/components/JobsFilters/StartTimeSelect/StartTimeSelect";
@@ -41,19 +39,15 @@ import {
 } from "./utils";
 import additionalJobsControls from "@inject/shared/AdditionalJobsControls";
 import { QueuesResource } from "@app/resources/QueuesResource";
+import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
+import { MultiCheckboxPopover } from "dremio-ui-lib/components";
 
 import * as classes from "./JobsFilters.module.less";
-
-const cellCache = new CellMeasurerCache({
-  fixedWidth: true,
-  defaultHeight: 32,
-});
 
 type JobsFilterProps = {
   query: JobsQueryParams | undefined;
   manageColumns: any[];
   setManageColumns: React.Dispatch<any>;
-  user: any;
 } & WithRouterProps;
 
 const JobsFilters = withRouter(
@@ -63,18 +57,15 @@ const JobsFilters = withRouter(
     location,
     manageColumns,
     setManageColumns,
-    user,
   }: JobsFilterProps) => {
     const defaultStartTime = new Date(2015, 0).getTime();
     const startTime = query?.filters?.st?.[0] || defaultStartTime; // start from 2015
     const endTime = query?.filters?.st?.[1] || new Date().getTime(); // current time
-    const ellipsedTextClass = "ellipsedTextClass";
     const [users] = useResourceSnapshot(UsersForJobsResource);
     const [queues] = useResourceSnapshot(QueuesResource);
     const [usersSearch, setUsersSearch] = useState("");
     const dragToRef = useRef(-1);
-    const isAdmin = user?.admin;
-    const canViewAllJobs = user?.permissions?.canViewAllJobs;
+    const canViewUsersListing = getPrivilegeContext().canViewUsersListing();
 
     // Update filters by pushing to URL
     const updateQuery = useCallback(
@@ -89,13 +80,13 @@ const JobsFilters = withRouter(
     );
 
     useEffect(() => {
-      if (isAdmin || canViewAllJobs) {
+      if (canViewUsersListing) {
         UsersForJobsResource.fetch({
           filter: usersSearch,
         });
       }
       additionalJobsControls?.().fetchQueue?.() && QueuesResource.fetch();
-    }, [usersSearch, isAdmin, canViewAllJobs]);
+    }, [usersSearch, canViewUsersListing]);
 
     const debounceUpdateQuery = debounce((text) => {
       if (query) {
@@ -211,28 +202,30 @@ const JobsFilters = withRouter(
             : filterKey === GenericFilters.qt
               ? itemsForQueryTypeFilter
               : queues || [];
+      const listLabel = intl.formatMessage({
+        id: FILTER_LABEL_IDS[filterKey],
+      });
       return (
-        <FilterSelectMenu
-          iconStyle={styles.arrow}
-          popoverFilters="popoverFilters"
-          ellipsedTextClass={ellipsedTextClass}
-          selectedToTop={false}
-          noSearch={filterKey !== GenericFilters.usr}
+        <MultiCheckboxPopover
+          listItems={items}
+          listLabel={listLabel}
+          selectedtListItems={
+            query?.filters?.[filterKey]?.length
+              ? items.filter((item) =>
+                  query.filters[filterKey].includes(item.id),
+                )
+              : []
+          }
           onItemSelect={(id: string) => addValueToFilter(filterKey, id)}
           onItemUnselect={(id: string) => removeValueFromFilter(filterKey, id)}
-          selectedValues={Immutable.fromJS(query?.filters?.[filterKey] || [])}
-          items={items}
-          label={intl.formatMessage({ id: FILTER_LABEL_IDS[filterKey] })}
-          menuHeader={intl.formatMessage({ id: FILTER_LABEL_IDS[filterKey] })}
-          name={filterKey}
-          checkBoxClass="jobsFilters__checkBox"
-          isJobStatus={filterKey === GenericFilters.jst}
+          className={classes[`jobs-filters__${filterKey}`]}
           {...(filterKey === GenericFilters.usr && {
-            cellCache: cellCache,
-            loadItemsForFilter: (value: string) => setUsersSearch(value),
-            wrapWithCellMeasurer: true,
             searchPlaceholder: "Search users",
+            hasSearch: true,
+            onSearch: (value: React.ChangeEvent<HTMLInputElement>) =>
+              setUsersSearch(value.target.value),
           })}
+          ariaLabel={`${listLabel} filter`}
         />
       );
     };
@@ -259,7 +252,7 @@ const JobsFilters = withRouter(
           />
           {renderFilterMenu(GenericFilters.jst)}
           {renderFilterMenu(GenericFilters.qt)}
-          {(isAdmin || canViewAllJobs) && renderFilterMenu(GenericFilters.usr)}
+          {canViewUsersListing && renderFilterMenu(GenericFilters.usr)}
           {queues?.length > 0 &&
             additionalJobsControls?.().renderFilterMenu?.() &&
             renderFilterMenu(GenericFilters.qn)}
@@ -293,13 +286,9 @@ const JobsFilters = withRouter(
   },
 );
 
-const mapStateToProps = (state: any) => {
-  return { user: state.account ? state.account.get("user").toJS() : {} };
-};
-
 const styles = {
   arrow: {
-    color: "#505862",
+    color: "var(--icon--primary)",
     fontSize: 12,
     height: 24,
     width: 24,
@@ -309,4 +298,4 @@ const styles = {
   },
 };
 
-export default connect(mapStateToProps)(JobsFilters);
+export default JobsFilters;

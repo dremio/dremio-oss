@@ -15,6 +15,9 @@
  */
 package com.dremio.telemetry.api.metrics;
 
+import static com.dremio.telemetry.api.metrics.TimerUtils.timedExceptionThrowingOperation;
+import static com.dremio.telemetry.api.metrics.TimerUtils.timedOperation;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.Callable;
 import javax.annotation.CheckReturnValue;
@@ -42,7 +45,7 @@ public final class MetricsInstrumenter {
    * @param <T> The class.
    */
   public <T> MetricsInstrumenter(Class<T> serviceClass) {
-    this(serviceClass.getSimpleName(), new DefaultMetricsProvider());
+    this(serviceClass.getSimpleName().toLowerCase(), new DefaultMetricsProvider());
   }
 
   /**
@@ -100,19 +103,24 @@ public final class MetricsInstrumenter {
   @CheckReturnValue
   public Runnable instrument(String operationName, Runnable runnable) {
     return () -> {
-      Counter counter =
-          provider.counter(Metrics.join(serviceName, operationName, COUNT_METRIC_SUFFIX));
-      Counter errorCounter =
-          provider.counter(Metrics.join(serviceName, operationName, ERROR_METRIC_SUFFIX));
-      Timer timer = provider.timer(Metrics.join(serviceName, operationName, TIME_METRIC_SUFFIX));
-      try (Timer.TimerContext timerContext = timer.start()) {
-        runnable.run();
-      } catch (Throwable throwable) {
-        errorCounter.increment();
-        throw throwable;
-      } finally {
-        counter.increment();
-      }
+      SimpleCounter counter =
+          provider.counter(String.join(".", serviceName, operationName, COUNT_METRIC_SUFFIX));
+
+      SimpleCounter errorCounter =
+          provider.counter(String.join(".", serviceName, operationName, ERROR_METRIC_SUFFIX));
+
+      timedOperation(
+          provider.timer(String.join(".", serviceName, operationName, TIME_METRIC_SUFFIX)).start(),
+          () -> {
+            try {
+              runnable.run();
+            } catch (Exception ex) {
+              errorCounter.increment();
+              throw ex;
+            } finally {
+              counter.increment();
+            }
+          });
     };
   }
 
@@ -128,19 +136,24 @@ public final class MetricsInstrumenter {
   @CheckReturnValue
   public <T> Callable<T> instrument(String operationName, Callable<T> callable) {
     return () -> {
-      Counter counter =
-          provider.counter(Metrics.join(serviceName, operationName, COUNT_METRIC_SUFFIX));
-      Counter errorCounter =
-          provider.counter(Metrics.join(serviceName, operationName, ERROR_METRIC_SUFFIX));
-      Timer timer = provider.timer(Metrics.join(serviceName, operationName, TIME_METRIC_SUFFIX));
-      try (Timer.TimerContext timerContext = timer.start()) {
-        return callable.call();
-      } catch (Throwable throwable) {
-        errorCounter.increment();
-        throw throwable;
-      } finally {
-        counter.increment();
-      }
+      SimpleCounter counter =
+          provider.counter(String.join(".", serviceName, operationName, COUNT_METRIC_SUFFIX));
+
+      SimpleCounter errorCounter =
+          provider.counter(String.join(".", serviceName, operationName, ERROR_METRIC_SUFFIX));
+
+      return timedExceptionThrowingOperation(
+          provider.timer(String.join(".", serviceName, operationName, TIME_METRIC_SUFFIX)).start(),
+          () -> {
+            try {
+              return callable.call();
+            } catch (Exception ex) {
+              errorCounter.increment();
+              throw ex;
+            } finally {
+              counter.increment();
+            }
+          });
     };
   }
 }

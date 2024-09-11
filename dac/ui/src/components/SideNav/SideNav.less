@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .sideNav {
-    background-color: var(--bg--nav--sonar);
+    background-color: var(--fill--nav--sonar);
     display: flex;
     flex-direction: column;
     width: 64px;
@@ -33,7 +32,12 @@
   .sideNav-item {
     width: 64px;
     height: 64px;
-    position: relative;
+
+    .sideNav-item-a {
+      &:focus-visible {
+        outline: -webkit-focus-ring-color auto 1px !important;
+      }
+    }
 
     .sideNav-item__link,
     .sideNav-item__hoverMenu {
@@ -44,17 +48,18 @@
       align-items: center;
       cursor: pointer;
 
-      &.--menuDisplayed {
-        background-color: @sideBar-hover-background;
+      &.--menuDisplayed,
+      &:focus-within {
+        background-color: var(--selected--nav--sonar);
       }
 
       &.--active {
-        background-color: var(--color--brand--400);
+        background-color: var(--selected--nav--sonar);
       }
     }
 
     .sideNav-item__icon {
-      color: white;
+      color: var(--icon--nav);
 
       dremio-icon {
         width: 24px;
@@ -65,7 +70,7 @@
     .sideNav-item__caret-icon {
       height: 12px;
       width: 12px;
-      color: white;
+      color: var(--icon--nav);
       right: 7px;
       bottom: 7px;
       position: absolute;
@@ -84,11 +89,12 @@
       }
 
       &.--active {
-        background-color: var(--color--brand--400);
-        color: @sideBar-icon-image-color-active !important;
+        background-color: var(--selected--nav--sonar);
+        color: white !important;
 
-        &:hover {
-          background-color: var(--color--brand--400);
+        &:hover,
+        &:focus-within {
+          background-color: var(--selected--nav--sonar);
         }
       }
 
@@ -100,8 +106,8 @@
         .sideNav__project {
           font-size: 13px;
           line-height: 24px;
-          background-color: @sideBar-account-background;
-          color: @sideBar-account-icon-text-color;
+          background-color: var(--color--brand--300);
+          color: var(--color--navy--700);
           border-radius: 2px;
           width: 24px;
           height: 24px;
@@ -134,8 +140,9 @@
   }
 
   .item__hover {
-    &:hover {
-      background-color: @sideBar-hover-background;
+    &:hover,
+    &:focus-within {
+      background-color: var(--hover--nav--sonar);
     }
   }
 
@@ -146,8 +153,8 @@
   .sideNav__user {
     font-size: 13px;
     line-height: 24px;
-    background-color: @sideBar-account-background;
-    color: @sideBar-account-icon-text-color;
+    background-color: var(--color--brand--300);
+    color: var(--color--navy--700);
     border-radius: 50%;
     width: 24px;
     height: 24px;
@@ -163,56 +170,82 @@
   .sideNav {
     // organization theme
     &--organization {
-      background-color: var(--color--brand--25);
+      background-color: var(--fill--nav--org);
+
+      .sideNav-item {
+        &:focus-within {
+          background-color: transparent;
+        }
+      }
 
       .sideNav-item__icon {
-        color: var(--color--neutral--600);
+        color: var(--icon--nav--org) !important;
       }
 
       .sideNav-item__caret-icon {
-        color: var(--color--neutral--600);
+        color: var(--icon--nav--org) !important;
       }
 
       .sideNav-item__link,
       .sideNav-item__hoverMenu {
         &.--menuDisplayed {
-          background-color: var(--color--brand--100);
+          background-color: var(--hover--nav--org);
         }
 
         &.--active {
-          background-color: var(--dremio--color--link);
+          background-color: var(--selected--nav--org);
+        }
+      }
+
+      .left-nav-popover {
+        &[aria-expanded="true"],
+        &:focus-visible {
+          background-color: var(--hover--nav--org);
         }
       }
 
       .item__hover {
         &:hover {
-          background-color: var(--color--brand--100);
+          background-color: var(--hover--nav--org);
         }
       }
 
       .--active-light {
-        background-color: var(--color--brand--75);
+        background-color: var(--selected--nav--org);
       }
     }
 
     // arctic theme
     &--arctic {
-      background-color: var(--color--indigo--700);
+      background-color: var(--fill--nav--catalog);
+
+      .sideNav-item {
+        &:focus-within {
+          background-color: transparent;
+        }
+      }
 
       .sideNav-item__link,
       .sideNav-item__hoverMenu {
         &.--menuDisplayed {
-          background-color: var(--color--indigo--500);
+          background-color: var(--hover--nav--catalog);
         }
 
         &.--active {
-          background-color: var(--color--indigo-vivid--500);
+          background-color: var(--selected--nav--catalog);
         }
       }
 
       .item__hover {
         &:hover {
-          background-color: var(--color--indigo--500);
+          background-color: var(--hover--nav--catalog);
+        }
+      }
+
+      .left-nav-popover {
+        &[aria-expanded="true"],
+        &:focus-visible {
+          background-color: var(--selected--nav--catalog);
         }
       }
     }

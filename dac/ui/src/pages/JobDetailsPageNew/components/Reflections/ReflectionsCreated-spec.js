@@ -34,6 +34,7 @@ describe("reflectionCreated", () => {
   const minimalProps = {
     reflections: new Immutable.List(),
     location: {},
+    jobStartTime: 1631593860360,
   };
 
   it("should render with minimal props without exploding", () => {
@@ -44,7 +45,7 @@ describe("reflectionCreated", () => {
     minimalProps.reflections = reflections;
     const wrapper = shallow(<ReflectionCreated {...minimalProps} />);
     expect(wrapper.find('[data-qa="reflectionsTestCase"]').length).equal(
-      reflections.size
+      reflections.size,
     );
   });
 });

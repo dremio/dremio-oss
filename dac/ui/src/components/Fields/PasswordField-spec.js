@@ -53,12 +53,12 @@ describe("PasswordField", () => {
   it("should render eye icon when value not empty", () => {
     const props = { ...commonProps, value: "val1" };
     const wrapper = shallow(<PasswordField {...props} />);
-    expect(wrapper.find("FontIcon")).to.have.length(1);
+    expect(wrapper.find("dremio-icon")).to.have.length(1);
   });
 
   it("should not render eye icon when value is empty", () => {
     const wrapper = shallow(<PasswordField {...commonProps} />);
-    expect(wrapper.find("FontIcon")).to.have.length(0);
+    expect(wrapper.find("dremio-icon")).to.have.length(0);
   });
 
   it("should render TextField with text upon toggle (and back again)", () => {

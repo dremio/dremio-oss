@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.map.CaseInsensitiveMap;
+import com.dremio.exec.physical.config.copyinto.IngestionProperties;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.FileTypeCoercion;
 import com.dremio.exec.store.RecordReader;
@@ -25,6 +26,7 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
@@ -43,6 +45,7 @@ public class CopyIntoSkipParquetSplitReaderCreator extends ParquetSplitReaderCre
 
   private final CopyIntoSkipParquetSplitReaderCreatorIterator
       copyIntoSkipParquetSplitReaderCreatorIterator;
+  private final IngestionProperties ingestionProperties;
 
   CopyIntoSkipParquetSplitReaderCreator(
       boolean autoCorrectCorruptDates,
@@ -59,12 +62,14 @@ public class CopyIntoSkipParquetSplitReaderCreator extends ParquetSplitReaderCre
       boolean trimRowGroups,
       boolean vectorize,
       SplitAndPartitionInfo splitInfo,
+      IngestionProperties ingestionProperties,
       List<List<String>> tablePath,
       ParquetFilters filters,
       List<SchemaPath> columns,
       BatchSchema fullSchema,
       FileConfig formatSettings,
       List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields,
+      List<DefaultNameMapping> icebergDefaultNameMapping,
       Map<String, Set<Integer>> pathToRowGroupsMap,
       ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator,
       ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr,
@@ -93,6 +98,7 @@ public class CopyIntoSkipParquetSplitReaderCreator extends ParquetSplitReaderCre
         fullSchema,
         formatSettings,
         icebergSchemaFields,
+        icebergDefaultNameMapping,
         pathToRowGroupsMap,
         parquetSplitReaderCreatorIterator,
         splitXAttr,
@@ -102,6 +108,7 @@ public class CopyIntoSkipParquetSplitReaderCreator extends ParquetSplitReaderCre
         extendedProperties);
     this.copyIntoSkipParquetSplitReaderCreatorIterator =
         (CopyIntoSkipParquetSplitReaderCreatorIterator) parquetSplitReaderCreatorIterator;
+    this.ingestionProperties = ingestionProperties;
   }
 
   @Override
@@ -120,7 +127,11 @@ public class CopyIntoSkipParquetSplitReaderCreator extends ParquetSplitReaderCre
                 filters,
                 extendedProperties,
                 copyIntoSkipParquetSplitReaderCreatorIterator,
-                splitXAttr.getRowGroupIndex())
+                splitXAttr.getRowGroupIndex(),
+                splitXAttr.getRowIndexOffset(),
+                splitXAttr.getWriteSuccessEvent(),
+                splitXAttr.getLength(),
+                ingestionProperties)
             : ParquetCoercionReader.newInstance(
                 context,
                 projectedColumns.getBatchSchemaProjectedColumns(),

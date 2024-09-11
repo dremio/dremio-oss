@@ -29,12 +29,12 @@ public class DoughnutDocumentConverter implements DocumentConverter<String, Doug
   private Integer version = 0;
 
   @Override
-  public void convert(DocumentWriter writer, String key, Doughnut record) {
-    writer.write(NAME, record.getName());
-    writer.write(FLAVOR, record.getFlavor());
-    writer.write(PRICE, record.getPrice());
-    writer.write(THICKNESS, record.getThickness());
-    writer.write(DIAMETER, record.getDiameter());
+  public void convert(DocumentWriter writer, String key, Doughnut document) {
+    writer.write(NAME, document.getName());
+    writer.write(FLAVOR, document.getFlavor());
+    writer.write(PRICE, document.getPrice());
+    writer.write(THICKNESS, document.getThickness());
+    writer.write(DIAMETER, document.getDiameter());
   }
 
   @Override

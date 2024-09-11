@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Objects;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Reader;
 
 public class JacksonSerializer<T> implements InstanceSerializer<T> {
   private final ObjectReader reader;
@@ -36,8 +38,23 @@ public class JacksonSerializer<T> implements InstanceSerializer<T> {
   }
 
   @Override
+  public T deserialize(final String raw) throws IOException {
+    return reader.readValue(raw);
+  }
+
+  @Override
+  public T deserialize(final Reader raw) throws IOException {
+    return reader.readValue(raw);
+  }
+
+  @Override
   public byte[] serialize(final T instance) throws IOException {
     return writer.writeValueAsBytes(instance);
+  }
+
+  @Override
+  public void serializeTo(OutputStream stream, final T instance) throws IOException {
+    writer.writeValue(stream, instance);
   }
 
   @Override

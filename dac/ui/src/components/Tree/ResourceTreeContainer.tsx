@@ -34,7 +34,7 @@ import {
 } from "selectors/tree";
 import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
 
-import ResourceTreeController from "@app/components/Tree/ResourceTreeController.js";
+import ResourceTreeController from "@app/components/Tree/ResourceTreeController";
 
 import { getRefQueryParams } from "@app/utils/nessieUtils";
 
@@ -156,12 +156,12 @@ export const ResourceTreeContainer = ({
     loadStarTree: boolean,
     path: string,
     isNodeExpanded: boolean,
-    currNode: object
+    currNode: object,
   ) => {
     const { entityType, fullPath, params } = prepareArgumentsForFetch(
       path,
       isNodeExpanded,
-      currNode
+      currNode,
     );
 
     setCurrentNode(currNode);
@@ -172,7 +172,7 @@ export const ResourceTreeContainer = ({
         fullPath,
         params,
         isNodeExpanded,
-        currNode
+        currNode,
       );
     } else if (tabRendered.startsWith(starTabNames.starred)) {
       return fetchStarredResourceTreeResources(
@@ -180,7 +180,7 @@ export const ResourceTreeContainer = ({
         fullPath,
         params,
         isNodeExpanded,
-        currNode
+        currNode,
       );
     } else {
       return fetchResourceTreeResources(
@@ -188,7 +188,7 @@ export const ResourceTreeContainer = ({
         fullPath,
         params,
         isNodeExpanded,
-        currNode
+        currNode,
       ).then(
         loadStarTree &&
           fetchStarredResourceTreeResources(
@@ -196,8 +196,8 @@ export const ResourceTreeContainer = ({
             fullPath,
             params,
             isNodeExpanded,
-            currNode
-          )
+            currNode,
+          ),
       );
     }
   };
@@ -207,7 +207,7 @@ export const ResourceTreeContainer = ({
     fullPath: string | undefined,
     params: object,
     isNodeExpanded: boolean,
-    currNode: object
+    currNode: object,
   ): any => {
     if (isNodeExpanded) return;
     if (fromModal) {
@@ -218,7 +218,7 @@ export const ResourceTreeContainer = ({
         params,
         isNodeExpanded,
         currNode,
-        fromModal
+        fromModal,
       );
     }
     if (entityType === entityTypes.container) {
@@ -228,7 +228,7 @@ export const ResourceTreeContainer = ({
         fullPath,
         params,
         isNodeExpanded,
-        currNode
+        currNode,
       );
     } else if (entityType === entityTypes.dataset) {
       return dispatchLoadSummaryDataset(
@@ -236,7 +236,7 @@ export const ResourceTreeContainer = ({
         RESOURCE_TREE_VIEW_ID,
         LOAD_RESOURCE_TREE,
         isNodeExpanded,
-        currNode
+        currNode,
       );
     } else {
       return dispatchLoadResourceTree(
@@ -245,7 +245,7 @@ export const ResourceTreeContainer = ({
         fullPath,
         params,
         isNodeExpanded,
-        currNode
+        currNode,
       );
     }
   };
@@ -255,7 +255,7 @@ export const ResourceTreeContainer = ({
     fullPath: string | undefined,
     params: object,
     isNodeExpanded: boolean | undefined,
-    currNode: any
+    currNode: any,
   ) => {
     const skipStarredLoading = await fetchArsFlag(); //Fetch feature flag
     if (skipStarredLoading) return;
@@ -269,7 +269,7 @@ export const ResourceTreeContainer = ({
         fullPath,
         params,
         true,
-        currNode
+        currNode,
       );
     } else if (!isNodeExpanded && entityType === entityTypes.dataset) {
       return dispatchLoadSummaryDataset(
@@ -277,7 +277,7 @@ export const ResourceTreeContainer = ({
         STARRED_VIEW_ID,
         LOAD_STARRED_RESOURCE_LIST,
         true,
-        currNode
+        currNode,
       );
     }
     return;
@@ -294,12 +294,12 @@ export const ResourceTreeContainer = ({
   const prepareArgumentsForFetch = (
     path = "",
     isExpand: boolean,
-    currNode: any
+    currNode: any,
   ) => {
     const [sourceName] = path.split(".");
     const refQueryParams = getRefQueryParams(
       nessie,
-      nessiePrefix + sourceName.replace(/"/g, "")
+      nessiePrefix + sourceName.replace(/"/g, ""),
     );
 
     const params = {
@@ -344,8 +344,8 @@ export const ResourceTreeContainer = ({
           fromModal
             ? resourceTreeModal
             : tabRendered === starTabNames.all
-            ? resourceTree
-            : starredResourceTree
+              ? resourceTree
+              : starredResourceTree,
         )}
         starredItems={starredItems}
         preselectedNodeId={preselectedNodeId}
@@ -379,7 +379,7 @@ const mapStateToProps = (
     nessie: any;
     account: any;
   },
-  { fromModal }: ResourceTreeContainerProps
+  { fromModal }: ResourceTreeContainerProps,
 ) => {
   return {
     resourceTree: getResourceTree(state),
@@ -390,7 +390,7 @@ const mapStateToProps = (
     nessie: state.nessie,
     loadingItems: getViewState(
       state,
-      fromModal ? LOADING_ITEMS_MODAL : LOADING_ITEMS
+      fromModal ? LOADING_ITEMS_MODAL : LOADING_ITEMS,
     ),
   };
 };
@@ -407,6 +407,6 @@ const mapDispatchToProps = {
 
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  mapDispatchToProps,
   //@ts-ignore
 )(ResourceTreeContainer);

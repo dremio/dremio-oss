@@ -125,7 +125,7 @@ public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatas
   }
 
   @Override
-  public boolean containerExists(EntityPath containerPath) {
+  public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
     if (throwOnInvocation) {
       throw new UnsupportedOperationException(errorMessage);
     }

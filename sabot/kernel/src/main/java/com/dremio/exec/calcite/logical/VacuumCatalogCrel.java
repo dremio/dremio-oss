@@ -38,7 +38,9 @@ public class VacuumCatalogCrel extends VacuumCatalogRelBase {
       String user,
       String sourceName,
       IcebergCostEstimates icebergCostEstimates,
-      VacuumOptions vacuumOptions) {
+      VacuumOptions vacuumOptions,
+      String fsScheme,
+      String schemeVariate) {
     super(
         Convention.NONE,
         cluster,
@@ -47,7 +49,9 @@ public class VacuumCatalogCrel extends VacuumCatalogRelBase {
         user,
         sourceName,
         icebergCostEstimates,
-        vacuumOptions);
+        vacuumOptions,
+        fsScheme,
+        schemeVariate);
   }
 
   @Override
@@ -59,7 +63,9 @@ public class VacuumCatalogCrel extends VacuumCatalogRelBase {
         getUser(),
         getSourceName(),
         getCostEstimates(),
-        getVacuumOptions());
+        getVacuumOptions(),
+        getFsScheme(),
+        getSchemeVariate());
   }
 
   public RelNode createWith(
@@ -67,7 +73,9 @@ public class VacuumCatalogCrel extends VacuumCatalogRelBase {
       VacuumOptions vacuumOptions,
       IcebergCostEstimates costEstimates,
       String user,
-      boolean isDefaultRetentionUsed) {
+      boolean isDefaultRetentionUsed,
+      String fsScheme,
+      String schemeVariate) {
     VacuumCatalogCrel newCrel =
         new VacuumCatalogCrel(
             getCluster(),
@@ -76,7 +84,9 @@ public class VacuumCatalogCrel extends VacuumCatalogRelBase {
             user,
             getSourceName(),
             costEstimates,
-            vacuumOptions);
+            vacuumOptions,
+            fsScheme,
+            schemeVariate);
     newCrel.setDefaultRetentionUsed(isDefaultRetentionUsed);
     return newCrel;
   }

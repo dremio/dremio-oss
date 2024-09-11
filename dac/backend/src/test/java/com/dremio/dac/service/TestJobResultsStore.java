@@ -85,8 +85,7 @@ public class TestJobResultsStore extends BaseTestServer {
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @After
@@ -411,7 +410,7 @@ public class TestJobResultsStore extends BaseTestServer {
     source.setConfig(nas);
     source.setMetadataPolicy(
         UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
-    newSourceService()
+    getSourceService()
         .registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
 
     // Query the Folder to auto-promote

@@ -85,11 +85,13 @@ public class FolderResource {
       throws NamespaceException, FolderNotFoundException, DatasetNotFoundException {
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, path);
     try {
-      final FolderConfig folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
-      final NamespaceTree contents =
-          includeContents
-              ? newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()))
-              : null;
+      FolderConfig folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
+      NamespaceTree contents = null;
+      if (includeContents) {
+        contents =
+            newNamespaceTree(
+                namespaceService.list(folderPath.toNamespaceKey(), null, Integer.MAX_VALUE));
+      }
       return newFolder(folderPath, folderConfig, contents);
     } catch (NamespaceNotFoundException nfe) {
       throw new FolderNotFoundException(folderPath, nfe);

@@ -15,7 +15,7 @@
  */
 package com.dremio.common.util;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.dremio.common.expression.SchemaPath;
 import com.fasterxml.jackson.core.JsonProcessingException;

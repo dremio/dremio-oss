@@ -95,6 +95,8 @@ public class PlannerSettings implements Context {
           );
   public static final BooleanValidator CONSTANT_FOLDING =
       new BooleanValidator("planner.enable_constant_folding", true);
+  public static final BooleanValidator PRUNE_EMPTY_RELNODES =
+      new BooleanValidator("planner.enable_empty_subtree_pruning", true);
   public static final BooleanValidator EXCHANGE =
       new BooleanValidator("planner.disable_exchanges", false);
   public static final BooleanValidator HASHAGG =
@@ -162,6 +164,9 @@ public class PlannerSettings implements Context {
       new PositiveLongValidator("planner.hep_match_limit", Integer.MAX_VALUE, Integer.MAX_VALUE);
   public static final BooleanValidator ENHANCED_FILTER_JOIN_PUSHDOWN =
       new BooleanValidator("planner.enhanced_filter_join_pushdown", true);
+
+  public static final BooleanValidator USE_ENHANCED_FILTER_JOIN_GUARDRAIL =
+      new BooleanValidator("planner.enhanced_filter_join_guardrail", true);
   public static final BooleanValidator TRANSITIVE_FILTER_JOIN_PUSHDOWN =
       new BooleanValidator("planner.filter.transitive_pushdown", true);
   public static final BooleanValidator ENABLE_RUNTIME_FILTER =
@@ -171,6 +176,8 @@ public class PlannerSettings implements Context {
       new BooleanValidator("planner.cse_before_rf", true);
   public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL =
       new BooleanValidator("planner.experimental.tpf_logical", false);
+  public static final BooleanValidator ENABLE_SIMPLE_AGG_JOIN =
+      new BooleanValidator("planner.agg_join.simple", true);
   public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL =
       new BooleanValidator("planner.experimental.pclean_logical", false);
   public static final BooleanValidator ENABLE_CROSS_JOIN =
@@ -204,8 +211,6 @@ public class PlannerSettings implements Context {
       new BooleanValidator("planner.enable_regexp_like_to_regexp_col_like", true);
   public static final BooleanValidator LIKE_TO_COL_LIKE =
       new BooleanValidator("planner.enable_like_to_col_like", true);
-  public static final BooleanValidator FULL_NESTED_SCHEMA_SUPPORT =
-      new BooleanValidator("planner.enable_full_nested_schema", true);
   public static final BooleanValidator COMPLEX_TYPE_FILTER_PUSHDOWN =
       new BooleanValidator("planner.complex_type_filter_pushdown", true);
   public static final BooleanValidator ENABLE_LEAF_LIMITS =
@@ -349,6 +354,8 @@ public class PlannerSettings implements Context {
 
   public static final DoubleValidator MIN_FILES_CHANGED_DURING_REFRESH =
       new DoubleValidator("dremio.metadata.minimum_files_changed", 100);
+  public static final BooleanValidator ERROR_ON_CONCURRENT_REFRESH =
+      new BooleanValidator("dremio.metadata.error_on_concurrent_refresh", false);
 
   public static final PositiveLongValidator METADATA_EXPIRY_CHECK_INTERVAL_SECS =
       new PositiveLongValidator(
@@ -385,9 +392,20 @@ public class PlannerSettings implements Context {
       new StringValidator("reflections.planning.choose_reflections", "");
   public static final BooleanValidator NO_REFLECTIONS =
       new BooleanValidator("reflections.planning.no_reflections", false);
+  public static final BooleanValidator CURRENT_ICEBERG_DATA_ONLY =
+      new BooleanValidator("reflections.planning.current_iceberg_data_only", false);
 
+  // Allows ambiguous columns in select list subqueries, like
+  // select * from (select 1 as a, 'one' as a)
   public static final BooleanValidator ALLOW_AMBIGUOUS_COLUMN =
       new BooleanValidator("planner.allow_ambiguous_column", false);
+  // In conjunction with ALLOW_AMBIGUOUS_COLUMN, WARN_IF_AMBIGUOUS_COLUMN
+  // performs additional validation, gathers metrics, and logs an event
+  // when an ambiguous column is detected.  Not all forms of ambiguous
+  // columns are managed by these flags, only the ones detected
+  // by CALCITE-2977.
+  public static final BooleanValidator WARN_IF_AMBIGUOUS_COLUMN =
+      new BooleanValidator("planner.warn_if_ambiguous_column", true);
 
   /** Policy regarding storing query results */
   public enum StoreQueryResultsPolicy {
@@ -468,6 +486,9 @@ public class PlannerSettings implements Context {
    */
   public static final BooleanValidator REUSE_PREPARE_HANDLES =
       new BooleanValidator("planner.reuse_prepare_statement_handles", false);
+
+  public static final BooleanValidator ENABLE_DYNAMIC_PARAM_PREPARE =
+      new BooleanValidator("planner.enable_parameters_prepare_statement", true);
 
   public static final BooleanValidator PROJECT_PULLUP =
       new BooleanValidator("planner.project_pullup", false);
@@ -609,14 +630,12 @@ public class PlannerSettings implements Context {
       new PositiveLongValidator("planner.plan_serialization_length_limit", Long.MAX_VALUE, 100000);
   public static final BooleanValidator USE_SQL_TO_REL_SUB_QUERY_EXPANSION =
       new BooleanValidator("planner.sql_to_rel_sub_query_expansion", false);
+  public static final BooleanValidator FIX_CORRELATE_VARIABLE_SCHEMA =
+      new BooleanValidator("planner.fix_correlate_variable_schema", true);
   public static final BooleanValidator EXTENDED_ALIAS =
       new BooleanValidator("planner.extended_alias", true);
   public static final BooleanValidator ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED =
       new BooleanValidator("planner.enforce_valid_json_date_format_enabled", true);
-
-  public static final BooleanValidator ALLOW_UNSERIALIZABLE_UDFS =
-      new BooleanValidator("udf.enable_unserializable_functions", true);
-
   private static final Set<String> SOURCES_WITH_MIN_COST =
       ImmutableSet.of(
           "adl",
@@ -645,6 +664,9 @@ public class PlannerSettings implements Context {
   public static final BooleanValidator USE_LEGACY_REDUCE_EXPRESSIONS =
       new BooleanValidator("planner.use_legacy_reduce_expression", false);
 
+  public static final BooleanValidator USE_LEGACY_TYPEOF =
+      new BooleanValidator("planner.use_legacy_type", false);
+
   /**
    * Options to reject queries which will attempt to process more than this many splits: per
    * dataset, and per query
@@ -667,6 +689,16 @@ public class PlannerSettings implements Context {
 
   public static final BooleanValidator REFLECTION_ROUTING_INHERITANCE_ENABLED =
       new BooleanValidator("planner.reflection_routing_inheritance_enabled", false);
+
+  public static final BooleanValidator REFLECTION_LINEAGE_TABLE_FUNCTION_ENABLED =
+      new BooleanValidator("reflection.reflection_lineage_table_function.enabled", true);
+
+  public static final BooleanValidator EXPERIMENTAL_FUNCTIONS =
+      new BooleanValidator("planner.enable_experimental_functions", false);
+
+  public static final TypeValidators.BooleanValidator PREFER_CACHED_METADATA =
+      new TypeValidators.BooleanValidator("planner.prefer_cached_metadata", false);
+
   private final SabotConfig sabotConfig;
   private final ExecutionControls executionControls;
   private final StatisticsService statisticsService;
@@ -812,6 +844,10 @@ public class PlannerSettings implements Context {
     return options.getOption(ENHANCED_FILTER_JOIN_PUSHDOWN);
   }
 
+  public boolean useEnhancedFilterJoinGuardRail() {
+    return options.getOption(USE_ENHANCED_FILTER_JOIN_GUARDRAIL);
+  }
+
   public double getColumnUniquenessEstimationFactor() {
     return options.getOption(COLUMN_UNIQUENESS_ESTIMATION_FACTOR);
   }
@@ -952,12 +988,20 @@ public class PlannerSettings implements Context {
     return options.getOption(CONSTANT_FOLDING);
   }
 
+  public boolean pruneEmptyRelNodes() {
+    return options.getOption(PRUNE_EMPTY_RELNODES);
+  }
+
   public boolean isReduceProjectExpressionsEnabled() {
     return options.getOption(ENABLE_REDUCE_PROJECT);
   }
 
   public boolean isProjectLogicalCleanupEnabled() {
     return options.getOption(ENABLE_PROJECT_CLEANUP_LOGICAL);
+  }
+
+  public boolean isSimpleAggJoinEnabled() {
+    return options.getOption(ENABLE_SIMPLE_AGG_JOIN);
   }
 
   public boolean isCrossJoinEnabled() {
@@ -1179,16 +1223,8 @@ public class PlannerSettings implements Context {
     return (int) options.getOption(DATASET_MAX_SPLIT_LIMIT);
   }
 
-  public boolean isFullNestedSchemaSupport() {
-    return options.getOption(FULL_NESTED_SCHEMA_SUPPORT);
-  }
-
   public boolean isAggOnPartitionColsOptimizationEnabled() {
     return options.getOption(ENABLE_AGG_PARTITION_COLS_OPTIMIZATION);
-  }
-
-  public boolean isUnserializableUdfAllowed() {
-    return options.getOption(ALLOW_UNSERIALIZABLE_UDFS);
   }
 
   public void pullDistributionTrait(boolean pullDistributionTrait) {

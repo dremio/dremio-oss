@@ -801,7 +801,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       public void operationComplete(ChannelFuture future) throws Exception {
         try {
           delegate.operationComplete(future);
-          if (connection != null) {
+          if (connection.getSession() != null) {
             sessionOptionManagerFactory.delete(connection.uuid.toString());
           }
         } finally {

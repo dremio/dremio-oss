@@ -15,12 +15,12 @@
  */
 package com.dremio.service.reflection;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.AccelerationDetailsPopulator;
 import com.dremio.exec.planner.sql.PartitionTransform;
@@ -49,7 +49,6 @@ import com.dremio.service.reflection.proto.ReflectionPartitionField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.proto.Transform;
 import com.dremio.service.reflection.proto.TruncateTransform;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -388,11 +387,8 @@ public class AccelerationManagerImpl implements AccelerationManager {
   // lookup the tableat <default branch + T1>.
   private void validateReflectionSupportForTimeTravelOnVersionedSource(
       String source, String datasetId, Catalog catalog) {
-    VersionedDatasetId versionedDatasetId = null;
-    try {
-      // first check to see if it's a VersionedDatasetId
-      versionedDatasetId = VersionedDatasetId.fromString(datasetId);
-    } catch (JsonProcessingException e) {
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datasetId);
+    if (versionedDatasetId == null) {
       // Assume this is a non versioned dataset id .
       return;
     }

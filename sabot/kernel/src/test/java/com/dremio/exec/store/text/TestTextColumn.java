@@ -74,7 +74,7 @@ public class TestTextColumn extends BaseTestQuery {
 
   private List<List<String>> getOutput(List<QueryDataBatch> batches) throws SchemaChangeException {
     List<List<String>> output = new ArrayList<>();
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
     int last = 0;
     for (QueryDataBatch batch : batches) {
       int rows = batch.getHeader().getRowCount();

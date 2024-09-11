@@ -42,7 +42,7 @@ public class TestInvalidKeyType {
 
   static class DummyDocumentConverter<K, V> implements DocumentConverter<K, V> {
     @Override
-    public void convert(DocumentWriter writer, K key, V record) {}
+    public void convert(DocumentWriter writer, K key, V document) {}
 
     @Override
     public Integer getVersion() {

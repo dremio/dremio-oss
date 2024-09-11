@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.io.file.UriSchemes.SCHEME_SEPARATOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.expression.BasePath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
@@ -127,8 +127,25 @@ public class TestIcebergManifestListRecordReader extends BaseTestOperator {
             inconsistentPartitionTable.getLocation()
                 + "/metadata/83af96e4-1754-4824-919b-7e8372a0deda.avro"),
         true,
+        null,
+        // [(not_null(ref(name="dir1")) and ref(name="dir1") == "sub_1_1")]
         Expressions.and(Expressions.notNull("dir1"), Expressions.equal("dir1", "sub_1_1")));
-    // [(not_null(ref(name="dir1")) and ref(name="dir1") == "sub_1_1")]
+  }
+
+  @Test
+  public void testReadDataManifestsWithScheme() throws Exception {
+    readAndValidate(
+        table.getLocation() + METADATA_JSON,
+        SNAPSHOT_ID,
+        ManifestContentType.DATA,
+        ImmutableList.of(
+            "file"
+                + SCHEME_SEPARATOR
+                + table.getLocation()
+                + "/metadata/8a83125a-a077-4f1e-974b-fcbaf370b085-m0.avro"),
+        false,
+        IcebergUtils.getDefaultPathScheme(fs.getScheme()),
+        Expressions.alwaysTrue());
   }
 
   private void readAndValidate(
@@ -143,6 +160,7 @@ public class TestIcebergManifestListRecordReader extends BaseTestOperator {
         manifestContent,
         expectedManifestFiles,
         false,
+        null,
         Expressions.alwaysTrue());
   }
 
@@ -152,50 +170,50 @@ public class TestIcebergManifestListRecordReader extends BaseTestOperator {
       ManifestContentType manifestContent,
       List<String> expectedManifestFiles,
       boolean isInternalIcebergScanTableMetadata,
+      String schemeVariate,
       Expression icebergFilterExpression)
       throws Exception {
     List<String> actual = new ArrayList<>();
-    try (AutoCloseable closeable = with(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN, true)) {
-      IcebergExtendedProp extendedProp =
-          new IcebergExtendedProp(
-              null, IcebergSerDe.serializeToByteArray(icebergFilterExpression), snapshotId, null);
+    IcebergExtendedProp extendedProp =
+        new IcebergExtendedProp(
+            null, IcebergSerDe.serializeToByteArray(icebergFilterExpression), snapshotId, null);
 
-      IcebergManifestListRecordReader reader =
-          new IcebergManifestListRecordReader(
-              context,
-              jsonPath,
-              plugin,
-              ImmutableList.of("table"),
-              null,
-              SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
-              PROPS,
-              null,
-              extendedProp,
-              manifestContent,
-              isInternalIcebergScanTableMetadata);
-      testCloseables.add(reader);
+    IcebergManifestListRecordReader reader =
+        new IcebergManifestListRecordReader(
+            context,
+            jsonPath,
+            plugin,
+            ImmutableList.of("table"),
+            null,
+            SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
+            PROPS,
+            null,
+            extendedProp,
+            manifestContent,
+            isInternalIcebergScanTableMetadata,
+            schemeVariate);
+    testCloseables.add(reader);
 
-      TestOutputMutator outputMutator = new TestOutputMutator(getTestAllocator());
-      testCloseables.add(outputMutator);
-      // don't materialize projected columns like row num here to simulate how it works in the
-      // production stack
-      SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA.materializeVectors(
-          ImmutableList.of(
-              BasePath.getSimple(SystemSchemas.SPLIT_IDENTITY),
-              BasePath.getSimple(SystemSchemas.SPLIT_INFORMATION),
-              BasePath.getSimple(SystemSchemas.COL_IDS)),
-          outputMutator);
-      reader.setup(outputMutator);
-      reader.allocate(outputMutator.getFieldVectorMap());
+    TestOutputMutator outputMutator = new TestOutputMutator(getTestAllocator());
+    testCloseables.add(outputMutator);
+    // don't materialize projected columns like row num here to simulate how it works in the
+    // production stack
+    SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA.materializeVectors(
+        ImmutableList.of(
+            BasePath.getSimple(SystemSchemas.SPLIT_IDENTITY),
+            BasePath.getSimple(SystemSchemas.SPLIT_INFORMATION),
+            BasePath.getSimple(SystemSchemas.COL_IDS)),
+        outputMutator);
+    reader.setup(outputMutator);
+    reader.allocate(outputMutator.getFieldVectorMap());
 
-      int records;
-      StructVector splitIdentityVector =
-          (StructVector) outputMutator.getVector(SystemSchemas.SPLIT_IDENTITY);
-      VarCharVector pathVector = (VarCharVector) splitIdentityVector.getChild(SplitIdentity.PATH);
-      while ((records = reader.next()) > 0) {
-        for (int i = 0; i < records; i++) {
-          actual.add(new String(pathVector.get(i), StandardCharsets.UTF_8));
-        }
+    int records;
+    StructVector splitIdentityVector =
+        (StructVector) outputMutator.getVector(SystemSchemas.SPLIT_IDENTITY);
+    VarCharVector pathVector = (VarCharVector) splitIdentityVector.getChild(SplitIdentity.PATH);
+    while ((records = reader.next()) > 0) {
+      for (int i = 0; i < records; i++) {
+        actual.add(new String(pathVector.get(i), StandardCharsets.UTF_8));
       }
     }
 

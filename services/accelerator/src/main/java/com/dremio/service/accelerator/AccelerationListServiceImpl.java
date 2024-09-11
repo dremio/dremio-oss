@@ -15,17 +15,27 @@
  */
 package com.dremio.service.accelerator;
 
+import com.dremio.common.exceptions.GrpcExceptionUtil;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.exec.store.sys.accel.AccelerationListManager.ReflectionLineageInfo;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionLineageRequest;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionLineageResponse;
 import com.dremio.service.grpc.OnReadyHandler;
+import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.reflection.ReflectionStatusService;
+import com.dremio.service.reflection.proto.ReflectionGoal;
+import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.collect.Streams;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import javax.inject.Provider;
 import org.slf4j.Logger;
@@ -40,6 +50,8 @@ public class AccelerationListServiceImpl
   private static final Logger logger = LoggerFactory.getLogger(AccelerationListServiceImpl.class);
 
   private final Provider<ReflectionStatusService> reflectionStatusService;
+  private final Provider<ReflectionAdministrationService.Factory>
+      reflectionAdministrationServiceFactory;
   private final Provider<com.dremio.service.reflection.ReflectionService> reflectionService;
   private final MaterializationStore materializationStore;
   private final Provider<Executor> executor;
@@ -47,10 +59,12 @@ public class AccelerationListServiceImpl
   public AccelerationListServiceImpl(
       Provider<ReflectionStatusService> reflectionStatusService,
       Provider<com.dremio.service.reflection.ReflectionService> reflectionService,
+      Provider<ReflectionAdministrationService.Factory> reflectionAdministrationServiceFactory,
       Provider<LegacyKVStoreProvider> storeProvider,
       Provider<Executor> executor) {
     this.reflectionStatusService = reflectionStatusService;
     this.reflectionService = reflectionService;
+    this.reflectionAdministrationServiceFactory = reflectionAdministrationServiceFactory;
     this.materializationStore = new MaterializationStore(storeProvider);
     this.executor = executor;
   }
@@ -188,5 +202,55 @@ public class AccelerationListServiceImpl
     final Materializations materializations = new Materializations();
     streamObserver.setOnReadyHandler(materializations);
     streamObserver.setOnCancelHandler(materializations::cancel);
+  }
+
+  @Override
+  public void listReflectionLineage(
+      ListReflectionLineageRequest request,
+      StreamObserver<ListReflectionLineageResponse> responseObserver) {
+    try {
+      if (request.getUserName().isEmpty()) {
+        throw UserException.validationError(new IllegalArgumentException("Username not set."))
+            .buildSilently();
+      }
+      ReflectionAdministrationService reflectionAdministrationService =
+          reflectionAdministrationServiceFactory
+              .get()
+              .get(new ReflectionContext(request.getUserName(), request.getIsAdmin()));
+
+      final Optional<ReflectionGoal> reflectionGoal =
+          reflectionAdministrationService.getGoal(new ReflectionId(request.getReflectionId()));
+      if (!reflectionGoal.isPresent()) {
+        throw UserException.validationError(
+                new IllegalArgumentException(
+                    String.format("Reflection %s not exist.", request.getReflectionId())))
+            .buildSilently();
+      }
+      Iterator<ReflectionLineageInfo> reflectionLineageInfo =
+          reflectionAdministrationService.getReflectionLineage(reflectionGoal.get());
+      Iterator<ListReflectionLineageResponse> reflectionLineageProto =
+          Streams.stream(reflectionLineageInfo).map(ReflectionLineageInfo::toProto).iterator();
+
+      final ServerCallStreamObserver<ListReflectionLineageResponse> streamObserver =
+          (ServerCallStreamObserver<ListReflectionLineageResponse>) responseObserver;
+
+      final class ReflectionLineage extends OnReadyHandler<ListReflectionLineageResponse> {
+        ReflectionLineage() {
+          super(
+              "get-reflection-lineage",
+              AccelerationListServiceImpl.this.executor.get(),
+              streamObserver,
+              reflectionLineageProto);
+        }
+      }
+
+      ReflectionLineage reflectionLineage = new ReflectionLineage();
+      streamObserver.setOnReadyHandler(reflectionLineage);
+      streamObserver.setOnCancelHandler(reflectionLineage::cancel);
+    } catch (Exception e) {
+      responseObserver.onError(
+          GrpcExceptionUtil.toStatusRuntimeException(
+              UserException.validationError(e).buildSilently()));
+    }
   }
 }

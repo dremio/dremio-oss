@@ -27,7 +27,7 @@ public class SubstitutionSettings {
 
   private List<String> exclusions;
   private List<String> inclusions = ImmutableList.of();
-  private boolean excludeFileBasedIncremental;
+  private boolean incrementalRefresh;
 
   public SubstitutionSettings(List<String> exclusions) {
     this.exclusions = ImmutableList.copyOf(exclusions);
@@ -42,7 +42,7 @@ public class SubstitutionSettings {
         substitutionSettings.inclusions != null
             ? ImmutableList.copyOf(substitutionSettings.inclusions)
             : ImmutableList.of();
-    this.excludeFileBasedIncremental = substitutionSettings.excludeFileBasedIncremental;
+    this.incrementalRefresh = substitutionSettings.incrementalRefresh;
   }
 
   public void setExclusions(List<String> exclusions) {
@@ -80,18 +80,13 @@ public class SubstitutionSettings {
   }
 
   /**
-   * true if file based incrementally refreshed materializations should be excluded for
-   * acceleration. This is set to true when we are incrementally refreshing a materialization and
-   * Iceberg table format is used for materialization storage. We currently do not support
-   * incremental refreshes on Iceberg tables.
-   *
-   * @return
+   * @return true if the current job is an incremental refresh
    */
-  public boolean isExcludeFileBasedIncremental() {
-    return excludeFileBasedIncremental;
+  public boolean isIncrementalRefresh() {
+    return incrementalRefresh;
   }
 
-  public void setExcludeFileBasedIncremental(boolean excludeFileBasedIncremental) {
-    this.excludeFileBasedIncremental = excludeFileBasedIncremental;
+  public void setIncrementalRefresh(boolean incrementalRefresh) {
+    this.incrementalRefresh = incrementalRefresh;
   }
 }

@@ -19,7 +19,7 @@ import { RSAA } from "redux-api-middleware";
 import { APIV2Call } from "@app/core/APICall";
 import { API_URL_V2 } from "@app/constants/Api";
 
-import * as Actions from "./sqlActions.js";
+import * as Actions from "./sqlActions";
 
 describe("sql actions", () => {
   describe("test constants", () => {
@@ -81,15 +81,15 @@ describe("sql actions", () => {
       const realResult = Actions.createDatasetFromExisting(
         existingDataset,
         fullPathTarget,
-        dataset
+        dataset,
       )((obj) => obj)[RSAA];
       expect(realResult.types[1].type).to.eql(
-        Actions.CREATE_DATASET_FROM_EXISTING_SUCCESS
+        Actions.CREATE_DATASET_FROM_EXISTING_SUCCESS,
       );
       expect(realResult.method).to.eql("PUT");
       expect(realResult.body).to.eql(JSON.stringify(datasetConfig));
       expect(realResult.endpoint.toString()).to.eql(
-        `${API_URL_V2}/dataset/dataset.%221%22/copyFrom/dataset.%221%22`
+        `${API_URL_V2}/dataset/dataset.%221%22/copyFrom/dataset.%221%22`,
       );
     });
     it("test result of calling of function createDatasetFromExisting", () => {
@@ -101,12 +101,12 @@ describe("sql actions", () => {
       const realResult = Actions.moveDataSet(
         fullPathSource,
         fullPathTarget,
-        dataset
+        dataset,
       )((obj) => obj)[RSAA];
       expect(realResult.types[1].type).to.eql(Actions.MOVE_DATASET_SUCCESS);
       expect(realResult.method).to.eql("POST");
       expect(realResult.endpoint.toString()).to.eql(
-        `${API_URL_V2}/dataset/bla.bla/moveTo/bla.bla2`
+        `${API_URL_V2}/dataset/bla.bla/moveTo/bla.bla2`,
       );
     });
   });

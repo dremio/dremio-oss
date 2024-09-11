@@ -32,6 +32,7 @@ import com.dremio.common.expression.parser.ExprParser.parse_return;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.record.BatchSchema;
@@ -39,13 +40,18 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
+import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.project.Projector;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.IntVector;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -54,8 +60,7 @@ public class ExpressionTest extends ExecTest {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   private VectorAccessible getBatch(MinorType type) {
-    final IntVector vector =
-        new IntVector("result", RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG));
+    final IntVector vector = new IntVector("result", getTestAllocator());
     VectorWrapper<IntVector> wrapper = Mockito.mock(VectorWrapper.class);
     when(wrapper.getValueVector()).thenReturn(vector);
 
@@ -118,6 +123,29 @@ public class ExpressionTest extends ExecTest {
             + "castTIMESTAMP(castDATE(1486166400000l) ) )");
   }
 
+  @Test
+  public void testSubFunction() throws Exception {
+    List<String> expressions =
+        Stream.generate(() -> "abs(`result`+random())").limit(100).collect(Collectors.toList());
+
+    String result = getExpressionsCode(expressions);
+
+    long setupCount =
+        IntStream.rangeClosed(0, 17)
+            .filter(
+                i ->
+                    result.contains(
+                        String.format(
+                            "doSetup%d((context), (incoming), (outgoing), (writerCreator));", i)))
+            .count();
+    long evalCount =
+        IntStream.rangeClosed(0, 17)
+            .filter(i -> result.contains(String.format("doEval%d((inIndex), (outIndex));", i)))
+            .count();
+    assertEquals(16, setupCount);
+    assertEquals(16, evalCount);
+  }
+
   // HELPER METHODS //
 
   private LogicalExpression parseExpr(String expr) throws RecognitionException {
@@ -150,6 +178,50 @@ public class ExpressionTest extends ExecTest {
     cg.addExpr(
         new ValueVectorWriteExpression(
             new TypedFieldId(materializedExpr.getCompleteType(), -1), materializedExpr));
+    CodeGenerator codeGen = cg.getCodeGenerator();
+    codeGen.generate();
+    return codeGen.getCodeDefinition().getGeneratedCode();
+  }
+
+  private String getExpressionsCode(List<String> expressions) throws Exception {
+    List<LogicalExpression> materializedExpressions = new LinkedList<>();
+    VectorAccessible batch = getBatch(MinorType.BIGINT);
+    for (String expression : expressions) {
+      final LogicalExpression expr = parseExpr(expression);
+      final ErrorCollector error = new ErrorCollectorImpl();
+      final LogicalExpression materializedExpr =
+          ExpressionTreeMaterializer.materialize(expr, batch.getSchema(), error, registry);
+
+      if (error.getErrorCount() != 0) {
+        System.err.println(
+            String.format(
+                "Failure while materializing expression [%s].  Errors: %s", expression, error));
+        assertEquals(0, error.getErrorCount());
+      }
+      materializedExpressions.add(materializedExpr);
+    }
+
+    CompilationOptions compilationOptions = mock(CompilationOptions.class);
+    OptionResolver optionResolver = mock(OptionResolver.class);
+    when(compilationOptions.getNewMethodThreshold()).thenReturn(100);
+    when(compilationOptions.getFunctionExpressionCountThreshold()).thenReturn(10L);
+    FunctionContext mockFunctionContext = mock(FunctionContext.class);
+    when(mockFunctionContext.getCompilationOptions()).thenReturn(compilationOptions);
+    when(mockFunctionContext.getOptions()).thenReturn(optionResolver);
+    when(optionResolver.getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED)).thenReturn(true);
+    final ClassGenerator<Projector> cg =
+        CodeGenerator.get(Projector.TEMPLATE_DEFINITION, null, mockFunctionContext).getRoot();
+    int i = 0;
+    for (LogicalExpression materializedExpr : materializedExpressions) {
+      i++;
+      cg.lazyAddExp(
+          new ValueVectorWriteExpression(
+              new TypedFieldId(materializedExpr.getCompleteType(), i), materializedExpr),
+          ClassGenerator.BlockCreateMode.NEW_BLOCK,
+          true);
+    }
+
+    cg.evaluateAllLazyExps();
     CodeGenerator codeGen = cg.getCodeGenerator();
     codeGen.generate();
     return codeGen.getCodeDefinition().getGeneratedCode();

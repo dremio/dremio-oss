@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers.refresh;
 
 import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -35,6 +36,23 @@ public interface MetadataRefreshPlanBuilder {
    */
   PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions retrievalOptions)
       throws ConnectorException;
+
+  /**
+   * Returns a listing of partition chunks. May take a DatasetHandle instance as hint to spare
+   * additional getDatasetHandle() invocations.
+   *
+   * <p>There must be one or more partition chunks in a dataset.
+   *
+   * @param datasetHandle DatasetHandle hint, if not null will spare retrieving it
+   * @param retrievalOptions
+   * @return listing of partition chunk handles, not null
+   * @throws ConnectorException
+   */
+  default PartitionChunkListing listPartitionChunks(
+      DatasetHandle datasetHandle, DatasetRetrievalOptions retrievalOptions)
+      throws ConnectorException {
+    return listPartitionChunks(retrievalOptions);
+  }
 
   /** Setup all the metadata like schema, partitions which are needed to build the plan. */
   void setupMetadataForPlanning(

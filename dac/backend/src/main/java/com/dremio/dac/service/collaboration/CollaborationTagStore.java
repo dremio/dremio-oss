@@ -139,9 +139,9 @@ public class CollaborationTagStore {
     }
 
     @Override
-    public void convert(DocumentWriter writer, String id, CollaborationTag record) {
-      writer.write(ENTITY_ID, record.getEntityId());
-      writer.write(LAST_MODIFIED, record.getLastModified());
+    public void convert(DocumentWriter writer, String id, CollaborationTag document) {
+      writer.write(ENTITY_ID, document.getEntityId());
+      writer.write(LAST_MODIFIED, document.getLastModified());
     }
   }
 }

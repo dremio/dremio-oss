@@ -83,7 +83,7 @@ const TagsView = ({
     if (!newTag.trim()) return;
 
     const isDuplicateTag = tags.find(
-      (tag: string) => tag.toLowerCase() === newTag.toLowerCase()
+      (tag: string) => tag.toLowerCase() === newTag.toLowerCase(),
     );
     if (!isDuplicateTag) {
       if (onAddTag) onAddTag(newTag);
@@ -168,7 +168,7 @@ const TagsView = ({
   // positionOrOffset - a cursor position that should be set or offset relative to current cursor position
   const moveCursorToTags = async (
     positionOrOffset: number,
-    { isRelative = false } = {}
+    { isRelative = false } = {},
   ) => {
     let focusInput = false;
     const cnt = tags.size;
@@ -178,7 +178,7 @@ const TagsView = ({
 
     focusInput = showInputField() && (cnt === 0 || cnt <= cursorPosition); // indidcates if an input should be selected after cursor position move. This may happen if position > number of tags. Or if there are no tags at all.
     setSelectedTagIndex(
-      focusInput ? -1 : Math.min(Math.max(cursorPosition, 0), cnt - 1)
+      focusInput ? -1 : Math.min(Math.max(cursorPosition, 0), cnt - 1),
     );
     if (focusInput) {
       // has to do it via timeout, as if do this synchroniously, then cursor is set into second position. Default input behaviour cause this
@@ -196,7 +196,7 @@ const TagsView = ({
   const removeTag = async (
     index: number,
     selectNext?: boolean,
-    e?: { stopPropagation: () => void; preventDefault: () => void } | undefined
+    e?: { stopPropagation: () => void; preventDefault: () => void } | undefined,
   ) => {
     e?.stopPropagation();
     e?.preventDefault();
@@ -255,7 +255,10 @@ const TagsView = ({
       <span key={`w_${i}`} className={classes["tagWrapper"]}>
         <Tag
           key={`tag_${i}`}
-          className={classes["tagElement"]}
+          className={
+            (classes["tagElement"],
+            selectedTagIndex === i && classes["tagElementFocused"])
+          }
           text={t}
           daqa={`tag-pill-${t}`}
           deleteHandler={
@@ -265,7 +268,7 @@ const TagsView = ({
           }
           onClick={() => onTagClick(t)}
         />
-      </span>
+      </span>,
     );
   });
 
@@ -287,9 +290,9 @@ const TagsView = ({
       <div
         className={classNames(
           editEnabled ? classes["container"] : "",
-          className
+          className,
         )}
-        tabIndex={0}
+        tabIndex={showInputField() && editEnabled ? 0 : -1}
         onKeyDown={onKeyDown}
         ref={onTagsRef}
         data-qa="tagsContainer"

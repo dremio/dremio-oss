@@ -18,6 +18,7 @@ package com.dremio.hadoop.security.alias;
 import com.dremio.services.credentials.CredentialsException;
 import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.credentials.CredentialsServiceUtils;
+import com.dremio.telemetry.api.metrics.TimerUtils;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.net.URI;
@@ -62,7 +63,15 @@ public class DremioCredentialProvider extends CredentialProvider {
    */
   @Override
   public CredentialEntry getCredentialEntry(String alias) throws IOException {
-    final String pattern = conf.get(alias);
+    final char[] credential = resolveCredentialPattern(alias, conf.get(alias));
+    if (credential == null) {
+      return null;
+    }
+    return new DremioCredentialEntry(alias, credential);
+  }
+
+  /** Internal use */
+  char[] resolveCredentialPattern(String alias, String pattern) throws IOException {
     if (pattern == null) {
       return null;
     }
@@ -80,7 +89,7 @@ public class DremioCredentialProvider extends CredentialProvider {
       secretUri = CredentialsServiceUtils.safeURICreate(pattern);
     } catch (IllegalArgumentException e) {
       // If it's not a URI, return the `pattern` as it is without "dremio+".
-      return new DremioCredentialEntry(alias, trimmedPattern.toCharArray());
+      return trimmedPattern.toCharArray();
     }
 
     // Check if there is a scheme.
@@ -88,14 +97,16 @@ public class DremioCredentialProvider extends CredentialProvider {
     // If scheme exists, continue to Dremio credentials service.
     final String scheme = secretUri.getScheme();
     if (Strings.isNullOrEmpty(scheme)) {
-      return new DremioCredentialEntry(alias, trimmedPattern.toCharArray());
+      return trimmedPattern.toCharArray();
     }
-    final char[] secretBytes;
     try {
-      String secret = credentialsService.lookup(trimmedPattern);
-      secretBytes = secret.toCharArray();
-      secret = null;
-      return new DremioCredentialEntry(alias, secretBytes);
+      return TimerUtils.timedExceptionThrowingOperation(
+          TimerUtils.timed(
+              "credentials_service.hadoop_config.lookup_time",
+              "Time taken to retrieve hadoop configuration secrets from Credentials Service.",
+              "scheme",
+              scheme),
+          () -> credentialsService.lookup(trimmedPattern).toCharArray());
     } catch (IllegalArgumentException e) {
       logger.error("Failed to resolve {}", alias);
       throw new IOException(String.format("Failed to resolve '%s'", alias), e);

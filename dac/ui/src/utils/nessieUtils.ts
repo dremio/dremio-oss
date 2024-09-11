@@ -231,6 +231,14 @@ export const getSourceByName = moize(
   },
 );
 
+export const getRawSourceByName = moize(
+  (name: string, sources?: Immutable.List<any>) => {
+    return (sources || Immutable.List()).find(
+      (cur) => cur.get("name") === name,
+    );
+  },
+);
+
 export const getSourceById = (
   id: string,
   sources?: Immutable.Map<any, any>,

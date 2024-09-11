@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.google.common.collect.Sets;
 import java.util.HashMap;
@@ -28,11 +29,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class TestSQLRefreshDataset {
-  private final ParserConfig parserConfig =
-      new ParserConfig(
-          ParserConfig.QUOTING,
-          100,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
 
   @Test
   public void testAlterTableRefreshMetadataAllFiles() {
@@ -42,6 +39,8 @@ public class TestSQLRefreshDataset {
 
     final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
     Assert.assertTrue(sqlRefreshDataset.getAllFilesRefresh().booleanValue());
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
   }
 
   @Test
@@ -52,6 +51,8 @@ public class TestSQLRefreshDataset {
 
     final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
     Assert.assertTrue(sqlRefreshDataset.getAllPartitionsRefresh().booleanValue());
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
   }
 
   @Test
@@ -63,6 +64,8 @@ public class TestSQLRefreshDataset {
     final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
     Assert.assertTrue(sqlRefreshDataset.getAllFilesRefresh().booleanValue());
     Assert.assertFalse(sqlRefreshDataset.getForceUpdate().booleanValue());
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
   }
 
   @Test
@@ -74,6 +77,8 @@ public class TestSQLRefreshDataset {
     final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
     Assert.assertTrue(sqlRefreshDataset.getAllPartitionsRefresh().booleanValue());
     Assert.assertFalse(sqlRefreshDataset.getForceUpdate().booleanValue());
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
   }
 
   @Test(expected = UserException.class)
@@ -98,6 +103,8 @@ public class TestSQLRefreshDataset {
     Assert.assertTrue(sqlRefreshDataset.getFileRefresh().booleanValue());
     Assert.assertArrayEquals(
         new String[] {"file1.json"}, sqlRefreshDataset.getFileNames().toArray(new String[0]));
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
   }
 
   @Test
@@ -112,6 +119,8 @@ public class TestSQLRefreshDataset {
     final Map<String, String> expectedPartition = new HashMap<>();
     expectedPartition.put("year", "2021");
     Assert.assertEquals(expectedPartition, sqlRefreshDataset.getPartition());
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
   }
 
   @Test
@@ -126,6 +135,8 @@ public class TestSQLRefreshDataset {
     final Map<String, String> expectedPartition = new HashMap<>();
     expectedPartition.put("year", null);
     Assert.assertEquals(expectedPartition, sqlRefreshDataset.getPartition());
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
   }
 
   @Test
@@ -139,6 +150,8 @@ public class TestSQLRefreshDataset {
     Assert.assertArrayEquals(
         new String[] {"file1.json", "file2.json"},
         sqlRefreshDataset.getFileNames().toArray(new String[0]));
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
   }
 
   @Test
@@ -160,5 +173,31 @@ public class TestSQLRefreshDataset {
     entry = pairIterator.next();
     Assert.assertEquals("month", entry.getKey());
     Assert.assertEquals("Jan", entry.getValue());
+
+    assertThat(sqlRefreshDataset.getFileNameRegex()).isEmpty();
+  }
+
+  @Test
+  public void testRefreshDatasetForFileNameRegex() {
+    final String sql = "REFRESH DATASET tbl FOR REGEX '.*\\.parquet'";
+    final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    assertThat(sqlNode).isInstanceOf(SqlRefreshDataset.class);
+
+    final SqlRefreshDataset sqlRefreshDataset = (SqlRefreshDataset) sqlNode;
+
+    assertThat(sqlRefreshDataset.getTable().getSimple()).isEqualTo("tbl");
+    assertThat(sqlRefreshDataset.getFileNameRegex()).hasValue(".*\\.parquet");
+  }
+
+  @Test
+  public void testErrorOnConcurrentRefresh() {
+    String sql = "REFRESH DATASET tbl ERROR ON CONCURRENT REFRESH";
+    SqlRefreshDataset sqlNode =
+        (SqlRefreshDataset) SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    Assert.assertTrue(sqlNode.errorOnConcurrentRefresh());
+
+    sql = "REFRESH DATASET tbl";
+    sqlNode = (SqlRefreshDataset) SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    Assert.assertFalse(sqlNode.errorOnConcurrentRefresh());
   }
 }

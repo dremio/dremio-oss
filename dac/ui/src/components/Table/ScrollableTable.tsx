@@ -103,13 +103,13 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
   const [resizedTableWidth, setResizedTableWidth] = useState(160);
   const [sortBy, setSortBy] = useState(props.defaultSortBy);
   const [sortDirection, setSortDirection] = useState(
-    props.defaultSortDirection
+    props.defaultSortDirection,
   );
   const [showAction, setShowAction] = useState<boolean[]>([]);
   const [showTooltip, setShowTooltip] = useState<{ [key: string]: string }>({});
   const [fixedTableShadow, setFixedTableShadow] = useState("");
-  const [overflow, setOverflow] = useState<boolean>(false)
-  const [widthFactor, setWidthFactor] = useState<number | undefined>(undefined)
+  const [overflow, setOverflow] = useState<boolean>(false);
+  const [widthFactor, setWidthFactor] = useState<number | undefined>(undefined);
   // const [scrollToRow, setScrollToRow] = useState<number | undefined>(undefined);
   const [dragging, setDragging] = useState<boolean>(false);
   const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
@@ -151,10 +151,16 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
 
   const sortedTable = useMemo(() => {
     if (!onClickId) return;
-    let sortedTableData = getSortedTableData(props.tableData, sortBy, sortDirection);
-    sortedTableData = List.isList(sortedTableData) ? sortedTableData.toArray() : sortedTableData;
+    let sortedTableData = getSortedTableData(
+      props.tableData,
+      sortBy,
+      sortDirection,
+    );
+    sortedTableData = List.isList(sortedTableData)
+      ? sortedTableData.toArray()
+      : sortedTableData;
     return sortedTableData;
-  }, [sortBy, sortDirection, props.tableData])
+  }, [sortBy, sortDirection, props.tableData]);
 
   useEffect(() => {
     gridState && gridState.recomputeGridSize();
@@ -180,7 +186,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
         oldColumnWidth = obj.width || 100;
         currentColumnWidth = Math.max(
           obj.minWidth,
-          (obj.width || 100) + deltaX
+          (obj.width || 100) + deltaX,
         );
         obj.width = currentColumnWidth;
         obj.flexGrow = 0;
@@ -201,7 +207,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
     rowIndex: number,
     cellKey: string,
     e: any,
-    showFirstLevelTooltip: boolean | undefined
+    showFirstLevelTooltip: boolean | undefined,
   ) => {
     const parentElement = e.currentTarget;
     let element = parentElement;
@@ -255,19 +261,30 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
   // }, [fixedColCount]);
 
   // Checks if the list overflows
-  const handleOverflow = useCallback((node: HTMLDivElement | null) => {
-    if (node) {
-      const offset = 0;
-      const bottom = node.getBoundingClientRect().bottom;
-      // The below if else statement will set the factor to multiply 55 with because the list gets cut off only after the second element overflows
-      if (window.innerHeight + ROW_HEIGHT * 2 > bottom && window.innerHeight + ROW_HEIGHT < bottom) {
-        setWidthFactor(1);
-      } else {
-        setWidthFactor(2)
+  const handleOverflow = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) {
+        const offset = 0;
+        const bottom = node.getBoundingClientRect().bottom;
+        // The below if else statement will set the factor to multiply 55 with because the list gets cut off only after the second element overflows
+        if (
+          window.innerHeight + ROW_HEIGHT * 2 > bottom &&
+          window.innerHeight + ROW_HEIGHT < bottom
+        ) {
+          setWidthFactor(1);
+        } else {
+          setWidthFactor(2);
+        }
+        setOverflow(
+          !(
+            bottom + offset >= 0 &&
+            bottom - offset <= window.innerHeight + ROW_HEIGHT
+          ),
+        );
       }
-      setOverflow(!((bottom + offset) >= 0 && (bottom - offset) <= window.innerHeight + ROW_HEIGHT))
-    }
-  }, [tableSize])
+    },
+    [tableSize],
+  );
 
   const renderCell = (rowData: any) => {
     // not reliable, throwing more issues than it is helping :p commenting out for now
@@ -295,14 +312,14 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
     const tableData = getSortedTableData(
       props.tableData,
       sortBy,
-      sortDirection
+      sortDirection,
     );
     const tableDatatest = List.isList(tableData)
       ? tableData.toArray()
       : tableData;
     const headerClassName = classNames(
       "text",
-      "virtualizedTable__headerContent"
+      "virtualizedTable__headerContent",
     );
     const cellVal =
       rowIndex > 0 ? tableDatatest[rowIndex - 1].data[column.key].node() : "";
@@ -340,20 +357,20 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
 
     const renderCellWithOrWithoutAction = (
       showActionCondition?: boolean,
-      type?: string
+      type?: string,
     ) => {
       return (
         <span
           className={clsx(
             "cell text-ellipsis",
             tableClasses[
-            showActionCondition ? "cellWithAction" : "cellWithoutAction"
+              showActionCondition ? "cellWithAction" : "cellWithoutAction"
             ],
             tableClasses["tableCell"],
             {
               [tableClasses["tableCell--alignedRight"]]:
                 columnAlignment === "alignRight",
-            }
+            },
           )}
           style={{
             ...rowStyle,
@@ -392,7 +409,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
               setSortDirection(
                 sortDirection === SortDirection.ASC
                   ? SortDirection.DESC
-                  : SortDirection.ASC
+                  : SortDirection.ASC,
               );
             }
             if (!disableSort && column.key !== sortBy) {
@@ -443,7 +460,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
                   <div
                     className={clsx(
                       "draggableHeaderContent__pipe",
-                      "headerCell__dragPipe"
+                      "headerCell__dragPipe",
                     )}
                   >
                     |
@@ -456,12 +473,12 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
     } else {
       // to render rest of the table
       if (showAction[rowData.rowIndex]) {
-        rowStyle.background = "#F1FAFB";
+        rowStyle.background = "var(--fill--primary--hover)";
       }
       if (column.key === "action") {
         return renderCellWithOrWithoutAction(
           showAction[rowData.rowIndex],
-          "action"
+          "action",
         );
       } else if (showTooltip[rowData.key]) {
         return (
@@ -478,7 +495,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
   const infiniteLoaderChildFunction = (
     { onRowsRendered }: any,
     width: number,
-    height: number
+    height: number,
   ) => {
     const { tableData } = props;
 
@@ -502,7 +519,15 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
                     ? { cursor: "pointer" }
                     : { display: "block" }
                 }
-                onClick={() => onClick && onClick(onClickId ? sortedTable[opts.rowIndex - 1]?.data[onClickId].clickValue : opts.rowIndex)}
+                onClick={() =>
+                  onClick &&
+                  onClick(
+                    onClickId
+                      ? sortedTable[opts.rowIndex - 1]?.data[onClickId]
+                          .clickValue
+                      : opts.rowIndex,
+                  )
+                }
               >
                 {tableColumns.length > 0 ? renderCell(opts) : null}
               </div>
@@ -510,7 +535,11 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
           }}
           columnWidth={getColumnWidth}
           columnCount={tableColumns.length}
-          height={onClickId === "engine" && overflow ? height - (widthFactor ? widthFactor * 55 : 0) : height}
+          height={
+            onClickId === "engine" && overflow
+              ? height - (widthFactor ? widthFactor * 55 : 0)
+              : height
+          }
           rowHeight={ROW_HEIGHT}
           rowCount={tableSize + 1}
           width={width}
@@ -532,7 +561,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
 
   const onSectionRendered = (
     { rowStartIndex, rowStopIndex }: any,
-    onRowsRendered: any
+    onRowsRendered: any,
   ) => {
     const startIndex = rowStartIndex;
     const stopIndex = rowStopIndex;
@@ -555,7 +584,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
   const tempTableHeight = tableSize * 40 + 55;
   const tableHeight =
     tempTableHeight >
-      document.getElementsByClassName("accelerations-table")[0]?.clientHeight
+    document.getElementsByClassName("accelerations-table")[0]?.clientHeight
       ? document.getElementsByClassName("accelerations-table")[0]?.clientHeight
       : tempTableHeight;
   return (
@@ -585,7 +614,7 @@ const ScrollableTable: React.ReactNode = (props: ScrollableTableProps) => {
                   loaderProps,
                   // Test env defaults to 0 and fails so need to set width and height
                   width || 100,
-                  height || 100
+                  height || 100,
                 )
               }
             </InfiniteLoader>

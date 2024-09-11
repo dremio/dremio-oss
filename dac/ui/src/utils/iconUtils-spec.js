@@ -24,44 +24,44 @@ describe("iconUtils", () => {
     it("should return Folder if fileType is folder, and not queryable", () => {
       expect(
         getIconDataTypeFromEntity(
-          Immutable.Map({ fileType: "folder", queryable: false })
-        )
-      ).to.eql("Folder");
+          Immutable.Map({ fileType: "folder", queryable: false }),
+        ),
+      ).to.eql("entities/blue-folder");
     });
     it("should return FolderData if fileType is folder, and is queryable", () => {
       expect(
         getIconDataTypeFromEntity(
-          Immutable.Map({ fileType: "folder", queryable: true })
-        )
-      ).to.eql("FolderData");
+          Immutable.Map({ fileType: "folder", queryable: true }),
+        ),
+      ).to.eql("entities/purple-folder");
     });
     it("should return FileEmpty if fileType is file, and not queryable", () => {
       expect(
         getIconDataTypeFromEntity(
-          Immutable.Map({ fileType: "file", queryable: false })
-        )
-      ).to.eql("FileEmpty");
+          Immutable.Map({ fileType: "file", queryable: false }),
+        ),
+      ).to.eql("entities/empty-file");
     });
     it("should return File if fileType is file, and is queryable", () => {
       expect(
         getIconDataTypeFromEntity(
-          Immutable.Map({ fileType: "file", queryable: true })
-        )
-      ).to.eql("File");
+          Immutable.Map({ fileType: "file", queryable: true }),
+        ),
+      ).to.eql("entities/dataset-table");
     });
     it("should return PhysicalDataset if fileType is physicalDatasets", () => {
       expect(
         getIconDataTypeFromEntity(
-          Immutable.Map({ fileType: "physicalDatasets", queryable: true })
-        )
-      ).to.eql("PhysicalDataset");
+          Immutable.Map({ fileType: "physicalDatasets", queryable: true }),
+        ),
+      ).to.eql("entities/dataset-table");
     });
   });
 
   describe("getIconDataTypeFromDatasetType", () => {
     it("returns correct icon type", () => {
       expect(getIconDataTypeFromDatasetType("PHYSICAL_DATASET")).to.eql(
-        "PhysicalDataset"
+        "entities/dataset-table",
       );
     });
   });

@@ -33,14 +33,13 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.ViewCreatorFactory;
-import com.dremio.exec.server.ContextService;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -58,7 +57,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<JobsService> jobsService;
   private final Provider<NamespaceService.Factory> namespaceServiceFactory;
-  private final Provider<ContextService> contextService;
+  private final Provider<SabotContext> sabotContext;
   private final Provider<CatalogService> catalogService;
   private final BufferAllocator allocator;
   private final Provider<OptionManager> optionManagerProvider;
@@ -68,14 +67,14 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
       Provider<JobsService> jobsService,
       Provider<NamespaceService.Factory> namespaceServiceFactory,
       Provider<CatalogService> catalogService,
-      Provider<ContextService> contextService,
+      Provider<SabotContext> sabotContext,
       Provider<BufferAllocator> allocator,
       Provider<OptionManager> optionManagerProvider) {
     this.kvStoreProvider = kvStoreProvider;
     this.jobsService = jobsService;
     this.namespaceServiceFactory = namespaceServiceFactory;
     this.catalogService = catalogService;
-    this.contextService = contextService;
+    this.sabotContext = sabotContext;
     this.allocator = allocator.get().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
     this.optionManagerProvider = optionManagerProvider;
   }
@@ -89,9 +88,9 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
             jobsService.get(),
             catalogService.get(),
             optionManagerProvider.get(),
-            this.contextService.get());
+            sabotContext.get());
     return new DACViewCreator(
-        userName, contextService.get(), datasetVersionMutator, namespaceService);
+        userName, sabotContext.get(), datasetVersionMutator, namespaceService);
   }
 
   protected class DACViewCreator implements ViewCreator {
@@ -99,16 +98,16 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
     private final JobsService jobsService = DACViewCreatorFactory.this.jobsService.get();
     private final DatasetVersionMutator datasetVersionMutator;
     private final NamespaceService namespaceService;
-    private final ContextService contextService;
+    private final SabotContext sabotContext;
 
     DACViewCreator(
         String userName,
-        ContextService contextService,
+        SabotContext sabotContext,
         DatasetVersionMutator datasetVersionMutator,
         NamespaceService namespaceService) {
       this.userName = userName;
       this.namespaceService = namespaceService;
-      this.contextService = contextService;
+      this.sabotContext = sabotContext;
       this.datasetVersionMutator = datasetVersionMutator;
     }
 
@@ -158,7 +157,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
 
         Transformer transformer =
             new Transformer(
-                contextService.get(),
+                sabotContext,
                 jobsService,
                 namespaceService,
                 datasetVersionMutator,
@@ -252,8 +251,12 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
     }
   }
 
-  public Provider<CatalogService> getCatalogService() {
-    return catalogService;
+  public SabotContext getSabotContext() {
+    return sabotContext.get();
+  }
+
+  public CatalogService getCatalogService() {
+    return catalogService.get();
   }
 
   @Override
@@ -282,19 +285,12 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
     for (int i = path.size(); i > 0; i--) {
       keys.add(new NamespaceKey(path.subList(0, i)));
     }
-    List<NameSpaceContainer> containers = null;
-    try {
-      containers = catalog.getEntities(keys);
-    } catch (NamespaceNotFoundException ignore) {
-    }
-
-    if (containers != null) {
-      for (int i = 0; i < containers.size() - 1; i++) {
-        if (containers.get(i) != null) {
-          List<String> pathInOriginalCase = containers.get(i).getFullPathList();
-          pathInOriginalCase.addAll(path.subList(pathInOriginalCase.size(), path.size()));
-          return pathInOriginalCase;
-        }
+    List<NameSpaceContainer> containers = catalog.getEntities(keys);
+    for (int i = 0; i < containers.size() - 1; i++) {
+      if (containers.get(i) != null) {
+        List<String> pathInOriginalCase = containers.get(i).getFullPathList();
+        pathInOriginalCase.addAll(path.subList(pathInOriginalCase.size(), path.size()));
+        return pathInOriginalCase;
       }
     }
 

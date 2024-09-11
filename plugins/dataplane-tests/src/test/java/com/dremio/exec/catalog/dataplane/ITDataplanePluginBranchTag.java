@@ -50,7 +50,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBra
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesHotHaveBranch;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesHotHaveTag;
-import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveTable;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveEntity;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -136,7 +136,7 @@ public class ITDataplanePluginBranchTag extends ITDataplanePluginTestSetup {
     runSQL(alterBranchAssignSpecifierQuery(branchName, alterAssignSpecifierQuery));
 
     // ASSERT
-    assertNessieDoesNotHaveTable(tablePath, branchName, this);
+    assertNessieDoesNotHaveEntity(tablePath, branchName, this);
     assertThat(getCommitHashForBranch(branchName)).isEqualTo(hashBeforeCommit);
 
     // Drop tables

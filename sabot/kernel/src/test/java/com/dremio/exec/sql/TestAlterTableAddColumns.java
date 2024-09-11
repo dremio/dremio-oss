@@ -41,7 +41,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void typeNotSpecified() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addcol0";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -69,7 +69,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void invalidType() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addcol1";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -93,7 +93,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void unsupportedType() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addcol7";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -117,7 +117,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void noContextFail() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addcol07";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -140,7 +140,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumn() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addcol2";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -170,7 +170,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "structcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -194,7 +194,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInListOfStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "listofstructcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -218,7 +218,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInListOfListOfStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "listoflistofstructcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -242,7 +242,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInStructOfListOfStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "structoflistofstructcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -266,7 +266,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInStructOfListOfRow() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "structoflistofrowcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -290,7 +290,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInStructOfStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "structofstructcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -314,7 +314,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInRow() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "rowcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -338,7 +338,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInArrayOfRow() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "arrayofrowcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -362,7 +362,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInArrayOfArrayOfRow() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "arrayofarrayofrowcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -386,7 +386,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInRowOfArrayOfRow() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "rowoflistofrowcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -410,7 +410,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addExistingColumnInRowOfRow() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "rowofrowcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -434,7 +434,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void invalidTable() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addcol3";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         String query =
             String.format(
@@ -452,7 +452,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void addColumnAndInsert() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addcol6";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -514,7 +514,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addColumnAndInsertWithPath";
       String path = "path";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(

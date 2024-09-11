@@ -50,6 +50,7 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.namespace.source.proto.UpdateMode;
@@ -57,8 +58,7 @@ import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.users.SystemUser;
-import com.dremio.telemetry.api.metrics.Counter;
-import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.CounterWithOutcome;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
@@ -71,12 +71,14 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiFunction;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 import javax.inject.Provider;
 
 /**
@@ -104,12 +106,8 @@ class SourceMetadataManager implements AutoCloseable {
       org.slf4j.LoggerFactory.getLogger(SourceMetadataManager.class);
   private static final long WAKEUP_FREQUENCY_MS = 1000 * 60;
   private static final long SCHEDULER_GRANULARITY_MS = 1 * 1000;
-  private static final Counter FAILED_15M =
-      Metrics.newCounter(
-          Metrics.join("metadata_refresh", "failed_15m"), Metrics.ResetType.PERIODIC_15M);
-  private static final Counter SUCCESS_15M =
-      Metrics.newCounter(
-          Metrics.join("metadata_refresh", "success_15m"), Metrics.ResetType.PERIODIC_15M);
+  private static final CounterWithOutcome METADATA_REFRESH_COUNTER =
+      CounterWithOutcome.of("metadata_refresh");
   private static final String METADATA_REFRESH_TASK_NAME_PREFIX = "metadata-refresh-";
 
   // Stores the time (in milliseconds, obtained from System.currentTimeMillis()) at which a dataset
@@ -233,6 +231,12 @@ class SourceMetadataManager implements AutoCloseable {
       }
     } catch (InterruptedException ex) {
       return false;
+    }
+  }
+
+  private void verifySourceExistence(NamespaceService namespaceService) {
+    if (!namespaceService.exists(sourceKey, NameSpaceContainer.Type.SOURCE)) {
+      throw new RuntimeException(String.format("Source %s does not exist", sourceKey.getName()));
     }
   }
 
@@ -371,11 +375,63 @@ class SourceMetadataManager implements AutoCloseable {
    */
   boolean isStillValid(
       MetadataRequestOptions options, DatasetConfig config, SourceMetadata plugin) {
+    return isStillValid(
+            options,
+            config,
+            plugin,
+            (pluginForIceberg, datasetConfig) ->
+                CompletableFuture.completedFuture(
+                    pluginForIceberg.isIcebergMetadataValid(
+                        datasetConfig, new NamespaceKey(datasetConfig.getFullPathList()))))
+        .toCompletableFuture()
+        .join();
+  }
+
+  /**
+   * Checks if the entry is valid. Executes potentially expensive Iceberg validity checks using the
+   * provided async function.
+   *
+   * @param options metadata request options
+   * @param config dataset config
+   * @param plugin storage plugin
+   * @param asyncIcebergValidityCheck async validity check for Iceberg tables
+   * @return a future boolean result
+   */
+  CompletionStage<Boolean> isStillValid(
+      MetadataRequestOptions options,
+      DatasetConfig config,
+      SourceMetadata plugin,
+      BiFunction<SupportsIcebergRootPointer, DatasetConfig, CompletionStage<Boolean>>
+          asyncIcebergValidityCheck) {
     final NamespaceKey key = new NamespaceKey(config.getFullPathList());
     final Long updateTime = localUpdateTime.getIfPresent(key);
     final long currentTime = System.currentTimeMillis();
     final long expiryTime = bridge.getMetadataPolicy().getDatasetDefinitionExpireAfterMs();
     Span.current().setAttribute("dremio.namespace.key.schemapath", key.getSchemaPath());
+
+    if (plugin instanceof SupportsIcebergRootPointer && DatasetHelper.isIcebergDataset(config)) {
+      SupportsIcebergRootPointer pluginForIceberg = (SupportsIcebergRootPointer) plugin;
+      Long lastMetadataValidityCheckTime =
+          Optional.ofNullable(icebergDatasetMetadataState.getIfPresent(key))
+              .flatMap(DatasetMetadataState::lastRefreshTimeMillis)
+              .orElse(0L);
+      boolean shouldDoValidityCheck =
+          shouldDoIcebergValidityCheck(
+              pluginForIceberg, options, lastMetadataValidityCheckTime, currentTime);
+      if (shouldDoValidityCheck) {
+        return asyncIcebergValidityCheck
+            .apply(pluginForIceberg, config)
+            .whenComplete(
+                (isValid, ex) -> {
+                  DatasetMetadataState metadataState =
+                      DatasetMetadataState.builder()
+                          .setIsExpired(!isValid)
+                          .setLastRefreshTimeMillis(currentTime)
+                          .build();
+                  icebergDatasetMetadataState.put(key, metadataState);
+                });
+      }
+    }
 
     final boolean isDatasetExpired =
         options.newerThan() < currentTime
@@ -396,7 +452,7 @@ class SourceMetadataManager implements AutoCloseable {
             new Timestamp(fullRefresh.getLastStart()),
             expiryTime / 60000);
       }
-      return true;
+      return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 
     // check if the entry is expired  or  request marks this dataset as invalid
@@ -410,52 +466,33 @@ class SourceMetadataManager implements AutoCloseable {
             new Timestamp(fullRefresh.getLastStart()),
             expiryTime / 60000);
       }
-      return false;
+      return CompletableFuture.completedFuture(Boolean.FALSE);
     }
 
-    if (plugin instanceof SupportsIcebergRootPointer && DatasetHelper.isIcebergDataset(config)) {
-      SupportsIcebergRootPointer pluginForIceberg = (SupportsIcebergRootPointer) plugin;
-      Long lastMetadataValidityCheckTime =
-          Optional.ofNullable(icebergDatasetMetadataState.getIfPresent(key))
-              .flatMap(DatasetMetadataState::lastRefreshTimeMillis)
-              .orElse(0L);
-      boolean isValidityCheckRecentEnough =
-          pluginForIceberg.isMetadataValidityCheckRecentEnough(
-              lastMetadataValidityCheckTime, currentTime, optionManager);
-      if (!isValidityCheckRecentEnough) {
-        boolean isValid = pluginForIceberg.isIcebergMetadataValid(config, key);
-        DatasetMetadataState metadataState =
-            DatasetMetadataState.builder()
-                .setIsExpired(!isValid)
-                .setLastRefreshTimeMillis(currentTime)
-                .build();
-        icebergDatasetMetadataState.put(key, metadataState);
-        return isValid;
-      }
-    }
+    return CompletableFuture.completedFuture(Boolean.TRUE);
+  }
 
-    return true;
+  protected boolean shouldDoIcebergValidityCheck(
+      SupportsIcebergRootPointer plugin,
+      MetadataRequestOptions options,
+      long lastValidityCheckTime,
+      long currentTime) {
+    return options.checkValidity()
+        && !plugin.isMetadataValidityCheckRecentEnough(
+            lastValidityCheckTime, currentTime, optionManager);
   }
 
   DatasetMetadataState getDatasetMetadataState(DatasetConfig config, StoragePlugin plugin) {
-    final NamespaceKey key = new NamespaceKey(config.getFullPathList());
-    final Supplier<DatasetMetadataState> defaultMetadataState =
-        () ->
-            DatasetMetadataState.builder()
-                .setIsExpired(config.getLastModified() == null)
-                .setLastRefreshTimeMillis(config.getLastModified())
-                .build();
     if (plugin instanceof SupportsIcebergRootPointer && DatasetHelper.isIcebergDataset(config)) {
+      final NamespaceKey key = new NamespaceKey(config.getFullPathList());
+      // If there is no recorded metadata state (from previous validity check) then assume expired
       return Optional.ofNullable(icebergDatasetMetadataState.getIfPresent(key))
-          .filter(
-              state -> {
-                long lastValidityCheck = state.lastRefreshTimeMillis().orElse(0L);
-                long lastModified = Optional.ofNullable(config.getLastModified()).orElse(0L);
-                return lastValidityCheck > lastModified;
-              })
-          .orElseGet(defaultMetadataState);
+          .orElseGet(() -> DatasetMetadataState.builder().setIsExpired(true).build());
     }
-    return defaultMetadataState.get();
+    return DatasetMetadataState.builder()
+        .setIsExpired(config.getLastModified() == null)
+        .setLastRefreshTimeMillis(config.getLastModified())
+        .build();
   }
 
   /** An abstract implementation of refresh logic. */
@@ -472,6 +509,8 @@ class SourceMetadataManager implements AutoCloseable {
 
       final Stopwatch stopwatch = Stopwatch.createStarted();
       try {
+        verifySourceExistence(systemNamespace);
+
         final SourceMetadata sourceMetadata = bridge.getMetadata();
         if (sourceMetadata instanceof SupportsListingDatasets) {
           final SupportsListingDatasets listingProvider = (SupportsListingDatasets) sourceMetadata;
@@ -535,6 +574,8 @@ class SourceMetadataManager implements AutoCloseable {
       if (metadataPolicy.getDatasetUpdateMode() == UpdateMode.UNKNOWN) {
         return false;
       }
+
+      verifySourceExistence(systemNamespace);
 
       final Stopwatch stopwatch = Stopwatch.createStarted();
       final MetadataSynchronizer synchronizeRun =
@@ -672,14 +713,16 @@ class SourceMetadataManager implements AutoCloseable {
 
           // save post timer close.
           saveRefreshData();
-          SUCCESS_15M.increment();
+
+          METADATA_REFRESH_COUNTER.succeeded();
         } catch (Exception e) {
           // Exception while updating the metadata. Ignore, and try again later
           logger.warn(
               "Source '{}' failed to execute refresh for plugin due to an exception.",
               sourceKey,
               e);
-          FAILED_15M.increment();
+
+          METADATA_REFRESH_COUNTER.errored();
         }
 
       } finally {

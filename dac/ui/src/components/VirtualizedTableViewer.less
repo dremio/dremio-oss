@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   div.virtualized-row {
@@ -54,7 +53,7 @@
       height: "1px";
       position: relative;
       top: 50%;
-      background-color: @FIGMA_NEUTRAL_150;
+      background-color: var(--border--neutral);
     }
 
     &__strikeThroughContainer {
@@ -82,7 +81,7 @@
     &__pipe {
       padding-left: 10px;
       cursor: col-resize;
-      color: @lite-grey;
+      color: var(--color--neutral--150);
     }
   }
   .draggableHeaderInnerText {

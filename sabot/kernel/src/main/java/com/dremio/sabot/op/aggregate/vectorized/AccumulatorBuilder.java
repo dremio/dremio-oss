@@ -255,7 +255,8 @@ public class AccumulatorBuilder {
       VarLenAccumParams varLenAccumParams,
       int maxListAggSize,
       BaseValueVector[] tempAccumulatorHolder,
-      int maxFieldSizeBytes) {
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
     final byte[] accumulatorTypes = materializedAggExpressions.getAccumulatorTypes();
     final List<FieldVector> inputVectors = materializedAggExpressions.getInputVectors();
     final List<Field> outputVectorFields = materializedAggExpressions.getOutputVectorFields();
@@ -290,7 +291,8 @@ public class AccumulatorBuilder {
               varLenAccumParams,
               listAggParams,
               tempAccumulatorHolder[i],
-              maxFieldSizeBytes);
+              maxFieldSizeBytes,
+              initialVectorSize);
       if (accums[i] == null) {
         throw new IllegalStateException("ERROR: invalid accumulator state");
       }
@@ -311,7 +313,8 @@ public class AccumulatorBuilder {
       VarLenAccumParams varLenAccumParams,
       ListAggParams listAggParams,
       BaseValueVector tempAccumulatorHolder,
-      int maxFieldSizeBytes) {
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
     if (accumulatorType == AccumulatorType.COUNT1.ordinal()) {
       return new CountOneAccumulator(
           incomingValues,
@@ -831,103 +834,112 @@ public class AccumulatorBuilder {
         }
 
       case 11 /* ARRAY_AGG */:
-      case 12 /* PHASE1_ARRAY_AGG */:
-      case 13 /* PHASE2_ARRAY_AGG */:
         {
           switch (type) {
             case BIGINT:
               return new BigIntArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case INT:
               return new IntArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case FLOAT4:
               return new FloatArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case FLOAT8:
               return new DoubleArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case DECIMAL:
               return new BigDecimalArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case VARCHAR:
               return new VarcharArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
                   computationVectorAllocator,
-                  maxFieldSizeBytes);
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case VARBINARY:
               return new VarbinaryArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
                   computationVectorAllocator,
-                  maxFieldSizeBytes);
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case BIT:
               return new BitArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case DATE:
               return new DateArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case TIMESTAMP:
               return new TimestampArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case TIME:
               return new TimeArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case INTERVALDAY:
               return new IntervalDayArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             case INTERVALYEAR:
               return new IntervalYearArrayAggAccumulator(
                   incomingValues,
                   transferVector,
-                  maxValuesPerBatch,
                   tempAccumulatorHolder,
-                  computationVectorAllocator);
+                  computationVectorAllocator,
+                  maxFieldSizeBytes,
+                  initialVectorSize);
             default:
               throw UserException.unsupportedError(
                       new Exception(String.format("ARRAY_AGG is not supported for %s", type)))
@@ -991,8 +1003,6 @@ public class AccumulatorBuilder {
     LOCAL_LISTAGG, /*  9 */
     LISTAGG_MERGE, /* 10 */
     ARRAY_AGG, /* 11 */
-    PHASE1_ARRAY_AGG, /* 12 */
-    PHASE2_ARRAY_AGG, /* 13 */
   }
 
   private static byte getAccumulatorTypeFromName(String name) {
@@ -1045,20 +1055,6 @@ public class AccumulatorBuilder {
       case "ARRAY":
         if ("ARRAY_AGG".equals(name)) {
           return (byte) AccumulatorType.ARRAY_AGG.ordinal();
-        }
-        throw UserException.unsupportedError()
-            .message("Unable to handle accumulator function %s", name)
-            .build(logger);
-      case "PHASE1":
-        if ("PHASE1_ARRAY_AGG".equals(name)) {
-          return (byte) AccumulatorType.PHASE1_ARRAY_AGG.ordinal();
-        }
-        throw UserException.unsupportedError()
-            .message("Unable to handle accumulator function %s", name)
-            .build(logger);
-      case "PHASE2":
-        if ("PHASE2_ARRAY_AGG".equals(name)) {
-          return (byte) AccumulatorType.PHASE2_ARRAY_AGG.ordinal();
         }
         throw UserException.unsupportedError()
             .message("Unable to handle accumulator function %s", name)

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.handlers.commands;
 
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
@@ -167,7 +168,10 @@ public class MetadataProvider {
               req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
 
       final ListCatalogsRequest catalogsRequest =
-          ListCatalogsRequest.newBuilder().setUsername(parameters.getUsername()).build();
+          ListCatalogsRequest.newBuilder()
+              .setUsername(parameters.getUsername())
+              .setRequesterId(QueryIdHelper.getQueryId(parameters.getQueryId()))
+              .build();
 
       final Iterator<Catalog> catalogs = catalogStub.listCatalogs(catalogsRequest);
 
@@ -244,7 +248,9 @@ public class MetadataProvider {
               req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, null);
 
       final ListSchemataRequest.Builder requestBuilder =
-          ListSchemataRequest.newBuilder().setUsername(parameters.getUsername());
+          ListSchemataRequest.newBuilder()
+              .setUsername(parameters.getUsername())
+              .setRequesterId(QueryIdHelper.getQueryId(parameters.getQueryId()));
       searchQuery.ifPresent(requestBuilder::setQuery);
 
       final Iterator<Schema> schemata = catalogStub.listSchemata(requestBuilder.build());
@@ -327,7 +333,9 @@ public class MetadataProvider {
               req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
       final ListTablesRequest.Builder requestBuilder =
-          ListTablesRequest.newBuilder().setUsername(parameters.getUsername());
+          ListTablesRequest.newBuilder()
+              .setUsername(parameters.getUsername())
+              .setRequesterId(QueryIdHelper.getQueryId(parameters.getQueryId()));
       searchQuery.ifPresent(requestBuilder::setQuery);
 
       final Iterator<Table> tables = catalogStub.listTables(requestBuilder.build());
@@ -424,7 +432,9 @@ public class MetadataProvider {
               req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
       final ListTableSchemataRequest.Builder requestBuilder =
-          ListTableSchemataRequest.newBuilder().setUsername(parameters.getUsername());
+          ListTableSchemataRequest.newBuilder()
+              .setUsername(parameters.getUsername())
+              .setRequesterId(QueryIdHelper.getQueryId(parameters.getQueryId()));
       searchQuery.ifPresent(requestBuilder::setQuery);
 
       Iterator<TableSchema> schemata = catalogStub.listTableSchemata(requestBuilder.build());

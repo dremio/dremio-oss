@@ -84,7 +84,9 @@ public class TestMetadataProvider extends BaseTestQuery {
                     new SysFlightProducer(
                         () ->
                             new SystemTableManagerImpl(
-                                testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)),
+                                testAllocator,
+                                SYS_FLIGHT_RESOURCE::getTablesProvider,
+                                SYS_FLIGHT_RESOURCE::getTableFunctionsProvider)),
                     null,
                     null);
             conduitServiceRegistry.registerService(flightService);
@@ -110,7 +112,7 @@ public class TestMetadataProvider extends BaseTestQuery {
         });
     BaseTestQuery.setupDefaultTestCluster();
     TestSysFlightResource.addSysFlightPlugin(nodes[0]);
-    ((CatalogServiceImpl) getSabotContext().getCatalogService())
+    ((CatalogServiceImpl) getCatalogService())
         .refreshSource(
             new NamespaceKey("sys"),
             CatalogService.REFRESH_EVERYTHING_NOW,
@@ -429,7 +431,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(339, columns1.size());
+    assertEquals(345, columns1.size());
     assertTrue(
         "incremental update column shouldn't be returned",
         columns1.stream()
@@ -453,7 +455,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(25, columns.size());
+    assertEquals(27, columns.size());
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
     verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "ORDINAL_POSITION", iterator.next());
@@ -467,8 +469,10 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyColumn("sys", "fragments", "rows_processed", iterator.next());
     verifyColumn("sys", "jobs", "execution_planning_ts", iterator.next());
     verifyColumn("sys", "jobs", "execution_planning_epoch_millis", iterator.next());
+    verifyColumn("sys", "jobs", "is_profile_incomplete", iterator.next());
     verifyColumn("sys", "jobs_recent", "execution_planning_ts", iterator.next());
     verifyColumn("sys", "jobs_recent", "execution_planning_epoch_millis", iterator.next());
+    verifyColumn("sys", "jobs_recent", "is_profile_incomplete", iterator.next());
     verifyColumn("sys", "materializations", "data_partitions", iterator.next());
     verifyColumn("sys", "materializations", "last_refresh_from_pds", iterator.next());
     verifyColumn("sys", "memory", "fabric_port", iterator.next());

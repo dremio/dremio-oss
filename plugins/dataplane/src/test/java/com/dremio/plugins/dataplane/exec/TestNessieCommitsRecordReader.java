@@ -33,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.context.UserContext;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -48,6 +49,7 @@ import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
+import com.dremio.plugins.util.ContainerNotFoundException;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
@@ -59,6 +61,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.hadoop.conf.Configuration;
@@ -77,6 +80,7 @@ import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.FetchOption;
 import org.projectnessie.model.IcebergTable;
+import org.projectnessie.model.IcebergView;
 import org.projectnessie.model.LogResponse;
 import org.projectnessie.model.Operation;
 import org.projectnessie.model.Reference;
@@ -94,6 +98,7 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
   private SampleMutator mutator;
   private RecordReader reader;
   private static Snapshot snapshot;
+  private FileIO fileIO;
 
   @BeforeClass
   public static void initStatics() throws Exception {
@@ -120,9 +125,10 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     when(plugin.createFSWithAsyncOptions(anyString(), anyString(), any(OperatorContext.class)))
         .thenReturn(fs);
 
-    FileIO fileIO =
-        new DremioFileIO(
-            fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF));
+    fileIO =
+        spy(
+            new DremioFileIO(
+                fs, null, null, null, null, new HadoopFileSystemConfigurationAdapter(CONF)));
     when(plugin.createIcebergFileIO(eq(fs), any(), any(), any(), any())).thenReturn(fileIO);
   }
 
@@ -148,7 +154,7 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     }
     verify(reader, times(2)).next();
     assertEquals(1, actual.size());
-    assertEquals("v1.metadata.json", actual.get(0));
+    assertEquals("file:///v1.metadata.json", actual.get(0));
   }
 
   @Test
@@ -167,7 +173,7 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     }
     verify(reader, times(2)).next();
     assertEquals(1, actual.size());
-    assertTrue(actual.containsAll(Arrays.asList("v1.metadata.json")));
+    assertTrue(actual.containsAll(Arrays.asList("file:///v1.metadata.json")));
   }
 
   @Test
@@ -193,7 +199,7 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     }
     verify(reader, times(2)).next();
     assertEquals(1, actual.size());
-    assertTrue(actual.containsAll(Arrays.asList("v1.metadata.json")));
+    assertTrue(actual.containsAll(Arrays.asList("file:///v1.metadata.json")));
   }
 
   @Test
@@ -212,12 +218,41 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     verify(reader, times(3)).next();
     assertThat(actual).hasSize(3);
     assertThat(actual)
-        .containsExactlyInAnyOrder("v2.metadata.json", "v3.metadata.json", "v4.metadata.json");
+        .containsExactlyInAnyOrder(
+            "file:///v2.metadata.json", "file:///v3.metadata.json", "file:///v4.metadata.json");
   }
 
   @Test
   public void testNonExistingMetadataReferences() throws Exception {
     setUpReferences(ImmutableList.of(getNonExistentOpCommit()));
+    setUpReader();
+    assertThat(reader.next()).isEqualTo(0);
+  }
+
+  @Test
+  public void testReadNessieCommitsWithViewShouldIgnoreView() throws Exception {
+    setUpReferences(getCommitWithViews(1)); // Use a new setup method that includes a view
+    setUpReader();
+
+    List<String> actual = new ArrayList<>();
+    int records;
+    VarCharVector pathVector = (VarCharVector) mutator.getVector(SystemSchemas.METADATA_FILE_PATH);
+    while ((records = reader.next()) > 0) {
+      for (int i = 0; i < records; i++) {
+        actual.add(new String(pathVector.get(i), StandardCharsets.UTF_8));
+      }
+    }
+    verify(reader, times(2)).next();
+    assertEquals(1, actual.size());
+    assertEquals("file:///v1.metadata.json", actual.get(0));
+
+    // Ensure the view is not considered
+    assertThat(actual.contains("view:///v1.view")).isFalse();
+  }
+
+  @Test
+  public void testContainerNotFound() throws Exception {
+    setUpReferences(ImmutableList.of(getContainerNotFoundCommit()));
     setUpReader();
     assertThat(reader.next()).isEqualTo(0);
   }
@@ -231,22 +266,25 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
 
     NessieCommitsRecordReader nessieCommitsRecordReader =
         spy(new NessieCommitsRecordReader(fec, context, subScan));
-    doReturn(snapshot)
+    doReturn(Optional.of(snapshot))
         .when(nessieCommitsRecordReader)
-        .loadSnapshot(eq("v1.metadata.json"), anyLong());
-    doReturn(snapshot)
+        .loadSnapshot(eq("v1.metadata.json"), anyLong(), anyString());
+    doReturn(Optional.of(snapshot))
         .when(nessieCommitsRecordReader)
-        .loadSnapshot(eq("v2.metadata.json"), anyLong());
-    doReturn(snapshot)
+        .loadSnapshot(eq("v2.metadata.json"), anyLong(), anyString());
+    doReturn(Optional.of(snapshot))
         .when(nessieCommitsRecordReader)
-        .loadSnapshot(eq("v3.metadata.json"), anyLong());
-    doReturn(snapshot)
+        .loadSnapshot(eq("v3.metadata.json"), anyLong(), anyString());
+    doReturn(Optional.of(snapshot))
         .when(nessieCommitsRecordReader)
-        .loadSnapshot(eq("v4.metadata.json"), anyLong());
+        .loadSnapshot(eq("v4.metadata.json"), anyLong(), anyString());
 
     doThrow(new NotFoundException("vx"))
         .when(nessieCommitsRecordReader)
-        .loadSnapshot(eq("vx.metadata.json"), anyLong());
+        .loadSnapshot(eq("vx.metadata.json"), anyLong(), anyString());
+    doThrow(UserException.ioExceptionError(new ContainerNotFoundException("")).buildSilently())
+        .when(fileIO)
+        .newInputFile("vn.metadata.json");
 
     reader = nessieCommitsRecordReader;
 
@@ -288,6 +326,8 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
     StoragePluginId storagePluginId = mock(StoragePluginId.class);
     when(storagePluginId.getName()).thenReturn("DataplanePlugin");
     when(subScan.getPluginId()).thenReturn(storagePluginId);
+    when(subScan.getFsScheme()).thenReturn(fs.getScheme());
+    when(subScan.getSchemeVariate()).thenReturn("file");
     return subScan;
   }
 
@@ -364,6 +404,46 @@ public class TestNessieCommitsRecordReader extends BaseTestOperator {
             CommitMeta.builder()
                 .message("msg")
                 .hash("a1f4f33a14fa610c75ff8cd89b6a54f5df61fcb8")
+                .commitTime(Instant.EPOCH)
+                .build())
+        .addOperations(Operation.Put.of(key1, icebergTable1))
+        .build();
+  }
+
+  private List<LogResponse.LogEntry> getCommitWithViews(int keyCount) {
+    List<LogResponse.LogEntry> results = new ArrayList<>(keyCount);
+    int count = 1;
+    while (count <= keyCount) {
+      ContentKey key = ContentKey.of("a.b." + count + "c.txt");
+      IcebergTable icebergTable =
+          IcebergTable.of(
+              "v" + count + ".metadata.json", SNAPSHOT_ID, 42, 42, 42, Integer.toString(count));
+      IcebergView viewTable = IcebergView.of("v" + count + ".view", "default", 40, 40);
+
+      results.add(
+          LogResponse.LogEntry.builder()
+              .commitMeta(
+                  CommitMeta.builder()
+                      .message("msg")
+                      .hash("a0f4f33a14fa610c75ff8cd89b6a54f5df61fcb" + count)
+                      .commitTime(Instant.EPOCH)
+                      .build())
+              .addOperations(Operation.Put.of(key, icebergTable))
+              .addOperations(Operation.Put.of(key, viewTable)) // Add view operation
+              .build());
+      count++;
+    }
+    return results;
+  }
+
+  private LogResponse.LogEntry getContainerNotFoundCommit() {
+    ContentKey key1 = ContentKey.of("a.bn.n.txt");
+    IcebergTable icebergTable1 = IcebergTable.of("vn.metadata.json", SNAPSHOT_ID, 42, 42, 42, "1");
+    return LogResponse.LogEntry.builder()
+        .commitMeta(
+            CommitMeta.builder()
+                .message("msg")
+                .hash("a2f4f33a14fa610c75ff8cd89b6a54f5df61fcb9")
                 .commitTime(Instant.EPOCH)
                 .build())
         .addOperations(Operation.Put.of(key1, icebergTable1))

@@ -61,6 +61,13 @@ public class HiveTestUtilities {
   }
 
   public static class DriverState implements AutoCloseable {
+
+    // Hive data generation will invoke HS2 functionality, creating a SessionState (a Hive class),
+    // which in turn creates
+    // an UDFClassLoader instance. This will be set as context CL, but sadly upon
+    // SessionState.close() it is not reset...
+    private static final ClassLoader ORIGINAL_CLASS_LOADER =
+        Thread.currentThread().getContextClassLoader();
     public final Driver driver;
     public final SessionState sessionState;
 
@@ -73,6 +80,7 @@ public class HiveTestUtilities {
     @Override
     public void close() throws IOException {
       sessionState.close();
+      Thread.currentThread().setContextClassLoader(ORIGINAL_CLASS_LOADER);
     }
   }
 

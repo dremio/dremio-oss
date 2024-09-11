@@ -59,7 +59,7 @@ public class TestRefreshTableHandler {
 
   @Before
   public void setup() throws NamespaceException {
-    refreshTableHandler = new RefreshTableHandler(catalog, namespaceService, USER_NAME);
+    refreshTableHandler = new RefreshTableHandler(catalog, namespaceService, false);
 
     when(catalog.resolveSingle(any(NamespaceKey.class)))
         .thenAnswer(

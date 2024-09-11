@@ -171,7 +171,6 @@
     <dependency>
       <groupId>com.dremio.distribution</groupId>
       <artifactId>dremio-jdbc-driver</artifactId>
-      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
@@ -206,7 +205,6 @@
       <artifactId>hadoop-native-libraries</artifactId>
       <classifier>linux</classifier>
     </dependency>
-
   </dependencies>
 
   <build>
@@ -543,8 +541,8 @@ exit 0</script>
         </property>
       </activation>
       <properties>
-        <dremio.distribution.tar.maxSize>1080000000</dremio.distribution.tar.maxSize>
-        <dremio.distribution.rpm.maxSize>1080000000</dremio.distribution.rpm.maxSize>
+        <dremio.distribution.tar.maxSize>1210000000</dremio.distribution.tar.maxSize>
+        <dremio.distribution.rpm.maxSize>1210000000</dremio.distribution.rpm.maxSize>
       </properties>
       <dependencies>
         <dependency>
@@ -592,6 +590,16 @@ exit 0</script>
           </exclusions>
         </dependency>
         <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-native-libraries</artifactId>
+          <classifier>linux-aarch64</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common-native</artifactId>
+          <classifier>linux-aarch64</classifier>
+        </dependency>
+        <dependency>
           <groupId>com.dremio.plugins</groupId>
           <artifactId>dremio-hive3-plugin-launcher</artifactId>
           <version>${project.version}</version>
@@ -612,6 +620,7 @@ exit 0</script>
             </exclusion>
           </exclusions>
         </dependency>
+
       </dependencies>
     </profile>
     <profile>

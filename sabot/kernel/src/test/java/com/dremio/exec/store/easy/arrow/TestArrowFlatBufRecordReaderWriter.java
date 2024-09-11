@@ -101,7 +101,8 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
                 partition,
                 operationType,
                 partitionValue,
-                rejectedRecordCount) -> {};
+                rejectedRecordCount,
+                referencedDatafiles) -> {};
         recordWriter.setup(container, fileWriteListener, byteCountListener);
 
         recordWriter.writeBatch(0, container.getRecordCount());
@@ -194,7 +195,8 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
                   partition,
                   operationType,
                   partitionValue,
-                  rejectedRecordCount) -> {};
+                  rejectedRecordCount,
+                  referencedDataFiles) -> {};
           recordWriter.setup(container, fileWriteListener, byteCountListener);
 
           recordWriter.writeBatch(0, container.getRecordCount());

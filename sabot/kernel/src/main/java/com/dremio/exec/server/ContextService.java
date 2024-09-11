@@ -19,6 +19,7 @@ import static com.google.common.base.Throwables.throwIfUnchecked;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
+import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.util.DremioVersionInfo;
@@ -32,13 +33,14 @@ import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.EngineId;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.SubEngineId;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.maestro.GlobalKeysService;
+import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.LoggedFileSystemWrapper;
+import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
@@ -46,6 +48,7 @@ import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.exec.store.sys.udf.UserDefinedFunctionService;
 import com.dremio.exec.work.WorkStats;
+import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.GroupResourceInformation;
@@ -106,7 +109,6 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<ConnectionReader> connectionReaderProvider;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
   private final Provider<OptionManager> optionManagerProvider;
-  private final Provider<SystemOptionManager> systemOptionManagerProvider;
   private final Set<ClusterCoordinator.Role> roles;
   private final Provider<JobResultInfoProvider> jobResultInfoProvider;
   private final Provider<EngineId> engineIdProvider;
@@ -129,6 +131,8 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider;
   private final Provider<SourceVerifier> sourceVerifierProvider;
   private final Provider<SecretsCreator> secretsCreatorProvider;
+  private final Provider<ForemenWorkManager> foremenWorkManagerProvider;
+  private final Provider<MetadataIOPool> metadataIOPoolProvider;
 
   private SabotContext context;
 
@@ -157,7 +161,6 @@ public class ContextService implements Service, Provider<SabotContext> {
       Provider<ConnectionReader> connectionReaderProvider,
       Provider<JobResultInfoProvider> jobResultInfoProvider,
       Provider<OptionManager> optionManagerProvider,
-      Provider<SystemOptionManager> systemOptionManagerProvider,
       Provider<EngineId> engineIdProvider,
       Provider<SubEngineId> subEngineIdProvider,
       Provider<OptionValidatorListing> optionValidatorProvider,
@@ -176,7 +179,9 @@ public class ContextService implements Service, Provider<SabotContext> {
       Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
       Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider,
       Provider<SourceVerifier> sourceVerifierProvider,
-      Provider<SecretsCreator> secretsCreatorProvider) {
+      Provider<SecretsCreator> secretsCreatorProvider,
+      Provider<ForemenWorkManager> foremenWorkManagerProvider,
+      Provider<MetadataIOPool> metadataIOPoolProvider) {
     this.bootstrapContext = bootstrapContext;
     this.workStats = workStats;
     this.kvStoreProvider = kvStoreProvider;
@@ -200,7 +205,6 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.spillService = spillService;
     this.connectionReaderProvider = connectionReaderProvider;
     this.optionManagerProvider = optionManagerProvider;
-    this.systemOptionManagerProvider = systemOptionManagerProvider;
     this.roles = Sets.immutableEnumSet(roles);
     this.jobResultInfoProvider = jobResultInfoProvider;
     this.engineIdProvider = engineIdProvider;
@@ -221,6 +225,8 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
     this.sourceVerifierProvider = sourceVerifierProvider;
     this.secretsCreatorProvider = secretsCreatorProvider;
+    this.foremenWorkManagerProvider = foremenWorkManagerProvider;
+    this.metadataIOPoolProvider = metadataIOPoolProvider;
   }
 
   @Override
@@ -292,7 +298,11 @@ public class ContextService implements Service, Provider<SabotContext> {
     ClusterCoordinator coordinator = coordinatorProvider.get();
     BufferAllocator allocator = bootstrapContext.getAllocator();
     ScanResult classpathScan = bootstrapContext.getClasspathScan();
+    LogicalPlanPersistence lpPersistance = bootstrapContext.getLpPersistance();
 
+    PhysicalPlanReader physicalPlanReader =
+        new PhysicalPlanReader(
+            classpathScan, lpPersistance, catalogService, connectionReaderProvider.get());
     FunctionImplementationRegistry functionRegistry =
         FunctionImplementationRegistry.create(sConfig, classpathScan, optionManager, false);
     FunctionImplementationRegistry decimalFunctionImplementationRegistry =
@@ -317,7 +327,7 @@ public class ContextService implements Service, Provider<SabotContext> {
         sConfig,
         roles,
         classpathScan,
-        bootstrapContext.getLpPersistance(),
+        lpPersistance,
         allocator,
         coordinator,
         workStats,
@@ -336,11 +346,9 @@ public class ContextService implements Service, Provider<SabotContext> {
         viewCreatorFactory,
         queryPlannerAllocator,
         spillService,
-        connectionReaderProvider,
         jobResultInfoProvider.get(),
-        null,
+        physicalPlanReader,
         optionManager,
-        systemOptionManagerProvider.get(),
         functionRegistry,
         decimalFunctionImplementationRegistry,
         compiler,
@@ -362,7 +370,9 @@ public class ContextService implements Service, Provider<SabotContext> {
         conduitInProcessChannelProviderProvider,
         sysFlightChannelProviderProvider,
         sourceVerifierProvider,
-        secretsCreatorProvider);
+        secretsCreatorProvider,
+        foremenWorkManagerProvider,
+        metadataIOPoolProvider);
   }
 
   @Override

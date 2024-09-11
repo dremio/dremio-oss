@@ -16,7 +16,7 @@
 @use "../../base/components/drawer";
 
 .dremio-drawer {
-  background: white;
+  background: var(--fill--primary);
   border: none;
   border-start-start-radius: var(--dremio--radius--1);
   border-start-end-radius: var(--dremio--radius--1);

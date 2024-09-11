@@ -132,9 +132,9 @@ public class CollaborationWikiStore {
     }
 
     @Override
-    public void convert(DocumentWriter writer, String id, CollaborationWiki record) {
-      writer.write(ENTITY_ID, record.getEntityId());
-      writer.write(CREATED_AT, record.getCreatedAt());
+    public void convert(DocumentWriter writer, String id, CollaborationWiki document) {
+      writer.write(ENTITY_ID, document.getEntityId());
+      writer.write(CREATED_AT, document.getCreatedAt());
     }
   }
 }

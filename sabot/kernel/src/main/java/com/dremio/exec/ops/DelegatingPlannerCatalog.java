@@ -82,7 +82,7 @@ public final class DelegatingPlannerCatalog<T extends SimpleCatalog<T>> implemen
 
   @Override
   public Collection<Function> getFunctions(
-      NamespaceKey path, SimpleCatalog.FunctionType functionType) {
+      CatalogEntityKey path, SimpleCatalog.FunctionType functionType) {
     return delegate.getFunctions(path, functionType);
   }
 

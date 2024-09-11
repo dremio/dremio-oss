@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.config.SplitProducerTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionPOP;
@@ -308,7 +309,7 @@ public class TestIcebergSplitGenTableFunction extends BaseTestTableFunction {
         new TableFunctionConfig(
             TableFunctionConfig.FunctionType.ICEBERG_SPLIT_GEN,
             true,
-            new TableFunctionContext(
+            new SplitProducerTableFunctionContext(
                 null,
                 SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
                 null,
@@ -325,7 +326,8 @@ public class TestIcebergSplitGenTableFunction extends BaseTestTableFunction {
                 false,
                 false,
                 true,
-                null)));
+                null,
+                false)));
   }
 
   private static NormalizedPartitionInfo createPartitionInfo(String id) {

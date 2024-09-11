@@ -15,6 +15,7 @@
  */
 package com.dremio.common;
 
+import com.dremio.exec.proto.beans.DremioExitCodes;
 import java.io.PrintStream;
 
 /** Helper for catastrophic failures */
@@ -29,14 +30,17 @@ public final class ProcessExit {
    * @param message a descriptive message
    * @param code an error code to exit the JVM with.
    */
-  public static void exit(String message, int code) {
+  public static void exit(String message, DremioExitCodes code) {
     exit(null, message, code);
   }
 
   public static void exitHeap(Throwable t) {
     final int heapExitCode = 1;
     try {
-      exit(t, "There was insufficient heap memory to continue operating.", heapExitCode);
+      exit(
+          t,
+          "There was insufficient heap memory to continue operating.",
+          DremioExitCodes.OUT_OF_HEAP_FAILURE);
     } finally {
       // We tried to exit with a nice error message, but that failed, likely when we tried to create
       // a String for the
@@ -52,7 +56,7 @@ public final class ProcessExit {
    * @param message A descriptive message
    * @param code An error code to exit the JVM with.
    */
-  public static void exit(Throwable t, String message, int code) {
+  public static void exit(Throwable t, String message, DremioExitCodes code) {
     try {
       logger.error("Dremio is exiting. {}", message, t);
 
@@ -73,7 +77,7 @@ public final class ProcessExit {
     } finally {
       // We tried to exit with a nice error message, but that failed for some reason. Can't let this
       // thread simply exit
-      Runtime.getRuntime().halt(code);
+      Runtime.getRuntime().halt((code.getNumber()));
     }
   }
 }

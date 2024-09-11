@@ -93,7 +93,10 @@ public class ProjectOutputHandler implements WriterCommitterOutputHandler {
                 new FieldReference(RecordWriter.PARTITION_VALUE.getName())),
             new NamedExpression(
                 SchemaPath.getSimplePath(RecordWriter.REJECTED_RECORDS.getName()),
-                new FieldReference(RecordWriter.REJECTED_RECORDS.getName())));
+                new FieldReference(RecordWriter.REJECTED_RECORDS.getName())),
+            new NamedExpression(
+                SchemaPath.getSimplePath(RecordWriter.REFERENCED_DATA_FILES.getName()),
+                new FieldReference(RecordWriter.REFERENCED_DATA_FILES.getName())));
 
     assert namedExpressions.size() == RecordWriter.SCHEMA.getFields().size()
         : "Named expressions schema doesn't match RecordWriter Schema";
@@ -124,7 +127,7 @@ public class ProjectOutputHandler implements WriterCommitterOutputHandler {
   }
 
   @Override
-  public void write(WriterCommitterRecord record) {
+  public void write(WriterCommitterRecord rec) {
     throw new UnsupportedOperationException();
   }
 

@@ -45,10 +45,10 @@ public final class SecurityFolder {
 
   private static final String SECURITY_DIRECTORY = "security";
 
-  private static final Set<PosixFilePermission> SECURITY_DIRECTORY_PERMISSIONS =
+  public static final Set<PosixFilePermission> SECURITY_DIRECTORY_PERMISSIONS =
       EnumSet.of(OWNER_READ, OWNER_WRITE, OWNER_EXECUTE);
 
-  private static final Set<PosixFilePermission> SECURITY_FILE_PERMISSIONS =
+  public static final Set<PosixFilePermission> SECURITY_FILE_PERMISSIONS =
       EnumSet.of(OWNER_READ, OWNER_WRITE);
 
   private final Path securityDirectory;
@@ -102,6 +102,17 @@ public final class SecurityFolder {
   }
 
   /**
+   * Check if the security folder exists.
+   *
+   * @param config the DremioConfig object representing the configuration of Dremio
+   * @return true if the security folder exists, false otherwise
+   */
+  public static boolean securityFolderExists(DremioConfig config) {
+    final String localWritePath = config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING);
+    return Files.exists(Paths.get(localWritePath, SECURITY_DIRECTORY));
+  }
+
+  /**
    * Resolve a filename under the security directory
    *
    * @param filename the filename
@@ -109,6 +120,15 @@ public final class SecurityFolder {
    */
   public Path resolve(String filename) {
     return securityDirectory.resolve(filename);
+  }
+
+  /**
+   * Retrieves the security directory.
+   *
+   * @return The path to the security directory.
+   */
+  public Path getSecurityDirectory() {
+    return securityDirectory;
   }
 
   /** Option when opening a file for write */

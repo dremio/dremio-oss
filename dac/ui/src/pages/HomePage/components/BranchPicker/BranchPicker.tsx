@@ -84,7 +84,7 @@ function BranchPicker({
   onApply = () => {},
 }: BranchPickerProps & ConnectedProps & { router?: any }) {
   const { ref } = useBranchPickerContext();
-  const { state, apiV2, stateKey } = useNessieContext();
+  const { state, apiV2, stateKey, source } = useNessieContext();
   const [refState, setRefState] = useState<SetReferenceAction["payload"]>({
     reference: state.reference,
     hash: state.hash,
@@ -165,7 +165,7 @@ function BranchPicker({
       state.reference,
       newDate,
       stateKey,
-      apiV2
+      apiV2,
     );
     if (resultState) {
       setRefState(resultState as any);
@@ -199,10 +199,17 @@ function BranchPicker({
     >
       <div
         className="branchPicker"
+        aria-label={`Branch picker for ${source.name}, reference ${reference?.name}`}
         {...toggleProps}
         onClick={(e) => {
           toggleProps.onClick(e);
         }}
+        onKeyPress={(e) => {
+          if (e.code === "Space" || e.code === "Enter") {
+            toggleProps.onClick(e);
+          }
+        }}
+        tabIndex={0}
       >
         <BranchPickerTag
           reference={state.reference}
@@ -337,5 +344,5 @@ const mapDispatchToProps = {
 
 export default withRouter(
   //@ts-ignore
-  connect(null, mapDispatchToProps)(BranchPicker)
+  connect(null, mapDispatchToProps)(BranchPicker),
 );

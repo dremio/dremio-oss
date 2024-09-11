@@ -18,6 +18,7 @@ package com.dremio.service.reflection;
 import static com.dremio.service.job.JobState.METADATA_RETRIEVAL;
 import static com.dremio.service.job.JobState.PENDING;
 import static com.dremio.service.job.JobState.PLANNING;
+import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
 import static com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS.AVAILABLE;
 import static com.dremio.service.reflection.ReflectionUtils.isTerminal;
 import static com.dremio.service.reflection.proto.MaterializationState.DEPRECATED;
@@ -28,11 +29,12 @@ import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import com.dremio.common.VM;
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.JobState;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
@@ -50,6 +52,7 @@ import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionEntry;
+import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.store.MaterializationStore;
@@ -73,6 +76,7 @@ public class ReflectionMonitor {
   private final MaterializationDescriptorProvider materializations;
   private final JobsService jobsService;
   private final MaterializationStore materializationStore;
+  private final OptionManager optionManager;
   private final long delay;
   private final long maxWait;
 
@@ -82,6 +86,7 @@ public class ReflectionMonitor {
       MaterializationDescriptorProvider materializations,
       JobsService jobsService,
       MaterializationStore materializationStore,
+      OptionManager optionManager,
       long delay,
       long maxWait) {
     this.reflections = reflections;
@@ -89,6 +94,7 @@ public class ReflectionMonitor {
     this.materializations = materializations;
     this.jobsService = jobsService;
     this.materializationStore = materializationStore;
+    this.optionManager = optionManager;
     this.delay = delay;
     this.maxWait = maxWait;
   }
@@ -100,6 +106,7 @@ public class ReflectionMonitor {
         materializations,
         jobsService,
         materializationStore,
+        optionManager,
         delay,
         maxWait);
   }
@@ -188,6 +195,59 @@ public class ReflectionMonitor {
     Wait w = new Wait();
     String status =
         String.format(
+            "Waiting for reflection %s (predecessor materialization %s) to materialize. Current state is UNKNOWN",
+            reflectionId, materializationId);
+    while (w.loop(status)) {
+      // Get the last materialization done and return it if it's done after the specific
+      // materialization.
+      // Throw materialization fail error if there is a failed materialization after the specific
+      // materialization.
+      final Materialization lastMaterialization =
+          materializationStore.getLastMaterialization(reflectionId);
+      if (lastMaterialization != null
+          && !Objects.equals(materializationId, lastMaterialization.getId())
+          && (materialization == null
+              || lastMaterialization.getInitRefreshSubmit()
+                  > materialization.getInitRefreshSubmit())) {
+        MaterializationState current = lastMaterialization.getState();
+        if (current == DONE) {
+          w.log(
+              "waitUntilMaterialized "
+                  + ReflectionUtils.getId(reflectionId)
+                  + " and not "
+                  + (materialization == null ? "any" : ReflectionUtils.getId(materialization)));
+
+          return lastMaterialization;
+        } else if (lastMaterialization.getState() == FAILED) {
+          throwMaterializationError(lastMaterialization);
+        }
+        status =
+            String.format(
+                "Waiting for reflection %s (predecessor materialization %s) to materialize. Current state is %s",
+                reflectionId, materializationId, current);
+      }
+    }
+
+    throw new IllegalStateException();
+  }
+
+  /**
+   * Wait until any materialization is done and cached after a specific materialization
+   *
+   * <p>Use it to avoid the case when reflection entry is active but materialization cache is still
+   * pending (DX-88983)
+   *
+   * @param reflectionId reflection id
+   * @param materialization the specific materialization
+   * @return the materialization which is done after the specific materialization
+   */
+  public Materialization waitUntilMaterializedAndCached(
+      final ReflectionId reflectionId, final Materialization materialization) {
+    final MaterializationId materializationId =
+        (materialization == null) ? null : materialization.getId();
+    Wait w = new Wait();
+    String status =
+        String.format(
             "Waiting for materialization %s to materialize. Current state is UNKNOWN",
             materializationId);
     while (w.loop(status)) {
@@ -209,6 +269,13 @@ public class ReflectionMonitor {
                   + ReflectionUtils.getId(reflectionId)
                   + " and not "
                   + (materialization == null ? "any" : ReflectionUtils.getId(materialization)));
+
+          // check if materialization cache is ready to avoid test flakiness caused by the case when
+          // reflection entry is active but materialization cache is still pending (DX-88983)
+          if (optionManager.getOption(MATERIALIZATION_CACHE_ENABLED)
+              && lastMaterialization != null) {
+            waitUntilCached(lastMaterialization);
+          }
           return lastMaterialization;
         } else if (lastMaterialization.getState() == FAILED) {
           throwMaterializationError(lastMaterialization);
@@ -288,11 +355,39 @@ public class ReflectionMonitor {
   public void waitUntilCached(Materialization m) {
     Wait w = new Wait();
     final CacheViewer cacheViewer = reflections.getCacheViewerProvider().get();
-    String status = String.format("waitUntilCached %s", ReflectionUtils.getId(m));
+    String status = String.format("waitUntilCached for %s", ReflectionUtils.getId(m));
     while (w.loop(status)) {
+      w.log(
+          extendWithReflectionsAndMaterializations(
+              String.format("waitUntilCached loading for %s", ReflectionUtils.getId(m))));
       if (cacheViewer.isCached(m.getId())) {
-        status = String.format("waitUntilCached %s", ReflectionUtils.getId(m));
-        w.log(status);
+        status = String.format("waitUntilCached done for %s", ReflectionUtils.getId(m));
+        w.log(extendWithReflectionsAndMaterializations(status));
+        return;
+      }
+    }
+    throw new IllegalStateException();
+  }
+
+  public void waitUntilMaterializationDescriptorStale(Materialization m) {
+    Wait w = new Wait();
+    String status =
+        String.format("waitUntilMaterializationDescriptorStale for %s", ReflectionUtils.getId(m));
+    while (w.loop(status)) {
+      w.log(
+          extendWithReflectionsAndMaterializations(
+              String.format(
+                  "waitUntilMaterializationDescriptorStale loading for %s",
+                  ReflectionUtils.getId(m))));
+      Optional<MaterializationDescriptor> descriptor =
+          materializations.get().stream()
+              .filter(input -> input.getLayoutId().equals(m.getReflectionId().getId()))
+              .findFirst();
+      if (descriptor.isPresent() && descriptor.get().isStale()) {
+        status =
+            String.format(
+                "waitUntilMaterializationDescriptorStale done for %s", ReflectionUtils.getId(m));
+        w.log(extendWithReflectionsAndMaterializations(status));
         return;
       }
     }
@@ -359,7 +454,7 @@ public class ReflectionMonitor {
   }
 
   public Materialization waitUntilMaterializationFails(final ReflectionId id) {
-    return waitUntilMaterializationFails(id, (MaterializationId) null);
+    return waitUntilMaterializationFails(id, (MaterializationId) null, null);
   }
 
   public Materialization waitUntilMaterializationFails(final ReflectionId id, Materialization m) {
@@ -368,7 +463,14 @@ public class ReflectionMonitor {
 
   public Materialization waitUntilMaterializationFails(
       final ReflectionId id, MaterializationId lastMaterializationId) {
-    Wait w = new Wait();
+    return waitUntilMaterializationFails(id, lastMaterializationId, null);
+  }
+
+  public Materialization waitUntilMaterializationFails(
+      final ReflectionId id,
+      MaterializationId lastMaterializationId,
+      final Long maxWaitUntilFailed) {
+    Wait w = new Wait(maxWaitUntilFailed);
     String status = "Waiting until last Materialization is running";
     while (w.loop(status)) {
       final Materialization lastMaterialization = materializationStore.getLastMaterialization(id);
@@ -480,6 +582,49 @@ public class ReflectionMonitor {
     throw new IllegalStateException();
   }
 
+  /**
+   * Wait for the reflection giving up after all the materialization reties fail or/and cancel
+   *
+   * <p>Note that the threshold is specified by support key LAYOUT_REFRESH_MAX_ATTEMPTS
+   *
+   * @param id reflection id
+   * @param m predecessor materialization
+   * @param maxWaitUntilFailed maximum waiting time until one materialization fails
+   * @param maxWaitUntilGivenUp maximum waiting time until getting the given up state
+   * @return
+   */
+  public void waitUntilReflectionGivesUp(
+      final ReflectionId id,
+      final Materialization m,
+      final Long maxWaitUntilFailed,
+      final Long maxWaitUntilGivenUp) {
+    Wait w = new Wait(maxWaitUntilGivenUp);
+    String status = "Waiting until reflection gives up";
+    int iterations = 0;
+    Materialization pre = m;
+
+    while (w.loop(status)) {
+      try {
+        pre =
+            waitUntilMaterializationFails(id, pre != null ? pre.getId() : null, maxWaitUntilFailed);
+        iterations++;
+        w.log(
+            "waitUntilMaterializationFails for reflection "
+                + ReflectionUtils.getId(id)
+                + " and the id of the failed materialization is "
+                + ReflectionUtils.getId(pre));
+      } catch (ReflectionMonitor.TimeoutException e) {
+        // stop retrying
+        // when the number of failures is equal to the value of LAYOUT_REFRESH_MAX_ATTEMPTS
+        w.log("waitUntilReflectionGivesUp times out after " + iterations + " attempts");
+        break;
+      } catch (Exception other) {
+        w.log("Unexpected error in waitUntilReflectionGivesUp: " + other);
+        throwMaterializationError(pre);
+      }
+    }
+  }
+
   public void waitUntilCanAccelerate(final ReflectionId reflectionId) {
     Wait w = new Wait();
     String message =
@@ -551,9 +696,21 @@ public class ReflectionMonitor {
   }
 
   private final class Wait {
-    private final long expire = System.currentTimeMillis() + maxWait;
+    private final long expire;
     private int loop = 0;
     private long start = System.currentTimeMillis();
+
+    public Wait() {
+      this(null);
+    }
+
+    public Wait(final Long newMaxWait) {
+      if (newMaxWait == null) {
+        this.expire = System.currentTimeMillis() + maxWait;
+      } else {
+        this.expire = System.currentTimeMillis() + newMaxWait;
+      }
+    }
 
     public boolean loop(String message) {
       loop++;
@@ -562,18 +719,18 @@ public class ReflectionMonitor {
       }
 
       if (System.currentTimeMillis() > expire && !VM.isDebugEnabled()) {
-        throw new TimeoutException(message);
+        throw new TimeoutException(extendWithReflectionsAndMaterializations(message));
       }
       try {
         Thread.sleep(delay);
       } catch (InterruptedException ex) {
-        throw new RuntimeException(message, ex);
+        throw new RuntimeException(extendWithReflectionsAndMaterializations(message), ex);
       }
       return true;
     }
 
     public void log(String waitReason) {
-      logger.info(
+      logger.debug(
           "Waited for {} took {} s",
           waitReason,
           TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - start));
@@ -639,6 +796,27 @@ public class ReflectionMonitor {
       }
     }
     throw new IllegalStateException();
+  }
+
+  private String extendWithReflectionsAndMaterializations(String original) {
+    StringBuilder finalMessage = new StringBuilder(original + "\n\n");
+
+    finalMessage.append("The existing reflections are: \n");
+    for (ReflectionGoal goal : reflections.getAllReflections()) {
+      finalMessage.append(reflections.getEntry(goal.getId()).orElse(null) + "\n");
+    }
+
+    finalMessage.append("The existing materializations are: \n");
+    for (Materialization m : materializationStore.getAllMaterializations()) {
+      finalMessage.append(m + "\n");
+    }
+
+    finalMessage.append("The existing materialization descriptors are: \n");
+    for (MaterializationDescriptor d : materializations.get()) {
+      finalMessage.append(d + "\n");
+    }
+
+    return finalMessage.toString();
   }
 
   /** Thrown when {@link Wait} times out */

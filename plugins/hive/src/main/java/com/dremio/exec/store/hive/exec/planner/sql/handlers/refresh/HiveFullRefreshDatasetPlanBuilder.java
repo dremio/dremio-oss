@@ -78,14 +78,23 @@ public class HiveFullRefreshDatasetPlanBuilder extends AbstractRefreshPlanBuilde
 
   @Override
   public PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions datasetRetrievalOptions) throws ConnectorException {
+    return listPartitionChunks(null, datasetRetrievalOptions);
+  }
+
+  @Override
+  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, DatasetRetrievalOptions datasetRetrievalOptions) throws ConnectorException {
     // Create the PartitionChunkListing
     SourceMetadata sourceMetadata = (SourceMetadata) plugin;
-    EntityPath entityPath = MetadataObjectsUtils.toEntityPath(tableNSKey);
-    Optional<DatasetHandle> datasetHandle = sourceMetadata.getDatasetHandle((entityPath));
-    if (!datasetHandle.isPresent()) { // dataset is not in the source
-      throw new DatasetNotFoundException(entityPath);
+    if (datasetHandle == null) {
+      EntityPath entityPath = MetadataObjectsUtils.toEntityPath(tableNSKey);
+      Optional<DatasetHandle> datasetHandleOptional = sourceMetadata.getDatasetHandle((entityPath));
+      if (!datasetHandleOptional.isPresent()) { // dataset is not in the source
+        throw new DatasetNotFoundException(entityPath);
+      }
+      handle = datasetHandleOptional.get();
+    } else {
+      handle = datasetHandle;
     }
-    handle = datasetHandle.get();
     this.tableNSKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
     return sourceMetadata.listPartitionChunks(handle, datasetRetrievalOptions.asListPartitionChunkOptions(datasetConfig));
   }

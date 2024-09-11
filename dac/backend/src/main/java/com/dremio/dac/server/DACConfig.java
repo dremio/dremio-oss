@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.server;
 
+import static com.dremio.config.DremioConfig.WEB_AUTH_TYPE;
+
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
@@ -196,6 +198,10 @@ public final class DACConfig {
 
   public boolean webSSLEnabled() {
     return webSSLEnabled;
+  }
+
+  public boolean isInternalUserAuth() {
+    return "internal".equals(config.getString(WEB_AUTH_TYPE));
   }
 
   public ClusterMode getClusterMode() {

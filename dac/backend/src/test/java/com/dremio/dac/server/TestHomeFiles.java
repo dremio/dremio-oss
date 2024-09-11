@@ -18,7 +18,6 @@ package com.dremio.dac.server;
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -41,14 +40,11 @@ import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.HomeName;
+import com.dremio.dac.options.UIOptions;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.util.DatasetsUtil;
-import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.file.File;
 import com.dremio.file.FilePath;
@@ -115,8 +111,7 @@ public class TestHomeFiles extends BaseTestServer {
         l(HomeFileTool.class)
             .getConfForBackup()
             .getFilesystemAndCreatePaths(getCurrentDremioDaemon().getDACConfig().thisNode);
-    allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @After
@@ -367,8 +362,7 @@ public class TestHomeFiles extends BaseTestServer {
   public void testUploadDisabled() throws Exception {
     try {
       // disable uploads
-      getSabotContext()
-          .getOptionManager()
+      getOptionManager()
           .setOption(
               OptionValue.createBoolean(
                   OptionValue.OptionType.SYSTEM,
@@ -393,8 +387,7 @@ public class TestHomeFiles extends BaseTestServer {
               .buildPost(Entity.entity(form, form.getMediaType())));
     } finally {
       // re-enable uploads
-      getSabotContext()
-          .getOptionManager()
+      getOptionManager()
           .setOption(
               OptionValue.createBoolean(
                   OptionValue.OptionType.SYSTEM,
@@ -525,12 +518,9 @@ public class TestHomeFiles extends BaseTestServer {
             DatasetType.PHYSICAL_DATASET_HOME_FILE,
             null,
             new EntityId(UUID.randomUUID().toString()));
-    newCatalogService()
-        .getCatalog(
-            MetadataRequestOptions.of(
-                SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()))
+    getCatalogService()
+        .getSystemUserCatalog()
         .createOrUpdateDataset(
-            newNamespaceService(),
             new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME),
             filePath.toNamespaceKey(),
             datasetConfig);
@@ -565,7 +555,7 @@ public class TestHomeFiles extends BaseTestServer {
     FolderPath folderPath =
         new FolderPath(
             ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), "testupload"));
-    newNamespaceService()
+    getNamespaceService()
         .addOrUpdateFolder(
             folderPath.toNamespaceKey(),
             new FolderConfig().setName("testupload").setFullPathList(folderPath.toPathList()));
@@ -582,8 +572,7 @@ public class TestHomeFiles extends BaseTestServer {
 
   @Test
   public void testNASFileStore() throws Exception {
-
-    final CatalogServiceImpl catalog = (CatalogServiceImpl) l(CatalogService.class);
+    final CatalogService catalog = getCatalogService();
     final SourceConfig config =
         catalog
             .getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME)
@@ -622,7 +611,7 @@ public class TestHomeFiles extends BaseTestServer {
   @Test
   public void testPDFSFileStore() throws Exception {
     FileSystemPlugin fsp =
-        l(CatalogService.class).getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+        getCatalogService().getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     HomeFileConf conf = (HomeFileConf) fsp.getConfig();
     HomeFileTool tool = l(HomeFileTool.class);
     try {

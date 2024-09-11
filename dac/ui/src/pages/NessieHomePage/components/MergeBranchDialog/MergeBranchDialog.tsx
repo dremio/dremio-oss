@@ -92,7 +92,7 @@ function MergeBranchDialog({
       dispatch(
         addNotification(
           formatMessage(
-            { id: "ArcticCatalog.Merge.Dialog.SuccessMessage" },
+            { id: "VersionedEntity.Merge.Dialog.SuccessMessage" },
             { branchName, fromRefName },
           ),
           "success",
@@ -219,7 +219,7 @@ const styles = {
     "&[data-selected]": {
       "&, &:hover": {
         backgroundColor: "var(--dremio--color--pale--navy)",
-        color: "var(--dremio--color--text--main)",
+        color: "var(--text--primary)",
       },
     },
 

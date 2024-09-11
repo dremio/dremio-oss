@@ -187,6 +187,8 @@ public class TestJobsServiceUtil {
                 DownloadSettings.newBuilder()
                     .setDownloadId("downloadId")
                     .setFilename("fileName")
+                    .setTriggeringJobId("triggeringJobId")
+                    .setExtension("extension")
                     .build())
             .setRunInSameThread(true)
             .setQueryType(JobsProtoUtil.toBuf(QueryType.UI_EXPORT))

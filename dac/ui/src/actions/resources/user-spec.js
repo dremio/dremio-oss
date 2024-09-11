@@ -18,7 +18,7 @@ import { expect } from "chai";
 import { RSAA } from "redux-api-middleware";
 
 import { APIV2Call } from "@app/core/APICall";
-import * as Actions from "./user.js";
+import * as Actions from "./user";
 
 describe("user actions", () => {
   describe("test load user", () => {
@@ -28,7 +28,7 @@ describe("user actions", () => {
       expect(
         Actions.loadUser({ userName: "test" })((obj) => obj)
           [RSAA].endpoint.toString()
-          .split("=")[0]
+          .split("=")[0],
       ).to.equal(apiCall.toString().split("=")[0]);
     });
 
@@ -38,7 +38,7 @@ describe("user actions", () => {
       expect(
         Actions.loadUser({ userName: "test?./" })((obj) => obj)
           [RSAA].endpoint.toString()
-          .split("=")[0]
+          .split("=")[0],
       ).to.equal(apiCall.toString().split("=")[0]);
     });
   });

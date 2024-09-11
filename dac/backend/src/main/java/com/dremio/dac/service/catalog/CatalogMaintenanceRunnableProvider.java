@@ -22,6 +22,7 @@ import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceOptions;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.scheduler.Schedule;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -40,11 +41,15 @@ public class CatalogMaintenanceRunnableProvider {
 
   private final Provider<OptionManager> optionManagerProvider;
   private final KVStoreProvider storeProvider;
+  private final Provider<NamespaceService> namespaceServiceProvider;
 
   public CatalogMaintenanceRunnableProvider(
-      Provider<OptionManager> optionManagerProvider, KVStoreProvider storeProvider) {
+      Provider<OptionManager> optionManagerProvider,
+      KVStoreProvider storeProvider,
+      Provider<NamespaceService> namespaceServiceProvider) {
     this.optionManagerProvider = optionManagerProvider;
     this.storeProvider = storeProvider;
+    this.namespaceServiceProvider = namespaceServiceProvider;
   }
 
   public ImmutableList<CatalogMaintenanceRunnable> get(long randomSeed) {
@@ -78,6 +83,7 @@ public class CatalogMaintenanceRunnableProvider {
                     DatasetVersionTrimmer.trimHistory(
                         Clock.systemUTC(),
                         storeProvider.getStore(DatasetVersionMutator.VersionStoreCreator.class),
+                        namespaceServiceProvider.get(),
                         (int) optionManager.getOption(NamespaceOptions.DATASET_VERSIONS_LIMIT),
                         minAgeInDays))
             .build());

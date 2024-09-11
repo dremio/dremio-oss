@@ -29,7 +29,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Strings;
 import java.util.List;
+import javax.annotation.Nullable;
 import javax.validation.Valid;
+import javax.validation.constraints.Pattern;
 
 /** Source model for the public REST API. */
 public class Source implements CatalogEntity {
@@ -59,6 +61,7 @@ public class Source implements CatalogEntity {
   private Boolean accelerationNeverExpire;
   private Boolean accelerationNeverRefresh;
   private List<CatalogItem> children;
+  private String nextPageToken;
   private Boolean allowCrossSourceSelection;
   private Boolean disableMetadataValidityCheck;
 
@@ -70,11 +73,14 @@ public class Source implements CatalogEntity {
       SourceConfig config,
       AccelerationSettings settings,
       ConnectionReader reader,
-      List<CatalogItem> children) {
+      List<CatalogItem> children,
+      @Nullable String nextPageToken,
+      SourceState state) {
     this.sourceConfig = config;
     this.settings = settings;
     this.reader = reader;
     this.children = children;
+    this.nextPageToken = nextPageToken;
     this.id = config.getId().getId();
     this.tag = config.getTag();
     this.type =
@@ -110,7 +116,12 @@ public class Source implements CatalogEntity {
     if (this.config != null) {
       // since this is a REST API class, clear any secrets
       this.config.clearSecrets();
+
+      // Back-fill any old formats/fields to prevent breaking API changes
+      this.config.backFillLegacyFormat();
     }
+
+    this.state = state;
   }
 
   @JsonIgnore
@@ -165,6 +176,9 @@ public class Source implements CatalogEntity {
     this.type = type;
   }
 
+  @Pattern(
+      regexp = "^[^.\"@]+$",
+      message = "Source name can not contain periods, double quotes or @.")
   public String getName() {
     return this.name;
   }
@@ -343,5 +357,15 @@ public class Source implements CatalogEntity {
 
   public void setChildren(List<CatalogItem> children) {
     this.children = children;
+  }
+
+  @Nullable
+  @Override
+  public String getNextPageToken() {
+    return nextPageToken;
+  }
+
+  public void setNextPageToken(String value) {
+    nextPageToken = value;
   }
 }

@@ -16,15 +16,16 @@
 
 @import "../../../node_modules/leantable2/dist-css/fixed-header.css";
 @import "../../../node_modules/leantable2/dist-css/theme-hooks.css";
+@import "../../../node_modules/leantable/dist-css/core/grid-layout.css";
 
 :root {
   --leantable--column--gap: 0;
-  --leantable--header--background: var(--bg--default);
+  --leantable--header--background: var(--fill--primary);
   --leantable--header--padding-block: 10px;
   --leantable--header--text-align: left;
-  --leantable--row--background: var(--bg--default);
-  --leantable--row--border: 1px solid #eeeef1;
-  --leantable--row--hover--background: #e9f5f9;
+  --leantable--row--background: var(--fill--primary);
+  --leantable--row--border: 1px solid var(--border--neutral);
+  --leantable--row--hover--background: var(--fill--primary--hover);
 }
 
 .leantable--no-borders {
@@ -48,8 +49,13 @@
 }
 
 .leantable__body-row[aria-disabled="true"]:hover .leantable__body-cell,
-.leantable__body-row[aria-disabled="true"]:focus-within .leantable__body-cell {
-  background-color: var(--bg--default) !important;
+.leantable__body-row[aria-disabled="true"] .leantable__body-cell:focus-within {
+  background-color: var(--fill--primary) !important;
+}
+
+.leantable__body-row
+  .leantable__body-cell.leantable-row-hover-visibility:focus-within {
+  background-color: var(--fill--primary) !important;
 }
 
 .leantable__header-cell {
@@ -71,7 +77,7 @@
   display: inline-block;
   width: 1px;
   height: 23px;
-  background: var(--color--neutral--50);
+  background: var(--border--neutral);
   position: absolute;
   left: 0;
   top: 9px;
@@ -84,12 +90,17 @@
   flex-grow: 1;
   margin-inline: -10px;
   padding-inline: 10px;
-  color: var(--dremio--color--link);
+  color: var(--text--link);
   font-weight: 500;
 }
 
 .clickable-cell:hover {
+  color: var(--text--link) !important;
   text-decoration: underline;
+}
+
+.leantable__body {
+  background-color: var(--fill--primary);
 }
 
 .leantable__body-cell {
@@ -98,13 +109,13 @@
 
 /* copied from 0.4.1 for now*/
 .leantable-row-hover-visibility > * {
-  visibility: hidden;
+  opacity: 0;
 }
 
 .leantable__body-row:hover .leantable-row-hover-visibility > *,
 .leantable__body-row:focus-visible .leantable-row-hover-visibility > *,
-.leantable__body-row:focus-within .leantable-row-hover-visibility > * {
-  visibility: visible;
+.leantable__body-row .leantable-row-hover-visibility:focus-within > * {
+  opacity: 1;
 }
 
 .leantable__body-cell.leantable-sticky-column--right.leantable-row-hover-visibility {
@@ -159,4 +170,24 @@
 .leantable--align-right > .leantable__body-cell__content {
   justify-content: flex-end;
   text-align: right;
+}
+
+.leantable--p-2 .leantable__header-row .leantable__header-cell:first-child,
+.leantable--p-2
+  .leantable__body-row
+  .leantable__body-cell:first-child
+  .leantable__body-cell__content {
+  padding-inline-start: var(--scale-2);
+}
+
+.leantable--p-2 .leantable__header-row .leantable__header-cell:last-child,
+.leantable--p-2
+  .leantable__body-row
+  .leantable__body-cell:last-child
+  .leantable__body-cell__content {
+  padding-inline-end: var(--scale-2);
+}
+
+.leantable__body-row:hover {
+  --bg: var(--leantable--row--hover--background);
 }

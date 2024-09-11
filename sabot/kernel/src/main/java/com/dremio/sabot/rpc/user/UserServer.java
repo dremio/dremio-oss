@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.rpc.user;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+
 import com.dremio.authenticator.Authenticator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
@@ -28,19 +30,22 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.service.Service;
 import com.dremio.service.users.UserService;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Preconditions;
+import com.google.inject.name.Named;
 import io.netty.channel.EventLoopGroup;
 import io.opentracing.Tracer;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import org.apache.arrow.memory.BufferAllocator;
 
 /**
  * Manages the lifecycle of a {@link UserRPCServer}, which allows for communication with non-web
  * clients.
  */
+@Singleton
 public class UserServer implements Service {
 
   private final DremioConfig config;
@@ -60,15 +65,16 @@ public class UserServer implements Service {
 
   private volatile int port = -1;
 
+  @Inject
   public UserServer(
       DremioConfig config,
       Provider<ExecutorService> executorService,
       Provider<BufferAllocator> bufferAllocator,
-      Provider<? extends Authenticator> authenticatorProvider,
+      Provider<Authenticator> authenticatorProvider,
       Provider<UserService> userServiceProvider,
       Provider<NodeEndpoint> nodeEndpointProvider,
       Provider<UserWorker> worker,
-      boolean allowPortHunting,
+      @Named("allowPortHunting") boolean allowPortHunting,
       Tracer tracer,
       Provider<OptionValidatorListing> optionValidatorProvider) {
     this.config = config;
@@ -107,8 +113,9 @@ public class UserServer implements Service {
 
     server = newUserRPCServer(eventLoopGroup);
 
-    Metrics.newGauge("rpc.user.current", allocator::getAllocatedMemory);
-    Metrics.newGauge("rpc.user.peak", allocator::getPeakMemoryAllocation);
+    newGauge("rpc.user.current", allocator::getAllocatedMemory);
+    newGauge("rpc.user.peak", allocator::getPeakMemoryAllocation);
+
     int initialPort = sabotConfig.getInt(DremioClient.INITIAL_USER_PORT);
     if (allowPortHunting) {
       initialPort += 333;

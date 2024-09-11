@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.explore;
 
-import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -211,17 +210,12 @@ public class DatasetsResource extends BaseResourceWithAllocator {
         sql = null;
       } else {
         NamespaceKey path = fromDatasetPath.toNamespaceKey();
-        Map<String, VersionContext> sourceVersion =
-            DatasetResourceUtils.createSourceVersionMapping(references);
-        VersionContext versionContext = sourceVersion.get(path.getRoot());
 
         sql =
             getTableDefinition(
                 datasetConfig,
                 path,
                 table.getRowType(JavaTypeFactoryImpl.INSTANCE).getFieldList(),
-                versionContext == null ? null : versionContext.getType().toString(),
-                versionContext == null ? null : versionContext.getValue(),
                 CatalogUtil.requestedPluginSupportsVersionedTables(
                     path.getRoot(), datasetService.getCatalog()));
       }
@@ -484,6 +478,7 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     if (username != null) {
       try {
         user = userService.getUser(username);
+        // TODO: Investigate if we can leverage a more specific exception.
       } catch (Exception e) {
         // ignore
       }
@@ -561,11 +556,9 @@ public class DatasetsResource extends BaseResourceWithAllocator {
       DatasetConfig datasetConfig,
       NamespaceKey resolvedPath,
       List<RelDataTypeField> fields,
-      String refType,
-      String refValue,
       boolean isVersioned) {
     return new TableDefinitionGenerator(
-            datasetConfig, resolvedPath, fields, refType, refValue, isVersioned, optionManager)
+            datasetConfig, resolvedPath, fields, isVersioned, optionManager)
         .generateTableDefinition();
   }
 }

@@ -17,23 +17,22 @@ package com.dremio.exec.planner.sql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
+import com.dremio.exec.util.ColumnUtils;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
 public class TestSqlCopyIntoTable {
 
-  private final ParserConfig parserConfig =
-      new ParserConfig(
-          ParserConfig.QUOTING,
-          100,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
 
   @Test
   public void testExtendTableWithErrorColumn() {
@@ -121,6 +120,48 @@ public class TestSqlCopyIntoTable {
     SqlCopyIntoTable sqlNode = parseQuery(query);
     assertThat(sqlNode.getOptionsList()).isEqualTo(options);
     assertThat(sqlNode.getOptionsValueList()).isEqualTo(values);
+  }
+
+  @Test
+  public void testTransformations() {
+    String query =
+        "COPY INTO target_table FROM (SELECT isnottrue(e), length(b), concat(b, '_test') FROM '@S3/tmp/dir')";
+    SqlCopyIntoTable sqlNode = parseQuery(query);
+    assertThat(sqlNode.getMappings()).isEmpty();
+    List<SqlNode> selectNodes = sqlNode.getSelectNodes();
+    assertThat(selectNodes).hasSize(3);
+    assertThat(selectNodes.stream().allMatch(n -> n.getKind().equals(SqlKind.OTHER_FUNCTION)))
+        .isTrue();
+    assertThat(selectNodes)
+        .extracting(n -> ((SqlBasicCall) n).getOperator().getName())
+        .containsExactly("isnottrue", "length", "concat");
+    assertThat(
+            selectNodes.stream()
+                .map(n -> ((SqlBasicCall) n).getOperandList())
+                .flatMap(List::stream)
+                .filter(o -> o.getKind().equals(SqlKind.IDENTIFIER))
+                .map(o -> ((SqlIdentifier) o).getSimple())
+                .collect(Collectors.toList()))
+        .containsExactly(
+            ColumnUtils.VIRTUAL_COLUMN_PREFIX + "E",
+            ColumnUtils.VIRTUAL_COLUMN_PREFIX + "B",
+            ColumnUtils.VIRTUAL_COLUMN_PREFIX + "B");
+
+    query = "COPY INTO target_table (a, b, c) FROM (SELECT e, d, c FROM '@S3/tmp/dir')";
+    sqlNode = parseQuery(query);
+    assertThat(sqlNode.getMappings()).hasSize(3);
+    assertThat(sqlNode.getMappings())
+        .extracting(n -> ((SqlIdentifier) n).getSimple())
+        .containsExactly("a", "b", "c");
+    selectNodes = sqlNode.getSelectNodes();
+    assertThat(selectNodes).hasSize(3);
+    assertThat(selectNodes.stream().allMatch(n -> n.getKind().equals(SqlKind.IDENTIFIER))).isTrue();
+    assertThat(selectNodes)
+        .extracting(n -> ((SqlIdentifier) n).getSimple())
+        .containsExactly(
+            ColumnUtils.VIRTUAL_COLUMN_PREFIX + "E",
+            ColumnUtils.VIRTUAL_COLUMN_PREFIX + "D",
+            ColumnUtils.VIRTUAL_COLUMN_PREFIX + "C");
   }
 
   private SqlCopyIntoTable parseQuery(@NotNull String query) {

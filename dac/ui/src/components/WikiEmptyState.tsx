@@ -16,6 +16,8 @@
 import { intl } from "@app/utils/intl";
 import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
 import additionalWikiControls from "@inject/shared/AdditionalWikiControls";
+import { Button } from "dremio-ui-lib/components";
+
 import * as classes from "./WikiEmptyState.module.less";
 
 type WikiEmptyStateProps = {
@@ -30,13 +32,14 @@ const WikiEmptyState = (props: WikiEmptyStateProps) => {
     <EmptyStateContainer icon="interface/edit-wiki" title="No.Wiki.Content">
       {onAddWiki && (
         <div className="flex">
-          <span
+          <Button
             className={classes["edit-wiki-content"]}
             onClick={onAddWiki}
             data-qa="edit-wiki-content"
+            variant="tertiary"
           >
             {formatMessage({ id: "Edit.Wiki.Content" })}
-          </span>
+          </Button>
           {additionalWikiControls?.()?.wikiEmptyStateExtra({
             onAddSummary,
             className: classes["edit-wiki-content"],

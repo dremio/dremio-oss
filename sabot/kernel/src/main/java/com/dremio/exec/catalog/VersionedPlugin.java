@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.Wrapper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.ChangeInfo;
-import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
+import com.dremio.exec.store.NamespaceAlreadyExistsException;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceAlreadyExistsException;
 import com.dremio.exec.store.ReferenceConflictException;
@@ -30,24 +31,29 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.UnAuthenticatedException;
 import com.dremio.plugins.ExternalNamespaceEntry;
+import com.dremio.plugins.MergeBranchOptions;
 import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.catalog.View;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.projectnessie.model.MergeResponse;
 
 /** Versioning-specific methods for the Catalog interface. */
 public interface VersionedPlugin extends Wrapper {
   /** Supported version entity types in Sonar */
-  public enum EntityType {
+  enum EntityType {
     UNKNOWN,
     ICEBERG_TABLE,
     ICEBERG_VIEW,
-    FOLDER;
+    FOLDER,
+    UDF
   }
 
   /**
@@ -138,7 +144,7 @@ public interface VersionedPlugin extends Wrapper {
   Stream<ChangeInfo> listChanges(VersionContext version);
 
   /**
-   * List only entries under the given path for the given version.
+   * List only entries under the given path for the given version. Streams entries.
    *
    * @param catalogPath Acts as the namespace filter. It will scope entries to this namespace.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
@@ -147,6 +153,20 @@ public interface VersionedPlugin extends Wrapper {
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
    */
   Stream<ExternalNamespaceEntry> listEntries(List<String> catalogPath, VersionContext version)
+      throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+
+  /**
+   * List only entries under the given path for the given version.
+   *
+   * @param catalogPath Acts as the namespace filter. It will scope entries to this namespace.
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   * @param options Options, including pagination parameters.
+   * @throws ReferenceNotFoundException If the given reference cannot be found
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
+   */
+  VersionedListResponsePage listEntriesPage(
+      List<String> catalogPath, VersionContext version, VersionedListOptions options)
       throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
 
   /**
@@ -167,7 +187,7 @@ public interface VersionedPlugin extends Wrapper {
    *
    * @param namespaceKey The namespacekey that is used to create a folder in Nessie.
    * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
-   * @throws NessieNamespaceAlreadyExistsException If the namespace already exists.
+   * @throws NamespaceAlreadyExistsException If the namespace already exists.
    * @throws ReferenceNotFoundException If the given reference cannot be found.
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
    * @throws ReferenceConflictException If the requested version does not match the server.
@@ -217,10 +237,12 @@ public interface VersionedPlugin extends Wrapper {
    *
    * @param sourceBranchName The source branch we are merging from
    * @param targetBranchName The target branch we are merging into
+   * @param mergeBranchOptions Options being used in Nessie's merge branch builder
    * @throws ReferenceConflictException If the target branch hash changes during merging
    * @throws ReferenceNotFoundException If the source/target branch cannot be found
    */
-  void mergeBranch(String sourceBranchName, String targetBranchName);
+  MergeResponse mergeBranch(
+      String sourceBranchName, String targetBranchName, MergeBranchOptions mergeBranchOptions);
 
   /**
    * Update the reference for the given branch.
@@ -274,4 +296,8 @@ public interface VersionedPlugin extends Wrapper {
   default String getCatalogId() {
     return null;
   }
+
+  Optional<FunctionConfig> getFunction(CatalogEntityKey functionKey);
+
+  List<FunctionConfig> getFunctions(VersionContext versionContext);
 }

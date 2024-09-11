@@ -43,10 +43,8 @@ class TestCloudStoragePathValidator {
   private static Stream<Arguments> awsS3BucketNameValidity() {
     return Stream.of(
         // Valid
-        Arguments.of("aaa", true), // Minimum number of characters
-        Arguments.of(
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa63",
-            true), // Maximum number of characters
+        Arguments.of("a".repeat(3), true), // Minimum number of characters
+        Arguments.of("a".repeat(63), true), // Maximum number of characters
         Arguments.of("alllowercase", true),
         Arguments.of("1startswithnumber", true),
         Arguments.of("number1inmiddle", true),
@@ -59,8 +57,8 @@ class TestCloudStoragePathValidator {
         Arguments.of("abcdefghijklmnopqrstuvwxyz", true),
 
         // Invalid
-        Arguments.of("aa", false), // Too few characters
-        Arguments.of("toomanycharacterstoomanycharacterstoomanycharacterstoomanychar64", false),
+        Arguments.of("a".repeat(2), false), // Too few characters
+        Arguments.of("a".repeat(64), false), // Too many characters
         Arguments.of("Startswithcapital", false),
         Arguments.of("capitalInmiddle", false),
         Arguments.of("endswithcapitaL", false),
@@ -130,7 +128,8 @@ class TestCloudStoragePathValidator {
   private static Stream<Arguments> azureStorageAccountNameValidity() {
     return Stream.of(
         // Valid
-        Arguments.of("aaa", true), // Minimum number of characters
+        Arguments.of("a".repeat(3), true), // Minimum number of characters
+        Arguments.of("a".repeat(24), true), // Maximum number of characters
         Arguments.of("alllowercase", true),
         Arguments.of("1startswithnumber", true),
         Arguments.of("number1inmiddle", true),
@@ -142,8 +141,8 @@ class TestCloudStoragePathValidator {
         Arguments.of("cdefghijklmnopqrstuvwxyz", true),
 
         // Invalid
-        Arguments.of("aa", false), // Too few characters
-        Arguments.of("toomanycharacterstooman25", false),
+        Arguments.of("a".repeat(2), false), // Too few characters
+        Arguments.of("a".repeat(25), false), // Too many characters
         Arguments.of("Startswithcapital", false),
         Arguments.of("capitalInmiddle", false),
         Arguments.of("endswithcapitaL", false),
@@ -180,7 +179,8 @@ class TestCloudStoragePathValidator {
   private static Stream<Arguments> azureStorageContainerNameValidity() {
     return Stream.of(
         // Valid
-        Arguments.of("aaa", true), // Minimum number of characters
+        Arguments.of("a".repeat(3), true), // Minimum number of characters
+        Arguments.of("a".repeat(63), true), // Maximum number of characters
         Arguments.of("startsWithLowercase", true),
         Arguments.of("1startsWithNumber", true),
         Arguments.of("hasNumber1InMiddle", true),
@@ -196,8 +196,8 @@ class TestCloudStoragePathValidator {
         Arguments.of("hasEachLetterABCDEFGHJIKLMNOPQRSTUVWXYZ", true),
 
         // Invalid
-        Arguments.of("aa", false), // Too few characters
-        Arguments.of("tooManyCharactersTooManyCharactersTooManyCharactersTooManyChar64", false),
+        Arguments.of("a".repeat(2), false), // Too few characters
+        Arguments.of("a".repeat(64), false), // Too many characters
         Arguments.of("StartsWithCapital", false),
         Arguments.of("-startsWithHyphen", false),
         Arguments.of("_startsWithUnderscore", false),
@@ -260,19 +260,104 @@ class TestCloudStoragePathValidator {
     assertThat(CloudStoragePathValidator.isValidAzureStorageRootPath(rootPath)).isEqualTo(isValid);
   }
 
-  @Test
-  public void testIsValidAzureStorageRootPathWithNullRootPath() {
-    assertThat(CloudStoragePathValidator.isValidAzureStorageRootPath(null)).isEqualTo(false);
+  private static Stream<Arguments> gcsBucketNameValidity() {
+    return Stream.of(
+        // Valid
+        Arguments.of("a".repeat(3), true), // Minimum number of characters
+        Arguments.of("a".repeat(222), true), // Maximum number of characters
+        Arguments.of("alllowercase", true),
+        Arguments.of("1startswithnumber", true),
+        Arguments.of("number1inmiddle", true),
+        Arguments.of("numberatend1", true),
+        Arguments.of("has11many1numbers", true),
+        Arguments.of("1has11many1numbers1", true),
+        Arguments.of("hyphen-inmiddle", true),
+        Arguments.of("underscore_inmiddle", true),
+        Arguments.of("dot.inmiddle", true),
+        Arguments.of("eachnumber0123456789", true),
+        Arguments.of("abcdefghijklmnopqrstuvwxyz", true),
+        Arguments.of("my-travel-maps", true),
+        Arguments.of("0f75d593-8e7b-4418-a5ba-cb2970f0b91e", true),
+        Arguments.of("test.example.com", true),
+
+        // Invalid
+        Arguments.of("a".repeat(2), false), // Too few characters
+        Arguments.of("a".repeat(223), false), // Too many characters
+        Arguments.of("Startswithcapital", false),
+        Arguments.of("capitalInmiddle", false),
+        Arguments.of("endswithcapitaL", false),
+        Arguments.of("-startsWithHyphen", false),
+        Arguments.of("hyphenatend-", false),
+        Arguments.of(".startswithdot", false),
+        Arguments.of("endswithdot.", false),
+        Arguments.of("_startswithunderscore", false),
+        Arguments.of("underscoreatend_", false),
+        Arguments.of("!startswithsymbol", false),
+        Arguments.of("symbol!inmiddle", false),
+        Arguments.of("endswithsymbol!", false),
+        Arguments.of("\\startswithbackslash", false),
+        Arguments.of("backslash\\inmiddle", false),
+        Arguments.of("endswithbackslash\\", false),
+        Arguments.of(" startswithspace", false),
+        Arguments.of("space inmiddle", false),
+        Arguments.of("endswithspace ", false),
+        Arguments.of("\"startswithdoublequote", false),
+        Arguments.of("doublequote\"inmiddle", false),
+        Arguments.of("endswithdoublequote\"", false),
+        Arguments.of("'startswithsinglequote", false),
+        Arguments.of("singlequote'inmiddle", false),
+        Arguments.of("endswithsinglequote'", false),
+        Arguments.of("..consecutivedotsatstart", false),
+        Arguments.of("consecutive..dotsinmiddle", false),
+        Arguments.of("consecutivedotsatend..", false),
+        Arguments.of("My-Travel-Maps", false),
+        Arguments.of("test bucket", false));
   }
 
-  @Test
-  public void testIsValidAWSS3RootPathWithNullRootPath() {
-    assertThat(CloudStoragePathValidator.isValidAwsS3RootPath(null)).isEqualTo(false);
+  @ParameterizedTest
+  @MethodSource("gcsBucketNameValidity")
+  void testIsValidGcsBucket(String bucketName, boolean isValid) {
+    assertThat(CloudStoragePathValidator.isValidGcsBucketName(bucketName)).isEqualTo(isValid);
+  }
+
+  private static Stream<Arguments> testIsValidGcsRootPathParams() {
+    // Cartesian product of bucket names with directory suffixes
+    return gcsBucketNameValidity()
+        .flatMap(
+            storageContainerNameArgument ->
+                folderOrDirectorySuffixArguments.stream()
+                    .flatMap(
+                        directorySuffixArgument -> {
+                          final String storageContainerName =
+                              (String) storageContainerNameArgument.get()[0];
+                          final boolean storageContainerNameIsValid =
+                              (boolean) storageContainerNameArgument.get()[1];
+                          final String directorySuffix = (String) directorySuffixArgument.get()[0];
+                          final boolean directorySuffixIsValid =
+                              (boolean) directorySuffixArgument.get()[1];
+
+                          final String rootPath =
+                              String.format("/%s/%s", storageContainerName, directorySuffix);
+                          final boolean isValid =
+                              storageContainerNameIsValid && directorySuffixIsValid;
+                          return Stream.of(Arguments.of(rootPath, isValid));
+                        }));
+  }
+
+  @ParameterizedTest
+  @MethodSource("testIsValidGcsRootPathParams")
+  void testIsValidGcsRootPath(String gcsRootPath, boolean isValid) {
+    assertThat(CloudStoragePathValidator.isValidGcsRootPath(gcsRootPath)).isEqualTo(isValid);
   }
 
   @Test
   public void testisValidAwsS3BucketNameWithNullBucketName() {
     assertThat(CloudStoragePathValidator.isValidAwsS3BucketName(null)).isEqualTo(false);
+  }
+
+  @Test
+  public void testIsValidAwsS3RootPathWithNullRootPath() {
+    assertThat(CloudStoragePathValidator.isValidAwsS3RootPath(null)).isEqualTo(false);
   }
 
   @Test
@@ -283,5 +368,20 @@ class TestCloudStoragePathValidator {
   @Test
   public void testisValidAzureStorageContainerNameWithNullContainerName() {
     assertThat(CloudStoragePathValidator.isValidAzureStorageContainerName(null)).isEqualTo(false);
+  }
+
+  @Test
+  public void testIsValidAzureStorageRootPathWithNullRootPath() {
+    assertThat(CloudStoragePathValidator.isValidAzureStorageRootPath(null)).isEqualTo(false);
+  }
+
+  @Test
+  public void testIsValidGcsRootPathWithNullRootPath() {
+    assertThat(CloudStoragePathValidator.isValidGcsBucketName(null)).isEqualTo(false);
+  }
+
+  @Test
+  public void testisValidGcsBucketNameWithNullBucketName() {
+    assertThat(CloudStoragePathValidator.isValidGcsRootPath(null)).isEqualTo(false);
   }
 }

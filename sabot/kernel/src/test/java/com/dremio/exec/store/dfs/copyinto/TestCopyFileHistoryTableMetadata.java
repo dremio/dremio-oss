@@ -56,11 +56,7 @@ public class TestCopyFileHistoryTableMetadata {
   public void setup() {
     tableMetadata =
         new CopyFileHistoryTableMetadata(
-            schemaVersion,
-            CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion),
-            PLUGIN_NAME,
-            PLUGIN_PATH,
-            COPY_FILE_HISTORY_TABLE_NAME);
+            schemaVersion, 4, PLUGIN_NAME, PLUGIN_PATH, COPY_FILE_HISTORY_TABLE_NAME);
   }
 
   @Test

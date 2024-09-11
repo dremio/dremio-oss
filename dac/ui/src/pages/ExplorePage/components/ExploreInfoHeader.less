@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../../../components/colors.less"; // contains only variables
 @import "~@app/uiTheme/less/mixins.less";
 
 :global {
@@ -35,11 +34,11 @@
 
       .datasetItemLabel-item {
         &:hover {
-          background-color: @white;
+          background-color: var(--fill--primary);
         }
 
-        .font-icon {
-          margin-right: var(--dremio--spacing--1);
+        .info-icon > dremio-icon {
+          margin-right: var(--dremio--spacing--05);
         }
       }
     }
@@ -139,6 +138,7 @@
         dremio-icon {
           inline-size: 20px;
           block-size: 20px;
+          margin-right: 0;
         }
         padding: 0 var(--dremio--spacing--05);
         opacity: 0;
@@ -158,20 +158,20 @@
       font-size: 14px;
       font-weight: 600;
       line-height: 20px;
-      color: #202124;
+      color: var(--text--primary);
 
       &.--untitledScript {
-        color: #b0b7bf;
+        color: var(--color--neutral--200);
       }
     }
     .dataset-edited {
       font-size: 12px;
       font-weight: 400;
-      color: #202124;
+      color: var(--text--primary);
     }
 
     .referenceTag {
-      color: var(--dremio--color--link);
+      color: var(--text--brand);
       display: inline-flex;
       min-width: 0;
       max-width: 100px;

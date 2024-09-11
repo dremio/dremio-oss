@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 
 // from radium/typography.js, originally formLabel
@@ -47,25 +46,26 @@
 
 .form-default {
   font-size: 14px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .form-description {
   font-size: 12px;
-  color: @font-color2;
+  color: var(--text--faded);
 }
 
 .form-placeholder {
   font-weight: 400;
+  background-color: var(--fill--primary);
   &::placeholder {
-    color: @FIGMA_NEUTRAL_300;
+    color: var(--text--disabled);
   }
 }
 
 .fixed-width-default {
   font-family: var(--dremio--font-family--monospace);
   font-size: 12px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .fixed-width-small {
@@ -76,7 +76,7 @@
   font-family: var(--dremio--font-family--monospace);
   font-weight: 700;
   font-size: 11px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .unavailable {
@@ -90,7 +90,7 @@
 .dataset-title {
   font-weight: 500;
   font-size: 13px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .path-link {
@@ -106,17 +106,17 @@
 
 .path-end {
   font-size: 11px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .key-label {
   font-size: 11px;
-  color: @font-color2;
+  color: var(--text--faded);
 }
 
 .key-value {
   font-size: 11px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .metadata-white {

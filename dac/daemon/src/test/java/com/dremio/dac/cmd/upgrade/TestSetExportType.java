@@ -27,6 +27,7 @@ import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.service.DirectProvider;
 import com.dremio.test.DremioTest;
 import org.junit.After;
@@ -49,7 +50,7 @@ public class TestSetExportType extends DremioTest {
     }
 
     optionManager =
-        new SystemOptionManager(
+        new SystemOptionManagerImpl(
             new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT),
             lpp,
             DirectProvider.wrap(kvStoreProvider),

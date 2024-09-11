@@ -40,11 +40,9 @@ import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
-import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.DefaultSubstitutionProviderFactory;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
 import com.dremio.exec.planner.logical.partition.PartitionStatsBasedPrunerCache;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
@@ -53,6 +51,7 @@ import com.dremio.exec.planner.normalizer.PlannerNormalizerComponent;
 import com.dremio.exec.planner.normalizer.PlannerNormalizerComponentImpl;
 import com.dremio.exec.planner.normalizer.PlannerNormalizerModule;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.plancache.PlanCache;
 import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.exec.planner.sql.ViewExpander;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
@@ -63,7 +62,6 @@ import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotQueryContext;
 import com.dremio.exec.server.SimpleJobRunner;
-import com.dremio.exec.server.options.EagerCachingOptionManager;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.CatalogService;
@@ -71,6 +69,7 @@ import com.dremio.exec.store.EndPointListProvider;
 import com.dremio.exec.store.PartitionExplorer;
 import com.dremio.exec.store.PartitionExplorerImpl;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
@@ -80,7 +79,6 @@ import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionResolver;
-import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.partitionstats.cache.PartitionStatsCache;
 import com.dremio.resource.GroupResourceInformation;
@@ -102,6 +100,7 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
@@ -139,6 +138,7 @@ public class QueryContext
   private final BufferManager bufferManager;
 
   private final Catalog catalog;
+  private final SchemaConfig schemaConfig;
   private final SubstitutionProviderFactory substitutionProviderFactory;
   private final FunctionImplementationRegistry functionImplementationRegistry;
   private GroupResourceInformation groupResourceInformation;
@@ -181,7 +181,7 @@ public class QueryContext
         null,
         Long.MAX_VALUE,
         Predicates.alwaysTrue(),
-        null,
+        PlanCache.EMPTY_CACHE,
         null);
   }
 
@@ -197,17 +197,13 @@ public class QueryContext
     this.sabotQueryContext = sabotQueryContext;
     this.session = session;
     this.queryId = queryId;
-    this.planCache = planCache;
+    this.planCache = Objects.requireNonNullElse(planCache, PlanCache.EMPTY_CACHE);
     this.partitionStatsPredicateCache = partitionStatsCache;
 
     this.queryOptionManager = new QueryOptionManager(sabotQueryContext.getOptionValidatorListing());
     this.optionManager =
         OptionManagerWrapper.Builder.newBuilder()
-            .withOptionManager(
-                new DefaultOptionManager(sabotQueryContext.getOptionValidatorListing()))
-            .withOptionManager(
-                new EagerCachingOptionManager(sabotQueryContext.getSystemOptionManager()))
-            .withOptionManager(session.getSessionOptionManager())
+            .withOptionManager(session.getOptions())
             .withOptionManager(queryOptionManager)
             .build();
     this.executionControls = new ExecutionControls(optionManager, sabotQueryContext.getEndpoint());
@@ -222,8 +218,8 @@ public class QueryContext
         this.optionManager.getOption(PlannerSettings.ENABLE_DECIMAL_V2)
             ? sabotQueryContext.getDecimalFunctionImplementationRegistry()
             : sabotQueryContext.getFunctionImplementationRegistry();
-    this.table = DremioCompositeSqlOperatorTable.create(functionImplementationRegistry);
-
+    this.table =
+        DremioCompositeSqlOperatorTable.create(functionImplementationRegistry, optionManager);
     this.queryPriority = priority;
     this.workloadType = Utilities.getWorkloadType(queryPriority, session.getClientInfos());
     this.datasetValidityChecker = datasetValidityChecker;
@@ -246,7 +242,7 @@ public class QueryContext
     final ViewExpansionContext viewExpansionContext =
         new ViewExpansionContext(CatalogUser.from(queryUserName));
 
-    final SchemaConfig schemaConfig =
+    this.schemaConfig =
         SchemaConfig.newBuilder(CatalogUser.from(queryUserName))
             .defaultSchema(session.getDefaultSchemaPath())
             .optionManager(optionManager)
@@ -311,7 +307,8 @@ public class QueryContext
   }
 
   public UserDefinedFunctionCatalog getUserDefinedFunctionCatalog() {
-    return new UserDefinedFunctionCatalogImpl(getOptions(), getNamespaceService(), getCatalog());
+    return new UserDefinedFunctionCatalogImpl(
+        this, getOptions(), getNamespaceService(), getCatalog());
   }
 
   public AccelerationManager getAccelerationManager() {
@@ -415,7 +412,7 @@ public class QueryContext
 
   @Override
   public Collection<NodeEndpoint> getActiveEndpoints() {
-    return sabotQueryContext.getExecutors();
+    return sabotQueryContext.getClusterCoordinator().getExecutorEndpoints();
   }
 
   public SabotConfig getConfig() {
@@ -594,7 +591,7 @@ public class QueryContext
   @WithSpan("QueryContext.getSurvivingRowCountWithPruneFilter")
   @Override
   public PartitionStatsValue getSurvivingRowCountWithPruneFilter(
-      ScanRelBase scan, PruneFilterCondition pruneCondition) throws Exception {
+      FilterableScan scan, PruneFilterCondition pruneCondition) throws Exception {
     if (pruneCondition != null
         && getPlannerSettings().getOptions().getOption(ENABLE_PARTITION_STATS_USAGE)) {
       List<String> table = scan.getTableMetadata().getName().getPathComponents();
@@ -649,5 +646,9 @@ public class QueryContext
       PlannerBaseComponent plannerBaseComponent) {
     return PlannerNormalizerComponentImpl.build(
         plannerBaseComponent, new PlannerNormalizerModule());
+  }
+
+  public SchemaConfig getSchemaConfig() {
+    return schemaConfig;
   }
 }

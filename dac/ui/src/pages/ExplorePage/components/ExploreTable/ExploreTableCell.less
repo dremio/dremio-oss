@@ -37,7 +37,10 @@
     user-select: text;
   }
 
-  .explore-cell-overflow:hover .ellipsis-icon {
-    opacity: 1;
+  .explore-cell-overflow:hover,
+  .explore-cell-overflow:focus-within {
+    .ellipsis-icon {
+      opacity: 1;
+    }
   }
 }

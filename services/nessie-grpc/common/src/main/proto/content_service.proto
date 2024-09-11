@@ -24,20 +24,14 @@ package com.dremio.services.nessie.grpc.proto;
 import "util.proto";
 
 service ContentService {
-  rpc getContent (ContentRequest) returns (Content) {};
   rpc getMultipleContents (MultipleContentsRequest) returns (MultipleContentsResponse) {};
-}
-
-message ContentRequest {
-  ContentKey contentKey = 1;
-  string ref = 2;
-  string hashOnRef = 3;
 }
 
 message MultipleContentsRequest {
   string ref = 1;
   string hashOnRef = 2;
   repeated ContentKey requestedKeys = 3;
+  optional bool forWrite = 4;
 }
 
 message MultipleContentsResponse {
@@ -51,6 +45,7 @@ message Content {
     DeltaLakeTable deltaLake = 2;
     IcebergView iceberg_view = 3;
     Namespace namespace = 4;
+    Udf udf = 5;
   }
 }
 
@@ -77,8 +72,8 @@ message IcebergView {
   string metadataLocation = 2;
   int64 versionId = 3;
   int32 schemaId = 4;
-  string dialect = 5;
-  string sqlText = 6;
+  optional string dialect = 5;
+  optional string sqlText = 6;
 }
 
 message DeltaLakeTable {
@@ -92,4 +87,11 @@ message Namespace {
   repeated string elements = 1;
   map<string, string> properties = 2;
   string id = 3;
+}
+
+message Udf {
+  string id = 1;
+  string versionId = 2;
+  string signatureId = 3;
+  string metadataLocation = 4;
 }

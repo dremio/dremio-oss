@@ -79,13 +79,15 @@ public class WriterOperator implements SingleInputOperator {
   private IntVector operationTypeVector;
   private VarCharVector partitionValueVector;
   private BigIntVector rejectedRecordVector;
+  private VarBinaryVector referencedDataFilesVector;
 
   private PartitionWriteManager partitionManager;
 
   private WritePartition partition = null;
 
   private long writtenRecords = 0L;
-  private long writtenRecordLimit;
+
+  private final long writtenRecordLimit;
   private boolean reachedOutputLimit = false;
 
   public enum Metric implements MetricDef {
@@ -138,6 +140,7 @@ public class WriterOperator implements SingleInputOperator {
     operationTypeVector = output.addOrGet(RecordWriter.OPERATION_TYPE);
     partitionValueVector = output.addOrGet(RecordWriter.PARTITION_VALUE);
     rejectedRecordVector = output.addOrGet(RecordWriter.REJECTED_RECORDS);
+    referencedDataFilesVector = output.addOrGet(RecordWriter.REFERENCED_DATA_FILES);
     output.buildSchema();
     output.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
@@ -156,7 +159,9 @@ public class WriterOperator implements SingleInputOperator {
       }
       writtenRecords += recordWriter.writeBatch(0, records);
       if (writtenRecords > writtenRecordLimit) {
-        recordWriter.close();
+        if (!listener.hasPendingOutput) {
+          recordWriter.close();
+        }
         reachedOutputLimit = true;
         state = State.CAN_PRODUCE;
       } else {
@@ -166,7 +171,6 @@ public class WriterOperator implements SingleInputOperator {
     }
 
     // we're partitioning.
-
     // always need to keep the masked container in alignment.
     maskedContainer.setRecordCount(records);
 
@@ -182,7 +186,6 @@ public class WriterOperator implements SingleInputOperator {
         this.partition = newPartition;
         start = pointer;
         recordWriter.startPartition(partition);
-
         moveToCanProduceStateIfOutputExists();
       }
       pointer++;
@@ -190,12 +193,19 @@ public class WriterOperator implements SingleInputOperator {
 
     // write any remaining to existing partition.
     recordWriter.writeBatch(start, pointer - start);
+
     moveToCanProduceStateIfOutputExists();
   }
 
   @Override
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
+
+    // If we have pending output, we need to process it before continuing.
+    boolean blocked = recordWriter.processPendingOutput(completedInput, reachedOutputLimit);
+    if (blocked) {
+      return 0;
+    }
 
     output.allocateNew();
 
@@ -258,6 +268,11 @@ public class WriterOperator implements SingleInputOperator {
 
       rejectedRecordVector.setSafe(i, e.rejectedRecordCount);
 
+      if (e.referencedDataFiles != null) {
+        referencedDataFilesVector.setSafe(
+            i, e.referencedDataFiles, 0, e.referencedDataFiles.length);
+      }
+
       i++;
     }
 
@@ -275,7 +290,9 @@ public class WriterOperator implements SingleInputOperator {
   @Override
   public void noMoreToConsume() throws Exception {
     state.is(State.CAN_CONSUME);
-    recordWriter.close();
+    if (!listener.hasPendingOutput) {
+      recordWriter.close();
+    }
     this.completedInput = true;
     state = State.CAN_PRODUCE;
   }
@@ -336,14 +353,16 @@ public class WriterOperator implements SingleInputOperator {
   }
 
   private void moveToCanProduceStateIfOutputExists() {
-    if (listener.entries.size() > 0) {
+    if (!listener.entries.isEmpty() || listener.hasPendingOutput) {
       state = State.CAN_PRODUCE;
     }
   }
 
-  private class Listener implements OutputEntryListener {
+  public class Listener implements OutputEntryListener {
 
     private final List<OutputEntry> entries = new ArrayList<>();
+
+    private boolean hasPendingOutput = false;
 
     @Override
     public void recordsWritten(
@@ -357,7 +376,8 @@ public class WriterOperator implements SingleInputOperator {
         Collection<IcebergPartitionData> partitions,
         Integer operationType,
         String partitionValue,
-        long rejectedRecordCount) {
+        long rejectedRecordCount,
+        byte[] referencedDataFiles) {
       entries.add(
           new OutputEntry(
               recordCount,
@@ -370,7 +390,12 @@ public class WriterOperator implements SingleInputOperator {
               partitions,
               operationType,
               partitionValue,
-              rejectedRecordCount));
+              rejectedRecordCount,
+              referencedDataFiles));
+    }
+
+    public void setHasPendingOutput(boolean hasPendingOutput) {
+      this.hasPendingOutput = hasPendingOutput;
     }
   }
 
@@ -393,6 +418,7 @@ public class WriterOperator implements SingleInputOperator {
     private final Integer operationType;
     private final String partitionValue;
     private final long rejectedRecordCount;
+    private final byte[] referencedDataFiles;
 
     OutputEntry(
         long recordCount,
@@ -405,7 +431,8 @@ public class WriterOperator implements SingleInputOperator {
         Collection<IcebergPartitionData> partitions,
         Integer operationType,
         String partitionValue,
-        long rejectedRecordCount) {
+        long rejectedRecordCount,
+        byte[] referencedDataFiles) {
       this.recordCount = recordCount;
       this.fileSize = fileSize;
       this.path = path;
@@ -417,6 +444,7 @@ public class WriterOperator implements SingleInputOperator {
       this.operationType = operationType;
       this.partitionValue = partitionValue;
       this.rejectedRecordCount = rejectedRecordCount;
+      this.referencedDataFiles = referencedDataFiles;
     }
   }
 }

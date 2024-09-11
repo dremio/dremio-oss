@@ -75,14 +75,14 @@ describe("newSource", () => {
     });
   });
 
-  it("should set auth type to MASTER if secret is set", () => {
+  it("should set auth type to SECRET if secret is set", () => {
     data.config = {
       authenticationType: "SECRET",
       secretResourceUrl: "http://",
     };
     const result = sourcesMapper.newSource(sourceType, data);
     expect(result.config).to.eql({
-      authenticationType: "MASTER",
+      authenticationType: "SECRET",
       secretResourceUrl: "http://",
     });
   });

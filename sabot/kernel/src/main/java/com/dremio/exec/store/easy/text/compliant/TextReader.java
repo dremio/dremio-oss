@@ -19,12 +19,15 @@ import static com.dremio.exec.planner.ExceptionUtils.collapseExceptionMessages;
 
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.physical.config.SimpleQueryContext;
 import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.Builder;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties.OnErrorOption;
+import com.dremio.exec.physical.config.copyinto.IngestionProperties;
 import com.dremio.exec.store.dfs.FileLoadInfo;
+import com.dremio.exec.store.dfs.copyinto.CopyIntoExceptionUtils;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.univocity.parsers.common.TextParsingException;
@@ -200,11 +203,15 @@ final class TextReader implements AutoCloseable {
   private final byte[] quoteEscape;
   final byte[] lineDelimiter;
   private String filePath;
+  private long fileSize;
   private boolean schemaImposedMode;
   private CopyIntoQueryProperties copyIntoQueryProperties;
+  private IngestionProperties ingestionProperties;
   private SimpleQueryContext queryContext;
   private int recordsRejectedCount;
   private final boolean isValidationMode;
+  private long processingStartTime;
+  private String firstErrorMessage;
 
   /**
    * The CsvParser supports all settings provided by {@link CsvParserSettings}, and requires this
@@ -252,15 +259,21 @@ final class TextReader implements AutoCloseable {
       TextOutput output,
       ArrowBuf workBuf,
       String filePath,
+      long fileSize,
       boolean schemaImposedMode,
       CopyIntoQueryProperties copyIntoQueryProperties,
+      IngestionProperties ingestionProperties,
       SimpleQueryContext queryContext,
-      boolean isValidationMode) {
+      boolean isValidationMode,
+      long processingStartTime) {
     this(settings, input, output, workBuf, isValidationMode);
     this.filePath = filePath;
+    this.fileSize = fileSize;
     this.schemaImposedMode = schemaImposedMode;
     this.copyIntoQueryProperties = copyIntoQueryProperties;
+    this.ingestionProperties = ingestionProperties;
     this.queryContext = queryContext;
+    this.processingStartTime = processingStartTime;
   }
 
   public TextOutput getOutput() {
@@ -696,6 +709,9 @@ final class TextReader implements AutoCloseable {
     if (OnErrorOption.CONTINUE == onErrorOption
         || OnErrorOption.SKIP_FILE == onErrorOption
         || isValidationMode) {
+      if (firstErrorMessage == null) {
+        firstErrorMessage = collapseExceptionMessages(CopyIntoExceptionUtils.redactException(ex));
+      }
       if (isValidationMode) {
         // if error was seen during a copy_errors use case we write the details to the output
         SchemaImposedOutput schemaImposedOutput = (SchemaImposedOutput) output.output();
@@ -708,7 +724,9 @@ final class TextReader implements AutoCloseable {
         }
 
         schemaImposedOutput.writeValidationError(
-            recordCount + recordsRejectedCount, lineOfError, collapseExceptionMessages(ex));
+            recordCount + recordsRejectedCount,
+            lineOfError,
+            collapseExceptionMessages(CopyIntoExceptionUtils.redactException(ex)));
       }
       recordsRejectedCount++;
       // try to skip to the next line, if we are not at the end of the line or file
@@ -825,25 +843,14 @@ final class TextReader implements AutoCloseable {
         }
         output.startField(errorColIndex.getAsInt());
         String infoJson =
-            FileLoadInfo.Util.getJson(
-                new CopyIntoFileLoadInfo.Builder(
-                        queryContext.getQueryId(),
-                        queryContext.getUserName(),
-                        queryContext.getTableNamespace(),
-                        copyIntoQueryProperties.getStorageLocation(),
-                        filePath,
-                        schemaImposedOutput.getExtendedFormatOptions(),
-                        FileType.CSV.name(),
-                        recordsLoadedCount == 0
-                            ? CopyIntoFileLoadInfo.CopyIntoFileState.SKIPPED
-                            : CopyIntoFileLoadInfo.CopyIntoFileState.PARTIALLY_LOADED)
-                    .setRecordsLoadedCount(recordsLoadedCount)
-                    .setRecordsRejectedCount(recordsRejectedCount)
-                    .setRecordDelimiter(new String(lineDelimiter))
-                    .setFieldDelimiter(new String(fieldDelimiter))
-                    .setQuoteChar(new String(quote))
-                    .setEscapeChar(new String(quoteEscape))
-                    .build());
+            getFileLoadInfoJson(
+                recordsLoadedCount == 0
+                    ? CopyIntoFileState.SKIPPED
+                    : CopyIntoFileState.PARTIALLY_LOADED,
+                recordsLoadedCount,
+                firstErrorMessage,
+                schemaImposedOutput);
+
         output.append(infoJson.getBytes());
         schemaImposedOutput.endHistoryEventField();
         output.setCanAppend(true);
@@ -856,6 +863,44 @@ final class TextReader implements AutoCloseable {
     return RecordReaderStatus.END;
   }
 
+  private String getFileLoadInfoJson(
+      CopyIntoFileState fileState,
+      long recordsLoadedCount,
+      String firstErrorMessage,
+      SchemaImposedOutput schemaImposedOutput) {
+    Builder builder =
+        new Builder(
+                queryContext.getQueryId(),
+                queryContext.getUserName(),
+                queryContext.getTableNamespace(),
+                copyIntoQueryProperties.getStorageLocation(),
+                filePath,
+                schemaImposedOutput.getExtendedFormatOptions(),
+                FileType.CSV.name(),
+                fileState)
+            .setRecordsLoadedCount(recordsLoadedCount)
+            .setRecordsRejectedCount(recordsRejectedCount)
+            .setRecordDelimiter(new String(lineDelimiter))
+            .setFieldDelimiter(new String(fieldDelimiter))
+            .setQuoteChar(new String(quote))
+            .setEscapeChar(new String(quoteEscape))
+            .setBranch(copyIntoQueryProperties.getBranch())
+            .setProcessingStartTime(processingStartTime)
+            .setFileSize(fileSize)
+            .setFirstErrorMessage(firstErrorMessage);
+
+    if (ingestionProperties != null) {
+      builder
+          .setPipeName(ingestionProperties.getPipeName())
+          .setPipeId(ingestionProperties.getPipeId())
+          .setFileNotificationTimestamp(ingestionProperties.getNotificationTimestamp())
+          .setIngestionSourceType(ingestionProperties.getIngestionSourceType())
+          .setRequestId(ingestionProperties.getRequestId());
+    }
+
+    return FileLoadInfo.Util.getJson(builder.build());
+  }
+
   public int writeSuccessfulParseEvent() {
     if (!hasErrors
         && schemaImposedMode
@@ -865,29 +910,13 @@ final class TextReader implements AutoCloseable {
             CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED)) {
       SchemaImposedOutput schemaImposedOutput = (SchemaImposedOutput) output.output();
       OptionalInt copyHistoryColIndex = schemaImposedOutput.getFileHistoryColIndex();
-
+      long recordsLoadedCount =
+          settings.isHeaderExtractionEnabled() ? recordCount - 1 : recordCount;
       if (copyHistoryColIndex.isPresent()) {
         output.startField(copyHistoryColIndex.getAsInt());
-        ExtendedFormatOptions formatOptions =
-            ((SchemaImposedOutput) output.output()).getExtendedFormatOptions();
         String infoJson =
-            FileLoadInfo.Util.getJson(
-                new CopyIntoFileLoadInfo.Builder(
-                        queryContext.getQueryId(),
-                        queryContext.getUserName(),
-                        queryContext.getTableNamespace(),
-                        copyIntoQueryProperties.getStorageLocation(),
-                        filePath,
-                        formatOptions,
-                        FileType.CSV.name(),
-                        CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED)
-                    .setRecordsLoadedCount(recordCount)
-                    .setRecordsRejectedCount(recordsRejectedCount)
-                    .setRecordDelimiter(new String(lineDelimiter))
-                    .setFieldDelimiter(new String(fieldDelimiter))
-                    .setQuoteChar(new String(quote))
-                    .setEscapeChar(new String(quoteEscape))
-                    .build());
+            getFileLoadInfoJson(
+                CopyIntoFileState.FULLY_LOADED, recordsLoadedCount, null, schemaImposedOutput);
         output.append(infoJson.getBytes());
         schemaImposedOutput.endHistoryEventField();
         output.setCanAppend(true);

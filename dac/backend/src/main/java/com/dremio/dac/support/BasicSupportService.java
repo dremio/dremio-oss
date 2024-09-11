@@ -56,7 +56,6 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.ClusterCoordinator;
-import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
@@ -122,6 +121,8 @@ import org.slf4j.LoggerFactory;
 
 /** Basic implementation of SupportService */
 public class BasicSupportService implements SupportService {
+  public static final long UNKNOWN_ATTEMPT_COUNT = -1L;
+
   private static final Logger logger = LoggerFactory.getLogger(BasicSupportService.class);
   private static final int TYPE_SUPPORT_CLUSTERID = 1;
 
@@ -245,7 +246,7 @@ public class BasicSupportService implements SupportService {
     ClusterIdentity id;
     try {
       Collection<NodeEndpoint> coordinators =
-          clusterCoordinatorProvider.get().getServiceSet(Role.COORDINATOR).getAvailableEndpoints();
+          clusterCoordinatorProvider.get().getCoordinatorEndpoints();
       if (coordinators.isEmpty()) {
         throw new RpcException("Unable to fetch Cluster Identity, no endpoints are available");
       }
@@ -570,14 +571,16 @@ public class BasicSupportService implements SupportService {
       zip.putNextEntry(new ZipEntry("header.json"));
       recordHeader(zip, request, config, submissionId);
 
-      final JobSummary jobSummary = obfuscate(getJobSummary(request, config));
-
-      for (int attemptIndex = 0; attemptIndex < jobSummary.getNumAttempts(); attemptIndex++) {
-        zip.putNextEntry(new ZipEntry(String.format("profile_attempt_%d.json", attemptIndex)));
-        QueryProfile profile = recordProfile(zip, request, attemptIndex);
-
-        if (profile.hasPrepareId()) {
-          final QueryId id = profile.getPrepareId();
+      long numAttempts = getNumAttempts(request, config);
+      for (int attemptIndex = 0;
+          attemptIndex < numAttempts || numAttempts == UNKNOWN_ATTEMPT_COUNT;
+          attemptIndex++) {
+        Optional<QueryProfile> profile = recordProfile(zip, request, attemptIndex);
+        if (profile.isEmpty()) {
+          break;
+        }
+        if (profile.get().hasPrepareId()) {
+          final QueryId id = profile.get().getPrepareId();
           zip.putNextEntry(
               new ZipEntry(String.format("prepare_profile_attempt_%d.json", attemptIndex)));
           JobId prepareId = new JobId(new UUID(id.getPart1(), id.getPart2()).toString());
@@ -585,14 +588,14 @@ public class BasicSupportService implements SupportService {
         }
 
         // If the query failed, collect log file information.
-        if (profile.getState() == UserBitShared.QueryResult.QueryState.FAILED) {
+        if (profile.get().getState() == UserBitShared.QueryResult.QueryState.FAILED) {
           zip.putNextEntry(new ZipEntry(String.format("log_attempt_%d.json", attemptIndex)));
           outIncludesLogs.value =
               recordLog(
                   zip,
                   request.getUserId(),
-                  profile.getStart(),
-                  profile.getEnd(),
+                  profile.get().getStart(),
+                  profile.get().getEnd(),
                   request.getJobId(),
                   submissionId);
         }
@@ -600,6 +603,10 @@ public class BasicSupportService implements SupportService {
     }
 
     return path;
+  }
+
+  protected long getNumAttempts(SupportRequest request, User config) throws JobNotFoundException {
+    return getJobSummary(request, config).getNumAttempts();
   }
 
   protected JobSummary getJobSummary(SupportRequest supportRequest, User config)
@@ -623,7 +630,7 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getJobDetails(request);
   }
 
-  private boolean recordHeader(
+  protected boolean recordHeader(
       OutputStream output, SupportRequest supportRequest, User user, String submissionId)
       throws UserNotFoundException, IOException, JobNotFoundException {
 
@@ -631,7 +638,7 @@ public class BasicSupportService implements SupportService {
 
     header.setClusterInfo(getClusterInfo());
 
-    header.setJob(obfuscate(JobsProtoUtil.getLastAttempt(getJobDetails(supportRequest, user))));
+    setJobInHeader(supportRequest, user, header);
 
     Submission submission =
         new Submission()
@@ -650,6 +657,11 @@ public class BasicSupportService implements SupportService {
     return true;
   }
 
+  protected void setJobInHeader(SupportRequest supportRequest, User user, SupportHeader header)
+      throws JobNotFoundException {
+    header.setJob(obfuscate(JobsProtoUtil.getLastAttempt(getJobDetails(supportRequest, user))));
+  }
+
   protected QueryProfile getProfile(SupportRequest supportRequest, int attempt)
       throws JobNotFoundException {
     QueryProfileRequest request =
@@ -661,14 +673,27 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getProfile(request);
   }
 
-  private QueryProfile recordProfile(OutputStream out, SupportRequest supportRequest, int attempt)
+  private Optional<QueryProfile> recordProfile(
+      ZipOutputStream out, SupportRequest supportRequest, int attempt)
       throws IOException, JobNotFoundException {
-    QueryProfile profile = obfuscate(getProfile(supportRequest, attempt));
-    ProtobufUtils.writeAsJSONTo(out, profile);
+    Optional<QueryProfile> profile = Optional.empty();
+    try {
+      profile = Optional.of(obfuscate(getProfile(supportRequest, attempt)));
+    } catch (JobNotFoundException jobNotFoundException) {
+      if (attempt == 0) {
+        throw jobNotFoundException;
+      }
+    }
+
+    if (profile.isPresent()) {
+      // Put next entry only when profile is present.
+      out.putNextEntry(new ZipEntry(String.format("profile_attempt_%d.json", attempt)));
+      ProtobufUtils.writeAsJSONTo(out, profile.get());
+    }
     return profile;
   }
 
-  private QueryProfile recordProfile(
+  protected QueryProfile recordProfile(
       OutputStream out, JobId id, SupportRequest supportRequest, int attempt)
       throws IOException, JobNotFoundException {
     QueryProfileRequest request =
@@ -682,7 +707,7 @@ public class BasicSupportService implements SupportService {
     return profile;
   }
 
-  private boolean recordLog(
+  protected boolean recordLog(
       OutputStream output, String userId, long start, long end, JobId id, String submissionId) {
     try {
       final String startTime =
@@ -738,7 +763,7 @@ public class BasicSupportService implements SupportService {
     }
   }
 
-  private ClusterInfo getClusterInfo() {
+  protected ClusterInfo getClusterInfo() {
     SoftwareVersion version = new SoftwareVersion().setVersion(DremioVersionInfo.getVersion());
 
     List<Source> sources = new ArrayList<>();
@@ -749,13 +774,11 @@ public class BasicSupportService implements SupportService {
       sources.add(new Source().setName(source.getName()).setType(type));
     }
     List<Node> nodes = new ArrayList<>();
-    for (NodeEndpoint ep :
-        clusterCoordinatorProvider.get().getServiceSet(Role.EXECUTOR).getAvailableEndpoints()) {
+    for (NodeEndpoint ep : clusterCoordinatorProvider.get().getExecutorEndpoints()) {
       nodes.add(new Node().setName(ep.getAddress()).setRole("executor"));
     }
 
-    for (NodeEndpoint ep :
-        clusterCoordinatorProvider.get().getServiceSet(Role.COORDINATOR).getAvailableEndpoints()) {
+    for (NodeEndpoint ep : clusterCoordinatorProvider.get().getCoordinatorEndpoints()) {
       nodes.add(new Node().setName(ep.getAddress()).setRole("coordinator"));
     }
 

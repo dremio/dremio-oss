@@ -42,8 +42,14 @@ public class UseSchemaHandler extends SimpleDirectHandler {
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlUseSchema useSchema = SqlNodeUtil.unwrap(sqlNode, SqlUseSchema.class);
+
+    if (useSchema.getSchema() == null) {
+      session.setDefaultSchemaPath(null);
+      return Collections.singletonList(SimpleCommandResult.successful("Default schema cleared"));
+    }
+
     // first we try locally.
-    NamespaceKey orig = new NamespaceKey(useSchema.getSchema());
+    NamespaceKey orig = new NamespaceKey(useSchema.getSchema().names);
     NamespaceKey defaultPath = catalog.resolveToDefault(orig);
     NamespaceKey compoundPath =
         orig.size() == 1 && orig.getRoot().contains(".")

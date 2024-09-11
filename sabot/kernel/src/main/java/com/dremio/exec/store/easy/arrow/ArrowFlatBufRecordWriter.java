@@ -182,7 +182,7 @@ public class ArrowFlatBufRecordWriter implements RecordWriter {
       final long fileSize = outputStream.getPosition();
 
       outputEntryListener.recordsWritten(
-          recordCount, fileSize, null, null, null, null, null, null, null, null, 0L);
+          recordCount, fileSize, null, null, null, null, null, null, null, null, 0L, null);
       isClosed = true;
     }
   }

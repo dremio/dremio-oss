@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .base {
   clear: both;
@@ -27,7 +26,7 @@
 .search-input {
   composes: form-placeholder from "~@app/uiTheme/less/typography.less";
   display: block;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--border--neutral--solid);
   width: 100%;
   padding: 5px 10px;
   height: 32px;
@@ -36,18 +35,18 @@
   font-size: 13px;
 
   &:hover {
-    border: 1px solid #a1dbe4;
+    border: 1px solid var(--border--hover);
   }
 
   &:focus {
-    border: 1px solid #a1dbe4;
-    background-color: #f5fcff;
+    border: 1px solid var(--fill--primary--selected);
+    background-color: var(--fill--primary);
   }
 
   &:disabled {
     cursor: not-allowed;
     &:hover {
-      border: 1px solid #e5e5e5;
+      border: 1px solid var(--border--neutral--solid);
     }
   }
 }

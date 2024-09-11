@@ -27,7 +27,7 @@ public class TestAlterTableWithContext extends BaseTestQuery {
   public void drop() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "dropcol0";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -51,7 +51,7 @@ public class TestAlterTableWithContext extends BaseTestQuery {
   public void add() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "addcol7";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -76,7 +76,7 @@ public class TestAlterTableWithContext extends BaseTestQuery {
   public void change() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol8";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -124,7 +124,7 @@ public class TestAlterTableWithContext extends BaseTestQuery {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String path = "Path";
       String tableName = "addDropPartitionwithPath";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
         final String createTableQuery =
             String.format(
                 "CREATE TABLE %s.%s.%s as "

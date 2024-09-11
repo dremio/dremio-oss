@@ -494,7 +494,7 @@ public class TestExternal extends BaseTestQuery {
 
   private void printSchema(String query) throws Exception {
     List<QueryDataBatch> results = testSqlWithResults(query);
-    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
     QueryDataBatch batch = results.get(0);
     loader.load(batch.getHeader().getDef(), batch.getData());
     System.out.println(loader.getSchema());

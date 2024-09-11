@@ -206,6 +206,9 @@ message ActiveJobSummary {
   string engine = 33;
   string error_msg = 34;
   string query = 35;
+  bool is_profile_incomplete = 36;
+  int64 execution_allocated_bytes = 37; // total bytes of direct memory allocated for query execution
+  int64 execution_cpu_time_millis = 38; // cpu time of query execution (summed across all fragments)
 }
 
 message RecentJobSummary {
@@ -244,6 +247,9 @@ message RecentJobSummary {
   string engine = 33;
   string error_msg = 34;
   string query = 35;
+  bool is_profile_incomplete = 36;
+  int64 execution_allocated_bytes = 37; // total bytes of direct memory allocated for query execution
+  int64 execution_cpu_time_millis = 38; // cpu time of query execution (summed across all fragments)
 }
 
 //proto2 enums cannot be used directly in proto3 syntax
@@ -332,7 +338,7 @@ enum QueryType {
   D2D = 900;
   VACUUM_EXPIRE_SNAPSHOTS = 1000; // Queries related to internal vacuum expiry snapshots command
   COPY_ERRORS_PLAN = 1100; // Queries related to COPY_ERRORS table function query planning
-  SYSTEM_ICEBERG_TABLES_CLEANER = 1200; //query submitted by the system iceberg tables cleaner service
+  SYSTEM_ICEBERG_TABLES_MAINTAINER = 1200; //query submitted by the system iceberg tables cleaner service
 }
 
 enum QueryLabel {
@@ -547,6 +553,8 @@ message DownloadSettings {
   string downloadId = 1;
   string filename = 2;
   bool runInSingleThread = 3;
+  string triggeringJobId = 4;
+  string extension = 5;
 }
 
 message ReflectionJobSummaryRequest {

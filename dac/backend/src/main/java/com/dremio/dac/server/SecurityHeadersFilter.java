@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.server;
 
-import static com.dremio.dac.server.UIOptions.CSP_HEADER_VALUE;
+import static com.dremio.dac.options.UIOptions.CSP_HEADER_VALUE;
 
 import com.dremio.options.OptionManager;
 import java.io.IOException;

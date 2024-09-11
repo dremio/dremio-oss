@@ -115,9 +115,7 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
     // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes
     // Connection--and other JDBC objects--on test method failure, but this test
     // class uses some objects across methods.)
-    connection =
-        new Driver()
-            .connect(sabotNode.getJDBCConnectionString(), JdbcAssert.getDefaultProperties());
+    connection = new Driver().connect(getJDBCURL(), JdbcAssert.getDefaultProperties());
     final Statement stmt = connection.createStatement();
 
     ResultSet util;

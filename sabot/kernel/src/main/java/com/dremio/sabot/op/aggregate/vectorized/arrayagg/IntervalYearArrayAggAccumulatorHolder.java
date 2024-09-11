@@ -20,14 +20,14 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntervalYearVector;
 
 public final class IntervalYearArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<Integer, IntervalYearVector> {
+    extends ArrayAggAccumulatorHolder<Integer> {
   private final IntervalYearVector vector;
 
   public IntervalYearArrayAggAccumulatorHolder(
-      int maxValuesPerBatch, final BufferAllocator allocator) {
-    super(maxValuesPerBatch, allocator);
+      final BufferAllocator allocator, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector = new IntervalYearVector("array_agg IntervalYearArrayAggAccumulatorHolder", allocator);
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -51,5 +51,18 @@ public final class IntervalYearArrayAggAccumulatorHolder
   @Override
   public Integer getItem(int index) {
     return vector.get(index);
+  }
+
+  @Override
+  public double getSizeOfElement(Integer element) {
+    return IntervalYearVector.TYPE_WIDTH;
+  }
+
+  @Override
+  public void reAllocIfNeeded(Integer data) {
+    super.reAllocIfNeeded(data);
+    if (numItems + 1 >= vector.getValueCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

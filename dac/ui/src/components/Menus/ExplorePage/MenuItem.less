@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .menu-item-link,
   .dropdown-menu-item {
     & {
       .menu-item-inner:hover {
-        background-color: @PALE_BLUE;
+        background-color: var(--fill--primary--hover);
       }
     }
     &--disabled {
       .menu-item-inner:hover {
-        background-color: #fff;
+        background-color: var(--fill--primary);
       }
     }
   }

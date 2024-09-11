@@ -17,7 +17,6 @@ package com.dremio.exec.store.ischema;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -46,7 +45,7 @@ public class InfoSchemaScanCreator implements ProducerOperator.Creator<InfoSchem
             catalogName,
             config.getProps().getUserName(),
             config.getQuery(),
-            context.getOptions().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT));
+            true);
 
     return new ScanOperator(fec, config, context, RecordReaderIterator.from(reader));
   }

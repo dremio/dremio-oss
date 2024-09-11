@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/variables.less";
 
 .base {
@@ -22,29 +21,9 @@
   justify-content: space-between;
   width: 100%;
   align-items: center;
-  background-color: @CELL_EXPANSION_HEADER;
+  background-color: var(--fill--secondary);
   min-height: @row-height;
 }
-
-/* DX: 34369: clear all button, not able to use classname yet
-.clearAll {
-  min-width: auto;
-  height:  @CLEAR_ALL_HEIGHT;
-  line-height:  @CLEAR_ALL_HEIGHT;
-  margin-right: 5px;
-  color: @font-color1;
-  background-color: @CLEAR_ALL_BACKGROUND_COLOR;
-  border: 1px solid @CLEAR_ALL_BORDER_COLOR;
-  justify-content: space-around;
-  align-items: center;
-  text-align: center;
-  min-width: auto;
-  border-radius: 4px;
-  position: relative;
-  padding: 0 6px;
-  // text-decoration: none;
-}
-*/
 
 .left {
   width: 275px;
@@ -53,7 +32,7 @@
   display: flex;
   align-items: center;
   padding: 0 10px;
-  border-right: 2px solid rgba(0, 0, 0, 0.1);
+  border-right: 2px solid var(--border--neutral);
 }
 
 .center {
@@ -62,7 +41,7 @@
   display: flex;
   align-items: center;
   padding-left: 11px;
-  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  border-right: 1px solid var(--border--neutral);
   justify-content: space-between;
 }
 

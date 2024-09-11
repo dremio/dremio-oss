@@ -43,9 +43,12 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 /** Basic implementation of Resource Allocation APIs */
+@Singleton
 public class BasicResourceAllocator implements ResourceAllocator {
 
   private static final org.slf4j.Logger logger =
@@ -56,6 +59,7 @@ public class BasicResourceAllocator implements ResourceAllocator {
   private ClusterCoordinator clusterCoordinator;
   private final ListeningExecutorService executorService = MoreExecutors.newDirectExecutorService();
 
+  @Inject
   public BasicResourceAllocator(
       final Provider<ClusterCoordinator> clusterCoordinatorProvider,
       final Provider<GroupResourceInformation> clusterResourceInformationProvider) {

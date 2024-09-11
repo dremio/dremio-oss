@@ -17,20 +17,6 @@
 import { RuleName } from "../abstractSqlGenerator";
 import { formatQuery } from "../sqlFormatter";
 
-// If there are test cases that cause parsing errors, jest will fail with an unhelpful error in the following format:
-//   ● Test suite failed to run
-//
-//    TypeError: Converting circular structure to JSON
-//        --> starting at object with constructor 'Object'
-//        |     property 'source' -> object with constructor 'DremioLexer'
-//        --- property '_tokenFactorySourcePair' closes the circle
-//        at stringify (<anonymous>)
-//
-// You can see the true error using the runInBand flag, e.g.:
-// node node_modules/jest/bin/jest.js --runInBand
-//
-// See https://github.com/jestjs/jest/issues/10577
-
 describe("sqlFormatter", () => {
   type TestCase = [input: string, expectedIfDifferent?: string];
   const parserRuleTests: { [K in RuleName]: TestCase[] | null } = {
@@ -91,7 +77,7 @@ USE abc123.def456`,
     sqlCreateOrReplace: [
       [
         `
-CREATE OR REPLACE FUNCTION IF NOT EXISTS func(x int, y int)
+CREATE OR REPLACE FUNCTION IF NOT EXISTS func(x int, y int) AT BRANCH abc
 RETURNS                                  int
 RETURN SELECT                            x * y;`,
       ],
@@ -488,8 +474,11 @@ FORCE IN abc`,
     sqlMergeBranch: [
       [
         `
-MERGE BRANCH branch1
-INTO         branch2`,
+MERGE BRANCH DRY RUN              branch1
+INTO                              branch2
+IN                                abc123
+ON CONFLICT CANCEL EXCEPT DISCARD abc123.def456
+EXCEPT OVERWRITE                  abc123.def4567`,
       ],
     ],
     sqlAssignBranch: [
@@ -704,7 +693,24 @@ EXPIRE SNAPSHOTS RETAIN_LAST = 10`,
 VACUUM CATALOG cat1`,
       ],
     ],
-    sqlOptimize: null,
+    sqlOptimize: [
+      [
+        `
+OPTIMIZE TABLE tbl`,
+      ],
+      [
+        `
+OPTIMIZE TABLE    tbl
+REWRITE MANIFESTS`,
+      ],
+      [
+        `
+OPTIMIZE TABLE                             aa.cmp
+REWRITE DATA USING BIN_PACK FOR PARTITIONS column_2 like 'a%' (
+                                             TARGET_FILE_SIZE_MB = 128,
+                                             MIN_INPUT_FILES = 1)`,
+      ],
+    ],
     orderByLimitOpt: [
       [
         `
@@ -816,6 +822,7 @@ SELECT func(DISTINCT arg0, arg1)`,
     fieldNameStructTypeCommaList: null, // covered by other cases
     rowTypeName: null, // covered by other cases
     arrayTypeName: null, // covered by other cases
+    mapTypeName: null, // covered by other cases
     parseRequiredFilesList: null, // covered by other cases
     stringLiteralCommaList: null, // covered by other cases
     parseRequiredPartitionList: null, // covered by other cases
@@ -1102,6 +1109,9 @@ FOR BATCH    batch1`,
     parseReferenceType: null, // covered by other cases
     aTVersionSpec: null, // covered by other cases
     writeableAtVersionSpec: null, // covered by other cases
+    getMergeBehavior: null, // covered by other cases
+    getTableKeys: null, // covered by other cases
+    tableKey: null, // covered by other cases
     parenthesizedKeyValueOptionCommaList: null, // covered by other cases
     keyValueOption: null, // covered by other cases
     commaSepatatedSqlHints: null, // covered by other cases

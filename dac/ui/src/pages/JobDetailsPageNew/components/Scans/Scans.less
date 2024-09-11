@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @font-size: 16px;
 @line-height: 20px;
 @font-weight: 600;
@@ -22,7 +21,7 @@
     &-title {
       padding-top: 24px;
       padding-bottom: 5px;
-      color: @font-color1;
+      color: var(--text--primary);
       font-size: @font-size;
       font-weight: @font-weight;
       line-height: @line-height;
@@ -43,7 +42,7 @@
       &__dropdownIcon {
         height: 17px;
         width: 17px;
-        color: var(--dremio--color--icon--main);
+        color: var(--icon--primary);
       }
       &__reflectionIcon {
         height: 24px;
@@ -52,10 +51,10 @@
         font-size: 14px;
         font-weight: @font-weight;
         margin-left: 4px;
-        color: @font-color1;
+        color: var(--text--primary);
       }
       &__dataWrapper {
-        border-left: 1px solid @gainsboro;
+        border-left: 1px solid var(--border--neutral--solid);
         display: flex;
         padding-left: 16px;
       }
@@ -66,7 +65,7 @@
         padding-left: 10px;
         font-size: 14px;
         line-height: 20px;
-        color: @greyish-blue;
+        color: var(--text--primary);
       }
       &__dataLabelHeader {
         flex-basis: 20%;
@@ -76,7 +75,7 @@
         font-size: 14px;
         line-height: 20px;
         padding-top: 5px;
-        color: @liteSlate-grey;
+        color: var(--text--faded);
       }
     }
   }

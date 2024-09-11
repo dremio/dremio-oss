@@ -115,7 +115,7 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
 
       Table icebergTable = getIcebergTable();
 
-      EntityExplorer entityExplorer = CatalogUtil.getSystemCatalogForReflections(getSabotContext().getCatalogService());
+      EntityExplorer entityExplorer = CatalogUtil.getSystemCatalogForReflections(getCatalogService());
 
       CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
         .keyComponents(ImmutableList.of("hive", tableName))
@@ -155,7 +155,7 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       //Refresh the same iceberg table again
       icebergTable.refresh();
 
-      EntityExplorer entityExplorer = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      EntityExplorer entityExplorer = getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
         .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
         .setCheckValidity(false)
         .setNeverPromote(true)
@@ -205,7 +205,7 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       icebergTable.refresh();
       Snapshot snapshot2 = icebergTable.currentSnapshot();
 
-      EntityExplorer entityExplorer = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      EntityExplorer entityExplorer = getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
         .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
         .setCheckValidity(false)
         .setNeverPromote(true)
@@ -250,7 +250,7 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       icebergTable.refresh();
       Snapshot snapshot2 = icebergTable.currentSnapshot();
 
-      EntityExplorer entityExplorer = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      EntityExplorer entityExplorer = getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
         .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
         .setCheckValidity(false)
         .setNeverPromote(true)
@@ -311,7 +311,7 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       icebergTable.refresh();
       Snapshot snapshot3 = icebergTable.currentSnapshot();
 
-      EntityExplorer entityExplorer = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      EntityExplorer entityExplorer = getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
         .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
         .setCheckValidity(false)
         .setNeverPromote(true)
@@ -391,7 +391,7 @@ public class ITHiveTestCatalogFunctionsUnlimitedSplits extends LazyDataGeneratin
       icebergTable.refresh();
       Snapshot snapshot2 = icebergTable.currentSnapshot();
 
-      EntityExplorer entityExplorer = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      EntityExplorer entityExplorer = getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
         .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
         .setCheckValidity(false)
         .setNeverPromote(true)

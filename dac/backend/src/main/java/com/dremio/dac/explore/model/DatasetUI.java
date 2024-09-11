@@ -17,6 +17,7 @@ package com.dremio.dac.explore.model;
 
 import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.folder.SourceFolderPath;
@@ -29,7 +30,6 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.util.DatasetUIUtils;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.jobs.JobIndexKeys;

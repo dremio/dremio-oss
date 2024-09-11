@@ -44,10 +44,10 @@ export const Default = () => {
         {sizes.map((size) => (
           <div
             key={size}
-            className={`bg-neutral-50 m-4 p-${size} rounded`}
+            className={`bg-neutral-25 m-4 p-${size} rounded`}
             style={{ display: "inline-flex" }}
           >
-            <div className={`bg-brand-300 rounded`}>
+            <div className={`bg-brand-200 rounded`}>
               <code>.p-{size}</code>
             </div>
           </div>
@@ -57,10 +57,10 @@ export const Default = () => {
         {sizes.map((size) => (
           <div
             key={size}
-            className={`bg-neutral-50 m-4 px-${size} rounded`}
+            className={`bg-neutral-25 m-4 px-${size} rounded`}
             style={{ display: "inline-flex" }}
           >
-            <div className={`bg-brand-300 rounded`}>
+            <div className={`bg-brand-200 rounded`}>
               <code>.px-{size}</code>
             </div>
           </div>
@@ -70,10 +70,10 @@ export const Default = () => {
         {sizes.map((size) => (
           <div
             key={size}
-            className={`bg-neutral-50 m-4 py-${size} rounded`}
+            className={`bg-neutral-25 m-4 py-${size} rounded`}
             style={{ display: "inline-flex" }}
           >
-            <div className={`bg-brand-300 rounded`}>
+            <div className={`bg-brand-200 rounded`}>
               <code>.py-{size}</code>
             </div>
           </div>
@@ -83,10 +83,10 @@ export const Default = () => {
         {sizes.map((size) => (
           <div
             key={size}
-            className={`bg-neutral-50 m-4 pl-${size} rounded`}
+            className={`bg-neutral-25 m-4 pl-${size} rounded`}
             style={{ display: "inline-flex" }}
           >
-            <div className={`bg-brand-300 rounded`}>
+            <div className={`bg-brand-200 rounded`}>
               <code>.pl-{size}</code>
             </div>
           </div>
@@ -96,10 +96,10 @@ export const Default = () => {
         {sizes.map((size) => (
           <div
             key={size}
-            className={`bg-neutral-50 m-4 pr-${size} rounded`}
+            className={`bg-neutral-25 m-4 pr-${size} rounded`}
             style={{ display: "inline-flex" }}
           >
-            <div className={`bg-brand-300 rounded`}>
+            <div className={`bg-brand-200 rounded`}>
               <code>.pr-{size}</code>
             </div>
           </div>
@@ -109,10 +109,10 @@ export const Default = () => {
         {sizes.map((size) => (
           <div
             key={size}
-            className={`bg-neutral-50 m-4 pt-${size} rounded`}
+            className={`bg-neutral-25 m-4 pt-${size} rounded`}
             style={{ display: "inline-flex" }}
           >
-            <div className={`bg-brand-300 rounded`}>
+            <div className={`bg-brand-200 rounded`}>
               <code>.pt-{size}</code>
             </div>
           </div>
@@ -122,10 +122,10 @@ export const Default = () => {
         {sizes.map((size) => (
           <div
             key={size}
-            className={`bg-neutral-50 m-4 pb-${size} rounded`}
+            className={`bg-neutral-25 m-4 pb-${size} rounded`}
             style={{ display: "inline-flex" }}
           >
-            <div className={`bg-brand-300 rounded`}>
+            <div className={`bg-brand-200 rounded`}>
               <code>.pb-{size}</code>
             </div>
           </div>

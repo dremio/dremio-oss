@@ -15,8 +15,8 @@
  */
 package com.dremio.jdbc.client;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.exec.rpc.proxy.ProxyConfig;
-import com.dremio.jdbc.SabotNodeRule;
 import com.dremio.jdbc.test.JdbcAssert;
 import io.netty.handler.proxy.DremioSocks5ProxyServer;
 import java.net.InetSocketAddress;
@@ -24,19 +24,15 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
-public class TestProxyIntercept {
-
-  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
+public class TestProxyIntercept extends BaseTestQuery {
   private static final String SOCKS_PROXY_USERNAME = "testUser";
   private static final String SOCKS_PROXY_PASSWORD = "testPassword";
 
   @Test
   public void testProxyNoAuth() throws Exception {
-    final InetSocketAddress destinationAddress =
-        new InetSocketAddress("localhost", sabotNode.getPort());
+    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", getPort());
 
     try (DremioSocks5ProxyServer proxyNoAuth = new DremioSocks5ProxyServer(destinationAddress)) {
 
@@ -47,7 +43,7 @@ public class TestProxyIntercept {
       properties.put(ProxyConfig.SOCKS_PROXY_HOST, socksProxyHost);
       properties.put(ProxyConfig.SOCKS_PROXY_PORT, socksProxyPort);
 
-      DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+      DriverManager.getConnection(getJDBCURL(), properties);
       proxyNoAuth.checkExceptions();
       Assert.assertTrue(proxyNoAuth.interceptedConnection());
     }
@@ -55,8 +51,7 @@ public class TestProxyIntercept {
 
   @Test
   public void testProxyAuth() throws Exception {
-    final InetSocketAddress destinationAddress =
-        new InetSocketAddress("localhost", sabotNode.getPort());
+    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", getPort());
 
     try (DremioSocks5ProxyServer proxyWithAuth =
         new DremioSocks5ProxyServer(
@@ -70,7 +65,7 @@ public class TestProxyIntercept {
       properties.put(ProxyConfig.SOCKS_PROXY_USERNAME, SOCKS_PROXY_USERNAME);
       properties.put(ProxyConfig.SOCKS_PROXY_PASSWORD, SOCKS_PROXY_PASSWORD);
 
-      DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+      DriverManager.getConnection(getJDBCURL(), properties);
 
       proxyWithAuth.checkExceptions();
       Assert.assertTrue(proxyWithAuth.interceptedConnection());
@@ -79,8 +74,7 @@ public class TestProxyIntercept {
 
   @Test
   public void testProxyWrongPassword() {
-    final InetSocketAddress destinationAddress =
-        new InetSocketAddress("localhost", sabotNode.getPort());
+    final InetSocketAddress destinationAddress = new InetSocketAddress("localhost", getPort());
     try (DremioSocks5ProxyServer proxyWithAuth =
         new DremioSocks5ProxyServer(
             destinationAddress, SOCKS_PROXY_USERNAME, SOCKS_PROXY_PASSWORD)) {
@@ -97,7 +91,7 @@ public class TestProxyIntercept {
           Assert.assertThrows(
               SQLException.class,
               () -> {
-                DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+                DriverManager.getConnection(getJDBCURL(), properties);
               });
 
       String expectedMessage = "ProxyConnectException";

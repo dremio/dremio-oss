@@ -20,5 +20,5 @@ public interface HeapClawBackStrategy {
   HeapClawBackStrategy NO_OP = ((statusToDisplay) -> {});
 
   /** Reduce heap usage. */
-  void clawBack(String statusToDisplay);
+  void clawBack(HeapClawBackContext clawBackContext);
 }

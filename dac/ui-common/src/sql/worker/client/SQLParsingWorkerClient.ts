@@ -17,7 +17,6 @@
 import SQLParsingWorker, {
   type CheckCancellationRequest,
   type CheckCancellationResponse,
-  type Document,
   type RunAutocompleteData,
   type RunAutocompleteRequest,
   type RunAutocompleteResponse,
@@ -26,19 +25,15 @@ import SQLParsingWorker, {
   type RunErrorDetectionResponse,
   type RunInitializeData,
   type RunInitializeRequest,
-  type SQLFunction,
   type SQLParsingWorkerRequest,
   type SQLParsingWorkerResponse,
-  type SQLError,
 } from "../server/SQLParsingWorker.worker";
-
-type SqlContextGetter = () => string[];
 
 // SQL parsing for live edit and autocomplete runs in a web worker background process to ensure that lengthy parse times
 // don't interfere with re-rendering of the DOM/sql runner showing the characters typed
 const sqlParsingWorker = new SQLParsingWorker();
 
-function initializeWorker(data: RunInitializeData) {
+export function initializeWorker(data: RunInitializeData) {
   const initializeRequest: RunInitializeRequest = {
     type: "initialize",
     data,
@@ -46,7 +41,7 @@ function initializeWorker(data: RunInitializeData) {
   sqlParsingWorker.postMessage(initializeRequest);
 }
 
-function runAutocompleteOnWorker(
+export function runAutocompleteOnWorker(
   data: RunAutocompleteData,
   isCancellationRequested: () => boolean,
 ): Promise<RunAutocompleteResponse | null> {
@@ -60,7 +55,7 @@ function runAutocompleteOnWorker(
   );
 }
 
-function runErrorDetectionOnWorker(
+export function runErrorDetectionOnWorker(
   data: RunErrorDetectionData,
   isCancellationRequested: () => boolean,
 ): Promise<RunErrorDetectionResponse | null> {
@@ -109,86 +104,4 @@ function runRequestOnWorker<P extends SQLParsingWorkerResponse>(
     };
     sqlParsingWorker.postMessage(request, [channel.port1]);
   });
-}
-
-export class SQLEditorExtension {
-  private sqlContextGetter: SqlContextGetter;
-  private currentModelVersion: number;
-
-  constructor(
-    sqlContextGetter: SqlContextGetter,
-    authToken: string,
-    getSuggestionsURL: string,
-    sqlFunctions: SQLFunction[],
-  ) {
-    this.sqlContextGetter = sqlContextGetter;
-    this.currentModelVersion = -1;
-    initializeWorker({
-      sqlFunctions,
-      authToken,
-      getSuggestionsURL,
-    });
-  }
-
-  completionItemProvider = {
-    provideCompletionItems: async (
-      model: monaco.editor.IReadOnlyModel,
-      position: monaco.Position,
-      cancellationToken: monaco.CancellationToken,
-    ): Promise<monaco.languages.CompletionItem[]> => {
-      const document: Document = {
-        linesContent: model.getLinesContent(),
-        wordAtPosition: model.getWordAtPosition(position),
-      };
-      const data: RunAutocompleteData = {
-        document,
-        position,
-        queryContext: this.sqlContextGetter(),
-      };
-      const completionItems: monaco.languages.CompletionItem[] | null =
-        await runAutocompleteOnWorker(
-          data,
-          () => cancellationToken.isCancellationRequested,
-        );
-      if (completionItems == null) {
-        console.debug(
-          `Autocomplete request cancelled for model version: ${model.getVersionId()}, word: ${JSON.stringify(
-            document.wordAtPosition,
-          )}`,
-        );
-        return [];
-      }
-      return completionItems;
-    },
-  };
-
-  errorDetectionProvider = {
-    getLiveErrors: async (
-      model: monaco.editor.IReadOnlyModel,
-      modelVersion: number,
-    ): Promise<SQLError[]> => {
-      this.currentModelVersion = modelVersion;
-
-      const data: RunErrorDetectionData = {
-        linesContent: model.getLinesContent(),
-      };
-      // If this returns false, that means there is a newer pending error detection request; we should cancel this one
-      // to prioritize the newer one instead
-      const isCancellationRequested = () =>
-        modelVersion < this.currentModelVersion;
-      const syntaxErrors: SQLError[] | null = await runErrorDetectionOnWorker(
-        data,
-        isCancellationRequested,
-      );
-      // Do not use model after this point because it may have been mutated already by react-monaco-editor with newer
-      // editor changes
-      if (syntaxErrors == null) {
-        console.debug(
-          `Error detection request cancelled for model version: ${modelVersion}`,
-        );
-        return [];
-      }
-      return syntaxErrors;
-    },
-  };
 }

@@ -25,12 +25,25 @@ public interface NodeDebugContextProvider {
   /** no-op implementation of the NodeDebugContext */
   public static final NodeDebugContextProvider NOOP =
       new NodeDebugContextProvider() {
+
         @Override
         public void addMemoryContext(UserException.Builder exceptionBuilder) {}
 
         @Override
         public void addMemoryContext(
             UserException.Builder exceptionBuilder, OutOfMemoryException e) {}
+
+        @Override
+        public void addMemoryContext(UserException.Builder exceptionBuilder, Throwable e) {}
+
+        @Override
+        public void addHeapMemoryContext(UserException.Builder exceptionBuilder, Throwable e) {}
+
+        @Override
+        public void addErrorOrigin(UserException.Builder builder) {}
+
+        @Override
+        public void addErrorOrigin(UserException userException) {}
       };
 
   /**
@@ -40,6 +53,8 @@ public interface NodeDebugContextProvider {
    */
   void addMemoryContext(UserException.Builder exceptionBuilder);
 
+  void addMemoryContext(UserException.Builder exceptionBuilder, Throwable e);
+
   /**
    * Add information about the specific allocator that caused the failure. Useful when dealing with
    * an OOM
@@ -47,4 +62,10 @@ public interface NodeDebugContextProvider {
    * @param exceptionBuilder the exception (builder) that's about to get thrown
    */
   void addMemoryContext(UserException.Builder exceptionBuilder, OutOfMemoryException e);
+
+  void addHeapMemoryContext(UserException.Builder exceptionBuilder, Throwable e);
+
+  public void addErrorOrigin(UserException.Builder builder);
+
+  public void addErrorOrigin(UserException userException);
 }

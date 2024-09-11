@@ -19,6 +19,7 @@ import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.common.FlattenRelBase;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.FlattenVisitors;
@@ -48,15 +49,21 @@ import java.util.stream.StreamSupport;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.RelOptUtil.InputFinder;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.core.Window.RexWinAggCall;
+import org.apache.calcite.rel.logical.LogicalAggregate;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.MultiJoin;
@@ -145,7 +152,6 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
             tableModifyCrel.getCreateTableEntry(),
             tableModifyCrel.getMergeUpdateColumnList(),
             tableModifyCrel.hasSource(),
-            tableModifyCrel.getOutdatedTargetColumns(),
             tableModifyCrel.getDmlWriteMode());
 
     final int fieldCount = tableModifyCrel.getRowType().getFieldCount();
@@ -1316,5 +1322,230 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
      * <p>SELECT COUNT(*), 'asdf', UPPER('foo') FROM a JOIN b
      */
     NEITHER
+  }
+
+  public static class TrimMultiJoinProjFields extends StatelessRelShuttleImpl {
+    private final ImmutableBitSet fieldsUsed;
+
+    public TrimMultiJoinProjFields(ImmutableBitSet fieldsUsed) {
+      this.fieldsUsed = fieldsUsed;
+    }
+
+    @Override
+    public RelNode visit(LogicalAggregate aggregate) {
+      ImmutableBitSet.Builder inputFieldsUsed = aggregate.getGroupSet().rebuild();
+      for (AggregateCall aggCall : aggregate.getAggCallList()) {
+        inputFieldsUsed.addAll(aggCall.getArgList());
+        if (aggCall.filterArg >= 0) {
+          inputFieldsUsed.set(aggCall.filterArg);
+        }
+        inputFieldsUsed.addAll(RelCollations.ordinals(aggCall.collation));
+      }
+      return aggregate.copy(
+          aggregate.getTraitSet(),
+          List.of(
+              aggregate.getInput().accept(new TrimMultiJoinProjFields(inputFieldsUsed.build()))));
+    }
+
+    public RelNode visit(FlattenRelBase flatten) {
+      return flatten.copy(
+          flatten.getTraitSet(),
+          List.of(
+              flatten
+                  .getInput()
+                  .accept(
+                      new TrimMultiJoinProjFields(
+                          fieldsUsed.union(ImmutableBitSet.of(flatten.getFlattenedIndices()))))));
+    }
+
+    public RelNode visit(SetOp setOp) {
+      ImmutableBitSet inputFieldsUsed = fieldsUsed;
+      if (fieldsUsed.isEmpty()) {
+        inputFieldsUsed = ImmutableBitSet.of(setOp.getRowType().getFieldCount() - 1);
+      }
+      List<RelNode> newInputs = new ArrayList<>();
+      for (RelNode input : setOp.getInputs()) {
+        newInputs.add(input.accept(new TrimMultiJoinProjFields(inputFieldsUsed)));
+      }
+      return setOp.copy(setOp.getTraitSet(), newInputs);
+    }
+
+    @Override
+    public RelNode visit(LogicalFilter filter) {
+      InputFinder inputFinder = new InputFinder();
+      filter.getCondition().accept(inputFinder);
+      return filter.copy(
+          filter.getTraitSet(),
+          List.of(
+              filter
+                  .getInput()
+                  .accept(new TrimMultiJoinProjFields(fieldsUsed.union(inputFinder.build())))));
+    }
+
+    @Override
+    public RelNode visit(LogicalProject project) {
+      InputFinder inputFinder = new InputFinder();
+      for (Ord<RexNode> rexNodeOrd : Ord.zip(project.getProjects())) {
+        if (fieldsUsed.isEmpty() || fieldsUsed.get(rexNodeOrd.i)) {
+          rexNodeOrd.e.accept(inputFinder);
+        }
+      }
+      return project.copy(
+          project.getTraitSet(),
+          List.of(project.getInput().accept(new TrimMultiJoinProjFields(inputFinder.build()))));
+    }
+
+    @Override
+    public RelNode visit(LogicalSort sort) {
+      ImmutableBitSet inputFieldsUsed =
+          fieldsUsed.union(
+              ImmutableBitSet.of(
+                  sort.getCollation().getFieldCollations().stream()
+                      .map(RelFieldCollation::getFieldIndex)
+                      .collect(Collectors.toSet())));
+      return sort.copy(
+          sort.getTraitSet(),
+          List.of(sort.getInput().accept(new TrimMultiJoinProjFields(inputFieldsUsed))));
+    }
+
+    public RelNode visit(LogicalWindow window) {
+      final RelNode input = window.getInput();
+      final int inputFieldCount = input.getRowType().getFieldCount();
+
+      ImmutableBitSet.Builder inputBitSet = ImmutableBitSet.builder();
+
+      //
+      // 1. Identify input fields and constants in use
+      //
+      for (Integer bit : fieldsUsed) {
+        if (bit >= inputFieldCount) {
+          // exit if it goes over the input fields
+          break;
+        }
+        inputBitSet.set(bit);
+      }
+
+      final RelOptUtil.InputFinder inputFinder =
+          new RelOptUtil.InputFinder(null, inputBitSet.build());
+      inputBitSet = ImmutableBitSet.builder();
+
+      // number of agg calls and agg calls actually used
+      int aggCalls = 0;
+
+      // Capture which input fields and constants are used by the agg calls
+      // thanks to the visitor
+      for (final Window.Group group : window.groups) {
+        boolean groupUsed = false;
+        for (final RexWinAggCall aggCall : group.aggCalls) {
+          int offset = inputFieldCount + aggCalls;
+          aggCalls++;
+          if (!fieldsUsed.get(offset)) {
+            continue;
+          }
+          groupUsed = true;
+          aggCall.accept(inputFinder);
+        }
+
+        // If no agg from the group are being used, do not include group fields
+        if (!groupUsed) {
+          continue;
+        }
+
+        group.lowerBound.accept(inputFinder);
+        group.upperBound.accept(inputFinder);
+
+        // Add partition fields
+        inputBitSet.addAll(group.keys);
+
+        // Add collation fields
+        for (RelFieldCollation fieldCollation : group.collation().getFieldCollations()) {
+          inputBitSet.set(fieldCollation.getFieldIndex());
+        }
+      }
+      // Create the final bitset containing both input and constants used
+      inputBitSet.addAll(inputFinder.build());
+
+      return window.copy(
+          window.getTraitSet(),
+          List.of(
+              window
+                  .getInput()
+                  .accept(
+                      new TrimMultiJoinProjFields(
+                          inputBitSet.build().intersect(ImmutableBitSet.range(inputFieldCount))))));
+    }
+
+    public RelNode visit(MultiJoin multiJoin) {
+      final List<RelNode> originalInputs = multiJoin.getInputs();
+      final RexNode joinFilter = multiJoin.getJoinFilter();
+      final List<RexNode> outerJoinConditions = multiJoin.getOuterJoinConditions();
+      final RexNode postJoinFilter = multiJoin.getPostJoinFilter();
+      // add in fields used in the all the conditions; including the ones requested in "fieldsUsed"
+      final RelOptUtil.InputFinder inputFinder = new RelOptUtil.InputFinder(null, fieldsUsed);
+      joinFilter.accept(inputFinder);
+      outerJoinConditions.forEach(
+          rexNode -> {
+            if (rexNode != null) {
+              rexNode.accept(inputFinder);
+            }
+          });
+      if (postJoinFilter != null) {
+        postJoinFilter.accept(inputFinder);
+      }
+      final ImmutableBitSet fieldsUsedPlus = inputFinder.build();
+      int fieldCount = 0;
+      final List<ImmutableBitSet> newProjFields = Lists.newArrayList();
+      List<RelNode> newInputs = new ArrayList<>();
+
+      // Trim the proj fields based from the fields used.
+      for (Ord<RelNode> input : Ord.zip(originalInputs)) {
+        ImmutableBitSet projField = multiJoin.getProjFields().get(input.i);
+        int inputFieldCount = input.e.getRowType().getFieldCount();
+        if (projField == null) {
+          projField = ImmutableBitSet.range(inputFieldCount);
+        }
+        projField = projField.shift(fieldCount).intersect(fieldsUsed);
+        newProjFields.add(projField.shift(-fieldCount));
+        newInputs.add(
+            input.e.accept(
+                new TrimMultiJoinProjFields(
+                    fieldsUsedPlus.intersect(
+                        ImmutableBitSet.range(fieldCount, fieldCount + inputFieldCount)))));
+        fieldCount += input.e.getRowType().getFieldCount();
+      }
+
+      return new MultiJoin(
+          multiJoin.getCluster(),
+          newInputs,
+          joinFilter,
+          multiJoin.getRowType(),
+          multiJoin.isFullOuterJoin(),
+          outerJoinConditions,
+          multiJoin.getJoinTypes(),
+          newProjFields,
+          multiJoin.getJoinFieldRefCountsMap(),
+          postJoinFilter);
+    }
+
+    @Override
+    public RelNode visit(RelNode other) {
+      if (other instanceof MultiJoin) {
+        return this.visit((MultiJoin) other);
+      } else if (other instanceof LogicalWindow) {
+        return this.visit((LogicalWindow) other);
+      } else if (other instanceof FlattenRelBase) {
+        return this.visit((FlattenRelBase) other);
+      } else if (other instanceof SetOp) {
+        return this.visit((SetOp) other);
+      }
+      List<RelNode> newInputs = new ArrayList<>();
+      for (RelNode input : other.getInputs()) {
+        newInputs.add(
+            input.accept(
+                new TrimMultiJoinProjFields(
+                    ImmutableBitSet.range(input.getRowType().getFieldCount()))));
+      }
+      return other.copy(other.getTraitSet(), newInputs);
+    }
   }
 }

@@ -19,12 +19,14 @@ import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_PROJECT_RE
 import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_REDUCE_FILTER;
 import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_REDUCE_JOIN;
 import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_REDUCE_PROJECT;
+import static com.dremio.exec.planner.physical.PlannerSettings.PRUNE_EMPTY_RELNODES;
 import static com.dremio.exec.planner.rules.DremioCoreRules.CONVERT_FILTER_SUB_QUERY_TO_CORRELATE;
 import static com.dremio.exec.planner.rules.DremioCoreRules.CONVERT_JOIN_SUB_QUERY_TO_CORRELATE;
 import static com.dremio.exec.planner.rules.DremioCoreRules.CONVERT_PROJECT_SUB_QUERY_TO_CORRELATE;
 import static com.dremio.exec.planner.rules.DremioCoreRules.FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE;
 import static com.dremio.exec.planner.rules.DremioCoreRules.FILTER_REDUCE_EXPRESSIONS_RULE;
-import static com.dremio.exec.planner.rules.DremioCoreRules.GROUP_SET_TO_CROSS_JOIN_CASE_STATEMENT_RULE;
+import static com.dremio.exec.planner.rules.DremioCoreRules.GROUPSET_TO_CROSS_JOIN_RULE;
+import static com.dremio.exec.planner.rules.DremioCoreRules.GROUP_SET_TO_CROSS_JOIN_RULE_ROLLUP;
 import static com.dremio.exec.planner.rules.DremioCoreRules.JOIN_REDUCE_EXPRESSIONS_CALCITE_RULE;
 import static com.dremio.exec.planner.rules.DremioCoreRules.JOIN_REDUCE_EXPRESSIONS_RULE;
 import static com.dremio.exec.planner.rules.DremioCoreRules.PROJECT_REDUCE_CONST_TYPE_CAST_RULE;
@@ -48,7 +50,6 @@ import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.ContextInformation;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
-import org.apache.calcite.tools.RuleSet;
 
 public class NormalizerRuleSets {
 
@@ -95,7 +96,12 @@ public class NormalizerRuleSets {
             new DremioRuleSetBuilder(optionResolver)
                 .add(CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW)
                 .add(REDUCE_FUNCTIONS_FOR_GROUP_SETS)
-                .add(GROUP_SET_TO_CROSS_JOIN_CASE_STATEMENT_RULE)
+                .add(
+                    GROUP_SET_TO_CROSS_JOIN_RULE_ROLLUP,
+                    !optionResolver.getOption(PlannerSettings.ROLLUP_BRIDGE_EXCHANGE))
+                .add(
+                    GROUPSET_TO_CROSS_JOIN_RULE,
+                    optionResolver.getOption(PlannerSettings.ROLLUP_BRIDGE_EXCHANGE))
                 .add(REWRITE_PROJECT_TO_FLATTEN_RULE)
                 .build());
   }
@@ -120,35 +126,34 @@ public class NormalizerRuleSets {
     final boolean useLegacyReduceExpression =
         optionResolver.getOption(PlannerSettings.USE_LEGACY_REDUCE_EXPRESSIONS);
     boolean isConstantFoldingEnabled = optionResolver.getOption(PlannerSettings.CONSTANT_FOLDING);
-    final RuleSet ruleSet;
+    final DremioRuleSetBuilder ruleSetBuilder =
+        new DremioRuleSetBuilder(optionResolver)
+            .add(new FunctionEvaluatorRule(contextInformation, optionResolver));
+
     if (isConstantFoldingEnabled && useLegacyReduceExpression) {
-      ruleSet =
-          new DremioRuleSetBuilder(optionResolver)
-              .add(new FunctionEvaluatorRule(contextInformation))
-              .add(PROJECT_REDUCE_CONST_TYPE_CAST_RULE, ENABLE_PROJECT_REDUCE_CONST_TYPE_CAST)
-              .add(JOIN_REDUCE_EXPRESSIONS_CALCITE_RULE, ENABLE_REDUCE_JOIN)
-              .add(PROJECT_REDUCE_EXPRESSIONS_CALCITE_RULE, ENABLE_REDUCE_PROJECT)
-              .add(FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE, ENABLE_REDUCE_FILTER)
-              .build();
+      ruleSetBuilder
+          .add(PROJECT_REDUCE_CONST_TYPE_CAST_RULE, ENABLE_PROJECT_REDUCE_CONST_TYPE_CAST)
+          .add(JOIN_REDUCE_EXPRESSIONS_CALCITE_RULE, ENABLE_REDUCE_JOIN)
+          .add(PROJECT_REDUCE_EXPRESSIONS_CALCITE_RULE, ENABLE_REDUCE_PROJECT)
+          .add(FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE, ENABLE_REDUCE_FILTER);
     } else if (isConstantFoldingEnabled) {
-      ruleSet =
-          new DremioRuleSetBuilder(optionResolver)
-              .add(new FunctionEvaluatorRule(contextInformation))
-              .add(PROJECT_REDUCE_CONST_TYPE_CAST_RULE, ENABLE_PROJECT_REDUCE_CONST_TYPE_CAST)
-              .add(JOIN_REDUCE_EXPRESSIONS_RULE, ENABLE_REDUCE_JOIN)
-              .add(PROJECT_REDUCE_EXPRESSIONS_RULE, ENABLE_REDUCE_PROJECT)
-              .add(FILTER_REDUCE_EXPRESSIONS_RULE, ENABLE_REDUCE_FILTER)
-              .build();
+      ruleSetBuilder
+          .add(PROJECT_REDUCE_CONST_TYPE_CAST_RULE, ENABLE_PROJECT_REDUCE_CONST_TYPE_CAST)
+          .add(JOIN_REDUCE_EXPRESSIONS_RULE, ENABLE_REDUCE_JOIN)
+          .add(PROJECT_REDUCE_EXPRESSIONS_RULE, ENABLE_REDUCE_PROJECT)
+          .add(FILTER_REDUCE_EXPRESSIONS_RULE, ENABLE_REDUCE_FILTER);
     } else {
-      ruleSet =
-          new DremioRuleSetBuilder(optionResolver)
-              .add(new FunctionEvaluatorRule(contextInformation))
-              .add(PROJECT_REDUCE_CONST_TYPE_CAST_RULE, ENABLE_PROJECT_REDUCE_CONST_TYPE_CAST)
-              .build();
+      ruleSetBuilder.add(
+          PROJECT_REDUCE_CONST_TYPE_CAST_RULE, ENABLE_PROJECT_REDUCE_CONST_TYPE_CAST);
     }
+
+    if (optionResolver.getOption(PRUNE_EMPTY_RELNODES)) {
+      ruleSetBuilder.addAll(DremioPruneEmptyRules.ALL_RULES);
+    }
+
     return new HepPlannerRunner.HepPlannerRunnerConfig()
         .setPlannerPhase(PlannerPhase.REDUCE_EXPRESSIONS)
         .getHepMatchOrder(HepMatchOrder.ARBITRARY)
-        .setRuleSet(ruleSet);
+        .setRuleSet(ruleSetBuilder.build());
   }
 }

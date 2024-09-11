@@ -42,7 +42,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void renameToExistingColumn() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol1";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -71,7 +71,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void invalidType() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol2";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -96,7 +96,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void invalidPromoteStringToInt() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol3";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -121,7 +121,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void rename() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol4";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -166,7 +166,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void uppromote() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol5";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -211,7 +211,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void renameFollowedByUppromote() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol6";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -271,7 +271,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void renameAndUppromote() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol7";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -316,7 +316,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void renamePartitionColumn() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol8";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -368,7 +368,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void noContextFail() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol9";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -402,7 +402,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void messageHasPrecAndScale() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "changecol10";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format("CREATE TABLE %s.%s (dec1 DECIMAL(10,2))", testSchema, tableName);
@@ -423,7 +423,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void addExistingColumnInStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "structcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -447,7 +447,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void addExistingColumnInListOfStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "listofstructcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -471,7 +471,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void addExistingColumnInListOfListOfStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "listoflistofstructcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -495,7 +495,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void addExistingColumnInStructOfListOfStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "structoflistofstructcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(
@@ -519,7 +519,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
   public void addExistingColumnInStructOfStruct() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "structofstructcol";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
 
         final String createTableQuery =
             String.format(

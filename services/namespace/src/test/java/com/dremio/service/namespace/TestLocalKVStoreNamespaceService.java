@@ -15,17 +15,8 @@
  */
 package com.dremio.service.namespace;
 
-import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
-import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.test.DremioTest;
-
 /** Test driver for spaces service. */
 public class TestLocalKVStoreNamespaceService extends AbstractTestNamespaceService {
-  @Override
-  protected LegacyKVStoreProvider createKVStoreProvider() {
-    return LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
-  }
-
   @Override
   protected void closeResources() {}
 }

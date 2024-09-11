@@ -26,9 +26,38 @@ const isAdmin = (): boolean => {
   }
 };
 
+const canViewAllJobs = (): boolean => {
+  try {
+    return JSON.parse(window.localStorage.getItem("user")!).permissions
+      .canViewAllJobs;
+  } catch (e) {
+    return false;
+  }
+};
+
+const canCreateUser = (): boolean => {
+  try {
+    return JSON.parse(window.localStorage.getItem("user")!).permissions
+      .canCreateUser;
+  } catch (e) {
+    return false;
+  }
+};
+
+const canCreateRole = (): boolean => {
+  try {
+    return JSON.parse(window.localStorage.getItem("user")!).permissions
+      .canCreateRole;
+  } catch (e) {
+    return false;
+  }
+};
+
 const privilegeContext = {
   canViewJobsListing: () => isAdmin(),
   isAdmin: () => isAdmin(),
+  canViewUsersListing: () =>
+    isAdmin() || (canViewAllJobs() && (canCreateUser() || canCreateRole())),
 };
 
 export const getPrivilegeContext =

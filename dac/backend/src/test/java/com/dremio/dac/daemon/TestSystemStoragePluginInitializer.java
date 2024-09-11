@@ -39,6 +39,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ConnectionReaderImpl;
 import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
 import com.dremio.exec.catalog.VersionedDatasetAdapterFactory;
 import com.dremio.exec.catalog.ViewCreatorFactory;
@@ -46,9 +47,11 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.InternalFileConf;
+import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -118,12 +121,16 @@ public class TestSystemStoragePluginInitializer {
     final DremioConfig dremioConfig = DremioConfig.create();
     final SabotContext sabotContext = mock(SabotContext.class);
 
+    MetadataIOPool metadataIOPool = mock(MetadataIOPool.class);
+    when(sabotContext.getMetadataIOPoolProvider()).thenReturn(() -> metadataIOPool);
+
     storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
-    namespaceService = new NamespaceServiceImpl(storeProvider, mock(CatalogStatusEvents.class));
 
     kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     kvStoreProvider.start();
+
+    namespaceService = new NamespaceServiceImpl(kvStoreProvider, mock(CatalogStatusEvents.class));
     orphanage = new OrphanageImpl(kvStoreProvider);
 
     final Orphanage.Factory orphanageFactory =
@@ -177,7 +184,7 @@ public class TestSystemStoragePluginInitializer {
     final OptionValidatorListing optionValidatorListing =
         new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
     final SystemOptionManager som =
-        new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+        new SystemOptionManagerImpl(optionValidatorListing, lpp, () -> storeProvider, true);
     OptionManager optionManager =
         OptionManagerWrapper.Builder.newBuilder()
             .withOptionManager(new DefaultOptionManager(optionValidatorListing))
@@ -196,16 +203,6 @@ public class TestSystemStoragePluginInitializer {
 
     clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
     when(sabotContext.getClusterCoordinator()).thenReturn(clusterCoordinator);
-    when(sabotContext.getExecutors())
-        .thenReturn(
-            clusterCoordinator
-                .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
-                .getAvailableEndpoints());
-    when(sabotContext.getCoordinators())
-        .thenReturn(
-            clusterCoordinator
-                .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-                .getAvailableEndpoints());
 
     when(sabotContext.getRoles())
         .thenReturn(
@@ -233,7 +230,7 @@ public class TestSystemStoragePluginInitializer {
             TIMEOUT,
             pool);
 
-    reader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
+    reader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, ConnectionReaderImpl.class);
 
     final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
     doNothing().when(broadcaster).communicateChange(any());
@@ -245,7 +242,7 @@ public class TestSystemStoragePluginInitializer {
             () -> new SystemTablePluginConfigProvider(),
             () -> new SysFlightPluginConfigProvider(),
             () -> fabricService,
-            () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            () -> reader,
             () -> allocator,
             () -> storeProvider,
             () -> datasetListingService,
@@ -267,7 +264,13 @@ public class TestSystemStoragePluginInitializer {
   @After
   public void shutdown() throws Exception {
     AutoCloseables.close(
-        catalogService, fabricService, pool, clusterCoordinator, allocator, storeProvider);
+        catalogService,
+        fabricService,
+        pool,
+        clusterCoordinator,
+        allocator,
+        storeProvider,
+        kvStoreProvider);
   }
 
   @Test

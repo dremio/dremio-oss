@@ -22,26 +22,25 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.MutableVarcharVector;
-import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-public final class VarbinaryArrayAggAccumulator
-    extends BaseArrayAggAccumulator<ByteArrayWrapper, VarBinaryVector> {
+public final class VarbinaryArrayAggAccumulator extends ArrayAggAccumulator<ByteArrayWrapper> {
   private final int maxFieldSizeBytes;
 
   public VarbinaryArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
       BufferAllocator computationVectorAllocator,
-      int maxFieldSizeBytes) {
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
     super(
         input,
         transferVector,
-        maxValuesPerBatch,
         tempAccumulatorHolder,
-        computationVectorAllocator);
+        computationVectorAllocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
     this.maxFieldSizeBytes = maxFieldSizeBytes;
   }
 
@@ -65,9 +64,9 @@ public final class VarbinaryArrayAggAccumulator
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<ByteArrayWrapper, VarBinaryVector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
-    return new VarbinaryArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<ByteArrayWrapper> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new VarbinaryArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

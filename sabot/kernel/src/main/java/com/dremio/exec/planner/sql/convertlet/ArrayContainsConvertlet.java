@@ -18,14 +18,14 @@ package com.dremio.exec.planner.sql.convertlet;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
-public final class ArrayContainsConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE =
-      new NullableArrayFunctionConvertlet(new ArrayContainsConvertlet());
+public final class ArrayContainsConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE =
+      new NullableArrayRexCallConvertlet(new ArrayContainsConvertlet());
 
   private ArrayContainsConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     // This convertlet is only used internally for ARRAYS_OVERLAP
     return false;
   }

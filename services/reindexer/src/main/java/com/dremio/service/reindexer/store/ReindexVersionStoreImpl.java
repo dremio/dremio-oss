@@ -85,9 +85,9 @@ public class ReindexVersionStoreImpl implements ReindexVersionStore {
     private Integer version = 0;
 
     @Override
-    public void convert(DocumentWriter writer, String key, ReindexVersionInfo record) {
-      writer.write(COLLECTION_NAME_INDEX_KEY, record.getCollectionName());
-      writer.write(COLLECTION_VERSION_INDEX_KEY, record.getVersion());
+    public void convert(DocumentWriter writer, String key, ReindexVersionInfo document) {
+      writer.write(COLLECTION_NAME_INDEX_KEY, document.getCollectionName());
+      writer.write(COLLECTION_VERSION_INDEX_KEY, document.getVersion());
     }
 
     @Override

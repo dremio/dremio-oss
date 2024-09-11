@@ -16,7 +16,8 @@
 
 import { useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
-
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import { useCanSearchRolesAndUsers } from "../../privileges-page-utils";
 import { useResourceSnapshot } from "smart-resource/react";
 import { RolesResource } from "@app/exports/resources/RolesResource";
 import { UsersResource } from "@app/exports/resources/UsersResource";
@@ -31,29 +32,27 @@ export const getUserRoleIcon = (item: {
 }) => {
   if (!item.name) {
     return (
-      <dremio-icon name="interface/disabled-avatar" class={classes["icon"]} />
+      <dremio-icon
+        name="interface/disabled-avatar"
+        class={classes["icon"]}
+        alt="disabled-avatar"
+      />
     );
   }
   return item.type === "USER" ? (
     <Avatar initials={nameToInitials(item.name)} />
   ) : (
-    <dremio-icon name="interface/role" class={classes["icon"]} />
+    <dremio-icon
+      name="interface/role"
+      class={classes["icon"]}
+      alt="role-icon"
+    />
   );
 };
 
-const getFilteredRolesAndUsers = (
-  usersArg: any = [],
-  rolesArg: any = [],
-  orgPrivileges: any
-) => {
-  let users, roles;
-  if (orgPrivileges) {
-    roles = (orgPrivileges?.roles?.canView && rolesArg) || [];
-    users = (orgPrivileges?.users?.canView && usersArg) || [];
-  } else {
-    roles = rolesArg || [];
-    users = usersArg || [];
-  }
+const getFilteredRolesAndUsers = (usersArg: any = [], rolesArg: any = []) => {
+  const roles = rolesArg || [];
+  const users = usersArg || [];
 
   const updatedRoles = roles
     .filter(({ type, name }: any) => type !== "SYSTEM" || name === "PUBLIC")
@@ -79,20 +78,19 @@ const getFilteredRolesAndUsers = (
 };
 
 export const useOwnershipOptions = (filter: string) => {
-  const orgPrivileges = useSelector(
-    (state: any) => state.privileges.organization
-  );
+  const [canSearchUser, canSearchRole] = useCanSearchRolesAndUsers();
+
   const [users] = useResourceSnapshot(UsersResource);
   const [roles] = useResourceSnapshot(RolesResource);
 
   useEffect(() => {
-    UsersResource.fetch({ filter });
-    RolesResource.fetch({ filter });
+    canSearchUser && UsersResource.fetch({ filter });
+    canSearchRole && RolesResource.fetch({ filter });
   }, [filter]);
 
   const results = useMemo(() => {
-    return getFilteredRolesAndUsers(users, roles, orgPrivileges);
-  }, [users, roles, orgPrivileges]);
+    return getFilteredRolesAndUsers(users, roles);
+  }, [users, roles]);
 
   return results;
 };

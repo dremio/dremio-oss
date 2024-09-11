@@ -30,6 +30,7 @@ import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.script.proto.ScriptProto.Script;
 import com.dremio.service.script.proto.ScriptProto.ScriptRequest;
+import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.usersessions.UserSessionService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
@@ -44,6 +45,7 @@ import java.util.UUID;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.ws.rs.NotFoundException;
+import org.apache.commons.lang3.StringUtils;
 
 /** ScriptService to perform various operations of script. */
 public class ScriptServiceImpl implements ScriptService {
@@ -123,41 +125,65 @@ public class ScriptServiceImpl implements ScriptService {
   @Override
   @WithSpan
   public Script createScript(ScriptRequest scriptRequest)
-      throws DuplicateScriptNameException, MaxScriptsLimitReachedException {
-    // create script entry
-    long countOfScriptsByCurrentUser = getCountOfScriptsByCurrentUser();
-    if (countOfScriptsByCurrentUser >= MAX_SCRIPTS_PER_USER) {
-      throw new MaxScriptsLimitReachedException(MAX_SCRIPTS_PER_USER, countOfScriptsByCurrentUser);
-    }
-    validateScriptRequest(scriptRequest);
-    checkDuplicateScriptName(scriptRequest.getName());
+      throws DuplicateScriptNameException, MaxScriptsLimitReachedException, UserNotFoundException {
+    validateCreateScriptRequest(scriptRequest);
 
     Script script = newScriptFromScriptRequest(scriptRequest);
     return scriptStore.create(script.getScriptId(), script);
   }
 
-  private long getCountOfScriptsByCurrentUser() {
-    SearchTypes.SearchQuery condition =
-        getConditionForAccessibleScripts("", "", getCurrentUserId());
-    return scriptStore.getCountByCondition(condition);
+  protected String getCreatorUserId(ScriptRequest scriptRequest) {
+    return getCurrentUserId();
   }
 
-  protected void validateScriptRequest(ScriptRequest scriptRequest) {
-    int scriptContentLength = scriptRequest.getContent().length();
+  protected void validateCreateScriptRequest(ScriptRequest scriptRequest)
+      throws DuplicateScriptNameException, MaxScriptsLimitReachedException, UserNotFoundException {
+    checkMaxScriptsLimit(getCreatorUserId(scriptRequest));
+
     Preconditions.checkArgument(
-        scriptRequest.getContent().length() <= CONTENT_MAX_LENGTH,
-        "Maximum %s characters allowed in script content. You have typed in %s characters.",
-        CONTENT_MAX_LENGTH,
-        scriptContentLength);
-    int scriptNameLength = scriptRequest.getName().length();
+        StringUtils.isNotEmpty(scriptRequest.getName()), "Script name can't be empty.");
+    checkNameLengthLimit(scriptRequest.getName());
+    checkDuplicateScriptName(scriptRequest.getName());
+
+    checkContentLengthLimit(scriptRequest.getContent());
+    checkDescriptionLengthLimit(scriptRequest.getDescription());
+  }
+
+  protected void validateUpdateScriptRequest(ScriptRequest scriptRequest, Script existingScript)
+      throws DuplicateScriptNameException, UserNotFoundException, MaxScriptsLimitReachedException {
+    // check if new name entered already exists.
+    if (StringUtils.isNotEmpty(scriptRequest.getName())
+        && !existingScript.getName().equals(scriptRequest.getName())) {
+      checkDuplicateScriptName(scriptRequest.getName());
+      checkNameLengthLimit(scriptRequest.getName());
+    }
+
+    checkContentLengthLimit(scriptRequest.getContent());
+    checkDescriptionLengthLimit(scriptRequest.getDescription());
+  }
+
+  private void checkNameLengthLimit(String name) {
+    int nameLength = name.length();
     Preconditions.checkArgument(
-        scriptRequest.getName().length() <= NAME_MAX_LENGTH,
+        nameLength <= NAME_MAX_LENGTH,
         "Maximum %s characters allowed in script name. You have typed in %s characters.",
         NAME_MAX_LENGTH,
-        scriptNameLength);
-    int descriptionLength = scriptRequest.getDescription().length();
+        nameLength);
+  }
+
+  private void checkContentLengthLimit(String content) {
+    int contentLength = content.length();
     Preconditions.checkArgument(
-        scriptRequest.getDescription().length() <= DESCRIPTION_MAX_LENGTH,
+        contentLength <= CONTENT_MAX_LENGTH,
+        "Maximum %s characters allowed in script content. You have typed in %s characters.",
+        CONTENT_MAX_LENGTH,
+        contentLength);
+  }
+
+  private void checkDescriptionLengthLimit(String description) {
+    int descriptionLength = description.length();
+    Preconditions.checkArgument(
+        descriptionLength <= DESCRIPTION_MAX_LENGTH,
         "Maximum %s characters allowed in script description. You have typed in %s characters.",
         DESCRIPTION_MAX_LENGTH,
         descriptionLength);
@@ -166,12 +192,14 @@ public class ScriptServiceImpl implements ScriptService {
   @Override
   @WithSpan
   public Script updateScript(String scriptId, ScriptRequest scriptRequest)
-      throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible {
-    validateScriptRequest(scriptRequest);
-
+      throws ScriptNotFoundException,
+          DuplicateScriptNameException,
+          ScriptNotAccessible,
+          UserNotFoundException,
+          MaxScriptsLimitReachedException {
     Script existingScript = getScriptById(scriptId);
-
-    return validateAndUpdateScript(existingScript, scriptRequest);
+    validateUpdateScriptRequest(scriptRequest, existingScript);
+    return doUpdateScript(existingScript, scriptRequest);
   }
 
   @Override
@@ -216,38 +244,40 @@ public class ScriptServiceImpl implements ScriptService {
     return scriptStore.update(script.getScriptId(), script);
   }
 
-  protected Script validateAndUpdateScript(Script existingScript, ScriptRequest scriptRequest)
-      throws ScriptNotFoundException, DuplicateScriptNameException {
+  protected Script doUpdateScript(Script existingScript, ScriptRequest scriptRequest)
+      throws ScriptNotFoundException {
+    Script.Builder scriptBuilder = setScriptBuilder(existingScript, scriptRequest);
+    return scriptStore.update(existingScript.getScriptId(), scriptBuilder.build());
+  }
 
-    // check if new name entered already exists.
-    if (!existingScript.getName().equals(scriptRequest.getName())) {
-      checkDuplicateScriptName(scriptRequest.getName());
+  protected Script.Builder setScriptBuilder(Script script, ScriptRequest scriptRequest) {
+    Script.Builder scriptBuilder = script.toBuilder();
+    scriptBuilder.setModifiedAt(System.currentTimeMillis()).setModifiedBy(getCurrentUserId());
+    if (StringUtils.isNotEmpty(scriptRequest.getName())) {
+      scriptBuilder.setName(scriptRequest.getName());
+    }
+    if (scriptRequest.getIsContentUpdated()) {
+      scriptBuilder.setContent(scriptRequest.getContent());
+    }
+    if (StringUtils.isNotEmpty(scriptRequest.getDescription())) {
+      scriptBuilder.setDescription(scriptRequest.getDescription());
+    }
+    if (scriptRequest.getIsContextUpdated()) {
+      scriptBuilder.clearContext().addAllContext(scriptRequest.getContextList());
+    }
+    if (!scriptRequest.getReferencesList().isEmpty()) {
+      scriptBuilder.clearReferences().addAllReferences(scriptRequest.getReferencesList());
+    }
+    if (!scriptRequest.getJobIdsList().isEmpty()) {
+      scriptBuilder.clearJobIds().addAllJobIds(scriptRequest.getJobIdsList());
     }
 
-    Script script =
-        existingScript.toBuilder()
-            .setName(scriptRequest.getName())
-            .setDescription(scriptRequest.getDescription())
-            .setModifiedAt(System.currentTimeMillis())
-            .setModifiedBy(getCurrentUserId())
-            .clearContext()
-            .addAllContext(scriptRequest.getContextList())
-            .setContent(scriptRequest.getContent())
-            .clearReferences()
-            .addAllReferences(scriptRequest.getReferencesList())
-            .clearJobIds()
-            .addAllJobIds(scriptRequest.getJobIdsList())
-            .build();
-
-    return scriptStore.update(script.getScriptId(), script);
+    return scriptBuilder;
   }
 
   @Override
   @WithSpan
   public Script getScriptById(String scriptId) throws ScriptNotFoundException, ScriptNotAccessible {
-    // check if scriptId is valid
-    validateScriptId(scriptId);
-
     Optional<Script> script = scriptStore.get(scriptId);
     if (!script.isPresent()) {
       throw new ScriptNotFoundException(scriptId);
@@ -259,11 +289,8 @@ public class ScriptServiceImpl implements ScriptService {
   @WithSpan
   public void deleteScriptById(String scriptId)
       throws ScriptNotFoundException, ScriptNotAccessible {
-
-    validateScriptId(scriptId);
-
-    Script script = getScriptById(scriptId);
-    scriptStore.delete(scriptId);
+    checkScriptExists(scriptId);
+    doDeleteScript(scriptId);
   }
 
   @Override
@@ -271,6 +298,18 @@ public class ScriptServiceImpl implements ScriptService {
   public Long getCountOfMatchingScripts(String search, String filter, String createdBy) {
     SearchTypes.SearchQuery condition = getConditionForAccessibleScripts(search, filter, createdBy);
     return scriptStore.getCountByCondition(condition);
+  }
+
+  private long getCountOfScriptsByCreatorId(String createdBy) {
+    SearchTypes.SearchQuery condition = getConditionForAccessibleScripts("", "", createdBy);
+    return scriptStore.getCountByCondition(condition);
+  }
+
+  protected void checkMaxScriptsLimit(String creatorId) throws MaxScriptsLimitReachedException {
+    long countOfScriptsByCreator = getCountOfScriptsByCreatorId(creatorId);
+    if (countOfScriptsByCreator >= MAX_SCRIPTS_PER_USER) {
+      throw new MaxScriptsLimitReachedException(MAX_SCRIPTS_PER_USER, countOfScriptsByCreator);
+    }
   }
 
   private void checkDuplicateScriptName(String name) throws DuplicateScriptNameException {
@@ -284,7 +323,7 @@ public class ScriptServiceImpl implements ScriptService {
     }
   }
 
-  private Script newScriptFromScriptRequest(ScriptRequest scriptRequest) {
+  protected Script newScriptFromScriptRequest(ScriptRequest scriptRequest) {
     long currentTime = System.currentTimeMillis();
     return scriptFromData(
         UUID.randomUUID().toString(),
@@ -327,7 +366,7 @@ public class ScriptServiceImpl implements ScriptService {
         .build();
   }
 
-  protected SearchTypes.SearchQuery getConditionForAccessibleScripts(
+  private SearchTypes.SearchQuery getConditionForAccessibleScripts(
       String search, String filter, String createdBy) {
     List<SearchTypes.SearchQuery> conditions = new ArrayList<>();
     conditions.add(SearchQueryUtils.newContainsTerm(ScriptStoreIndexedKeys.NAME, search));
@@ -359,6 +398,16 @@ public class ScriptServiceImpl implements ScriptService {
       throw new IllegalArgumentException(
           String.format("%s '%s' must be valid UUID.", fieldName, uuid));
     }
+  }
+
+  protected void checkScriptExists(String scriptId) throws ScriptNotFoundException {
+    if (!scriptStore.contains(scriptId)) {
+      throw new ScriptNotFoundException(scriptId);
+    }
+  }
+
+  protected void doDeleteScript(String scriptId) throws ScriptNotFoundException {
+    scriptStore.delete(scriptId);
   }
 
   @Override

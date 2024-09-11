@@ -113,7 +113,7 @@ public class TestWriter extends BaseTestQuery {
     try {
       List<QueryDataBatch> results = testSqlWithResults(testQuery);
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       int recordsWritten = 0;
       for (QueryDataBatch batch : results) {

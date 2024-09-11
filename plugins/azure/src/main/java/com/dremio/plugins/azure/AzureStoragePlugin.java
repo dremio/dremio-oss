@@ -25,6 +25,7 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
@@ -42,7 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.inject.Provider;
-import org.apache.commons.lang3.function.Suppliers;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,25 +143,22 @@ public class AzureStoragePlugin
                 AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY.name()));
         properties.add(new Property(AzureStorageFileSystem.CLIENT_ID, config.clientId));
 
-        switch (config.getAzureADSecretType()) {
-          case AZURE_ACTIVE_DIRECTORY_SECRET_KEY:
-            properties.add(
-                new Property(
-                    AzureStorageFileSystem.CLIENT_SECRET,
-                    addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, Suppliers.get(config.clientSecret))));
-            break;
-
-          case AZURE_ACTIVE_DIRECTORY_KEY_VAULT:
-            properties.add(
-                new Property(
-                    AzureStorageFileSystem.CLIENT_SECRET,
-                    addPrefixIfNotExist(
-                        DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getClientSecretUri())));
-            break;
-
-          default:
-            throw new IllegalStateException(
-                "Unrecognized secret type: " + config.getAzureADSecretType());
+        if (!SecretRef.isNullOrEmpty(config.clientSecret)) {
+          properties.add(
+              new Property(
+                  AzureStorageFileSystem.CLIENT_SECRET,
+                  SecretRef.toConfiguration(config.clientSecret, DREMIO_SCHEME_PREFIX)));
+        } else if (StringUtils.isNotBlank(config.getClientSecretUri())) {
+          // This path should never occur unless there are errors during Catalog start.
+          properties.add(
+              new Property(
+                  AzureStorageFileSystem.CLIENT_SECRET,
+                  addPrefixIfNotExist(
+                      DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getClientSecretUri())));
+          logger.warn(
+              "clientSecretUri still in use, old AzureStorageConf format was not updated properly.");
+        } else {
+          throw new IllegalStateException("Missing clientSecret value");
         }
 
         properties.add(new Property(AzureStorageFileSystem.TOKEN_ENDPOINT, config.tokenEndpoint));
@@ -172,31 +170,27 @@ public class AzureStoragePlugin
                 AzureStorageFileSystem.CREDENTIALS_TYPE,
                 AzureAuthenticationType.ACCESS_KEY.name()));
 
-        switch (config.getSharedAccessSecretType()) {
-          case SHARED_ACCESS_SECRET_KEY:
-            properties.add(
-                new Property(
-                    AzureStorageFileSystem.KEY,
-                    addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, Suppliers.get(config.accessKey))));
-            // static credentials (this should be the default used by azure)
-            properties.add(
-                new Property(AZURE_SHAREDKEY_SIGNER_TYPE, SharedKeyCredentials.class.getName()));
-            break;
-
-          case SHARED_ACCESS_AZURE_KEY_VAULT:
-            properties.add(
-                new Property(
-                    AzureStorageFileSystem.KEY,
-                    addPrefixIfNotExist(
-                        DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getAccessKeyUri())));
-            properties.add(
-                new Property(
-                    AZURE_SHAREDKEY_SIGNER_TYPE, AzureSharedKeyCredentials.class.getName()));
-            break;
-
-          default:
-            throw new IllegalStateException(
-                "Unrecognized secret type: " + config.getSharedAccessSecretType());
+        if (!SecretRef.isNullOrEmpty(config.accessKey)) {
+          properties.add(
+              new Property(
+                  AzureStorageFileSystem.KEY,
+                  SecretRef.toConfiguration(config.accessKey, DREMIO_SCHEME_PREFIX)));
+          // static credentials (this should be the default used by azure)
+          properties.add(
+              new Property(AZURE_SHAREDKEY_SIGNER_TYPE, SharedKeyCredentials.class.getName()));
+        } else if (StringUtils.isNotBlank(config.getAccessKeyUri())) {
+          // This path should never occur unless there are errors during Catalog start.
+          properties.add(
+              new Property(
+                  AzureStorageFileSystem.KEY,
+                  addPrefixIfNotExist(
+                      DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getAccessKeyUri())));
+          properties.add(
+              new Property(AZURE_SHAREDKEY_SIGNER_TYPE, AzureSharedKeyCredentials.class.getName()));
+          logger.warn(
+              "accessKeyUri still in use, old AzureStorageConf format was not updated properly.");
+        } else {
+          throw new IllegalStateException("Missing accessKey value");
         }
         break;
 

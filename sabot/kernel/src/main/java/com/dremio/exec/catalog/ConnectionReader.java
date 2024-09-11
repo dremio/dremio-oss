@@ -65,14 +65,21 @@ public interface ConnectionReader extends AbstractConnectionReader {
             config.getType(), config.getLegacySourceTypeEnum().getNumber()));
   }
 
+  @Deprecated // DX-87688
   static ConnectionReader of(final ScanResult scanResult, final SabotConfig sabotConfig) {
+    final Class<? extends ConnectionReader> clazz =
+        sabotConfig.getClass(
+            "dremio.connection.reader.class", ConnectionReader.class, ConnectionReaderImpl.class);
+
+    return of(scanResult, clazz);
+  }
+
+  static ConnectionReader of(
+      final ScanResult scanResult, final Class<? extends ConnectionReader> clazz) {
     // Register delegates before ConnectionReader schemas are created. Redundant binding for upgrade
     // scenarios.
     AbstractSecretRef.registerDelegates();
     try {
-      final Class<? extends ConnectionReader> clazz =
-          sabotConfig.getClass(
-              "dremio.connection.reader.class", ConnectionReader.class, ConnectionReaderImpl.class);
       return (ConnectionReader)
           clazz.getMethod("makeReader", ScanResult.class).invoke(null, scanResult);
     } catch (final InvocationTargetException e) {

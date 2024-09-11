@@ -32,11 +32,6 @@ public interface SqlDmlOperator {
   SqlNode getTargetTable();
 
   /**
-   * @return the SqlNode target table text statement without the column extension statement
-   */
-  SqlNode getTargetTableWithoutExtendedCols();
-
-  /**
    * Adds an `EXTEND` with relevant system columns, currently only used to add columns for Iceberg.
    */
   void extendTableWithDataFileSystemColumns();

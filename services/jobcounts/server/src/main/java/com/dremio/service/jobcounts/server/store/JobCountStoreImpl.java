@@ -256,7 +256,7 @@ public class JobCountStoreImpl implements JobCountStore {
       private Integer version = 0;
 
       @Override
-      public void convert(DocumentWriter writer, String key, JobCountInfo record) {}
+      public void convert(DocumentWriter writer, String key, JobCountInfo document) {}
 
       @Override
       public Integer getVersion() {

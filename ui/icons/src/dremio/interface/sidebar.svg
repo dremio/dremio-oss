@@ -1,0 +1,23 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg id="interface/sidebar" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M16.25 7C16.25 6.58579 16.5858 6.25 17 6.25H18C18.4142 6.25 18.75 6.58579 18.75 7C18.75 7.41421 18.4142 7.75 18 7.75H17C16.5858 7.75 16.25 7.41421 16.25 7Z" fill="currentColor"/>
+<path d="M17 8.91667C16.5858 8.91667 16.25 9.25245 16.25 9.66667C16.25 10.0809 16.5858 10.4167 17 10.4167H18C18.4142 10.4167 18.75 10.0809 18.75 9.66667C18.75 9.25245 18.4142 8.91667 18 8.91667H17Z" fill="currentColor"/>
+<path d="M16.25 12.3333C16.25 11.9191 16.5858 11.5833 17 11.5833H18C18.4142 11.5833 18.75 11.9191 18.75 12.3333C18.75 12.7475 18.4142 13.0833 18 13.0833H17C16.5858 13.0833 16.25 12.7475 16.25 12.3333Z" fill="currentColor"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M6.25 3C4.45508 3 3 4.45507 3 6.25V17.75C3 19.5449 4.45507 21 6.25 21H17.75C19.5449 21 21 19.5449 21 17.75V6.25C21 4.45507 19.5449 3 17.75 3H6.25ZM4.5 6.25C4.5 5.2835 5.2835 4.5 6.25 4.5H14V19.5H6.25C5.2835 19.5 4.5 18.7165 4.5 17.75V6.25ZM15.5 19.5H17.75C18.7165 19.5 19.5 18.7165 19.5 17.75V6.25C19.5 5.2835 18.7165 4.5 17.75 4.5H15.5V19.5Z" fill="currentColor"/>
+</svg>

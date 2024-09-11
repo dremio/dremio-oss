@@ -53,7 +53,7 @@ public class RecordBatchLoader
   }
 
   public RecordBatchLoader(BufferAllocator allocator, VectorContainer container) {
-    this.allocator = allocator;
+    this.allocator = Preconditions.checkNotNull(allocator);
     this.container = container;
     this.schema = container.getSchema();
   }
@@ -77,7 +77,6 @@ public class RecordBatchLoader
       logger.trace("Load, ThreadID: {}\n{}", Thread.currentThread().getId(), new StackTrace());
     }
 
-    final BatchSchema initialSchema = schema;
     container.zeroVectors();
     valueCount = def.getRecordCount();
     boolean schemaChanged = schema == null;

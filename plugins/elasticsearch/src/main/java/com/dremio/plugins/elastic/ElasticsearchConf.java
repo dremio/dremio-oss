@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic;
 
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
+import com.dremio.exec.catalog.conf.SecretRef;
 import java.util.List;
 
 /** Elasticsearch configuration for both regular Elasticsearch and Amazon Elasticsearch Service. */
@@ -38,7 +39,7 @@ public class ElasticsearchConf {
 
   private final List<Host> hostList;
   private final String username;
-  private final String password;
+  private final SecretRef password;
   private final String awsProfile;
   private final AuthenticationType authenticationType;
   private final boolean scriptsEnabled;
@@ -56,15 +57,15 @@ public class ElasticsearchConf {
   private final EncryptionValidationMode encryptionValidationMode;
   private final boolean forceDoublePrecision;
   private final String accessKey;
-  private final String accessSecret;
+  private final SecretRef accessSecret;
   private final String regionName;
 
   public ElasticsearchConf(
       List<Host> hostList,
       String username,
-      String password,
+      SecretRef password,
       String accessKey,
-      String accessSecret,
+      SecretRef accessSecret,
       String regionName,
       String awsProfile,
       AuthenticationType authenticationType,
@@ -115,7 +116,7 @@ public class ElasticsearchConf {
     return username;
   }
 
-  public String getPassword() {
+  public SecretRef getPassword() {
     return password;
   }
 
@@ -179,7 +180,7 @@ public class ElasticsearchConf {
     return accessKey;
   }
 
-  public String getAccessSecret() {
+  public SecretRef getAccessSecret() {
     return accessSecret;
   }
 

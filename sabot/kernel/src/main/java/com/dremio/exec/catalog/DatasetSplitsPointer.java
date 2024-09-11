@@ -17,8 +17,9 @@ package com.dremio.exec.catalog;
 
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
-import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.PartitionChunkId;
@@ -62,8 +63,9 @@ public final class DatasetSplitsPointer extends LazySplitsPointer {
       // split
       splitsCount =
           namespaceService.getPartitionChunkCount(
-              new LegacyFindByCondition()
-                  .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
+              new ImmutableFindByCondition.Builder()
+                  .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))
+                  .build());
     }
     return new DatasetSplitsPointer(namespaceService, datasetId, splitVersion, splitsCount);
   }
@@ -79,7 +81,7 @@ public final class DatasetSplitsPointer extends LazySplitsPointer {
 
   @Override
   protected Iterable<PartitionChunkMetadata> findSplits() {
-    LegacyFindByRange<PartitionChunkId> filter =
+    FindByRange<PartitionChunkId> filter =
         PartitionChunkId.getSplitsRange(datasetId, getSplitVersion());
     return getNamespaceService().findSplits(filter);
   }

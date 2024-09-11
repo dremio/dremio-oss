@@ -32,7 +32,9 @@ import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordExecRPC.MajorFragmentAssignment;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.testing.ExecutionControls;
@@ -55,7 +57,7 @@ import java.util.concurrent.ExecutorService;
 import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 
-class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
+public class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
 
   private final List<AutoCloseable> operatorContexts = new ArrayList<>();
   private final FragmentStats stats;
@@ -185,7 +187,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         functionLookupContext = decimalFuncRegistry;
       }
       OperatorContextImpl context =
-          new OperatorContextImpl(
+          getOperatorContextImpl(
               config,
               dremioConfig,
               handle,
@@ -215,6 +217,60 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
       closeable.commit();
       return context;
     }
+  }
+
+  protected OperatorContextImpl getOperatorContextImpl(
+      SabotConfig config,
+      DremioConfig dremioConfig,
+      FragmentHandle handle,
+      PhysicalOperator popConfig,
+      BufferAllocator operatorAllocator,
+      BufferAllocator fragmentOutputAllocator,
+      CodeCompiler compiler,
+      OperatorStats stats,
+      ExecutionControls executionControls,
+      FragmentExecutorBuilder fragmentExecutorBuilder,
+      ExecutorService executor,
+      FunctionLookupContext functionLookupContext,
+      ContextInformation contextInformation,
+      OptionManager options,
+      SpillService spillService,
+      NodeDebugContextProvider nodeDebugContextProvider,
+      int targetBatchSize,
+      TunnelProvider tunnelProvider,
+      List<FragmentAssignment> assignments,
+      List<MajorFragmentAssignment> extFragmentAssignments,
+      Provider<NodeEndpoint> nodeEndpointProvider,
+      EndpointsIndex endpointsIndex,
+      List<MinorFragmentEndpoint> minorFragmentEndpoints,
+      ExpressionSplitCache expressionSplitCache,
+      HeapLowMemController heapLowMemController) {
+    return new OperatorContextImpl(
+        config,
+        dremioConfig,
+        handle,
+        popConfig,
+        operatorAllocator,
+        fragmentOutputAllocator,
+        compiler,
+        stats,
+        executionControls,
+        fragmentExecutorBuilder,
+        executor,
+        functionLookupContext,
+        contextInformation,
+        options,
+        spillService,
+        nodeDebugContextProvider,
+        targetBatchSize,
+        tunnelProvider,
+        assignments,
+        extFragmentAssignments,
+        nodeEndpointProvider,
+        endpointsIndex,
+        minorFragmentEndpoints,
+        expressionSplitCache,
+        heapLowMemController);
   }
 
   @Override

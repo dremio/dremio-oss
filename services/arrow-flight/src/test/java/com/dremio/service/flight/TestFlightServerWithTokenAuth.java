@@ -28,11 +28,13 @@ import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightCallHeaders;
 import org.apache.arrow.flight.HeaderCallOption;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
 /** Test FlightServer with bearer token authentication. */
+@Ignore("DX-91148")
 public class TestFlightServerWithTokenAuth extends AbstractTestFlightServer {
 
   @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);

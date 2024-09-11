@@ -35,17 +35,11 @@ public interface SystemTableManager extends AutoCloseable {
   void setRecordBatchSize(int recordBatchSize);
 
   /** Enum to check for the supported tables. */
-  public enum TABLES {
+  public enum TABLES implements SystemTables {
     JOBS("jobs"),
     MATERIALIZATIONS("materializations"),
     REFLECTIONS("reflections"),
     REFLECTION_DEPENDENCIES("reflection_dependencies"),
-    ROLES("roles"),
-    PRIVILEGES("privileges"),
-    MEMBERSHIP("membership"),
-    USERS("users"),
-    TABLES("tables"),
-    VIEWS("views"),
     JOBS_RECENT("jobs_recent");
 
     final String name;
@@ -54,6 +48,7 @@ public interface SystemTableManager extends AutoCloseable {
       this.name = name;
     }
 
+    @Override
     public String getName() {
       return this.name;
     }
@@ -64,14 +59,38 @@ public interface SystemTableManager extends AutoCloseable {
           return t;
         }
       }
-      throwUnsupportedException(input);
+      throwUnsupportedException(String.format("'%s' system table is not supported.", input));
       return null;
     }
   }
 
-  static void throwUnsupportedException(String datasetName) {
-    throw UserException.unsupportedError()
-        .message("'%s' system table is not supported.", datasetName)
-        .buildSilently();
+  /** Enum to check for the supported table functions. */
+  public enum TABLE_FUNCTIONS {
+    REFLECTION_LINEAGE("reflection_lineage");
+
+    final String name;
+
+    private TABLE_FUNCTIONS(String name) {
+      this.name = name;
+    }
+
+    public String getName() {
+      return this.name;
+    }
+
+    public static TABLE_FUNCTIONS fromString(String input) {
+      for (TABLE_FUNCTIONS t : TABLE_FUNCTIONS.values()) {
+        if (t.name.equalsIgnoreCase(input)) {
+          return t;
+        }
+      }
+      throwUnsupportedException(
+          String.format("'%s' system table function is not supported.", input));
+      return null;
+    }
+  }
+
+  static void throwUnsupportedException(String msg) {
+    throw UserException.unsupportedError().message(msg).buildSilently();
   }
 }

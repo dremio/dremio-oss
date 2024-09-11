@@ -35,25 +35,41 @@ public class SystemTableManagerImpl implements SystemTableManager {
       org.slf4j.LoggerFactory.getLogger(SystemTableManagerImpl.class);
 
   private final BufferAllocator allocator;
-  private final Provider<Map<TABLES, SysFlightDataProvider>> tablesProvider;
+  private final Provider<Map<SystemTables, SysFlightDataProvider>> tablesProvider;
+  private final Provider<Map<TABLE_FUNCTIONS, SysFlightDataProvider>> tableFunctionsProvider;
   private int recordBatchSize;
 
   public SystemTableManagerImpl(
-      BufferAllocator allocator, Provider<Map<TABLES, SysFlightDataProvider>> tablesProvider) {
+      BufferAllocator allocator,
+      Provider<Map<SystemTables, SysFlightDataProvider>> tablesProvider,
+      Provider<Map<TABLE_FUNCTIONS, SysFlightDataProvider>> tableFunctionsProvider) {
     this.allocator = allocator;
     this.recordBatchSize = 4000;
     this.tablesProvider = tablesProvider;
+    this.tableFunctionsProvider = tableFunctionsProvider;
   }
 
   @Override
   public void streamData(SysFlightTicket ticket, ServerStreamListener listener) throws Exception {
-    if (tablesProvider.get().containsKey(TABLES.fromString(ticket.getDatasetName()))) {
+    if (!ticket.hasTableFunction()
+        && tablesProvider.get().containsKey(TABLES.fromString(ticket.getDatasetName()))) {
       tablesProvider
           .get()
           .get(TABLES.fromString(ticket.getDatasetName()))
           .streamData(ticket, listener, allocator, recordBatchSize);
+    } else if (ticket.hasTableFunction()
+        && tableFunctionsProvider
+            .get()
+            .containsKey(TABLE_FUNCTIONS.fromString(ticket.getTableFunction().getName()))) {
+      tableFunctionsProvider
+          .get()
+          .get(TABLE_FUNCTIONS.fromString(ticket.getTableFunction().getName()))
+          .streamData(ticket, listener, allocator, recordBatchSize);
     } else {
-      SystemTableManager.throwUnsupportedException(ticket.getDatasetName());
+      SystemTableManager.throwUnsupportedException(
+          !ticket.hasTableFunction()
+              ? ticket.getDatasetName()
+              : ticket.getTableFunction().getName());
     }
   }
 

@@ -15,8 +15,6 @@
  */
 package com.dremio.service.scheduler;
 
-import static com.dremio.service.coordinator.ClusterCoordinator.Role.MASTER;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.coordinator.ClusterServiceSetManager;
@@ -82,9 +80,7 @@ public class RoutingSchedulerService implements ModifiableSchedulerService {
     } else {
       // if we are master less, there is only a single master. Thus return the same master endpoint
       // always for all tasks
-      return Optional.ofNullable(
-              clusterServiceSetManagerProvider.get().getServiceSet(MASTER).getAvailableEndpoints())
-          .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
+      return clusterServiceSetManagerProvider.get().getMasterEndpoint();
     }
   }
 

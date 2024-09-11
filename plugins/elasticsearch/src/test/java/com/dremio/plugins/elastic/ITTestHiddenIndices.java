@@ -44,9 +44,7 @@ public class ITTestHiddenIndices extends ElasticBaseTestQuery {
   @Before
   public void before() throws Exception {
     super.before();
-    plugin =
-        (ElasticsearchStoragePlugin)
-            getSabotContext().getCatalogService().getSource("elasticsearch");
+    plugin = getCatalogService().getSource("elasticsearch");
   }
 
   @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);

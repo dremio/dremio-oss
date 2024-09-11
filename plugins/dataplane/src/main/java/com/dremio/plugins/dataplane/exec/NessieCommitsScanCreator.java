@@ -46,7 +46,12 @@ public class NessieCommitsScanCreator implements ProducerOperator.Creator<Nessie
       // Expire the applicable snapshots and send live to next layer from branch heads
       recordReaders.add(
           new NessieIcebergExpirySnapshotsReader(
-              context, plugin, config.getProps(), config.getSnapshotsScanOptions()));
+              context,
+              plugin,
+              config.getProps(),
+              config.getSnapshotsScanOptions(),
+              config.getSchemeVariate(),
+              config.getFsScheme()));
     }
 
     // Scan remaining commits for applicable snapshots

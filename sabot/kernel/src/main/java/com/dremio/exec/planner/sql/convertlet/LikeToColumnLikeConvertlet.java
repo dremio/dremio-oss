@@ -46,7 +46,7 @@ import org.apache.calcite.sql.SqlOperator;
  *
  * <p>
  */
-public final class LikeToColumnLikeConvertlet implements FunctionConvertlet {
+public final class LikeToColumnLikeConvertlet extends RexCallConvertlet {
   public static final LikeToColumnLikeConvertlet LIKE_TO_COL_LIKE =
       new LikeToColumnLikeConvertlet(LIKE, COL_LIKE);
   public static final LikeToColumnLikeConvertlet REGEXP_LIKE_TO_REGEXP_COL_LIKE =
@@ -61,7 +61,7 @@ public final class LikeToColumnLikeConvertlet implements FunctionConvertlet {
   }
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator().equals(src)
         && call.getOperands().get(0).isA(SqlKind.INPUT_REF)
         && call.getOperands().get(1).isA(SqlKind.INPUT_REF);

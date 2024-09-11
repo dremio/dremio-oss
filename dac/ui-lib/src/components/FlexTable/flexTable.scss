@@ -40,19 +40,19 @@
     min-height: 30px;
     align-items: center;
     &.--header {
-      border-bottom: 1px solid $border-color;
+      border-bottom: 1px solid var(--border--neutral--solid);
       font-weight: 500;
       height: 30px;
     }
 
     &.--data {
-      border-bottom: 1px solid $border-color;
+      border-bottom: 1px solid var(--border--neutral--solid);
     }
 
     &.--empty {
       min-height: 50px;
-      background-color: $lighter-neutral-color;
-      color: $silver;
+      background-color: var(--fill--secondary);
+      color: var(--color--neutral--200);
       justify-content: center;
       font-weight: 500;
       font-size: $font-m;

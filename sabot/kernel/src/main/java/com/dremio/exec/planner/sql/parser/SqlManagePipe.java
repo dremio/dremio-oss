@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import static com.dremio.exec.planner.sql.parser.SqlCopyIntoTable.isOnErrorHandlingRequested;
+import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.CopyOption.ON_ERROR;
+import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.OnErrorAction.SKIP_FILE;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
-import java.util.List;
 import java.util.Optional;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -76,17 +75,19 @@ public abstract class SqlManagePipe extends SqlCall {
     SqlCopyIntoTable copyIntoNode = (SqlCopyIntoTable) sqlCopyInto;
     if (copyIntoNode.getFiles().size() != 0 || copyIntoNode.getFilePattern().isPresent()) {
       throw UserException.parseError()
-          .message("FILES and REGEX options are not allowed for PIPE commands.")
+          .message("FILES and REGEX options are not allowed for PIPE statements.")
           .buildSilently();
     }
 
-    List<String> copyOptionsList = copyIntoNode.getOptionsList();
-    if (copyOptionsList.stream()
-            .anyMatch(str -> str.equalsIgnoreCase(CopyIntoTableContext.CopyOption.ON_ERROR.name()))
-        && !isOnErrorHandlingRequested(copyOptionsList, copyIntoNode.getOptionsValueList())) {
-      throw UserException.parseError()
-          .message("ON_ERROR must be set to CONTINUE or SKIP_FILE for PIPE commands.")
-          .buildSilently();
+    for (int i = 0; i < copyIntoNode.getOptionsList().size(); i++) {
+      if (copyIntoNode.getOptionsList().get(i).equalsIgnoreCase(ON_ERROR.name())
+          && !SKIP_FILE
+              .name()
+              .equalsIgnoreCase((String) copyIntoNode.getOptionsValueList().get(i))) {
+        throw UserException.parseError()
+            .message("ON_ERROR must be set to SKIP_FILE for PIPE statements.")
+            .buildSilently();
+      }
     }
   }
 }

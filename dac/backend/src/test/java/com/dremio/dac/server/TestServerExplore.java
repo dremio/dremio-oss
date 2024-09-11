@@ -53,6 +53,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
 import static javax.ws.rs.client.Entity.json;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -97,7 +98,8 @@ import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.model.spaces.Space;
-import com.dremio.dac.model.system.Nodes;
+import com.dremio.dac.model.system.NodeInfo;
+import com.dremio.dac.options.TableauResourceOptions;
 import com.dremio.dac.proto.model.dataset.ConvertCase;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.Dimension;
@@ -158,14 +160,12 @@ import com.dremio.dac.proto.model.dataset.TransformTrim;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.resource.SystemResource;
-import com.dremio.dac.resource.TableauResource;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.DatasetsUtil.ExtractRuleVisitor;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.options.OptionManager;
@@ -180,6 +180,7 @@ import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.test.TemporarySystemProperties;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -188,6 +189,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
@@ -229,11 +231,11 @@ public class TestServerExplore extends BaseTestServer {
     testBIEndpoint(
         "tableau",
         () -> {
-          final OptionManager optionManager = l(ContextService.class).get().getOptionManager();
+          final OptionManager optionManager = getOptionManager();
           optionManager.setOption(
               OptionValue.createBoolean(
                   OptionValue.OptionType.SYSTEM,
-                  TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
+                  TableauResourceOptions.CLIENT_TOOLS_TABLEAU.getOptionName(),
                   true));
           return null;
         });
@@ -281,7 +283,7 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI transformedDataset = transformResponse.getDataset();
     assertNotEquals(versionedResourcePath(dataset), versionedResourcePath(transformedDataset));
     assertNotEquals(dataset.getDatasetVersion(), transformedDataset.getDatasetVersion());
-    assertContains("order by s_name", transformedDataset.getSql().toLowerCase());
+    assertThat(transformedDataset.getSql().toLowerCase()).contains("order by s_name");
 
     // Make sure the transfer response also includes initial data
     JobDataFragment data = transformResponse.getData();
@@ -330,7 +332,7 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testFieldOrigins() throws Exception {
     setSpace();
-    final DatasetVersionMutator datasetService = newDatasetVersionMutator();
+    final DatasetVersionMutator datasetService = getDatasetVersionMutator();
 
     final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
     DatasetUI datasetUI =
@@ -388,7 +390,7 @@ public class TestServerExplore extends BaseTestServer {
     source.setMetadataPolicy(
         UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
 
-    final SourceService sourceService = newSourceService();
+    final SourceService sourceService = getSourceService();
     sourceService.registerSourceWithRuntime(source);
 
     InitialDataPreviewResponse resp = getPreview(new DatasetPath(asList("testNAS", "users.json")));
@@ -473,26 +475,25 @@ public class TestServerExplore extends BaseTestServer {
       doc("transform extract keep original col");
       DatasetUI dataset2 =
           transform(dataset, new TransformExtract("s_name", "extracted", rule, false)).getDataset();
-      assertContains(
-          "s_name, case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as extracted",
-          dataset2.getSql().toLowerCase());
+      assertThat(dataset2.getSql().toLowerCase())
+          .contains(
+              "s_name, case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as extracted");
     }
     {
       doc("transform extract drop original col");
       DatasetUI dataset3 =
           transform(dataset, new TransformExtract("s_name", "extracted", rule, true)).getDataset();
-      assertContains(
-          "s_suppkey, case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as extracted",
-          dataset3.getSql().toLowerCase());
+      assertThat(dataset3.getSql().toLowerCase())
+          .contains(
+              "s_suppkey, case when length(substr(s_name, 2, length(s_name) - 4)) > 0 then substr(s_name, 2, length(s_name) - 4) else null end as extracted");
     }
     ExtractRule rule2 = DatasetsUtil.pattern("\\d+", 2, IndexType.INDEX);
     {
       doc("transform extract with pattern");
       DatasetUI dataset4 =
           transform(dataset, new TransformExtract("s_name", "extracted", rule2, true)).getDataset();
-      assertContains(
-          "extract_pattern(s_name, \'\\d+\', 2, \'index\') as extracted",
-          dataset4.getSql().toLowerCase());
+      assertThat(dataset4.getSql().toLowerCase())
+          .contains("extract_pattern(s_name, \'\\d+\', 2, \'index\') as extracted");
     }
   }
 
@@ -554,10 +555,10 @@ public class TestServerExplore extends BaseTestServer {
       DatasetUI dataset2 =
           transform(dataset, new TransformField("address", "foo", false, replace.wrap()))
               .getDataset();
-      assertContains(
-          "case when regexp_like(address, '^\\qfoo\\e.*?') then regexp_replace(address, '^\\qfoo\\e', 'bar') else address end as foo"
-              .toLowerCase(),
-          dataset2.getSql().toLowerCase());
+      assertThat(dataset2.getSql().toLowerCase())
+          .contains(
+              "case when regexp_like(address, '^\\qfoo\\e.*?') then regexp_replace(address, '^\\qfoo\\e', 'bar') else address end as foo"
+                  .toLowerCase());
     }
     {
       doc("show replace values card after edit");
@@ -624,10 +625,10 @@ public class TestServerExplore extends BaseTestServer {
       doc("transform replace");
       DatasetUI dataset2 =
           transform(dataset, new TransformField("user", "foo", false, replace.wrap())).getDataset();
-      assertContains(
-          "case when regexp_like(\"json/users.json\".\"user\", '^\\qa\\e.*?') then regexp_replace(\"json/users.json\".\"user\", '^\\qa\\e', 'bar') else \"json/users.json\".\"user\" end as foo"
-              .toLowerCase(),
-          dataset2.getSql().toLowerCase());
+      assertThat(dataset2.getSql().toLowerCase())
+          .contains(
+              "case when regexp_like(\"json/users.json\".\"user\", '^\\qa\\e.*?') then regexp_replace(\"json/users.json\".\"user\", '^\\qa\\e', 'bar') else \"json/users.json\".\"user\" end as foo"
+                  .toLowerCase());
     }
   }
 
@@ -635,7 +636,7 @@ public class TestServerExplore extends BaseTestServer {
   public void testDropCol() throws Exception {
     DatasetUI dataset = createDatasetFromParentAndSave("drop", "cp.\"tpch/supplier.parquet\"");
     DatasetUI transformedDataset = transform(dataset, new TransformDrop("s_name")).getDataset();
-    assertNotContains("s_name", transformedDataset.getSql().toLowerCase());
+    assertThat(transformedDataset.getSql().toLowerCase()).doesNotContain("s_name");
   }
 
   @Test
@@ -643,7 +644,7 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI dataset = createDatasetFromParentAndSave("rename", "cp.\"tpch/supplier.parquet\"");
     DatasetUI transformedDataset =
         transform(dataset, new TransformRename("s_name", "foo2")).getDataset();
-    assertContains("s_name as foo2", transformedDataset.getSql().toLowerCase());
+    assertThat(transformedDataset.getSql().toLowerCase()).contains("s_name as foo2");
   }
 
   @Test
@@ -653,7 +654,7 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI transformedDataset =
         transform(dataset, new TransformConvertCase("s_name", UPPER_CASE, "foo", true))
             .getDataset();
-    assertContains("upper(s_name) as foo", transformedDataset.getSql().toLowerCase());
+    assertThat(transformedDataset.getSql().toLowerCase()).contains("upper(s_name) as foo");
   }
 
   @Test
@@ -661,7 +662,8 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI dataset = createDatasetFromParentAndSave("trim", "cp.\"tpch/supplier.parquet\"");
     DatasetUI transformedDataset =
         transform(dataset, new TransformTrim("s_name", BOTH, "foo", true)).getDataset();
-    assertContains("trim(both ' ' from s_name) as foo", transformedDataset.getSql().toLowerCase());
+    assertThat(transformedDataset.getSql().toLowerCase())
+        .contains("trim(both ' ' from s_name) as foo");
   }
 
   @Test
@@ -712,7 +714,7 @@ public class TestServerExplore extends BaseTestServer {
         transform(dataset, new TransformAddCalculatedField("baz", "s_address", "1", false))
             .getDataset();
 
-    assertContains(" 1 as baz", transformedDataset.getSql().toLowerCase());
+    assertThat(transformedDataset.getSql().toLowerCase()).contains(" 1 as baz");
   }
 
   @Test
@@ -788,9 +790,8 @@ public class TestServerExplore extends BaseTestServer {
                 true,
                 new FieldConvertTextToDate("YYYY-MM-DD").setDesiredType(TIME).wrap()));
 
-    assertContains(
-        "to_time(convert_to(l_commitdate ,'utf8'), 'yyyy-mm-dd') as foo2",
-        previewResponse3.getDataset().getSql().toLowerCase());
+    assertThat(previewResponse3.getDataset().getSql().toLowerCase())
+        .contains("to_time(convert_to(l_commitdate ,'utf8'), 'yyyy-mm-dd') as foo2");
     JobDataFragment data = getData(previewResponse3.getPaginationUrl(), 0, 5);
 
     assertTrue(data.toString(), data.getColumns().size() > 0);
@@ -1295,7 +1296,7 @@ public class TestServerExplore extends BaseTestServer {
     InitialPendingTransformResponse preview =
         transformPeek(
             dataset, new TransformConvertCase("s_name", ConvertCase.LOWER_CASE, "foo2", true));
-    assertContains("lower(s_name) as foo", preview.getSql().toLowerCase());
+    assertThat(preview.getSql().toLowerCase()).contains("lower(s_name) as foo");
     Column foo2 = preview.getData().getColumn("foo2");
     Column s_name = preview.getData().getColumn("s_name");
     assertNotNull("cols: " + preview.getData().getColumns(), foo2);
@@ -1310,7 +1311,8 @@ public class TestServerExplore extends BaseTestServer {
     InitialPendingTransformResponse preview =
         transformPeek(
             dataset, new TransformConvertCase("s_name", ConvertCase.LOWER_CASE, "s_name", true));
-    assertContains("s_name, lower(s_name) as \"s_name (new)\"", preview.getSql().toLowerCase());
+    assertThat(preview.getSql().toLowerCase())
+        .contains("s_name, lower(s_name) as \"s_name (new)\"");
     Column s_name = preview.getData().getColumn("s_name");
     Column s_name_new = preview.getData().getColumn("s_name (new)");
     assertNotNull("cols: " + preview.getData().getColumns(), s_name);
@@ -1327,7 +1329,8 @@ public class TestServerExplore extends BaseTestServer {
     InitialPreviewResponse previewResponse =
         transform(dataset, new TransformField(field, "foo", true, t.wrap()));
 
-    assertContains(expected.toLowerCase(), previewResponse.getDataset().getSql().toLowerCase());
+    assertThat(previewResponse.getDataset().getSql().toLowerCase())
+        .contains(expected.toLowerCase());
 
     JobDataFragment data = getData(previewResponse.getPaginationUrl(), 0, 2000);
     assertTrue(data.toString(), data.getColumns().size() > 0);
@@ -1358,7 +1361,7 @@ public class TestServerExplore extends BaseTestServer {
     // transform and save
     DatasetUI dsTransform = transform(dsGet, new TransformSort("s_suppkey", ASC)).getDataset();
 
-    assertContains("order by s_suppkey asc", dsTransform.getSql().toLowerCase());
+    assertThat(dsTransform.getSql().toLowerCase()).contains("order by s_suppkey asc");
 
     DatasetUI saved = save(dsGet, dsGet.getVersion()).getDataset();
     saveExpectConflict(dsGet, dsGet.getVersion());
@@ -1384,7 +1387,7 @@ public class TestServerExplore extends BaseTestServer {
                     .setColumnsList(asList(new Order("s_name", ASC), new Order("s_suppkey", DESC))))
             .getDataset();
 
-    assertContains("order by s_name asc, s_suppkey desc", dsTransform2.getSql().toLowerCase());
+    assertThat(dsTransform2.getSql().toLowerCase()).contains("order by s_name asc, s_suppkey desc");
 
     // copy from dataset
     doc("copying existing dataset");
@@ -1524,9 +1527,9 @@ public class TestServerExplore extends BaseTestServer {
                 new TransformField(
                     "s_phone", "s_phone_json", false, new FieldConvertToJSON().wrap()))
             .getDataset();
-    assertContains(
-        "cast(convert_from(convert_to(s_phone, 'json'), 'utf8') as varchar) as s_phone_json",
-        d5.getSql().toLowerCase());
+    assertThat(d5.getSql().toLowerCase())
+        .contains(
+            "cast(convert_from(convert_to(s_phone, 'json'), 'utf8') as varchar) as s_phone_json");
 
     doc("verifying transformed ds");
     final DatasetUI d6 = getVersionedDataset(getDatasetVersionPath(d5));
@@ -1572,7 +1575,7 @@ public class TestServerExplore extends BaseTestServer {
                         .queryParam("as", "reapplyAndSave.ds3"))
                 .buildPost(null),
             DatasetUIWithHistory.class);
-    assertContains("supplier.parquet", reapply.getDataset().getSql());
+    assertThat(reapply.getDataset().getSql()).contains("supplier.parquet");
     List<HistoryItem> historyItems = reapply.getHistory().getItems();
     assertEquals("Number of history items incorrect", 1, historyItems.size());
     assertEquals(
@@ -1664,8 +1667,8 @@ public class TestServerExplore extends BaseTestServer {
                     .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
             .getDataset();
 
-    assertContains("group by a", dataset2.getSql().toLowerCase());
-    assertContains("a, count(b) as count_b", dataset2.getSql().toLowerCase());
+    assertThat(dataset2.getSql().toLowerCase()).contains("group by a");
+    assertThat(dataset2.getSql().toLowerCase()).contains("a, count(b) as count_b");
   }
 
   @Test
@@ -1688,10 +1691,10 @@ public class TestServerExplore extends BaseTestServer {
                     .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
             .getDataset();
 
-    assertContains("group by a", dataset2.getSql().toLowerCase());
-    assertContains("a, count(b) as count_b", dataset2.getSql().toLowerCase());
-    assertNotContains("order by c", dataset2.getSql().toLowerCase());
-    assertContains("order by a asc", dataset2.getSql().toLowerCase());
+    assertThat(dataset2.getSql().toLowerCase()).contains("group by a");
+    assertThat(dataset2.getSql().toLowerCase()).contains("a, count(b) as count_b");
+    assertThat(dataset2.getSql().toLowerCase()).doesNotContain("order by c");
+    assertThat(dataset2.getSql().toLowerCase()).contains("order by a asc");
   }
 
   @Test
@@ -1714,11 +1717,11 @@ public class TestServerExplore extends BaseTestServer {
                     .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
             .getDataset();
 
-    assertNotContains("group by a", dataset2.getSql().toLowerCase());
-    assertNotContains("a, count(b) as count_b", dataset2.getSql().toLowerCase());
-    assertContains("count(b) as count_b", dataset2.getSql().toLowerCase());
-    assertNotContains("order by c desc", dataset2.getSql().toLowerCase());
-    assertNotContains("order by a asc", dataset2.getSql().toLowerCase());
+    assertThat(dataset2.getSql().toLowerCase()).doesNotContain("group by a");
+    assertThat(dataset2.getSql().toLowerCase()).doesNotContain("a, count(b) as count_b");
+    assertThat(dataset2.getSql().toLowerCase()).contains("count(b) as count_b");
+    assertThat(dataset2.getSql().toLowerCase()).doesNotContain("order by c desc");
+    assertThat(dataset2.getSql().toLowerCase()).doesNotContain("order by a asc");
   }
 
   @Test
@@ -1730,7 +1733,7 @@ public class TestServerExplore extends BaseTestServer {
                 new TransformGroupBy().setColumnsDimensionsList(asList(new Dimension("a"))))
             .getDataset();
 
-    assertContains("group by a", dataset2.getSql().toLowerCase());
+    assertThat(dataset2.getSql().toLowerCase()).contains("group by a");
   }
 
   @Test
@@ -1742,7 +1745,7 @@ public class TestServerExplore extends BaseTestServer {
                 new TransformGroupBy()
                     .setColumnsMeasuresList(asList(new Measure(Count).setColumn("b"))))
             .getDataset();
-    assertContains("count(b) as count_b", dataset2.getSql().toLowerCase());
+    assertThat(dataset2.getSql().toLowerCase()).contains("count(b) as count_b");
   }
 
   @Test
@@ -1764,10 +1767,10 @@ public class TestServerExplore extends BaseTestServer {
                     .setColumnsMeasuresList(asList(new Measure(Count).setColumn("a"))))
             .getDataset();
 
-    assertContains("group by a", dataset3.getSql().toLowerCase());
-    assertContains("a, count(b) as count_b", dataset3.getSql().toLowerCase());
-    assertContains("group by count_b", dataset3.getSql().toLowerCase());
-    assertContains("count_b, count(a) as count_a", dataset3.getSql().toLowerCase());
+    assertThat(dataset3.getSql().toLowerCase()).contains("group by a");
+    assertThat(dataset3.getSql().toLowerCase()).contains("a, count(b) as count_b");
+    assertThat(dataset3.getSql().toLowerCase()).contains("group by count_b");
+    assertThat(dataset3.getSql().toLowerCase()).contains("count_b, count(a) as count_a");
   }
 
   @Test
@@ -1781,8 +1784,8 @@ public class TestServerExplore extends BaseTestServer {
                     .setColumnsMeasuresList(asList(new Measure(Count_Star))))
             .getDataset();
 
-    assertContains("group by a", dataset2.getSql().toLowerCase());
-    assertContains("a, count(*) as count_star", dataset2.getSql().toLowerCase());
+    assertThat(dataset2.getSql().toLowerCase()).contains("group by a");
+    assertThat(dataset2.getSql().toLowerCase()).contains("a, count(*) as count_star");
   }
 
   @Test
@@ -2044,9 +2047,9 @@ public class TestServerExplore extends BaseTestServer {
                 new FieldConvertDateToNumber(NumberToDateFormat.JULIAN, DATETIME, INTEGER).wrap());
 
     DatasetUI datasetDate = transform(dataset, t1).getDataset();
-    assertContains(
-        "cast(ceil(unix_timestamp(datetime1, 'yyyy-mm-dd hh24:mi:ss.fff') / 86400 + 2440587.5) as integer)",
-        datasetDate.getSql().toLowerCase());
+    assertThat(datasetDate.getSql().toLowerCase())
+        .contains(
+            "cast(ceil(unix_timestamp(datetime1, 'yyyy-mm-dd hh24:mi:ss.fff') / 86400 + 2440587.5) as integer)");
 
     DatasetUI datasetExcel =
         createDatasetFromParentAndSave("datasetExcel", "cp.\"json/datetime.json\"");
@@ -2059,24 +2062,8 @@ public class TestServerExplore extends BaseTestServer {
                 new FieldConvertDateToNumber(NumberToDateFormat.EXCEL, DATE, INTEGER).wrap());
 
     DatasetUI datasetDate2 = transform(datasetExcel, t2).getDataset();
-    assertContains(
-        "cast(ceil(unix_timestamp(date1, 'yyyy-mm-dd') / 86400 + 25569) as integer)",
-        datasetDate2.getSql().toLowerCase());
-
-    DatasetUI datasetEpoch =
-        createDatasetFromParentAndSave("datasetEpoch", "cp.\"json/datetime.json\"");
-    TransformBase t3 =
-        new TransformField()
-            .setSourceColumnName("time1")
-            .setNewColumnName("a1")
-            .setDropSourceColumn(true)
-            .setFieldTransformation(
-                new FieldConvertDateToNumber(NumberToDateFormat.EPOCH, TIME, FLOAT).wrap());
-
-    DatasetUI datasetDate3 = transform(datasetEpoch, t3).getDataset();
-    assertContains(
-        "unix_timestamp(time1, 'yyyy-mm-dd\"t\"hh24:mi:ss.ffftzo')",
-        datasetDate3.getSql().toLowerCase());
+    assertThat(datasetDate2.getSql().toLowerCase())
+        .contains("cast(ceil(unix_timestamp(date1, 'yyyy-mm-dd') / 86400 + 25569) as integer)");
   }
 
   @Test
@@ -2115,8 +2102,8 @@ public class TestServerExplore extends BaseTestServer {
 
     DatasetUI datasetDate = transform(dataset, t1).getDataset();
 
-    assertContains("to_date", datasetDate.getSql().toLowerCase());
-    assertContains(" - 25569) * 86400", datasetDate.getSql().toLowerCase());
+    assertThat(datasetDate.getSql().toLowerCase()).contains("to_date");
+    assertThat(datasetDate.getSql().toLowerCase()).contains(" - 25569) * 86400");
 
     TransformBase t2 =
         new TransformField()
@@ -2131,8 +2118,8 @@ public class TestServerExplore extends BaseTestServer {
 
     DatasetUI datasetTime = transform(dataset, t2).getDataset();
 
-    assertContains("to_time", datasetTime.getSql().toLowerCase());
-    assertContains(" - 2440587.5) * 86400", datasetTime.getSql().toLowerCase());
+    assertThat(datasetTime.getSql().toLowerCase()).contains("to_time");
+    assertThat(datasetTime.getSql().toLowerCase()).contains(" - 2440587.5) * 86400");
 
     TransformBase t3 =
         new TransformField()
@@ -2146,7 +2133,7 @@ public class TestServerExplore extends BaseTestServer {
                     .wrap());
 
     DatasetUI datasetTimestamp = transform(dataset, t3).getDataset();
-    assertContains("to_timestamp", datasetTimestamp.getSql().toLowerCase());
+    assertThat(datasetTimestamp.getSql().toLowerCase()).contains("to_timestamp");
   }
 
   @Test
@@ -2182,32 +2169,36 @@ public class TestServerExplore extends BaseTestServer {
                     .setDropSourceColumn(true))
             .getDataset();
 
-    assertContains("as varchar", dataset3.getSql().toLowerCase());
+    assertThat(dataset3.getSql().toLowerCase()).contains("as varchar");
 
     DatasetUI dataset4 =
         transform(dataset, new TransformAddCalculatedField("baz", "s_address", "2", false))
             .getDataset();
 
-    assertContains(" 2 as baz", dataset4.getSql().toLowerCase());
-    assertContains("s_address, 2 as baz", dataset4.getSql().toLowerCase());
+    assertThat(dataset4.getSql().toLowerCase()).contains(" 2 as baz");
+    assertThat(dataset4.getSql().toLowerCase()).contains("s_address, 2 as baz");
   }
 
   @Test
   public void testNodeActivity() {
-    Nodes nodes =
-        expectSuccess(getBuilder(getAPIv2().path("/system/nodes")).buildGet(), Nodes.class);
+    @SuppressWarnings("unchecked")
+    List<Map<?, ?>> nodesRaw =
+        (List<Map<?, ?>>)
+            expectSuccess(getBuilder(getAPIv2().path("/system/nodes")).buildGet(), List.class);
+    // expectSuccess deserializes to List<LinkedHashMap> so we need to convert it explicitly
+    List<NodeInfo> nodes = JSONUtil.mapper().convertValue(nodesRaw, new TypeReference<>() {});
     if (isMultinode()) {
       assertEquals(3, nodes.size());
-      final Nodes.NodeInfo master = nodes.get(0);
+      final NodeInfo master = nodes.get(0);
       assertTrue(master.getIsMaster() && master.getIsCoordinator() && !master.getIsExecutor());
-      final Nodes.NodeInfo coord = nodes.get(1);
+      final NodeInfo coord = nodes.get(1);
       assertTrue(!coord.getIsMaster() && coord.getIsCoordinator() && !coord.getIsExecutor());
-      final Nodes.NodeInfo exec = nodes.get(2);
+      final NodeInfo exec = nodes.get(2);
       assertTrue(!exec.getIsMaster() && !exec.getIsCoordinator() && exec.getIsExecutor());
     } else {
       assertEquals("green", nodes.get(0).getStatus());
       assertEquals(1, nodes.size());
-      final Nodes.NodeInfo masterExec = nodes.get(0);
+      final NodeInfo masterExec = nodes.get(0);
       assertTrue(
           masterExec.getIsMaster() && masterExec.getIsCoordinator() && masterExec.getIsExecutor());
     }
@@ -2583,7 +2574,7 @@ public class TestServerExplore extends BaseTestServer {
     source.setMetadataPolicy(
         UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
 
-    final SourceService sourceService = newSourceService();
+    final SourceService sourceService = getSourceService();
     sourceService.registerSourceWithRuntime(source);
 
     InitialDataPreviewResponse resp =

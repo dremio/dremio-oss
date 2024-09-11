@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.store;
 
-import com.dremio.options.OptionManager;
-
 /** Marker interface for plugin configurations that support versioning */
 public interface VersionedStoragePluginConfig {
 
   /** When set to true, privileges set on the sources natively will be used. */
-  default boolean useNativePrivileges(OptionManager optionManager) {
+  // TODO: DX-92677: Remove this as this is a dangerous hack.
+  default boolean useSourceProvidedPrivileges() {
     return false;
   }
 
   /** Returns the catalog Id. */
+  // TODO: DX-92694: Remove this as not all plugins have a catalog Id.
   default String getCatalogId() {
     return null;
   }

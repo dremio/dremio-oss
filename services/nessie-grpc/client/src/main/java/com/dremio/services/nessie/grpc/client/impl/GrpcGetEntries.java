@@ -21,6 +21,7 @@ import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoEntriesRequest;
 
 import com.dremio.services.nessie.grpc.api.EntriesRequest;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
+import org.projectnessie.client.api.GetEntriesBuilder;
 import org.projectnessie.client.builder.BaseGetEntriesBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.EntriesResponse;
@@ -28,6 +29,8 @@ import org.projectnessie.model.EntriesResponse;
 final class GrpcGetEntries extends BaseGetEntriesBuilder<EntriesRequest> {
 
   private final TreeServiceBlockingStub stub;
+
+  private Integer namespaceDepth;
 
   public GrpcGetEntries(TreeServiceBlockingStub stub) {
     super(
@@ -39,6 +42,13 @@ final class GrpcGetEntries extends BaseGetEntriesBuilder<EntriesRequest> {
           return builder.build();
         });
     this.stub = stub;
+  }
+
+  @Override
+  @Deprecated
+  public GetEntriesBuilder namespaceDepth(Integer namespaceDepth) {
+    this.namespaceDepth = namespaceDepth;
+    return this;
   }
 
   @Override

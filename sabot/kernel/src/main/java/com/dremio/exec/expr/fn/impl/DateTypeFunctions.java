@@ -420,18 +420,12 @@ public class DateTypeFunctions {
 
     @Override
     public void setup() {
+      java.time.ZoneId zone = com.dremio.common.util.LocalTimeUtility.getTimeZoneId();
+      java.time.LocalTime currentTime =
+          com.dremio.common.util.LocalTimeUtility.getTimeFromMillis(
+              contextInfo.getQueryStartTime(), zone);
 
-      int timeZoneIndex = contextInfo.getRootFragmentTimeZone();
-      org.joda.time.DateTimeZone timeZone =
-          org.joda.time.DateTimeZone.forID(
-              com.dremio.common.util.JodaDateUtility.getTimeZone(timeZoneIndex));
-      org.joda.time.LocalDateTime now =
-          new org.joda.time.LocalDateTime(contextInfo.getQueryStartTime(), timeZone);
-      queryStartTime =
-          (now.getHourOfDay() * org.apache.arrow.vector.util.DateUtility.hoursToMillis)
-              + (now.getMinuteOfHour() * org.apache.arrow.vector.util.DateUtility.minutesToMillis)
-              + (now.getSecondOfMinute() * org.apache.arrow.vector.util.DateUtility.secondsToMillis)
-              + (now.getMillisOfSecond());
+      queryStartTime = com.dremio.common.util.LocalTimeUtility.getMillisFromTime(currentTime);
     }
 
     @Override

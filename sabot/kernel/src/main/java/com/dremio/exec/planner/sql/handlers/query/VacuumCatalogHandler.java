@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql.handlers.query;
 
 import static com.dremio.exec.ExecConstants.ICEBERG_VACUUM_CATALOG_RETENTION_PERIOD_MINUTES;
 
-import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.calcite.logical.VacuumCatalogCrel;
@@ -42,10 +41,14 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.DremioHint;
 import com.dremio.exec.planner.sql.parser.SqlVacuumCatalog;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.NessieApiProvider;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.options.OptionValue;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import org.apache.calcite.rel.RelNode;
@@ -82,8 +85,7 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
     }
   }
 
-  private void validate(Catalog catalog, SqlHandlerConfig config, NamespaceKey path) {
-    catalog.validateOwnership(CatalogEntityKey.fromNamespaceKey(path));
+  protected void validate(Catalog catalog, SqlHandlerConfig config, NamespaceKey path) {
     validateFeatureEnabled(config);
     validateCompatibleCatalog(catalog, path);
   }
@@ -110,6 +112,17 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
       SqlVacuumCatalog sqlNode,
       NamespaceKey path)
       throws Exception {
+
+    // Prohibit Reflections on VACUUM operations
+    config
+        .getContext()
+        .getOptions()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.QUERY,
+                DremioHint.NO_REFLECTIONS.getOption().getOptionName(),
+                true));
+
     final ConvertedRelNode convertedRelNode =
         SqlToRelTransformer.validateAndConvert(config, sqlNode);
     final RelNode relNode = convertedRelNode.getConvertedNode();
@@ -122,6 +135,11 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
     IcebergCostEstimates costEstimates =
         VacuumCatalogCostEstimates.find(nessieApi, sqlNode.getVacuumOptions());
 
+    Preconditions.checkState(sourcePlugin instanceof FileSystemPlugin);
+    FileSystemPlugin fileSystemPlugin = (FileSystemPlugin) sourcePlugin;
+    String fsScheme = fileSystemPlugin.createFS(config.getContext().getQueryUserName()).getScheme();
+    String schemeVariate = IcebergUtils.getDefaultPathScheme(fsScheme);
+
     drel =
         convertToDrel(
             config,
@@ -129,7 +147,9 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
             managedStoragePlugin,
             nessieApi,
             costEstimates,
-            config.getContext().getQueryUserName());
+            config.getContext().getQueryUserName(),
+            fsScheme,
+            schemeVariate);
     final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
     textPlan = prelAndTextPlan.getValue();
     return prelAndTextPlan.getKey();
@@ -141,7 +161,9 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
       ManagedStoragePlugin managedStoragePlugin,
       NessieApiV2 nessieApi,
       IcebergCostEstimates costEstimates,
-      String user)
+      String user,
+      String fsScheme,
+      String schemeVariate)
       throws Exception {
     NessieGCPolicy nessieGCPolicy =
         new NessieGCPolicy(
@@ -160,7 +182,9 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
                 vacuumOptions,
                 costEstimates,
                 user,
-                nessieGCPolicy.isDefaultRetention()));
+                nessieGCPolicy.isDefaultRetention(),
+                fsScheme,
+                schemeVariate));
     convertedRelNode =
         SqlHandlerUtil.storeQueryResultsIfNeeded(
             config.getConverter().getParserConfig(), config.getContext(), convertedRelNode);
@@ -192,10 +216,18 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
       VacuumOptions vacuumOptions,
       IcebergCostEstimates costEstimates,
       String user,
-      boolean isDefaultRetention) {
-    return TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(
-        CrelStoragePluginApplier.apply(
-            relNode, storagePluginId, vacuumOptions, costEstimates, user, isDefaultRetention));
+      boolean isDefaultRetention,
+      String fsScheme,
+      String schemeVariate) {
+    return CrelStoragePluginApplier.apply(
+        relNode,
+        storagePluginId,
+        vacuumOptions,
+        costEstimates,
+        user,
+        isDefaultRetention,
+        fsScheme,
+        schemeVariate);
   }
 
   private static class CrelStoragePluginApplier extends StatelessRelShuttleImpl {
@@ -204,18 +236,24 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
     private final VacuumOptions vacuumOptions;
     private final IcebergCostEstimates costEstimates;
     private final boolean isDefaultRetention;
+    private final String fsScheme;
+    private final String schemeVariate;
 
     private CrelStoragePluginApplier(
         StoragePluginId storagePluginId,
         String user,
         IcebergCostEstimates costEstimates,
         VacuumOptions vacuumOptions,
-        boolean isDefaultRetention) {
+        boolean isDefaultRetention,
+        String fsScheme,
+        String schemeVariate) {
       this.storagePluginId = storagePluginId;
       this.user = user;
       this.vacuumOptions = vacuumOptions;
       this.costEstimates = costEstimates;
       this.isDefaultRetention = isDefaultRetention;
+      this.fsScheme = fsScheme;
+      this.schemeVariate = schemeVariate;
     }
 
     public static RelNode apply(
@@ -224,10 +262,18 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
         VacuumOptions vacuumOptions,
         IcebergCostEstimates costEstimates,
         String user,
-        boolean isDefaultRetention) {
+        boolean isDefaultRetention,
+        String fsScheme,
+        String schemeVariate) {
       CrelStoragePluginApplier applier =
           new CrelStoragePluginApplier(
-              storagePluginId, user, costEstimates, vacuumOptions, isDefaultRetention);
+              storagePluginId,
+              user,
+              costEstimates,
+              vacuumOptions,
+              isDefaultRetention,
+              fsScheme,
+              schemeVariate);
       return applier.visit(relNode);
     }
 
@@ -237,7 +283,13 @@ public class VacuumCatalogHandler implements SqlToPlanHandler {
         other =
             ((VacuumCatalogCrel) other)
                 .createWith(
-                    storagePluginId, vacuumOptions, costEstimates, user, isDefaultRetention);
+                    storagePluginId,
+                    vacuumOptions,
+                    costEstimates,
+                    user,
+                    isDefaultRetention,
+                    fsScheme,
+                    schemeVariate);
       }
 
       return super.visit(other);

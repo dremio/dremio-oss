@@ -19,6 +19,7 @@ import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import java.util.ConcurrentModificationException;
 import java.util.List;
@@ -35,7 +36,7 @@ public interface SourceNamespaceService {
 
   SourceMetadata getSourceMetadata(NamespaceKey sourcePath) throws NamespaceException;
 
-  SourceConfig getSourceById(String id) throws NamespaceException;
+  SourceConfig getSourceById(EntityId id) throws NamespaceException;
 
   List<SourceConfig> getSources();
 

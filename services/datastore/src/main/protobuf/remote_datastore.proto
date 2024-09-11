@@ -54,6 +54,7 @@ message FindRequest { // KVStore.find(FindByRange<K> find) and KVStore.find()
   optional bytes end = 3;
   optional bool includeStart = 4 [default = false];
   optional bool includeEnd = 5 [default = false];
+  optional int32 maxResults = 6 [default = 0x7fffffff];
 }
 
 message FindResponse {

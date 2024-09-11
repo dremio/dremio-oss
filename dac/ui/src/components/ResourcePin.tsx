@@ -19,8 +19,6 @@ import classNames from "clsx";
 import { stopPropagation } from "@app/utils/reactEventUtils";
 import { setEntityActiveState as toggleActivePin } from "@app/reducers/home/pinnedEntities";
 import { isEntityPinned } from "@app/selectors/home";
-import FilledSmallPin from "@app/art/FilledSmallPin.svg";
-import HollowSmallPin from "@app/art/HollowSmallPin.svg";
 import { IconButton } from "dremio-ui-lib/components";
 
 import "./ResourcePin.less";
@@ -42,7 +40,11 @@ const ResourcePin = (props: ResourcePinProps) => {
 
   return (
     <IconButton className={pinClass} onClick={onPinClick} aria-label="Pin">
-      {isPinned ? <FilledSmallPin /> : <HollowSmallPin />}
+      {isPinned ? (
+        <dremio-icon name="interface/pinned-small" alt="Pinned" />
+      ) : (
+        <dremio-icon name="interface/unpinned-small" alt="Unpinned" />
+      )}
     </IconButton>
   );
 };

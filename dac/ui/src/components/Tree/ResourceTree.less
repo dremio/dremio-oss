@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 
 :global {
@@ -25,10 +24,10 @@
       border-radius: 4px;
 
       &:hover {
-        background: @FIGMA_PRIMARY_100;
+        background: var(--fill--primary--hover);
       }
       &.active-node {
-        background: @FIGMA_PRIMARY_150;
+        background: var(--fill--primary--selected);
         font-weight: 600;
       }
     }
@@ -43,12 +42,12 @@
     cursor: pointer;
 
     .dragSource:hover {
-      background: @FIGMA_PRIMARY_100;
+      background: var(--fill--primary--hover);
     }
 
     .datasetItemLabel-item {
       &:hover {
-        background: @FIGMA_PRIMARY_100;
+        background: var(--fill--primary--hover);
       }
     }
 
@@ -60,9 +59,6 @@
   .resourceTree {
     height: 100%;
     padding-top: 2px;
-    max-height: 242px;
-    min-height: 240px;
-    overflow-y: auto;
   }
 
   .resourceTreeNode {
@@ -159,20 +155,20 @@
     }
 
     .TreeNode__arrowIcon {
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
       padding: 0;
 
       &:hover {
-        color: var(--color--neutral--600);
+        color: var(--icon--primary);
       }
     }
 
     .resourceTreeNode__add,
     .resourceTreeNode--unstarred {
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
 
       &:hover {
-        color: var(--dremio--color--link);
+        color: var(--icon--hover);
       }
     }
 
@@ -193,6 +189,11 @@
     }
   }
 
+  .resourceTreeContainer {
+    height: 100%;
+    overflow: auto;
+  }
+
   .explorePage .join .resourceTreeContainer .resourceTree .global-tree {
     width: 552px !important;
 
@@ -201,14 +202,14 @@
       border-radius: var(--dremio--radius--1);
 
       &:hover {
-        background: var(--color--brand--25);
+        background: var(--fill--primary--hover);
       }
     }
 
     // this ensures that only dataset nodes have an active effect
     .treeNode.treeNode--hasResources .resourceTreeNodeWrap {
       &.active-node {
-        background: var(--color--brand--50);
+        background: var(--fill--primary--selected);
       }
     }
   }

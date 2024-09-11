@@ -110,17 +110,20 @@ class TestNessieRepoMaintenanceCommand {
     // Note: This DataSet has null TableUuid in IcebergMetadata, which represents a first-class
     // Iceberg table,
     // not a DataSet promoted from plain Parquet files.
-    namespace.put(
-        "dataset4",
-        new NameSpaceContainer()
-            .setFullPathList(ImmutableList.of("ns", "dataset4"))
-            .setType(NameSpaceContainer.Type.DATASET)
-            .setDataset(
-                new DatasetConfig()
-                    .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
-                    .setId(new EntityId("ds-id4"))
-                    .setPhysicalDataset(
-                        new PhysicalDataset().setIcebergMetadata(new IcebergMetadata()))));
+    String dataset4Tag =
+        namespace
+            .put(
+                "dataset4",
+                new NameSpaceContainer()
+                    .setFullPathList(ImmutableList.of("ns", "dataset4"))
+                    .setType(NameSpaceContainer.Type.DATASET)
+                    .setDataset(
+                        new DatasetConfig()
+                            .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
+                            .setId(new EntityId("ds-id4"))
+                            .setPhysicalDataset(
+                                new PhysicalDataset().setIcebergMetadata(new IcebergMetadata()))))
+            .getTag();
 
     List<String> log = new ArrayList<>();
     NessieRepoMaintenanceCommand.execute(
@@ -144,6 +147,7 @@ class TestNessieRepoMaintenanceCommand {
                 new DatasetConfig()
                     .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
                     .setId(new EntityId("ds-id4"))
+                    .setTag(dataset4Tag)
                     .setPhysicalDataset(new PhysicalDataset().setIcebergMetadata(metadata4))));
 
     log.clear();

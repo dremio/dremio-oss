@@ -17,10 +17,13 @@ package com.dremio.service.reflection;
 
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.store.sys.accel.AccelerationListManager.ReflectionLineageInfo;
+import com.dremio.service.reflection.analysis.ReflectionSuggester.ReflectionSuggestionType;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,7 +45,7 @@ public interface ReflectionAdministrationService {
 
   Optional<ReflectionGoal> getGoal(ReflectionId reflectionId);
 
-  List<ReflectionGoal> getRecommendedReflections(String datasetId);
+  List<ReflectionGoal> getRecommendedReflections(String dataset, ReflectionSuggestionType type);
 
   Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId);
 
@@ -73,6 +76,8 @@ public interface ReflectionAdministrationService {
   int getEnabledReflectionCountForDataset(String datasetId);
 
   boolean isReflectionIncremental(ReflectionId reflectionId);
+
+  Iterator<ReflectionLineageInfo> getReflectionLineage(ReflectionGoal reflectionGoal);
 
   /** Factory for {@ReflectionAdministrationService} */
   interface Factory {

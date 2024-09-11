@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Stream;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -43,6 +44,11 @@ public class TestBackGroundProfileWriter {
   @Before
   public void setUp() throws Exception {
     kvStoreProvider = TempLegacyKVStoreProviderCreator.create();
+  }
+
+  @After
+  public void cleanUp() throws Exception {
+    kvStoreProvider.close();
   }
 
   @Test

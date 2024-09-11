@@ -21,14 +21,14 @@ import org.apache.arrow.vector.IntervalDayVector;
 import org.apache.arrow.vector.holders.NullableIntervalDayHolder;
 
 public final class IntervalDayArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<NullableIntervalDayHolder, IntervalDayVector> {
+    extends ArrayAggAccumulatorHolder<NullableIntervalDayHolder> {
   private final IntervalDayVector vector;
 
   public IntervalDayArrayAggAccumulatorHolder(
-      int maxValuesPerBatch, final BufferAllocator allocator) {
-    super(maxValuesPerBatch, allocator);
+      final BufferAllocator allocator, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector = new IntervalDayVector("array_agg IntervalDayArrayAggAccumulatorHolder", allocator);
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -54,5 +54,18 @@ public final class IntervalDayArrayAggAccumulatorHolder
     NullableIntervalDayHolder holder = new NullableIntervalDayHolder();
     vector.get(index, holder);
     return holder;
+  }
+
+  @Override
+  public double getSizeOfElement(NullableIntervalDayHolder element) {
+    return IntervalDayVector.TYPE_WIDTH;
+  }
+
+  @Override
+  public void reAllocIfNeeded(NullableIntervalDayHolder data) {
+    super.reAllocIfNeeded(data);
+    if (numItems + 1 >= vector.getValueCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

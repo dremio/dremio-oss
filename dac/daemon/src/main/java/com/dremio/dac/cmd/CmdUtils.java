@@ -23,6 +23,7 @@ import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.impl.DefaultOptionManager;
@@ -137,12 +138,12 @@ public final class CmdUtils {
     final SystemOptionManager systemOptionManager;
     final LegacyKVStoreProvider legacyKVStoreProvider = storeProvider.asLegacy();
     systemOptionManager =
-        new SystemOptionManager(
+        new SystemOptionManagerImpl(
             optionValidatorListing, lpp, () -> legacyKVStoreProvider, () -> null, null, false);
     try {
       systemOptionManager.start();
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      return Optional.empty();
     }
 
     final OptionManagerWrapper optionManagerWrapper =

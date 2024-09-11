@@ -48,10 +48,6 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
 
   @Override
   public SQLRunnerSession getSession(String userId) {
-    if (!optionManager.get().getOption(SQLRunnerOptions.SQLRUNNER_TABS)) {
-      throw new SQLRunnerSessionNotSupportedException();
-    }
-
     SQLRunnerSessionProto.SQLRunnerSession session = getOrCreateSession(userId);
 
     // Extend ttl_expire_at when the user fetches SQLRunnerSession
@@ -76,10 +72,6 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
   @Override
   public SQLRunnerSession updateSession(SQLRunnerSession newSession)
       throws SQLRunnerSessionNotSupportedException {
-    if (!optionManager.get().getOption(SQLRunnerOptions.SQLRUNNER_TABS)) {
-      throw new SQLRunnerSessionNotSupportedException();
-    }
-
     SQLRunnerSessionProto.SQLRunnerSession updatedSession =
         newSession.toProtobuf().toBuilder().setTtlExpireAt(getExpireAt()).build();
 
@@ -90,19 +82,11 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
 
   @Override
   public void deleteSession(String userId) throws SQLRunnerSessionNotSupportedException {
-    if (!optionManager.get().getOption(SQLRunnerOptions.SQLRUNNER_TABS)) {
-      throw new SQLRunnerSessionNotSupportedException();
-    }
-
     sessionStore.delete(userId);
   }
 
   @Override
   public SQLRunnerSession newTab(String userId, String scriptId) {
-    if (!optionManager.get().getOption(SQLRunnerOptions.SQLRUNNER_TABS)) {
-      throw new SQLRunnerSessionNotSupportedException();
-    }
-
     SQLRunnerSessionProto.SQLRunnerSession existingSession = getOrCreateSession(userId);
     SQLRunnerSessionProto.SQLRunnerSession.Builder builder = existingSession.toBuilder();
     if (!existingSession.getScriptIdsList().contains(scriptId)) {
@@ -115,10 +99,6 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
 
   @Override
   public void deleteTab(String userId, String scriptId) {
-    if (!optionManager.get().getOption(SQLRunnerOptions.SQLRUNNER_TABS)) {
-      throw new SQLRunnerSessionNotSupportedException();
-    }
-
     SQLRunnerSessionProto.SQLRunnerSession existingSession = getOrCreateSession(userId);
 
     if (existingSession.getScriptIdsCount() <= 1) {
@@ -147,10 +127,6 @@ public class SQLRunnerSessionServiceImpl implements SQLRunnerSessionService {
 
   @Override
   public int deleteExpired() {
-    if (!optionManager.get().getOption(SQLRunnerOptions.SQLRUNNER_TABS)) {
-      return 0;
-    }
-
     return sessionStore.deleteExpired();
   }
 

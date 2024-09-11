@@ -66,6 +66,7 @@ message Materialization {
   repeated string primary_key = 36;
   optional bool disable_default_reflection = 37 [default = false];
   optional bool is_noop_refresh = 38 [default = false]; // true if refresh job that created it was a noop
+  optional bool is_stale = 39 [default = false];
 }
 
 message RefreshId {

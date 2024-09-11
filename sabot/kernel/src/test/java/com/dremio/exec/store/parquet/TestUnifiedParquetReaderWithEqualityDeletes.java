@@ -146,7 +146,8 @@ public class TestUnifiedParquetReaderWithEqualityDeletes extends BaseTestUnified
             getAbsolutePath(deleteFile.getPath()),
             deleteFile.getRecordCount(),
             deleteFile.getEqualityIds(),
-            getIcebergSchemaFields(IcebergTestTables.PRODUCTS_SCHEMA));
+            getIcebergSchemaFields(IcebergTestTables.PRODUCTS_SCHEMA),
+            null);
     reader.setup();
     // create with refcount 2 since there's 2 rowgroups in the data file
     return new EqualityDeleteFilter(

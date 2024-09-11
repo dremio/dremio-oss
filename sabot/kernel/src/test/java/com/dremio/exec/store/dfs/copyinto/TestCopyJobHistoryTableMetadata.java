@@ -58,11 +58,7 @@ public class TestCopyJobHistoryTableMetadata {
   public void setup() {
     tableMetadata =
         new CopyJobHistoryTableMetadata(
-            schemaVersion,
-            CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion),
-            PLUGIN_NAME,
-            PLUGIN_PATH,
-            COPY_JOB_HISTORY_TABLE_NAME);
+            schemaVersion, 4, PLUGIN_NAME, PLUGIN_PATH, COPY_JOB_HISTORY_TABLE_NAME);
   }
 
   @Test

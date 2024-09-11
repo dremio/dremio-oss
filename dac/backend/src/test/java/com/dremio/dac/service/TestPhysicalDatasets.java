@@ -20,6 +20,7 @@ import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
 import static org.apache.hadoop.util.Time.now;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -43,9 +44,8 @@ import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.exec.catalog.CatalogOptions;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.io.file.Path;
@@ -106,7 +106,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    final SourceService sourceService = newSourceService();
+    final SourceService sourceService = getSourceService();
     {
       final NASConf nas = new NASConf();
       nas.path = "/";
@@ -117,8 +117,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
           UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source);
     }
-    allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @After
@@ -634,6 +633,27 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   @Test
+  public void testPreviewWithIgnoreOtherFileFormats() throws Exception {
+    ParquetFileConfig fileConfig = new ParquetFileConfig();
+    fileConfig.setName("parquet");
+    fileConfig.setIgnoreOtherFileFormats(true);
+
+    String filePath = getUrlPath("/datasets/parquet_2p_4s_mixed");
+
+    doc("preview data for source folder");
+    JobDataFragment data =
+        expectSuccess(
+            getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview/" + filePath))
+                .buildPost(Entity.json(fileConfig)),
+            JobDataFragment.class);
+    assertEquals(4, data.getReturnedRowCount());
+
+    expectSuccess(
+        getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath))
+            .buildPut(Entity.json(fileConfig)));
+  }
+
+  @Test
   public void listSource() {
     SourceUI source =
         expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test")).buildGet(), SourceUI.class);
@@ -832,7 +852,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
                         .queryParam("version", badVersion))
                 .buildDelete(),
             GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, expectedErrorMessage);
+    assertThat(errorDelete2.getErrorMessage()).isEqualTo(expectedErrorMessage);
 
     doc("delete physical dataset for source folder");
     expectSuccess(
@@ -1153,12 +1173,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     // We should get at most FormatTools.TARGET_RECORDS results - we can get less results if the
     // system is busy for
     // example but we should get some results at least.
-    final long targetRecords =
-        getCurrentDremioDaemon()
-            .getBindingProvider()
-            .lookup(SabotContext.class)
-            .getOptionManager()
-            .getOption(FormatTools.TARGET_RECORDS);
+    final long targetRecords = getOptionManager().getOption(FormatTools.TARGET_RECORDS);
     assertTrue(data.getReturnedRowCount() > 0 && targetRecords >= data.getReturnedRowCount());
   }
 
@@ -1215,8 +1230,9 @@ public class TestPhysicalDatasets extends BaseTestServer {
     Iterator<PartitionChunkMetadata> iter =
         l(NamespaceService.class)
             .findSplits(
-                new LegacyIndexedStore.LegacyFindByCondition()
-                    .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)))
+                new ImmutableFindByCondition.Builder()
+                    .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))
+                    .build())
             .iterator();
     for (int i = 0; i < expectedNumOfPartitionChunks; i++) {
       assertTrue(iter.hasNext());
@@ -1259,8 +1275,9 @@ public class TestPhysicalDatasets extends BaseTestServer {
     Iterator<PartitionChunkMetadata> iter =
         l(NamespaceService.class)
             .findSplits(
-                new LegacyIndexedStore.LegacyFindByCondition()
-                    .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)))
+                new ImmutableFindByCondition.Builder()
+                    .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))
+                    .build())
             .iterator();
     for (int i = 0; i < expectedNumOfPartitionChunks; i++) {
       assertTrue(iter.hasNext());

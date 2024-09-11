@@ -18,11 +18,13 @@ package com.dremio.exec.work.foreman;
 import com.dremio.exec.maestro.MaestroObserver;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 public class MaestroObserverWrapper implements MaestroObserver {
   private final AttemptObserver observer;
@@ -82,13 +84,14 @@ public class MaestroObserverWrapper implements MaestroObserver {
   }
 
   @Override
-  public void recordsProcessed(long recordCount) {
-    observer.recordsProcessed(recordCount);
+  @WithSpan
+  public void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount) {
+    observer.recordsOutput(endpoint, recordCount);
   }
 
   @Override
-  public void recordsOutput(long recordCount) {
-    observer.recordsOutput(recordCount);
+  public void outputLimited() {
+    observer.outputLimited();
   }
 
   @Override
@@ -119,6 +122,11 @@ public class MaestroObserverWrapper implements MaestroObserver {
   @Override
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
     observer.resourcesScheduled(resourceSchedulingDecisionInfo);
+  }
+
+  @Override
+  public void putProfileFailed() {
+    observer.putProfileFailed();
   }
 
   @Override

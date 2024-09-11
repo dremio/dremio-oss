@@ -23,8 +23,10 @@ import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
 import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.options.KVStoreOptionUtility;
+import com.dremio.datastore.api.options.MaxResultsOption;
 import com.dremio.datastore.api.options.VersionOption;
 import com.dremio.datastore.rocks.Rocks;
+import com.dremio.telemetry.api.metrics.MeterProviders;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -48,6 +50,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -245,31 +248,33 @@ class RocksDBStore implements ByteStore {
     }
   }
 
-  private void registerMetrics() {
-
-    forAllMetrics(
-        (metricName, property) ->
-            Metrics.newGauge(
-                metricName,
-                () -> {
-                  try {
-                    return db.getLongProperty(handle, property);
-                  } catch (RocksDBException e) {
-                    // throwing an exception would cause Dropwizard's metrics reporter to not report
-                    // the remaining metrics
-                    logger.warn("failed to retrieve property '{}", property, e);
-                    return -1;
-                  }
-                }));
+  private ColumnFamilyHandle getHandle() {
+    return handle;
   }
 
-  private void unregisterMetrics() {
-    forAllMetrics((metricName, prop) -> Metrics.unregister(metricName));
+  private void registerMetrics() {
+    forAllMetrics(
+        (metricName, property) -> {
+          MeterProviders.newGauge(
+              metricName,
+              () -> {
+                try {
+                  return db.getLongProperty(getHandle(), property);
+                } catch (RocksDBException e) {
+                  // throwing an exception would cause Dropwizard's metrics reporter to not
+                  // report
+                  // the remaining metrics
+                  logger.warn("failed to retrieve property '{}", property, e);
+                  return -1;
+                }
+              });
+        });
   }
 
   private void forAllMetrics(BiConsumer<String, String> consumer) {
     for (String property : METRIC_PROPERTIES) {
-      final String metricName = Metrics.join(METRICS_PREFIX, name, property);
+      final String metricName =
+          METRICS_PREFIX + "." + name.toLowerCase() + "." + property.toLowerCase();
       consumer.accept(metricName, property);
     }
   }
@@ -443,6 +448,10 @@ class RocksDBStore implements ByteStore {
 
   private interface ExclusiveOperation {
     void execute(DeferredException e) throws RocksDBException;
+  }
+
+  private void unregisterMetrics() {
+    forAllMetrics((metricName, property) -> Metrics.unregister(metricName));
   }
 
   @Override
@@ -644,7 +653,7 @@ class RocksDBStore implements ByteStore {
   @Override
   public Iterable<Document<byte[], byte[]>> find(FindByRange<byte[]> find, FindOption... options) {
     cleanReferences();
-    return new RockIterable(find);
+    return new RockIterable(find, options);
   }
 
   @Override
@@ -663,7 +672,7 @@ class RocksDBStore implements ByteStore {
   @Override
   public Iterable<Document<byte[], byte[]>> find(FindOption... options) {
     cleanReferences();
-    return new RockIterable(null);
+    return new RockIterable(null, options);
   }
 
   /**
@@ -739,16 +748,31 @@ class RocksDBStore implements ByteStore {
 
   private class RockIterable implements Iterable<Document<byte[], byte[]>> {
     private final FindByRange<byte[]> range;
+    private final int maxResults;
 
-    public RockIterable(FindByRange<byte[]> range) {
+    public RockIterable(FindByRange<byte[]> range, FindOption... options) {
       this.range = range;
+
+      int maxResults = Integer.MAX_VALUE;
+      if (options.length > 0) {
+        Optional<MaxResultsOption> optionalMaxResults =
+            Arrays.stream(options)
+                .filter(option -> option instanceof MaxResultsOption)
+                .map(option -> (MaxResultsOption) option)
+                .findFirst();
+        if (optionalMaxResults.isPresent()) {
+          maxResults = optionalMaxResults.get().maxResults();
+        }
+      }
+      this.maxResults = maxResults;
     }
 
     @Override
     public Iterator<Document<byte[], byte[]>> iterator() {
       throwIfClosed(); // check not needed during iteration as the underlying iterator is closed
       // when store is closed
-      FindByRangeIterator iterator = new FindByRangeIterator(db, handle, range, metaManager);
+      FindByRangeIterator iterator =
+          new FindByRangeIterator(db, handle, range, metaManager, maxResults);
 
       // Create a new reference which will self register
       @SuppressWarnings({"unused", "resource"})
@@ -772,9 +796,14 @@ class RocksDBStore implements ByteStore {
 
     private byte[] nextKey;
     private byte[] nextValue;
+    private int maxResults;
 
     public FindByRangeIterator(
-        RocksDB db, ColumnFamilyHandle handle, FindByRange<byte[]> range, MetaManager blob) {
+        RocksDB db,
+        ColumnFamilyHandle handle,
+        FindByRange<byte[]> range,
+        MetaManager blob,
+        int maxResults) {
       Preconditions.checkNotNull(handle);
       try {
         // the column family handle descriptor is lazy loaded (and it especially contains the
@@ -811,6 +840,7 @@ class RocksDBStore implements ByteStore {
         cursorSetup = stopwatch.elapsed(TimeUnit.MICROSECONDS);
       }
 
+      this.maxResults = maxResults;
       populateNext();
     }
 
@@ -832,6 +862,11 @@ class RocksDBStore implements ByteStore {
       nextValue = null;
 
       if (!iter.isValid()) {
+        return;
+      }
+
+      // Break iterations if maxResults records have been read.
+      if (maxResults-- <= 0) {
         return;
       }
 

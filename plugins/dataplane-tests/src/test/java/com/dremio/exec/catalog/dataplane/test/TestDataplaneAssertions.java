@@ -36,6 +36,7 @@ import org.projectnessie.model.LogResponse;
 import org.projectnessie.model.Namespace;
 import org.projectnessie.model.Operation;
 import org.projectnessie.model.Reference;
+import org.projectnessie.model.UDF;
 
 /** Dataplane test assertion helpers */
 public final class TestDataplaneAssertions {
@@ -116,6 +117,28 @@ public final class TestDataplaneAssertions {
         .isTrue();
   }
 
+  public static void assertNessieHasFunction(
+      List<String> schemaComponents, String branchName, ITDataplanePluginTestSetup base)
+      throws NessieNotFoundException {
+    Reference branch = base.getNessieClient().getReference().refName(branchName).get();
+    Map<ContentKey, Content> contentsMap =
+        base.getNessieClient()
+            .getContent()
+            .reference(branch)
+            .key(ContentKey.of(schemaComponents))
+            .get();
+
+    ContentKey expectedContentsKey = ContentKey.of(schemaComponents);
+    assertThat(contentsMap).containsKey(expectedContentsKey);
+
+    Optional<UDF> maybeUdf = contentsMap.get(expectedContentsKey).unwrap(UDF.class);
+    assertThat(maybeUdf).isPresent();
+    assertThat(
+            getDataplaneStorage()
+                .doesObjectExist(PRIMARY_BUCKET, maybeUdf.get().getMetadataLocation()))
+        .isTrue();
+  }
+
   public static void assertNessieHasNamespace(
       List<String> namespaceComponents, String branchName, ITDataplanePluginTestSetup base)
       throws NessieNotFoundException {
@@ -169,23 +192,11 @@ public final class TestDataplaneAssertions {
     assertThat(mostRecentLogEntry.getCommitMeta().getAuthor()).isEqualTo(USER_NAME);
   }
 
-  public static void assertNessieDoesNotHaveView(
-      List<String> viewKey, String branchName, ITDataplanePluginTestSetup base)
+  public static void assertNessieDoesNotHaveEntity(
+      List<String> key, String branchName, ITDataplanePluginTestSetup base)
       throws NessieNotFoundException {
     Map<ContentKey, Content> contentsMap =
-        base.getNessieClient().getContent().refName(branchName).key(ContentKey.of(viewKey)).get();
-    assertThat(contentsMap).isEmpty();
-  }
-
-  public static void assertNessieDoesNotHaveTable(
-      List<String> tableSchemaComponents, String branchName, ITDataplanePluginTestSetup base)
-      throws NessieNotFoundException {
-    Map<ContentKey, Content> contentsMap =
-        base.getNessieClient()
-            .getContent()
-            .refName(branchName)
-            .key(ContentKey.of(tableSchemaComponents))
-            .get();
+        base.getNessieClient().getContent().refName(branchName).key(ContentKey.of(key)).get();
     assertThat(contentsMap).isEmpty();
   }
 

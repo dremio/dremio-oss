@@ -23,6 +23,8 @@ import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Regions;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.conf.Host;
+import com.dremio.exec.catalog.conf.SecretRef;
+import com.google.common.base.Strings;
 import java.util.List;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.slf4j.Logger;
@@ -32,7 +34,7 @@ public class ElasticsearchAuthentication {
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchAuthentication.class);
   private final String username;
-  private final String password;
+  private final SecretRef password;
   private final String regionName;
   private final AWSCredentialsProvider awsCredentialsProvider;
 
@@ -40,9 +42,9 @@ public class ElasticsearchAuthentication {
       List<Host> hosts,
       ElasticsearchConf.AuthenticationType authenticationType,
       String username,
-      String password,
+      SecretRef password,
       String accessKey,
-      String accessSecret,
+      SecretRef accessSecret,
       String regionName,
       String awsProfile) {
     switch (authenticationType) {
@@ -55,7 +57,7 @@ public class ElasticsearchAuthentication {
       case ACCESS_KEY:
         this.username = null;
         this.password = null;
-        if (("".equals(accessKey)) || ("".equals(accessSecret))) {
+        if (Strings.isNullOrEmpty(accessKey) || SecretRef.isNullOrEmpty(accessSecret)) {
           throw UserException.validationError()
               .message(
                   "Failure creating Amazon Elasticsearch Service connection. You must provide AWS Access Key and AWS Access Secret.")
@@ -118,10 +120,10 @@ public class ElasticsearchAuthentication {
   }
 
   public HttpAuthenticationFeature getHttpAuthenticationFeature() {
-    if (username == null) {
+    if (Strings.isNullOrEmpty(username) || SecretRef.isNullOrEmpty(password)) {
       return null;
     }
-    return HttpAuthenticationFeature.basic(username, password);
+    return HttpAuthenticationFeature.basic(username, password.get());
   }
 
   public String getRegionName() {

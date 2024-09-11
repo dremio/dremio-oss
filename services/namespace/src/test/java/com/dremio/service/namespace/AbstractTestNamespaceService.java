@@ -23,7 +23,8 @@ import static org.junit.Assert.fail;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -32,6 +33,7 @@ import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -59,15 +61,16 @@ public abstract class AbstractTestNamespaceService {
   private NamespaceServiceImpl namespaceService;
   private LegacyKVStoreProvider provider;
 
-  protected abstract LegacyKVStoreProvider createKVStoreProvider() throws Exception;
-
   protected abstract void closeResources() throws Exception;
 
   @Before
   public void before() throws Exception {
-    provider = createKVStoreProvider();
+    LocalKVStoreProvider storeProvider =
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    storeProvider.start();
+    provider = storeProvider.asLegacy();
     provider.start();
-    namespaceService = new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl());
+    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
   }
 
   @After
@@ -132,7 +135,7 @@ public abstract class AbstractTestNamespaceService {
     // Re-add a source with name "src1" and make sure it contains no child entries
     NamespaceTestUtils.addSource(namespaceService, "src1");
     // Make sure it has no entries under it.
-    assertEquals(0, namespaceService.list(new NamespaceKey("src1")).size());
+    assertEquals(0, namespaceService.list(new NamespaceKey("src1"), null, 10).size());
   }
 
   private void verifySourceNotInNamespace(NamespaceService ns, NamespaceKey nsKey)
@@ -570,7 +573,7 @@ public abstract class AbstractTestNamespaceService {
 
     try {
       NamespaceTestUtils.addSource(namespaceService, "a");
-    } catch (UserException ex) {
+    } catch (ConcurrentModificationException ex) {
       assertTrue(
           ex.getMessage()
               .contains(
@@ -583,7 +586,7 @@ public abstract class AbstractTestNamespaceService {
     try {
       NamespaceTestUtils.addDS(namespaceService, "a.foo");
       fail("Expected the above call to fail");
-    } catch (UserException ex) {
+    } catch (ConcurrentModificationException ex) {
       assertTrue(
           ex.getMessage()
               .contains(
@@ -594,7 +597,7 @@ public abstract class AbstractTestNamespaceService {
     try {
       NamespaceTestUtils.addFolder(namespaceService, "a.foo");
       fail("Expected the above call to fail");
-    } catch (UserException ex) {
+    } catch (ConcurrentModificationException ex) {
       assertTrue(
           ex.getMessage()
               .contains(
@@ -621,8 +624,9 @@ public abstract class AbstractTestNamespaceService {
       List<PartitionChunk> expectedSplits, NamespaceService ns, DatasetConfig datasetConfig) {
     Iterable<PartitionChunkMetadata> nsSplits =
         ns.findSplits(
-            new LegacyIndexedStore.LegacyFindByCondition()
-                .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
+            new ImmutableFindByCondition.Builder()
+                .setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))
+                .build());
 
     final ImmutableMap.Builder<PartitionChunkId, PartitionChunkMetadata> builder =
         ImmutableMap.builder();

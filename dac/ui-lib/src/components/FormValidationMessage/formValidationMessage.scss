@@ -18,9 +18,9 @@
 .validationError {
   font-size: $font-xs;
   white-space: pre-wrap;
-  color: $error-color;
+  color: var(--fill--danger--solid);
 
   &.--qualifier {
-    color: $boulder;
+    color: var(--text--primary);
   }
 }

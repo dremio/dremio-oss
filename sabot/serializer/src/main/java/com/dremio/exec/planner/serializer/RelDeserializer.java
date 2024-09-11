@@ -22,6 +22,7 @@ import com.dremio.exec.planner.sql.DremioToRelContext;
 import com.dremio.plan.serialization.PRelDataType;
 import com.dremio.plan.serialization.PRelList;
 import com.dremio.plan.serialization.PRexNode;
+import com.dremio.plan.serialization.PRexWindowBound;
 import com.dremio.plan.serialization.PSqlOperator;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Any;
@@ -31,6 +32,7 @@ import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
@@ -79,8 +81,13 @@ class RelDeserializer implements RelFromProto {
   @Override
   public RexNode toRex(PRexNode rex) {
     Preconditions.checkNotNull(rex);
-
     return rexDeserializer.convert(rex);
+  }
+
+  @Override
+  public RexWindowBound toRex(PRexWindowBound pRexWindowBound) {
+    Preconditions.checkNotNull(pRexWindowBound);
+    return rexDeserializer.convert(pRexWindowBound);
   }
 
   @Override

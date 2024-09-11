@@ -273,25 +273,86 @@ SqlNode SqlDropTag() :
 }
 
 /**
- * MERGE BRANCH sourceBranchName
- * [INTO targetBranchName]
- * [IN <sourceName>]
+ * MERGE BRANCH [ DRY RUN ] sourceBranchName
+ * [ INTO targetBranchName]
+ * [ IN <sourceName>]
+ * [ ON CONFLICT ( OVERWRITE | DISCARD | CANCEL )
+ *  [ EXCEPT ( OVERWRITE | DISCARD | CANCEL ) <content_name> [, <content_name>, ...]
+ *    [ EXCEPT ( OVERWRITE | DISCARD | CANCEL ) <content_name> [, <content_name>, ...]]
+ *  ]
+ * ]
  */
 SqlNode SqlMergeBranch() :
 {
   SqlParserPos pos;
+  SqlLiteral isDryRun = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
   SqlIdentifier sourceBranchName;
   SqlIdentifier targetBranchName = null;
   SqlIdentifier sourceName = null;
+  MergeBehavior defaultMergeBehavior = null;
+  MergeBehavior mergeBehavior1 = null;
+  MergeBehavior mergeBehavior2 = null;
+  SqlNodeList exceptList1 = null;
+  SqlNodeList exceptList2 = null;
 }
 {
   <MERGE> { pos = getPos(); }
   <BRANCH>
+  [ <DRY> <RUN> { isDryRun = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); } ]
   sourceBranchName = SimpleIdentifier()
   [ <INTO> { targetBranchName = SimpleIdentifier(); } ]
   [ <IN> { sourceName = SimpleIdentifier(); } ]
+  [ <ON> <CONFLICT>{ defaultMergeBehavior = getMergeBehavior(); }
+    [<EXCEPT> { mergeBehavior1 = getMergeBehavior(); }
+      exceptList1 = GetTableKeys()
+    ]
+    [<EXCEPT> { mergeBehavior2 = getMergeBehavior(); }
+      exceptList2 = GetTableKeys()
+    ]
+  ]
   {
-    return new SqlMergeBranch(pos, sourceBranchName, targetBranchName, sourceName);
+    return new SqlMergeBranch(pos, isDryRun, sourceBranchName, targetBranchName, sourceName, defaultMergeBehavior, mergeBehavior1, mergeBehavior2, exceptList1, exceptList2);
+  }
+}
+
+MergeBehavior getMergeBehavior() :
+{
+  MergeBehavior mergeBehavior;
+}
+{
+  (
+    <OVERWRITE> { mergeBehavior = MergeBehavior.FORCE; }
+    |
+    <DISCARD> { mergeBehavior = MergeBehavior.DROP; }
+    |
+    <CANCEL> { mergeBehavior = MergeBehavior.NORMAL; }
+  ) {
+    return mergeBehavior;
+  }
+}
+
+SqlNodeList GetTableKeys() :
+{
+  final Span s = Span.of();
+  final List<SqlNode> list = new ArrayList<SqlNode>();
+}
+{
+    TableKey(list)
+    (
+        <COMMA> TableKey(list)
+    )* {
+    return new SqlNodeList(list, s.end(this));
+  }
+}
+
+void TableKey(List<SqlNode> list) :
+{
+  final Span s = Span.of();
+  SqlIdentifier id;
+}
+{
+  id = CompoundIdentifier() {
+    list.add(id);
   }
 }
 
@@ -428,6 +489,8 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
 /**
  [AT (BRANCH | REF | REFERENCE | TAG | COMMIT | SNAPSHOT | TIMESTAMP (versionSpec)]
  [ <AS> <OF> timestamp ]
+ Note that the ATVersionSpec is meant to be used to specify a specific version of table. The specified version is not meant to be limited to be any specific type.
+ If you mean to limit the version specification to the tip of a branch( or reference), use WriteableAtVersionSpec.
 */
 SqlTableVersionSpec ATVersionSpec() :
 {

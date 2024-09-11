@@ -15,86 +15,98 @@
  */
 package com.dremio.sabot.exec;
 
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.google.common.base.Joiner;
+import java.lang.management.MemoryPoolMXBean;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-public class FailGreediestQueriesStrategy extends AbstractHeapClawBackStrategy {
+/** Cancels queries consuming up to the specified percentage of the total consumed memory */
+public class FailGreediestQueriesStrategy extends AbstractHeapClawBackStrategy
+    implements HeapLowMemListener, DumpUsageObserver {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(FailGreediestQueriesStrategy.class);
+  private static final long LOW_MEM_LOG_GAP = TimeUnit.MINUTES.toMillis(5);
 
-  // If we are running short of memory, kill queries consuming upto this percentage of the total.
-  private long cancel_percentage;
-
-  private boolean memoryArbiterCancel;
-
-  public FailGreediestQueriesStrategy(
-      FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
-    this(fragmentExecutors, queriesClerk, 25, false);
-  }
+  private final long cancelPercentage;
+  private long lastLoggedOnLowMemMillis = 0;
 
   public FailGreediestQueriesStrategy(
-      FragmentExecutors fragmentExecutors,
-      QueriesClerk queriesClerk,
-      long cancel_percentage,
-      boolean memoryArbiterCancel) {
+      FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk, long cancelPercentage) {
     super(fragmentExecutors, queriesClerk);
-    this.cancel_percentage = cancel_percentage;
-    this.memoryArbiterCancel = memoryArbiterCancel;
+    this.cancelPercentage = cancelPercentage;
   }
 
-  // find the greediest queries, and fail them.
   @Override
-  public void clawBack(String statusToDisplay) {
-    // get all active queries.
+  public void clawBack(HeapClawBackContext clawBackContext) {
+    final String activeQueryDump = fragmentExecutors.activeQueriesToCsv(queriesClerk);
+    logger.info(
+        "Dumping current fragment executor state as heap monitor is about to kill some queries: {}{}",
+        System.lineSeparator(),
+        activeQueryDump);
     List<ActiveQuery> activeQueries = getSortedActiveQueries();
-    if (activeQueries.size() == 0) {
-      // if there are no active queries, nothing to do,
-      logger.info("no active queries, nothing to fail");
+
+    if (activeQueries.isEmpty()) {
+      logger.info("No active queries, nothing to fail");
       return;
     }
 
-    // find the total memory used (we assume that the heap usage is proportional to the direct
+    // Find the total memory used (we assume that the heap usage is proportional to the direct
     // memory).
-    Long totalUsed = activeQueries.stream().mapToLong(x -> x.directMemoryUsed).reduce(0, Long::sum);
+    long totalUsed = activeQueries.stream().mapToLong(x -> x.directMemoryUsed).reduce(0, Long::sum);
 
-    // Collect queries amount to cancel_percentage% of the total usage (atleast 1 query).
+    // Collect queries amount to cancelPercentage% of the total usage (at least 1 query).
     List<QueryId> queriesToCancel = new ArrayList<>();
-    long pendingCancelAmount = (totalUsed * cancel_percentage) / 100;
-    for (ActiveQuery activeQuery : activeQueries) {
-      if (this.memoryArbiterCancel) {
-        logger.info(
-            "Asked to fail query "
-                + QueryIdHelper.getQueryId(activeQuery.queryId)
-                + " by MemoryArbiter");
-      } else {
-        logger.info(
-            "Failing query "
-                + QueryIdHelper.getQueryId(activeQuery.queryId)
-                + " to avoid heap outage");
-      }
+    final long memoryUsageCancellationThreshold = (totalUsed * cancelPercentage) / 100;
+    long cumulativeMemoryUsageByQueries = 0;
 
+    for (ActiveQuery activeQuery : activeQueries) {
       queriesToCancel.add(activeQuery.queryId);
-      pendingCancelAmount -= activeQuery.directMemoryUsed;
-      if (pendingCancelAmount <= 0) {
+      cumulativeMemoryUsageByQueries += activeQuery.directMemoryUsed;
+      if (cumulativeMemoryUsageByQueries >= memoryUsageCancellationThreshold) {
         break;
       }
     }
 
-    if (this.memoryArbiterCancel) {
-      failQueries(
-          queriesToCancel,
-          new OutOfDirectMemoryException("MemoryArbiter detected no memory available"),
-          "Query canceled by MemoryArbiter",
-          statusToDisplay);
-    } else {
-      // fail the collected queries.
-      failQueries(
-          queriesToCancel,
-          new OutOfHeapMemoryException("heap monitor detected that the heap is almost full"),
-          FAIL_CONTEXT,
-          "");
+    logger.info(
+        "Canceling {} queries that together consume {}% of memory (cancellation of up to {}% of memory was requested by {}):\n{}",
+        queriesToCancel.size(),
+        Math.round(((float) cumulativeMemoryUsageByQueries / totalUsed) * 100),
+        this.cancelPercentage,
+        clawBackContext.getTrigger(),
+        Joiner.on("\n").join(queriesToCancel));
+
+    failQueries(queriesToCancel, clawBackContext);
+  }
+
+  @Override
+  public void handleMemNotification(boolean collectionThresholdCrossed, MemoryPoolMXBean pool) {}
+
+  @Override
+  public void handleUsageCrossedNotification() {
+    final long current = System.currentTimeMillis();
+    if (lastLoggedOnLowMemMillis == 0 || (current - lastLoggedOnLowMemMillis) > LOW_MEM_LOG_GAP) {
+      final String activeQueryDump = fragmentExecutors.activeQueriesToCsv(queriesClerk);
+      logger.info(
+          "Dumping current fragment executor state as heap usage has crossed low mem threshold: {}{}",
+          System.lineSeparator(),
+          activeQueryDump);
+      lastLoggedOnLowMemMillis = current;
     }
+  }
+
+  @Override
+  public void changeLowMemOptions(long newThresholdPercentage, long newAggressiveWidthLowerBound) {
+    // nothing to do
+  }
+
+  @Override
+  public void dumpUsageData() {
+    final String activeQueryDump = fragmentExecutors.activeQueriesToCsv(queriesClerk);
+    logger.info(
+        "Dumping current fragment executor state on user request: {}{}",
+        System.lineSeparator(),
+        activeQueryDump);
   }
 }

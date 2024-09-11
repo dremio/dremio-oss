@@ -32,6 +32,7 @@ import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
@@ -134,6 +135,8 @@ public class TestFragmentExecutor {
     DeferredException exception = mock(DeferredException.class);
     EventProvider eventProvider = mock(EventProvider.class);
     SpillService spillService = mock(SpillService.class);
+    SabotContext.NodeDebugContextProviderImpl nodeDebugContextProvider =
+        mock(SabotContext.NodeDebugContextProviderImpl.class);
 
     return new FragmentExecutor(
         statusReporter,
@@ -160,6 +163,7 @@ public class TestFragmentExecutor {
         sources,
         exception,
         eventProvider,
-        spillService);
+        spillService,
+        nodeDebugContextProvider);
   }
 }

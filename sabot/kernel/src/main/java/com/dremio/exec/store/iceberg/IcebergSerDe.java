@@ -44,6 +44,8 @@ import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.SortOrderParser;
 import org.apache.iceberg.exceptions.RuntimeIOException;
+import org.apache.iceberg.mapping.NameMapping;
+import org.apache.iceberg.mapping.NameMappingParser;
 
 /** Serialization/Deserialization for iceberg entities. */
 public class IcebergSerDe {
@@ -221,6 +223,10 @@ public class IcebergSerDe {
    */
   public static SortOrder deserializeSortOrderFromJson(Schema schema, String sortOrderJson) {
     return SortOrderParser.fromJson(schema, sortOrderJson);
+  }
+
+  public static NameMapping deserializeNameMappingFromJson(String nameMappingJson) {
+    return NameMappingParser.fromJson(nameMappingJson);
   }
 
   public static byte[] serializeToByteArray(Object object) throws IOException {

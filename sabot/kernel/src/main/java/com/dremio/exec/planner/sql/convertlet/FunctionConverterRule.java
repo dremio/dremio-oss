@@ -34,7 +34,7 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.tools.RelBuilder;
 
 public final class FunctionConverterRule extends RelRule<RelRule.Config> {
-  private final List<FunctionConvertlet> convertlets;
+  private final List<RexNodeConvertlet> convertlets;
 
   public FunctionConverterRule(
       OptionResolver optionResolver, UserDefinedFunctionExpander udfExpander) {
@@ -55,7 +55,6 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
     convertlets.add(ArrayDistinctConvertlet.INSTANCE);
     convertlets.add(ArrayIntersectionConvertlet.INSTANCE);
     convertlets.add(ArrayPrependConvertlet.INSTANCE);
-    convertlets.add(ArraySortConvertlet.INSTANCE);
     convertlets.add(ArraysOverlapConvertlet.INSTANCE);
     convertlets.add(ArrayValueConstructorConvertlet.INSTANCE);
     convertlets.add(ConvertFromConvertlet.INSTANCE);
@@ -63,6 +62,8 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
     convertlets.add(IndexingOnMapConvertlet.INSTANCE);
     convertlets.add(LikeToColumnLikeConvertlet.LIKE_TO_COL_LIKE);
     convertlets.add(LikeToColumnLikeConvertlet.REGEXP_LIKE_TO_REGEXP_COL_LIKE);
+    convertlets.add(MapConstructConvertlet.INSTANCE);
+    convertlets.add(MapValueConstructorConvertlet.INSTANCE);
     convertlets.add(RegexpLikeToLikeConvertlet.INSTANCE);
     convertlets.add(SetUnionConvertlet.INSTANCE);
     convertlets.add(new UdfConvertlet(udfExpander));
@@ -81,7 +82,7 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
     }
   }
 
-  public static RelNode convert(RelNode relNode, List<FunctionConvertlet> convertlets) {
+  public static RelNode convert(RelNode relNode, List<RexNodeConvertlet> convertlets) {
     RelBuilder relBuilder =
         DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(relNode.getCluster(), null);
     RexBuilder rexBuilder = relNode.getCluster().getRexBuilder();
@@ -102,10 +103,10 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
 
   private static final class RexShuttleImpl extends RexShuttle {
     private final ConvertletContext convertletContext;
-    private final List<FunctionConvertlet> convertlets;
+    private final List<RexNodeConvertlet> convertlets;
 
     public RexShuttleImpl(
-        ConvertletContext convertletContext, List<FunctionConvertlet> convertlets) {
+        ConvertletContext convertletContext, List<RexNodeConvertlet> convertlets) {
       this.convertletContext = convertletContext;
       this.convertlets = convertlets;
     }
@@ -113,15 +114,15 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
     @Override
     public RexNode visitCall(final RexCall call) {
       // Recurse to visit the operands
-      final RexCall operandsVisited = (RexCall) super.visitCall(call);
+      final RexNode operandsVisited = super.visitCall(call);
 
-      RexCall previous = operandsVisited;
+      RexNode previous = operandsVisited;
       while (true) {
-        RexCall current = previous;
+        RexNode current = previous;
         // Keep applying rewrites as long as a transformation happens.
-        for (FunctionConvertlet functionConvertlet : convertlets) {
+        for (RexNodeConvertlet functionConvertlet : convertlets) {
           if (functionConvertlet.matches(current)) {
-            current = functionConvertlet.convertCall(convertletContext, current);
+            current = functionConvertlet.convert(convertletContext, current);
             assertTypesMatch(current, call);
           }
         }
@@ -134,11 +135,11 @@ public final class FunctionConverterRule extends RelRule<RelRule.Config> {
         // Do a recursive call on the whole thing,
         // since one of the rules might have rewritten one of the operands
         // and now the operand matches a rewrite rule
-        previous = (RexCall) visitCall(current);
+        previous = current.accept(this);
       }
     }
 
-    private void assertTypesMatch(RexCall original, RexCall converted) {
+    private void assertTypesMatch(RexNode original, RexNode converted) {
       if (!RelDataTypeEqualityUtil.areEquals(
           original.getType(), converted.getType(), false, false)) {
         throw new RuntimeException(

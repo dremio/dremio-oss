@@ -17,6 +17,7 @@ package com.dremio.exec.store.dfs.system;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import java.util.List;
 import org.apache.iceberg.Schema;
 
 /**
@@ -92,10 +93,20 @@ public abstract class SystemIcebergViewMetadata {
    * Get a view query for the view based on the provided user name.
    *
    * @param userName The user name for whom the query is generated.
+   * @param canReadAllRecords True, if the provided user can read all the records from the
+   *     underlying tables.
    * @return The SQL query for the view.
    */
-  public String getViewQuery(String userName) {
-    return new SystemIcebergViewQueryBuilder(getSchemaVersion(), getTableName(), null, userName)
+  public String getViewQuery(String userName, boolean canReadAllRecords) {
+    return new SystemIcebergViewQueryBuilder(
+            getSchemaVersion(), getTableName(), null, userName, canReadAllRecords)
         .getViewQuery();
   }
+
+  /**
+   * Get the list of physical table names that build up the view.
+   *
+   * @return list of table names, always non-null.
+   */
+  public abstract List<String> getViewTables();
 }

@@ -172,31 +172,27 @@ public class JobDatasetGraphUI {
     if (CollectionUtils.isNotEmpty(parentsList)) {
       parentsList.forEach(
           (parent) -> {
-            try {
-              DatasetConfig tempDatasetConfig = null;
-              AtomicBoolean isExternalQuery = getIsExternalQuery(parent.getDatasetPathList());
-              final NameSpaceContainer entity =
-                  namespaceService
-                      .getEntities(
-                          Collections.singletonList(new NamespaceKey(parent.getDatasetPathList())))
-                      .get(0);
-              if (entity != null) {
-                parents.add(CatalogItem.fromDatasetConfig(entity.getDataset(), null));
-              } else {
-                tempDatasetConfig =
-                    new DatasetConfig()
-                        .setId(new EntityId(String.valueOf(UUID.randomUUID())))
-                        .setType(DatasetType.OTHERS)
-                        .setFullPathList(parent.getDatasetPathList());
-                if (isExternalQuery.get()) { // test condition to handle external query scenario.
-                  tempDatasetConfig.setName(EXTERNAL_QUERY);
-                } else { // test condition to handle all others scenario.
-                  tempDatasetConfig.setName(OTHERS);
-                }
-                parents.add(CatalogItem.fromDatasetConfig(tempDatasetConfig, null));
+            DatasetConfig tempDatasetConfig = null;
+            AtomicBoolean isExternalQuery = getIsExternalQuery(parent.getDatasetPathList());
+            final NameSpaceContainer entity =
+                namespaceService
+                    .getEntities(
+                        Collections.singletonList(new NamespaceKey(parent.getDatasetPathList())))
+                    .get(0);
+            if (entity != null) {
+              parents.add(CatalogItem.fromDatasetConfig(entity.getDataset(), null));
+            } else {
+              tempDatasetConfig =
+                  new DatasetConfig()
+                      .setId(new EntityId(String.valueOf(UUID.randomUUID())))
+                      .setType(DatasetType.OTHERS)
+                      .setFullPathList(parent.getDatasetPathList());
+              if (isExternalQuery.get()) { // test condition to handle external query scenario.
+                tempDatasetConfig.setName(EXTERNAL_QUERY);
+              } else { // test condition to handle all others scenario.
+                tempDatasetConfig.setName(OTHERS);
               }
-            } catch (NamespaceException e) {
-              e.printStackTrace();
+              parents.add(CatalogItem.fromDatasetConfig(tempDatasetConfig, null));
             }
           });
     }

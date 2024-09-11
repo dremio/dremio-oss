@@ -31,6 +31,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -62,7 +63,9 @@ class ElasticPartitionChunkListing implements PartitionChunkListing {
     // encode the typeName incase it has a slash or other special characters
     String temp = datasetHandle.getDatasetPath().getComponents().get(2);
     try {
-      temp = URLEncoder.encode(datasetHandle.getDatasetPath().getComponents().get(2), "UTF-8");
+      temp =
+          URLEncoder.encode(
+              datasetHandle.getDatasetPath().getComponents().get(2), StandardCharsets.UTF_8);
     } catch (Exception ignore) {
     }
     this.typeName = temp;

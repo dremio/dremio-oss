@@ -34,7 +34,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlDescribeFunction extends SqlCall {
 
-  private final SqlIdentifier Function;
+  private final SqlIdentifier function;
+  private final SqlTableVersionSpec sqlTableVersionSpec;
 
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("DESCRIBE_FUNCTION", SqlKind.OTHER) {
@@ -42,22 +43,26 @@ public class SqlDescribeFunction extends SqlCall {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 1, "SqlDescribeFunction.createCall() has to get 2 operands!");
-          return new SqlDescribeFunction(pos, (SqlIdentifier) operands[0]);
+              operands.length == 2, "SqlDescribeFunction.createCall() has to get 2 operands!");
+          return new SqlDescribeFunction(
+              pos, (SqlIdentifier) operands[0], (SqlTableVersionSpec) operands[1]);
         }
       };
 
   /** Creates a SqlDescribeFunction. */
-  public SqlDescribeFunction(SqlParserPos pos, SqlIdentifier Function) {
+  public SqlDescribeFunction(
+      SqlParserPos pos, SqlIdentifier Function, SqlTableVersionSpec tableVersionSpec) {
     super(pos);
-    this.Function = Function;
+    this.function = Function;
+    this.sqlTableVersionSpec = tableVersionSpec;
   }
 
   @Override
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("DESCRIBE");
     writer.keyword("FUNCTION");
-    Function.unparse(writer, leftPrec, rightPrec);
+    function.unparse(writer, leftPrec, rightPrec);
+    sqlTableVersionSpec.unparse(writer, leftPrec, rightPrec);
   }
 
   @Override
@@ -67,11 +72,15 @@ public class SqlDescribeFunction extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(Function);
+    return ImmutableList.of(function, sqlTableVersionSpec);
   }
 
   public SqlIdentifier getFunction() {
-    return Function;
+    return function;
+  }
+
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
   }
 }
 

@@ -16,12 +16,15 @@
 
 import { isDataPlaneSourceType } from "@app/constants/sourceTypes";
 import StorageSelectionWrapper from "@app/components/Forms/Wrappers/StorageSelectionWrapper";
+import OauthWrapper from "@app/components/Forms/Wrappers/OauthWrapper";
 
 export const getRendererOverride = (sourceType: string, propName: string) => {
   if (isDataPlaneSourceType(sourceType)) {
     switch (propName) {
       case "config.storageProvider":
         return StorageSelectionWrapper;
+      case "config.nessieAuthType":
+        return OauthWrapper;
       default:
         return;
     }

@@ -16,7 +16,6 @@
 package com.dremio.exec.sql.hive;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS;
 import static com.dremio.exec.store.hive.HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertTrue;
@@ -26,7 +25,6 @@ import java.nio.file.Paths;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -47,7 +45,6 @@ import com.google.common.collect.ImmutableMap;
  * Tests for Basic DML support like Create, CTAS, Drop commands on Iceberg tables in Hive catalog.
  */
 public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBase {
-  private static AutoCloseable enableIcebergDmlSupportFlags;
   private static final String SCHEME = "file:///";
   private static String WAREHOUSE_LOCATION;
 
@@ -56,18 +53,10 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
 
   @BeforeClass
   public static void setup() throws Exception {
-    enableIcebergDmlSupportFlags = enableIcebergDmlSupportFlag();
-    setSystemOption(ENABLE_ICEBERG_PARTITION_TRANSFORMS.getOptionName(), "true");
     WAREHOUSE_LOCATION = dataGenerator.getWhDir() + "/";
-    dataGenerator.updatePluginConfig((getSabotContext().getCatalogService()),
+    dataGenerator.updatePluginConfig(getCatalogService(),
       ImmutableMap.of(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, SCHEME + WAREHOUSE_LOCATION,
         HiveConfFactory.ENABLE_DML_TESTS_WITHOUT_LOCKING, "true"));
-  }
-
-  @AfterClass
-  public static void close() throws Exception {
-    enableIcebergDmlSupportFlags.close();
-    resetSystemOption(ENABLE_ICEBERG_PARTITION_TRANSFORMS.getOptionName());
   }
 
   @Test

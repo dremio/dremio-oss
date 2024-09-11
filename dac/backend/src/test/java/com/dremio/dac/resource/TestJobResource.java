@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.exec.server.ContextService;
 import com.dremio.options.OptionValue;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
@@ -88,13 +87,11 @@ public class TestJobResource extends BaseTestServer {
     assertEquals(
         "The default value of the limit of download records should be 1_000_000",
         1_000_000L,
-        l(ContextService.class).get().getOptionManager().getOption(DOWNLOAD_RECORDS_LIMIT));
+        getOptionManager().getOption(DOWNLOAD_RECORDS_LIMIT));
 
     UserExceptionAssert.assertThatThrownBy(
             () ->
-                l(ContextService.class)
-                    .get()
-                    .getOptionManager()
+                getOptionManager()
                     .setOption(
                         OptionValue.createLong(SYSTEM, DOWNLOAD_RECORDS_LIMIT.getOptionName(), -1)))
         .hasMessageContaining("Option dac.download.records_limit must be between 0 and 1000000.");
@@ -122,9 +119,7 @@ public class TestJobResource extends BaseTestServer {
     int[] expectedNumbers = new int[] {0, 1, 50};
 
     for (int expectedNumber : expectedNumbers) {
-      l(ContextService.class)
-          .get()
-          .getOptionManager()
+      getOptionManager()
           .setOption(
               OptionValue.createLong(
                   SYSTEM, DOWNLOAD_RECORDS_LIMIT.getOptionName(), expectedNumber));

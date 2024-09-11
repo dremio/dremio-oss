@@ -62,6 +62,9 @@ public interface ProjectConfig {
    */
   DistPathConfig getSystemIcebergTablesConfig();
 
+  /** Get node history config */
+  DistPathConfig getNodeHistoryConfig();
+
   /**
    * @return
    */

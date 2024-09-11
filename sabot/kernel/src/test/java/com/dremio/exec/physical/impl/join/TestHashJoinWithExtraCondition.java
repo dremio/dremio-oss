@@ -16,6 +16,10 @@
 package com.dremio.exec.physical.impl.join;
 
 import com.dremio.PlanTestBase;
+import com.dremio.sabot.op.join.hash.HashJoinOperator;
+import java.util.regex.Pattern;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Queries that test hash join with additional inequality expressions. */
@@ -28,6 +32,18 @@ public class TestHashJoinWithExtraCondition extends PlanTestBase {
 
   private static final String NATIONS = "dfs_test.\"nations\"";
   private static final String REGIONS = "dfs_test.\"regions\"";
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    setSystemOption(HashJoinOperator.ENABLE_SPILL, "false");
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    setSystemOption(
+        HashJoinOperator.ENABLE_SPILL,
+        HashJoinOperator.ENABLE_SPILL.getDefault().getBoolVal().toString());
+  }
 
   @Test
   public void testInnerJoin() throws Exception {
@@ -80,41 +96,44 @@ public class TestHashJoinWithExtraCondition extends PlanTestBase {
   @Test
   public void testLeftJoinWithDuplicate() throws Exception {
 
-    runSQL(
-        "CREATE TABLE "
-            + NATIONS
-            + " AS "
-            + "SELECT columns[0] AS N_NATIONKEY, columns[1] AS N_NAME, columns[2] AS N_REGIONKEY, columns[3] AS N_COMMENT "
-            + "FROM cp.\"/store/text/data/nations_with_duplicate_keys.csv\"");
+    try {
+      runSQL(
+          "CREATE TABLE "
+              + NATIONS
+              + " AS "
+              + "SELECT columns[0] AS N_NATIONKEY, columns[1] AS N_NAME, columns[2] AS N_REGIONKEY, columns[3] AS N_COMMENT "
+              + "FROM cp.\"/store/text/data/nations_with_duplicate_keys.csv\"");
 
-    runSQL(
-        "CREATE TABLE "
-            + REGIONS
-            + " AS "
-            + "SELECT columns[0] AS R_REGIONKEY, columns[1] AS R_NAME, columns[2] AS R_COMMENT "
-            + "FROM cp.\"/store/text/data/regions_with_duplicate_keys.csv\"");
+      runSQL(
+          "CREATE TABLE "
+              + REGIONS
+              + " AS "
+              + "SELECT columns[0] AS R_REGIONKEY, columns[1] AS R_NAME, columns[2] AS R_COMMENT "
+              + "FROM cp.\"/store/text/data/regions_with_duplicate_keys.csv\"");
 
-    String sql =
-        String.format(
-            "SELECT nations.N_REGIONKEY key, count(*) as cnt FROM\n"
-                + NATIONS
-                + "\n"
-                + "LEFT JOIN\n"
-                + REGIONS
-                + "\n"
-                + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
-                + "  AND (length(nations.n_comment) < length(regions.r_comment)) \n"
-                + " group by nations.N_REGIONKEY");
-    testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("key", "cnt")
-        .baselineValues("0", 10L)
-        .go();
-    testPlanMatchingPatterns(sql, new String[] {"HashJoin"});
+      String sql =
+          String.format(
+              "SELECT nations.N_REGIONKEY key, count(*) as cnt FROM\n"
+                  + NATIONS
+                  + "\n"
+                  + "LEFT JOIN\n"
+                  + REGIONS
+                  + "\n"
+                  + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+                  + "  AND (length(nations.n_comment) < length(regions.r_comment)) \n"
+                  + " group by nations.N_REGIONKEY");
+      testBuilder()
+          .sqlQuery(sql)
+          .unOrdered()
+          .baselineColumns("key", "cnt")
+          .baselineValues("0", 10L)
+          .go();
+      testPlanMatchingPatterns(sql, new String[] {"HashJoin"});
 
-    test(String.format("DROP TABLE %s", NATIONS));
-    test(String.format("DROP TABLE %s", REGIONS));
+    } finally {
+      test(String.format("DROP TABLE %s", NATIONS));
+      test(String.format("DROP TABLE %s", REGIONS));
+    }
   }
 
   @Test
@@ -157,5 +176,159 @@ public class TestHashJoinWithExtraCondition extends PlanTestBase {
             + "full join cp.\"tpch/nation.parquet\" on n_nationkey = mod(O_orderkey, 25) ";
     testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(17787L).go();
     testPlanMatchingPatterns(sql, new String[] {"HashJoin"});
+  }
+
+  @Test
+  public void testLeftJoinWithDuplicateWithLowTargetBatchSize() throws Exception {
+    try {
+      runSQL(
+          "CREATE TABLE "
+              + NATIONS
+              + " AS "
+              + "SELECT columns[0] AS N_NATIONKEY, columns[1] AS N_NAME, columns[2] AS N_REGIONKEY, columns[3] AS N_COMMENT "
+              + "FROM cp.\"/store/text/data/nations_with_duplicate_keys.csv\"");
+
+      runSQL(
+          "CREATE TABLE "
+              + REGIONS
+              + " AS "
+              + "SELECT columns[0] AS R_REGIONKEY, columns[1] AS R_NAME, columns[2] AS R_COMMENT "
+              + "FROM cp.\"/store/text/data/regions_with_duplicate_keys.csv\"");
+
+      String sql =
+          String.format(
+              "SELECT nations.N_REGIONKEY key, count(*) as cnt FROM\n"
+                  + REGIONS
+                  + "\n"
+                  + "RIGHT JOIN\n"
+                  + NATIONS
+                  + "\n"
+                  + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+                  + "  AND (length(nations.n_comment) < length(regions.r_comment)) \n"
+                  + " group by nations.N_REGIONKEY");
+      testBuilder()
+          .sqlQuery(sql)
+          .unOrdered()
+          .baselineColumns("key", "cnt")
+          .baselineValues("0", 10L)
+          .go();
+      testPlanMatchingPatterns(sql, new String[] {"HashJoin"});
+      testPlanMatchingPatterns(sql, new String[] {"extraCondition"});
+    } finally {
+      test(String.format("DROP TABLE %s", NATIONS));
+      test(String.format("DROP TABLE %s", REGIONS));
+    }
+  }
+
+  @Test
+  public void testRightJoinWithDuplicates() throws Exception {
+    String sql =
+        String.format(
+            "SELECT REGIONS.R_REGIONKEY key, COUNT(*) as cnt\n"
+                + "FROM (\n"
+                + "    VALUES\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'WILDLIFE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE')\n"
+                + ") AS NATIONS (N_NATIONKEY, N_NAME, N_REGIONKEY, N_COMMENT)\n"
+                + "RIGHT JOIN (\n"
+                + "    VALUES\n"
+                + "        (0,'AFRICA','WILDLIFE'),\n"
+                + "        (0,'AFRICA','NATURE'),\n"
+                + "        (0,'AFRICA','WILDLIFE')\n"
+                + ") AS REGIONS (R_REGIONKEY, R_NAME, R_COMMENT)\n"
+                + "ON NATIONS.N_REGIONKEY = REGIONS.R_REGIONKEY\n"
+                + "AND NATIONS.N_COMMENT != REGIONS.R_COMMENT\n"
+                + "GROUP BY REGIONS.R_REGIONKEY");
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("key", "cnt")
+        .baselineValues(0L, 11L)
+        .go();
+    testPlanMatchingPatterns(
+        sql,
+        new String[] {
+          Pattern.quote(
+              "HashJoin(condition=[=($0, $2)], joinType=[right], extraCondition=[<>($1, $3)])")
+        });
+  }
+
+  @Test
+  public void testRightJoinWithDuplicates1() throws Exception {
+    String sql =
+        String.format(
+            "SELECT REGIONS.R_REGIONKEY key, COUNT(*) as cnt\n"
+                + "FROM (\n"
+                + "    VALUES\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE')\n"
+                + ") AS NATIONS (N_NATIONKEY, N_NAME, N_REGIONKEY, N_COMMENT)\n"
+                + "RIGHT JOIN (\n"
+                + "    VALUES\n"
+                + "        (0,'AFRICA','WILDLIFE'),\n"
+                + "        (0,'AFRICA','NATURE'),\n"
+                + "        (0,'AFRICA','WILDLIFE')\n"
+                + ") AS REGIONS (R_REGIONKEY, R_NAME, R_COMMENT)\n"
+                + "ON NATIONS.N_REGIONKEY = REGIONS.R_REGIONKEY\n"
+                + "AND NATIONS.N_COMMENT != REGIONS.R_COMMENT\n"
+                + "GROUP BY REGIONS.R_REGIONKEY");
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("key", "cnt")
+        .baselineValues(0L, 11L)
+        .go();
+    testPlanMatchingPatterns(
+        sql,
+        new String[] {
+          Pattern.quote(
+              "HashJoin(condition=[=($0, $2)], joinType=[right], extraCondition=[<>($1, $3)])")
+        });
+  }
+
+  @Test
+  public void testFullJoinWithDuplicates() throws Exception {
+    String sql =
+        String.format(
+            "SELECT REGIONS.R_REGIONKEY key, COUNT(*) as cnt\n"
+                + "FROM (\n"
+                + "    VALUES\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE'),\n"
+                + "        (0,'ALGERIA',0,'WILDLIFE'),\n"
+                + "        (1,'ALGERIA',1,'WILDLIFE'),\n"
+                + "        (0,'ALGERIA',0,'NATURE')\n"
+                + ") AS NATIONS (N_NATIONKEY, N_NAME, N_REGIONKEY, N_COMMENT)\n"
+                + "FULL JOIN (\n"
+                + "    VALUES\n"
+                + "        (0,'AFRICA','WILDLIFE'),\n"
+                + "        (0,'AFRICA','NATURE'),\n"
+                + "        (1,'AFRICA','WILDLIFE'),"
+                + "        (0,'AFRICA','WILDLIFE')\n"
+                + ") AS REGIONS (R_REGIONKEY, R_NAME, R_COMMENT)\n"
+                + "ON NATIONS.N_REGIONKEY = REGIONS.R_REGIONKEY\n"
+                + "AND NATIONS.N_COMMENT != REGIONS.R_COMMENT\n"
+                + "GROUP BY REGIONS.R_REGIONKEY");
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("key", "cnt")
+        .baselineValues(0L, 7L)
+        .baselineValues(1L, 1L)
+        .baselineValues(null, 1L)
+        .go();
+    testPlanMatchingPatterns(
+        sql,
+        new String[] {
+          Pattern.quote(
+              "HashJoin(condition=[=($0, $2)], joinType=[full], extraCondition=[<>($1, $3)])")
+        });
   }
 }

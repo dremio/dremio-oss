@@ -23,14 +23,14 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
-public final class ArrayPrependConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE =
-      new NullableArrayFunctionConvertlet(new ArrayPrependConvertlet());
+public final class ArrayPrependConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE =
+      new NullableArrayRexCallConvertlet(new ArrayPrependConvertlet());
 
   private ArrayPrependConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator() == ARRAY_PREPEND;
   }
 

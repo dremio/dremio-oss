@@ -32,7 +32,8 @@ public class SysFlightRulesFactory extends StoragePluginTypeRulesFactory {
       OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
     switch (phase) {
       case LOGICAL:
-        return ImmutableSet.<RelOptRule>of(new SysFlightScanDrule(pluginType));
+        return ImmutableSet.<RelOptRule>of(
+            new SysFlightScanDrule(pluginType), SysTableFunctionQueryScanDrule.INSTANCE);
 
       case PHYSICAL:
         return ImmutableSet.of(
@@ -41,7 +42,8 @@ public class SysFlightRulesFactory extends StoragePluginTypeRulesFactory {
                     .getCatalogService()
                     .getSource(CatalogServiceImpl.SYSTEM_TABLE_SOURCE_NAME)),
             SysFlightPushFilterIntoScan.IS_FILTER_ON_PROJECT,
-            SysFlightPushFilterIntoScan.IS_FILTER_ON_SCAN);
+            SysFlightPushFilterIntoScan.IS_FILTER_ON_SCAN,
+            SysTableFunctionQueryScanPrule.INSTANCE);
 
       default:
         return ImmutableSet.of();

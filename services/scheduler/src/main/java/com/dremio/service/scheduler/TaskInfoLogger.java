@@ -73,7 +73,7 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
           schedulerCommon.getUnVersionedDoneFqPath(),
           schedulerCommon.getVersionedDoneFqPath());
     }
-    allTasks.values().forEach(PerTaskInfoLogger::logEvents);
+    allTasks.values().forEach((x) -> x.logEvents(schedulerCommon.getThisEndpoint().getAddress()));
   }
 
   @Override
@@ -114,6 +114,9 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
   }
 
   @Override
+  public void computedWeight(int currentWeight) {}
+
+  @Override
   public void close() throws Exception {
     if (logTask != null) {
       logTask.cancel(false);
@@ -150,17 +153,32 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
 
     @Override
     public void bookingAttempted() {
-      // not logged
+      this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.BOOKING_ATTEMPTED));
     }
 
     @Override
-    public void bookingAcquired() {
-      this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.BOOKING_ACQUIRED));
+    public void bookingAcquired(long bookingOwnerSessionId) {
+      this.currentLogEventQ.add(new BookingAcquiredEvent(bookingOwnerSessionId));
     }
 
     @Override
     public void bookingReleased() {
       this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.BOOKING_RELEASED));
+    }
+
+    @Override
+    public void bookingLost() {
+      this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.BOOKING_LOST));
+    }
+
+    @Override
+    public void bookingRechecked() {
+      this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.BOOKING_RECHECK));
+    }
+
+    @Override
+    public void bookingRegained() {
+      this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.BOOKING_REGAINED));
     }
 
     @Override
@@ -220,6 +238,16 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
     }
 
     @Override
+    public void weightShed(int weight) {
+      // not logged
+    }
+
+    @Override
+    public void weightGained(int weight) {
+      // not logged
+    }
+
+    @Override
     public void recoveryMonitoringStarted() {
       this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.RECOVERY_MONITORING_STARTED));
     }
@@ -259,13 +287,16 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
       this.currentLogEventQ.add(new DefaultLogEvent(LogEventType.RUN_ON_DEATH_FAILED));
     }
 
-    private void logEvents() {
+    private void logEvents(String hostAddress) {
       while (true) {
         LogEvent next = this.currentLogEventQ.poll();
         if (next == null) {
           break;
         }
-        LOGGER.info("Clustered Singleton Event : {}", next.getLogString(schedule.getTaskName()));
+        LOGGER.info(
+            "Clustered Singleton Event on host {} : {}",
+            hostAddress,
+            next.getLogString(schedule.getTaskName()));
       }
       final long numRuns = numRunsSoFar.get();
       // this is a dirty check, but it is ok since it is only for logging
@@ -308,6 +339,24 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
   private static final class DefaultLogEvent extends LogEvent {
     private DefaultLogEvent(LogEventType type) {
       super(type);
+    }
+  }
+
+  private static final class BookingAcquiredEvent extends LogEvent {
+    private final long bookingOwnerSessionId;
+
+    private BookingAcquiredEvent(long bookingOwnerSessionId) {
+      super(LogEventType.BOOKING_ACQUIRED);
+      this.bookingOwnerSessionId = bookingOwnerSessionId;
+    }
+
+    @Override
+    String getLogString(String taskName) {
+      return String.format(
+          getLogEventType().getFormatString(),
+          Instant.ofEpochMilli(getEventTimeStamp()),
+          taskName,
+          bookingOwnerSessionId);
     }
   }
 
@@ -385,14 +434,18 @@ final class TaskInfoLogger implements SchedulerEvents, AutoCloseable {
   }
 
   private enum LogEventType {
-    BOOKING_ACQUIRED("%s : Slot Booked for task %s"),
-    BOOKING_RELEASED("%s : Slot Released for task %s"),
-    RECOVERED("%s : Task %s successfully recovered"),
-    RECOVERY_REJECTED("%s : Recovery rejected for task %s due to %s "),
-    SCHEDULE_MODIFIED("%s : Schedule Modified for task %s. New Scheduled Details : %s"),
+    BOOKING_ATTEMPTED("%s: Slot Booking attempted for task %s"),
+    BOOKING_ACQUIRED("%s: Slot Booked for task %s. Session id is %s"),
+    BOOKING_RELEASED("%s: Slot Released for task %s"),
+    BOOKING_LOST("%s: Booking lost for task %s"),
+    BOOKING_RECHECK("%s: Checking if booking is still available for task %s"),
+    BOOKING_REGAINED("%s: Booking regained for task %s"),
+    RECOVERED("%s: Task %s successfully recovered"),
+    RECOVERY_REJECTED("%s: Recovery rejected for task %s due to %s "),
+    SCHEDULE_MODIFIED("%s: Schedule Modified for task %s. New Scheduled Details : %s"),
     ADDED_TO_RUN_SET(
-        "%s : Relinquished control of Task %s and added to run set due to high load locally"),
-    REMOVED_FROM_RUN_SET("%s : Gained control of Task %s and removed from run set after %dms"),
+        "%s: Relinquished control of Task %s and added to run set due to high load locally"),
+    REMOVED_FROM_RUN_SET("%s: Gained control of Task %s and removed from run set after %dms"),
     RUN_ON_DEATH("%s: Task %s ran due to death of an instance"),
     TASK_OWNER_QUERY("%s: Current owner for task %s is %s:%d"),
     TASK_NO_OWNER_FOUND("%s: No current owner for task %s"),

@@ -16,29 +16,43 @@
 package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.planner.ExceptionUtils.collapseExceptionMessages;
+import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.physical.config.CopyIntoExtendedProperties;
+import com.dremio.exec.physical.config.CopyIntoExtendedProperties.PropertyKey;
+import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.physical.config.SimpleQueryContext;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.Builder;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState;
 import com.dremio.exec.physical.config.copyinto.CopyIntoHistoryExtendedProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
+import com.dremio.exec.physical.config.copyinto.IngestionProperties;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.TypeCoercion;
+import com.dremio.exec.store.dfs.FileLoadInfo;
 import com.dremio.exec.tablefunctions.copyerrors.ValidationErrorRowWriter;
+import com.dremio.exec.util.ColumnUtils;
+import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.scan.ScanOperator.Metric;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Preconditions;
 import io.protostuff.ByteString;
 import java.util.List;
 import java.util.Optional;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 
 /**
  * COPY INTO dry run implementation of Parquet reader - used for the 1st (dry run) scan of a double
@@ -52,13 +66,20 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
   private final CopyIntoHistoryExtendedProperties copyIntoHistoryExtendedProperties;
   private final CopyIntoSkipParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator;
   private boolean failureSeen = false;
+  private boolean isCopyHistoryEventRecorded = false;
   private boolean isCopyIntoSkip = false;
   private boolean isValidationMode = false;
   private ValidationErrorRowWriter validationErrorWriter;
   private final int rowgroup;
+  private final long rowIndexOffset;
   // vector container for running the projection (i.e. coercion) output into, to be discarded later
   private VectorContainer validationContainer = null;
+  private boolean writeSuccessEvent = false;
   private Exception setupError = null;
+  private final long processingStartTime;
+  private final long fileSize;
+  private final IngestionProperties ingestionProperties;
+  private VarCharVector errorVector = null;
 
   protected CopyIntoSkipParquetCoercionReader(
       OperatorContext context,
@@ -69,13 +90,19 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
       ParquetFilters filters,
       ByteString extendedProperties,
       CopyIntoSkipParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator,
-      int rowgroup) {
+      int rowgroup,
+      long rowIndexOffset,
+      boolean writeSuccessEvent,
+      long fileSize,
+      IngestionProperties ingestionProperties) {
     super(context, columns, inner, originalSchema, typeCoercion, filters);
     this.parquetSplitReaderCreatorIterator = parquetSplitReaderCreatorIterator;
     this.rowgroup = rowgroup;
+    this.rowIndexOffset = rowIndexOffset;
+    this.processingStartTime = parquetSplitReaderCreatorIterator.getProcessingStartTime();
     Optional<CopyIntoExtendedProperties> copyIntoExtendedPropertiesOptional =
         CopyIntoExtendedProperties.Util.getProperties(extendedProperties);
-    if (!copyIntoExtendedPropertiesOptional.isPresent()) {
+    if (copyIntoExtendedPropertiesOptional.isEmpty()) {
       throw new RuntimeException(
           "CopyIntoSkipParquetCoercionReader requires CopyIntoExtendedProperties");
     }
@@ -83,26 +110,30 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
         copyIntoExtendedPropertiesOptional.get();
     this.copyIntoQueryProperties =
         copyIntoExtendedProperties.getProperty(
-            CopyIntoExtendedProperties.PropertyKey.COPY_INTO_QUERY_PROPERTIES,
-            CopyIntoQueryProperties.class);
+            PropertyKey.COPY_INTO_QUERY_PROPERTIES, CopyIntoQueryProperties.class);
     if (this.copyIntoQueryProperties != null) {
       this.isCopyIntoSkip =
           CopyIntoQueryProperties.OnErrorOption.SKIP_FILE.equals(
               this.copyIntoQueryProperties.getOnErrorOption());
+      this.writeSuccessEvent =
+          writeSuccessEvent
+              && copyIntoQueryProperties.shouldRecord(
+                  CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED);
     }
 
     this.copyIntoQueryContext =
-        copyIntoExtendedProperties.getProperty(
-            CopyIntoExtendedProperties.PropertyKey.QUERY_CONTEXT, SimpleQueryContext.class);
+        copyIntoExtendedProperties.getProperty(PropertyKey.QUERY_CONTEXT, SimpleQueryContext.class);
 
     this.copyIntoHistoryExtendedProperties =
         copyIntoExtendedProperties.getProperty(
-            CopyIntoExtendedProperties.PropertyKey.COPY_INTO_HISTORY_PROPERTIES,
-            CopyIntoHistoryExtendedProperties.class);
+            PropertyKey.COPY_INTO_HISTORY_PROPERTIES, CopyIntoHistoryExtendedProperties.class);
 
     if (copyIntoHistoryExtendedProperties != null) {
       this.isValidationMode = true;
     }
+
+    this.fileSize = fileSize;
+    this.ingestionProperties = ingestionProperties;
   }
 
   public static CopyIntoSkipParquetCoercionReader newInstance(
@@ -114,7 +145,11 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
       ParquetFilters filters,
       ByteString extendedProperties,
       CopyIntoSkipParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator,
-      int rowgroup) {
+      int rowgroup,
+      long rowIndexOffset,
+      boolean writeSuccessEvent,
+      long fileSize,
+      IngestionProperties ingestionProperties) {
     return new CopyIntoSkipParquetCoercionReader(
         context,
         columns,
@@ -124,7 +159,11 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
         filters,
         extendedProperties,
         parquetSplitReaderCreatorIterator,
-        rowgroup);
+        rowgroup,
+        rowIndexOffset,
+        writeSuccessEvent,
+        fileSize,
+        ingestionProperties);
   }
 
   @Override
@@ -148,6 +187,17 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
     if (isValidationMode) {
       // dummy constructs to direct the projection output into during a copy_errors() run
       validationContainer = VectorContainer.create(context.getAllocator(), originalSchema);
+
+      // in validation mode we would like to know the record position, where an error was seen
+      // this is only possible with Java expression evaluation
+      projectorOptions.setCodeGenOption(SupportedEngines.CodeGenOption.Java.name());
+      projectorOptions.setTrackRecordLevelErrors(true);
+
+      this.errorVector =
+          (VarCharVector)
+              VectorUtil.getVectorFromSchemaPath(
+                  validationContainer, ColumnUtils.COPY_HISTORY_COLUMN_NAME);
+
       // here 'outgoing' is the copy_errors() result holder
       OutputMutator validationMutator =
           new ScanOperator.ScanMutator(
@@ -160,7 +210,7 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
 
   @Override
   public int next() {
-    if (failureSeen) {
+    if (failureSeen || isCopyHistoryEventRecorded) {
       return 0;
     }
     long startDryRunNs = System.nanoTime();
@@ -175,9 +225,18 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
         }
         batchRecordCount = super.next();
         totalRecordCount += batchRecordCount;
+
+        if (isValidationMode) {
+          // In validation mode exceptions are caught and error details are saved into the error
+          // vector instead
+          // Thus we need to manually check the error vector and throw if errors were found
+          throwOnFirstError();
+        }
+
         // need to process all batches in one go, as we need to return 0 rowcount in a dry run
         allocate(mutator.getFieldVectorMap());
       } while (batchRecordCount != 0);
+      return writeCopyIntoSuccessEvent(totalRecordCount);
     } catch (Exception e) {
       // reports to creatorIterator to stop providing readers for this particular file
       parquetSplitReaderCreatorIterator.markFailedFile(Path.of(inner.getFilePath()));
@@ -189,8 +248,12 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
             outgoingMutator,
             copyIntoQueryContext,
             copyIntoQueryProperties,
+            ingestionProperties,
             inner.getFilePath(),
-            e.getMessage());
+            fileSize,
+            1L,
+            e.getMessage(),
+            processingStartTime);
       } else {
         // write a more detailed error description row for copy_errors() table function output
         Preconditions.checkState(isValidationMode);
@@ -199,13 +262,21 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
                 ? String.format(
                     "Error encountered during reader setup in rowgroup %d: %s",
                     rowgroup, collapseExceptionMessages(e))
-                : String.format(
-                    "%s in rowgroup %d between the rows %d and %d",
-                    e.getMessage(),
-                    rowgroup,
-                    totalRecordCount,
-                    totalRecordCount + getNumRowsPerBatch());
-        validationErrorWriter.write(null, null, null, errorDescription);
+                : String.format("%s in rowgroup %d", e.getMessage(), rowgroup);
+        // record number is calculated as: get rowgroup offset of the rowgroup we're reading, and
+        // add the number of records we have seen so far in the rowgroup; then since idxInBatch
+        // denotes the error
+        // position in the current _batch_ only, we need to rewind 1 batch worth of records before
+        // adding it
+        Long recordNum =
+            e instanceof CoercionErrorWithIdx
+                ? rowIndexOffset
+                    + totalRecordCount
+                    - batchRecordCount
+                    + ((CoercionErrorWithIdx) e).idxInBatch
+                    + 1
+                : null;
+        validationErrorWriter.write(null, recordNum, recordNum, errorDescription);
       }
       context.getStats().addLongStat(Metric.NUM_READERS_SKIPPED, 1);
       return 1;
@@ -214,8 +285,65 @@ public class CopyIntoSkipParquetCoercionReader extends ParquetCoercionReader {
           .getStats()
           .addLongStat(Metric.DRY_RUN_READ_TIME_NS, System.nanoTime() - startDryRunNs);
     }
+  }
 
-    // if we made it here, there's no error to report
+  private void throwOnFirstError() throws Exception {
+    if (errorVector.getNullCount() == errorVector.getValueCount()) {
+      return;
+    }
+    // seen error(s) in projector
+    for (int i = 0; i < errorVector.getValueCount(); ++i) {
+      if (!errorVector.isNull(i)) {
+        throw new CoercionErrorWithIdx(errorVector.getObject(i).toString(), i);
+      }
+    }
+  }
+
+  /** Holder for coercion error with known record idx within the current batch. */
+  static class CoercionErrorWithIdx extends Exception {
+    int idxInBatch;
+
+    CoercionErrorWithIdx(String message, int idxInBatch) {
+      super(message);
+      this.idxInBatch = idxInBatch;
+    }
+  }
+
+  private int writeCopyIntoSuccessEvent(long totalRecordsCount) {
+    if (!this.isCopyHistoryEventRecorded && this.writeSuccessEvent) {
+      Builder builder =
+          new Builder(
+                  this.copyIntoQueryContext.getQueryId(),
+                  this.copyIntoQueryContext.getUserName(),
+                  this.copyIntoQueryContext.getTableNamespace(),
+                  this.copyIntoQueryProperties.getStorageLocation(),
+                  this.inner.getFilePath(),
+                  new ExtendedFormatOptions(),
+                  FileType.PARQUET.name(),
+                  CopyIntoFileState.FULLY_LOADED)
+              .setRecordsLoadedCount(totalRecordsCount)
+              .setBranch(copyIntoQueryProperties.getBranch())
+              .setFileSize(fileSize)
+              .setProcessingStartTime(processingStartTime);
+      if (ingestionProperties != null) {
+        builder.setPipeName(ingestionProperties.getPipeName());
+        builder.setPipeId(ingestionProperties.getPipeId());
+        builder.setRequestId(ingestionProperties.getRequestId());
+        builder.setIngestionSourceType(ingestionProperties.getIngestionSourceType());
+        builder.setFileNotificationTimestamp(ingestionProperties.getNotificationTimestamp());
+      }
+
+      String infoJson = FileLoadInfo.Util.getJson(builder.build());
+
+      // clear all vectors and write history info at the first position
+      outgoingMutator.getVectors().forEach(ValueVector::clear);
+      ValueVector historyColName =
+          this.outgoingMutator.getVector(ColumnUtils.COPY_HISTORY_COLUMN_NAME);
+      writeToVector(historyColName, 0, infoJson);
+      this.outgoingMutator.getContainer().setAllCount(1);
+      this.isCopyHistoryEventRecorded = true;
+      return 1;
+    }
     return 0;
   }
 

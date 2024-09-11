@@ -17,7 +17,6 @@ package com.dremio.service.grpc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.context.CatalogContext;
 import com.dremio.context.ExecutorToken;
 import com.dremio.context.SupportContext;
 import com.dremio.context.TenantContext;
@@ -33,7 +32,7 @@ public class TestContextualizedClientInterceptor {
     ContextualizedClientInterceptor clientInterceptor =
         ContextualizedClientInterceptor.buildMultiTenantClientInterceptor();
 
-    assertThat(clientInterceptor.getActions().size()).isEqualTo(4);
+    assertThat(clientInterceptor.getActions().size()).isEqualTo(3);
     assertDefaultContextTransfers(clientInterceptor);
   }
 
@@ -45,7 +44,7 @@ public class TestContextualizedClientInterceptor {
                 new ContextualizedClientInterceptor.ContextTransferBehavior(
                     ExecutorToken.CTX_KEY, true, null)));
 
-    assertThat(clientInterceptor.getActions().size()).isEqualTo(5);
+    assertThat(clientInterceptor.getActions().size()).isEqualTo(4);
     assertDefaultContextTransfers(clientInterceptor);
     assertThat(clientInterceptor.getActions())
         .anyMatch(
@@ -71,10 +70,5 @@ public class TestContextualizedClientInterceptor {
             action ->
                 action.getKey().getName().equals(UserContext.CTX_KEY.getName())
                     && (action.getRequired()));
-    assertThat(clientInterceptor.getActions())
-        .anyMatch(
-            action ->
-                action.getKey().getName().equals(CatalogContext.CTX_KEY.getName())
-                    && !(action.getRequired()));
   }
 }

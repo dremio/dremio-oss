@@ -155,16 +155,10 @@ public abstract class AbstractTestProfileStore {
         CoordinationProtos.NodeEndpoint.newBuilder().setAddress("10.10.20.21").build();
 
     CoordExecRPC.ExecutorQueryProfile executorQueryProfile1 =
-        CoordExecRPC.ExecutorQueryProfile.newBuilder()
-            .setProgress(
-                CoordExecRPC.QueryProgressMetrics.newBuilder().setRowsProcessed(10).build())
-            .build();
+        CoordExecRPC.ExecutorQueryProfile.newBuilder().build();
 
     CoordExecRPC.ExecutorQueryProfile executorQueryProfile2 =
-        CoordExecRPC.ExecutorQueryProfile.newBuilder()
-            .setProgress(
-                CoordExecRPC.QueryProgressMetrics.newBuilder().setRowsProcessed(20).build())
-            .build();
+        CoordExecRPC.ExecutorQueryProfile.newBuilder().build();
 
     // should be empty initially.
     assertEquals(0, profileStore.getAllExecutorProfiles(queryId).count());
@@ -183,11 +177,7 @@ public abstract class AbstractTestProfileStore {
             profileStore.getAllExecutorProfiles(queryId)));
 
     // overwrite second executor profile, should still return 2 profiles.
-    executorQueryProfile2 =
-        CoordExecRPC.ExecutorQueryProfile.newBuilder()
-            .setProgress(
-                CoordExecRPC.QueryProgressMetrics.newBuilder().setRowsProcessed(30).build())
-            .build();
+    executorQueryProfile2 = CoordExecRPC.ExecutorQueryProfile.newBuilder().build();
     profileStore.putExecutorProfile(queryId, e2, executorQueryProfile2, false);
     assertTrue(
         compareUnordered(
@@ -235,10 +225,7 @@ public abstract class AbstractTestProfileStore {
 
     // write two executor profiles.
     CoordExecRPC.ExecutorQueryProfile executorQueryProfile =
-        CoordExecRPC.ExecutorQueryProfile.newBuilder()
-            .setProgress(
-                CoordExecRPC.QueryProgressMetrics.newBuilder().setRowsProcessed(10).build())
-            .build();
+        CoordExecRPC.ExecutorQueryProfile.newBuilder().build();
     profileStore.putExecutorProfile(queryId, e1, executorQueryProfile, false);
     profileStore.putExecutorProfile(queryId, e2, executorQueryProfile, false);
 

@@ -40,4 +40,23 @@ public class TestFunctionsQueryPlan extends PlanTestBase {
     // test execution
     test(query);
   }
+
+  @Test
+  public void testDremioProjectJoinTransposeRuleSameRowTypes() throws Exception {
+    final String query =
+        " SELECT  \n"
+            + "      CASE WHEN NVL (Table2.col3, 0) = 1 THEN Table3.col1 ELSE Table1.col1 END AS col3\n"
+            + "FROM (select 1 as col1, 2 as col2) Table1\n"
+            + "      LEFT OUTER JOIN  \n"
+            + "      (select 1 as col2, 2 as col3) as Table2\n"
+            + "         ON Table1.col2 = Table2.col2\n"
+            + "      LEFT OUTER JOIN (select 1 as col2, 2 as col1)  Table3\n"
+            + "         ON Table3.col2 = Table1.col2";
+    // test execution
+    // Without the fix, this will fail with
+    // (java.lang.AssertionError) Cannot add expression of different type to set:
+    // set type is RecordType(BOOLEAN NOT NULL EXPR$0) NOT NULL
+    // expression type is RecordType(BOOLEAN EXPR$0) NOT NULL
+    test(query);
+  }
 }

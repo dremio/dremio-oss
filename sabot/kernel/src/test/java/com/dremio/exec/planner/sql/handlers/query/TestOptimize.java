@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
+import static com.dremio.exec.ExecConstants.ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,6 +63,7 @@ public class TestOptimize extends BaseTestQuery {
 
   private static IcebergTestTables.Table table;
   private static IcebergTestTables.Table tableWithDeletes;
+  private static IcebergTestTables.Table tableWithEqDeletes;
   private static SqlConverter converter;
   private static SqlHandlerConfig config;
 
@@ -110,14 +112,14 @@ public class TestOptimize extends BaseTestQuery {
   public void init() throws Exception {
     table = IcebergTestTables.V2_ORDERS.get();
     tableWithDeletes = IcebergTestTables.V2_MULTI_ROWGROUP_ORDERS_WITH_DELETES.get();
-    table.enableIcebergSystemOptions();
-    tableWithDeletes.enableIcebergSystemOptions();
+    tableWithEqDeletes = IcebergTestTables.PRODUCTS_WITH_EQ_DELETES.get();
   }
 
   @After
   public void tearDown() throws Exception {
     table.close();
     tableWithDeletes.close();
+    tableWithEqDeletes.close();
   }
 
   // ===========================================================================
@@ -165,7 +167,7 @@ public class TestOptimize extends BaseTestQuery {
     assertThatThrownBy(
             () ->
                 optimizeHandler.validatePrivileges(
-                    mockCatalog, CatalogEntityKey.fromNamespaceKey(path), node))
+                    mockCatalog, CatalogEntityKey.fromNamespaceKey(path)))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("not authorized to SELECT");
 
@@ -183,7 +185,7 @@ public class TestOptimize extends BaseTestQuery {
     assertThatThrownBy(
             () ->
                 optimizeHandler.validatePrivileges(
-                    mockCatalog, CatalogEntityKey.fromNamespaceKey(path), node))
+                    mockCatalog, CatalogEntityKey.fromNamespaceKey(path)))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("not authorized to UPDATE");
   }
@@ -341,7 +343,7 @@ public class TestOptimize extends BaseTestQuery {
   }
 
   @Test
-  public void testOptimizePlanWithDeletes() throws Exception {
+  public void testOptimizePlanWithPositionalDeletes() throws Exception {
     final String sql = "OPTIMIZE TABLE " + tableWithDeletes.getTableName();
     OptimizeHandler optimizeHandler = new OptimizeHandler();
     SqlNode sqlNode = converter.parse(sql);
@@ -420,6 +422,83 @@ public class TestOptimize extends BaseTestQuery {
               + "IcebergManifestScan.*"
               + "IcebergManifestList.*"
         });
+  }
+
+  @Test
+  public void testOptimizePlanWithEqualityDeletes() throws Exception {
+    try (final AutoCloseable ignored2 = enableOptimizeEqualityDeletes()) {
+      final String sql = "OPTIMIZE TABLE " + tableWithEqDeletes.getTableName();
+      OptimizeHandler optimizeHandler = new OptimizeHandler();
+      SqlNode sqlNode = converter.parse(sql);
+      optimizeHandler.getPlan(config, sql, sqlNode);
+      String textPlan = optimizeHandler.getTextPlan();
+
+      // validate IcebergManifestListOperator Count
+      assertThat(StringUtils.countMatches(textPlan, "IcebergManifestList"))
+          .as("Four IcebergManifestList operators are expected")
+          .isEqualTo(4);
+
+      // validate TableFunctionDeletedFileMetadata Count
+      assertThat(
+              StringUtils.countMatches(textPlan, "Table Function Type=[DELETED_FILES_METADATA])"))
+          .as("Two DELETED_FILES_METADATA Table Function operators are expected")
+          .isEqualTo(2);
+
+      // validate count aggregation on OperationType
+      assertThat(textPlan)
+          .contains(
+              "Project(rewritten_data_files_count=[CASE(=($9, 1), $1, CAST(0:BIGINT):BIGINT)], rewritten_delete_files_count=[CASE(=($9, 3), $1, CAST(0:BIGINT):BIGINT)], new_data_files_count=[CASE(=($9, 0), $1, CAST(0:BIGINT):BIGINT)])");
+
+      // validate OptimizeTableOperators
+      testMatchingPatterns(
+          textPlan,
+          new String[] {
+            // We should have all these operators
+            "WriterCommitter",
+            "UnionAll",
+            "Writer",
+            "TableFunction",
+            "Project",
+            "IcebergManifestList",
+            "IcebergManifestScan",
+            "StreamAgg"
+          });
+
+      // validate OptimizeTableOperatorsOrder
+      testMatchingPatterns(
+          textPlan,
+          new String[] {
+            "(?s)"
+                + "WriterCommitter.*"
+                + "UnionAll.*"
+                + "Writer.*"
+                + "TableFunction.*"
+                + "HashJoin.*"
+                + "IcebergManifestList.*"
+                + "Project.*"
+                + "UnionAll.*"
+                + "TableFunction.*"
+                + "Project.*"
+                + ColumnUtils.ROW_COUNT_COLUMN_NAME
+                + ".*"
+                + ColumnUtils.FILE_PATH_COLUMN_NAME
+                + ".*"
+                + "IcebergManifestList.*"
+                + "TableFunction.*"
+                + "Project.*"
+                + ColumnUtils.ROW_COUNT_COLUMN_NAME
+                + ".*"
+                + ColumnUtils.FILE_PATH_COLUMN_NAME
+                + ".*"
+                + "IcebergManifestScan.*"
+                + "IcebergManifestList.*"
+          });
+    }
+  }
+
+  private static AutoCloseable enableOptimizeEqualityDeletes() {
+    setSystemOption(ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE.getOptionName(), "true");
+    return () -> resetSystemOption(ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE.getOptionName());
   }
 
   private void testMatchingPatterns(String plan, String[] expectedPatterns) {

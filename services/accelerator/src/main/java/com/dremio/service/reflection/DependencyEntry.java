@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.reflection.proto.DependencyType;
@@ -132,7 +133,7 @@ public abstract class DependencyEntry {
   public static class DatasetDependency extends DependencyEntry {
     private final String id;
     private final List<String> path;
-    private long snapshotId;
+    private final long snapshotId;
     private final TableVersionContext versionContext;
 
     DatasetDependency(
@@ -140,7 +141,8 @@ public abstract class DependencyEntry {
       this.id = id;
       this.path = path;
       this.snapshotId = snapshotId;
-      this.versionContext = versionContext;
+      this.versionContext =
+          versionContext != null ? versionContext : TableVersionContext.NOT_SPECIFIED;
     }
 
     @Override
@@ -155,6 +157,13 @@ public abstract class DependencyEntry {
 
     public NamespaceKey getNamespaceKey() {
       return new NamespaceKey(path);
+    }
+
+    public CatalogEntityKey getCatalogEntityKey() {
+      return CatalogEntityKey.newBuilder()
+          .keyComponents(path)
+          .tableVersionContext(versionContext)
+          .build();
     }
 
     @Override
@@ -177,7 +186,7 @@ public abstract class DependencyEntry {
           .setPathList(path)
           .setId(id)
           .setSnapshotId(snapshotId)
-          .setVersionContext(versionContext != null ? versionContext.serialize() : null);
+          .setVersionContext(versionContext.serialize());
     }
 
     @Override

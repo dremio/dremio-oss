@@ -21,6 +21,7 @@ import com.dremio.exec.catalog.DremioTranslatableTable;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.plan.serialization.PRelDataType;
 import com.dremio.plan.serialization.PRexNode;
+import com.dremio.plan.serialization.PRexWindowBound;
 import com.dremio.plan.serialization.PSqlOperator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.protobuf.Any;
@@ -31,6 +32,7 @@ import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.tools.RelBuilder;
 
@@ -125,6 +127,14 @@ public interface RelNodeSerde<REL_NODE extends RelNode, PROTO_NODE extends Messa
      * @return SqlOperatorConverter instance
      */
     SqlOperatorSerde getSqlOperatorSerde();
+
+    /**
+     * Converts a rexWindowBound to a proto.
+     *
+     * @param RexWindowBound The RexWinAggCall to convert.
+     * @return The converted protobuf message.
+     */
+    PRexWindowBound toProto(RexWindowBound rexWindowBound);
   }
 
   /** Utility to help with RelNode deserialization */
@@ -152,6 +162,14 @@ public interface RelNodeSerde<REL_NODE extends RelNode, PROTO_NODE extends Messa
      * @return The hydrated RexNode.
      */
     RexNode toRex(PRexNode rex);
+
+    /**
+     * Retrieve a RexWindowBound based on its serialized form.
+     *
+     * @param PRexWindowBound The serialized node.
+     * @return The hydrated RexNode.
+     */
+    RexWindowBound toRex(PRexWindowBound pRexWindowBound);
 
     /**
      * Retrieve a RexNode based on its serialized form and incoming rowType.

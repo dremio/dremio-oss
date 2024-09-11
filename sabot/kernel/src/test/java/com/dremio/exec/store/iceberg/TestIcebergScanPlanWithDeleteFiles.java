@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import com.dremio.exec.ExecConstants;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -41,47 +38,29 @@ public class TestIcebergScanPlanWithDeleteFiles extends BaseTestIcebergScanPlan 
 
   @Test
   public void testBasicPlan() throws Exception {
-    try (AutoCloseable option =
-        withSystemOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN, true)) {
-      String sql = String.format("SELECT order_id FROM %s", ordersWithDeletes.getTableName());
-      testPlanMatchingPatterns(
-          sql,
-          new String[] {
-            dataFileScanWithRowCount(9000),
-            deleteFileAggWithRowCount(9),
-            "HashJoin",
-            dataManifestScanWithRowCount(9),
-            dataManifestList(),
-            deleteManifestScanWithRowCount(4),
-            deleteManifestList()
-          });
-    }
+    String sql = String.format("SELECT order_id FROM %s", ordersWithDeletes.getTableName());
+    testPlanMatchingPatterns(
+        sql,
+        new String[] {
+          filterWithRowCount(4500),
+          "HashJoin",
+          dataFileScanWithRowCount(9000),
+          dataManifestScanWithRowCount(9),
+          dataManifestList(),
+          dataFileScanWithRowCount(9000),
+          deleteManifestScanWithRowCount(4),
+          deleteManifestList()
+        });
   }
 
   @Test
   public void testPlanWithNoDeletes() throws Exception {
-    try (AutoCloseable option =
-        withSystemOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN, true)) {
-      String sql = String.format("SELECT order_id FROM %s", orders.getTableName());
-      testPlanMatchingPatterns(
-          sql,
-          new String[] {
-            dataFileScanWithRowCount(600), splitGenManifestScanWithRowCount(6), dataManifestList(),
-          },
-          deleteManifestContent());
-    }
-  }
-
-  @Test
-  public void testWithFlagDisabled() throws Exception {
-    try (AutoCloseable option =
-        withSystemOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN, false)) {
-      assertThatThrownBy(
-              () ->
-                  test(
-                      "ALTER PDS %s REFRESH METADATA FORCE UPDATE",
-                      ordersWithDeletes.getTableName()))
-          .hasMessageContaining("Iceberg V2 tables with delete files are not supported.");
-    }
+    String sql = String.format("SELECT order_id FROM %s", orders.getTableName());
+    testPlanMatchingPatterns(
+        sql,
+        new String[] {
+          dataFileScanWithRowCount(600), splitGenManifestScanWithRowCount(6), dataManifestList(),
+        },
+        deleteManifestContent());
   }
 }

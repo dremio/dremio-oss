@@ -18,7 +18,6 @@
   .branch-body {
     display: flex;
     flex-direction: column;
-    min-width: fit-content;
     height: 100%;
 
     &-header {
@@ -46,6 +45,9 @@
       .branch-list-container [role="grid"] {
         overflow: hidden !important;
       }
+      .branch-list {
+        overflow: hidden;
+      }
     }
     &-all-branch-list {
       margin: 24px 16px 0 16px;
@@ -54,6 +56,10 @@
       // Add min-height to prevent flex: 1 item from overflowing
       //https://stackoverflow.com/questions/42130384/why-should-i-specify-height-0-even-if-i-specified-flex-basis-0-in-css3-flexbox
       min-height: 0;
+
+      .branch-list-container {
+        overflow: auto;
+      }
     }
   }
 }

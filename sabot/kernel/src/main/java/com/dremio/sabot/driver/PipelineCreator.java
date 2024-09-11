@@ -130,7 +130,7 @@ public class PipelineCreator {
      * @param operator
      * @return
      */
-    private <X extends Operator, T extends SmartOp<X>> T record(T operator) {
+    private <X extends Operator, T extends SmartOp<X>> T recordOperator(T operator) {
       operators.add(operator);
       Operator inner = operator.getInner();
       if (inner instanceof Operator.ShrinkableOperator) {
@@ -178,7 +178,7 @@ public class PipelineCreator {
     private OpPipe dualInput(PhysicalOperator config) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
       DualInputOperator sink =
-          record(
+          recordOperator(
               SmartOp.contextualize(
                   creator.getDualInputOperator(context, config),
                   context,
@@ -195,7 +195,7 @@ public class PipelineCreator {
     public OpPipe visitSender(Sender config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
       TerminalOperator sink =
-          record(
+          recordOperator(
               SmartOp.contextualize(
                   creator.getTerminalOperator(tunnelProvider, context, config),
                   context,
@@ -210,7 +210,7 @@ public class PipelineCreator {
     public OpPipe visitReceiver(Receiver config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
       ProducerOperator receiver =
-          record(
+          recordOperator(
               SmartOp.contextualize(
                   creator.getReceiverOperator(buffers, context, config),
                   context,
@@ -223,7 +223,7 @@ public class PipelineCreator {
     public OpPipe visitBridgeFileReader(BridgeFileReader config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
       ProducerOperator receiver =
-          record(
+          recordOperator(
               SmartOp.contextualize(
                   creator.getReceiverOperator(buffers, context, config),
                   context,
@@ -236,7 +236,7 @@ public class PipelineCreator {
     public OpPipe visitSubScan(SubScan config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
       ProducerOperator producer =
-          record(
+          recordOperator(
               SmartOp.contextualize(
                   creator.getProducerOperator(fec, context, config),
                   context,
@@ -260,7 +260,7 @@ public class PipelineCreator {
     public OpPipe visitScreen(Screen config, Void value) throws Exception {
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
       TerminalOperator sink =
-          record(
+          recordOperator(
               SmartOp.contextualize(
                   creator.getTerminalOperator(tunnelProvider, context, config),
                   context,
@@ -280,7 +280,7 @@ public class PipelineCreator {
           config.getClass().getName());
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
       SingleInputOperator sink =
-          record(
+          recordOperator(
               SmartOp.contextualize(
                   creator.getSingleInputOperator(fec, context, config),
                   context,
@@ -299,7 +299,7 @@ public class PipelineCreator {
           config.getClass().getName());
       OperatorContext context = operatorContextCreator.newOperatorContext(config);
       SingleInputOperator sink =
-          record(
+          recordOperator(
               SmartOp.contextualize(
                   creator.getSingleInputOperator(context, config),
                   context,

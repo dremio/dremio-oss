@@ -53,10 +53,8 @@ public class TestOrphanageServiceForMultiCoordinators extends BaseTestServer {
 
     setSystemOption(ExecConstants.ORPHANAGE_ENTRY_CLEAN_PERIOD_MINUTES, "1000");
 
-    masterOrphanService =
-        getMasterDremioDaemon().getBindingProvider().lookup(OrphanageCleanerService.class);
-    slaveOrphanService =
-        getCurrentDremioDaemon().getBindingProvider().lookup(OrphanageCleanerService.class);
+    masterOrphanService = lMaster(OrphanageCleanerService.class);
+    slaveOrphanService = l(OrphanageCleanerService.class);
 
     String metadataRefreshQuery = "REFRESH DATASET cp.nation_ctas.t1.\"0_0_0.parquet\"";
     getQueryProfile(createJobRequest(metadataRefreshQuery));

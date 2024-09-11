@@ -23,9 +23,13 @@ import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.iceberg.IcebergManifestListPrel;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.calcite.rel.RelNode;
 
 /**
@@ -35,20 +39,20 @@ import org.apache.calcite.rel.RelNode;
 public class RootPointerSubstitutionVisitor
     extends BasePrelVisitor<Prel, Collection<DatasetConfig>, RuntimeException> {
 
-  private final Map<DatasetConfig, DatasetConfig> newPointers;
+  private final Map<String, DatasetConfig> newPointers;
 
-  public RootPointerSubstitutionVisitor(final Map<DatasetConfig, DatasetConfig> newPointers) {
+  public RootPointerSubstitutionVisitor(final Map<String, DatasetConfig> newPointers) {
     this.newPointers = newPointers;
   }
 
   /**
-   * Searches for {@link IcebergManifestListPrel} nodes within a tree and will attempt to replace
-   * {@link DatasetConfig} from provided map. Replaced metadata is added to the provided collection
-   * so the caller can easily determine what has been replaced.
+   * Searches for {@link IcebergManifestListPrel} nodes within a tree and attempts to replace {@link
+   * DatasetConfig} from provided map based on root pointer value. Replaced metadata is added to the
+   * provided collection so the caller can easily determine what has been replaced.
    */
   public static Prel substitute(
       final Prel prel,
-      final Map<DatasetConfig, DatasetConfig> newPointers,
+      final Map<String, DatasetConfig> newPointers,
       final Collection<DatasetConfig> replaced) {
     return prel.accept(new RootPointerSubstitutionVisitor(newPointers), replaced);
   }
@@ -58,9 +62,9 @@ public class RootPointerSubstitutionVisitor
     if (prel instanceof IcebergManifestListPrel) {
       final IcebergManifestListPrel manifestListPrel = (IcebergManifestListPrel) prel;
       final TableMetadata tableMetadata = manifestListPrel.getTableMetadata();
-      final DatasetConfig datasetConfig = tableMetadata.getDatasetConfig();
-      if (newPointers.containsKey(datasetConfig)) {
-        final DatasetConfig newDatasetConfig = newPointers.get(datasetConfig);
+      final String rootPointer = getIcebergRootPointer(tableMetadata);
+      if (rootPointer != null && newPointers.containsKey(rootPointer)) {
+        final DatasetConfig newDatasetConfig = newPointers.get(rootPointer);
         final TableMetadataConsumer newManifestListPrel =
             manifestListPrel.applyTableMetadata(
                 new TableMetadataImpl(
@@ -87,5 +91,15 @@ public class RootPointerSubstitutionVisitor
           inputs.add(mutatedInput);
         });
     return mutated[0] ? (Prel) prel.copy(prel.getTraitSet(), inputs) : prel;
+  }
+
+  @Nullable
+  private String getIcebergRootPointer(TableMetadata tableMetadata) {
+    return Optional.of(tableMetadata)
+        .map(TableMetadata::getDatasetConfig)
+        .map(DatasetConfig::getPhysicalDataset)
+        .map(PhysicalDataset::getIcebergMetadata)
+        .map(IcebergMetadata::getMetadataFileLocation)
+        .orElse(null);
   }
 }

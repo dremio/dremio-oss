@@ -45,7 +45,7 @@ const CatalogDetailsPanel = ({
   const panelIsSource = panelItem?.get("entityType") === ENTITY_TYPES.source;
   const panelName = panelItem?.get("name") || panelItem?.get("fullPath").last();
   const versionContext = getVersionContextFromId(
-    panelItem?.get("entityId") || panelItem?.get("id")
+    panelItem?.get("entityId") || panelItem?.get("id"),
   );
   return (
     <section
@@ -60,17 +60,19 @@ const CatalogDetailsPanel = ({
             entityType={panelItem.get("entityType")}
             sourceStatus={panelItem.getIn(["state", "status"], null)}
             sourceType={panelItem?.get("type")}
-            style={{ width: 26, height: 26 }}
+            style={{ width: 24, height: 24 }}
           />
         ) : (
-          <dremio-icon
-            name={`entities/${getIconType(
-              getEntityTypeFromObject(panelItem),
-              !!versionContext
-            )}`}
-            key={panelName} // <use> href doesn't always update
-            style={{ width: 26, height: 26 }}
-          />
+          <span className="mr-05">
+            <dremio-icon
+              name={`entities/${getIconType(
+                getEntityTypeFromObject(panelItem),
+                !!versionContext,
+              )}`}
+              key={panelName} // <use> href doesn't always update
+              style={{ width: 24, height: 24 }}
+            />
+          </span>
         )}
         <div className={classes["catalog-details-panel__header-content"]}>
           <div className="text-ellipsis pr-1 flex items-center">

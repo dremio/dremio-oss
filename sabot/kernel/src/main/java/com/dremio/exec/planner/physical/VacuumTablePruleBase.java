@@ -62,6 +62,7 @@ public abstract class VacuumTablePruleBase extends Prule {
               internalStoragePlugin,
               storagePluginId,
               tableMetadata.getUser(),
+              vacuumTableRel.getCreateTableEntry(),
               icebergTable.location());
     } else {
       planBuilder =

@@ -22,9 +22,10 @@ public final class ExtendedEasyReaderProperties {
   private final boolean schemaImposed;
   private final ExtendedFormatOptions extendedFormatOptions;
 
-  private ExtendedEasyReaderProperties(Builder builder) {
-    this.schemaImposed = builder.schemaImposed;
-    this.extendedFormatOptions = builder.extendedFormatOptions;
+  public ExtendedEasyReaderProperties(
+      boolean schemaImposed, ExtendedFormatOptions extendedFormatOptions) {
+    this.schemaImposed = schemaImposed;
+    this.extendedFormatOptions = extendedFormatOptions;
   }
 
   public boolean isSchemaImposed() {
@@ -33,19 +34,5 @@ public final class ExtendedEasyReaderProperties {
 
   public ExtendedFormatOptions getExtendedFormatOptions() {
     return extendedFormatOptions;
-  }
-
-  public static class Builder {
-    private final boolean schemaImposed;
-    private final ExtendedFormatOptions extendedFormatOptions;
-
-    public Builder(boolean schemaImposed, ExtendedFormatOptions extendedFormatOptions) {
-      this.schemaImposed = schemaImposed;
-      this.extendedFormatOptions = extendedFormatOptions;
-    }
-
-    public ExtendedEasyReaderProperties build() {
-      return new ExtendedEasyReaderProperties(this);
-    }
   }
 }

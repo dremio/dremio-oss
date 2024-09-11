@@ -17,8 +17,8 @@ package com.dremio.dac.service.admin;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.resource.PowerBIResource;
-import com.dremio.dac.resource.TableauResource;
+import com.dremio.dac.options.PowerBIResourceOptions;
+import com.dremio.dac.options.TableauResourceOptions;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.OptionValue;
@@ -64,8 +64,8 @@ import javax.ws.rs.core.Response.Status;
 public class SettingsResource {
   private static final Set<String> CLIENT_TOOL_OPTIONS =
       ImmutableSet.of(
-          TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
-          PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName());
+          TableauResourceOptions.CLIENT_TOOLS_TABLEAU.getOptionName(),
+          PowerBIResourceOptions.CLIENT_TOOLS_POWERBI.getOptionName());
 
   private final ProjectOptionManager projectOptionManager;
 
@@ -88,7 +88,9 @@ public class SettingsResource {
   public SettingsResource(ProjectOptionManager projectOptionManager) {
     this.projectOptionManager = projectOptionManager;
     initializeClientTooloptions(
-        ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU, PowerBIResource.CLIENT_TOOLS_POWERBI),
+        ImmutableSet.of(
+            TableauResourceOptions.CLIENT_TOOLS_TABLEAU,
+            PowerBIResourceOptions.CLIENT_TOOLS_POWERBI),
         projectOptionManager);
   }
 

@@ -52,7 +52,8 @@ message SourceConfig {
   optional bool isPrimaryCatalog = 22 [default = false];
   optional int64 last_modified_at = 23;
   optional RefreshPolicyType accelerationActivePolicyType = 24 [default = PERIOD];
-  optional string accelerationRefreshSchedule = 25;;
+  optional string accelerationRefreshSchedule = 25;
+  optional bool accelerationRefreshOnDataChanges = 26 [default = false];
 }
 
 // Version notes:

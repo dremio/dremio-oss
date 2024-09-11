@@ -16,6 +16,7 @@
 package com.dremio.services.credentials;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -27,6 +28,7 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.testing.GrpcCleanupRule;
 import java.net.URI;
+import java.util.Optional;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -68,13 +70,14 @@ public class TestSecretsCreatorRPC {
   @Before
   public void beforeEachTest() throws Exception {
     reset(mockSecretsCreator);
-    when(mockSecretsCreator.encrypt(eq(SECRET))).thenReturn(new URI(ENCRYPTED_SECRET));
+    when(mockSecretsCreator.encrypt(eq(SECRET))).thenReturn(Optional.of(new URI(ENCRYPTED_SECRET)));
   }
 
   @Test
   public void encrypt() throws CredentialsException {
-    final URI result = client.encrypt(SECRET);
-    assertEquals(ENCRYPTED_SECRET, result.toString());
+    final Optional<URI> result = client.encrypt(SECRET);
+    assertTrue(result.isPresent());
+    assertEquals(ENCRYPTED_SECRET, result.get().toString());
   }
 
   @Test

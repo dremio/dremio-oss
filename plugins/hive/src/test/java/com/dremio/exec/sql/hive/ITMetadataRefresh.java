@@ -28,7 +28,7 @@ public class ITMetadataRefresh extends HiveTestBase {
   @Test
   public void ensureFirstTableRefresh() throws Exception {
     // refresh the catalog to ensure we have a base config in the kvstore.
-    ((CatalogServiceImpl) getBindingProvider().lookup(CatalogService.class))
+    ((CatalogServiceImpl) getInstance(CatalogService.class))
         .refreshSource(new NamespaceKey("hive"), null, CatalogServiceImpl.UpdateType.FULL);
 
     // now try to read refresh a table where we have a DatasetConfig but not a ReadDefinition.

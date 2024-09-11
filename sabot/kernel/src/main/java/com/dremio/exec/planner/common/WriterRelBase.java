@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.common;
 
 import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.store.RecordWriter;
 import org.apache.calcite.plan.Convention;
@@ -42,9 +41,7 @@ public abstract class WriterRelBase extends SingleRel {
 
     rowType =
         CalciteArrowHelper.wrap(RecordWriter.SCHEMA)
-            .toCalciteRecordType(
-                getCluster().getTypeFactory(),
-                PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport());
+            .toCalciteRecordType(getCluster().getTypeFactory(), true);
   }
 
   public CreateTableEntry getCreateTableEntry() {

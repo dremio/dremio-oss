@@ -397,7 +397,8 @@ public class ParquetGroupScanUtils {
 
     Set<HostAndPort> hostEndpointMap = Sets.newHashSet();
     Set<HostAndPort> hostPortEndpointMap = Sets.newHashSet();
-    for (NodeEndpoint endpoint : plugin.getContext().getExecutors()) {
+    for (NodeEndpoint endpoint :
+        plugin.getContext().getClusterCoordinator().getExecutorEndpoints()) {
       hostEndpointMap.add(HostAndPort.fromHost(endpoint.getAddress()));
       hostPortEndpointMap.add(
           HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));

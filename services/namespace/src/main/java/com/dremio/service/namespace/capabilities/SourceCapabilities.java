@@ -57,10 +57,6 @@ public final class SourceCapabilities {
   public static final BooleanCapability VARCHARS_WITH_WIDTH =
       new BooleanCapability("varchars_with_width", false);
 
-  // Indicates to use the native privileges set directly on the source.
-  public static final BooleanCapability USE_NATIVE_PRIVILEGES =
-      new BooleanCapability("use_native_privileges", false);
-
   // Any plugin that supports Iceberg tables can support this capabilities if the planner can depend
   // on partition stats while planning
   private static BooleanCapability CAN_USE_PARTITION_STATS =

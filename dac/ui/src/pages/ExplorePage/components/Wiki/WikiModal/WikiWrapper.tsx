@@ -162,7 +162,7 @@ const WikiWrapper = ({
               viewState={tagsViewState}
               className={classNames(
                 classes["sectionItem"],
-                isPanel && classes["tab-wrapper-panel"]
+                isPanel && classes["tab-wrapper-panel"],
               )}
               style={wrapperStylesFix}
               hideChildrenWhenFailed={false}
@@ -217,7 +217,13 @@ const WikiWrapper = ({
       <Collapsible
         title={intl.formatMessage({ id: "Common.Wiki" })}
         toolbar={wikiToolbar}
-        body={<>{renderWikiContent()}</>}
+        body={
+          <>
+            <ViewStateWrapper viewState={wikiViewState}>
+              {renderWikiContent()}
+            </ViewStateWrapper>
+          </>
+        }
         bodyClass={isSmallerView ? classes["collapsibleBodyOverlay"] : ""}
         bodyStyle={isSmallerView ? { height: "33%" } : { height: "50%" }}
       />
@@ -242,7 +248,7 @@ const WikiWrapper = ({
                 classes["leftColumn"],
                 classes["sectionsContainer"],
                 sidebarCollapsed && classes["leftColumnCollapsedRightSection"],
-                extClassName
+                extClassName,
               )}
               data-qa="wikiWrapper"
             >
@@ -265,7 +271,7 @@ const WikiWrapper = ({
               <div
                 className={classNames(
                   classes["rightColumn"],
-                  classes["sectionsContainer"]
+                  classes["sectionsContainer"],
                 )}
                 data-qa="tagsSection"
               >
@@ -311,7 +317,7 @@ const WikiWrapper = ({
             />
           )}
           {!isEntity && !isPanelError && dataColumnsComponent()}
-          {shouldShowWikiSection && !isPanelError && wikiDetailsComponent()}
+          {shouldShowWikiSection && wikiDetailsComponent()}
         </ViewStateWrapper>
       )}
       <WikiModalWithSave

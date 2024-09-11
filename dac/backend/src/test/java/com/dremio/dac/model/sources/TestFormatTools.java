@@ -60,7 +60,7 @@ public class TestFormatTools extends BaseTestServer {
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    final SourceService sourceService = newSourceService();
+    final SourceService sourceService = getSourceService();
     {
       final NASConf nas = new NASConf();
       nas.path = "/";

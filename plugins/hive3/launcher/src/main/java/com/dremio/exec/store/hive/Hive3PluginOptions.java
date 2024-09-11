@@ -85,4 +85,8 @@ public interface Hive3PluginOptions {
           "impala_intermediate" // impala_intermediate_stats_chunk is a 4k chunk of base64 encoded
           // column stat for each partition
           );
+
+  /** Option to specify the object pool size of HMS Client instances. Set 0 to turn pooling off */
+  TypeValidators.LongValidator HIVE_CLIENT_POOL_SIZE =
+      new TypeValidators.RangeLongValidator("store.hive3.client_pool_size", 0, 100, 10);
 }

@@ -23,7 +23,7 @@ import { TreeNode } from "./ResourceTree.types";
 import { uniqBy } from "lodash";
 import { store } from "@app/store/store";
 import { getResourceTree } from "@app/selectors/tree";
-
+import additionalResourceTreeUtils from "@inject/shared/AdditionalResourceTreeUtils";
 export const starTabNames = {
   all: "All",
   starred: "Starred",
@@ -175,17 +175,24 @@ function buildPath(tree: any, payloadNodes: any[], currNode: any) {
     const delimeter = index ? "." : "";
     return curArr.slice(0, index).join(".") + delimeter + node;
   });
-
   while (nodes.length && resources.size) {
     const index = viewPath
       ? resources.findIndex(
           (node: any) =>
-            constructFullPath(node.get("viewPath"), true) === nodes[0]
+            constructFullPath(node.get("viewPath"), true) === nodes[0],
         )
-      : resources.findIndex(
-          (node: any) =>
-            constructFullPath(node.get("fullPath"), true) === nodes[0]
-        );
+      : resources.findIndex((node: any) => {
+          const isCaseSensitive =
+            additionalResourceTreeUtils()?.isCaseSensitive?.(node.get("id"));
+          if (isCaseSensitive) {
+            return constructFullPath(node.get("fullPath"), true) === nodes[0];
+          } else {
+            return (
+              constructFullPath(node.get("fullPath"), true).toLowerCase() ===
+              nodes[0].toLowerCase()
+            );
+          }
+        });
     paths.push(index, "resources");
     resources = resources.getIn([index, "resources"]) || Immutable.List();
     nodes.shift();
@@ -198,7 +205,7 @@ function starredResourceDecorator(
   state: any,
   parentNode: any,
   nodeExpanded: boolean,
-  builtPath: any[]
+  builtPath: any[],
 ) {
   if (!nodeExpanded) {
     // top most level so it needs to be set as the base node for styling and view path for rendering future children
@@ -221,7 +228,7 @@ function starredResourceDecorator(
     });
     return state.setIn(
       ["starResourceList", ...builtPath],
-      resourcesWithViewPath
+      resourcesWithViewPath,
     );
   }
 }
@@ -240,7 +247,7 @@ export function starredResourceTreeNodeDecorator(
       isSummaryDatasetResponse: boolean;
     };
   },
-  payloadKey: string
+  payloadKey: string,
 ) {
   const {
     path = "",
@@ -254,19 +261,19 @@ export function starredResourceTreeNodeDecorator(
   const payloadResources = Immutable.fromJS(
     isSummaryDatasetResponse
       ? getSummaryDatasetPayload(action.payload, fullPath)
-      : action.payload?.[payloadKey]
+      : action.payload?.[payloadKey],
   );
   const resources = payloadResources?.sort(
     (prevRes: any, res: any) =>
       (prevRes.get("type") !== "HOME" && res.get("type") === "HOME") ||
-      (prevRes.get("type") === "HOME" && res.get("type") !== "HOME" && -1)
+      (prevRes.get("type") === "HOME" && res.get("type") !== "HOME" && -1),
   );
   const result = starredResourceDecorator(
     resources,
     state,
     currNode,
     nodeExpanded,
-    builtPath
+    builtPath,
   );
   return result;
 }
@@ -285,7 +292,7 @@ export function resourceTreeNodeDecorator(
       isSummaryDatasetResponse: boolean;
       fromModal?: boolean;
     };
-  }
+  },
 ) {
   const {
     path = "",
@@ -314,14 +321,14 @@ export function resourceTreeNodeDecorator(
   const payloadResources = Immutable.fromJS(
     isSummaryDatasetResponse
       ? getSummaryDatasetPayload(action.payload, fullPath)
-      : action.payload?.resources || []
+      : action.payload?.resources || [],
   );
 
   const builtPath = buildPath(state.get(treeContextName), nodes, undefined); // [1, 'resources']
   const resources = payloadResources.sort(
     (prevRes: any, res: any) =>
       (prevRes.get("type") !== "HOME" && res.get("type") === "HOME") ||
-      (prevRes.get("type") === "HOME" && res.get("type") !== "HOME" && -1)
+      (prevRes.get("type") === "HOME" && res.get("type") !== "HOME" && -1),
   );
 
   // Do nothing in the case when datasets, spaces, or sources are hidden and there are 0 resources
@@ -330,7 +337,6 @@ export function resourceTreeNodeDecorator(
   if (builtPath.length && !isExpand) {
     builtPath.unshift(treeContextName);
     const currentResources = state.getIn(builtPath);
-
     // If resources already exist, merge the payload results with current resources list
     if (currentResources && currentResources.size > 0) {
       const merged = currentResources.merge(resources);
@@ -338,13 +344,13 @@ export function resourceTreeNodeDecorator(
         uniqBy(
           merged.toJS(),
           //Folders and some tables do not have an ID to compare
-          (entry: { id?: string; name: string }) => entry.id || entry.name
+          (entry: { id?: string; name: string }) => entry.id || entry.name,
         ) as any[]
       ).sort((a, b) => a.name.localeCompare(b.name));
       return state.setIn(builtPath, Immutable.fromJS(sortedUniqueList));
     } else {
       const sortedInitResources = resources.sort((a: any, b: any) =>
-        a.get("name").localeCompare(b.get("name"))
+        a.get("name").localeCompare(b.get("name")),
       );
       // Create new resource(s) for item
       return state.setIn(builtPath, sortedInitResources);
@@ -360,7 +366,7 @@ export function getNodeBranchId(node: any) {
 
 export function clearResourcesByName(
   state: any,
-  action: { payload: { rootNodeName: string; fromModal?: boolean } }
+  action: { payload: { rootNodeName: string; fromModal?: boolean } },
 ) {
   let treeContextName = "tree";
   if (action.payload.fromModal) {
@@ -375,7 +381,7 @@ export function clearResourcesByName(
 
 export function clearResourceTree(
   state: any,
-  action: { payload: { fromModal?: boolean } }
+  action: { payload: { fromModal?: boolean } },
 ) {
   let treeContextName = "tree";
   if (action.payload.fromModal) {
@@ -384,9 +390,9 @@ export function clearResourceTree(
   return state.set(treeContextName, Immutable.fromJS([]));
 }
 
-export function getResourceByName(node: any, tree: any) {
+function getResourceByName(node: any, tree: any) {
   return tree.find(
-    (child: any) => child.get("name") === node.getIn(["fullPath", 0])
+    (child: any) => child.get("name") === node.getIn(["fullPath", 0]),
   );
 }
 
@@ -394,14 +400,11 @@ export function getFullPathFromResourceTree(node: any) {
   const state = store.getState();
   const tree = getResourceTree(state);
   let fullPath =
-    node
-      .get("fullPath")
-      ?.toJS()
-      ?.map((part: string) => encodeURIComponent(part)) || [];
+    node.get("fullPath")?.map((part: string) => encodeURIComponent(part)) || [];
   if (node.get("type") === "FOLDER") {
     const root = fullPath.shift();
     fullPath = [root, "folder", ...fullPath];
   }
-  const rootSource = getResourceByName(node, tree)?.toJS() || [];
-  return [rootSource?.type?.toLowerCase(), ...fullPath].join("/");
+  const rootSource = getResourceByName(node, tree);
+  return [rootSource?.get("type")?.toLowerCase(), ...fullPath].join("/");
 }

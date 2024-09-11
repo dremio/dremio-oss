@@ -41,7 +41,7 @@ public interface WriterCommitterOutputHandler extends AutoCloseable {
    * Writes the values in the outgoing vector. Applicable only in the implementations that support
    * custom output.
    */
-  void write(WriterCommitterRecord record);
+  void write(WriterCommitterRecord rec);
 
   /** Factory method for instantiating an implementation */
   static WriterCommitterOutputHandler getInstance(

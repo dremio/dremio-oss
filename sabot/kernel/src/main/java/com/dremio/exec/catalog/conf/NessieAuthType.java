@@ -27,5 +27,9 @@ public enum NessieAuthType {
   /** Access Nessie with auth enabled mode. */
   @Tag(2)
   @DisplayMetadata(label = "Bearer")
-  BEARER
+  BEARER,
+
+  @Tag(3)
+  @DisplayMetadata(label = "OAuth2 Client Credentials")
+  OAUTH2
 }

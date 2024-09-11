@@ -51,7 +51,7 @@ public class TestSearchService extends BaseTestServer {
   public static void before() throws Exception {
     populateInitialData();
 
-    NamespaceService namespaceService = newNamespaceService();
+    NamespaceService namespaceService = getNamespaceService();
 
     SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName("searchSpace");
@@ -61,7 +61,7 @@ public class TestSearchService extends BaseTestServer {
 
   @AfterClass
   public static void after() throws Exception {
-    NamespaceService namespaceService = newNamespaceService();
+    NamespaceService namespaceService = getNamespaceService();
     NamespaceKey namespaceKey = new NamespaceKey("searchSpace");
     namespaceService.deleteSpace(namespaceKey, namespaceService.getSpace(namespaceKey).getTag());
   }
@@ -129,7 +129,7 @@ public class TestSearchService extends BaseTestServer {
 
   private void doWakeup() throws Exception {
     // make sure we call the master SearchService to do the wakeup call
-    pMaster(SearchService.class).get().wakeupManager("");
+    lMaster(SearchService.class).wakeupManager("");
     Thread.sleep(TimeUnit.MILLISECONDS.toMillis(200));
   }
 
@@ -159,7 +159,7 @@ public class TestSearchService extends BaseTestServer {
     ViewCreatorFactory vcf = l(ViewCreatorFactory.class);
     vcf.get(DEFAULT_USERNAME).createView(path, sql, Collections.emptyList(), false);
 
-    DatasetConfig dataset = newNamespaceService().getDataset(namespaceKey);
+    DatasetConfig dataset = getNamespaceService().getDataset(namespaceKey);
 
     if (tags != null) {
       Tags tagsEntity = new Tags(tags, null);
@@ -177,7 +177,7 @@ public class TestSearchService extends BaseTestServer {
   @Test
   public void testSearchAndDelete() throws Exception {
     final SearchService searchService = getSearchService();
-    final SourceService sourceService = l(SourceService.class);
+    final SourceService sourceService = getSourceService();
 
     // register source
     final SourceUI source = new SourceUI();
@@ -213,10 +213,6 @@ public class TestSearchService extends BaseTestServer {
   }
 
   private static SearchService getSearchService() {
-    return p(SearchService.class).get();
-  }
-
-  private static CollaborationHelper getCollaborationHelper() {
-    return p(CollaborationHelper.class).get();
+    return l(SearchService.class);
   }
 }

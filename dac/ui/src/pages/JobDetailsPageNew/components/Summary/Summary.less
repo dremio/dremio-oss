@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
+
 @font-size: 16px;
 @line-height: 20px;
 @font-weight: 600;
@@ -22,7 +22,7 @@
     &__title {
       padding-top: 10px;
       padding-bottom: 15px;
-      color: @font-color1;
+      color: var(--text--primary);
       font-size: @font-size;
       font-weight: @font-weight;
       line-height: @line-height;
@@ -37,13 +37,13 @@
       padding-right: 10px;
       font-size: 14px;
       line-height: 24px;
-      color: @greyish-blue;
+      color: var(--text--primary);
     }
     &__contentValue {
       flex-basis: 50%;
       font-size: 14px;
       line-height: 20px;
-      color: @liteSlate-grey;
+      color: var(--text--faded);
 
       &.outputLimited {
         color: var(--color--neutral--200);

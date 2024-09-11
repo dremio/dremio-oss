@@ -81,7 +81,7 @@ const ArcticCatalogSelectItem = forwardRef<HTMLDivElement, ItemProps>(
       } else if (value === ERROR_ITEM) {
         return (
           <span>
-            {intl.formatMessage({ id: "ArcticSource.ErrorCatalogItem" })}
+            {intl.formatMessage({ id: "VersionedSource.ErrorCatalogItem" })}
           </span>
         );
       } else if (value === NEW_CATALOG_ITEM) {
@@ -89,7 +89,7 @@ const ArcticCatalogSelectItem = forwardRef<HTMLDivElement, ItemProps>(
           <span>
             <dremio-icon name="interface/plus" />{" "}
             <span>
-              {intl.formatMessage({ id: "ArcticSource.NewCatalogItem" })}
+              {intl.formatMessage({ id: "VersionedSource.NewCatalogItem" })}
             </span>
           </span>
         );
@@ -180,8 +180,9 @@ export function ArcticCatalogSelect({
       if (value === NEW_CATALOG_ITEM) {
         newArcticCatalog.open();
       } else if (catalogs) {
-        const name = catalogs.find((cur: ArcticCatalog) => cur.id === value)
-          ?.name;
+        const name = catalogs.find(
+          (cur: ArcticCatalog) => cur.id === value,
+        )?.name;
         onChange?.(value, name);
       }
     },
@@ -248,7 +249,7 @@ function ArcticCatalogSelectWrapper({
     <FieldWithError
       {...field}
       label={intl.formatMessage({
-        id: "ArcticSource.SelectCatalogFormItemLabel",
+        id: "VersionedSource.SelectCatalogFormItemLabel",
       })}
       name={elementConfig.getPropName()}
       className={fieldWithError}
@@ -264,7 +265,7 @@ function ArcticCatalogSelectWrapper({
         value={field.value}
         onChange={handleChange}
         placeholder={intl.formatMessage({
-          id: "ArcticSource.SelectCatalogPlaceholder",
+          id: "VersionedSource.SelectCatalogPlaceholder",
         })}
       />
     </FieldWithError>

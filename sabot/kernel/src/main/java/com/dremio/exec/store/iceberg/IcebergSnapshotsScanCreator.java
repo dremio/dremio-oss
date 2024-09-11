@@ -50,7 +50,8 @@ public class IcebergSnapshotsScanCreator
                         toXAttrs(split),
                         plugin,
                         config.getProps(),
-                        config.getSnapshotsScanOptions()))
+                        config.getSnapshotsScanOptions(),
+                        config.getSchemeVariate()))
             .collect(Collectors.toList());
     return new ScanOperator(
         fragmentExecContext, config, context, RecordReaderIterator.from(readers.listIterator()));

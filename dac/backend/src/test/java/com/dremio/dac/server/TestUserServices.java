@@ -20,6 +20,7 @@ import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
 import static javax.ws.rs.core.Response.Status.UNAUTHORIZED;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -86,7 +87,7 @@ public class TestUserServices extends BaseTestServer {
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
     // clear test users
     for (User userConfig : userService.getAllUsers(10000)) {
       if (userConfig.getUserName().startsWith(USERNAME_PREFIX)) {
@@ -143,7 +144,8 @@ public class TestUserServices extends BaseTestServer {
             BAD_REQUEST,
             getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildDelete(),
             GenericErrorMessage.class);
-    assertErrorMessage(errorDelete, GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
+    assertThat(errorDelete.getErrorMessage())
+        .isEqualTo(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
 
     doc("delete with bad version");
     long badVersion = 1234L;
@@ -161,7 +163,7 @@ public class TestUserServices extends BaseTestServer {
                         .queryParam("version", badVersion))
                 .buildDelete(),
             GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, expectedErrorMessage);
+    assertThat(errorDelete2.getErrorMessage()).isEqualTo(expectedErrorMessage);
 
     doc("delete");
     String version = getUserVersionFromStore(testUserName("test11"));
@@ -232,7 +234,7 @@ public class TestUserServices extends BaseTestServer {
   @Test
   public void testUserSearch() throws Exception {
     getPopulator().populateTestUsers();
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
     User db =
         SimpleUser.newBuilder()
             .setUserName(testUserName("DavidBrown"))
@@ -334,7 +336,7 @@ public class TestUserServices extends BaseTestServer {
   @Test
   public void testUserLogin() throws Exception {
     doc("Creating user");
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
     User userConfig2 =
         SimpleUser.newBuilder()
             .setUserName(testUserName("test12"))
@@ -561,7 +563,7 @@ public class TestUserServices extends BaseTestServer {
   @Test
   public void testUserAuthorization() throws Exception {
     doc("Creating user");
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
 
     User admin =
         SimpleUser.newBuilder()
@@ -784,7 +786,7 @@ public class TestUserServices extends BaseTestServer {
    * @throws UserNotFoundException
    */
   private String getUserVersionFromStore(String userName) throws UserNotFoundException {
-    final UserService userService = l(UserService.class);
+    final UserService userService = getUserService();
     return userService.getUser(userName).getVersion();
   }
 }

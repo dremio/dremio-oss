@@ -89,11 +89,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie.nessie</groupId>
-      <artifactId>nessie-jaxrs</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <!--
       this dependency is only to pull in its transitive JerseyTest/Weld dependencies
       but we are using our own NessieProxyJaxRsExtension with javax annotations

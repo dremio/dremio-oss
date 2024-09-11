@@ -84,7 +84,7 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
     datafileProcessor = new DataFileContentReader(operatorContext, tableFunctionContext);
     datafileProcessor.setup(null, outgoing);
     setupPartitionData();
-    datafileProcessor.initialise(partitionSpec, 0);
+    datafileProcessor.initialise(partitionSpec, 0, null, null, null);
   }
 
   @After
@@ -172,7 +172,7 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
     return new OperatorContextImpl(
         sabotContext.getConfig(),
         sabotContext.getDremioConfig(),
-        getAllocator(),
+        getTestAllocator(),
         sabotContext.getOptionManager(),
         10,
         sabotContext.getExpressionSplitCache());

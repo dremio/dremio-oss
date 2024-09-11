@@ -88,7 +88,7 @@ public class Pivots {
     long startingVariableAddr = targetVariable.getMemoryAddress();
     long targetVariableAddr = targetVariable.getMemoryAddress();
 
-    for (int record = 0; record < count; record++) {
+    for (int rec = 0; rec < count; rec++) {
 
       int varLen = 0;
 

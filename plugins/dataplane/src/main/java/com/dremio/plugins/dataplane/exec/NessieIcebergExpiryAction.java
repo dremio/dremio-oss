@@ -59,7 +59,9 @@ public class NessieIcebergExpiryAction extends IcebergExpiryAction {
       String dbName,
       ResolvedVersionContext versionContext,
       FileIO fileIO,
-      boolean commitExpiry) {
+      boolean commitExpiry,
+      String schemeVariate,
+      String fsScheme) {
     super(
         icebergMutablePlugin,
         props,
@@ -70,12 +72,13 @@ public class NessieIcebergExpiryAction extends IcebergExpiryAction {
         dbName,
         versionContext,
         fileIO,
-        commitExpiry);
+        commitExpiry,
+        schemeVariate,
+        fsScheme);
   }
 
   @Override
-  protected List<String> computeMetadataPathsToRetain(
-      TableMetadata tableMetadata, Set<Long> liveSnapshotIds) {
+  protected List<String> computeMetadataPathsToRetain(Set<Long> liveSnapshotIds) {
     // Identify older metadata paths to allow commit level time-travel for the given history in
     // retention override cases.
     // Traversing commit history for a given table isn't an efficient operation in Nessie. Hence,
@@ -98,6 +101,7 @@ public class NessieIcebergExpiryAction extends IcebergExpiryAction {
             tableMetadata.previousFiles().stream()
                 .filter(shouldRetain)
                 .map(TableMetadata.MetadataLogEntry::file))
+        .map(super::getIcebergPath)
         .collect(Collectors.toList());
   }
 

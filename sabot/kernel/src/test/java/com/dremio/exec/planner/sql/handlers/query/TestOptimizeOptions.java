@@ -23,7 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.options.OptionManager;
@@ -199,11 +198,7 @@ public class TestOptimizeOptions {
   }
 
   private static SqlOptimize parseToSqlOptimizeNode(String toParse) throws SqlParseException {
-    ParserConfig config =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            255,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255);
     SqlParser parser = SqlParser.create(toParse, config);
     return (SqlOptimize) parser.parseStmt();
   }

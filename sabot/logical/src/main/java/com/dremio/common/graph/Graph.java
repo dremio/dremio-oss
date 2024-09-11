@@ -43,17 +43,6 @@ public class Graph<G extends GraphValue<G>, R extends G, T extends G> {
             String.format("Leaf nodes must be a subclass of %s.", leaf.getSimpleName()));
   }
 
-  @SuppressWarnings("unchecked")
-  private <O extends G> List<O> checkOperatorType(
-      Collection<G> ops, Class<O> classIdentifier, String error) {
-    for (G o : ops) {
-      if (!classIdentifier.isAssignableFrom(o.getClass())) {
-        throw new UnexpectedOperatorType(o, error);
-      }
-    }
-    return (List<O>) ops;
-  }
-
   public AdjacencyList<G> getAdjList() {
     return adjList;
   }
@@ -68,6 +57,17 @@ public class Graph<G extends GraphValue<G>, R extends G, T extends G> {
 
   public static <G extends GraphValue<G>, R extends G, T extends G> Graph<G, R, T> newGraph(
       List<G> operators, Class<R> root, Class<T> leaf) {
-    return new Graph<G, R, T>(operators, root, leaf);
+    return new Graph<>(operators, root, leaf);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <G, O extends G> List<O> checkOperatorType(
+      Collection<G> ops, Class<O> classIdentifier, String error) {
+    for (G o : ops) {
+      if (!classIdentifier.isAssignableFrom(o.getClass())) {
+        throw new UnexpectedOperatorType(o, error);
+      }
+    }
+    return (List<O>) ops;
   }
 }

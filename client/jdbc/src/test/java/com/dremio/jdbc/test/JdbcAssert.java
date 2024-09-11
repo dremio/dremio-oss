@@ -15,19 +15,12 @@
  */
 package com.dremio.jdbc.test;
 
-import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
-
-import com.dremio.common.logical.LogicalPlan;
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
 import com.dremio.jdbc.ConnectionFactory;
 import com.dremio.jdbc.ConnectionInfo;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
-import com.google.common.collect.Iterables;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -40,7 +33,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.function.Consumer;
 import org.apache.calcite.linq4j.Ord;
 import org.junit.Assert;
 
@@ -306,55 +298,9 @@ public class JdbcAssert {
       }
       return set;
     }
-
-    public LogicalPlan logicalPlan() {
-      final String[] plan0 = {null};
-      Connection connection = null;
-      Statement statement = null;
-      final Hook.Closeable x = Hook.LOGICAL_PLAN.add((Consumer<String>) s -> plan0[0] = s);
-      try {
-        connection = adapter.createConnection();
-        statement = connection.prepareStatement(sql);
-        statement.close();
-        final String plan = plan0[0].trim();
-        return LogicalPlan.parse(
-            PhysicalPlanReaderTestFactory.defaultLogicalPlanPersistence(CLASSPATH_SCAN_RESULT),
-            plan);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      } finally {
-        if (statement != null) {
-          try {
-            statement.close();
-          } catch (SQLException e) {
-            // ignore
-          }
-        }
-        if (connection != null) {
-          try {
-            connection.close();
-          } catch (SQLException e) {
-            // ignore
-          }
-        }
-        x.close();
-      }
-    }
-
-    public <T extends LogicalOperator> T planContains(final Class<T> operatorClazz) {
-      return (T)
-          Iterables.find(
-              logicalPlan().getSortedOperators(),
-              new Predicate<LogicalOperator>() {
-                @Override
-                public boolean apply(LogicalOperator input) {
-                  return input.getClass().equals(operatorClazz);
-                }
-              });
-    }
   }
 
-  private static interface ConnectionFactoryAdapter {
+  private interface ConnectionFactoryAdapter {
     Connection createConnection() throws Exception;
   }
 }

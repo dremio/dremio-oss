@@ -27,6 +27,7 @@ import com.dremio.service.coordinator.exceptions.PathMissingException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -69,12 +70,14 @@ final class TaskLoadController implements AutoCloseable {
       org.slf4j.LoggerFactory.getLogger(TaskLoadController.class);
   private final ClusteredSingletonCommon schedulerCommon;
   private final Map<String, PerTaskLoadController> allTasks;
+  private final Set<String> locallyAdded;
   private final LoadMonitorThread monitorThread;
   private final SchedulerEvents events;
 
   TaskLoadController(ClusteredSingletonCommon schedulerCommon, SchedulerEvents events) {
     this.schedulerCommon = schedulerCommon;
     this.allTasks = new ConcurrentHashMap<>();
+    this.locallyAdded = ConcurrentHashMap.newKeySet();
     this.events = events;
     monitorThread = new LoadMonitorThread();
     monitorThread.setUncaughtExceptionHandler(UncaughtExceptionHandlers.processExit());
@@ -97,6 +100,7 @@ final class TaskLoadController implements AutoCloseable {
 
   @Override
   public void close() {
+    locallyAdded.clear();
     allTasks.clear();
     monitorThread.close();
   }
@@ -105,6 +109,10 @@ final class TaskLoadController implements AutoCloseable {
     ThreadPoolExecutor getTaskRunningPool();
 
     void runImmediate();
+
+    boolean isEligibleToRun(long millisInRunSet);
+
+    void setRecoveryWatchIfRecoveryOwner();
   }
 
   final class PerTaskLoadController {
@@ -148,6 +156,7 @@ final class TaskLoadController implements AutoCloseable {
             .getTaskStore()
             .executeSingle(new PathCommand(CREATE_EPHEMERAL, taskRunSetPath));
         taskLoadStats.addedToRunSet();
+        locallyAdded.add(getTaskName());
       } catch (PathExistsException ignored) {
         LOGGER.debug("Task {} already added to run set", taskRunSetPath);
       } catch (Exception e) {
@@ -160,7 +169,14 @@ final class TaskLoadController implements AutoCloseable {
     }
 
     boolean tryRun() {
-      if (!hasRunThresholdCrossed()) {
+      long elapsed = 0;
+      if (taskLoadInfo.getSchedule().getWeightProvider() != null) {
+        var stats = schedulerCommon.getTaskStore().getStats(taskRunSetPath);
+        if (stats != null) {
+          elapsed = System.currentTimeMillis() - stats.getCreationTime();
+        }
+      }
+      if (!hasRunThresholdCrossed(elapsed)) {
         // First remove from the run set. Continue the run only if we are able to remove from run
         // set. This
         // ensures atomicity of the run.
@@ -185,7 +201,7 @@ final class TaskLoadController implements AutoCloseable {
       return taskLoadInfo.getTaskName();
     }
 
-    private boolean hasRunThresholdCrossed() {
+    private boolean hasRunThresholdCrossed(long elapsed) {
       int poolCapacityThreshold =
           Math.max(
               (POOL_CAPACITY_THRESHOLD_PERCENT
@@ -198,7 +214,8 @@ final class TaskLoadController implements AutoCloseable {
             poolCapacityThreshold,
             taskLoadInfo.getTaskRunningPool().getActiveCount());
       }
-      return taskLoadInfo.getTaskRunningPool().getActiveCount() >= poolCapacityThreshold;
+      return taskLoadInfo.getTaskRunningPool().getActiveCount() >= poolCapacityThreshold
+          || (elapsed != 0 && !taskLoadInfo.isEligibleToRun(elapsed));
     }
   }
 
@@ -244,6 +261,7 @@ final class TaskLoadController implements AutoCloseable {
                   .getChildren(schedulerCommon.getStealFqPath(), onChildrenChanged);
           events.runSetSize(latestRunnable.size());
           processRunSetUntilEmptyOrChanged(latestRunnable);
+          setRecoveryWatchesIfLocal(latestRunnable);
         } catch (InterruptedException e) {
           // set the interrupt flag back again and exit thread
           isClosing = true;
@@ -260,6 +278,21 @@ final class TaskLoadController implements AutoCloseable {
           }
         }
       }
+    }
+
+    private void setRecoveryWatchesIfLocal(List<String> latestRunnable) {
+      locallyAdded.removeIf(
+          (s) -> {
+            if (latestRunnable.contains(s)) {
+              // still not out of the run set wait a bit
+              return false;
+            }
+            var perTask = allTasks.get(s);
+            if (perTask != null) {
+              perTask.taskLoadInfo.setRecoveryWatchIfRecoveryOwner();
+            }
+            return true;
+          });
     }
 
     private void processRunSetUntilEmptyOrChanged(List<String> latestRunnable)

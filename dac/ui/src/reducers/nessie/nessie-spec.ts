@@ -31,13 +31,11 @@ describe("nessie root reducer", () => {
     const result = nessieReducer(undefined, { type: "blah" } as any);
     expect(result).to.deep.equal({});
   });
-
   it("returns same state when action does not start with NESSIE_", () => {
     const input = {};
     const result = nessieReducer(input, { type: "blah" } as any);
     expect(result).to.equal(input);
   });
-
   it("correctly initializes refs when state is empty", () => {
     const result = nessieReducer(testStateEmpty, { type: INIT_REFS } as any);
     expect(result).to.deep.equal({
@@ -46,7 +44,6 @@ describe("nessie root reducer", () => {
       "ref/nessie2": empty,
     });
   });
-
   it("correctly initializes dataset refs when state is not empty", () => {
     const result = nessieReducer(populatedState, { type: INIT_REFS } as any);
     expect(result).to.deep.equal({
@@ -56,7 +53,6 @@ describe("nessie root reducer", () => {
       "ref/arctic_source3": branchState,
     });
   });
-
   it("correctly initializes refs from server dataset object", () => {
     const result = nessieReducer(populatedState, {
       type: SET_REFS,
@@ -64,7 +60,6 @@ describe("nessie root reducer", () => {
     });
     const { hash, ...tagRef } = tagState.reference;
     const { hash: bHash, ...branchRef } = branchState.reference;
-
     expect(result).to.deep.equal({
       ...populatedState,
       "ref/arctic_source": commitState,

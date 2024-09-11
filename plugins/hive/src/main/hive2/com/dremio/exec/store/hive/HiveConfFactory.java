@@ -264,16 +264,16 @@ public class HiveConfFactory {
     configuration.set(name, value, DREMIO_SOURCE_CONFIGURATION_SOURCE);
   }
 
-  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, String value) {
-    setConf(configuration, var.varname, value);
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars confVar, String value) {
+    setConf(configuration, confVar.varname, value);
   }
 
-  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, int value) {
-    setConf(configuration, var.varname, Integer.toString(value));
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars confVar, int value) {
+    setConf(configuration, confVar.varname, Integer.toString(value));
   }
 
-  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, boolean value) {
-    setConf(configuration, var.varname, Boolean.toString(value));
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars confVar, boolean value) {
+    setConf(configuration, confVar.varname, Boolean.toString(value));
   }
 
   protected static void setConf(HiveConf hiveConf, String intProperty, int intValue) {

@@ -22,14 +22,14 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
-public final class ArrayIntersectionConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE =
-      new NullableArrayFunctionConvertlet(new ArrayIntersectionConvertlet());
+public final class ArrayIntersectionConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE =
+      new NullableArrayRexCallConvertlet(new ArrayIntersectionConvertlet());
 
   private ArrayIntersectionConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator() == ARRAY_INTERSECTION;
   }
 
@@ -50,9 +50,10 @@ public final class ArrayIntersectionConvertlet implements FunctionConvertlet {
         .transform(
             builder -> {
               RexNode item1 = rexBuilder.makeInputRef(builder.peek(), 0);
-              RexCall arrayContains =
-                  (RexCall) rexBuilder.makeCall(DremioSqlOperatorTable.ARRAY_CONTAINS, arr2, item1);
-              arrayContains = ArrayContainsConvertlet.INSTANCE.convertCall(cx, arrayContains);
+              RexNode arrayContains =
+                  rexBuilder.makeCall(DremioSqlOperatorTable.ARRAY_CONTAINS, arr2, item1);
+              arrayContains =
+                  ArrayContainsConvertlet.INSTANCE.convertCall(cx, (RexCall) arrayContains);
               builder.filter(arrayContains);
             })
         .array();

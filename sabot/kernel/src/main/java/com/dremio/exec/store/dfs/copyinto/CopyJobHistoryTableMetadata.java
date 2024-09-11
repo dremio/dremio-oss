@@ -17,7 +17,6 @@ package com.dremio.exec.store.dfs.copyinto;
 
 import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadata;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
-import org.apache.iceberg.Schema;
 
 /**
  * This class represents the metadata for the "copy_job_history" table stored by {@link
@@ -28,13 +27,18 @@ public class CopyJobHistoryTableMetadata extends SystemIcebergTableMetadata {
    * Constructs an instance of CopyJobHistoryTableMetadata.
    *
    * @param schemaVersion The version of the schema for the table.
-   * @param schema The iceberg schema of the table.
    * @param pluginName Name of the {@link SystemIcebergTablesStoragePlugin}
    * @param pluginPath Path of the {@link SystemIcebergTablesStoragePlugin}
    * @param tableName Name of the iceberg table.
    */
   public CopyJobHistoryTableMetadata(
-      long schemaVersion, Schema schema, String pluginName, String pluginPath, String tableName) {
-    super(schemaVersion, schema, pluginName, pluginPath, tableName);
+      long schemaVersion,
+      long commitRetryCount,
+      String pluginName,
+      String pluginPath,
+      String tableName) {
+    super(schemaVersion, commitRetryCount, pluginName, pluginPath, tableName);
+    schema = CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion);
+    partitionSpec = CopyJobHistoryTableSchemaProvider.getPartitionSpec(schemaVersion);
   }
 }

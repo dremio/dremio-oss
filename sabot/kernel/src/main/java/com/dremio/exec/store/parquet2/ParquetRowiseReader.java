@@ -19,6 +19,7 @@ import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
@@ -262,7 +263,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       List<String> segments = Lists.newArrayList();
       PathSegment seg = path.getRootSegment();
       do {
-        if (seg.isNamed()) {
+        if (seg.getType().equals(PathSegmentType.NAME)) {
           segments.add(seg.getNameSegment().getPath());
         }
       } while ((seg = seg.getChild()) != null);

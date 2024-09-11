@@ -33,10 +33,13 @@ import java.util.List;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCostFactory;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
+import org.apache.calcite.plan.hep.HepRuleCall;
+import org.apache.calcite.plan.hep.HepRuleCallNoOpDetector;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
@@ -140,5 +143,11 @@ public class DremioHepPlanner extends HepPlanner {
         ExceptionUtils.throwUserCancellationException(plannerSettings);
       }
     }
+  }
+
+  @Override
+  protected void fireRule(RelOptRuleCall ruleCall) {
+    super.fireRule(ruleCall);
+    assert !HepRuleCallNoOpDetector.hasNoOpTransformations((HepRuleCall) ruleCall);
   }
 }

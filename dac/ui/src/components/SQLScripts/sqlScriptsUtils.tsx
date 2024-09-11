@@ -16,15 +16,12 @@
 
 import sentryUtil from "@app/utils/sentryUtil";
 import { SQLScriptsProps } from "./SQLScripts";
-import { intl } from "@app/utils/intl";
-import getIconColor from "@app/utils/getIconColor";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 import { useSqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/providers/useSqlRunnerSession.js";
 import {
-  loadScriptJobs,
+  loadJobTabs,
   pollScriptJobs,
   setTabView,
 } from "@app/actions/resources/scripts";
@@ -38,6 +35,7 @@ import {
 import { getLocation } from "@app/selectors/routing";
 import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 import { deleteQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
+import { isTemporaryScript } from "dremio-ui-common/sonar/SqlRunnerSession/utilities/temporaryTabs.js";
 
 export const ALL_MINE_SCRIPTS_TABS = {
   all: "All",
@@ -63,7 +61,6 @@ export const fetchAllAndMineScripts = (
     createdBy: null,
   }).catch((error: any) => {
     const failedErrorLog = sentryUtil.logException(error);
-    // @ts-ignore
     if (failedErrorLog) {
       console.error(
         "An error has occurred while making a call in SQLscripts to All:",
@@ -77,7 +74,6 @@ export const fetchAllAndMineScripts = (
     createdBy: userId,
   }).catch((error: any) => {
     const failedErrorLog = sentryUtil.logException(error);
-    // @ts-ignore
     if (failedErrorLog) {
       console.error(
         "An error has occurred while making a call in SQLscripts to Mine:",
@@ -106,7 +102,7 @@ export function filterAndSortScripts({
     tempScripts = tempScripts.sort(sort && sort.compare);
   }
 
-  return tempScripts;
+  return tempScripts.filter((script) => !isTemporaryScript(script));
 }
 
 function compareSQLString(dir: string): any {
@@ -149,11 +145,7 @@ export const prepareScriptsFromList = ({
   return list.map((script: any) => {
     updateActiveScript && updateActiveScript(script);
 
-    return {
-      ...script,
-      colors: getIconColor(script.createdBy.id),
-      initials: nameToInitials(script.createdBy.name || script.createdBy.email),
-    };
+    return script;
   });
 };
 
@@ -162,13 +154,11 @@ export const openPrivilegesModalForScript = ({
   location,
   script,
   VIEW_ID,
-  noDataText,
 }: {
   router: any;
   location: any;
   script: any;
   VIEW_ID: string;
-  noDataText: string;
 }) => {
   return router.push({
     ...location,
@@ -182,10 +172,6 @@ export const openPrivilegesModalForScript = ({
       showUser: true,
       modalContext: "scripts",
       reFetchOnSave: true,
-      disabledTooltipText: intl.formatMessage({
-        id: "Scripts.Privileges.Owner.Cannot.Change",
-      }),
-      noDataText,
     },
   });
 };
@@ -247,7 +233,6 @@ export const handleDeleteScript = (
     confirmText: intl.formatMessage({ id: "Common.Delete" }),
     text: intl.formatMessage({ id: `Script.${deleteId}` }),
     confirm: () => deleteScript(),
-    closeButtonType: "CloseBig",
     className: "--newModalStyles",
     headerIcon: (
       <dremio-icon
@@ -321,12 +306,12 @@ function doScriptSelect(
 
   // load a script's saved jobs when changing tabs if they aren't loaded already
   if (!dataset) {
-    store.dispatch(loadScriptJobs(script));
+    store.dispatch(loadJobTabs(script));
   }
 }
 
 export const handleOpenTabScript =
-  (router: any) => (script: any, newQueryStatuses: any) => {
+  (router: any) => (script: any, newQueryStatuses?: any) => {
     doScriptSelect(router, script, selectTab, newQueryStatuses);
   };
 
@@ -362,7 +347,6 @@ export const handleOpenScript =
         text: intl.formatMessage({ id: "Common.LeaveMessage" }),
         cancelText: intl.formatMessage({ id: "Common.Stay" }),
         confirm: () => openScript(),
-        closeButtonType: "XBig",
         className: "--newModalStyles",
         headerIcon: (
           <dremio-icon

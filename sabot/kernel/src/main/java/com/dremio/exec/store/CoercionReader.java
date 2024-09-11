@@ -183,7 +183,12 @@ public class CoercionReader extends AbstractRecordReader {
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
     this.projector.setup(
-        context.getFunctionContext(), incoming, projectorOutput, transfers, name -> null);
+        context.getFunctionContext(),
+        incoming,
+        projectorOutput,
+        transfers,
+        name -> null,
+        projectorOptions);
     javaCodeGenWatch.stop();
     OperatorStats stats = context.getStats();
     stats.addLongStat(

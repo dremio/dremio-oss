@@ -15,6 +15,7 @@
  */
 package com.dremio.test;
 
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.google.common.base.Objects;
@@ -62,6 +63,24 @@ public class UserExceptionAssert extends ThrowableAssert<UserException> {
     if (!Objects.equal(actual.getErrorType(), expectedType)) {
       failWithMessage(
           "Expected error type to be '%s' but was '%s'", expectedType, actual.getErrorType());
+    }
+    return this;
+  }
+
+  public UserExceptionAssert hasOOMExceptionContext(String... expectedStrings) {
+    OutOfMemoryOrResourceExceptionContext oomExceptionContext =
+        OutOfMemoryOrResourceExceptionContext.fromUserException(actual);
+    if (oomExceptionContext != null) {
+      String additionalInfo = oomExceptionContext.getAdditionalInfo();
+      for (String expectedString : expectedStrings) {
+        if (!additionalInfo.contains(expectedString)) {
+          failWithMessage(
+              "Expected message in OutOfMemoryExceptionContext '%s' but was '%s'",
+              expectedString, additionalInfo);
+        }
+      }
+    } else {
+      failWithMessage("OutOfMemoryExceptionContext is null");
     }
     return this;
   }

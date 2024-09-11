@@ -25,12 +25,7 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.service.source.SourceService;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
@@ -50,6 +45,7 @@ import java.util.List;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.GenericType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -73,7 +69,7 @@ public class TestViewSchemaLearning extends BaseTestServer {
     NamespaceKey key = new NamespaceKey("mySpace");
     SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName("mySpace");
-    newNamespaceService().addOrUpdateSpace(key, spaceConfig);
+    getNamespaceService().addOrUpdateSpace(key, spaceConfig);
 
     // create a NAS source
     SourceUI source = new SourceUI();
@@ -83,8 +79,7 @@ public class TestViewSchemaLearning extends BaseTestServer {
     nasConf.path = TestTools.getWorkingPath() + "/src/test/resources/viewschemalearn";
     source.setConfig(nasConf);
     sourceConfig =
-        p(SourceService.class)
-            .get()
+        getSourceService()
             .registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
 
     setSystemOption(VDS_AUTO_FIX_THRESHOLD, "0");
@@ -93,12 +88,12 @@ public class TestViewSchemaLearning extends BaseTestServer {
   @AfterClass
   public static void shutdown() throws Exception {
     NamespaceKey key = new NamespaceKey("mySpace");
-    SpaceConfig space = newNamespaceService().getSpace(key);
-    newNamespaceService().deleteSpace(key, space.getTag());
+    SpaceConfig space = getNamespaceService().getSpace(key);
+    getNamespaceService().deleteSpace(key, space.getTag());
 
     SourceUI source = new SourceUI();
     source.setName("source-vsl");
-    p(SourceService.class).get().deleteSource(sourceConfig);
+    getSourceService().deleteSource(sourceConfig);
   }
 
   private void createPds(String fileName) throws NamespaceException {
@@ -111,7 +106,7 @@ public class TestViewSchemaLearning extends BaseTestServer {
     dacSample1.setName(fileName);
     dacSample1.setPhysicalDataset(
         new PhysicalDataset().setFormatSettings(new ParquetFileConfig().asFileConfig()));
-    newNamespaceService().addOrUpdateDataset(datasetPath.toNamespaceKey(), dacSample1);
+    getNamespaceService().addOrUpdateDataset(datasetPath.toNamespaceKey(), dacSample1);
   }
 
   /**
@@ -132,16 +127,8 @@ public class TestViewSchemaLearning extends BaseTestServer {
             getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
-    Catalog catalog =
-        getSabotContext()
-            .getCatalogService()
-            .getCatalog(
-                MetadataRequestOptions.newBuilder()
-                    .setSchemaConfig(
-                        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-                            .build())
-                    .build());
-    DremioTable viewTable = catalog.getTable(new NamespaceKey(viewPath));
+    DremioTable viewTable =
+        getCatalogService().getSystemUserCatalog().getTable(new NamespaceKey(viewPath));
     assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID())
         .isEqualTo(ArrowType.ArrowTypeID.List);
     String originalViewTag = viewTable.getDatasetConfig().getTag();
@@ -167,16 +154,7 @@ public class TestViewSchemaLearning extends BaseTestServer {
             new GenericType<Dataset>() {});
 
     // Grab a new catalog since we don't want to hit caching catalog cache
-    catalog =
-        getSabotContext()
-            .getCatalogService()
-            .getCatalog(
-                MetadataRequestOptions.newBuilder()
-                    .setSchemaConfig(
-                        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-                            .build())
-                    .build());
-    viewTable = catalog.getTable(new NamespaceKey(viewPath));
+    viewTable = getCatalogService().getSystemUserCatalog().getTable(new NamespaceKey(viewPath));
     assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID())
         .isEqualTo(ArrowType.ArrowTypeID.List);
     assertThat(viewTable.getDatasetConfig().getTag()).isNotEqualTo(originalViewTag);
@@ -185,6 +163,94 @@ public class TestViewSchemaLearning extends BaseTestServer {
 
     // Clean up
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
+  }
+
+  @Test
+  public void testSuccessfulViewUpdateUiRun() throws Exception {
+    testSuccessfulViewUpdateHelper(QueryType.UI_RUN, true);
+  }
+
+  @Test
+  public void testSuccessfulViewUpdateUiPreview() throws Exception {
+    testSuccessfulViewUpdateHelper(QueryType.UI_PREVIEW, true);
+  }
+
+  @Test
+  public void testNoViewUpdateFlight() throws Exception {
+    testSuccessfulViewUpdateHelper(QueryType.FLIGHT, false);
+  }
+
+  private void testSuccessfulViewUpdateHelper(QueryType queryType, boolean expectViewUpdate)
+      throws Exception {
+    final List<String> viewPath = Arrays.asList("mySpace", "myVDS");
+    Dataset vds =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+                .buildPost(Entity.json(getVDSConfig(viewPath, "SELECT 1 as c1"))),
+            new GenericType<Dataset>() {});
+
+    final List<String> childViewPath = Arrays.asList("mySpace", "myVDS2");
+    Dataset childVds =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH))
+                .buildPost(Entity.json(getVDSConfig(childViewPath, "SELECT * from mySpace.myVDS"))),
+            new GenericType<Dataset>() {});
+
+    DremioTable viewTable =
+        getCatalogService().getSystemUserCatalog().getTable(new NamespaceKey(childViewPath));
+    String originalViewTag = viewTable.getDatasetConfig().getTag();
+
+    // Update the view to include an extra columns
+    Dataset updatedVDS =
+        new Dataset(
+            vds.getId(),
+            vds.getType(),
+            Arrays.asList("mySpace", "myVDS"),
+            null,
+            null,
+            vds.getTag(),
+            null,
+            "select 1 as c1, 2 as c2",
+            null,
+            null,
+            null);
+    vds =
+        expectSuccess(
+            getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(updatedVDS.getId()))
+                .buildPut(Entity.json(updatedVDS)),
+            new GenericType<Dataset>() {});
+
+    try {
+      submitJobAndWaitUntilCompletion(
+          JobRequest.newBuilder()
+              .setSqlQuery(
+                  new SqlQuery(
+                      "select * from " + viewTable.getPath().getSchemaPath(),
+                      ImmutableList.of(),
+                      DEFAULT_USERNAME))
+              .setQueryType(queryType)
+              .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+              .build());
+    } catch (RuntimeException e) {
+      // Ignore since we don't care if job completed or not.
+    }
+
+    // Grab a new catalog since we don't want to hit caching catalog cache
+    viewTable =
+        getCatalogService().getSystemUserCatalog().getTable(new NamespaceKey(childViewPath));
+    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowTypeID.Int);
+    if (expectViewUpdate) {
+      assertThat(viewTable.getSchema().getFieldCount()).isEqualTo(2);
+      assertThat(viewTable.getSchema().getColumn(1).getType().getTypeID())
+          .isEqualTo(ArrowTypeID.Int);
+    } else {
+      assertThat(viewTable.getSchema().getFieldCount()).isEqualTo(1);
+    }
+
+    // Clean up
+    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
+    expectSuccess(
+        getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(childVds.getId())).buildDelete());
   }
 
   @Test
@@ -273,26 +339,16 @@ public class TestViewSchemaLearning extends BaseTestServer {
                       "select * from " + viewTable.getPath().getSchemaPath(),
                       ImmutableList.of(),
                       DEFAULT_USERNAME))
-              .setQueryType(QueryType.UI_INTERNAL_RUN)
+              .setQueryType(QueryType.UI_RUN)
               .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
               .build());
     } catch (RuntimeException e) {
       // Ignore since we don't care if job completed or not.
     }
 
-    // Grab a new catalog since we don't want to hit caching catalog cache
-    Catalog catalog =
-        getSabotContext()
-            .getCatalogService()
-            .getCatalog(
-                MetadataRequestOptions.newBuilder()
-                    .setSchemaConfig(
-                        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-                            .build())
-                    .build());
-
     // Verify Arrow types are the same still
-    DremioTable viewTable2 = catalog.getTable(viewTable.getPath());
+    DremioTable viewTable2 =
+        getCatalogService().getSystemUserCatalog().getTable(viewTable.getPath());
     for (int i = 0; i < expectedTypes.size(); i++) {
       assertThat(viewTable2.getSchema().getColumn(i).getType().getTypeID())
           .isEqualTo(expectedTypes.get(i));
@@ -313,17 +369,9 @@ public class TestViewSchemaLearning extends BaseTestServer {
             getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)),
             new GenericType<Dataset>() {});
 
-    Catalog catalog =
-        getSabotContext()
-            .getCatalogService()
-            .getCatalog(
-                MetadataRequestOptions.newBuilder()
-                    .setSchemaConfig(
-                        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
-                            .build())
-                    .build());
     // Verify we get the expected Arrow types after executing and saving the view
-    DremioTable viewTable = catalog.getTable(new NamespaceKey(viewPath));
+    DremioTable viewTable =
+        getCatalogService().getSystemUserCatalog().getTable(new NamespaceKey(viewPath));
     for (int i = 0; i < expectedTypes.size(); i++) {
       assertThat(viewTable.getSchema().getColumn(i).getType().getTypeID())
           .isEqualTo(expectedTypes.get(i));

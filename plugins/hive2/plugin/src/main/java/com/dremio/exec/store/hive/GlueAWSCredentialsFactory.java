@@ -36,6 +36,8 @@ public class GlueAWSCredentialsFactory implements AWSCredentialsProviderFactory 
   public static final String ASSUMED_ROLE_ARN = "fs.s3a.assumed.role.arn";
   public static final String ACCESS_KEY_PROVIDER =
       "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
+  public static final String GLUE_ACCESS_KEY_PROVIDER =
+      "com.dremio.exec.store.hive.GlueAWSCredentialsProvider";
   public static final String ASSUMED_ROLE_CREDENTIALS_PROVIDER =
       "fs.s3a.assumed.role.credentials.provider";
   public static final String ASSUME_ROLE_PROVIDER =
@@ -57,7 +59,8 @@ public class GlueAWSCredentialsFactory implements AWSCredentialsProviderFactory 
     logger.debug("aws_credentials_provider:{}", conf.get(Constants.AWS_CREDENTIALS_PROVIDER));
     switch (conf.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
-        return new org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider(conf);
+      case GLUE_ACCESS_KEY_PROVIDER:
+        return new GlueAWSCredentialsProvider(null, conf);
       case EC2_METADATA_PROVIDER:
         return com.amazonaws.auth.InstanceProfileCredentialsProvider.getInstance();
       case DREMIO_ASSUME_ROLE_PROVIDER:

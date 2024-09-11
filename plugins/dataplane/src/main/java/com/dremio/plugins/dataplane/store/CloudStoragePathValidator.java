@@ -45,13 +45,22 @@ public final class CloudStoragePathValidator {
           String.format(
               "^/?(%s)(%s)*/?$", AZURE_STORAGE_CONTAINER_REGEX, AZURE_STORAGE_DIRECTORY_REGEX));
 
+  private static final String GCS_BUCKET_REGEX = "[a-z0-9](?!.*\\.\\.)[a-z0-9-_\\.]{1,220}[a-z0-9]";
+  // Warning: only a basic check for forward slashes, not full validation
+  private static final String GCS_FOLDER_REGEX = "/[^/]+";
+
+  private static final Pattern GCS_BUCKET_PATTERN =
+      Pattern.compile(String.format("^%s$", GCS_BUCKET_REGEX));
+  private static final Pattern GCS_ROOT_PATH_PATTERN =
+      Pattern.compile(String.format("^/?(%s)(%s)*/?$", GCS_BUCKET_REGEX, GCS_FOLDER_REGEX));
+
   private CloudStoragePathValidator() {}
 
   /**
    *
    *
    * <pre>
-   * Checks to see if a given bucket name is valid.
+   * Checks to see if a given AWS S3 bucket name is valid.
    *
    * AWS Bucket names are controlled by: https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
    *
@@ -63,10 +72,9 @@ public final class CloudStoragePathValidator {
    * (NOT CHECKED) Bucket names must not start with the prefix xn--.
    * (NOT CHECKED) Bucket names must not start with the prefix sthree- and the prefix sthree-configurator.
    * (NOT CHECKED) Bucket names must not end with the suffix -s3alias. This suffix is reserved for access point alias
-   *   names. For more information, see Using a bucket-style alias for your S3 bucket access point.
+   *   names.
    * (NOT CHECKED) Bucket names must not end with the suffix --ol-s3. This suffix is reserved for Object Lambda Access
-   *   Point alias names. For more information, see How to use a bucket-style alias for your S3 bucket Object Lambda
-   *   Access Point.
+   *   Point alias names.
    * </pre>
    */
   public static boolean isValidAwsS3BucketName(String bucketName) {
@@ -116,7 +124,7 @@ public final class CloudStoragePathValidator {
    *
    *
    * <pre>
-   * Checks to see if a given storage container name is valid.
+   * Checks to see if a given Azure storage container name is valid.
    *
    * Azure storage container names are controlled by:
    * https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules
@@ -152,5 +160,49 @@ public final class CloudStoragePathValidator {
       return false;
     }
     return AZURE_ROOT_PATH_PATTERN.matcher(rootPath).find();
+  }
+
+  /**
+   *
+   *
+   * <pre>
+   * Checks to see if a given GCS bucket name is valid.
+   *
+   * GCS bucket names are controlled by:
+   * https://cloud.google.com/storage/docs/buckets
+   *
+   * Bucket names can only contain lowercase letters, numeric characters, dashes (-), underscores (_), and dots (.). Spaces are not allowed. Names containing dots require verification.
+   * Bucket names must start and end with a number or letter.
+   * (PARTIALLY CHECKED) Bucket names must contain 3-63 characters.
+   * (PARTIALLY CHECKED) Names containing dots can contain up to 222 characters, but each dot-separated component can be no longer than 63 characters.
+   * (NOT CHECKED) Bucket names cannot be represented as an IP address in dotted-decimal notation (for example, 192.168.5.4).
+   * (NOT CHECKED) Bucket names cannot begin with the "goog" prefix.
+   * (NOT CHECKED) Bucket names cannot contain "google" or close misspellings, such as "g00gle".
+   * </pre>
+   */
+  public static boolean isValidGcsBucketName(String bucketName) {
+    if (bucketName == null) {
+      return false;
+    }
+
+    return GCS_BUCKET_PATTERN.matcher(bucketName).find();
+  }
+
+  /**
+   *
+   *
+   * <pre>
+   * Checks to see if a given GCS root path is valid.
+   *
+   * Root paths are a bucket name followed by an optional set of folder names
+   * Folder name validation is a rudimentary check for forward slashes and may return valid for invalid folder names.
+   * </pre>
+   */
+  public static boolean isValidGcsRootPath(String rootPath) {
+    if (rootPath == null) {
+      return false;
+    }
+
+    return GCS_ROOT_PATH_PATTERN.matcher(rootPath).find();
   }
 }

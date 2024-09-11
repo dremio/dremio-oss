@@ -103,11 +103,11 @@ public class ExternalReflectionStore {
     }
 
     @Override
-    public void convert(DocumentWriter writer, ReflectionId key, ExternalReflection record) {
+    public void convert(DocumentWriter writer, ReflectionId key, ExternalReflection document) {
       writer.write(REFLECTION_ID, key.getId());
-      writer.write(DATASET_ID, record.getQueryDatasetId());
-      writer.write(TARGET_DATASET_ID, record.getTargetDatasetId());
-      writer.write(REFLECTION_NAME, record.getName());
+      writer.write(DATASET_ID, document.getQueryDatasetId());
+      writer.write(TARGET_DATASET_ID, document.getTargetDatasetId());
+      writer.write(REFLECTION_NAME, document.getName());
     }
   }
 

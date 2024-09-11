@@ -20,7 +20,6 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPL
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.plugins.dataplane.store.NessiePluginConfig;
@@ -70,7 +69,6 @@ public class ITDataplanePluginSourceConfig extends ITDataplanePluginTestSetup {
             .setName(DATAPLANE_PLUGIN_NAME + "_wrongURL")
             .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
 
-    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
-    catalogImpl.getSystemUserCatalog().createSource(sourceConfig);
+    getCatalogService().getSystemUserCatalog().createSource(sourceConfig);
   }
 }

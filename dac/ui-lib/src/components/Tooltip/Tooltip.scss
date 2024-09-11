@@ -18,12 +18,12 @@
 // Default tooltip colors. Moved out of the main theme for readability
 .MuiTooltip-tooltip,
 .tooltip {
-  background-color: var(--color--neutral--800) !important;
+  background-color: var(--color--neutral--700) !important;
   .MuiTooltip-arrow {
-    color: var(--color--neutral--800) !important;
+    color: var(--color--neutral--700) !important;
   }
   .MuiTooltip-arrow::before {
-    background-color: var(--color--neutral--800) !important;
+    background-color: var(--color--neutral--700) !important;
   }
 
   &.MuiTooltip-tooltip {
@@ -40,7 +40,7 @@
 .richTooltip {
   background-color: white !important;
   max-width: 400px !important;
-  color: var(--dremio--color--text--main) !important;
+  color: var(--text--primary) !important;
   padding: 16px 0px 20px 0px !important;
   box-shadow: var(--dremio--shadow--layer-1) !important;
   .MuiTooltip-arrow {

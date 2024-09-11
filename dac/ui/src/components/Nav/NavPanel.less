@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .nav {
   composes: flex-column-container from "~@app/uiTheme/less/layout.less";
@@ -29,6 +28,8 @@
   width: 208px;
   height: 40px;
   padding-left: 8px;
+  border-radius: 4px;
+  margin-bottom: var(--dremio--spacing--05);
   font-size: 14px;
   line-height: 20px;
   cursor: pointer;
@@ -38,22 +39,21 @@
   margin-inline-end: var(--dremio--spacing--1);
   :global {
     dremio-icon {
-      color: var(--dremio--color--icon--main);
+      color: var(--icon--primary);
     }
   }
 }
 
 .nav-btn-active {
   composes: nav-btn;
-  color: @WHITE;
+  color: white;
   font-weight: 600;
-  border-radius: 4px;
-  background-color: @FIGMA_PRIMARY_600;
+  background-color: var(--fill--brand--bold);
 
   .icon {
     :global {
       dremio-icon {
-        color: white;
+        color: var(--icon--nav);
       }
     }
   }

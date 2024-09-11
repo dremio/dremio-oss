@@ -53,10 +53,8 @@ public final class DeltaLakeMFunctionTranslatableTableImpl extends MFunctionTran
   private final StoragePlugin storagePlugin;
 
   public DeltaLakeMFunctionTranslatableTableImpl(
-      MFunctionCatalogMetadata catalogMetadata,
-      MFunctionMetadata mFunctionMetadata,
-      boolean complexTypeSupport) {
-    super(catalogMetadata, mFunctionMetadata.getSchemaConfig().getUserName(), complexTypeSupport);
+      MFunctionCatalogMetadata catalogMetadata, MFunctionMetadata mFunctionMetadata) {
+    super(catalogMetadata, mFunctionMetadata.getSchemaConfig().getUserName(), true);
     Preconditions.checkArgument(mFunctionMetadata.getCurrentConfig() != null);
     this.underlyingTableConfig = mFunctionMetadata.getCurrentConfig();
     this.storagePlugin = mFunctionMetadata.getPlugin();

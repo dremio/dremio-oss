@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/mixins.less";
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .pageBreadcrumbHeader {
@@ -22,7 +21,7 @@
     justify-content: space-between;
     padding: 12px 16px;
 
-    border-bottom: 1px solid @SECONDARY_200;
+    border-bottom: 1px solid var(--border--neutral);
     &-crumbContainer {
       .flex-center;
 
@@ -37,13 +36,18 @@
     }
 
     .pageBreadcrumbHeader-copyButton {
-      margin-left: 4px;
-      opacity: 0;
+      .dremio-icon-button {
+        margin-left: 4px;
+        opacity: 0;
+      }
     }
     &:hover {
-      .pageBreadcrumbHeader-copyButton {
+      .pageBreadcrumbHeader-copyButton .dremio-icon-button {
         opacity: 1;
       }
+    }
+    .pageBreadcrumbHeader-copyButton .dremio-icon-button:focus-visible {
+      opacity: 1;
     }
   }
 }

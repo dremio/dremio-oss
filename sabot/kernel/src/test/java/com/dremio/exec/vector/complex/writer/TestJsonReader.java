@@ -293,7 +293,7 @@ public class TestJsonReader extends PlanTestBase {
         testSqlWithResults("select * from cp.\"/store/json/test_complex_read_with_star.json\"");
     assertEquals(1, results.size());
 
-    RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
     QueryDataBatch batch = results.get(0);
 
     assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
@@ -380,7 +380,7 @@ public class TestJsonReader extends PlanTestBase {
     assertEquals(1, results.size());
     // "`field_1`", "`field_3`.`inner_1`", "`field_3`.`inner_2`", "`field_4`.`inner_1`"
 
-    RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
     QueryDataBatch batch = results.get(0);
     assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.substitution.MaterializationProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.logical.ViewTable;
@@ -86,7 +87,8 @@ public class MaterializationList implements MaterializationProvider {
     if (opt.isPresent()) {
       MaterializationDescriptor descriptor = opt.get();
       if ((hasInclusions && !inclusions.contains(descriptor.getLayoutId()))
-          || exclusions.contains(descriptor.getLayoutId())) {
+          || exclusions.contains(descriptor.getLayoutId())
+          || (isCurrentIcebergDataOnly() && descriptor.isStale())) {
         return java.util.Optional.empty();
       } else {
         try {
@@ -132,17 +134,17 @@ public class MaterializationList implements MaterializationProvider {
     for (final MaterializationDescriptor descriptor : provider.get()) {
 
       if ((hasInclusions && !inclusions.contains(descriptor.getLayoutId()))
-          || exclusions.contains(descriptor.getLayoutId())) {
+          || exclusions.contains(descriptor.getLayoutId())
+          || (isCurrentIcebergDataOnly() && descriptor.isStale())) {
         continue;
       }
 
       try {
-        if (session.getSubstitutionSettings().isExcludeFileBasedIncremental()
+        // Only allow a field based incremental reflection to accelerate another
+        // incremental reflection refresh
+        if (session.getSubstitutionSettings().isIncrementalRefresh()
             && (descriptor.getIncrementalUpdateSettings().isFileMtimeBasedUpdate()
-                ||
-                // TODO: support using snapshot based incremental reflection to accelerate other
-                // incremental reflection refresh
-                descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate())) {
+                || descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate())) {
           continue;
         }
         // Prune the reflection early if the descriptor is already expanded
@@ -193,6 +195,13 @@ public class MaterializationList implements MaterializationProvider {
 
   public boolean isNoReflections() {
     return converter.getFunctionContext().getOptions().getOption(PlannerSettings.NO_REFLECTIONS);
+  }
+
+  public boolean isCurrentIcebergDataOnly() {
+    return converter
+        .getFunctionContext()
+        .getOptions()
+        .getOption(PlannerSettings.CURRENT_ICEBERG_DATA_ONLY);
   }
 
   public static Set<String> parseReflectionIds(String value) {

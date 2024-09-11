@@ -19,7 +19,10 @@
 /**
  * COPY INTO <source>.<path>.<table_name>
  * [( <col_name> [, <col_name>... ])]
- *      FROM location_clause
+ *      FROM
+        [location_clause |
+        (SELECT [$<file_col_num> | <file_col_name>], [$<file_col_num> | <file_col_name> ]...
+                FROM location_clause)]
  *       { FILES ( '<file_name>' [ , ... ] ) |
  *         REGEX '<regex_pattern>' }
  *
@@ -39,14 +42,46 @@ SqlNode SqlCopyInto() :
     SqlNode fileFormat = null;
     SqlNodeList optionsList = SqlNodeList.EMPTY;
     SqlNodeList optionsValueList = SqlNodeList.EMPTY;
+    List<SqlNode> selectMappingList = new ArrayList<SqlNode>();
+    SqlNodeList mappings = SqlNodeList.EMPTY;
+    SqlNode mapping;
+    SqlNode select = null;
 }
 {
     <COPY> { pos = getPos(); }
     <INTO>
     tableWithVersionContext = CompoundIdentifier()
     [ tableWithVersionContext = TableWithVersionContext(tableWithVersionContext) ]
+    (
+      <LPAREN>
+        mapping = SelectItem() {
+            selectMappingList.add((SqlNode) mapping);
+        }
+        (
+            <COMMA>
+            mapping = SelectItem() {
+              selectMappingList.add((SqlNode) mapping);
+            }
+        )*
+        {
+            mappings = new SqlNodeList(selectMappingList, getPos());
+        }
+      <RPAREN>
+    )?
     <FROM>
-    location = StringLiteral()
+    (
+      (
+        location = StringLiteral()
+      )
+      |
+      (
+        <LPAREN>
+        select = QueryOrExpr(ExprContext.ACCEPT_QUERY)
+        <FROM>
+        location = StringLiteral()
+        <RPAREN>
+      )
+    )
     (
           <FILES>
           <LPAREN>
@@ -87,7 +122,7 @@ SqlNode SqlCopyInto() :
     )?
 
     {
-      return new SqlCopyIntoTable(pos, tableWithVersionContext, location, files, regexPattern, fileFormat, optionsList, optionsValueList);
+      return new SqlCopyIntoTable(pos, tableWithVersionContext, mappings, select, location, files, regexPattern, fileFormat, optionsList, optionsValueList);
     }
 }
 
@@ -199,18 +234,30 @@ SqlNode SqlAlterPipe():
     SqlIdentifier pipeName = null;
     SqlNumericLiteral dedupeLookbackPeriod = null;
     SqlNode copyIntoNode;
+    boolean pipeExecutionStatus;
 }
 {
     <ALTER> { pos = getPos(); }
     <PIPE>
     pipeName = SimpleIdentifier()
-    [
-        <DEDUPE_LOOKBACK_PERIOD> dedupeLookbackPeriod = UnsignedNumericLiteral()
-    ]
-
-    <AS>
     (
-        copyIntoNode = SqlCopyInto()
+      <SET> <PIPE_EXECUTION_RUNNING> <EQ>
+      (
+        <TRUE> { pipeExecutionStatus = true;}
+        |
+        <FALSE> { pipeExecutionStatus = false; }
+      )
+
+      { return new SqlAlterPipeStatus(pos, pipeName, pipeExecutionStatus); }
+      |
+      [
+          <DEDUPE_LOOKBACK_PERIOD> dedupeLookbackPeriod = UnsignedNumericLiteral()
+      ]
+
+      <AS>
+      (
+          copyIntoNode = SqlCopyInto()
+      )
     )
 
     { return new SqlAlterPipe(pos, pipeName, copyIntoNode, dedupeLookbackPeriod); }
@@ -244,16 +291,6 @@ SqlNode SqlDescribePipe():
         pipeName = SimpleIdentifier();
         return new SqlDescribePipe(pos, pipeName);
     }
-}
-
-SqlNode SqlShowPipes():
-{
-    SqlParserPos pos;
-}
-{
-    <SHOW> { pos = getPos(); }
-    <PIPES>
-    { return new SqlShowPipes(pos); }
 }
 
 SqlNode SqlTriggerPipe():

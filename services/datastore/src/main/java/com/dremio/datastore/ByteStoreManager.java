@@ -17,6 +17,7 @@ package com.dremio.datastore;
 
 import static com.dremio.datastore.RocksDBStore.BLOB_PATH;
 import static com.dremio.datastore.RocksDBStore.FILTER_SIZE_IN_BYTES;
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -25,7 +26,6 @@ import com.dremio.datastore.CoreStoreProviderImpl.ForcedMemoryMode;
 import com.dremio.datastore.RocksDBStore.BlobNotFoundException;
 import com.dremio.datastore.RocksDBStore.RocksMetaManager;
 import com.dremio.datastore.api.Document;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -76,7 +76,6 @@ class ByteStoreManager implements AutoCloseable {
 
   private static final long WAL_TTL_SECONDS =
       Long.getLong("dremio.catalog.wal_ttl_seconds", 5 * 60L);
-  private static final String METRICS_PREFIX = "kvstore.db";
   private static final String DEFAULT = "default";
   private static final int STRIPE_COUNT = 16;
   private static final long ROCKSDB_OPEN_SLEEP_MILLIS = 100L;
@@ -307,13 +306,13 @@ class ByteStoreManager implements AutoCloseable {
         continue;
       }
 
-      Metrics.newGauge(
-          Metrics.join(METRICS_PREFIX, tickerType.name()),
+      newGauge(
+          "kvstore_db." + tickerType.name().toLowerCase(),
           () -> statistics.getTickerCount(tickerType));
     }
+
     // Note that Statistics also contains various histogram metrics, but those cannot be easily
-    // tracked through our
-    // metrics
+    // tracked through our metrics
   }
 
   public RocksDB openDB(

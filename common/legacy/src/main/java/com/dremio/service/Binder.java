@@ -24,5 +24,6 @@ public interface Binder extends BindingCreator, BindingProvider {
    *
    * @param injector the Guice instance to use as an fallback
    */
+  // FIXME: method is unused outside of Binder-tests as SabotNode is now Guice-based
   void registerGuiceInjector(Injector injector);
 }

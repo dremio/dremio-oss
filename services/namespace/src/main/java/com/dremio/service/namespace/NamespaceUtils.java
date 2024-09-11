@@ -187,7 +187,8 @@ public final class NamespaceUtils {
    * @param nameSpaceContainer nameSpaceContainer
    * @return given list if not null, or else, a new array list
    */
-  public static List<com.dremio.common.Any> getOrCreateList(NameSpaceContainer nameSpaceContainer) {
+  public static List<com.dremio.common.Any> getOrCreateAttributeList(
+      NameSpaceContainer nameSpaceContainer) {
     if (null == nameSpaceContainer.getAttributesList()) {
       nameSpaceContainer.setAttributesList(new ArrayList<>());
     }
@@ -236,5 +237,10 @@ public final class NamespaceUtils {
     }
     return "ESYS".equals(rootEntity.getSource().getType())
         || "ESYSFLIGHT".equals(rootEntity.getSource().getType());
+  }
+
+  public static boolean isSchemaOutdated(DatasetConfig datasetConfig) {
+    return datasetConfig.getType() == DatasetType.VIRTUAL_DATASET
+        && datasetConfig.getVirtualDataset().getSchemaOutdated() == Boolean.TRUE;
   }
 }

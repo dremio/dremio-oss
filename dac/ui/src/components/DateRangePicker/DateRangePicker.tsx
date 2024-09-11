@@ -15,7 +15,6 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { DateRange, DateRangeProps, Range } from "react-date-range";
-import { PALE_NAVY } from "@app/uiTheme/radium/colors";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
@@ -33,7 +32,7 @@ function DateRangePicker({
   startDate,
   endDate,
   onChange,
-  rangeColors = [PALE_NAVY],
+  rangeColors = ["var(--fill--primary--selected)"],
   months = 3,
 }: DateRangePickerProps) {
   const ranges = useMemo(
@@ -44,7 +43,7 @@ function DateRangePicker({
         key: "selection",
       },
     ],
-    [startDate, endDate]
+    [startDate, endDate],
   );
 
   const [state, setState] = useState<any>(ranges);

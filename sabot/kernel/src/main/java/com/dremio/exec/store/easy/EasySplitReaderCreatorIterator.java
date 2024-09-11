@@ -73,7 +73,7 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
 
   protected final FormatPlugin formatPlugin;
   protected final ExtendedFormatOptions extendedFormatOptions;
-  private final ByteString extendedProperty;
+  protected final ByteString extendedProperty;
 
   public EasySplitReaderCreatorIterator(
       FragmentExecutionContext fragmentExecContext,
@@ -112,7 +112,7 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
     }
   }
 
-  private void processSplits() {
+  protected void processSplits() {
     if (inputSplits == null) {
       rowGroupSplitIterator = Collections.emptyIterator();
       return;

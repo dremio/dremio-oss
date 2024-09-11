@@ -85,7 +85,7 @@ $lines: 2, 3, 4;
   }
 
   &-info {
-    color: $boulder;
+    color: var(--text--primary);
   }
 
   &-ellipsis {
@@ -116,10 +116,10 @@ $lines: 2, 3, 4;
 .border {
   @each $direction in $directions {
     &-#{$direction} {
-      border-#{$direction}: 1px solid $border-color;
+      border-#{$direction}: 1px solid var(--border--neutral--solid);
 
       &.--dark {
-        border-color: $dark-gray;
+        border-color: var(--color--neutral--800);
       }
     }
   }

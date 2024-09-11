@@ -117,17 +117,11 @@ dremio_internal_start() {
         DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
 
     # netty options
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=${DREMIO_NETTY_MAX_DIRECT_MEMORY:-0} -Dio.netty.tryReflectionSetAccessible=true"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=${DREMIO_NETTY_MAX_DIRECT_MEMORY:--1} -Dio.netty.tryReflectionSetAccessible=true"
     # MapRFS specific options
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -DMAPR_IMPALA_RA_THROTTLE -DMAPR_MAX_RA_STREAMS=${MAPR_MAX_RA_STREAMS:-400}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_GC_OPTS"
     # User options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS "
-    # Add this option only if it is Java 8
-    if [ "$JAVA_MAJOR_VERSION" -eq 8 ]; then
-      DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+PrintClassHistogramBeforeFullGC"
-      DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+PrintClassHistogramAfterFullGC"
-    fi
     # Add to the command log file vital stats on our environment.
     echo "`date` Starting $command on `hostname`" >> $logout
     echo "`ulimit -a`" >> $logout 2>&1
@@ -208,17 +202,9 @@ DREMIO_GC_LOGS_ENABLED=${DREMIO_GC_LOGS_ENABLED:-"yes"}
 DREMIO_GC_LOG_TO_CONSOLE=${DREMIO_GC_LOG_TO_CONSOLE:-"no"}
 if [ "$DREMIO_GC_LOGS_ENABLED" != "no" ]; then
   if [ "$DREMIO_GC_LOG_TO_CONSOLE" != "no" ]; then
-    if [ "$JAVA_MAJOR_VERSION" -le 8 ]; then
-      SERVER_GC_OPTS="-XX:+PrintGCDetails -XX:+PrintGCDateStamps"
-    else
-      SERVER_GC_OPTS="-Xlog:gc*::time,uptime,tags,level"
-    fi
+    SERVER_GC_OPTS="-Xlog:gc*::time,uptime,tags,level"
   else
-    if [ "$JAVA_MAJOR_VERSION" -le 8 ]; then
-      SERVER_GC_OPTS="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:${loggc}"
-    else
-      SERVER_GC_OPTS="-Xlog:gc*:file=${loggc}:time,uptime,tags,level"
-    fi
+    SERVER_GC_OPTS="-Xlog:gc*:file=${loggc}:time,uptime,tags,level"
   fi
 fi
 # Set default scheduling priority

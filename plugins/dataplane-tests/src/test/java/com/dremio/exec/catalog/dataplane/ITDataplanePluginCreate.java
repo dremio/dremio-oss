@@ -27,6 +27,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.create
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableWithTablePropertiesQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createFolderAtQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createFolderQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTableAsQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTableQueryWithAt;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQueryWithFrom;
@@ -49,8 +50,8 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBra
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertIcebergTableExistsAtSubPath;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertLastCommitMadeBySpecifiedAuthor;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveEntity;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveNamespace;
-import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasCommitForTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasNamespace;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
@@ -68,7 +69,6 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.projectnessie.model.Operation;
 
@@ -108,8 +108,7 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     List<QueryDataBatch> queryDataBatches =
         testRunAndReturn(UserBitShared.QueryType.SQL, showTablePropertiesQuery(tablePath));
     String resultString = getResultString(queryDataBatches, ",", false);
-    Assert.assertNotNull(resultString);
-    Assert.assertTrue(resultString.contains("property_name"));
+    assertThat(resultString).isNotNull().contains("property_name");
   }
 
   @Test
@@ -280,7 +279,7 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     assertIcebergTableExistsAtSubPath(tablePath);
 
     runSQL(dropTableQuery(tablePath));
-    assertNessieDoesNotHaveTable(tablePath, DEFAULT_BRANCH_NAME, this);
+    assertNessieDoesNotHaveEntity(tablePath, DEFAULT_BRANCH_NAME, this);
     assertIcebergTableExistsAtSubPath(tablePath);
 
     // Act
@@ -734,5 +733,33 @@ public class ITDataplanePluginCreate extends ITDataplanePluginTestSetup {
     assertThatThrownBy(() -> runSQL(useContext))
         .isInstanceOf(UserRemoteException.class)
         .hasMessageContaining("Reference type COMMIT does not support specifying a timestamp.");
+  }
+
+  @Test
+  public void testCreateTableErrorExistingFolder() throws Exception {
+    // Arrange
+    final String name = generateUniqueFolderName();
+    final List<String> path = Collections.singletonList(name);
+    runSQL(createFolderQuery(DATAPLANE_PLUGIN_NAME, path));
+
+    // Act and Assert
+    assertQueryThrowsExpectedError(
+        createEmptyTableQuery(path),
+        String.format(
+            " An Entity of type FOLDER with given name [%s] already exists", joinedTableKey(path)));
+  }
+
+  @Test
+  public void testCtasErrorExistingFolder() throws Exception {
+    // Arrange
+    final String name = generateUniqueFolderName();
+    final List<String> path = Collections.singletonList(name);
+    runSQL(createFolderQuery(DATAPLANE_PLUGIN_NAME, path));
+
+    // Act and Assert
+    assertQueryThrowsExpectedError(
+        createTableAsQuery(path, 10),
+        String.format(
+            " An Entity of type FOLDER with given name [%s] already exists", joinedTableKey(path)));
   }
 }

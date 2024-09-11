@@ -40,6 +40,8 @@ export default class DataFreshnessConfig extends FormElementConfig {
       DataFreshnessSection.defaultFormValuePolicyType();
     initValues.accelerationRefreshSchedule =
       DataFreshnessSection.defaultFormValueRefreshSchedule();
+    initValues.accelerationRefreshOnDataChanges =
+      DataFreshnessSection.defaultFormValueRefreshOnTableChanges();
     return initValues;
   }
 

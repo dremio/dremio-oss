@@ -25,15 +25,23 @@ import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Iterator;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public class OptionValidatorListingImpl implements OptionValidatorListing {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(OptionValidatorListingImpl.class);
 
   private final CaseInsensitiveMap<OptionValidator> validators;
 
+  @Inject
   public OptionValidatorListingImpl(ScanResult scanResult) {
-    this.validators = getValidators(scanResult);
+    this(getValidators(scanResult));
+  }
+
+  public OptionValidatorListingImpl(CaseInsensitiveMap<OptionValidator> validators) {
+    this.validators = validators;
   }
 
   private static CaseInsensitiveMap<OptionValidator> getValidators(ScanResult scanResult) {

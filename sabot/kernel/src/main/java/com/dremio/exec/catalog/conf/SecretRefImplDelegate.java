@@ -57,7 +57,7 @@ public final class SecretRefImplDelegate implements Delegate<SecretRef> {
 
   @Override
   public SecretRef readFrom(Input input) throws IOException {
-    return new SecretRefImpl(input.readString());
+    return SecretRef.of(input.readString());
   }
 
   @SuppressForbidden // We reference SecretRefUnsafe to explicitly block it from serialization
@@ -68,8 +68,10 @@ public final class SecretRefImplDelegate implements Delegate<SecretRef> {
       return;
     }
     final String stringValue;
-    if (value.equals(SecretRef.EMPTY)) {
+    if (SecretRef.EMPTY.equals(value)) {
       stringValue = "";
+    } else if (SecretRef.EXISTING_VALUE.equals(value)) {
+      stringValue = ConnectionConf.USE_EXISTING_SECRET_VALUE;
     } else if (value instanceof SecretRefUnsafe) {
       throw new IllegalArgumentException(
           String.format("Cannot serialize value of type '%s'", SecretRefUnsafe.class.getName()));

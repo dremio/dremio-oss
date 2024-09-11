@@ -18,14 +18,18 @@ package com.dremio.exec.planner.sql.handlers.query;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.TableProperties;
+import java.util.List;
+import org.apache.calcite.sql.SqlMerge;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlUpdate;
 import org.apache.iceberg.RowLevelOperationMode;
 
 /** Handles the MERGE DML. */
@@ -61,5 +65,21 @@ public class MergeHandler extends DmlHandler {
     TableProperties mergeDmlWriteMode =
         DmlUtils.getDmlWriteProp(table, org.apache.iceberg.TableProperties.MERGE_MODE);
     return DmlUtils.getDmlWriteMode(mergeDmlWriteMode);
+  }
+
+  @Override
+  protected boolean checkIfRowSplitterNeeded(
+      RowLevelOperationMode dmlWriteMode, WriterOptions options, SqlNode mergeCall) {
+    boolean isMergeOnRead = dmlWriteMode == RowLevelOperationMode.MERGE_ON_READ;
+    boolean isPartitionedTable = options.hasPartitions();
+    SqlUpdate updateCall = ((SqlMerge) mergeCall).getUpdateCall();
+
+    if (!isMergeOnRead || !isPartitionedTable || updateCall == null) {
+      return false;
+    }
+
+    List<SqlNode> updateColumnsFromMerge = updateCall.getTargetColumnList().getList();
+    return updateColumnsFromMerge.stream()
+        .anyMatch(column -> options.getPartitionColumns().contains(column.toString()));
   }
 }

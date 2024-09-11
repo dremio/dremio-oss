@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql.handlers.query;
 
 import static com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler.refreshDataset;
 
-import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
@@ -68,13 +67,6 @@ public class VacuumTableHandler extends TableManagementHandler {
     return SqlVacuumTable.OPERATOR;
   }
 
-  @Override
-  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key, SqlNode sqlNode)
-      throws Exception {
-    // User must be admin,owner of the table.
-    catalog.validateOwnership(key);
-  }
-
   private void validateFeatureEnabled(SqlHandlerConfig config, SqlVacuumTable sqlVacuumTable) {
     if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_VACUUM)) {
       throw UserException.unsupportedError()
@@ -100,7 +92,6 @@ public class VacuumTableHandler extends TableManagementHandler {
       throws Exception {
     SqlVacuumTable sqlVacuumTable = SqlNodeUtil.unwrap(sqlNode, SqlVacuumTable.class);
     validateFeatureEnabled(config, sqlVacuumTable);
-    validatePrivileges(catalog, CatalogEntityKey.fromNamespaceKey(path), sqlVacuumTable);
     validateTableExistenceAndMutability(catalog, config, path);
   }
 
@@ -120,7 +111,7 @@ public class VacuumTableHandler extends TableManagementHandler {
             getSqlOperator(),
             null);
     Rel convertedRelNode =
-        DrelTransformer.convertToDrel(config, rewriteCrel(relNode, createTableEntry));
+        DrelTransformer.convertToDrel(config, createTableEntryShuttle(relNode, createTableEntry));
     convertedRelNode =
         SqlHandlerUtil.storeQueryResultsIfNeeded(
             config.getConverter().getParserConfig(), config.getContext(), convertedRelNode);
@@ -159,10 +150,8 @@ public class VacuumTableHandler extends TableManagementHandler {
   public Prel getNonPhysicalPlan(
       PlannerCatalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path)
       throws Exception {
-    final ConvertedRelNode convertedRelNode =
-        SqlToRelTransformer.validateAndConvert(config, sqlNode);
-    final RelNode relNode = convertedRelNode.getConvertedNode();
 
+    // Prohibit Reflections on VACUUM operations
     config
         .getContext()
         .getOptions()
@@ -171,6 +160,10 @@ public class VacuumTableHandler extends TableManagementHandler {
                 OptionValue.OptionType.QUERY,
                 DremioHint.NO_REFLECTIONS.getOption().getOptionName(),
                 true));
+
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(config, sqlNode);
+    final RelNode relNode = convertedRelNode.getConvertedNode();
     drel = convertToDrel(config, sqlNode, path, catalog, relNode);
     final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
     textPlan = prelAndTextPlan.getValue();

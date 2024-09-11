@@ -77,7 +77,7 @@ public class ScriptData {
     this.jobResultUrls = jobResultUrls;
   }
 
-  public static ScriptProto.ScriptRequest toScriptRequest(ScriptData script) {
+  public static ScriptProto.ScriptRequest toScriptRequest(ScriptData script, boolean isUpdate) {
     return ScriptProto.ScriptRequest.newBuilder()
         .setName(script.getName())
         .setDescription(script.getDescription())
@@ -87,6 +87,11 @@ public class ScriptData {
                 script.getReferencesList()))
         .setContent(script.getContent())
         .addAllJobIds(script.getJobIds() == null ? new ArrayList<>() : script.getJobIds())
+        .setIsContentUpdated(isUpdate && script.getContent() != null)
+        .setIsContextUpdated(isUpdate && script.getContext() != null)
+        .setIsDescriptionUpdated(isUpdate && script.getDescription() != null)
+        .setIsReferencesUpdated(isUpdate && script.getReferencesList() != null)
+        .setIsJobIdsUpdated(isUpdate && script.getJobIds() != null)
         .build();
   }
 

@@ -71,7 +71,7 @@
             <goals>
               <goal>java</goal>
             </goals>
-            <phase>process-classes</phase>
+            <phase>${buildtimescan.phase}</phase>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <arguments>

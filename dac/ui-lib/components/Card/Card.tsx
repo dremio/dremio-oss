@@ -37,6 +37,8 @@ export const Card = forwardRef<HTMLDivElement, CardProps>((props, ref) => {
       {...rest}
       className={clsx(
         "dremio-card",
+        "bg-primary",
+        "border-thin",
         disabled && "disabled",
         hovered && "hovered",
         className,

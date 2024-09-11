@@ -93,18 +93,19 @@ public class CustomOutputHandler implements WriterCommitterOutputHandler {
   }
 
   @Override
-  public void write(WriterCommitterRecord record) {
+  public void write(WriterCommitterRecord rec) {
     int idx = outgoing.getRecordCount();
-    setVarcharValue(idx, RecordWriter.FRAGMENT, record.fragment());
-    setVarcharValue(idx, RecordWriter.PATH, record.path());
-    setVarBinaryValue(idx, RecordWriter.METADATA, record.metadata());
-    setVarBinaryValue(idx, RecordWriter.ICEBERG_METADATA, record.icebergMetadata());
-    setVarBinaryValue(idx, RecordWriter.FILE_SCHEMA, record.fileSchema());
-    setLongValue(idx, RecordWriter.RECORDS, record.records());
-    setLongValue(idx, RecordWriter.FILESIZE, record.fileSize());
-    setIntValue(idx, RecordWriter.PARTITION, record.partition());
-    setIntValue(idx, RecordWriter.OPERATION_TYPE, record.operationType());
-    setPartitionData(idx, record.partitionData());
+    setVarcharValue(idx, RecordWriter.FRAGMENT, rec.fragment());
+    setVarcharValue(idx, RecordWriter.PATH, rec.path());
+    setVarBinaryValue(idx, RecordWriter.METADATA, rec.metadata());
+    setVarBinaryValue(idx, RecordWriter.ICEBERG_METADATA, rec.icebergMetadata());
+    setVarBinaryValue(idx, RecordWriter.FILE_SCHEMA, rec.fileSchema());
+    setLongValue(idx, RecordWriter.RECORDS, rec.records());
+    setLongValue(idx, RecordWriter.FILESIZE, rec.fileSize());
+    setIntValue(idx, RecordWriter.PARTITION, rec.partition());
+    setIntValue(idx, RecordWriter.OPERATION_TYPE, rec.operationType());
+    setPartitionData(idx, rec.partitionData());
+    setVarBinaryValue(idx, RecordWriter.REFERENCED_DATA_FILES, rec.referencedDataFiles());
     outgoing.setAllCount(idx + 1);
     outgoing.setRecordCount(idx + 1);
   }

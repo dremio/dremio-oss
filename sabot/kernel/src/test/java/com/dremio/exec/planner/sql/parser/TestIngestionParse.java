@@ -34,9 +34,12 @@ public class TestIngestionParse {
         Arguments.of(
             "ALTER PIPE p1 AS COPY INTO s1.tb1 FROM 'somewhere' FILE_FORMAT \'csv\' (RECORD_DELIMITER '\n', EMPTY_AS_NULL 'true', TRIM_SPACE 'true')",
             true),
+        Arguments.of("ALTER PIPE p1 SET PIPE_EXECUTION_RUNNING = TRUE", true),
+        Arguments.of("ALTER PIPE p1 SET PIPE_EXECUTION_RUNNING = FALSE", true),
         Arguments.of("ALTER a", false), // No PIPE keyword
         Arguments.of("ALTER PIPE a", false), // No COPY INTO command
         Arguments.of("ALTER PIPE p1 AS COPY INTO tb1", false), // Invalid COPY INTO SqlNode
+        Arguments.of("ALTER PIPE p1 SET PIPE_EXECUTION_RUNNING = VALUE", false),
         Arguments.of(
             "ALTER PIPE p1 AS COPY INTO tb1 FROM 'anywhere' DEDUPE_LOOKBACK_PERIOD 5",
             false), // DEDUPE_LOOKBACK_PERIOD must be defined before COPY INTO
@@ -45,7 +48,7 @@ public class TestIngestionParse {
             false), // '=' Symbol is not allowed
         Arguments.of(
             "ALTER PIPE p1 DEDUPE_LOOKBACK_PERIOD 5 NOTIFICATION_PROVIDER AWS_SQS NOTIFICATION_QUEUE_REFERENCE \"arn:aws:sqs:us-east-2:444455556666:queue1\" AS COPY INTO tb1 FROM 'anywhere'",
-            false), // NOTIFICATION_PROVIDER or NOTIFICATION_QUEUE_ID cannot be changed using ALTER
+            false), // NOTIFICATION_PROVIDER or NOTIFICATION_QUEUE_REF cannot be changed using ALTER
         // PIPE
         Arguments.of(
             "ALTER PIPE p1 AS COPY INTO s1.tb1 FROM 'somewhere' Files('1', '2') (RECORD_DELIMITER '\n', EMPTY_AS_NULL 'true', TRIM_SPACE 'true')",
@@ -125,8 +128,7 @@ public class TestIngestionParse {
         Arguments.of("DROP PIPE p1", true),
         Arguments.of("DROP p1", false),
         // SHOW PIPES Statements
-        Arguments.of("SHOW PIPES", true),
-        Arguments.of("SHOW PIPE", false),
+        Arguments.of("SHOW PIPES", false),
         // TRIGGER PIPE Statements
         Arguments.of("TRIGGER PIPE p1", true),
         Arguments.of("TRIGGER PIPE p1 FOR BATCH batchid1", true),

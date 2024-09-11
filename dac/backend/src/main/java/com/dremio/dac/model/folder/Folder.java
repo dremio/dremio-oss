@@ -30,8 +30,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -187,16 +187,7 @@ public class Folder {
 
   private static final Pattern PARSER = Pattern.compile("/([^/]+)/([^/]+)/[^/]+/(.*)");
   private static final Function<String, String> PATH_DECODER =
-      new Function<String, String>() {
-        @Override
-        public String apply(String input) {
-          try {
-            return URLDecoder.decode(input, "UTF-8");
-          } catch (UnsupportedEncodingException e) {
-            throw new UnsupportedOperationException(e);
-          }
-        }
-      };
+      input -> URLDecoder.decode(input, StandardCharsets.UTF_8);
 
   static NamespacePath parseUrlPath(String urlPath) {
     Matcher m = PARSER.matcher(urlPath);

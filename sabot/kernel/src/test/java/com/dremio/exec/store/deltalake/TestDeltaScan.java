@@ -128,6 +128,12 @@ public class TestDeltaScan extends PlanTestBase {
     copyFromJar(
         "deltalake/columnMappingPartitions",
         java.nio.file.Paths.get(testRootPath + "/columnMappingPartitions"));
+    copyFromJar(
+        "deltalake/ctasNoSchemaMetadata",
+        java.nio.file.Paths.get(testRootPath + "/ctasNoSchemaMetadata"));
+    copyFromJar(
+        "deltalake/partitionedLongCheckpoint",
+        java.nio.file.Paths.get(testRootPath + "/partitionedLongCheckpoint"));
   }
 
   @AfterClass
@@ -580,6 +586,13 @@ public class TestDeltaScan extends PlanTestBase {
   }
 
   @Test
+  public void testCtasWithNoSchemaMetadata() throws Exception {
+    // new commits are created by REPLACE AS SELECT, but no metaData action is written
+    final String sql = "SELECT count(*) as cnt FROM dfs.tmp.deltalake.ctasNoSchemaMetadata";
+    testBuilder().sqlQuery(sql).unOrdered().baselineColumns("cnt").baselineValues(2L).go();
+  }
+
+  @Test
   public void testDatasetWithMultiPartCheckpointParquet() throws Exception {
     final String sql = "SELECT intcol, longcol FROM dfs.tmp.deltalake.multiPartCheckpoint limit 1";
     testBuilder()
@@ -765,5 +778,23 @@ public class TestDeltaScan extends PlanTestBase {
           .baselineValues(4, "d", 20)
           .go();
     }
+  }
+
+  @Test
+  public void testPartitionedLongCheckpoint() throws Exception {
+    // select without snapshot auto-promotes table
+    test("SELECT count(*) FROM dfs.tmp.deltalake.partitionedLongCheckpoint");
+
+    final String sql =
+        "SELECT type, count(*) as cnt FROM dfs.tmp.deltalake.partitionedLongCheckpoint AT SNAPSHOT '230' GROUP BY type";
+    testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("type", "cnt")
+        .baselineValues("abc", 213L)
+        .baselineValues("def", 271L)
+        .baselineValues("ghi", 254L)
+        .baselineValues("jkl", 262L)
+        .go();
   }
 }

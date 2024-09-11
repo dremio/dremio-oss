@@ -32,7 +32,7 @@
     <maven.compiler.release>11</maven.compiler.release>
     <!-- Please keep versions in sync with oss parent pom.xml -->
     <spotless.version>2.43.0</spotless.version>
-    <google-java-format.version>1.19.2</google-java-format.version>
+    <google-java-format.version>1.21.0</google-java-format.version>
   </properties>
 
   <build>
@@ -42,7 +42,7 @@
         <!-- Please keep in sync with top level pom.xml -->
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.3.0</version>
+          <version>3.4.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-resources-plugin</artifactId>

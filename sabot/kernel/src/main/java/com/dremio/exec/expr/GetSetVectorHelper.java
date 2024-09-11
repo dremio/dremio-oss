@@ -22,6 +22,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JCodeModel;
+import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JInvocation;
@@ -43,8 +44,13 @@ public class GetSetVectorHelper {
       JExpression indexVariable) {
 
     MinorType type = ct.toMinorType();
-
-    eval.assign(out.getIsSet(), vector.invoke("isSet").arg(indexVariable));
+    if (type.equals(MinorType.UNION)) {
+      eval.assign(out.getIsSet(), vector.invoke("isSet").arg(indexVariable));
+    } else {
+      JConditional ifCondition = eval._if(vector.invoke("isSafe").arg(indexVariable));
+      ifCondition._then().assign(out.getIsSet(), vector.invoke("isSet").arg(indexVariable));
+      ifCondition._else().assign(out.getIsSet(), JExpr.lit(0));
+    }
     eval = eval._if(out.getIsSet().eq(JExpr.lit(1)))._then();
     switch (type) {
       case BIGINT:

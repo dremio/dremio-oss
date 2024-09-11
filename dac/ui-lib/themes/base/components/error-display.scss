@@ -15,7 +15,6 @@
  */
 
 .dremio-error-display {
-  --dremio--error-display--background: var(--color--neutral--25);
   --dremio--error-display--padding: var(--dremio--spacing--2);
 
   --dremio--error-display--title--font-size: 16px;
@@ -30,8 +29,6 @@
   inline-size: 100%;
   line-height: 20px;
   min-inline-size: 30ch;
-  background: var(--dremio--error-display--background);
-  color: black;
   padding: var(--dremio--error-display--padding);
   text-align: center;
 
@@ -63,7 +60,8 @@
     user-select: all;
     white-space: pre-wrap;
     inline-size: 100%;
-    background: white;
+    background: var(--fill--primary);
+    color: var(--text--primary);
     border: 1px solid black;
     border-radius: var(--dremio--radius--1);
     padding: var(--dremio--spacing--2);

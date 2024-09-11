@@ -44,8 +44,7 @@ public class CatalogServiceSynchronizer
     logger.debug("Request received: {}", request);
     try {
       final ManagedStoragePlugin plugin =
-          ((CatalogServiceImpl) catalogServiceProvider.get())
-              .getManagedSource(request.getPluginName());
+          catalogServiceProvider.get().getManagedSource(request.getPluginName());
       plugin.setMetadataSyncInfo(request);
     } catch (Exception e) {
       responseObserver.onError(e);

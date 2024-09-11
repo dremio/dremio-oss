@@ -26,10 +26,12 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.reflection.DatasetHashUtils;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.google.common.collect.ImmutableList;
+import java.util.Optional;
 import java.util.stream.StreamSupport;
 import javax.inject.Provider;
 
@@ -60,7 +62,7 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
   @Override
   public void upgrade(UpgradeContext context) {
     namespace =
-        new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(context.getKvStoreProvider(), new CatalogStatusEventsImpl());
     store = new ExternalReflectionStore(DirectProvider.wrap(context.getLegacyKVStoreProvider()));
 
     final Iterable<ExternalReflection> reflections = store.getExternalReflections();
@@ -70,10 +72,10 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
   private void update(ExternalReflection reflection) {
     try {
       final String queryDatasetId = reflection.getQueryDatasetId();
-      reflection.setQueryDatasetHash(computeDatasetHash(queryDatasetId));
+      reflection.setQueryDatasetHash(computeDatasetHash(new EntityId(queryDatasetId)));
 
       final String targetDatasetId = reflection.getTargetDatasetId();
-      reflection.setTargetDatasetHash(computeDatasetHash(targetDatasetId));
+      reflection.setTargetDatasetHash(computeDatasetHash(new EntityId(targetDatasetId)));
 
       AdminLogger.log("  Updated external reflection {}", reflection.getId());
       store.addExternalReflection(reflection);
@@ -86,16 +88,16 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
    * @return dataset hash, if dataset exists in the namespace (along with all its ancestors if its a
    *     VDS). null otherwise
    */
-  private Integer computeDatasetHash(String datasetId) {
-    final DatasetConfig dataset = namespace.findDatasetByUUID(datasetId);
-    if (dataset == null) {
+  private Integer computeDatasetHash(EntityId datasetId) {
+    Optional<DatasetConfig> dataset = namespace.getDatasetById(datasetId);
+    if (dataset.isEmpty()) {
       return null;
     }
 
     try {
       EntityExplorer catalog =
           CatalogUtil.getSystemCatalogForReflections(catalogServiceProvider.get());
-      return DatasetHashUtils.computeDatasetHash(dataset, catalog, false);
+      return DatasetHashUtils.computeDatasetHash(dataset.get(), catalog, false);
     } catch (NamespaceException e) {
       return null;
     }

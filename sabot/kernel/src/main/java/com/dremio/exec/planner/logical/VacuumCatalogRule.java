@@ -40,6 +40,8 @@ public class VacuumCatalogRule extends RelOptRule {
             vacuumCatalogCrel.getUser(),
             vacuumCatalogCrel.getSourceName(),
             vacuumCatalogCrel.getCostEstimates(),
-            vacuumCatalogCrel.getVacuumOptions()));
+            vacuumCatalogCrel.getVacuumOptions(),
+            vacuumCatalogCrel.getFsScheme(),
+            vacuumCatalogCrel.getSchemeVariate()));
   }
 }

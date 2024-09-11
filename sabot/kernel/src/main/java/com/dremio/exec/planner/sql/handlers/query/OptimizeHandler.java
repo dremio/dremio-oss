@@ -18,7 +18,9 @@ package com.dremio.exec.planner.sql.handlers.query;
 import static com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler.refreshDataset;
 
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.calcite.logical.TableOptimizeCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -46,12 +48,10 @@ import com.dremio.options.OptionValue;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.google.common.annotations.VisibleForTesting;
-import java.util.List;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.Pair;
-import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,9 +73,8 @@ public class OptimizeHandler extends TableManagementHandler {
     return SqlOptimize.OPERATOR;
   }
 
-  @Override
-  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key, SqlNode sqlNode)
-      throws Exception {
+  @VisibleForTesting
+  protected void validatePrivileges(Catalog catalog, CatalogEntityKey key) {
     NamespaceKey namespaceKey = key.toNamespaceKey();
     catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.SELECT);
     catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.UPDATE);
@@ -86,7 +85,13 @@ public class OptimizeHandler extends TableManagementHandler {
   void checkValidations(
       Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode)
       throws Exception {
-    validatePrivileges(catalog, CatalogEntityKey.fromNamespaceKey(path), sqlNode);
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion =
+        config.getContext().getSession().getSessionVersionForSource(sourceName);
+    CatalogEntityKey key =
+        CatalogEntityKey.buildCatalogEntityKeyDefaultToNotSpecifiedVersionContext(
+            path, sessionVersion);
+    validatePrivileges(catalog, key);
     validateCompatibleTableFormat(catalog, config, path, getSqlOperator());
   }
 
@@ -100,20 +105,16 @@ public class OptimizeHandler extends TableManagementHandler {
       throws Exception {
 
     DremioTable table = catalog.getTableWithSchema(path);
-    List<String> partitionColumnsList =
-        table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
     OptimizeOptions optimizeOptions =
         OptimizeOptions.createInstance(
-            config.getContext().getOptions(),
-            (SqlOptimize) sqlNode,
-            CollectionUtils.isEmpty(partitionColumnsList));
+            config.getContext().getOptions(), (SqlOptimize) sqlNode, false);
 
     CreateTableEntry createTableEntry =
         IcebergUtils.getIcebergCreateTableEntry(
             config, config.getContext().getCatalog(), table, getSqlOperator(), optimizeOptions);
 
     Rel convertedRelNode =
-        DrelTransformer.convertToDrel(config, rewriteCrel(relNode, createTableEntry));
+        DrelTransformer.convertToDrel(config, createTableEntryShuttle(relNode, createTableEntry));
     convertedRelNode =
         SqlHandlerUtil.storeQueryResultsIfNeeded(
             config.getConverter().getParserConfig(), config.getContext(), convertedRelNode);
@@ -146,20 +147,7 @@ public class OptimizeHandler extends TableManagementHandler {
   public Prel getNonPhysicalPlan(
       PlannerCatalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path)
       throws Exception {
-    final ConvertedRelNode convertedRelNode =
-        SqlToRelTransformer.validateAndConvert(config, sqlNode);
-    final RelNode relNode = convertedRelNode.getConvertedNode();
-    DremioTable table = catalog.getTableWithSchema(path);
-    List<String> partitionColumnsList =
-        table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
-
-    final RelNode optimizeRelNode =
-        ((TableOptimizeCrel) relNode)
-            .createWith(
-                OptimizeOptions.createInstance(
-                    config.getContext().getOptions(),
-                    (SqlOptimize) sqlNode,
-                    CollectionUtils.isEmpty(partitionColumnsList)));
+    // Prohibit reflections on OPTIMIZE operations
     config
         .getContext()
         .getOptions()
@@ -168,6 +156,17 @@ public class OptimizeHandler extends TableManagementHandler {
                 OptionValue.OptionType.QUERY,
                 DremioHint.NO_REFLECTIONS.getOption().getOptionName(),
                 true));
+
+    final ConvertedRelNode convertedRelNode =
+        SqlToRelTransformer.validateAndConvert(config, sqlNode);
+    final RelNode relNode = convertedRelNode.getConvertedNode();
+
+    final RelNode optimizeRelNode =
+        ((TableOptimizeCrel) relNode)
+            .createWith(
+                OptimizeOptions.createInstance(
+                    config.getContext().getOptions(), (SqlOptimize) sqlNode, false));
+
     drel = convertToDrel(config, sqlNode, path, catalog, optimizeRelNode);
     final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
     textPlan = prelAndTextPlan.getValue();
@@ -181,7 +180,7 @@ public class OptimizeHandler extends TableManagementHandler {
       SqlOperator sqlOperator) {
     // Validate table exists and is Iceberg table
     IcebergUtils.checkTableExistenceAndMutability(catalog, config, namespaceKey, sqlOperator, true);
-    // Validate V2 tables are supported (if yes - verify table has no equality delete files)
+    // Validate the support key for equality deletes
     IcebergMetadata icebergMetadata =
         catalog
             .getTableNoResolve(namespaceKey)
@@ -189,7 +188,11 @@ public class OptimizeHandler extends TableManagementHandler {
             .getPhysicalDataset()
             .getIcebergMetadata();
     Long deleteStat = icebergMetadata.getEqualityDeleteStats().getRecordCount();
-    if (deleteStat > 0) {
+    if (deleteStat > 0
+        && !config
+            .getContext()
+            .getOptions()
+            .getOption(ExecConstants.ENABLE_OPTIMIZE_WITH_EQUALITY_DELETE)) {
       throw UserException.unsupportedError()
           .message("OPTIMIZE TABLE command does not support tables with equality delete files.")
           .buildSilently();

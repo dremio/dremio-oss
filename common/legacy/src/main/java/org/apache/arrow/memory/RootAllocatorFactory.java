@@ -21,6 +21,8 @@ import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.config.DremioConfig;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.util.internal.PlatformDependent;
+import io.netty.util.internal.SystemPropertyUtil;
 
 public final class RootAllocatorFactory {
 
@@ -69,8 +71,14 @@ public final class RootAllocatorFactory {
           estBytesPerBuf > 0
               ? (long) (VM.getMaxHeapMemory() * maxOccupancyPercent * 0.01d / estBytesPerBuf)
               : Long.MAX_VALUE;
-      return DremioRootAllocator.create(
-          Math.min(VM.getMaxDirectMemory(), maxAllocBytes), maxBuffers);
+      long nettyMaxDirectMemory = SystemPropertyUtil.getLong("io.netty.maxDirectMemory", -1);
+      long maxDirectMemory = 0;
+      if (nettyMaxDirectMemory == 0) {
+        maxDirectMemory = VM.getMaxDirectMemory();
+      } else {
+        maxDirectMemory = PlatformDependent.maxDirectMemory();
+      }
+      return DremioRootAllocator.create(Math.min(maxDirectMemory, maxAllocBytes), maxBuffers);
     }
 
     private static void checkPoolConfiguration() {

@@ -38,6 +38,7 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.options.OptionManager;
@@ -118,7 +119,7 @@ public class TestFilterCostEstimation {
     final OptionValidatorListing optionValidatorListing =
         new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
     SystemOptionManager som =
-        new SystemOptionManager(
+        new SystemOptionManagerImpl(
             optionValidatorListing,
             new LogicalPlanPersistence(DremioTest.CLASSPATH_SCAN_RESULT),
             () -> storeProvider,

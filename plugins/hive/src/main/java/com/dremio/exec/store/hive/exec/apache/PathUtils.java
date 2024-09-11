@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -202,18 +203,14 @@ public class PathUtils {
    * @return encoded string
    */
   public static String encodeURIComponent(String component) {
-    try {
-      final String encodedComponent = URLEncoder.encode(component, "UTF-8");
-      final String pattern1Str = pattern1.matcher(encodedComponent).replaceAll("(");
-      final String pattern2Str = pattern2.matcher(pattern1Str).replaceAll(")");
-      final String pattern3Str = pattern3.matcher(pattern2Str).replaceAll("%20");
-      final String pattern4Str = pattern4.matcher(pattern3Str).replaceAll("'");
-      final String pattern5Str = pattern5.matcher(pattern4Str).replaceAll("!");
-      final String pattern6Str = pattern6.matcher(pattern5Str).replaceAll("~");
-      return pattern6Str;
-    } catch (UnsupportedEncodingException e) {
-      throw new UnsupportedOperationException(e);
-    }
+    final String encodedComponent = URLEncoder.encode(component, StandardCharsets.UTF_8);
+    final String pattern1Str = pattern1.matcher(encodedComponent).replaceAll("(");
+    final String pattern2Str = pattern2.matcher(pattern1Str).replaceAll(")");
+    final String pattern3Str = pattern3.matcher(pattern2Str).replaceAll("%20");
+    final String pattern4Str = pattern4.matcher(pattern3Str).replaceAll("'");
+    final String pattern5Str = pattern5.matcher(pattern4Str).replaceAll("!");
+    final String pattern6Str = pattern6.matcher(pattern5Str).replaceAll("~");
+    return pattern6Str;
   }
 
   /**

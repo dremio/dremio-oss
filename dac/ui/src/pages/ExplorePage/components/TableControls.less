@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 
 :global {
@@ -22,7 +21,7 @@
   .table-viewer-short {
     .table-controls {
       width: ~"calc(100% - 275px)";
-      background-color: @FIGMA_NEUTRAL_100;
+      background-color: var(--fill--secondary);
       display: flex;
       height: 48px;
       flex-direction: row;
@@ -33,7 +32,7 @@
 
   .table-controls-wrapper {
     .table-controls {
-      background-color: @FIGMA_NEUTRAL_100;
+      background-color: var(--fill--secondary);
       display: flex;
       height: 48px;
       flex-direction: row;
@@ -255,13 +254,13 @@
             &-icon {
               height: 20px;
               width: 20px;
-              color: var(--color--neutral--600);
+              color: var(--icon--primary);
             }
 
             &-icon--disabled {
               height: 20px;
               width: 20px;
-              color: var(--color--neutral--100);
+              color: var(--icon--disabled);
             }
           }
         }
@@ -279,24 +278,46 @@
                 }
 
                 dremio-icon {
-                  color: var(
-                    --dremio--color--icon--dremio--disabled
-                  ) !important;
+                  color: var(--icon--disabled) !important;
                 }
               }
             }
 
             &:hover {
               dremio-icon {
-                color: var(--dremio--color--link) !important;
+                color: var(--icon--hover) !important;
               }
             }
+          }
+
+          .download-dataset {
+            color: var(--icon--primary);
+
+            &:hover {
+              color: var(--icon--hover);
+            }
+
+            &:disabled {
+              color: var(--color--neutral--150);
+            }
+          }
+
+          .popover {
+            dremio-icon:hover {
+              color: var(--icon--hover);
+            }
+          }
+
+          .download-spinner {
+            padding: 0 6px;
+            --dremio--spinner--size: 32px;
           }
         }
       }
     }
 
-    .message.warning {
+    .message.warning,
+    .message.info {
       width: auto !important;
       margin: var(--dremio--spacing--1) !important;
       margin-bottom: 0 !important;

@@ -20,20 +20,17 @@ import static com.dremio.common.utils.PathUtils.getPathJoiner;
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
-import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.SentinelSecure;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.util.TestTools;
@@ -45,7 +42,6 @@ import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.dac.daemon.DACModule;
 import com.dremio.dac.daemon.ZkServer;
 import com.dremio.dac.explore.model.CreateFromSQL;
-import com.dremio.dac.explore.model.DataPOJO;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetSearchUIs;
 import com.dremio.dac.explore.model.DatasetUI;
@@ -55,7 +51,6 @@ import com.dremio.dac.explore.model.InitialDataPreviewResponse;
 import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.TransformBase;
-import com.dremio.dac.explore.model.ViewFieldTypeMixin;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
@@ -72,16 +67,14 @@ import com.dremio.dac.service.datasets.DatasetDownloadManager;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
-import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.support.ImmutableSupportRequest;
 import com.dremio.dac.support.SupportService;
-import com.dremio.dac.util.JSONUtil;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.NodeRegistration;
@@ -93,8 +86,9 @@ import com.dremio.file.FilePath;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
 import com.dremio.sabot.rpc.user.UserServer;
-import com.dremio.service.Binder;
-import com.dremio.service.BindingProvider;
+import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.conduit.server.ConduitServer;
+import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.JobSubmission;
@@ -102,12 +96,12 @@ import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
-import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SimpleUserService;
@@ -116,50 +110,48 @@ import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import io.grpc.ManagedChannel;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.Principal;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
 import javax.inject.Provider;
 import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 import org.apache.arrow.memory.BufferAllocator;
 import org.assertj.core.api.SoftAssertions;
 import org.eclipse.jetty.http.HttpHeader;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
 /** base class for server tests */
+@Category(DremioMultiNodeTests.class)
 public abstract class BaseTestServer extends BaseClientUtils {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(BaseTestServer.class);
@@ -167,17 +159,40 @@ public abstract class BaseTestServer extends BaseClientUtils {
   @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(Duration.ofMinutes(2));
 
   private static final String API_LOCATION = "apiv2";
+  private static final String API_LOCATION_v3 = "api/v3";
+  private static final String NESSIE_PROXY = "nessie-proxy";
   private static final String PUBLIC_API_LOCATION = "api";
   private static final String SCIM_V2_API_LOCATION = "scim/v2";
   private static final String OAUTH_API_LOCATION = "oauth";
 
+  public static final String USERNAME = SampleDataPopulator.TEST_USER_NAME;
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   protected static final String DEFAULT_PASSWORD = SampleDataPopulator.PASSWORD;
+  protected static final SecurityContext DEFAULT_SECURITY_CONTEXT =
+      new SecurityContext() {
+        @Override
+        public Principal getUserPrincipal() {
+          return () -> DEFAULT_USERNAME;
+        }
+
+        @Override
+        public boolean isUserInRole(String role) {
+          return true; // admin
+        }
+
+        @Override
+        public boolean isSecure() {
+          return true;
+        }
+
+        @Override
+        public String getAuthenticationScheme() {
+          return null;
+        }
+      };
 
   private PrintWriter docLog;
   private UserLoginSession uls;
-
-  public static final String USERNAME = SampleDataPopulator.TEST_USER_NAME;
 
   private static boolean defaultUser = true;
   private static boolean testApiEnabled = true;
@@ -206,10 +221,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected void doc(String message) {
     docLog.println("[doc] " + message);
-  }
-
-  protected static boolean isComplexTypeSupport() {
-    return PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal();
   }
 
   @Rule
@@ -277,7 +288,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   public void resetDefaultUser() {
     if (defaultUser) {
       try {
-        SampleDataPopulator.addDefaultFirstUser(l(UserService.class), newNamespaceService());
+        SampleDataPopulator.addDefaultFirstUser(getUserService(), getNamespaceService());
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -286,14 +297,13 @@ public abstract class BaseTestServer extends BaseClientUtils {
     }
   }
 
-  protected static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-
   private static Client client;
   private static DremioClient dremioClient;
-
   private static WebTarget rootTarget;
   private static WebTarget metricsEndpoint;
   private static WebTarget apiV2;
+  private static WebTarget apiV3;
+  private static WebTarget nessieProxy;
   private static WebTarget masterApiV2;
   private static WebTarget publicAPI;
   private static WebTarget masterPublicAPI;
@@ -302,28 +312,49 @@ public abstract class BaseTestServer extends BaseClientUtils {
   private static DACDaemon executorDaemon;
   private static DACDaemon currentDremioDaemon;
   private static DACDaemon masterDremioDaemon;
-  private static Binder dremioBinder;
   private static SampleDataPopulator populator;
-  private static boolean executorDaemonClosed = false;
 
   public static void setClient(Client client) {
-    BaseTestServer.client = client;
+    Preconditions.checkState(BaseTestServer.client == null);
+    BaseTestServer.client = Preconditions.checkNotNull(client);
   }
 
   public static void setCurrentDremioDaemon(DACDaemon currentDremioDaemon) {
-    BaseTestServer.currentDremioDaemon = currentDremioDaemon;
+    Preconditions.checkState(BaseTestServer.currentDremioDaemon == null);
+    BaseTestServer.currentDremioDaemon = Preconditions.checkNotNull(currentDremioDaemon);
+  }
+
+  protected static void closeCurrentDremioDaemon() throws Exception {
+    Preconditions.checkNotNull(BaseTestServer.currentDremioDaemon);
+    try {
+      BaseTestServer.currentDremioDaemon.close();
+    } finally {
+      BaseTestServer.currentDremioDaemon = null;
+    }
   }
 
   public static void setMasterDremioDaemon(DACDaemon masterDremioDaemon) {
-    BaseTestServer.masterDremioDaemon = masterDremioDaemon;
+    Preconditions.checkState(BaseTestServer.masterDremioDaemon == null);
+    BaseTestServer.masterDremioDaemon = Preconditions.checkNotNull(masterDremioDaemon);
   }
 
-  public static void setPopulator(SampleDataPopulator populator) {
-    BaseTestServer.populator = populator;
+  public static void setPopulator(SampleDataPopulator populator) throws Exception {
+    if (BaseTestServer.populator != null) {
+      BaseTestServer.populator.close();
+    }
+    BaseTestServer.populator = Preconditions.checkNotNull(populator);
   }
 
   protected static WebTarget getAPIv2() {
     return apiV2;
+  }
+
+  protected static WebTarget getAPIv3() {
+    return apiV3;
+  }
+
+  protected static WebTarget getNessieProxy() {
+    return nessieProxy;
   }
 
   protected static WebTarget getScimAPIv2() {
@@ -344,6 +375,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   public static WebTarget getPublicAPI(Integer version) {
     return publicAPI.path("v" + version);
+  }
+
+  public static WebTarget getPublicAPI(String version) {
+    return publicAPI.path(version);
   }
 
   public static WebTarget getMasterPublicAPI(Integer version) {
@@ -389,69 +424,37 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   @ClassRule public static final TemporaryFolder folder3 = new TemporaryFolder();
 
-  private static ObjectMapper configureObjectMapper() {
-    ObjectMapper objectMapper = JSONUtil.prettyMapper();
-    JSONUtil.registerStorageTypes(
-        objectMapper,
-        DremioTest.CLASSPATH_SCAN_RESULT,
-        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG));
-    objectMapper
-        .registerModule(
-            new SimpleModule()
-                .addDeserializer(
-                    JobDataFragment.class,
-                    new JsonDeserializer<JobDataFragment>() {
-                      @Override
-                      public JobDataFragment deserialize(
-                          JsonParser jsonParser, DeserializationContext deserializationContext)
-                          throws IOException {
-                        return jsonParser.readValueAs(DataPOJO.class);
-                      }
-                    }))
-        .addMixIn(ViewFieldType.class, ViewFieldTypeMixin.class);
-    objectMapper.setFilterProvider(
-        new SimpleFilterProvider()
-            .addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
-    return objectMapper;
-  }
-
   protected static void initClient() throws Exception {
-    initClient(configureObjectMapper());
+    initClient(newClientObjectMapper());
   }
 
   private static void initClient(ObjectMapper mapper) throws Exception {
-    setBinder(createBinder(currentDremioDaemon.getBindingProvider()));
+    addDummySecurityContextForDefaultUser(currentDremioDaemon);
 
-    if (!Files.exists(new File(folder0.getRoot().getAbsolutePath() + "/testplugins").toPath())) {
-      TestUtilities.addDefaultTestPlugins(
-          l(CatalogService.class), folder0.newFolder("testplugins").toString());
+    final Path path = new File(folder0.getRoot().getAbsolutePath() + "/testplugins").toPath();
+    if (!Files.exists(path)) {
+      TestUtilities.addDefaultTestPlugins(getCatalogService(), path.toString());
     }
 
     setPopulator(
         new SampleDataPopulator(
-            l(SabotContext.class),
-            newSourceService(),
-            newDatasetVersionMutator(),
-            l(UserService.class),
-            newNamespaceService(),
+            getSabotContext(),
+            getSourceService(),
+            getDatasetVersionMutator(),
+            getUserService(),
+            getNamespaceService(),
             DEFAULT_USERNAME,
-            l(CollaborationHelper.class)));
+            getCollaborationHelper()));
 
-    final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-    provider.setMapper(mapper);
-
-    client =
-        ClientBuilder.newBuilder()
-            .property(FEATURE_AUTO_DISCOVERY_DISABLE, true)
-            .register(provider)
-            .register(MultiPartFeature.class)
-            .build();
+    client = newClient(mapper);
     rootTarget = client.target("http://localhost:" + currentDremioDaemon.getWebServer().getPort());
     final WebTarget livenessServiceTarget =
         client.target(
             "http://localhost:" + currentDremioDaemon.getLivenessService().getLivenessPort());
     metricsEndpoint = livenessServiceTarget.path("metrics");
     apiV2 = rootTarget.path(API_LOCATION);
+    apiV3 = rootTarget.path(API_LOCATION_v3);
+    nessieProxy = rootTarget.path(NESSIE_PROXY);
     publicAPI = rootTarget.path(PUBLIC_API_LOCATION);
     scimV2API = rootTarget.path(SCIM_V2_API_LOCATION);
     oAuthApi = rootTarget.path(OAUTH_API_LOCATION);
@@ -471,10 +474,9 @@ public abstract class BaseTestServer extends BaseClientUtils {
     }
   }
 
-  private static void startCurrentDaemon() throws Exception {
-    currentDremioDaemon.init();
-  }
-
+  /**
+   * Do not call this method directly unless from an "overriden" static "init" method of a subclass
+   */
   @BeforeClass
   public static void init() throws Exception {
     try (TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
@@ -498,26 +500,47 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static void initializeCluster(
       DACModule dacModule, Function<ObjectMapper, ObjectMapper> mapperUpdate) throws Exception {
+    initializeCluster(dacModule, mapperUpdate, new HashMap<>());
+  }
+
+  protected static void initializeCluster(
+      DACModule dacModule,
+      Function<ObjectMapper, ObjectMapper> mapperUpdate,
+      Map<String, Object> moreConfigs)
+      throws Exception {
+
+    Preconditions.checkState(currentDremioDaemon == null, "Old cluster not stopped properly");
+    Preconditions.checkState(masterDremioDaemon == null, "Old cluster not stopped properly");
+    Preconditions.checkState(executorDaemon == null, "Old cluster not stopped properly");
+
+    // Turning on flag for NaaS
+    System.setProperty("nessie.source.resource.testing.enabled", "true");
+
+    String rootFolder0 = folder0.getRoot().getAbsolutePath();
+    String rootFolder1 = folder1.getRoot().getAbsolutePath();
+    String rootFolder2 = folder2.getRoot().getAbsolutePath();
+    String rootFolder3 = folder3.getRoot().getAbsolutePath();
+
+    // we'll share the same file:/// writepath for all nodes. Pdfs causes
+    // problems as it uses static variables so resolution doesn't work in a
+    // single ClassLoader
+    final String distpath = "file://" + rootFolder0;
+
     if (isMultinode()) {
       logger.info("Running tests in multinode mode");
 
       // run all tests on remote coordinator node relying on additional remote executor node
 
-      // we'll share the same file:/// writepath for all nodes. Pdfs causes
-      // problems as it uses static variables so resolution doesn't work in a
-      // single ClassLoader
-      final String distpath = "file://" + folder0.getRoot().getAbsolutePath();
       // jobsResultsStore stored in <distpath>/results and accelerator store in
       // <distpath>/accelerator, both of which
       // need to exist
-      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/results").toPath());
-      Files.createDirectories(
-          new File(folder0.getRoot().getAbsolutePath() + "/accelerator").toPath());
-      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/scratch").toPath());
-      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/metadata").toPath());
-      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/gandiva").toPath());
-      Files.createDirectories(
-          new File(folder0.getRoot().getAbsolutePath() + "/system_iceberg_tables").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/results").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/accelerator").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/scratch").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/metadata").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/gandiva").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/system_iceberg_tables").toPath());
+      Files.createDirectories(new File(rootFolder0 + "/node_history").toPath());
 
       // Get a random port
       int port;
@@ -525,6 +548,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
         socket.setReuseAddress(true);
         port = socket.getLocalPort();
       }
+
       // create master node.
       masterDremioDaemon =
           DACDaemon.newDremioDaemon(
@@ -534,7 +558,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
                   .serveUI(false)
                   .jobServerEnabled(true)
                   .inMemoryStorage(inMemoryStorage)
-                  .writePath(folder1.getRoot().getAbsolutePath())
+                  .writePath(rootFolder1)
                   .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
                   .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
                   .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, port)
@@ -546,102 +570,116 @@ public abstract class BaseTestServer extends BaseClientUtils {
               dacModule);
       masterDremioDaemon.init();
 
+      int zkPort = masterDremioDaemon.getInstance(ZkServer.class).getPort();
+      int fabricPort = masterDremioDaemon.getInstance(FabricService.class).getPort() + 1;
+
       // remote coordinator node
-      int zkPort = masterDremioDaemon.getBindingProvider().lookup(ZkServer.class).getPort();
+      DACConfig dacConfig =
+          DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+              .isMaster(false)
+              .autoPort(true)
+              .allowTestApis(testApiEnabled)
+              .serveUI(false)
+              .inMemoryStorage(inMemoryStorage)
+              .jobServerEnabled(true)
+              .writePath(rootFolder2)
+              .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
+              .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+              .clusterMode(ClusterMode.DISTRIBUTED)
+              .localPort(fabricPort)
+              .isRemote(true)
+              .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
+              .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
+              .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
+              .zk("localhost:" + zkPort);
+      for (Map.Entry<String, Object> entry : moreConfigs.entrySet()) {
+        dacConfig = dacConfig.with(entry.getKey(), entry.getValue());
+      }
       currentDremioDaemon =
-          DACDaemon.newDremioDaemon(
-              DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-                  .isMaster(false)
-                  .autoPort(true)
-                  .allowTestApis(testApiEnabled)
-                  .serveUI(false)
-                  .inMemoryStorage(inMemoryStorage)
-                  .jobServerEnabled(true)
-                  .writePath(folder2.getRoot().getAbsolutePath())
-                  .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
-                  .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-                  .clusterMode(ClusterMode.DISTRIBUTED)
-                  .localPort(
-                      masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort()
-                          + 1)
-                  .isRemote(true)
-                  .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
-                  .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
-                  .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
-                  .zk("localhost:" + zkPort),
-              DremioTest.CLASSPATH_SCAN_RESULT,
-              dacModule);
-      startCurrentDaemon();
+          DACDaemon.newDremioDaemon(dacConfig, DremioTest.CLASSPATH_SCAN_RESULT, dacModule);
+      currentDremioDaemon.init();
 
       // remote executor node
+      DACConfig dacExecConfig =
+          DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+              .autoPort(true)
+              .allowTestApis(testApiEnabled)
+              .serveUI(false)
+              .inMemoryStorage(inMemoryStorage)
+              .with(DremioConfig.ENABLE_COORDINATOR_BOOL, false)
+              .writePath(rootFolder3)
+              .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
+              .clusterMode(ClusterMode.DISTRIBUTED)
+              .localPort(fabricPort)
+              .isRemote(true)
+              .zk("localhost:" + zkPort);
+      for (Map.Entry<String, Object> entry : moreConfigs.entrySet()) {
+        dacExecConfig = dacExecConfig.with(entry.getKey(), entry.getValue());
+      }
       executorDaemon =
-          DACDaemon.newDremioDaemon(
-              DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-                  .autoPort(true)
-                  .allowTestApis(testApiEnabled)
-                  .serveUI(false)
-                  .inMemoryStorage(inMemoryStorage)
-                  .with(DremioConfig.ENABLE_COORDINATOR_BOOL, false)
-                  .writePath(folder3.getRoot().getAbsolutePath())
-                  .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
-                  .clusterMode(ClusterMode.DISTRIBUTED)
-                  .localPort(
-                      masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort()
-                          + 1)
-                  .isRemote(true)
-                  .zk("localhost:" + zkPort),
-              DremioTest.CLASSPATH_SCAN_RESULT,
-              dacModule);
-      executorDaemonClosed = false;
+          DACDaemon.newDremioDaemon(dacExecConfig, DremioTest.CLASSPATH_SCAN_RESULT, dacModule);
       executorDaemon.init();
     } else {
       logger.info("Running tests in local mode");
-      final String distpath = "file://" + folder0.getRoot().getAbsolutePath();
+      DACConfig dacConfig =
+          DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
+              .autoPort(true)
+              .allowTestApis(testApiEnabled)
+              .serveUI(false)
+              .addDefaultUser(addDefaultUser)
+              .inMemoryStorage(inMemoryStorage)
+              .writePath(rootFolder1)
+              .with(DremioConfig.METADATA_PATH_STRING, distpath + "/metadata")
+              .with(DremioConfig.ACCELERATOR_PATH_STRING, distpath + "/accelerator")
+              .with(DremioConfig.GANDIVA_CACHE_PATH_STRING, distpath + "/gandiva")
+              .with(
+                  DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING,
+                  distpath + "/system_iceberg_tables")
+              .with(DremioConfig.NODE_HISTORY_PATH_STRING, distpath + "/node_history")
+              .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+              .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
+              .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
+              .clusterMode(DACDaemon.ClusterMode.LOCAL);
+      for (Map.Entry<String, Object> entry : moreConfigs.entrySet()) {
+        dacConfig = dacConfig.with(entry.getKey(), entry.getValue());
+      }
       currentDremioDaemon =
-          DACDaemon.newDremioDaemon(
-              DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-                  .autoPort(true)
-                  .allowTestApis(testApiEnabled)
-                  .serveUI(false)
-                  .addDefaultUser(addDefaultUser)
-                  .inMemoryStorage(inMemoryStorage)
-                  .writePath(folder1.getRoot().getAbsolutePath())
-                  .with(DremioConfig.METADATA_PATH_STRING, distpath + "/metadata")
-                  .with(DremioConfig.ACCELERATOR_PATH_STRING, distpath + "/accelerator")
-                  .with(DremioConfig.GANDIVA_CACHE_PATH_STRING, distpath + "/gandiva")
-                  .with(
-                      DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING,
-                      distpath + "/system_iceberg_tables")
-                  .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-                  .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
-                  .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
-                  .clusterMode(DACDaemon.ClusterMode.LOCAL),
-              DremioTest.CLASSPATH_SCAN_RESULT,
-              dacModule);
-      masterDremioDaemon = null;
-      startCurrentDaemon();
+          DACDaemon.newDremioDaemon(dacConfig, DremioTest.CLASSPATH_SCAN_RESULT, dacModule);
+      currentDremioDaemon.init();
     }
 
-    initClient(mapperUpdate.apply(configureObjectMapper()));
+    initClient(mapperUpdate.apply(newClientObjectMapper()));
   }
 
-  protected static NamespaceService newNamespaceService() {
+  protected static NamespaceService getNamespaceService() {
     return l(NamespaceService.class);
   }
 
-  protected static CatalogService newCatalogService() {
+  protected static CatalogService getCatalogService() {
     return l(CatalogService.class);
   }
 
-  protected static SourceService newSourceService() {
+  protected static SourceService getSourceService() {
     return l(SourceService.class);
   }
 
-  protected static ReflectionServiceHelper newReflectionServiceHelper() {
-    return l(ReflectionServiceHelper.class);
+  protected static UserService getUserService() {
+    return l(UserService.class);
   }
 
-  protected static DatasetVersionMutator newDatasetVersionMutator() {
+  protected static JobsService getJobsService() {
+    return l(JobsService.class);
+  }
+
+  protected static OptionManager getOptionManager() {
+    return l(OptionManager.class);
+  }
+
+  protected static CollaborationHelper getCollaborationHelper() {
+    return l(CollaborationHelper.class);
+  }
+
+  protected static DatasetVersionMutator getDatasetVersionMutator() {
     return l(DatasetVersionMutator.class);
   }
 
@@ -649,79 +687,77 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return l(SabotContext.class);
   }
 
+  protected static DremioRootAllocator getRootAllocator() {
+    BufferAllocator allocator = getSabotContext().getAllocator();
+    if (allocator instanceof DremioRootAllocator) {
+      return (DremioRootAllocator) allocator;
+    }
+    throw new IllegalStateException("Not a DremioRootAllocator: " + allocator.getClass().getName());
+  }
+
   protected static <T> T l(Class<T> clazz) {
-    return dremioBinder.lookup(clazz);
+    return currentDremioDaemon.getInstance(clazz);
   }
 
   protected static <T> Provider<T> p(Class<T> clazz) {
-    return dremioBinder.provider(clazz);
+    return currentDremioDaemon.getProvider(clazz);
+  }
+
+  protected static <T> T lMaster(Class<T> clazz) {
+    if (masterDremioDaemon != null) {
+      return masterDremioDaemon.getInstance(clazz);
+    }
+    return l(clazz);
   }
 
   protected static <T> Provider<T> pMaster(Class<T> clazz) {
     if (masterDremioDaemon != null) {
-      return masterDremioDaemon.getBindingProvider().provider(clazz);
+      return masterDremioDaemon.getProvider(clazz);
     }
-
     return p(clazz);
   }
 
+  protected static ManagedChannel getConduitChannelTo(DACDaemon daemon) {
+    ConduitServer server = daemon.getInstance(ConduitServer.class);
+    ConduitProvider conduitProvider = daemon.getInstance(ConduitProvider.class);
+
+    final int port = server.getPort();
+    final CoordinationProtos.NodeEndpoint target =
+        CoordinationProtos.NodeEndpoint.newBuilder()
+            .setAddress("127.0.0.1")
+            .setConduitPort(port)
+            .build();
+
+    return conduitProvider.getOrCreateChannel(target);
+  }
+
   protected void deleteSource(String name) {
-    ((CatalogServiceImpl) l(CatalogService.class)).deleteSource(name);
+    ((CatalogServiceImpl) getCatalogService()).deleteSource(name);
   }
 
-  protected static void setBinder(Binder binder) {
-    dremioBinder = binder;
-  }
-
-  public static Binder createBinder(BindingProvider dremioBindingProvider) {
-    Binder dremioBinder = dremioBindingProvider.newChild();
-    dremioBinder.bind(
-        SecurityContext.class,
-        new SecurityContext() {
-          @Override
-          public Principal getUserPrincipal() {
-            return new Principal() {
-              @Override
-              public String getName() {
-                return DEFAULT_USERNAME;
-              }
-            };
-          }
-
-          @Override
-          public boolean isUserInRole(String role) {
-            return true; // admin
-          }
-
-          @Override
-          public boolean isSecure() {
-            return true;
-          }
-
-          @Override
-          public String getAuthenticationScheme() {
-            return null;
-          }
-        });
-    SabotContext context = dremioBinder.lookup(SabotContext.class);
-    dremioBinder.bind(OptionManager.class, context.getOptionManager());
-    return dremioBinder;
+  public static void addDummySecurityContextForDefaultUser(DACDaemon daemon) {
+    daemon.getBindingCreator().bindIfUnbound(SecurityContext.class, DEFAULT_SECURITY_CONTEXT);
   }
 
   protected static void closeExecutorDaemon() throws Exception {
-    if (!executorDaemonClosed) {
+    try {
       executorDaemon.close();
-      executorDaemonClosed = true;
+    } finally {
+      executorDaemon = null;
     }
   }
 
-  private static int getResourceAllocatorCount() {
-    return l(BufferAllocatorFactory.class).getBaseAllocator().getChildAllocators().size();
+  private static int getResourceAllocatorCount(DACDaemon daemon) {
+    return daemon
+        .getInstance(BufferAllocatorFactory.class)
+        .getBaseAllocator()
+        .getChildAllocators()
+        .size();
   }
 
-  private static int getQueryPlanningAllocatorCount() {
+  private static int getQueryPlanningAllocatorCount(DACDaemon daemon) {
     final BufferAllocator queryPlanningAllocator =
-        l(SabotContext.class).getQueryPlanningAllocator();
+        daemon.getInstance(SabotContext.class).getQueryPlanningAllocator();
     if (queryPlanningAllocator == null) {
       return 0;
     }
@@ -730,73 +766,66 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   @AfterClass
   public static void close() throws Exception {
-    if (dremioBinder == null) {
-      return;
-    }
     try (TimedBlock b = Timer.time("BaseTestServer.@AfterClass")) {
-      // Prevent new incoming job requests
-      final NodeRegistration nodeRegistration = l(NodeRegistration.class);
-      final ForemenWorkManager foremenWorkManager = l(ForemenWorkManager.class);
-      nodeRegistration.close();
-      foremenWorkManager.close();
+      if (currentDremioDaemon != null) {
+        assertNoRunningQueries(currentDremioDaemon);
+        assertAllocatorsAreClosed(currentDremioDaemon);
+      }
 
-      // Drain actively running jobs
-      await()
-          .atMost(Duration.ofSeconds(100))
-          .until(() -> foremenWorkManager.getActiveQueryCount() == 0);
-
-      // Fail if any jobs are still running and record query information
-      final StringBuilder msg = new StringBuilder();
-      msg.append("There are actively running queries that have not finished:\n");
-      foremenWorkManager
-          .getActiveProfiles()
-          .forEach(
-              profile ->
-                  msg.append("Query ")
-                      .append(QueryIdHelper.getQueryId(profile.getId()))
-                      .append(": ")
-                      .append(profile.getQuery())
-                      .append("\n\n"));
-      assertEquals(msg.toString(), 0, foremenWorkManager.getActiveQueryCount());
-
-      assertAllocatorsAreClosed();
-
-      defaultUser =
-          true; // in case another test disables the default user and forgets to enable it back
+      // in case another test disables the default user and forgets to enable it back
       // again at the end
+      defaultUser = true;
+
       AutoCloseables.close(
-          new AutoCloseable() {
-            @Override
-            public void close() throws Exception {
-              if (dremioClient != null) {
-                // since the client is only created when needed, make sure we don't re-close an old
-                // client.
-                DremioClient localClient = dremioClient;
-                dremioClient = null;
-                localClient.close();
-              }
+          dremioClient,
+          () -> {
+            if (client != null) {
+              client.close();
             }
           },
-          new AutoCloseable() {
-            @Override
-            public void close() throws Exception {
-              if (client != null) {
-                client.close();
-              }
-            }
-          },
-          (executorDaemonClosed ? null : executorDaemon),
+          executorDaemon,
           currentDremioDaemon,
           masterDremioDaemon,
           populator);
-      executorDaemonClosed = true;
+    } finally {
       dremioClient = null;
+      executorDaemon = null;
+      currentDremioDaemon = null;
+      masterDremioDaemon = null;
+      populator = null;
     }
   }
 
-  private static void assertAllocatorsAreClosed() {
-    int resourceAllocatorCount = getResourceAllocatorCount();
-    int queryPlanningAllocatorCount = getQueryPlanningAllocatorCount();
+  public static void assertNoRunningQueries(DACDaemon daemon) throws Exception {
+    // Prevent new incoming job requests
+    final NodeRegistration nodeRegistration = daemon.getInstance(NodeRegistration.class);
+    final ForemenWorkManager foremenWorkManager = daemon.getInstance(ForemenWorkManager.class);
+    nodeRegistration.close();
+    foremenWorkManager.close();
+
+    // Drain actively running jobs
+    await()
+        .atMost(Duration.ofSeconds(100))
+        .until(() -> foremenWorkManager.getActiveQueryCount() == 0);
+
+    // Fail if any jobs are still running and record query information
+    final StringBuilder msg = new StringBuilder();
+    msg.append("There are actively running queries that have not finished:\n");
+    foremenWorkManager
+        .getActiveProfiles()
+        .forEach(
+            profile ->
+                msg.append("Query ")
+                    .append(QueryIdHelper.getQueryId(profile.getId()))
+                    .append(": ")
+                    .append(profile.getQuery())
+                    .append("\n\n"));
+    assertEquals(msg.toString(), 0, foremenWorkManager.getActiveQueryCount());
+  }
+
+  public static void assertAllocatorsAreClosed(DACDaemon daemon) {
+    int resourceAllocatorCount = getResourceAllocatorCount(daemon);
+    int queryPlanningAllocatorCount = getQueryPlanningAllocatorCount(daemon);
     SoftAssertions.assertSoftly(
         softly -> {
           softly
@@ -850,14 +879,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
                 + apiUrl));
   }
 
-  public static void assertContains(String expectedContains, String string) {
-    assertThat(string).contains(expectedContains);
-  }
-
-  public static void assertNotContains(String expectedNotContains, String string) {
-    assertThat(string).doesNotContain(expectedNotContains);
-  }
-
   protected UserLoginSession getUls() {
     return uls;
   }
@@ -876,17 +897,14 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   public static void clearAllDataExceptUser() throws IOException, NamespaceException {
-    @SuppressWarnings("resource")
-    DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
     TestUtilities.clear(
-        daemon.getBindingProvider().lookup(CatalogService.class),
-        daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class),
+        lMaster(CatalogService.class),
+        lMaster(LegacyKVStoreProvider.class),
+        lMaster(KVStoreProvider.class),
         ImmutableList.of(SimpleUserService.USER_STORE),
         ImmutableList.of("cp"));
     if (isMultinode()) {
-      ((CatalogServiceImpl)
-              getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class))
-          .synchronizeSources();
+      ((CatalogServiceImpl) getCatalogService()).synchronizeSources();
     }
   }
 
@@ -894,19 +912,16 @@ public abstract class BaseTestServer extends BaseClientUtils {
     clearAllDataExceptUser();
     final SpaceConfig foo = new SpaceConfig().setName("spacefoo");
     SpacePath spacePath = new SpacePath(new SpaceName(foo.getName()));
-    newNamespaceService().addOrUpdateSpace(spacePath.toNamespaceKey(), foo);
-    newNamespaceService()
-        .addOrUpdateFolder(
-            new FolderPath("spacefoo.folderbar").toNamespaceKey(),
-            new FolderConfig()
-                .setName("folderbar")
-                .setFullPathList(asList("spacefoo", "folderbar")));
-    newNamespaceService()
-        .addOrUpdateFolder(
-            new FolderPath("spacefoo.folderbar.folderbaz").toNamespaceKey(),
-            new FolderConfig()
-                .setName("folderbaz")
-                .setFullPathList(asList("spacefoo", "folderbar", "folderbaz")));
+    NamespaceService namespaceService = getNamespaceService();
+    namespaceService.addOrUpdateSpace(spacePath.toNamespaceKey(), foo);
+    namespaceService.addOrUpdateFolder(
+        new FolderPath("spacefoo.folderbar").toNamespaceKey(),
+        new FolderConfig().setName("folderbar").setFullPathList(asList("spacefoo", "folderbar")));
+    namespaceService.addOrUpdateFolder(
+        new FolderPath("spacefoo.folderbar.folderbaz").toNamespaceKey(),
+        new FolderConfig()
+            .setName("folderbaz")
+            .setFullPathList(asList("spacefoo", "folderbar", "folderbaz")));
   }
 
   protected DatasetPath getDatasetPath(DatasetUI datasetUI) {
@@ -1189,46 +1204,32 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return new SqlQuery(sql, DEFAULT_USERNAME);
   }
 
-  protected void assertErrorMessage(final GenericErrorMessage error, final String errorMessage) {
-    assertEquals(
-        "error message should be '" + errorMessage + "'", errorMessage, error.getErrorMessage());
-  }
-
-  protected void assertErrorMessage(
-      final GenericErrorMessage error, final String errorMessage, final String expectedMoreInfo) {
-    assertEquals(
-        "error message should be '" + errorMessage + "'", errorMessage, error.getErrorMessage());
-    assertThat(error.getMoreInfo()).contains(expectedMoreInfo);
-  }
-
   protected JobId submitAndWaitUntilSubmitted(JobRequest request, JobStatusListener listener) {
-    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(
-        l(JobsService.class), request, listener);
+    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(getJobsService(), request, listener);
   }
 
   protected JobId submitAndWaitUntilSubmitted(JobRequest request) {
-    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(l(JobsService.class), request);
+    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(getJobsService(), request);
   }
 
   protected JobId submitJobAndWaitUntilCompletion(JobRequest request, JobStatusListener listener) {
-    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
-            l(JobsService.class), request, listener)
+    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(getJobsService(), request, listener)
         .getJobId();
   }
 
   protected boolean submitJobAndCancelOnTimeOut(JobRequest request, long timeOutInMillis)
       throws Exception {
     return JobsServiceTestUtils.submitJobAndCancelOnTimeout(
-        l(JobsService.class), request, timeOutInMillis);
+        getJobsService(), request, timeOutInMillis);
   }
 
   protected static JobId submitJobAndWaitUntilCompletion(JobRequest request) {
-    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request);
+    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(getJobsService(), request);
   }
 
-  protected JobSubmission getJobSubmissionAfterJobCompletion(JobRequest request) {
+  protected static JobSubmission getJobSubmissionAfterJobCompletion(JobRequest request) {
     return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
-        l(JobsService.class), request, JobStatusListener.NO_OP);
+        getJobsService(), request, JobStatusListener.NO_OP);
   }
 
   protected void runQuery(
@@ -1266,7 +1267,18 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   protected static UserBitShared.QueryProfile getQueryProfile(JobRequest request) throws Exception {
-    return JobsServiceTestUtils.getQueryProfile(l(JobsService.class), request);
+    return JobsServiceTestUtils.getQueryProfile(getJobsService(), request);
+  }
+
+  protected static UserBitShared.QueryProfile getQueryProfile(JobSubmission submission, int attempt)
+      throws Exception {
+    return getJobsService()
+        .getProfile(
+            QueryProfileRequest.newBuilder()
+                .setJobId(JobsProtoUtil.toBuf(submission.getJobId()))
+                .setUserName(DEFAULT_USERNAME)
+                .setAttempt(attempt)
+                .build());
   }
 
   protected static void setSystemOption(final OptionValidator option, final String value) {
@@ -1274,21 +1286,11 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   protected static void setSystemOption(String optionName, String optionValue) {
-    JobsServiceTestUtils.setSystemOption(l(JobsService.class), optionName, optionValue);
+    JobsServiceTestUtils.setSystemOption(getJobsService(), optionName, optionValue);
   }
 
   protected static void resetSystemOption(String optionName) {
-    JobsServiceTestUtils.resetSystemOption(l(JobsService.class), optionName);
-  }
-
-  protected static AutoCloseable enableRowCountStat(boolean enableStatAfterTest) {
-    setSystemOption(PlannerSettings.USE_ROW_COUNT_STATISTICS.getOptionName(), "true");
-    setSystemOption(PlannerSettings.USE_STATISTICS.getOptionName(), "false");
-    return () -> {
-      setSystemOption(PlannerSettings.USE_ROW_COUNT_STATISTICS.getOptionName(), "false");
-      setSystemOption(
-          PlannerSettings.USE_STATISTICS.getOptionName(), String.valueOf(enableStatAfterTest));
-    };
+    JobsServiceTestUtils.resetSystemOption(getJobsService(), optionName);
   }
 
   protected static AutoCloseable withSystemOption(String optionName, String optionValue) {
@@ -1328,15 +1330,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
                 .setDatasetVersion(DatasetVersion.NONE)
                 .build());
     return queryProfile;
-  }
-
-  protected static AutoCloseable enableVersionedViews() {
-    setSystemOption(VERSIONED_VIEW_ENABLED.getOptionName(), "true");
-    return () -> {
-      setSystemOption(
-          VERSIONED_VIEW_ENABLED.getOptionName(),
-          VERSIONED_VIEW_ENABLED.getDefault().getBoolVal().toString());
-    };
   }
 
   protected static String readResourceAsString(String fileName) {

@@ -20,6 +20,7 @@ import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
 import com.dremio.common.expression.LogicalExpression;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.Filter;
 import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
 import com.dremio.exec.record.VectorAccessible;
@@ -129,7 +130,7 @@ public class TestSimpleFilter extends BaseTestOperator {
 
     Assert.assertFalse(splitInfoList.isEmpty());
     Assert.assertTrue(splitInfoList.get(0).getOptimize());
-
+    Assert.assertTrue(splitInfoList.get(0).getNamedExpression().length() <= 512);
     // Large Filter
     StringBuilder sb = new StringBuilder();
     Random random = new Random();
@@ -151,5 +152,9 @@ public class TestSimpleFilter extends BaseTestOperator {
 
     Assert.assertFalse(splitInfoList.isEmpty());
     Assert.assertFalse(splitInfoList.get(0).getOptimize());
+    int namedExpressionLengthThreshold =
+        (int) testContext.getOptions().getOption(ExecConstants.NAMED_EXPRESSION_LENGTH_THRESHOLD);
+    Assert.assertTrue(
+        splitInfoList.get(0).getNamedExpression().length() <= namedExpressionLengthThreshold);
   }
 }

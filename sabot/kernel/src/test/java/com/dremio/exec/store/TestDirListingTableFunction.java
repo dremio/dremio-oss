@@ -128,7 +128,8 @@ public class TestDirListingTableFunction extends BaseTestTableFunction {
                       .map(f -> SchemaPath.getSimplePath(f.getName()))
                       .collect(ImmutableList.toImmutableList()),
                   true,
-                  true)));
+                  true,
+                  null)));
 
   @Test
   public void testRecursive() throws Exception {
@@ -136,7 +137,7 @@ public class TestDirListingTableFunction extends BaseTestTableFunction {
         .thenAnswer(
             i ->
                 new DirListingRecordReader(
-                    getCtx(), fs, i.getArgument(2), true, null, null, true, false));
+                    getCtx(), fs, i.getArgument(2), true, null, null, true, false, null));
     Path inputPath = Path.of("/path1/");
     TestDirListingRecordReader.setupFsListIteratorMock((HadoopFileSystem) fs, inputPath);
 
@@ -257,7 +258,8 @@ public class TestDirListingTableFunction extends BaseTestTableFunction {
                     tableSchema,
                     partitionValues,
                     false,
-                    false));
+                    false,
+                    null));
     Path inputPath = Path.of("/path2/");
     TestDirListingRecordReader.setupFsListIteratorMock((HadoopFileSystem) fs, inputPath);
 
@@ -299,7 +301,7 @@ public class TestDirListingTableFunction extends BaseTestTableFunction {
         .thenAnswer(
             i ->
                 new DirListingRecordReader(
-                    getCtx(), fs, i.getArgument(2), true, null, null, true, true));
+                    getCtx(), fs, i.getArgument(2), true, null, null, true, true, null));
     Path inputPath = Path.of("/path3/");
     TestDirListingRecordReader.setupFsListIteratorMockWithPartitions(
         (HadoopFileSystem) fs, inputPath);

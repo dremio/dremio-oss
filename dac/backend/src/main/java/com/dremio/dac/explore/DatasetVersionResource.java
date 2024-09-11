@@ -617,11 +617,11 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       @QueryParam("engineName") String engineName,
       @QueryParam("sessionId") String sessionId)
       throws DatasetVersionNotFoundException, InterruptedException, NamespaceException {
-    final VirtualDatasetUI virtualDatasetUI = getDatasetConfig(false);
-    final Map<String, JobsVersionContext> sourceVersionMapping =
+    VirtualDatasetUI virtualDatasetUI = getDatasetConfig(false);
+    Map<String, JobsVersionContext> sourceVersionMapping =
         TransformerUtils.createSourceVersionMapping(virtualDatasetUI.getReferencesList());
 
-    final SqlQuery query =
+    SqlQuery query =
         new SqlQuery(
             virtualDatasetUI.getSql(),
             virtualDatasetUI.getState().getContextList(),
@@ -631,23 +631,17 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
             sourceVersionMapping);
     MetadataJobStatusListener listener =
         new MetadataJobStatusListener(tool, virtualDatasetUI, null);
-    // The saved dataset is incomplete, we want save the dataset again once the metadata is
-    // collected.
-    if (virtualDatasetUI.getSqlFieldsList() == null) {
-      listener.waitToApplyMetadataAndSaveDataset();
-    }
-    final JobData jobData =
+    listener.waitToApplyMetadataAndSaveDataset();
+    JobData jobData =
         executor.runQueryWithListener(query, QueryType.UI_RUN, datasetPath, version, listener);
-    final JobId jobId = jobData.getJobId();
-    final SessionId jobDataSessionId = jobData.getSessionId();
-    if (virtualDatasetUI.getSqlFieldsList() == null) {
-      listener.setJobId(jobData.getJobId());
-    }
+    JobId jobId = jobData.getJobId();
+    listener.setJobId(jobId);
+    SessionId jobDataSessionId = jobData.getSessionId();
 
     // tip version is optional, as it is only needed when we are navigated back in history
     // otherwise assume the current version is at the tip of the history
     tipVersion = tipVersion != null ? tipVersion : virtualDatasetUI.getVersion();
-    final History history = tool.getHistory(datasetPath, virtualDatasetUI.getVersion(), tipVersion);
+    History history = tool.getHistory(datasetPath, virtualDatasetUI.getVersion(), tipVersion);
     // This is requires as BE generates apiLinks, that is used by UI to send requests for
     // preview/run. In case, when history
     // of a dataset reference on a version for other dataset. And a user navigate to that version

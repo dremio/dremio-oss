@@ -41,4 +41,8 @@ public interface ScriptStoreIndexedKeys {
       IndexKey.newBuilder("modified_at", "MODIFIED_AT", Long.class)
           .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
           .build();
+  IndexKey OWNED_BY =
+      IndexKey.newBuilder("owned_by", "OWNED_BY", String.class)
+          .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+          .build();
 }

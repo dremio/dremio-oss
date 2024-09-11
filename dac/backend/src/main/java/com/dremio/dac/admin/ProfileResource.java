@@ -49,7 +49,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
-import java.io.IOException;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
@@ -62,6 +61,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
+import javax.ws.rs.core.StreamingOutput;
 import org.glassfish.jersey.server.mvc.Viewable;
 
 /** Resource for getting profiles from Dremio. */
@@ -70,11 +70,8 @@ import org.glassfish.jersey.server.mvc.Viewable;
 @RestResource
 @Path("/profiles")
 public class ProfileResource {
-
   // this is only visible to expose the external profile viewer in the test APIs
-  @VisibleForTesting
-  public static final InstanceSerializer<QueryProfile> SERIALIZER =
-      ProtoSerializer.of(QueryProfile.class);
+  private final InstanceSerializer<QueryProfile> serializer;
 
   private final JobsService jobsService;
   private final ProjectOptionManager projectOptionManager;
@@ -88,6 +85,10 @@ public class ProfileResource {
     this.jobsService = jobsService;
     this.projectOptionManager = projectOptionManager;
     this.securityContext = securityContext;
+    this.serializer =
+        ProtoSerializer.of(
+            QueryProfile.class,
+            (int) projectOptionManager.getOption(ExecConstants.QUERY_PROFILE_MAX_FIELD_SIZE));
   }
 
   @WithSpan
@@ -115,9 +116,8 @@ public class ProfileResource {
   @GET
   @Path("/{queryid}.json")
   @Produces(APPLICATION_JSON)
-  public String getProfileJSON(
-      @PathParam("queryid") String queryId, @QueryParam("attempt") @DefaultValue("0") int attempt)
-      throws IOException {
+  public StreamingOutput getProfileJSON(
+      @PathParam("queryid") String queryId, @QueryParam("attempt") @DefaultValue("0") int attempt) {
     final QueryProfile profile;
     try {
       final String username = securityContext.getUserPrincipal().getName();
@@ -133,7 +133,7 @@ public class ProfileResource {
       throw new NotFoundException(
           format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     }
-    return new String(SERIALIZER.serialize(profile));
+    return output -> serializer.serializeTo(output, profile);
   }
 
   @WithSpan
@@ -242,11 +242,10 @@ public class ProfileResource {
   @GET
   @Path("/reflection/{reflectionId}/{queryid}.json")
   @Produces(APPLICATION_JSON)
-  public String getReflectionJobProfileJSON(
+  public StreamingOutput getReflectionJobProfileJSON(
       @PathParam("queryid") String queryId,
       @QueryParam("attempt") @DefaultValue("0") int attempt,
-      @PathParam("reflectionId") String reflectionId)
-      throws IOException {
+      @PathParam("reflectionId") String reflectionId) {
     final QueryProfile profile;
     try {
       final String username = securityContext.getUserPrincipal().getName();
@@ -270,7 +269,7 @@ public class ProfileResource {
     } catch (ReflectionJobValidationException e) {
       throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
     }
-    return new String(SERIALIZER.serialize(profile));
+    return output -> serializer.serializeTo(output, profile);
   }
 
   // this is only visible to expose the external profile viewer in the test APIs

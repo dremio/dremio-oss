@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -153,6 +154,17 @@ class NamespaceInternalKey {
 
   static String getRootLookupStartKey() {
     return ROOT_LOOKUP_START_KEY;
+  }
+
+  String getChildKey(String childName) {
+    return buildKey(
+        processPathComponents(
+            new NamespaceKey(
+                ImmutableList.<String>builder()
+                    .addAll(this.namespaceKey.getPathComponents())
+                    .add(childName)
+                    .build(),
+                this.namespaceKey.getSchemaPath())));
   }
 
   static String getRootLookupEndKey() {

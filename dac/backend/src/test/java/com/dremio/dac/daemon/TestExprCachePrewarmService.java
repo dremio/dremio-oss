@@ -42,8 +42,7 @@ public class TestExprCachePrewarmService extends BaseTestServer {
     BaseTestServer.init();
     System.clearProperty(ExecConstants.CODE_CACHE_LOCATION_PROP);
     System.clearProperty(ExecConstants.CODE_CACHE_PREWARM_PROP);
-    exprCachePrewarmService =
-        getExecutorDaemon().getBindingProvider().lookup(ExprCachePrewarmService.class);
+    exprCachePrewarmService = getExecutorDaemon().getInstance(ExprCachePrewarmService.class);
   }
 
   @Test

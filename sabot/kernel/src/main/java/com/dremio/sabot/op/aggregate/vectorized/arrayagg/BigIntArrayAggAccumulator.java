@@ -25,14 +25,21 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
 /** Accumulator for ARRAY_AGG for BIGINT type */
-public final class BigIntArrayAggAccumulator extends BaseArrayAggAccumulator<Long, BigIntVector> {
+public final class BigIntArrayAggAccumulator extends ArrayAggAccumulator<Long> {
   public BigIntArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
-      BufferAllocator allocator) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
+      BufferAllocator allocator,
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
+    super(
+        input,
+        transferVector,
+        tempAccumulatorHolder,
+        allocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
   }
 
   @Override
@@ -46,9 +53,9 @@ public final class BigIntArrayAggAccumulator extends BaseArrayAggAccumulator<Lon
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Long, BigIntVector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
-    return new BigIntArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<Long> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new BigIntArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

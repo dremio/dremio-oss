@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import com.dremio.exec.planner.sql.NonCacheableFunctionDetector;
 import com.dremio.service.namespace.NamespaceKey;
 import java.util.List;
 import org.apache.calcite.rel.RelNode;
@@ -26,20 +25,17 @@ import org.apache.calcite.rel.type.RelDataType;
  * org.apache.calcite.plan.Convention#NONE}.
  */
 public class ConvertedRelNode {
-
   private final RelNode relNode;
   private final RelDataType validatedRowType;
-  private final NonCacheableFunctionDetector.Result nonCacheableFunctionResult;
   private final List<NamespaceKey> viewIdentifiers;
 
   private ConvertedRelNode(
       RelNode relNode,
       RelDataType validatedRowType,
-      NonCacheableFunctionDetector.Result nonCacheableFunctionResult,
+      RelNode expandedButNonReducedPlan,
       List<NamespaceKey> viewIdentifiers) {
     this.relNode = relNode;
     this.validatedRowType = validatedRowType;
-    this.nonCacheableFunctionResult = nonCacheableFunctionResult;
     this.viewIdentifiers = viewIdentifiers;
   }
 
@@ -51,10 +47,6 @@ public class ConvertedRelNode {
     return this.validatedRowType;
   }
 
-  public NonCacheableFunctionDetector.Result getNonCacheableFunctionResult() {
-    return nonCacheableFunctionResult;
-  }
-
   public List<NamespaceKey> getViewIdentifiers() {
     return viewIdentifiers;
   }
@@ -62,7 +54,7 @@ public class ConvertedRelNode {
   public static final class Builder {
     private RelNode relNode;
     private RelDataType validatedRowType;
-    private NonCacheableFunctionDetector.Result nonCacheableFunctionResult;
+    private RelNode nonReducedRelNode;
     private List<NamespaceKey> viewIdentifiers;
 
     public Builder withRelNode(RelNode relNode) {
@@ -75,20 +67,13 @@ public class ConvertedRelNode {
       return this;
     }
 
-    public Builder withNonCacheableFunctionResult(
-        NonCacheableFunctionDetector.Result nonCacheableFunctionResult) {
-      this.nonCacheableFunctionResult = nonCacheableFunctionResult;
-      return this;
-    }
-
     public Builder withViewIdentifiers(List<NamespaceKey> viewIdentifiers) {
       this.viewIdentifiers = viewIdentifiers;
       return this;
     }
 
     public ConvertedRelNode build() {
-      return new ConvertedRelNode(
-          relNode, validatedRowType, nonCacheableFunctionResult, viewIdentifiers);
+      return new ConvertedRelNode(relNode, validatedRowType, nonReducedRelNode, viewIdentifiers);
     }
   }
 }

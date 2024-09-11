@@ -18,58 +18,119 @@ package com.dremio.exec.store.dfs.copyinto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTablePartitionUpdateStep;
+import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTableSchemaUpdateStep;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.types.Types;
+import org.junit.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class TestCopyJobHistorySchemaProvider {
 
   @ParameterizedTest
-  @ValueSource(ints = {1})
+  @ValueSource(ints = {1, 2})
   public void testGetSchema(int schemaVersion) {
     Schema schema = CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion);
     if (schemaVersion == 1) {
       // Test for schema version 1
       assertThat(schema.columns().size()).isEqualTo(10);
-      assertThat(Types.TimestampType.withZone()).isEqualTo(schema.findField(1).type());
-      assertThat(schema.findField(1).name()).isEqualTo("executed_at");
-      assertThat(new Types.StringType()).isEqualTo(schema.findField(2).type());
-      assertThat(schema.findField(2).name()).isEqualTo("job_id");
-      assertThat(new Types.StringType()).isEqualTo(schema.findField(3).type());
-      assertThat(schema.findField(3).name()).isEqualTo("table_name");
-      assertThat(new Types.LongType()).isEqualTo(schema.findField(4).type());
-      assertThat(schema.findField(4).name()).isEqualTo("records_loaded_count");
-      assertThat(new Types.LongType()).isEqualTo(schema.findField(5).type());
-      assertThat(schema.findField(5).name()).isEqualTo("records_rejected_count");
-      assertThat(new Types.StringType()).isEqualTo(schema.findField(6).type());
-      assertThat(schema.findField(6).name()).isEqualTo("copy_options");
-      assertThat(new Types.StringType()).isEqualTo(schema.findField(7).type());
-      assertThat(schema.findField(7).name()).isEqualTo("user_name");
-      assertThat(new Types.LongType()).isEqualTo(schema.findField(8).type());
-      assertThat(schema.findField(8).name()).isEqualTo("base_snapshot_id");
-      assertThat(new Types.StringType()).isEqualTo(schema.findField(9).type());
-      assertThat(schema.findField(9).name()).isEqualTo("storage_location");
-      assertThat(new Types.StringType()).isEqualTo(schema.findField(10).type());
-      assertThat(schema.findField(10).name()).isEqualTo("file_format");
+    } else if (schemaVersion == 2) {
+      // Test for schema version 2
+      assertThat(schema.columns().size()).isEqualTo(14);
     }
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {2})
+  @ValueSource(ints = {1, 2})
+  public void testGetSchemaEvolutionStep(int schemaVersion) {
+    SystemIcebergTableSchemaUpdateStep schemaEvolutionStep =
+        CopyJobHistoryTableSchemaProvider.getSchemaEvolutionStep(schemaVersion);
+    if (schemaVersion == 1) {
+      assertThat(schemaEvolutionStep.getAddedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(1);
+    } else if (schemaVersion == 2) {
+      assertThat(schemaEvolutionStep.getAddedColumns().size()).isEqualTo(4);
+      assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(2);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1, 2})
+  public void testGetPartitionEvolutionStep(int schemaVersion) {
+    SystemIcebergTablePartitionUpdateStep partitionEvolutionStep =
+        CopyJobHistoryTableSchemaProvider.getPartitionEvolutionStep(schemaVersion);
+    if (schemaVersion == 1) {
+      assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(0);
+    } else if (schemaVersion == 2) {
+      assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(1);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {3})
   public void testGetUnsupportedVersion(int unsupportedSchemaVersion) {
     assertThrows(
-        "Unsupported copy_job_history table schema version. Currently supported schema version are: 1",
+        "Unsupported copy_job_history table schema version. Currently supported schema version are: 1, 2",
         UnsupportedOperationException.class,
         () -> CopyJobHistoryTableSchemaProvider.getSchema(unsupportedSchemaVersion));
+    assertThrows(
+        "Unsupported copy_job_history table schema version. Currently supported schema version are: 1, 2",
+        UnsupportedOperationException.class,
+        () ->
+            CopyJobHistoryTableSchemaProvider.getPartitionEvolutionStep(unsupportedSchemaVersion));
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {1})
-  public void testGetUserNameCol(int schemaVersion) {
-    String userNameColName = CopyJobHistoryTableSchemaProvider.getUserNameColName(schemaVersion);
-    if (schemaVersion == 1) {
-      assertThat(userNameColName).isEqualTo("user_name");
-    }
+  @Test
+  public void testGetUserNameCol() {
+    String userNameColName = CopyJobHistoryTableSchemaProvider.getUserNameColName();
+    assertThat(userNameColName).isEqualTo("user_name");
+  }
+
+  @Test
+  public void testGetJobIdCol() {
+    String jobIdColName = CopyJobHistoryTableSchemaProvider.getJobIdColName();
+    assertThat(jobIdColName).isEqualTo("job_id");
+  }
+
+  @Test
+  public void testGetTableNameCol() {
+    String tableNameColName = CopyJobHistoryTableSchemaProvider.getTableNameColName();
+    assertThat(tableNameColName).isEqualTo("table_name");
+  }
+
+  @Test
+  public void testGetCopyOptionsCol() {
+    String copyOptionsColName = CopyJobHistoryTableSchemaProvider.getCopyOptionsColName();
+    assertThat(copyOptionsColName).isEqualTo("copy_options");
+  }
+
+  @Test
+  public void testGetStorageLocationCol() {
+    String storageLocationColName = CopyJobHistoryTableSchemaProvider.getStorageLocationColName();
+    assertThat(storageLocationColName).isEqualTo("storage_location");
+  }
+
+  @Test
+  public void testGetFileFormatCol() {
+    String fileFormatColName = CopyJobHistoryTableSchemaProvider.getFileFormatColName();
+    assertThat(fileFormatColName).isEqualTo("file_format");
+  }
+
+  @Test
+  public void testGetBaseSnapshotCol() {
+    String baseSnapshotIdColName = CopyJobHistoryTableSchemaProvider.getBaseSnapshotIdColName();
+    assertThat(baseSnapshotIdColName).isEqualTo("base_snapshot_id");
+  }
+
+  @Test
+  public void testGetExecutedAtCol() {
+    String executedAtColName = CopyJobHistoryTableSchemaProvider.getExecutedAtColName();
+    assertThat(executedAtColName).isEqualTo("executed_at");
   }
 }

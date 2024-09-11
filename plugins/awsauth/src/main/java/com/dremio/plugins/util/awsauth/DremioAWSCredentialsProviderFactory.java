@@ -29,6 +29,8 @@ import org.apache.hadoop.fs.s3a.Constants;
 public final class DremioAWSCredentialsProviderFactory {
   public static final String ACCESS_KEY_PROVIDER =
       "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
+  public static final String GLUE_ACCESS_KEY_PROVIDER =
+      "com.dremio.exec.store.hive.GlueAWSCredentialsProvider";
   public static final String ASSUMED_ROLE_CREDENTIALS_PROVIDER =
       "fs.s3a.assumed.role.credentials.provider";
   public static final String ASSUME_ROLE_PROVIDER =
@@ -48,11 +50,8 @@ public final class DremioAWSCredentialsProviderFactory {
   public static AWSCredentialsProvider getAWSCredentialsProvider(Configuration config) {
     switch (config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
-        try {
-          return new org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider(null, config);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
+      case GLUE_ACCESS_KEY_PROVIDER:
+        return new GlueAWSCredentialsProvider(null, config);
 
       case EC2_METADATA_PROVIDER:
         return com.amazonaws.auth.InstanceProfileCredentialsProvider.getInstance();

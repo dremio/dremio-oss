@@ -49,8 +49,9 @@ type PartitionTransformationMenuProps = {
   granularity?: { code: "O"; alt: "Original" } | { code: "D"; alt: "Date" };
   setPartitionTransformation: (
     transformType: PartitionTransformations,
-    count?: number
+    count?: number,
   ) => void;
+  isRecommendation: boolean;
 };
 
 function PartitionTransformationMenu({
@@ -58,6 +59,7 @@ function PartitionTransformationMenu({
   selectedField,
   granularity,
   setPartitionTransformation,
+  isRecommendation,
 }: PartitionTransformationMenuProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -109,6 +111,7 @@ function PartitionTransformationMenu({
               }
             }}
             key={transformOption}
+            disabled={isRecommendation}
           >
             <FormattedMessage id={MenuOptions[transformOption]} />
             {transformOption === currentTransformationType &&
@@ -131,7 +134,7 @@ function PartitionTransformationMenu({
                 </div>
               )}
           </MenuItem>
-        )
+        ),
       ),
     [
       columnType,
@@ -141,7 +144,7 @@ function PartitionTransformationMenu({
       bucketModal,
       truncateModal,
       setPartitionTransformation,
-    ]
+    ],
   );
 
   return (
@@ -163,12 +166,22 @@ function PartitionTransformationMenu({
             vertical: "top",
             horizontal: "left",
           }}
+          container={
+            isRecommendation
+              ? document.body.querySelector(".dremio-modal-container")
+              : document.body
+          }
         >
           <header className="MuiMenu-list__header">
             <FormattedMessage id="Acceleration.PartitionTransformation.Title" />
             <Tooltip
               title="Acceleration.PartitionTransformation.MenuTooltip"
               placement="top"
+              PopperProps={{
+                container: isRecommendation
+                  ? document.body.querySelector(".dremio-modal-container")
+                  : document.body,
+              }}
             >
               <dremio-icon
                 name="interface/information"

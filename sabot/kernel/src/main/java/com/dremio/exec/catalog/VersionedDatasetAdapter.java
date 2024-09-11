@@ -18,10 +18,10 @@ package com.dremio.exec.catalog;
 import static com.dremio.exec.catalog.CatalogOptions.VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED;
 import static com.dremio.exec.catalog.VersionedPlugin.EntityType.ICEBERG_TABLE;
 import static com.dremio.exec.catalog.VersionedPlugin.EntityType.ICEBERG_VIEW;
-import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
@@ -46,9 +46,9 @@ import com.dremio.exec.store.VersionedDatasetAccessOptions;
 import com.dremio.exec.store.VersionedDatasetHandle;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.IcebergViewMetadata;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.ViewHandle;
-import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.MetadataProtoUtils;
@@ -60,6 +60,7 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.IcebergViewAttributes;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
@@ -72,6 +73,7 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -130,23 +132,29 @@ public class VersionedDatasetAdapter {
     final ViewHandle viewHandle = datasetHandle.unwrap(ViewHandle.class);
     final List<String> viewKeyPath = viewHandle.getDatasetPath().getComponents();
 
-    final ViewVersionMetadata viewVersionMetadata = viewHandle.getViewVersionMetadata();
-    Preconditions.checkNotNull(viewVersionMetadata);
+    final IcebergViewMetadata icebergViewMetadata = viewHandle.getIcebergViewMetadata();
+    Preconditions.checkNotNull(icebergViewMetadata);
     final SchemaConverter schemaConverter =
         SchemaConverter.getBuilder()
             .setMapTypeEnabled(optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE))
             .setTableName(String.join(".", viewKeyPath))
             .build();
     // Convert from Iceberg to Arrow schema
-    final BatchSchema batchSchema =
-        schemaConverter.fromIceberg(viewVersionMetadata.definition().schema());
+    final BatchSchema batchSchema = schemaConverter.fromIceberg(icebergViewMetadata.getSchema());
 
     // The ViewFieldType list returned will contain the Calcite converted fields.
     final List<ViewFieldType> viewFieldTypesList =
         ViewFieldsHelper.getBatchSchemaFields(batchSchema);
 
     final DatasetConfig viewConfig =
-        createShallowVirtualDatasetConfig(viewKeyPath, viewVersionMetadata, viewFieldTypesList);
+        createShallowVirtualDatasetConfig(
+            viewKeyPath,
+            icebergViewMetadata.getSql(),
+            icebergViewMetadata.getSchemaPath(),
+            icebergViewMetadata.getProperties(),
+            viewFieldTypesList,
+            icebergViewMetadata.getFormatVersion(),
+            icebergViewMetadata.getDialect());
 
     viewConfig.setTag(viewHandle.getUniqueInstanceId());
     VersionedDatasetId versionedDatasetId =
@@ -154,12 +162,12 @@ public class VersionedDatasetAdapter {
             versionedTableKey, viewHandle.getContentId(), TableVersionContext.of(versionContext));
     viewConfig.setId(new EntityId(versionedDatasetId.asString()));
     viewConfig.setRecordSchema(batchSchema.toByteString());
-    viewConfig.setLastModified(viewVersionMetadata.currentVersion().timestampMillis());
+    viewConfig.setLastModified(icebergViewMetadata.getLastModifiedAt());
 
     final View view =
         Views.fieldTypesToView(
             Iterables.getLast(viewKeyPath),
-            viewVersionMetadata.definition().sql(),
+            icebergViewMetadata.getSql(),
             viewFieldTypesList,
             viewConfig.getVirtualDataset().getContextList(),
             batchSchema);
@@ -193,18 +201,25 @@ public class VersionedDatasetAdapter {
 
   private DatasetConfig createShallowVirtualDatasetConfig(
       List<String> viewKeyPath,
-      ViewVersionMetadata viewVersionMetadata,
-      List<ViewFieldType> viewFieldTypesList) {
+      String sql,
+      List<String> workspaceSchemaPath,
+      Map<String, String> viewProperties,
+      List<ViewFieldType> viewFieldTypesList,
+      IcebergViewMetadata.SupportedIcebergViewSpecVersion formatVersion,
+      String viewDialect) {
     final VirtualDataset virtualDataset = new VirtualDataset();
-    List<String> workspaceSchemaPath = viewVersionMetadata.definition().sessionNamespace();
     virtualDataset.setContextList(workspaceSchemaPath);
-    virtualDataset.setSql(viewVersionMetadata.definition().sql());
+    virtualDataset.setSql(sql);
     virtualDataset.setVersion(DatasetVersion.newVersion());
     virtualDataset.setSqlFieldsList(viewFieldTypesList);
+    virtualDataset.setIcebergViewAttributes(
+        new IcebergViewAttributes()
+            .setViewSpecVersion(formatVersion.name())
+            .setViewDialect(viewDialect));
 
-    if (viewVersionMetadata.properties().containsKey("enable_default_reflection")) {
+    if (viewProperties.containsKey("enable_default_reflection")) {
       final boolean enableDefaultReflection =
-          Boolean.parseBoolean(viewVersionMetadata.properties().get("enable_default_reflection"));
+          Boolean.parseBoolean(viewProperties.get("enable_default_reflection"));
       virtualDataset.setDefaultReflectionEnabled(enableDefaultReflection);
     }
 
@@ -275,8 +290,7 @@ public class VersionedDatasetAdapter {
             .setLastRefreshTimeMillis(System.currentTimeMillis())
             .build();
 
-    return new NamespaceTable(
-        tableMetadata, metadataState, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
+    return new NamespaceTable(tableMetadata, metadataState, true);
   }
 
   public CatalogIdentity getOwner(EntityPath entityPath, String refValue, String refType)

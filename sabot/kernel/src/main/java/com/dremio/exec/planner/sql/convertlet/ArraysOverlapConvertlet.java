@@ -24,14 +24,14 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.tools.RelBuilder;
 
-public final class ArraysOverlapConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE =
-      new NullableArrayFunctionConvertlet(new ArraysOverlapConvertlet());
+public final class ArraysOverlapConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE =
+      new NullableArrayRexCallConvertlet(new ArraysOverlapConvertlet());
 
   private ArraysOverlapConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator() == ARRAYS_OVERLAP;
   }
 

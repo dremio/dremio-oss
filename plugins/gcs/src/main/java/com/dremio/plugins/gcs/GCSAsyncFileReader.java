@@ -44,6 +44,7 @@ import org.asynchttpclient.uri.Uri;
 
 /** Reads file content from GCS asynchronously. */
 class GCSAsyncFileReader extends ReusableAsyncByteReader {
+
   private static final int BASE_MILLIS_TO_WAIT = 250; // set to the average latency of an async read
   private static final int MAX_MILLIS_TO_WAIT = 10 * BASE_MILLIS_TO_WAIT;
 
@@ -54,6 +55,8 @@ class GCSAsyncFileReader extends ReusableAsyncByteReader {
   private final String httpVersion;
   private final Path path;
   private final String threadName;
+  private final String baseUrl;
+  private final GcsApiType gcsApiType;
   private final AsyncReadWithRetry asyncReaderWithRetry =
       new AsyncReadWithRetry(
           throwable -> {
@@ -82,7 +85,9 @@ class GCSAsyncFileReader extends ReusableAsyncByteReader {
       AsyncHttpClient asyncClient,
       Path fsPath,
       String cachedVersion,
-      GoogleCredentials credentials) {
+      GoogleCredentials credentials,
+      String baseUrl,
+      GcsApiType gcsApiType) {
     this.credentials = credentials;
     this.asyncHttpClient = asyncClient;
     this.blob = DremioHadoopUtils.pathWithoutContainer(fsPath).toString();
@@ -90,6 +95,8 @@ class GCSAsyncFileReader extends ReusableAsyncByteReader {
     this.httpVersion = convertToHttpDateTime(cachedVersion);
     this.path = fsPath;
     this.threadName = Thread.currentThread().getName();
+    this.baseUrl = baseUrl;
+    this.gcsApiType = gcsApiType;
   }
 
   // Utility method to convert string representation of a datetime Long value into a HTTP 1.1
@@ -145,13 +152,27 @@ class GCSAsyncFileReader extends ReusableAsyncByteReader {
             unused -> {
               try {
                 String encodedBlob =
-                    URLEncoder.encode(blob.substring(1), StandardCharsets.UTF_8.toString())
+                    URLEncoder.encode(blob.substring(1), StandardCharsets.UTF_8)
                         .replace("+", "%20");
-                // If-Unmodified-Since is only supported on the xml api.
-                // String uri =
+
                 // String.format("https://www.googleapis.com/download/storage/v1/b/%s/o/%s?alt=media", bucket, encodedBlob);
-                String uri =
-                    String.format("https://storage.googleapis.com/%s/%s", bucket, encodedBlob);
+                final String uri;
+                switch (gcsApiType) {
+                  case XML:
+                    // If-Unmodified-Since is only supported on the xml api.
+                    uri = String.format("%s/%s/%s", baseUrl, bucket, encodedBlob);
+                    break;
+                  case JSON:
+                    // This is only expected to be used for testing since we don't get the benefits
+                    // of If-Unmodified-Since. fake-gcs-server does not yet support the XML api:
+                    // https://github.com/fsouza/fake-gcs-server/pull/1164
+                    uri =
+                        String.format(
+                            "%s/storage/v1/b/%s/o/%s?alt=media", baseUrl, bucket, encodedBlob);
+                    break;
+                  default:
+                    throw new IllegalStateException("Unexpected value: " + gcsApiType);
+                }
 
                 RequestBuilder requestBuilder = new RequestBuilder().setUri(Uri.create(uri));
 
@@ -159,10 +180,15 @@ class GCSAsyncFileReader extends ReusableAsyncByteReader {
                   requestBuilder.addHeader("If-Unmodified-Since", httpVersion);
                 }
 
-                credentials.refreshIfExpired();
+                if (credentials != null) {
+                  // credentials are only null for mock testing w/o auth
 
-                for (Entry<String, List<String>> e : credentials.getRequestMetadata().entrySet()) {
-                  requestBuilder.addHeader(e.getKey(), e.getValue());
+                  credentials.refreshIfExpired();
+
+                  for (Entry<String, List<String>> e :
+                      credentials.getRequestMetadata().entrySet()) {
+                    requestBuilder.addHeader(e.getKey(), e.getValue());
+                  }
                 }
 
                 if (len >= 0) {

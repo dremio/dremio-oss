@@ -82,6 +82,15 @@ public class ZkTestServer implements AutoCloseable {
     }
   }
 
+  public void stopServer() throws IOException {
+    checkServerStarted();
+    try {
+      testingServer.stop();
+    } catch (Exception e) {
+      Throwables.propagateIfPossible(e, IOException.class);
+    }
+  }
+
   public void closeServer() throws IOException {
     checkServerStarted();
     testingServer.close();

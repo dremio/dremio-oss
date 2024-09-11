@@ -31,6 +31,7 @@ import com.dremio.exec.PassthroughQueryObserver;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -47,6 +48,7 @@ import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
@@ -104,7 +106,6 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
   @Before
   public void init() throws Exception {
     icebergTable = IcebergTestTables.NATION.get();
-    icebergTable.enableIcebergSystemOptions();
   }
 
   @After
@@ -158,7 +159,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -188,7 +189,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
     assertEquals(refreshDetails.getRefreshField(), "abc");
@@ -232,7 +233,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -262,7 +263,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -315,7 +316,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -359,7 +360,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -412,7 +413,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -442,7 +443,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -486,7 +487,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -514,7 +515,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -562,7 +563,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -616,7 +617,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());
@@ -660,7 +661,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -704,7 +705,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -746,7 +747,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of(DremioSqlOperatorTable.NOW));
 
     // ASSERT
     assertEquals(RefreshMethod.FULL, refreshDetails.getRefreshMethod());
@@ -755,7 +756,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
     assertNull(refreshDetails.getBaseTableMetadata());
     assertNull(refreshDetails.getBaseTableSnapshotId());
     assertEquals(
-        "Cannot do incremental update because the reflection has dynamic function operators.",
+        "Cannot do incremental update because the reflection has dynamic function(s): NOW",
         refreshDetails.getFullRefreshReason());
   }
 
@@ -801,7 +802,7 @@ public class TestIncrementalUpdateServiceUtils extends BaseTestQuery {
             reflectionService,
             optionManager,
             config,
-            !convertedRelNode.getNonCacheableFunctionResult().isReflectionIncrementalRefreshable());
+            ImmutableList.of());
 
     // ASSERT
     assertEquals(RefreshMethod.INCREMENTAL, refreshDetails.getRefreshMethod());

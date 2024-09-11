@@ -16,6 +16,7 @@
 package com.dremio.exec.expr.fn;
 
 import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS;
+import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS_ARM;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.map.CaseInsensitiveMap;
@@ -28,6 +29,7 @@ import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +51,7 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
   private final Map<String, List<AbstractFunctionHolder>> supportedFunctions =
       CaseInsensitiveMap.newHashMap();
   private final AtomicReference<Set<String>> disabledFunctionsRef;
+  private final AtomicReference<Set<String>> disabledArmFunctionsRef;
   private final OptionManager optionManager;
 
   private volatile boolean listenerAdded;
@@ -101,6 +104,7 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
       logger.warn("Unable to instantiate Gandiva. Skipping it.");
     }
     this.disabledFunctionsRef = new AtomicReference<>(Collections.emptySet());
+    this.disabledArmFunctionsRef = new AtomicReference<>(Collections.emptySet());
   }
 
   public static Set<String> toLowerCaseSet(String str) {
@@ -121,7 +125,7 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
     }
 
     List<SqlOperator> operators = new ArrayList<>();
-    final Set<String> disabledFunctions = disabledFunctionsRef.get();
+    final Set<String> disabledFunctions = getDisabledFunctions();
     for (Map.Entry<String, List<AbstractFunctionHolder>> entry : supportedFunctions.entrySet()) {
       final String name = entry.getKey();
       if (disabledFunctions.contains(name)) {
@@ -155,7 +159,7 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
       addListener();
     }
     final String lcName = name.toLowerCase();
-    final Set<String> disabledFunctions = disabledFunctionsRef.get();
+    final Set<String> disabledFunctions = getDisabledFunctions();
     return disabledFunctions.contains(lcName)
         ? Collections.emptyList()
         : supportedFunctions.getOrDefault(lcName, Collections.emptyList());
@@ -163,21 +167,37 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
 
   @Override
   public synchronized void onChange() {
-    if (optionManager == null
-        || disabledFunctionsRef
-            .get()
-            .equals(toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)))) {
+    if (optionManager == null) {
       return;
     }
-    // no need to compare if there is a change as option changes
-    this.disabledFunctionsRef.set(
-        toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)));
+    if (!disabledFunctionsRef
+        .get()
+        .equals(toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)))) {
+      this.disabledFunctionsRef.set(
+          toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)));
+    }
+    if (!disabledArmFunctionsRef
+        .get()
+        .equals(toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS_ARM)))) {
+      this.disabledArmFunctionsRef.set(
+          toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS_ARM)));
+    }
   }
 
   private void addListener() {
     this.disabledFunctionsRef.set(
         toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)));
+    this.disabledArmFunctionsRef.set(
+        toLowerCaseSet(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS_ARM)));
     optionManager.addOptionChangeListener(this);
     listenerAdded = true;
+  }
+
+  private Set<String> getDisabledFunctions() {
+    Set<String> functions = new HashSet<>(disabledFunctionsRef.get());
+    if ("aarch64".equals(System.getProperty("os.arch"))) {
+      functions.addAll(disabledArmFunctionsRef.get());
+    }
+    return functions;
   }
 }

@@ -23,11 +23,23 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
+import com.dremio.exec.expr.annotations.Workspace;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
+import com.dremio.exec.vector.complex.fn.WorkingBuffer;
+import com.google.common.base.Preconditions;
+import java.util.Arrays;
 import java.util.List;
+import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.impl.ComplexCopier;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.FieldWriter;
 import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
 public class MapFunctions {
@@ -120,6 +132,85 @@ public class MapFunctions {
     }
   }
 
+  @FunctionTemplate(
+      name = "dremio_internal_buildmap",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL,
+      derivation = MapElements.class)
+  public static class MapBuilder implements SimpleFunction {
+    @Param FieldReader keysReader;
+    @Param FieldReader valuesReader;
+    @Output BaseWriter.ComplexWriter out;
+    @Inject FunctionErrorContext errCtx;
+    @Inject ArrowBuf buffer;
+    @Workspace WorkingBuffer wb;
+
+    @Override
+    public void setup() {
+      wb = new WorkingBuffer(buffer);
+    }
+
+    @Override
+    public void eval() {
+      if (keysReader.getMinorType()
+          != com.dremio.common.util.MajorTypeHelper.getArrowMinorType(
+              com.dremio.common.types.TypeProtos.MinorType.LIST)) {
+        throw errCtx
+            .error()
+            .message("The buildmap function can only be used when operating against arrays.")
+            .build();
+      }
+      org.apache.arrow.vector.complex.impl.UnionMapWriter mapWriter =
+          (org.apache.arrow.vector.complex.impl.UnionMapWriter) out.rootAsMap(false);
+      mapWriter.startMap();
+      while (keysReader.next()) {
+        valuesReader.next();
+        mapWriter.startEntry();
+        com.dremio.exec.expr.fn.impl.MapFunctions.copyPrimitive(
+            keysReader.reader(), mapWriter.key());
+        com.dremio.exec.expr.fn.impl.MapFunctions.copyPrimitive(
+            valuesReader.reader(), mapWriter.value());
+        mapWriter.endEntry();
+      }
+      mapWriter.endMap();
+    }
+  }
+
+  public static void copyPrimitive(FieldReader reader, MapWriter writer) {
+    Types.MinorType mt = reader.getMinorType();
+    FieldWriter fieldWriter;
+    switch (mt) {
+      case BIT:
+        fieldWriter = (FieldWriter) writer.bit();
+        break;
+      case INT:
+        fieldWriter = (FieldWriter) writer.integer();
+        break;
+      case BIGINT:
+        fieldWriter = (FieldWriter) writer.bigInt();
+        break;
+      case FLOAT4:
+        fieldWriter = (FieldWriter) writer.float4();
+        break;
+      case FLOAT8:
+        fieldWriter = (FieldWriter) writer.float8();
+        break;
+      case VARCHAR:
+        fieldWriter = (FieldWriter) writer.varChar();
+        break;
+      case VARBINARY:
+        fieldWriter = (FieldWriter) writer.varBinary();
+        break;
+      case DECIMAL:
+        fieldWriter = (FieldWriter) writer.decimal();
+        break;
+      default:
+        throw new IllegalArgumentException(String.format("Unsupported type %s", mt));
+    }
+
+    ComplexCopier.copy(reader, fieldWriter);
+  }
+
   public static class ListOfKeys implements OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
@@ -155,5 +246,21 @@ public class MapFunctions {
           String.format("Unexpected entry in map structure %s", entryStruct.toString()));
     }
     return entryStruct;
+  }
+
+  public static class MapElements implements OutputDerivation {
+    @Override
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      Preconditions.checkArgument(args.size() >= 2 && args.size() % 2 == 0);
+      CompleteType keyType = args.get(0).getCompleteType().getOnlyChildType();
+      CompleteType valueType = args.get(1).getCompleteType().getOnlyChildType();
+      List<Field> children =
+          Arrays.asList(
+              Field.notNullable("key", keyType.getType()),
+              Field.nullable("value", valueType.getType()));
+      return new CompleteType(
+          CompleteType.MAP.getType(),
+          CompleteType.struct(children).toField(MapVector.DATA_VECTOR_NAME, false));
+    }
   }
 }

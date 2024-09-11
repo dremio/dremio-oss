@@ -15,12 +15,15 @@
  */
 package com.dremio.exec.store.dfs.system;
 
+import static com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState.FULLY_LOADED;
+import static com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState.IN_PROGRESS;
 import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_FILE_HISTORY_TABLE_NAME;
 import static com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory.COPY_JOB_HISTORY_TABLE_NAME;
 import static com.dremio.exec.store.dfs.system.SystemIcebergViewMetadataFactory.COPY_ERRORS_HISTORY_VIEW_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
@@ -37,7 +40,8 @@ public class TestSystemIcebergViewQueryBuilder {
             schemaVersion,
             COPY_ERRORS_HISTORY_VIEW_NAME,
             new NamespaceKey(ImmutableList.of(COPY_ERRORS_HISTORY_VIEW_NAME)),
-            userName);
+            userName,
+            false);
 
     String query = queryBuilder.getViewQuery();
 
@@ -47,12 +51,53 @@ public class TestSystemIcebergViewQueryBuilder {
         .isTrue();
     assertThat(
             query.contains(
-                "WHERE jh.\""
-                    + CopyJobHistoryTableSchemaProvider.getUserNameColName(schemaVersion)
+                "WHERE fh.\""
+                    + CopyFileHistoryTableSchemaProvider.getFileStateColName()
+                    + "\" != \'"
+                    + FULLY_LOADED.name()
+                    + "\' AND fh.\""
+                    + CopyFileHistoryTableSchemaProvider.getFileStateColName()
+                    + "\" != \'"
+                    + IN_PROGRESS.name()
+                    + "\'"))
+        .isTrue();
+    assertThat(
+            query.contains(
+                "AND jh.\""
+                    + CopyJobHistoryTableSchemaProvider.getUserNameColName()
                     + "\" = '"
                     + userName
                     + "'"))
         .isTrue();
+
+    queryBuilder =
+        new SystemIcebergViewQueryBuilder(
+            schemaVersion,
+            COPY_ERRORS_HISTORY_VIEW_NAME,
+            new NamespaceKey(ImmutableList.of(COPY_ERRORS_HISTORY_VIEW_NAME)),
+            userName,
+            true);
+    query = queryBuilder.getViewQuery();
+    assertThat(
+            query.contains(
+                "WHERE fh.\""
+                    + CopyFileHistoryTableSchemaProvider.getFileStateColName()
+                    + "\" != \'"
+                    + FULLY_LOADED.name()
+                    + "\' AND fh.\""
+                    + CopyFileHistoryTableSchemaProvider.getFileStateColName()
+                    + "\" != \'"
+                    + IN_PROGRESS.name()
+                    + "\'"))
+        .isTrue();
+    assertThat(
+            query.contains(
+                "AND jh.\""
+                    + CopyJobHistoryTableSchemaProvider.getUserNameColName()
+                    + "\" = '"
+                    + userName
+                    + "'"))
+        .isFalse();
   }
 
   @Test
@@ -60,7 +105,7 @@ public class TestSystemIcebergViewQueryBuilder {
     NamespaceKey namespaceKey = new NamespaceKey(ImmutableList.of("path", "to", "namespace"));
     SystemIcebergViewQueryBuilder queryBuilder =
         new SystemIcebergViewQueryBuilder(
-            1L, COPY_JOB_HISTORY_TABLE_NAME, namespaceKey, "sampleUserName");
+            1L, COPY_JOB_HISTORY_TABLE_NAME, namespaceKey, "sampleUserName", true);
 
     String query = queryBuilder.getViewQuery();
     assertThat("SELECT * FROM path.\"to\".namespace".equals(query)).isTrue();
@@ -71,7 +116,7 @@ public class TestSystemIcebergViewQueryBuilder {
     String unsupportedViewName = "unsupported_view";
     SystemIcebergViewQueryBuilder queryBuilder =
         new SystemIcebergViewQueryBuilder(
-            1L, unsupportedViewName, new NamespaceKey(ImmutableList.of()), "sampleUserName");
+            1L, unsupportedViewName, new NamespaceKey(ImmutableList.of()), "sampleUserName", false);
 
     assertThrows(
         "Cannot provide a view query for view name",
@@ -87,7 +132,8 @@ public class TestSystemIcebergViewQueryBuilder {
             unsupportedSchemaVersion,
             "sampleViewName",
             new NamespaceKey(ImmutableList.of()),
-            "sampleUserName");
+            "sampleUserName",
+            false);
 
     assertThrows(
         "Cannot provide a view query for schema version",

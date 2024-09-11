@@ -18,14 +18,18 @@ package com.dremio.exec.planner.sql.handlers.query;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.DmlUtils;
+import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.TableProperties;
+import java.util.List;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlUpdate;
 import org.apache.iceberg.RowLevelOperationMode;
 
 /** Handles the UPDATE DML. */
@@ -53,5 +57,33 @@ public class UpdateHandler extends DmlHandler {
     TableProperties updateDmlWriteMode =
         DmlUtils.getDmlWriteProp(table, org.apache.iceberg.TableProperties.UPDATE_MODE);
     return DmlUtils.getDmlWriteMode(updateDmlWriteMode);
+  }
+
+  /**
+   * Check if Merge-On-Read update DML plan will require the row-splitter.
+   *
+   * <p>see {@link com.dremio.exec.store.iceberg.IcebergMergeOnReadRowSplitterTableFunction} for
+   * more details on row splitter and its qualifications
+   *
+   * @param options Writer options
+   * @param updateCall Update call
+   * @return True if row splitter is needed, false otherwise
+   */
+  @Override
+  protected boolean checkIfRowSplitterNeeded(
+      RowLevelOperationMode dmlWriteMode, WriterOptions options, SqlNode updateCall) {
+    boolean isMergeOnRead =
+        ((SqlDmlOperator) updateCall).getDmlWriteMode() == RowLevelOperationMode.MERGE_ON_READ;
+    boolean isPartitionedTable =
+        options.getPartitionColumns() != null && !options.getPartitionColumns().isEmpty();
+
+    if (!isMergeOnRead || !isPartitionedTable) {
+      return false;
+    }
+
+    List<SqlNode> updateColumns = ((SqlUpdate) updateCall).getTargetColumnList().getList();
+
+    return updateColumns.stream()
+        .anyMatch(column -> options.getPartitionColumns().contains(column.toString()));
   }
 }

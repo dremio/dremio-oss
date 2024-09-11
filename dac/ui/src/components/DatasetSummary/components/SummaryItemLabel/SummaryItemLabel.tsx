@@ -72,7 +72,7 @@ const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
           <dremio-icon
             class={classes["dataset-item-header-icon"]}
             name={`entities/${iconName}`}
-            style={{ width: 26, height: 26 }}
+            style={{ inlineSize: 26, blockSize: 26 }}
           />
         ) : (
           <div className={classes["dataset-item-header-empty-icon"]}></div>

@@ -15,8 +15,8 @@
  */
 package com.dremio.service.namespace.split;
 
-import com.dremio.datastore.api.LegacyIndexedStore;
-import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.FindByCondition;
+import com.dremio.datastore.api.FindByRange;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 
@@ -29,12 +29,11 @@ public interface SplitNamespaceService {
   }
 
   //// READ
-  Iterable<PartitionChunkMetadata> findSplits(LegacyIndexedStore.LegacyFindByCondition condition);
+  Iterable<PartitionChunkMetadata> findSplits(FindByCondition condition);
 
-  Iterable<PartitionChunkMetadata> findSplits(
-      LegacyKVStore.LegacyFindByRange<PartitionChunkId> range);
+  Iterable<PartitionChunkMetadata> findSplits(FindByRange<PartitionChunkId> range);
 
-  int getPartitionChunkCount(LegacyIndexedStore.LegacyFindByCondition condition);
+  int getPartitionChunkCount(FindByCondition condition);
 
   //// DELETE
   /**

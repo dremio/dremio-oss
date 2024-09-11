@@ -27,6 +27,7 @@
 }
 
 .popover {
+  --popover--background: var(--fill--popover);
   --popover--arrow--left: -4px;
   --popover--arrow--background: white;
   --popover--arrow--size: 8px;

@@ -24,11 +24,12 @@ import static org.junit.Assume.assumeTrue;
 import com.dremio.BaseTestQuery;
 import com.dremio.QueryTestUtil;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.support.SupportService;
 import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.maestro.MaestroServiceImpl;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.testing.Controls;
@@ -36,8 +37,6 @@ import com.dremio.exec.testing.ControlsInjectionUtil;
 import com.dremio.exec.work.foreman.AttemptManager;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.sabot.rpc.user.UserServer;
-import com.dremio.service.conduit.client.ConduitProvider;
-import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
@@ -97,11 +96,8 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer {
     BaseTestServer.init();
     populateInitialData();
     query1 = readResourceAsString("tpch_quoted.sql");
-    LocalJobsService localJobsService =
-        getMasterDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
-    localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
-    localJobsService = getCurrentDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
-    localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
+    lMaster(LocalJobsService.class).getLocalAbandonedJobsHandler().reschedule(100);
+    l(LocalJobsService.class).getLocalAbandonedJobsHandler().reschedule(100);
   }
 
   @Before
@@ -111,32 +107,14 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer {
   }
 
   private ManagedChannel getChannelToCoord(boolean master) {
-    ConduitServer server = null;
-    ConduitProvider conduitProvider = null;
-    if (master) {
-      server = getMasterDremioDaemon().getBindingProvider().lookup(ConduitServer.class);
-      conduitProvider = getMasterDremioDaemon().getBindingProvider().lookup(ConduitProvider.class);
-    } else {
-      server = getCurrentDremioDaemon().getBindingProvider().lookup(ConduitServer.class);
-      conduitProvider = getCurrentDremioDaemon().getBindingProvider().lookup(ConduitProvider.class);
-    }
-
-    final int port = server.getPort();
-    final CoordinationProtos.NodeEndpoint target =
-        CoordinationProtos.NodeEndpoint.newBuilder()
-            .setAddress("127.0.0.1")
-            .setConduitPort(port)
-            .build();
-
-    final ManagedChannel channel = conduitProvider.getOrCreateChannel(target);
-    return channel;
+    DACDaemon daemon = master ? getMasterDremioDaemon() : getCurrentDremioDaemon();
+    return getConduitChannelTo(daemon);
   }
 
   private DremioClient getDremioClient(boolean master) throws Exception {
     DremioClient dremioClient = new DremioClient(true);
     if (master) {
-      final UserServer server =
-          getMasterDremioDaemon().getBindingProvider().lookup(UserServer.class);
+      final UserServer server = l(UserServer.class);
       dremioClient.connect(
           new Properties() {
             {
@@ -146,8 +124,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer {
             }
           });
     } else {
-      final UserServer server =
-          getCurrentDremioDaemon().getBindingProvider().lookup(UserServer.class);
+      final UserServer server = l(UserServer.class);
       dremioClient.connect(
           new Properties() {
             {
@@ -701,13 +678,13 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer {
                     .setUserName(DEFAULT_USERNAME)
                     .build());
 
-    validateFailedJob(jobSummary);
+    Assert.assertEquals(jobSummary.getJobState(), JobState.COMPLETED);
     Assert.assertEquals(
         JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.COMPLETED);
   }
 
   @Test
-  public void testTailProfileFailedStateMaster() throws Exception {
+  public void testCompletedJobWithFailedTailProfileMaster() throws Exception {
     final String controls =
         Controls.newBuilder()
             .addException(
@@ -717,6 +694,20 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer {
             .build();
 
     injectProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR, true);
+  }
+
+  @Test
+  public void testCompletedJobWithFailedFinalExecutorProfileMaster() throws Exception {
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                MaestroServiceImpl.class,
+                MaestroServiceImpl.INJECTOR_FINAL_EXECUTOR_PROFILE_ERROR,
+                RuntimeException.class)
+            .build();
+
+    injectProfileException(
+        controls, MaestroServiceImpl.INJECTOR_FINAL_EXECUTOR_PROFILE_ERROR, true);
   }
 
   private void injectAttemptCompletionException(String controls, boolean master) throws Exception {

@@ -1,17 +1,17 @@
 .color-faded {
-  color: var(--color--neutral--600);
+  color: var(--text--faded);
 }
 
-.color-neutral-400 {
-  color: var(--color--neutral--400);
-}
-
-.color-neutral-500 {
-  color: var(--color--neutral--500);
+.color-neutral-300 {
+  color: var(--color--neutral--300);
 }
 
 .color-neutral-900 {
   color: var(--color--neutral--900);
+}
+
+.color-info-300 {
+  color: var(--color--brand--200);
 }
 
 .color-info-400 {
@@ -22,6 +22,6 @@
   color: var(--color--green--300);
 }
 
-.color-danger-500 {
-  color: var(--color--red--500);
+.color-danger-400 {
+  color: var(--color--red--400);
 }

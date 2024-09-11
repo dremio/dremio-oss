@@ -28,9 +28,9 @@ import org.junit.runner.RunWith;
 import com.dremio.common.util.TestTools;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.exec.GuavaPatcherRunner;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.job.proto.QueryType;
@@ -43,7 +43,6 @@ import com.google.common.base.Preconditions;
  * Base class for Hive query profile stats test.
  * Takes care of generating and adding Hive test plugin before tests and deleting the plugin after tests.
  */
-@RunWith(GuavaPatcherRunner.class)
 public abstract class HiveStatsTestBase extends BaseTestServer {
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
@@ -51,19 +50,22 @@ public abstract class HiveStatsTestBase extends BaseTestServer {
 
   @BeforeClass
   public static void setup() throws Exception {
-    SabotContext sabotContext = getSabotContext();
-    Preconditions.checkNotNull(sabotContext, "SabotContext not initialized");
+    CatalogService catalogService = getCatalogService();
+    Preconditions.checkNotNull(catalogService, "CatalogService not initialized");
     hiveTest = HiveTestDataGenerator.getInstance();
     Preconditions.checkNotNull(hiveTest, "HiveTestDataGenerator not initialized");
-    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
-    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
+    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, catalogService);
+    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE,
+      catalogService);
   }
 
   @AfterClass
   public static void shutdown() throws Exception {
     if (hiveTest != null) {
-      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
-      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
+      CatalogService catalogService = getCatalogService();
+      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, catalogService);
+      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE,
+        catalogService);
     }
   }
 

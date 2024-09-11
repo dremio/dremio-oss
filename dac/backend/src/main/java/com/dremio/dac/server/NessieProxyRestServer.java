@@ -16,6 +16,7 @@
 package com.dremio.dac.server;
 
 import com.dremio.common.perf.Timer;
+import com.dremio.dac.annotations.RestApiServer;
 import com.dremio.dac.resource.NessieSourceResource;
 import com.dremio.dac.resource.NessieTestSourceResource;
 import com.dremio.dac.service.errors.NotFoundExceptionMapper;
@@ -26,12 +27,15 @@ import com.dremio.services.nessie.restjavax.converters.NamespaceParamConverterPr
 import com.dremio.services.nessie.restjavax.converters.ReferenceTypeParamConverterProvider;
 import com.dremio.services.nessie.restjavax.exceptions.ConstraintViolationExceptionMapper;
 import com.dremio.services.nessie.restjavax.exceptions.NessieExceptionMapper;
+import javax.inject.Inject;
 import org.glassfish.jersey.message.GZipEncoder;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.EncodingFilter;
 
+@RestApiServer(pathSpec = "/nessie-proxy/*", tags = "oss")
 public class NessieProxyRestServer extends ResourceConfig {
 
+  @Inject
   public NessieProxyRestServer() {
     try (Timer.TimedBlock b = Timer.time("new ProxyRestServer")) {
       init();

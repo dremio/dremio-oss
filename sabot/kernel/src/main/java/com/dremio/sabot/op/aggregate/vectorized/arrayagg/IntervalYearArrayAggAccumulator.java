@@ -24,15 +24,21 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntervalYearVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-public final class IntervalYearArrayAggAccumulator
-    extends BaseArrayAggAccumulator<Integer, IntervalYearVector> {
+public final class IntervalYearArrayAggAccumulator extends ArrayAggAccumulator<Integer> {
   public IntervalYearArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
-      BufferAllocator allocator) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
+      BufferAllocator allocator,
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
+    super(
+        input,
+        transferVector,
+        tempAccumulatorHolder,
+        allocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
   }
 
   @Override
@@ -46,9 +52,9 @@ public final class IntervalYearArrayAggAccumulator
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Integer, IntervalYearVector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
-    return new IntervalYearArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<Integer> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new IntervalYearArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

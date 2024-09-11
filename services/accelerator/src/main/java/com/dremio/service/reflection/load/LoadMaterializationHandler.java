@@ -18,15 +18,12 @@ package com.dremio.service.reflection.load;
 import static com.dremio.service.reflection.ReflectionUtils.getMaterializationPath;
 
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.SqlLoadMaterialization;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.ReflectionGoalChecker;
@@ -167,12 +164,7 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
 
     NamespaceKey materializationPath = new NamespaceKey(getMaterializationPath(materialization));
 
-    Catalog catalog =
-        context
-            .getCatalogService()
-            .getCatalog(
-                MetadataRequestOptions.of(
-                    SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
+    Catalog catalog = context.getCatalogService().getSystemUserCatalog();
 
     catalog.createDataset(materializationPath, datasetMutator);
 

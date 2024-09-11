@@ -170,7 +170,7 @@ public class TestSimpleExternalSort extends BaseTestQuery {
           break;
         }
         batchCount++;
-        RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
+        RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
         loader.load(b.getHeader().getDef(), b.getData());
         BigIntVector c1 =
             loader
@@ -228,7 +228,7 @@ public class TestSimpleExternalSort extends BaseTestQuery {
           break;
         }
         batchCount++;
-        RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
+        RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
         loader.load(b.getHeader().getDef(), b.getData());
         BigIntVector c1 =
             loader

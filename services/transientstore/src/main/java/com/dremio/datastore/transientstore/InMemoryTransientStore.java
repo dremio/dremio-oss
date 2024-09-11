@@ -218,4 +218,9 @@ public class InMemoryTransientStore<K, V> implements TransientStore<K, V> {
   public boolean contains(K key) {
     return cache.asMap().containsKey(key);
   }
+
+  @Override
+  public Iterable<Document<K, V>> find(String pattern, KVStore.GetOption... options) {
+    throw new UnsupportedOperationException("find is not supported");
+  }
 }

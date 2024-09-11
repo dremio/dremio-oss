@@ -25,31 +25,6 @@ import static com.dremio.exec.store.iceberg.IncrementalReflectionByPartitionUtil
 import static com.dremio.service.namespace.DatasetHelper.isConvertedIcebergDataset;
 import static com.dremio.service.namespace.DatasetHelper.supportsPruneFilter;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.DremioPrepareTable;
@@ -60,7 +35,6 @@ import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.EmptyRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
@@ -107,6 +81,29 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Rules factory for Hive. This must be instance based because any matches
@@ -145,7 +142,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
   }
 
-  public static class HiveScanDrel extends ScanRelBase implements Rel, FilterableScan, PruneableScan {
+  public static class HiveScanDrel extends FilterableScan implements Rel, PruneableScan {
 
     private final ScanFilter filter;
     private final ParquetScanRowGroupFilter rowGroupFilter;
@@ -167,7 +164,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
                          List<RelHint> hints, ScanFilter filter, ParquetScanRowGroupFilter rowGroupFilter,
                          HiveReaderProto.ReaderType readerType, PruneFilterCondition partitionFilter, Long survivingRowCount,
                          Long survivingFileCount, SnapshotDiffContext snapshotDiffContext, boolean partitionValuesEnabled) {
-      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints, snapshotDiffContext);
+      super(cluster, traitSet, table, pluginId, dataset, projectedColumns,
+          observedRowcountAdjustment, hints, snapshotDiffContext, PartitionStatsStatus.NONE);
       assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
       this.filter = filter;
       this.rowGroupFilter = rowGroupFilter;
@@ -187,8 +185,9 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
     // Clone with partition filter
     private HiveScanDrel(HiveScanDrel that, PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
-      super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(),
-        that.getProjectedColumns(), that.getObservedRowcountAdjustment(), that.getHintsAsList(), that.getSnapshotDiffContext());
+      super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(),
+          that.getTableMetadata(), that.getProjectedColumns(), that.getObservedRowcountAdjustment(),
+          that.getHintsAsList(), that.getSnapshotDiffContext(), that.getPartitionStatsStatus());
       assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
       this.filter = that.getFilter();
       this.rowGroupFilter = that.getRowGroupFilter();
@@ -512,7 +511,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
         drel.getTable(), icebergTableMetadata.getIcebergTableStoragePlugin(), icebergTableMetadata, drel.getProjectedColumns(),
         drel.getObservedRowcountAdjustment(), drel.getHintsAsList(), drel.getFilter(), drel.getRowGroupFilter(), false, /* TODO enable */
         drel.getPartitionFilter(), context, true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount(),
-        drel.canUsePartitionStats(), ManifestScanFilters.empty(), drel.getSnapshotDiffContext(), drel.isPartitionValuesEnabled());
+        drel.canUsePartitionStats(), ManifestScanFilters.empty(), drel.getSnapshotDiffContext(), drel.isPartitionValuesEnabled(),
+          drel.getPartitionStatsStatus());
       //generate query plans for cases when we are querying the data changes between snapshots
       //for example Incremental Refresh by Snapshot (Append only or By Partition)
       if(drel.getSnapshotDiffContext().isEnabled()) {

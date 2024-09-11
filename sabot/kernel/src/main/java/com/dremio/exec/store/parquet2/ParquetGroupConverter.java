@@ -21,6 +21,7 @@ import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.parquet.ParquetColumnResolver;
@@ -151,7 +152,8 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       colNextChild = colPath.getChild();
 
       while (true) {
-        if (colPath.isNamed() && (!colPath.getNameSegment().getPath().equals("*"))) {
+        if (colPath.getType().equals(PathSegmentType.NAME)
+            && (!colPath.getNameSegment().getPath().equals("*"))) {
           name = colPath.getNameSegment().getPath();
           // We may have a field that does not exist in the schema
           if (name.equalsIgnoreCase(type.getName())) {
@@ -191,13 +193,13 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
     if (groupType.getOriginalType() == OriginalType.LIST
         && colNextChild != null
-        && colNextChild.isNamed()
+        && colNextChild.getType().equals(PathSegmentType.NAME)
         && colNextChild.getNameSegment().getPath().equals("list")) {
       colNextChild = colNextChild.getChild();
     }
 
     while (colNextChild != null) {
-      if (colNextChild.isNamed()) {
+      if (colNextChild.getType().equals(PathSegmentType.NAME)) {
         break;
       }
       colNextChild = colNextChild.getChild();

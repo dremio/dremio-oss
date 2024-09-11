@@ -17,12 +17,11 @@ package com.dremio.dac.service.admin;
 
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
-import com.dremio.service.namespace.NamespaceServiceImpl.MultiSplitStoreCreator;
-import com.dremio.service.namespace.NamespaceServiceImpl.PartitionChunkCreator;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.MultiSplit;
@@ -85,13 +84,16 @@ public class KVStoreReportService implements Service {
   private final Provider<ExecutorService> executorServiceProvider;
   private ListeningExecutorService executorService;
 
-  private final Provider<LegacyKVStoreProvider> storeProviderProvider;
+  private final Provider<LegacyKVStoreProvider> legacyStoreProviderProvider;
+  private final Provider<KVStoreProvider> storeProviderProvider;
   private final Provider<NamespaceService> namespaceServiceProvider;
 
   public KVStoreReportService(
-      Provider<LegacyKVStoreProvider> storeProviderProvider,
+      Provider<LegacyKVStoreProvider> legacyStoreProviderProvider,
+      Provider<KVStoreProvider> storeProviderProvider,
       Provider<NamespaceService> namespaceServiceProvider,
       Provider<ExecutorService> executorServiceProvider) {
+    this.legacyStoreProviderProvider = legacyStoreProviderProvider;
     this.storeProviderProvider = storeProviderProvider;
     this.namespaceServiceProvider = namespaceServiceProvider;
     this.executorServiceProvider = executorServiceProvider;
@@ -177,7 +179,7 @@ public class KVStoreReportService implements Service {
               .getBytes()); // column names
       storeProviderProvider
           .get()
-          .getStore(MultiSplitStoreCreator.class)
+          .getStore(NamespaceServiceImpl.MultiSplitStoreCreator.class)
           .find()
           .forEach(
               e -> {
@@ -215,7 +217,7 @@ public class KVStoreReportService implements Service {
               .getBytes());
       storeProviderProvider
           .get()
-          .getStore(PartitionChunkCreator.class)
+          .getStore(NamespaceServiceImpl.PartitionChunkCreator.class)
           .find()
           .forEach(
               e -> {
@@ -316,7 +318,7 @@ public class KVStoreReportService implements Service {
       zip.write(
           "materialization_id,reflection_id,state,base_path,reflection_goal_version,created_at,modified_at,expiration,last_refresh_from_pds,num_partitions\n"
               .getBytes());
-      new MaterializationStore(storeProviderProvider)
+      new MaterializationStore(legacyStoreProviderProvider)
           .getAllMaterializations()
           .forEach(
               e -> {
@@ -352,7 +354,7 @@ public class KVStoreReportService implements Service {
 
       zip.write(
           "reflection_id,dataset_id,name,state,type,created_at,modified_at,version\n".getBytes());
-      new ReflectionGoalsStore(storeProviderProvider)
+      new ReflectionGoalsStore(legacyStoreProviderProvider)
           .getAll()
           .forEach(
               e -> {
@@ -387,7 +389,7 @@ public class KVStoreReportService implements Service {
       zip.write(
           "reflection_id,dataset_id,name,state,type,created_at,modified_at,goal_version\n"
               .getBytes());
-      new ReflectionEntriesStore(storeProviderProvider)
+      new ReflectionEntriesStore(legacyStoreProviderProvider)
           .find()
           .forEach(
               e -> {
@@ -439,6 +441,9 @@ public class KVStoreReportService implements Service {
                     map.put("accelerationGracePeriod", sourceConfig.getAccelerationGracePeriod());
                     map.put("accelerationNeverExpire", sourceConfig.getAccelerationNeverExpire());
                     map.put("accelerationNeverRefresh", sourceConfig.getAccelerationNeverRefresh());
+                    map.put(
+                        "accelerationRefreshOnDataChanges",
+                        sourceConfig.getAccelerationRefreshOnDataChanges());
                     return Stream.of(map);
                   })
               .collect(Collectors.toList()));

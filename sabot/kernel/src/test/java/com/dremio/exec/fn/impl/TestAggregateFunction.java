@@ -36,8 +36,7 @@ public class TestAggregateFunction extends BaseTestQuery {
     List<QueryDataBatch> results =
         client.runQuery(
             QueryType.PHYSICAL, readResourceAsString(planPath).replace("#{TEST_FILE}", dataPath));
-    try (RecordBatchLoader batchLoader =
-        new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
+    try (RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator())) {
       QueryDataBatch batch = results.get(1);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 

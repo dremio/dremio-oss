@@ -71,7 +71,7 @@ export const WalkthroughMenuItem = (props: WalkthroughMenuItemProps) => {
         className={clsx(
           "position-relative flex flex-row gap-1 text-left bg-none border-none rounded-md w-full leading-normal hover:bg-brand-subtle",
           {
-            "color-neutral-400": props.disabled,
+            "color-neutral-300": props.disabled,
           },
           css`
             .walkthrough-menu-item__restart {
@@ -87,7 +87,7 @@ export const WalkthroughMenuItem = (props: WalkthroughMenuItemProps) => {
         style={
           props.disabled
             ? {
-                color: "var(--color--neutral--400)",
+                color: "var(--color--neutral--300)",
               }
             : {}
         }

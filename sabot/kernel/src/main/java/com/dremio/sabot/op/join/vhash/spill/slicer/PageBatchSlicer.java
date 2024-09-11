@@ -46,7 +46,7 @@ public class PageBatchSlicer {
   private static final int STEP = 8;
 
   private final PagePool pool;
-  private final ArrowBuf sv2;
+  private ArrowBuf sv2;
   private final Sizer sizer;
   private Page currentPage;
 
@@ -70,6 +70,10 @@ public class PageBatchSlicer {
       ++index;
     }
     this.sizer = new CombinedSizer(sizerList);
+  }
+
+  public void updateSv2(ArrowBuf sv2) {
+    this.sv2 = sv2;
   }
 
   /**

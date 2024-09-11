@@ -49,18 +49,15 @@ describe("ContextPicker Utils", () => {
       const result = getContextValue(["my-space", "my", "folder"]);
       expect(result).to.eql("my-space.my.folder");
     });
-
     it("should default to correct value", () => {
       const result = getContextValue([""]);
       expect(result).to.eql("(None selected)");
     });
-
     it("should default to correct value using trim", () => {
       const result = getContextValue();
       expect(result).to.eql("<none>");
     });
   });
-
   describe("getCtxState utility", () => {
     it("Should parse correct state and loading flag", () => {
       const sourceName = "arctic1";
@@ -68,23 +65,19 @@ describe("ContextPicker Utils", () => {
         [`${NESSIE_REF_PREFIX}${sourceName}`]: populatedState,
       } as NessieRootState;
       const [state, loading] = getCtxState({ nessieState, sourceName });
-
       expect(state).to.eql(populatedState);
       expect(loading).to.eql(false);
     });
-
     it("Should return loading=true", () => {
       const sourceName = "arctic1";
       const nessieState = {
         [`${NESSIE_REF_PREFIX}${sourceName}`]: emptyState,
       } as NessieRootState;
       const [state, loading] = getCtxState({ nessieState, sourceName });
-
       expect(state).to.eql(emptyState);
       expect(loading).to.eql(true);
     });
   });
-
   describe("useCtxPickerActions - Populated state", () => {
     let result: any;
     let resetRefs: sinon.SinonSpy;
@@ -93,44 +86,35 @@ describe("ContextPicker Utils", () => {
       const nessieState = {
         [`${NESSIE_REF_PREFIX}${sourceName}`]: populatedState,
       } as NessieRootState;
-
       resetRefs = sinon.spy();
       const render = renderHook(() =>
         useCtxPickerActions({
           nessieState,
           resetRefs,
-        })
+        }),
       );
       result = render.result;
     });
-
     it("Starts closed, opens, closes", () => {
       let [show, open, close] = result.current;
       expect(show).to.eql(false);
-
       act(open);
       [show, open, close] = result.current;
       expect(show).to.eql(true);
-
       act(close);
       [show, open, close] = result.current;
-
       expect(show).to.eql(false);
       expect(resetRefs.notCalled).to.eql(true);
     });
-
     it("Only calls resetRefs if canceled when opened", () => {
       let [show, open, close, cancel] = result.current;
-
       act(cancel);
       [show, open, close, cancel] = result.current;
       expect(resetRefs.notCalled).to.eql(true);
       expect(show).to.eql(false);
-
       act(open);
       act(close);
       expect(resetRefs.notCalled).to.eql(true);
-
       act(open);
       act(cancel);
       expect(resetRefs.args.length).to.eql(1);
@@ -141,7 +125,6 @@ describe("ContextPicker Utils", () => {
       expect(show).to.eql(false);
     });
   });
-
   describe("useCtxPickerActions - Null state", () => {
     it("Render without error with null state", () => {
       const resetRefs = sinon.spy();
@@ -149,15 +132,13 @@ describe("ContextPicker Utils", () => {
         useCtxPickerActions({
           nessieState: null,
           resetRefs,
-        })
+        }),
       );
-
       const [, , , cancel] = result.current;
       act(cancel);
       expect(resetRefs.notCalled).to.eql(true);
     });
   });
-
   describe("useCtxPickerActions - No ref values doesn't reset refs", () => {
     it("Does not call reset refs if when no refs present (empty object)", () => {
       const sourceName = "arctic1";
@@ -167,15 +148,13 @@ describe("ContextPicker Utils", () => {
           reference: null,
         },
       } as NessieRootState;
-
       const resetRefs = sinon.spy();
       const { result } = renderHook(() =>
         useCtxPickerActions({
           nessieState,
           resetRefs,
-        })
+        }),
       );
-
       const [, open, , cancel] = result.current;
       act(open);
       act(cancel);

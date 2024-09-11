@@ -36,6 +36,7 @@ import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -58,6 +59,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Queue;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -74,7 +77,6 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Aggregate;
@@ -368,6 +370,24 @@ public final class MoreRelOptUtil {
       count += countRelNodes(child);
     }
     return count;
+  }
+
+  /*
+     Returns indices used in the given condition if it is an equal condition.
+  */
+  public static ImmutableBitSet getEqualConditionIndices(RexNode call) {
+    if (!(call instanceof RexCall)
+        || (((RexCall) call).getOperator().getKind() != SqlKind.EQUALS
+            && ((RexCall) call).getOperator().getKind() != SqlKind.IS_NOT_DISTINCT_FROM)) {
+      return ImmutableBitSet.of();
+    }
+    ImmutableBitSet.Builder builder = ImmutableBitSet.builder();
+    for (RexNode op : ((RexCall) call).getOperands()) {
+      if (op instanceof RexInputRef) {
+        builder.set(((RexInputRef) op).getIndex());
+      }
+    }
+    return builder.build();
   }
 
   /**
@@ -796,18 +816,47 @@ public final class MoreRelOptUtil {
    * @return Renamed relational expression
    */
   public static RelNode createRename(RelNode rel, final List<String> fieldNames) {
-    final List<RelDataTypeField> fields = rel.getRowType().getFieldList();
-    assert fieldNames.size() == fields.size();
+    List<RelDataTypeField> fields = rel.getRowType().getFieldList();
+    if (fieldNames.size() != fields.size()) {
+      if (rel instanceof Sort) {
+        // This is called when we are doing a CTAS operation with an order by epression.
+        // We are allowed to do an orderby on a column not in the select list, so
+        // the order by columns may not be in the columns of the new table.
+        // The order by columns are always at the end of the fieldNames.
+        // For example
+        // create table t3 as
+        //   select cola, colb, colc
+        //   from t1, t2
+        //   order by cold, cole;
+        assert fieldNames.size() < fields.size();
+        fields = (fields.subList(0, fieldNames.size()));
+      } else {
+        // This should never happen.
+        // We can't add a renamed RelNode when fields in the row do not match fieldNames.
+        throw new RuntimeException(
+            String.format(
+                "RelNode's rowtype fields do not match give field names"
+                    + "rowtype fields: {%s}, fieldNames: {%s}",
+                Joiner.on(",")
+                    .join(
+                        fields.stream()
+                            .map(RelDataTypeField::getName)
+                            .collect(Collectors.toList())),
+                Joiner.on(",").join(fieldNames)));
+      }
+    }
+    final List<RelDataTypeField> finalFields = fields;
+    assert fieldNames.size() == finalFields.size();
     final List<RexNode> refs =
         new AbstractList<RexNode>() {
           @Override
           public int size() {
-            return fields.size();
+            return finalFields.size();
           }
 
           @Override
           public RexNode get(int index) {
-            return RexInputRef.of(index, fields);
+            return RexInputRef.of(index, finalFields);
           }
         };
 
@@ -887,8 +936,8 @@ public final class MoreRelOptUtil {
       if (!(exp instanceof RexInputRef)) {
         return false;
       }
-      RexInputRef var = (RexInputRef) exp;
-      if (var.getIndex() != i) {
+      RexInputRef rexInputVar = (RexInputRef) exp;
+      if (rexInputVar.getIndex() != i) {
         return false;
       }
       if (0 != nameComparator.compare(fields.get(i).getName(), childFields.get(i).getName())) {
@@ -1216,14 +1265,11 @@ public final class MoreRelOptUtil {
     }
   }
 
-  // TODO DX-87018: Do not extend RelShuttleImpl directly
-  @SuppressWarnings("checkstyle:prefer-StatelessRelShuttleImpl")
-  public static class NodeRemover extends RelShuttleImpl {
+  public static class NodeRemover extends StatelessRelShuttleImpl {
 
     private final Predicate<RelNode> predicate;
 
     public NodeRemover(Predicate<RelNode> predicate) {
-      super();
       this.predicate = predicate;
     }
 
@@ -1697,6 +1743,7 @@ public final class MoreRelOptUtil {
 
   public static class RexNodeCountVisitor extends RexShuttle {
     private final Pointer<Integer> totalCount = new Pointer<>(0);
+    private final Pointer<Integer> rexCallCount = new Pointer<>(0);
     private final Pointer<Integer> inputRefCount = new Pointer<>(0);
 
     public static int count(RexNode node) {
@@ -1711,9 +1758,16 @@ public final class MoreRelOptUtil {
       return v.inputRefCount.value;
     }
 
+    public static int rexCallCount(RexNode node) {
+      RexNodeCountVisitor v = new RexNodeCountVisitor();
+      node.accept(v);
+      return v.rexCallCount.value;
+    }
+
     @Override
     public RexNode visitCall(RexCall call) {
       totalCount.value++;
+      rexCallCount.value++;
       return super.visitCall(call);
     }
 
@@ -2187,6 +2241,122 @@ public final class MoreRelOptUtil {
 
     public boolean shouldBroadcast() {
       return this.shouldBroadcast;
+    }
+  }
+
+  /**
+   * Compares the digests of two RelNode trees.
+   *
+   * @param rel1 RelNode tree
+   * @param rel2 RelNode tree
+   * @return true iff rel1 has same digest as rel2
+   */
+  public static boolean compareDigests(RelNode rel1, RelNode rel2) {
+    RelDigestIterator iter1 = new RelDigestIterator(rel1);
+    RelDigestIterator iter2 = new RelDigestIterator(rel2);
+    while (iter1.hasNext() && iter2.hasNext()) {
+      if (!Objects.equals(iter1.next(), iter2.next())) {
+        return false;
+      }
+    }
+    return iter1.hasNext() == iter2.hasNext();
+  }
+
+  /**
+   * An iterator that traverses a RelNode tree in breadth-first order and returns digest attributes
+   * of every node.
+   */
+  public static class RelDigestIterator implements Iterator<String> {
+
+    private final Queue<String> digestQueue;
+    private final Queue<Pair<String, RelNode>> inputQueue;
+
+    public RelDigestIterator(RelNode relNode) {
+      digestQueue = new ArrayDeque<>();
+      inputQueue = new ArrayDeque<>();
+      relNode.explain(new PartialRelDigestWriter(digestQueue, inputQueue));
+    }
+
+    @Override
+    public boolean hasNext() {
+      if (digestQueue.isEmpty()) {
+
+        if (inputQueue.isEmpty()) {
+          return false;
+        }
+
+        // Get the next input and add its digest attributes to the queue
+        Pair<String, RelNode> pair = inputQueue.remove();
+        String term = pair.left;
+        RelNode input = pair.right;
+        digestQueue.add(term);
+        input.explain(new PartialRelDigestWriter(digestQueue, inputQueue));
+      }
+
+      return true;
+    }
+
+    @Override
+    public String next() {
+      return digestQueue.remove();
+    }
+  }
+
+  /**
+   * Collects the local digest attributes of a RelNode as well as its RelNode inputs. Does not
+   * compute the digest attributes of the RelNode inputs to avoid eager digest computation of the
+   * entire RelNode tree.
+   */
+  public static class PartialRelDigestWriter implements RelWriter {
+
+    /** Stores RelNode digest attributes. */
+    private final Queue<String> digestQueue;
+
+    /** Stores RelNode inputs used for computing the complete digest. */
+    private final Queue<Pair<String, RelNode>> inputQueue;
+
+    public PartialRelDigestWriter(
+        Queue<String> digestQueue, Queue<Pair<String, RelNode>> inputQueue) {
+      this.digestQueue = digestQueue;
+      this.inputQueue = inputQueue;
+    }
+
+    @Override
+    public void explain(RelNode rel, List<Pair<String, Object>> valueList) {
+      throw new IllegalStateException("Should not be called for computing digest");
+    }
+
+    @Override
+    public SqlExplainLevel getDetailLevel() {
+      return SqlExplainLevel.DIGEST_ATTRIBUTES;
+    }
+
+    @Override
+    public RelWriter input(String term, RelNode input) {
+      inputQueue.add(Pair.of(term, input));
+      return this;
+    }
+
+    @Override
+    public RelWriter item(String term, Object value) {
+      if (value instanceof RelNode) {
+        inputQueue.add(Pair.of(term, (RelNode) value));
+      } else {
+        digestQueue.add(term);
+        digestQueue.add(value.toString());
+      }
+      return this;
+    }
+
+    @Override
+    public RelWriter done(RelNode node) {
+      digestQueue.add(node.getClass().getName());
+      return this;
+    }
+
+    @Override
+    public boolean nest() {
+      return true;
     }
   }
 }

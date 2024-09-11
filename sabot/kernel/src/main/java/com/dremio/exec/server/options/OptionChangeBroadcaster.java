@@ -19,6 +19,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionChangeNotification;
 import com.dremio.options.OptionNotificationServiceGrpc;
 import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
@@ -32,20 +33,21 @@ public class OptionChangeBroadcaster {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(OptionChangeBroadcaster.class);
   private final Provider<ConduitProvider> conduitProvider;
-  private final Provider<Collection<NodeEndpoint>> coordinatorEndpoints;
+  private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private final Provider<NodeEndpoint> currentEndpoint;
 
   public OptionChangeBroadcaster(
       Provider<ConduitProvider> conduitProvider,
-      Provider<Collection<NodeEndpoint>> coordinatorEndpoints,
+      Provider<ClusterCoordinator> clusterCoordinatorProvider,
       Provider<NodeEndpoint> currentEndpoint) {
     this.conduitProvider = conduitProvider;
-    this.coordinatorEndpoints = coordinatorEndpoints;
+    this.clusterCoordinatorProvider = clusterCoordinatorProvider;
     this.currentEndpoint = currentEndpoint;
   }
 
   public void communicateChange(OptionChangeNotification fetchRequest) {
-    final Collection<NodeEndpoint> allCoordinators = this.coordinatorEndpoints.get();
+    final Collection<NodeEndpoint> allCoordinators =
+        this.clusterCoordinatorProvider.get().getCoordinatorEndpoints();
     final ConduitProvider conduitProvider = this.conduitProvider.get();
     final NodeEndpoint currentEndpoint = this.currentEndpoint.get();
 

@@ -15,11 +15,10 @@
  */
 import { Route, IndexRedirect } from "react-router";
 import RepoView from "./components/RepoView/RepoView";
-import ArcticSourceWithNessie from "@app/exports/pages/ArcticSource/ArcticSource";
-import { ArcticSourceRoutes } from "@inject/additionalRequiredRoutes";
-import ArcticCatalogCommits from "@app/exports/pages/ArcticCatalog/components/ArcticCatalogCommits/ArcticCatalogCommits";
-import ArcticCatalogTags from "@app/exports/pages/ArcticCatalog/components/ArcticCatalogTags/ArcticCatalogTags";
-import ArcticCommitDetails from "@app/exports/pages/ArcticCatalog/components/ArcticCommitDetails/ArcticCommitDetails";
+import VersionedSourceWithNessie from "@app/exports/pages/VersionedSource/VersionedSource";
+import VersionedPageCommits from "@app/exports/pages/VersionedHomePage/components/VersionedPageCommits/VersionedPageCommits";
+import VersionedPageTags from "@app/exports/pages/VersionedHomePage/components/VersionedPageTags/VersionedPageTags";
+import VersionedPageCommitDetails from "@app/exports/pages/VersionedHomePage/components/VersionedPageCommitDetails/VersionedPageCommitDetails";
 
 import * as PATHS from "@app/exports/paths";
 
@@ -27,12 +26,12 @@ export const NessieHistorySourceRoutes = [
   <Route
     key="commits"
     path={PATHS.nessieSourceCommitsNonBase()}
-    component={ArcticCatalogCommits}
+    component={VersionedPageCommits}
   />,
   <Route
     key="commits-branch-namespace"
     path={PATHS.nessieSourceCommits({ branchId: ":branchName" })}
-    component={ArcticCatalogCommits}
+    component={VersionedPageCommits}
   />,
   <Route
     key="commits-namespace"
@@ -40,7 +39,7 @@ export const NessieHistorySourceRoutes = [
       branchId: ":branchName",
       namespace: "*",
     })}
-    component={ArcticCatalogCommits}
+    component={VersionedPageCommits}
   />,
   <Route
     key="commitDetails"
@@ -48,17 +47,17 @@ export const NessieHistorySourceRoutes = [
       branchId: ":branchName",
       commitId: ":commitId",
     })}
-    component={ArcticCommitDetails}
+    component={VersionedPageCommitDetails}
   />,
   <Route
     key="tags"
     path={PATHS.nessieSourceTagsNonBase()}
-    component={ArcticCatalogTags}
+    component={VersionedPageTags}
   />,
   <Route
     key="branches"
     path={PATHS.nessieSourceBranchesNonBase()}
-    component={() => <RepoView showHeader={false} />}
+    component={() => <RepoView />}
   />,
 ];
 
@@ -70,7 +69,7 @@ export function nessieSourceRoutes() {
         sourceId: ":sourceId",
         projectId: ":projectId",
       })}
-      component={ArcticSourceWithNessie}
+      component={VersionedSourceWithNessie}
     >
       <IndexRedirect
         to={PATHS.nessieSourceCommitsBase({
@@ -82,35 +81,6 @@ export function nessieSourceRoutes() {
       <Route
         key="nessie-not-found"
         path={`${PATHS.nessieSourceBase({
-          sourceId: ":sourceId",
-          projectId: ":projectId",
-        })}/*`}
-        component={() => null}
-      />
-    </Route>,
-  ];
-}
-
-export function arcticSourceRoutes() {
-  return [
-    <Route
-      key="arcticSourceHomePage"
-      path={PATHS.arcticSourceBase({
-        sourceId: ":sourceId",
-        projectId: ":projectId",
-      })}
-      component={ArcticSourceWithNessie}
-    >
-      <IndexRedirect
-        to={PATHS.arcticSourceCommitsBase({
-          sourceId: ":sourceId",
-          projectId: ":projectId",
-        })}
-      />
-      {ArcticSourceRoutes}
-      <Route
-        key="arctic-not-found"
-        path={`${PATHS.arcticSourceBase({
           sourceId: ":sourceId",
           projectId: ":projectId",
         })}/*`}

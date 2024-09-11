@@ -20,7 +20,8 @@ import static com.dremio.service.namespace.DatasetSplitIndexKeys.SPLIT_VERSION;
 
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
-import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableFindByRange;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.proto.EntityId;
@@ -264,21 +265,27 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
     return PartitionChunkId.of(datasetId, version, "");
   }
 
-  public static LegacyFindByRange<PartitionChunkId> getSplitsRange(DatasetConfig datasetConfig) {
+  public static FindByRange<PartitionChunkId> getSplitsRange(DatasetConfig datasetConfig) {
     Range<PartitionChunkId> range = getCurrentSplitRange(datasetConfig);
 
-    return new LegacyFindByRange<PartitionChunkId>()
-        .setStart(range.lowerEndpoint(), true)
-        .setEnd(range.upperEndpoint(), false);
+    return new ImmutableFindByRange.Builder<PartitionChunkId>()
+        .setStart(range.lowerEndpoint())
+        .setIsStartInclusive(true)
+        .setEnd(range.upperEndpoint())
+        .setIsEndInclusive(false)
+        .build();
   }
 
-  public static LegacyFindByRange<PartitionChunkId> getSplitsRange(
+  public static FindByRange<PartitionChunkId> getSplitsRange(
       EntityId datasetId, long splitVersionId) {
     Range<PartitionChunkId> range = getSplitRange(datasetId, splitVersionId);
 
-    return new LegacyFindByRange<PartitionChunkId>()
-        .setStart(range.lowerEndpoint(), true)
-        .setEnd(range.upperEndpoint(), false);
+    return new ImmutableFindByRange.Builder<PartitionChunkId>()
+        .setStart(range.lowerEndpoint())
+        .setIsStartInclusive(true)
+        .setEnd(range.upperEndpoint())
+        .setIsEndInclusive(false)
+        .build();
   }
 
   /**
@@ -294,7 +301,7 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
   }
 
   /** UNSAFE! Use {@code PartitionChunkId#getSplitRange(EntityId, long)} instead */
-  public static LegacyFindByRange<PartitionChunkId> unsafeGetSplitsRange(DatasetConfig config) {
+  public static FindByRange<PartitionChunkId> unsafeGetSplitsRange(DatasetConfig config) {
     final long splitVersion = config.getReadDefinition().getSplitVersion();
     final long nextSplitVersion = splitVersion + 1;
     final String datasetId = config.getId().getId();
@@ -307,7 +314,12 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
         new PartitionChunkId(
             SPLIT_ID_JOINER.join(datasetId, nextSplitVersion, ""), datasetId, splitVersion, "");
 
-    return new LegacyFindByRange<PartitionChunkId>().setStart(start, true).setEnd(end, false);
+    return new ImmutableFindByRange.Builder<PartitionChunkId>()
+        .setStart(start)
+        .setIsStartInclusive(true)
+        .setEnd(end)
+        .setIsEndInclusive(false)
+        .build();
   }
 
   /** Policy to get valid ranges of splits for a given dataset */

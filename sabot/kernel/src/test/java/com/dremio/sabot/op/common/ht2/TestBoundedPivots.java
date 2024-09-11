@@ -125,7 +125,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
   private void fixedOnlyHelper(
       PivotDef pivot,
       FixedBlockVector fixed,
-      VariableBlockVector var,
+      VariableBlockVector variable,
       int s,
       int l,
       boolean reset,
@@ -137,7 +137,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
       fixed.reset();
     }
 
-    BoundedPivots.pivot(pivot, s, l, fixed, var);
+    BoundedPivots.pivot(pivot, s, l, fixed, variable);
     validate4ByteValues(
         pivot.getBlockWidth(),
         pivot.getFixedPivots().get(0),
@@ -237,7 +237,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
   private void fixedVariableHelper(
       PivotDef pivot,
       FixedBlockVector fixed,
-      VariableBlockVector var,
+      VariableBlockVector variable,
       int s,
       int l,
       boolean reset,
@@ -248,7 +248,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
       fixed.reset();
     }
 
-    final int pivoted = BoundedPivots.pivot(pivot, s, l, fixed, var);
+    final int pivoted = BoundedPivots.pivot(pivot, s, l, fixed, variable);
     validate4ByteValues(
         pivot.getBlockWidth(),
         pivot.getFixedPivots().get(0),
@@ -263,7 +263,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
         pivot.getBlockWidth(),
         pivot.getVariablePivots().get(0),
         fixed,
-        var,
+        variable,
         copyOfRange(col3Val, s, s + pivoted));
   }
 

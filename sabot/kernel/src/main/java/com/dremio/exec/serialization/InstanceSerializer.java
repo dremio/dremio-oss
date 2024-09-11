@@ -16,9 +16,17 @@
 package com.dremio.exec.serialization;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Reader;
 
 public interface InstanceSerializer<T> {
   byte[] serialize(T instance) throws IOException;
 
+  void serializeTo(OutputStream w, T instance) throws IOException;
+
   T deserialize(byte[] raw) throws IOException;
+
+  T deserialize(String raw) throws IOException;
+
+  T deserialize(Reader reader) throws IOException;
 }

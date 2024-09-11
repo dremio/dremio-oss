@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -84,8 +85,7 @@ public class TestVersionedDatasetId {
     String convertedDatasetId = versionedDatasetId.asString();
 
     // Assert
-    assertThat(versionedDatasetId.equals(VersionedDatasetId.fromString(convertedDatasetId)))
-        .isTrue();
+    assertThat(versionedDatasetId).isEqualTo(VersionedDatasetId.fromString(convertedDatasetId));
   }
 
   @Test
@@ -126,9 +126,8 @@ public class TestVersionedDatasetId {
     String convertedDatasetId = versionedDatasetId.asString();
 
     // Assert
-    assertThat(versionedDatasetId.getContentId() == null).isTrue();
-    assertThat(versionedDatasetId.equals(VersionedDatasetId.fromString(convertedDatasetId)))
-        .isTrue();
+    assertThat(versionedDatasetId.getContentId()).isNull();
+    assertThat(versionedDatasetId).isEqualTo(VersionedDatasetId.fromString(convertedDatasetId));
   }
 
   @Test
@@ -148,8 +147,7 @@ public class TestVersionedDatasetId {
     String convertedDatasetId = versionedDatasetId.asString();
 
     // Assert
-    assertThat(versionedDatasetId.getContentId() == null).isTrue();
-    assertThat(versionedDatasetId.equals(VersionedDatasetId.fromString(convertedDatasetId)))
-        .isTrue();
+    assertThat(versionedDatasetId.getContentId()).isNull();
+    assertThat(versionedDatasetId).isEqualTo(VersionedDatasetId.fromString(convertedDatasetId));
   }
 }

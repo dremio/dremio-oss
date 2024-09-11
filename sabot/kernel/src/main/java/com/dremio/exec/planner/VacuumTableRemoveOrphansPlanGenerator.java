@@ -26,17 +26,17 @@ import static com.dremio.exec.store.SystemSchemas.PATH_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.RECORDS;
 import static com.dremio.exec.store.SystemSchemas.TABLE_LOCATION;
 import static com.dremio.exec.store.iceberg.SnapshotsScanOptions.Mode.ALL_SNAPSHOTS;
-import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
 import static org.apache.calcite.sql.type.SqlTypeName.BIGINT;
-import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
 
 import com.dremio.common.JSONOptions;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VacuumOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
+import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashAggPrel;
@@ -50,7 +50,11 @@ import com.dremio.exec.planner.physical.ValuesPrel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.iceberg.IcebergOrphanFileDeletePrel;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.DirList;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.io.file.UriSchemes;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -85,10 +89,15 @@ import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Expand plans for VACUUM TABLE REMOVE ORPHAN FILES flow. */
 public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
-  private final String tableLocation; // This table location should have path scheme info.
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(VacuumTableRemoveOrphansPlanGenerator.class);
+  private final String tableLocation;
+  protected String schemeVariate;
 
   public VacuumTableRemoveOrphansPlanGenerator(
       RelOptCluster cluster,
@@ -99,6 +108,7 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
       StoragePluginId internalStoragePlugin,
       StoragePluginId storagePluginId,
       String user,
+      CreateTableEntry createTableEntry,
       String tableLocation) {
     super(
         cluster,
@@ -110,6 +120,7 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
         storagePluginId,
         user);
     this.tableLocation = tableLocation;
+    this.schemeVariate = getFilePathScheme(tableLocation, createTableEntry);
   }
 
   /*
@@ -143,16 +154,37 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
    * HashAgg (Deduplication)    IcebergManifestScanTF
    *          ▲                         ▲
    *          │                         │
-   * IcebergLocationFinderTF    IcebregManifestListScanTF
+   * IcebergLocationFinderTF   ManifestFileDuplicateRemoveTF
    *          ▲                         ▲
    *          │                         │
-   * IcebergCommitScanner(abs)  PartitionStatsScanTF
+   * IcebergCommitScanner(abs) IcebregManifestListScanTF
+   *                                    ▲
+   *                                    │
+   *                           PartitionStatsScanTF
    *                                    ▲
    *                                    │
    *                            SnapshotsScanPlan(abs)
    */
   @Override
   public Prel buildPlan() {
+
+    // If the scheme info could be found and determined, it will be not clear to which scheme it
+    // aligns all file paths from the left and right sides of the HashJoin.
+    // This will probably cause to completely delete all files from the location it aims to detect
+    // and delete orphan files. To avoid this disastrous result, it would be rather than not run
+    // Remove Orphan Files query on the target table.
+
+    // Vacuum Catalog uses the different strategy to handle the file path, which aims to trim the
+    // scheme info from the path from right side of Join.
+    if (!StringUtils.isEmpty(tableLocation) && StringUtils.isEmpty(schemeVariate)) {
+      LOGGER.warn(
+          "Stop to generate the physical plan for RemoveOrphanFiles. Because, the scheme info is missing from {}",
+          tableLocation);
+      throw UserException.unsupportedError()
+          .message("Can't run Remove Orphan Files query on the table.")
+          .buildSilently();
+    }
+
     try {
       Prel locationProviderPlan = locationProviderPrel();
       Prel allRemovablePathsPlan = listAllWalkableReferencesPlan(locationProviderPlan);
@@ -165,6 +197,23 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
     }
   }
 
+  private String getFilePathScheme(String tableLocation, CreateTableEntry createTableEntry) {
+    // If the table location has the scheme variate info, we use that scheme info.
+    // Otherwise, we use the default scheme info (defined in UriSchemes)
+    if (tableLocation != null && tableLocation.contains(UriSchemes.SCHEME_SEPARATOR)) {
+      return Path.of(tableLocation).toURI().getScheme();
+    } else if (createTableEntry != null) {
+      FileSystem fs = IcebergUtils.createFS(createTableEntry);
+      return IcebergUtils.getDefaultPathScheme(fs.getScheme());
+    }
+    return null;
+  }
+
+  @Override
+  protected String getSchemeVariate() {
+    return schemeVariate;
+  }
+
   @Override
   protected Prel projectFilePathAndType(Prel input) {
     final List<String> projectFields = ImmutableList.of(FILE_PATH, FILE_TYPE);
@@ -173,62 +222,11 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
     Pair<Integer, RelDataTypeField> fileTypeCol =
         MoreRelOptUtil.findFieldWithIndex(input.getRowType().getFieldList(), FILE_TYPE);
     RexBuilder rexBuilder = cluster.getRexBuilder();
-    RelDataTypeFactory typeFactory = cluster.getTypeFactory();
 
-    // If filePathCol contains URI_SCHEME, it needs to trim the scheme; else no trim. Then, if the
-    // URI_SCHEME is
-    // FILE_SCHEME, i.e., 'file:///path', set the trim index to be 3 and keep the finally trimmed
-    // path as '/path'.
-    // Other scheme types, S3_SCHEME or 's3://path', trim it as '/path'.
-
-    // NOTE: For SqlStdOperatorTable.POSITION, if it can find the sub string, it returns index
-    // greater or equal to 1.
-    // Otherwise, not found, it returns index as 0.
     RexInputRef filePathExpr =
         rexBuilder.makeInputRef(filePathCol.right.getType(), filePathCol.left);
-    RexNode uriSchemeExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.POSITION, rexBuilder.makeLiteral("://"), filePathExpr);
-    RexNode uriSchemeCheck =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
-            uriSchemeExpr,
-            rexBuilder.makeLiteral(1, typeFactory.createSqlType(INTEGER), true));
-
-    RexNode fileSchemeExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.POSITION,
-            rexBuilder.makeLiteral(FILE_SCHEME + "://"),
-            filePathExpr);
-    RexNode fileSchemeCheck =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
-            fileSchemeExpr,
-            rexBuilder.makeLiteral(1, typeFactory.createSqlType(INTEGER), true));
-
-    // If the path contains FILE_SCHEME, i.e., 'file:///path', set the trim index to be 3 and keep
-    // the finally trimmed path as '/path'.
-    RexNode trimIndexExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.CASE,
-            fileSchemeCheck,
-            rexBuilder.makeLiteral(3, typeFactory.createSqlType(INTEGER), true),
-            rexBuilder.makeLiteral(2, typeFactory.createSqlType(INTEGER), true));
-
-    // The starting index is from the position of finding '://' + 2 or 3 .
-    RexNode trimExpr = rexBuilder.makeCall(SqlStdOperatorTable.PLUS, trimIndexExpr, uriSchemeExpr);
-
-    RexNode schemeTrimExpr =
-        rexBuilder.makeCall(SqlStdOperatorTable.SUBSTRING, filePathExpr, trimExpr);
-    RexNode filePathTrimExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.CASE,
-            uriSchemeCheck,
-            schemeTrimExpr, // File path needs to trim UriScheme info.
-            filePathExpr); // File path don't need to be trimmed, and keep original path.
-
     RexNode fileSizeExpr = rexBuilder.makeInputRef(fileTypeCol.right.getType(), fileTypeCol.left);
-    final List<RexNode> projectExpressions = ImmutableList.of(filePathTrimExpr, fileSizeExpr);
+    final List<RexNode> projectExpressions = ImmutableList.of(filePathExpr, fileSizeExpr);
     RelDataType newRowType =
         RexUtil.createStructType(
             rexBuilder.getTypeFactory(),
@@ -365,7 +363,7 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
         1);
   }
 
-  private Prel projectFilePathOnDirList(Prel dirList) {
+  protected Prel projectFilePathOnDirList(Prel dirList) {
     final List<String> projectFields = ImmutableList.of(FILE_PATH, FILE_SIZE);
     Pair<Integer, RelDataTypeField> filePathIn =
         MoreRelOptUtil.findFieldWithIndex(
@@ -374,72 +372,10 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
         MoreRelOptUtil.findFieldWithIndex(
             dirList.getRowType().getFieldList(), DirList.OUTPUT_SCHEMA.FILE_SIZE);
     RexBuilder rexBuilder = cluster.getRexBuilder();
-    RelDataTypeFactory typeFactory = cluster.getTypeFactory();
 
-    // The file paths listed by DirList could include following cases:
-    // 1. has complete scheme path info, e.g., 'hdfs://' + path.
-    // 2. has FILE_SCHEME scheme and path separator, e.g., 'file:/' + path.
-    // 3. only relative path, e.g., '/' + path.
-
-    // We need to trim scheme info and as the trimmed file path as the style like '/' + path.
-    // Otherwise, it can't be filtered by the Join op.
-
-    // Expression to trim complete scheme info.
     RexInputRef filePathExpr = rexBuilder.makeInputRef(filePathIn.right.getType(), filePathIn.left);
-    RexNode uriSchemeExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.POSITION, rexBuilder.makeLiteral("://"), filePathExpr);
-    RexNode uriSchemeCheck =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
-            uriSchemeExpr,
-            rexBuilder.makeLiteral(1, typeFactory.createSqlType(INTEGER), true));
-
-    RexNode trimCompleteSchemeExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.SUBSTRING,
-            filePathExpr,
-            rexBuilder.makeCall(
-                SqlStdOperatorTable.PLUS,
-                rexBuilder.makeLiteral(2, typeFactory.createSqlType(INTEGER), true),
-                uriSchemeExpr));
-
-    // Expression to trim 'file:/'
-    RexNode fileSchemeExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.POSITION, rexBuilder.makeLiteral(":/"), filePathExpr);
-    RexNode fileSchemeCheck =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.GREATER_THAN,
-            fileSchemeExpr,
-            rexBuilder.makeZeroLiteral(typeFactory.createSqlType(SqlTypeName.INTEGER)));
-
-    RexNode trimFileSchemeExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.SUBSTRING,
-            filePathExpr,
-            rexBuilder.makeCall(
-                SqlStdOperatorTable.PLUS,
-                rexBuilder.makeLiteral(1, typeFactory.createSqlType(INTEGER), true),
-                fileSchemeExpr));
-
-    // If the path contains SCHEME_SEPARATOR, i.e., '://', trim complete scheme info, e.g.,
-    // 'hdfs://',
-    // else if the path contains FILE_SCHEME, i.e., 'file:/path', trim 'file:' substring,
-    // and finally keep the trimmed path as '/path'.
-    RexNode filePathTrimExpr =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.CASE,
-            uriSchemeCheck,
-            trimCompleteSchemeExpr, // Trim complete scheme info
-            rexBuilder.makeCall(
-                SqlStdOperatorTable.CASE,
-                fileSchemeCheck,
-                trimFileSchemeExpr, // Trim FileScheme
-                filePathExpr)); // Don't need trim and keep original path string
-
     RexNode fileSizeExpr = rexBuilder.makeInputRef(fileSizeIn.right.getType(), fileSizeIn.left);
-    final List<RexNode> projectExpressions = ImmutableList.of(filePathTrimExpr, fileSizeExpr);
+    final List<RexNode> projectExpressions = ImmutableList.of(filePathExpr, fileSizeExpr);
     RelDataType newRowType =
         RexUtil.createStructType(
             rexBuilder.getTypeFactory(),
@@ -470,7 +406,8 @@ public class VacuumTableRemoveOrphansPlanGenerator extends VacuumPlanGenerator {
   private Prel getDirListingTableFunctionPrel(Prel input) {
     BatchSchema dirListingSchema = DirList.OUTPUT_SCHEMA.BATCH_SCHEMA;
     TableFunctionConfig dirListingConfig =
-        TableFunctionUtil.getDirListingTableFunctionConfig(storagePluginId, dirListingSchema);
+        TableFunctionUtil.getDirListingTableFunctionConfig(
+            storagePluginId, dirListingSchema, schemeVariate);
 
     Function<RelMetadataQuery, Double> estimateRowCountFn =
         mq -> (double) icebergCostEstimates.getEstimatedRows();

@@ -22,17 +22,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.dremio.datastore.RocksDBStore.RocksMetaManager;
 import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableFindByRange;
+import com.dremio.datastore.api.options.ImmutableMaxResultsOption;
 import com.dremio.datastore.api.options.ImmutableVersionOption;
+import com.dremio.datastore.api.options.MaxResultsOption;
 import com.dremio.datastore.api.options.VersionOption;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -365,6 +371,57 @@ public class TestRocksDBStore {
       assertThat(store.currentlyOpenIterators()).isEqualTo(0);
     } finally {
       executor.shutdownNow();
+    }
+  }
+
+  @Test
+  public void testFind_maxResults() {
+    // Get all data.
+    List<Document<byte[], byte[]>> allData = new ArrayList<>();
+    store.find().forEach(allData::add);
+
+    // Get subset of the data.
+    MaxResultsOption maxResultsOption =
+        new ImmutableMaxResultsOption.Builder().setMaxResults(10).build();
+    assertTrue(allData.size() > maxResultsOption.maxResults());
+    List<Document<byte[], byte[]>> dataSubset = new ArrayList<>();
+    store.find(maxResultsOption).forEach(dataSubset::add);
+    assertEquals(maxResultsOption.maxResults(), dataSubset.size());
+
+    // Compare.
+    for (int i = 0; i < dataSubset.size(); i++) {
+      assertArrayEquals(dataSubset.get(i).getKey(), allData.get(i).getKey());
+      assertArrayEquals(dataSubset.get(i).getValue(), allData.get(i).getValue());
+    }
+  }
+
+  @Test
+  public void testFindByRange_maxResults() {
+    // Get all data.
+    List<Document<byte[], byte[]>> allData = new ArrayList<>();
+    store.find().forEach(allData::add);
+
+    // Get subset of the data.
+    MaxResultsOption maxResultsOption =
+        new ImmutableMaxResultsOption.Builder().setMaxResults(10).build();
+    int startIndex = allData.size() / 4;
+    FindByRange<byte[]> findByRange =
+        new ImmutableFindByRange.Builder<byte[]>()
+            .setStart(allData.get(startIndex).getKey())
+            .setIsStartInclusive(true)
+            .build();
+    assertTrue(allData.size() > maxResultsOption.maxResults());
+    List<Document<byte[], byte[]>> dataSubset = new ArrayList<>();
+    store.find(findByRange, maxResultsOption).forEach(dataSubset::add);
+
+    // Compare.
+    List<Document<byte[], byte[]>> expectedSubset =
+        allData.subList(startIndex, startIndex + dataSubset.size());
+    assertEquals(maxResultsOption.maxResults(), dataSubset.size());
+    assertEquals(maxResultsOption.maxResults(), expectedSubset.size());
+    for (int i = 0; i < dataSubset.size(); i++) {
+      assertArrayEquals(dataSubset.get(i).getKey(), expectedSubset.get(i).getKey());
+      assertArrayEquals(dataSubset.get(i).getValue(), expectedSubset.get(i).getValue());
     }
   }
 

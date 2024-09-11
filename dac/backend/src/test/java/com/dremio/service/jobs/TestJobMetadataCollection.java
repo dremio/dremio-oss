@@ -96,6 +96,7 @@ public class TestJobMetadataCollection extends BaseTestServer {
     final Pointer<QueryId> id = new Pointer<>();
     rpc.executePreparedStatement(
         resp.getPreparedStatement().getServerHandle(),
+        List.of(),
         new UserResultsListener() {
 
           @Override
@@ -183,6 +184,6 @@ public class TestJobMetadataCollection extends BaseTestServer {
   public static void init() throws Exception {
     enableDefaultUser(true);
     BaseTestServer.init();
-    getPopulator().addDefaultFirstUser(l(UserService.class), newNamespaceService());
+    getPopulator().addDefaultFirstUser(l(UserService.class), getNamespaceService());
   }
 }

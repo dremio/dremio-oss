@@ -260,28 +260,31 @@ public class ProxyV2TreeResource implements HttpTreeApi {
 
   @Override
   @JsonView(Views.V2.class)
-  public ContentResponse getContent(ContentKey key, String ref, boolean withDocumentation)
+  public ContentResponse getContent(
+      ContentKey key, String ref, boolean withDocumentation, boolean forWrite)
       throws NessieNotFoundException {
     ParsedReference reference = resolveRef(ref);
     return api.getContent()
         .refName(reference.name())
         .hashOnRef(reference.hashWithRelativeSpec())
+        .forWrite(forWrite)
         .getSingle(key);
   }
 
   @Override
   @JsonView(Views.V2.class)
   public GetMultipleContentsResponse getSeveralContents(
-      String ref, List<String> keys, boolean withDocumentation) throws NessieNotFoundException {
+      String ref, List<String> keys, boolean withDocumentation, boolean forWrite)
+      throws NessieNotFoundException {
     ImmutableGetMultipleContentsRequest.Builder request = GetMultipleContentsRequest.builder();
     keys.forEach(k -> request.addRequestedKeys(ContentKey.fromPathString(k)));
-    return getMultipleContents(ref, request.build(), withDocumentation);
+    return getMultipleContents(ref, request.build(), withDocumentation, forWrite);
   }
 
   @Override
   @JsonView(Views.V2.class)
   public GetMultipleContentsResponse getMultipleContents(
-      String ref, GetMultipleContentsRequest request, boolean withDocumentation)
+      String ref, GetMultipleContentsRequest request, boolean withDocumentation, boolean forWrite)
       throws NessieNotFoundException {
 
     ParsedReference reference = resolveRef(ref);
@@ -289,6 +292,7 @@ public class ProxyV2TreeResource implements HttpTreeApi {
         .refName(reference.name())
         .hashOnRef(reference.hashWithRelativeSpec())
         .keys(request.getRequestedKeys())
+        .forWrite(forWrite)
         .getWithResponse();
   }
 

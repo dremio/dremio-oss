@@ -16,38 +16,91 @@
 package com.dremio.exec.store.dfs;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.ops.SnapshotDiffContext;
+import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.parquet.ParquetScanRowGroupFilter;
 import java.util.List;
-import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.hint.RelHint;
 
 /** Methods required for filter pushdown */
-public interface FilterableScan extends RelNode {
-  ScanFilter getFilter();
+public abstract class FilterableScan extends ScanRelBase {
 
-  PruneFilterCondition getPartitionFilter();
+  private PartitionStatsStatus partitionStats;
 
-  ParquetScanRowGroupFilter getRowGroupFilter();
+  public FilterableScan(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      StoragePluginId pluginId,
+      TableMetadata tableMetadata,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment,
+      List<RelHint> hints,
+      SnapshotDiffContext snapshotDiffContext,
+      PartitionStatsStatus partitionStats) {
+    super(
+        cluster,
+        traitSet,
+        table,
+        pluginId,
+        tableMetadata,
+        projectedColumns,
+        observedRowcountAdjustment,
+        hints,
+        snapshotDiffContext);
+    this.partitionStats = partitionStats;
+  }
 
-  FilterableScan applyRowGroupFilter(ParquetScanRowGroupFilter rowGroupFilter);
+  public enum PartitionStatsStatus {
+    NONE, // Partition Stats were unavailable and not used
+    USED, // Partition Stats were available and used
+    SKIPPED, // Partition Stats were available but were not used because of long planning time
+    ERROR, // Error occurred
+  }
 
-  FilterableScan applyFilter(ScanFilter scanFilter);
+  public void setPartitionStatsStatus(PartitionStatsStatus partitionStats) {
+    this.partitionStats = partitionStats;
+  }
 
-  FilterableScan applyPartitionFilter(
+  public PartitionStatsStatus getPartitionStatsStatus() {
+    return partitionStats;
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    return super.explainTerms(pw)
+        .itemIf("partitionStats", partitionStats, partitionStats != PartitionStatsStatus.NONE)
+        .itemIf("survivingRowCount", getSurvivingRowCount(), getSurvivingRowCount() != null)
+        .itemIf("survivingFileCount", getSurvivingFileCount(), getSurvivingFileCount() != null);
+  }
+
+  public abstract ScanFilter getFilter();
+
+  public abstract PruneFilterCondition getPartitionFilter();
+
+  public abstract ParquetScanRowGroupFilter getRowGroupFilter();
+
+  public abstract FilterableScan applyRowGroupFilter(ParquetScanRowGroupFilter rowGroupFilter);
+
+  public abstract FilterableScan applyFilter(ScanFilter scanFilter);
+
+  public abstract FilterableScan applyPartitionFilter(
       PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount);
 
-  FilterableScan cloneWithProject(List<SchemaPath> projection, boolean preserveFilterColumns);
+  public abstract FilterableScan cloneWithProject(
+      List<SchemaPath> projection, boolean preserveFilterColumns);
 
-  TableMetadata getTableMetadata();
+  public abstract Long getSurvivingRowCount();
 
-  BatchSchema getBatchSchema();
+  public abstract Long getSurvivingFileCount();
 
-  Long getSurvivingRowCount();
-
-  Long getSurvivingFileCount();
-
-  boolean canUsePartitionStats();
+  public abstract boolean canUsePartitionStats();
 }

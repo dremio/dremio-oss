@@ -30,9 +30,8 @@ declare module "*.png" {
 }
 
 declare module "*.svg" {
-  import * as React from "react";
-  const content: React.FunctionComponent<React.SVGAttributes<SVGElement>>;
-  export default content;
+  const src: string;
+  export default src;
 }
 
 declare module "*.yaml" {
@@ -44,7 +43,7 @@ declare namespace JSX {
   interface IntrinsicElements {
     "dremio-icon": {
       alt: string;
-      className?: string;
+      class?: string;
       name: string;
     };
   }

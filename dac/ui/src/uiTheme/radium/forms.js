@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { GREY } from "uiTheme/radium/colors";
 import typography from "./typography";
 
 export const form = {
@@ -63,7 +62,7 @@ export const formRow = {
 
 export const label = {
   ...typography.formLabel,
-  color: "var(--color--default)",
+  color: "var(--text--primary)",
   fontWeight: 400,
 };
 
@@ -75,14 +74,14 @@ export const textInput = {
 };
 
 export const textInputError = {
-  border: "1px solid #CA3F32",
+  border: "1px solid var(--color--danger--400)",
 };
 
 export const textInputDisabled = {
   ...typography.formDescription,
-  background: "#EEEFF1",
-  border: "1px solid var(--color--neutral--100)",
-  color: "#B0B7BF",
+  background: "var(--fill--disabled)",
+  border: "1px solid var(--border--neutral--solid)",
+  color: "var(--text--disabled)",
 };
 
 export const textInputSmall = {
@@ -95,7 +94,7 @@ export const textArea = {
   height: "56px",
   width: "100%",
   display: "block",
-  border: "1px solid var(--color--neutral--100)",
+  border: "1px solid var(--border--neutral--solid)",
 };
 
 export const description = {
@@ -105,13 +104,13 @@ export const description = {
 };
 
 export const divider = {
-  borderTop: "1px solid rgba(0,0,0,0.1)",
+  borderTop: "1px solid var(--border--neutral)",
   borderBottom: "none",
   margin: "10px 0",
 };
 
 export const checkboxFocus = {
-  outline: `1px dotted ${GREY}`,
+  outline: `1px dotted var(--border--focused)`,
 };
 
 // currently only used by Radio/Checkbox/Select:

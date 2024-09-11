@@ -113,4 +113,166 @@ public class SqlCleanserTest {
             .call(() -> SqlCleanser.cleanseSql(sql));
     assertEquals("Obfuscating of sql failed.", expectedSql, observedSql);
   }
+
+  @Test
+  public void testDMLInsertObfuscation() throws Exception {
+    String sql =
+        "INSERT INTO \"WFA\".\"worker_data\".\"plumbers\"\n"
+            + "  AT BRANCH main\n"
+            + "  (\"age\", \"name\", \"drink\")\n"
+            + "  VALUES\n"
+            + "    (21, 'Ruth Asawa', 'Coffee'),\n"
+            + "    (56, 'Luis Alberto Acuña', null)";
+
+    String expectedSql =
+        "INSERT INTO \"1cb72\".\"3a85d3cb\".\"9179b958\" "
+            + "AT BRANCH literal_3305b9"
+            + "(\"field_178ff\", \"field_337a8b\", \"field_5b69898\") "
+            + "VALUES "
+            + "ROW(21, 'literal_ccc22c10', 'literal_78a0cbec'),\n"
+            + "ROW(56, 'literal_c87f56f5', NULL)";
+    ObfuscationUtils.setFullObfuscation(true);
+
+    String observedSql =
+        RequestContext.current()
+            .with(
+                SupportContext.CTX_KEY,
+                new SupportContext(
+                    "dummy",
+                    "dummy",
+                    new String[] {SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue()}))
+            .call(() -> SqlCleanser.cleanseSql(sql));
+    assertEquals("Obfuscating of sql failed.", expectedSql, observedSql);
+  }
+
+  @Test
+  public void testDMLDeleteObfuscation() throws Exception {
+    String sql =
+        "DELETE FROM \"orders\" AS \"ors\"\n"
+            + "WHERE       EXISTS (\n"
+            + "              select 1\n"
+            + "              from   \"returns\" AS \"ret\"\n"
+            + "              where  \"ret\".\"order_id\" = \"ors\".\"order_id\")";
+
+    String expectedSql =
+        "DELETE FROM \"c3df62e5\" AS \"1aef0\"\n"
+            + "WHERE EXISTS (SELECT 1\n"
+            + "FROM 41796943 AS \"1b8a1\"\n"
+            + "WHERE \"1b8a1\".\"field_4991ffac\" = \"1aef0\".\"field_4991ffac\")";
+    ObfuscationUtils.setFullObfuscation(true);
+
+    String observedSql =
+        RequestContext.current()
+            .with(
+                SupportContext.CTX_KEY,
+                new SupportContext(
+                    "dummy",
+                    "dummy",
+                    new String[] {SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue()}))
+            .call(() -> SqlCleanser.cleanseSql(sql));
+    assertEquals("Obfuscating of sql failed.", expectedSql, observedSql);
+  }
+
+  @Test
+  public void testDMLOptimizeObfuscation() throws Exception {
+    String sql =
+        "OPTIMIZE TABLE                             \"demo\".\"example_table\"\n"
+            + "REWRITE DATA USING BIN_PACK FOR PARTITIONS \"sales_year\" IN (\n"
+            + "                                             2021,\n"
+            + "                                             2022) AND\n"
+            + "                                           \"sales_company\" IN (\n"
+            + "                                             'Apple',\n"
+            + "                                             'Microsoft',\n"
+            + "                                             'Dell'\n"
+            + "                                           ) (\n"
+            + "                                             MIN_FILE_SIZE_MB = 100,\n"
+            + "                                             MAX_FILE_SIZE_MB = 1000,\n"
+            + "                                             TARGET_FILE_SIZE_MB = 512,\n"
+            + "                                             MIN_INPUT_FILES = 6)";
+
+    String expectedSql =
+        "OPTIMIZE TABLE \"2efde3\".\"5b5578b9\" "
+            + "REWRITE DATA USING BIN_PACK "
+            + "FOR PARTITIONS "
+            + "\"field_6670bf90\" IN (2021, 2022) "
+            + "AND \"field_a095604a\" IN ('literal_3c8933a', 'literal_71d450ce', 'literal_2071e1') "
+            + "(\"min_file_size_mb\" = 100, "
+            + "\"max_file_size_mb\" = 1000, "
+            + "\"target_file_size_mb\" = 512, "
+            + "\"min_input_files\" = 6)";
+    ObfuscationUtils.setFullObfuscation(true);
+
+    String observedSql =
+        RequestContext.current()
+            .with(
+                SupportContext.CTX_KEY,
+                new SupportContext(
+                    "dummy",
+                    "dummy",
+                    new String[] {SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue()}))
+            .call(() -> SqlCleanser.cleanseSql(sql));
+    assertEquals("Obfuscating of sql failed.", expectedSql, observedSql);
+  }
+
+  @Test
+  public void testDMLUpdateObfuscation() throws Exception {
+    String sql =
+        "UPDATE MyCatalog.\"employees\" AS emps\n"
+            + "SET    \"commission_pct\" = (SELECT \"pct\" FROM \"updated_commission_percents\" AS \"ucp\" WHERE \"ucp\".\"ssn\"=\"emps\".\"ssn\"),"
+            + "\"category\"='SENIOR'\n"
+            + "where  \"emps\".\"job_id\" = 'IT_PROG'"
+            + "AND \"emps\".\"ssn\"='Tim'";
+
+    String expectedSql =
+        "UPDATE \"5bb0d8ed\".\"9d39ef85\" AS \"2f90ab\" SET\n"
+            + "\"field_5cafef8d\" = (SELECT \"field_1b0e1\"\n"
+            + "FROM \"1e2ef41e\" AS \"1c3a2\"\n"
+            + "WHERE \"1c3a2\".\"field_1be0e\" = \"2f90ab\".\"field_1be0e\"),\n"
+            + "\"field_302bcfe\" = 'literal_91932230'\n"
+            + "WHERE \"2f90ab\".\"field_bb2be0dd\" = 'literal_aa5e4dee' AND \"2f90ab\".\"field_1be0e\" = 'literal_14878'";
+    ObfuscationUtils.setFullObfuscation(true);
+
+    String observedSql =
+        RequestContext.current()
+            .with(
+                SupportContext.CTX_KEY,
+                new SupportContext(
+                    "dummy",
+                    "dummy",
+                    new String[] {SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue()}))
+            .call(() -> SqlCleanser.cleanseSql(sql));
+    assertEquals("Obfuscating of sql failed.", expectedSql, observedSql);
+  }
+
+  @Test
+  public void testDMLMergeObfuscation() throws Exception {
+    String sql =
+        "MERGE INTO                   \"dogfood-catalog\".\"my-temp-folder\".myTable AS mt\n"
+            + "USING                        \"dogfood-catalog\".\"my-temp-folder\".sourceTable AS st\n"
+            + "ON                           (mt.id = st.id) \n"
+            + "WHEN MATCHED THEN UPDATE SET description = st.description, role = 'some role'\n"
+            + "WHEN NOT MATCHED THEN INSERT (id, description, role) VALUES (st.id, st.description, 'another role')";
+
+    String expectedSql =
+        "MERGE INTO \"d9d09ce6\".\"aeae09e6\".\"5b11d9a2\" AS \"da7\"\n"
+            + "USING \"d9d09ce6\".\"aeae09e6\".\"fc13ac93\" AS \"e61\"\n"
+            + "ON \"da7\".\"field_d1b\" = \"e61\".\"field_d1b\"\n"
+            + "WHEN MATCHED THEN UPDATE SET\n"
+            + "\"field_993583fc\" = \"e61\".\"field_993583fc\",\n"
+            + "\"field_358076\" = 'literal_d9b97422'\n"
+            + "WHEN NOT MATCHED THEN INSERT (\"field_d1b\", \"field_993583fc\", \"field_358076\") "
+            + "(VALUES ROW(\"e61\".\"field_d1b\", \"e61\".\"field_993583fc\", 'literal_d63f5373'))";
+    ObfuscationUtils.setFullObfuscation(true);
+
+    String observedSql =
+        RequestContext.current()
+            .with(
+                SupportContext.CTX_KEY,
+                new SupportContext(
+                    "dummy",
+                    "dummy",
+                    new String[] {SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue()}))
+            .call(() -> SqlCleanser.cleanseSql(sql));
+    assertEquals("Obfuscating of sql failed.", expectedSql, observedSql);
+  }
 }

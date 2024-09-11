@@ -126,7 +126,7 @@ public class TestSlicer extends ExecTest {
       TpchTable table, double scale, int pageSize, int batchSize, String... columns)
       throws Exception {
     Table expected =
-        TpchGenerator.singleGenerator(table, scale, getAllocator(), columns).toTable(batchSize);
+        TpchGenerator.singleGenerator(table, scale, getTestAllocator(), columns).toTable(batchSize);
     return check(
         expected,
         pageSize,
@@ -136,35 +136,38 @@ public class TestSlicer extends ExecTest {
 
   private double check(Table expected, int pageSize, int batchSize, Generator generator)
       throws Exception {
-    try (final PagePool pages = new PagePool(getAllocator(), pageSize, 0);
-        final ArrowBuf sv2Buf = getFilledSV2(getAllocator(), batchSize)) {
-      PageBatchSlicer slicer =
-          new PageBatchSlicer(
-              pages,
-              sv2Buf,
-              generator.getOutput(),
-              ImmutableBitSet.range(0, generator.getOutput().getSchema().getFieldCount()));
-      List<RecordBatchData> actual = new ArrayList<>();
-      int inputBatches = 0;
-      while (true) {
-        int records = generator.next(batchSize);
-        inputBatches++;
-        if (records == 0) {
-          break;
-        }
-        List<RecordBatchPage> data = new ArrayList<>();
-        int ret = slicer.addBatch(records, data);
-        Preconditions.checkState(ret == records);
+    try {
+      try (final PagePool pages = new PagePool(getTestAllocator(), pageSize, 0)) {
+        try (final ArrowBuf sv2Buf = getFilledSV2(getTestAllocator(), batchSize)) {
+          PageBatchSlicer slicer =
+              new PageBatchSlicer(
+                  pages,
+                  sv2Buf,
+                  generator.getOutput(),
+                  ImmutableBitSet.range(0, generator.getOutput().getSchema().getFieldCount()));
+          List<RecordBatchData> actual = new ArrayList<>();
+          int inputBatches = 0;
+          while (true) {
+            int records = generator.next(batchSize);
+            inputBatches++;
+            if (records == 0) {
+              break;
+            }
+            List<RecordBatchPage> data = new ArrayList<>();
+            int ret = slicer.addBatch(records, data);
+            Preconditions.checkState(ret == records);
 
-        actual.addAll(data);
+            actual.addAll(data);
+          }
+          expected.checkValid(actual);
+          int poolSize = pages.getPageCount();
+          AutoCloseables.close(actual);
+          if (PageBatchSlicer.TRACE) {
+            System.out.println("Pages: " + poolSize + ", Input Batches: " + inputBatches);
+          }
+          return poolSize * 1d / inputBatches;
+        }
       }
-      expected.checkValid(actual);
-      int poolSize = pages.getPageCount();
-      AutoCloseables.close(actual);
-      if (PageBatchSlicer.TRACE) {
-        System.out.println("Pages: " + poolSize + ", Input Batches: " + inputBatches);
-      }
-      return poolSize * 1d / inputBatches;
     } finally {
       generator.close();
     }

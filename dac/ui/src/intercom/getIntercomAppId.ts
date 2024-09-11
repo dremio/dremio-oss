@@ -15,4 +15,4 @@
  */
 
 export const getIntercomAppId = () =>
-  window.dremioConfig?.intercomAppId as string | undefined;
+  globalThis.dremioConfig?.intercomAppId as string | undefined;

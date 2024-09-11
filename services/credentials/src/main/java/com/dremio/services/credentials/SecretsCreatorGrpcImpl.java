@@ -20,6 +20,7 @@ import com.dremio.services.credentials.proto.SecretsCreatorRPC.EncryptRequest;
 import com.dremio.services.credentials.proto.SecretsCreatorRPC.EncryptResponse;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import java.net.URI;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
@@ -38,11 +39,9 @@ public class SecretsCreatorGrpcImpl extends SecretsCreatorGrpc.SecretsCreatorImp
   @Override
   public void encrypt(EncryptRequest request, StreamObserver<EncryptResponse> responseObserver) {
     try {
-      responseObserver.onNext(
-          EncryptResponse.newBuilder()
-              .setEncryptedSecret(
-                  secretsCreatorProvider.get().encrypt(request.getSecret()).toString())
-              .build());
+      final String encrypted =
+          secretsCreatorProvider.get().encrypt(request.getSecret()).map(URI::toString).orElse(null);
+      responseObserver.onNext(EncryptResponse.newBuilder().setEncryptedSecret(encrypted).build());
       responseObserver.onCompleted();
     } catch (CredentialsException e) {
       responseObserver.onError(

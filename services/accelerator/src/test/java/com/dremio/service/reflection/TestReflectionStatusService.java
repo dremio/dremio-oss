@@ -24,18 +24,17 @@ import static org.mockito.Mockito.when;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.service.DirectProvider;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.ReflectionStatus.COMBINED_STATUS;
-import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
@@ -48,6 +47,7 @@ import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -95,13 +95,11 @@ public class TestReflectionStatusService {
       Materialization lastMaterialization,
       boolean isMaterializationCached) {
 
-    final NamespaceService namespaceService = mock(NamespaceService.class);
-    final SabotContext sabotContext = mock(SabotContext.class);
+    final ClusterCoordinator clusterCoordinator = mock(ClusterCoordinator.class);
     final ReflectionGoalsStore goalsStore = mock(ReflectionGoalsStore.class);
     final ReflectionEntriesStore entriesStore = mock(ReflectionEntriesStore.class);
     final MaterializationStore materializationStore = mock(MaterializationStore.class);
     final ExternalReflectionStore externalReflectionStore = mock(ExternalReflectionStore.class);
-    final ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
     final ReflectionValidator validator = mock(ReflectionValidator.class);
     final CatalogService catalogService = mock(CatalogService.class);
     final JobsService jobsService = mock(JobsService.class);
@@ -110,7 +108,7 @@ public class TestReflectionStatusService {
 
     statusService =
         new ReflectionStatusServiceImpl(
-            sabotContext::getExecutors,
+            () -> clusterCoordinator,
             DirectProvider.<CacheViewer>wrap(new ConstantCacheViewer(isMaterializationCached)),
             goalsStore,
             entriesStore,
@@ -119,7 +117,8 @@ public class TestReflectionStatusService {
             validator,
             DirectProvider.wrap(catalogService),
             DirectProvider.wrap(jobsService),
-            DirectProvider.wrap(optionManager));
+            DirectProvider.wrap(optionManager),
+            ReflectionUtils::new);
 
     reflectionId = new ReflectionId(UUID.randomUUID().toString());
 
@@ -142,7 +141,10 @@ public class TestReflectionStatusService {
 
     if (entry != null) {
       entry.setId(reflectionId);
-      entry.setDontGiveUp(manualRefresh);
+      entry.setRefreshPolicyTypeList(
+          new ArrayList<>(
+              Collections.singleton(
+                  manualRefresh ? RefreshPolicyType.NEVER : RefreshPolicyType.PERIOD)));
       when(entriesStore.get(reflectionId)).thenReturn(entry);
     }
 
@@ -162,8 +164,6 @@ public class TestReflectionStatusService {
 
   enum MATERIALIZATION_STATE {
     NOT_FOUND, // no last materialization
-    INCOMPLETE, // last materialization has missing data partitions
-    EXPIRED, // last materialization expired
     NOT_CACHED, // last materialization valid but not cached
     VALID
   }
@@ -198,13 +198,6 @@ public class TestReflectionStatusService {
     switch (materializationState) {
       case NOT_FOUND:
         materialization = null;
-        break;
-      case INCOMPLETE:
-        materialization.setPartitionList(
-            Collections.singletonList(new DataPartition("some_address")));
-        break;
-      case EXPIRED:
-        materialization.setExpiration(0L);
         break;
       default:
         break;
@@ -266,76 +259,6 @@ public class TestReflectionStatusService {
             2,
             MATERIALIZATION_STATE.VALID,
             true),
-        newTestCase(
-            "invalid with failures",
-            COMBINED_STATUS.INVALID,
-            true,
-            false,
-            true,
-            ReflectionState.FAILED,
-            3,
-            MATERIALIZATION_STATE.EXPIRED,
-            false),
-        newTestCase(
-            "given up, incomplete, can accelerate",
-            COMBINED_STATUS.FAILED,
-            true,
-            false,
-            false,
-            ReflectionState.FAILED,
-            3,
-            MATERIALIZATION_STATE.INCOMPLETE,
-            true),
-        newTestCase(
-            "given up, expired, cannot accelerate",
-            COMBINED_STATUS.FAILED,
-            true,
-            false,
-            false,
-            ReflectionState.FAILED,
-            3,
-            MATERIALIZATION_STATE.EXPIRED,
-            false),
-        newTestCase(
-            "incomplete, no failures, can accelerate",
-            COMBINED_STATUS.INCOMPLETE,
-            true,
-            false,
-            false,
-            ReflectionState.ACTIVE,
-            0,
-            MATERIALIZATION_STATE.INCOMPLETE,
-            true),
-        newTestCase(
-            "incomplete, some failures, cannot accelerate",
-            COMBINED_STATUS.INCOMPLETE,
-            true,
-            true,
-            false,
-            ReflectionState.ACTIVE,
-            2,
-            MATERIALIZATION_STATE.INCOMPLETE,
-            false),
-        newTestCase(
-            "expired, no failures, can accelerate",
-            COMBINED_STATUS.EXPIRED,
-            true,
-            false,
-            false,
-            ReflectionState.ACTIVE,
-            0,
-            MATERIALIZATION_STATE.EXPIRED,
-            true),
-        newTestCase(
-            "expired, some failures, cannot accelerate",
-            COMBINED_STATUS.EXPIRED,
-            true,
-            true,
-            false,
-            ReflectionState.ACTIVE,
-            2,
-            MATERIALIZATION_STATE.EXPIRED,
-            false),
         newTestCase(
             "refreshing, no materialization done",
             COMBINED_STATUS.REFRESHING,
@@ -458,16 +381,6 @@ public class TestReflectionStatusService {
             false),
         // These test cases will also parameterize something based on the testcase name
         newTestCase(
-            "null materialization expiration",
-            COMBINED_STATUS.EXPIRED,
-            true,
-            false,
-            false,
-            ReflectionState.ACTIVE,
-            0,
-            MATERIALIZATION_STATE.VALID,
-            false),
-        newTestCase(
             "reflection manager down",
             COMBINED_STATUS.FAILED,
             true,
@@ -481,13 +394,11 @@ public class TestReflectionStatusService {
 
   @Test
   public void testGetExternalReflectionStatus() throws Exception {
-    final NamespaceService namespaceService = mock(NamespaceService.class);
-    final SabotContext sabotContext = mock(SabotContext.class);
+    final ClusterCoordinator clusterCoordinator = mock(ClusterCoordinator.class);
     final ReflectionGoalsStore goalsStore = mock(ReflectionGoalsStore.class);
     final ReflectionEntriesStore entriesStore = mock(ReflectionEntriesStore.class);
     final MaterializationStore materializationStore = mock(MaterializationStore.class);
     final ExternalReflectionStore externalReflectionStore = mock(ExternalReflectionStore.class);
-    final ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
     final ReflectionValidator validator = mock(ReflectionValidator.class);
     final CatalogService catalogService = mock(CatalogService.class);
     final JobsService jobsService = mock(JobsService.class);
@@ -495,7 +406,7 @@ public class TestReflectionStatusService {
 
     ReflectionStatusServiceImpl reflectionStatusService =
         new ReflectionStatusServiceImpl(
-            sabotContext::getExecutors,
+            () -> clusterCoordinator,
             DirectProvider.<CacheViewer>wrap(new ConstantCacheViewer(false)),
             goalsStore,
             entriesStore,
@@ -504,7 +415,8 @@ public class TestReflectionStatusService {
             validator,
             DirectProvider.wrap(catalogService),
             DirectProvider.wrap(jobsService),
-            DirectProvider.wrap(optionManager));
+            DirectProvider.wrap(optionManager),
+            ReflectionUtils::new);
 
     final Catalog catalog = mock(Catalog.class);
     when(catalogService.getCatalog(any(MetadataRequestOptions.class))).thenReturn(catalog);

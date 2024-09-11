@@ -15,7 +15,7 @@
  */
 import { expect } from "chai";
 
-import * as Actions from "./ui.js";
+import * as Actions from "./ui";
 
 describe("ui actions", () => {
   describe("test constants", () => {

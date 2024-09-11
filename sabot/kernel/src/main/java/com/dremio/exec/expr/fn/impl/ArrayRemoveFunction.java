@@ -56,8 +56,7 @@ public class ArrayRemoveFunction {
 
     @Override
     public void eval() {
-      Object inputValue = value.readObject();
-      if (!in.isSet() || in.readObject() == null || inputValue == null) {
+      if (!in.isSet() || in.readObject() == null || !value.isSet()) {
         return;
       }
       if (!in.reader().getMinorType().equals(value.getMinorType())) {
@@ -71,8 +70,9 @@ public class ArrayRemoveFunction {
       org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter listWriter = out.rootAsList();
       listWriter.startList();
       while (listReader.next()) {
-        if (listReader.reader().readObject() != null
-            && listReader.reader().readObject().equals(inputValue)) {
+        if (listReader.reader().isSet()
+            && com.dremio.exec.expr.fn.impl.array.ArrayHelper.isReaderValueEquals(
+                listReader.reader(), value)) {
           continue;
         }
         org.apache.arrow.vector.complex.impl.ComplexCopier.copy(

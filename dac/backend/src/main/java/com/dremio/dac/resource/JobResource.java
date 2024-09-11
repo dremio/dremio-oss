@@ -15,8 +15,10 @@
  */
 package com.dremio.dac.resource;
 
+import static com.dremio.dac.server.WebServer.MediaType.TEXT_CSV;
 import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.APPLICATION_OCTET_STREAM;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
@@ -28,6 +30,10 @@ import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.job.JobSummaryUI;
 import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.job.async.AsyncStatus;
+import com.dremio.dac.model.job.async.AsyncTaskStatus;
+import com.dremio.dac.model.job.async.Problem;
+import com.dremio.dac.model.job.async.ProblemTypes;
 import com.dremio.dac.resource.NotificationResponse.ResponseType;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.datasets.DatasetDownloadManager;
@@ -43,9 +49,11 @@ import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.ReflectionJobDetailsRequest;
+import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobProtobuf;
+import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobDataClientUtils;
@@ -62,8 +70,11 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.io.IOException;
 import java.security.AccessControlException;
+import java.util.Collections;
+import java.util.Objects;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -75,6 +86,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 import org.glassfish.jersey.server.ChunkedOutput;
 import org.slf4j.Logger;
@@ -298,6 +310,105 @@ public class JobResource extends BaseResourceWithAllocator {
     return doDownload(jobId, downloadFormat);
   }
 
+  @WithSpan
+  @POST
+  @Path("download/submit")
+  @Consumes(APPLICATION_JSON)
+  @Produces(APPLICATION_JSON)
+  @TemporaryAccess
+  public JobId asyncDownloadSubmit(@QueryParam("downloadFormat") DownloadFormat downloadFormat)
+      throws JobResourceNotFoundException, JobNotFoundException {
+    setBasicSpanAttributes();
+    final String currentUser = securityContext.getUserPrincipal().getName();
+    final DownloadUtil downloadUtil = new DownloadUtil(jobsService, datasetService);
+    return downloadUtil.submitAsyncDownload(jobId, currentUser, downloadFormat);
+  }
+
+  @WithSpan
+  @GET
+  @Path("download/status")
+  @Consumes(APPLICATION_JSON)
+  @Produces(APPLICATION_JSON)
+  @TemporaryAccess
+  public AsyncTaskStatus asyncDownloadStatus(@QueryParam("downloadJobId") JobId downloadJobId)
+      throws JobResourceNotFoundException, JobNotFoundException {
+    setBasicSpanAttributes();
+    JobDetails downloadJobDetails = getDownloadJobDetails(downloadJobId);
+    JobState downloadJobState = JobsProtoUtil.getLastAttempt(downloadJobDetails).getState();
+    if (downloadJobState == JobState.COMPLETED) {
+      return AsyncTaskStatus.builder().setStatus(AsyncStatus.COMPLETED).build();
+    } else if (downloadJobState == JobState.FAILED || downloadJobState == JobState.CANCELED) {
+      Problem problem =
+          Problem.builder()
+              .setType(ProblemTypes.INTERNAL_DOWNLOAD_JOB_NOT_SUCESSFUL)
+              .setStatus(Status.INTERNAL_SERVER_ERROR.getStatusCode())
+              .build();
+      return AsyncTaskStatus.builder()
+          .setStatus(AsyncStatus.FAILED)
+          .setErrors(Collections.singletonList(problem))
+          .build();
+    } else {
+      return AsyncTaskStatus.builder().setStatus(AsyncStatus.RUNNING).build();
+    }
+  }
+
+  @WithSpan
+  @GET
+  @Path("download/download")
+  @Consumes(APPLICATION_JSON)
+  @Produces({APPLICATION_JSON, TEXT_CSV, APPLICATION_OCTET_STREAM})
+  @TemporaryAccess
+  public Response asyncDownload(@QueryParam("downloadJobId") JobId downloadJobId)
+      throws JobResourceNotFoundException, JobNotFoundException {
+    setBasicSpanAttributes();
+    JobDetails downloadJobDetails = getDownloadJobDetails(downloadJobId);
+    JobState downloadJobState = JobsProtoUtil.getLastAttempt(downloadJobDetails).getState();
+    if (downloadJobState == JobState.COMPLETED) {
+      final DownloadUtil downloadUtil = new DownloadUtil(jobsService, datasetService);
+      final ChunkedOutput<byte[]> output =
+          downloadUtil.startChunckedDownload(
+              downloadJobDetails, securityContext.getUserPrincipal().getName(), getDelay());
+
+      // Prepare response
+      final String contentType;
+      DownloadInfo downloadInfo =
+          JobsProtoUtil.getLastAttempt(downloadJobDetails).getInfo().getDownloadInfo();
+      DownloadFormat downloadFormat = DownloadFormat.valueOf(downloadInfo.getExtension());
+      switch (downloadFormat) {
+        case JSON:
+          contentType = APPLICATION_JSON;
+          break;
+        case CSV:
+          contentType = TEXT_CSV;
+          break;
+        default:
+          contentType = APPLICATION_OCTET_STREAM;
+          break;
+      }
+      final String outputFileName = downloadInfo.getFileName();
+
+      // Send response with the results file
+      return Response.ok(output, contentType)
+          .header("Content-Disposition", "attachment; filename=\"" + outputFileName + "\"")
+          // stops the browser from trying to determine the type of the file based on the content.
+          .header("X-Content-Type-Options", "nosniff")
+          .build();
+    } else {
+      Problem problem =
+          Problem.builder()
+              .setType(ProblemTypes.DOWNLOAD_FILE_NOT_AVAILABLE)
+              .setStatus(Status.NOT_FOUND.getStatusCode())
+              .build();
+      return Response.ok()
+          .entity(
+              AsyncTaskStatus.builder()
+                  .setStatus(AsyncStatus.FAILED)
+                  .setErrors(Collections.singletonList(problem))
+                  .build())
+          .build();
+    }
+  }
+
   // Get details of reflection job
   @WithSpan
   @GET
@@ -376,6 +487,23 @@ public class JobResource extends BaseResourceWithAllocator {
     } catch (JobException e) {
       return new NotificationResponse(ResponseType.ERROR, e.getMessage());
     }
+  }
+
+  private JobDetails getDownloadJobDetails(JobId downloadJobId) throws JobNotFoundException {
+    final String currentUser = securityContext.getUserPrincipal().getName();
+    JobDetails downloadJobDetails =
+        jobsService.getJobDetails(
+            JobDetailsRequest.newBuilder()
+                .setJobId(JobsProtoUtil.toBuf(downloadJobId))
+                .setUserName(currentUser)
+                .setSkipProfileInfo(true)
+                .build());
+    DownloadInfo downloadInfo =
+        JobsProtoUtil.getLastAttempt(downloadJobDetails).getInfo().getDownloadInfo();
+    if (!Objects.equals(downloadInfo.getTriggeringJobId(), jobId.getId())) {
+      throw new BadRequestException("downloadJobId is not associated with this jobId");
+    }
+    return downloadJobDetails;
   }
 
   protected Response doDownload(JobId previewJobId, DownloadFormat downloadFormat)

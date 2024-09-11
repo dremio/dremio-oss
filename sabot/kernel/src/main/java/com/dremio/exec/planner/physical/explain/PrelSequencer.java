@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.physical.explain;
 
-import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
@@ -34,20 +33,10 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
 
   private List<Frag> frags = Lists.newLinkedList();
 
-  /**
-   * Generate readable text and json plans and set them in <code>planHolder</code>
-   *
-   * @param rel
-   * @param explainlevel explain plan level.
-   * @param observer
-   */
-  public static String setPlansWithIds(
-      final Prel rel,
-      final SqlExplainLevel explainlevel,
-      final AttemptObserver observer,
-      final long millisTaken) {
+  /** Get plain text plan for the given Prel for the query profile */
+  public static String getPlanText(final Prel rel, final SqlExplainLevel explainlevel) {
     if (rel == null) {
-      return null;
+      return "";
     }
 
     Map<Prel, OpId> relIdMap = getIdMap(rel);
@@ -56,12 +45,25 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
         new NumberingRelWriter(relIdMap, new PrintWriter(sw), explainlevel);
     rel.explain(textPlanWriter);
 
-    final String textPlan = sw.toString();
-    observer.planText(sw.toString(), millisTaken);
+    return sw.toString();
+  }
+
+  /** Get json text plan for the given Prel for the query profile */
+  public static String getPlanJson(final Prel rel, final SqlExplainLevel explainlevel) {
+    if (rel == null) {
+      return "";
+    }
+
+    Map<Prel, OpId> relIdMap = getIdMap(rel);
+    final StringWriter sw = new StringWriter();
+    final RelWriter textPlanWriter =
+        new NumberingRelWriter(relIdMap, new PrintWriter(sw), explainlevel);
+    rel.explain(textPlanWriter);
+
     final RelJsonWriter jsonPlanWriter = new RelJsonWriter(relIdMap, explainlevel);
     rel.explain(jsonPlanWriter);
-    observer.planJsonPlan(jsonPlanWriter.asString());
-    return textPlan;
+
+    return jsonPlanWriter.asString();
   }
 
   public static Map<Prel, OpId> getIdMap(Prel rel) {

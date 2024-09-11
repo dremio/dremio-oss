@@ -24,6 +24,6 @@ public abstract class SimpleDirectHandler implements SqlDirectHandler<SimpleComm
   }
 
   public interface Creator {
-    SimpleDirectHandler toDirectHandler(QueryContext context);
+    SqlDirectHandler<SimpleCommandResult> toDirectHandler(QueryContext context);
   }
 }

@@ -82,7 +82,7 @@ describe("TreeNode", () => {
               isInProgress: false,
             },
           ],
-        }
+        },
       ),
     };
   });
@@ -91,18 +91,18 @@ describe("TreeNode", () => {
     it("should render child TreeNode for each node in props.node.resources if isNodeExpanded returns true", () => {
       commonProps.isNodeExpanded.returns(true);
       const wrapper = shallow(<TreeNode {...commonProps} />);
-      expect(wrapper.find("TreeNode")).to.have.length(3);
+      expect(wrapper.find("Memo(TreeNode)")).to.have.length(3);
     });
 
     it("should pass props to child TreeNode", () => {
       commonProps.isNodeExpanded.returns(true);
       const wrapper = shallow(<TreeNode {...commonProps} />);
-      const childNodeProps = wrapper.find("TreeNode").first().props();
+      const childNodeProps = wrapper.find("Memo(TreeNode)").first().props();
       expect(childNodeProps.isNodeExpanded).to.equal(
-        commonProps.isNodeExpanded
+        commonProps.isNodeExpanded,
       );
       expect(childNodeProps.selectedNodeId).to.equal(
-        commonProps.selectedNodeId
+        commonProps.selectedNodeId,
       );
     });
 
@@ -110,7 +110,7 @@ describe("TreeNode", () => {
       commonProps.isNodeExpanded.returns(false);
 
       const wrapper = shallow(<TreeNode {...commonProps} />);
-      expect(wrapper.find("TreeNode")).to.have.length(0);
+      expect(wrapper.find("Memo(TreeNode)")).to.have.length(0);
     });
   });
 
@@ -121,7 +121,7 @@ describe("TreeNode", () => {
     it("show expandable node with arrow and no statuses", () => {
       const wrapper = shallow(<TreeNode {...commonProps} />);
       expect(
-        wrapper.find(".TreeNode").first().hasClass("TreeNode__arrowIcon")
+        wrapper.find(".TreeNode").first().hasClass("TreeNode__arrowIcon"),
       ).to.equal(true);
     });
     // Fix test so it works with a setTimeout

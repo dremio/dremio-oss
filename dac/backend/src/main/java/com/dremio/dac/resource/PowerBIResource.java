@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.resource;
 
+import static com.dremio.dac.options.PowerBIResourceOptions.CLIENT_TOOLS_POWERBI;
 import static com.dremio.dac.server.WebServer.MediaType.APPLICATION_PBIDS;
 
 import com.dremio.dac.annotations.RestResource;
@@ -22,7 +23,6 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.server.options.ProjectOptionManager;
-import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -40,12 +40,8 @@ import javax.ws.rs.core.Response;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/powerbi/{path: .*}")
-@Options
 public class PowerBIResource extends BaseBIToolResource {
   // Special option for enabling the Power BI PBIDS endpoint.
-  public static final TypeValidators.BooleanValidator CLIENT_TOOLS_POWERBI =
-      new TypeValidators.BooleanValidator("client.tools.powerbi", true);
-
   @Inject
   public PowerBIResource(
       ProjectOptionManager optionManager,

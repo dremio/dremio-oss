@@ -81,4 +81,13 @@ public interface TransientStore<K, V> {
    * @return true if KV Store contains a document with the provided key value.
    */
   boolean contains(K key);
+
+  /**
+   * Find documents by the given pattern
+   *
+   * @param pattern
+   * @param options
+   * @return
+   */
+  Iterable<Document<K, V>> find(String pattern, KVStore.GetOption... options);
 }

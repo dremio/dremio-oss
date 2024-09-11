@@ -710,8 +710,7 @@
   input: "ARRAY_SORT"
   output:
     name: "ARRAY_SORT"
-    signatures:
-     - "(ARRAY) -> ARRAY"
+    signatures: []
  -
   description: "ARRAY_SUM"
   input: "ARRAY_SUM"
@@ -1434,6 +1433,7 @@
     name: "CONCAT"
     signatures:
      - "(ANY, ANY...) -> CHARACTERS"
+     - "(STRING, STRING, STRING...) -> CHARACTERS"
  -
   description: "CONCATOPERATOR"
   input: "CONCATOPERATOR"
@@ -1710,14 +1710,20 @@
   output:
     name: "CONVERT_TODOUBLE"
     signatures:
-     - "(NUMERIC) -> BYTES"
+     - "(FLOAT) -> BYTES"
+     - "(DOUBLE) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "CONVERT_TODOUBLE_BE"
   input: "CONVERT_TODOUBLE_BE"
   output:
     name: "CONVERT_TODOUBLE_BE"
     signatures:
-     - "(NUMERIC) -> BYTES"
+     - "(FLOAT) -> BYTES"
+     - "(DOUBLE) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "CONVERT_TOEXTENDEDJSON"
   input: "CONVERT_TOEXTENDEDJSON"
@@ -1732,6 +1738,8 @@
     name: "CONVERT_TOFLOAT"
     signatures:
      - "(FLOAT) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "CONVERT_TOFLOAT_BE"
   input: "CONVERT_TOFLOAT_BE"
@@ -1739,6 +1747,8 @@
     name: "CONVERT_TOFLOAT_BE"
     signatures:
      - "(FLOAT) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "CONVERT_TOINT"
   input: "CONVERT_TOINT"
@@ -1781,6 +1791,7 @@
     name: "CONVERT_TOTIMESTAMP_EPOCH"
     signatures:
      - "(CHARACTERS) -> BYTES"
+     - "(DATE) -> BYTES"
      - "(TIMESTAMP) -> BYTES"
  -
   description: "CONVERT_TOTIMESTAMP_EPOCH_BE"
@@ -1789,6 +1800,7 @@
     name: "CONVERT_TOTIMESTAMP_EPOCH_BE"
     signatures:
      - "(CHARACTERS) -> BYTES"
+     - "(DATE) -> BYTES"
      - "(TIMESTAMP) -> BYTES"
  -
   description: "CONVERT_TOTIME_EPOCH"
@@ -2299,6 +2311,13 @@
      - "(INT, INT) -> INT"
      - "(BIGINT, BIGINT) -> BIGINT"
  -
+  description: "DREMIO_INTERNAL_BUILDMAP"
+  input: "DREMIO_INTERNAL_BUILDMAP"
+  output:
+    name: "DREMIO_INTERNAL_BUILDMAP"
+    signatures:
+     - "(ARRAY, ARRAY) -> MAP"
+ -
   description: "E"
   input: "E"
   output:
@@ -2322,6 +2341,13 @@
      - "(INT, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
      - "(INT, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
      - "(INT, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
+ -
+  description: "EMPTY_ARRAY"
+  input: "EMPTY_ARRAY"
+  output:
+    name: "EMPTY_ARRAY"
+    signatures:
+     - "(ARRAY) -> ARRAY"
  -
   description: "ENDS_WITH"
   input: "ENDS_WITH"
@@ -3777,6 +3803,12 @@
     signatures:
      - "(ANY) -> ANY"
  -
+  description: "MAP_CONSTRUCT"
+  input: "MAP_CONSTRUCT"
+  output:
+    name: "MAP_CONSTRUCT"
+    signatures: []
+ -
   description: "MAP_KEYS"
   input: "MAP_KEYS"
   output:
@@ -4371,20 +4403,6 @@
     signatures:
      - "() -> DOUBLE"
  -
-  description: "PHASE1_ARRAY_AGG"
-  input: "PHASE1_ARRAY_AGG"
-  output:
-    name: "PHASE1_ARRAY_AGG"
-    signatures:
-     - "(ANY) -> ARRAY"
- -
-  description: "PHASE2_ARRAY_AGG"
-  input: "PHASE2_ARRAY_AGG"
-  output:
-    name: "PHASE2_ARRAY_AGG"
-    signatures:
-     - "(ARRAY) -> ARRAY"
- -
   description: "PI"
   input: "PI"
   output:
@@ -4843,7 +4861,6 @@
     name: "SINGLE_VALUE"
     signatures:
      - "(BOOLEAN) -> BOOLEAN"
-     - "(BOOLEAN) -> INT"
      - "(ARRAY) -> ARRAY"
      - "(MAP) -> MAP"
      - "(BYTES) -> BYTES"

@@ -15,9 +15,11 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.physical.HashAggMemoryEstimator;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.google.common.base.Joiner;
 import java.util.Iterator;
 import java.util.List;
@@ -119,7 +121,12 @@ class VectorizedHashAggDebug {
       case SPILL_WRITE:
         return (ex == null) ? (UserException.dataWriteError()) : (UserException.dataWriteError(ex));
       case OOM:
-        return (ex == null) ? (UserException.memoryError()) : (UserException.memoryError(ex));
+        return UserException.memoryError(ex)
+            .setAdditionalExceptionContext(
+                new OutOfMemoryOrResourceExceptionContext(
+                    OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY, ""))
+            // TODO: check if there is a way to get this role without hardcoding it here
+            .addErrorOrigin(ClusterCoordinator.Role.EXECUTOR.name());
       default:
         /* should never be hit since VectorizedHashAggOperator controls the operator type */
         return null;

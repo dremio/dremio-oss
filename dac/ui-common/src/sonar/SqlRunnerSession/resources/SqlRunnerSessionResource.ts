@@ -26,6 +26,7 @@ import { SQLRunnerSession } from "../SqlRunnerSession.type";
 import { sqlRunnerSessionLogger } from "../sqlRunnerSessionLogger";
 import { BadRequestError } from "../../../errors/BadRequestError";
 import { closeSqlRunnerSessionTabs } from "../endpoints/closeSqlRunnerSessionTabs";
+import { addTemporaryPrefix } from "../utilities/temporaryTabs";
 
 export const $SqlRunnerSession = createOptimisticResource(
   new SmartResource(async () => {
@@ -199,7 +200,7 @@ export const newTab = async () => {
       content: "",
       context: [],
       description: "",
-      name: generateNewTabName(),
+      name: addTemporaryPrefix(generateNewTabName()),
     });
 
     sqlRunnerSessionLogger.debug(`Created script with id: ${script.id}`);

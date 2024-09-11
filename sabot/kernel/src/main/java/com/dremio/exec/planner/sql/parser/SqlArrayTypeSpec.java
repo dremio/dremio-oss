@@ -17,15 +17,17 @@ package com.dremio.exec.planner.sql.parser;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.SqlValidator;
 
 /**
  * Supports list<bigint> type of array schema
  *
  * <p>We also support to add a [ NULL | NOT NULL ] suffix for every field type
  */
-public final class SqlArrayTypeSpec extends SqlTypeNameSpec {
+public final class SqlArrayTypeSpec extends SqlTypeNameSpec implements ValidatableTypeNameSpec {
 
   private final SqlComplexDataTypeSpec spec;
 
@@ -36,8 +38,27 @@ public final class SqlArrayTypeSpec extends SqlTypeNameSpec {
 
   @Override
   public RelDataType deriveType(RelDataTypeFactory typeFactory) {
-    RelDataType type = spec.deriveType(typeFactory);
+    RelDataType type = spec.deriveType(new DremioSqlValidator(typeFactory));
     return typeFactory.createArrayType(type, -1);
+  }
+
+  @Override
+  public RelDataType deriveType(SqlValidator sqlValidator) {
+    RelDataType type = spec.deriveType(sqlValidator);
+    return sqlValidator.getTypeFactory().createArrayType(type, -1);
+  }
+
+  /**
+   * Validate the ARRAY type, it cannot have incorrect basic type.
+   *
+   * @return the invalid SqlDataTypeSpec or null when the type is valid.
+   */
+  @Override
+  public SqlDataTypeSpec validateType() {
+    if (SqlTypeName.get(spec.getTypeName().getSimple()) == null) {
+      return spec;
+    }
+    return spec.validateType();
   }
 
   public SqlComplexDataTypeSpec getSpec() {

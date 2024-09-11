@@ -348,7 +348,8 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
           null,
           null,
           null,
-          0L);
+          0L,
+          null);
       gen = null;
     }
 

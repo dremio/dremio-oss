@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .biApplication-tools {
@@ -21,7 +20,7 @@
 
     .header {
       font-size: 14px;
-      color: @FIGMA_TEXT_MAIN;
+      color: var(--text--primary);
       line-height: 20px;
     }
 
@@ -29,7 +28,7 @@
       margin: 4px 0 12px 0;
       line-height: 18px;
       font-size: 12px;
-      color: @FIGMA_TEXT_LESS_IMPORTANT;
+      color: var(--text--faded);
     }
 
     .tools-table {
@@ -58,9 +57,9 @@
           height: 24px;
           padding-left: 5px;
           padding-top: 2px;
-          color: var(--dremio--color--icon--main);
+          color: var(--icon--primary);
           &:hover {
-            color: var(--dremio--color--link);
+            color: var(--icon--hover);
           }
         }
 

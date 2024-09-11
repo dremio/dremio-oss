@@ -26,7 +26,7 @@ import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_PERIODI
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.collect.Iterables.isEmpty;
-import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,14 +44,9 @@ import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionValue;
@@ -59,7 +54,6 @@ import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.QueryProfileRequest;
-import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.QueryType;
@@ -121,7 +115,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -170,18 +163,17 @@ public class BaseTestReflection extends BaseTestServer {
 
   @AfterClass
   public static void resetSettings() {
-    // reset deletion grace period
-    setDeletionGracePeriod(HOURS.toSeconds(4));
-    setManagerRefreshDelay(10);
+    // reset deletion grace period and sync interval
+    getOptionManager().setOption(REFLECTION_DELETION_GRACE_PERIOD.getDefault());
+    getOptionManager().setOption(REFLECTION_MANAGER_REFRESH_DELAY_MILLIS.getDefault());
     // Clear reflections to prevent scheduled reflection
     // maintenance in background during test shutdown
     clearReflections();
   }
 
-  private static void clearReflections() {
+  protected static void clearReflections() {
     final ReflectionService reflectionService = getReflectionService();
-    final ReflectionMonitor reflectionMonitor =
-        newReflectionMonitor(TimeUnit.SECONDS.toMillis(5), TimeUnit.MINUTES.toMillis(2));
+    final ReflectionMonitor reflectionMonitor = newReflectionMonitor();
     reflectionService.clearAll();
     reflectionMonitor.waitUntilNoMaterializationsAvailable();
   }
@@ -203,26 +195,19 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected Catalog cat() {
-    return l(CatalogService.class)
-        .getCatalog(
-            MetadataRequestOptions.of(
-                SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
-  }
-
-  protected static NamespaceService getNamespaceService() {
-    return p(NamespaceService.class).get();
+    return getCatalogService().getSystemUserCatalog();
   }
 
   protected static ReflectionServiceImpl getReflectionService() {
-    return (ReflectionServiceImpl) p(ReflectionService.class).get();
+    return (ReflectionServiceImpl) l(ReflectionService.class);
   }
 
   protected static ReflectionStatusService getReflectionStatusService() {
-    return p(ReflectionStatusService.class).get();
+    return l(ReflectionStatusService.class);
   }
 
   protected static MaterializationDescriptorProvider getMaterializationDescriptorProvider() {
-    return p(MaterializationDescriptorProvider.class).get();
+    return l(MaterializationDescriptorProvider.class);
   }
 
   protected static long requestRefresh(NamespaceKey datasetKey) throws NamespaceException {
@@ -252,7 +237,7 @@ public class BaseTestReflection extends BaseTestServer {
     return requestTime;
   }
 
-  protected static ReflectionMonitor newReflectionMonitor(long delay, long maxWait) {
+  protected static ReflectionMonitor newReflectionMonitor() {
     final MaterializationStore materializationStore =
         new MaterializationStore(p(LegacyKVStoreProvider.class));
     return new ReflectionMonitor(
@@ -261,12 +246,28 @@ public class BaseTestReflection extends BaseTestServer {
         getMaterializationDescriptorProvider(),
         getJobsService(),
         materializationStore,
-        delay,
-        maxWait);
+        getOptionManager(),
+        500,
+        SECONDS.toMillis(60));
   }
 
-  protected static JobsService getJobsService() {
-    return p(JobsService.class).get();
+  /**
+   * Returns a reflection monitor specifically for long-running regressions tests (i.e. Advanced)
+   * All other tests should use the default reflection monitor settings {@link
+   * BaseTestReflection#newReflectionMonitor()}
+   */
+  protected static ReflectionMonitor newLongReflectionMonitor() {
+    final MaterializationStore materializationStore =
+        new MaterializationStore(p(LegacyKVStoreProvider.class));
+    return new ReflectionMonitor(
+        getReflectionService(),
+        getReflectionStatusService(),
+        getMaterializationDescriptorProvider(),
+        getJobsService(),
+        materializationStore,
+        getOptionManager(),
+        SECONDS.toMillis(5),
+        MINUTES.toMillis(10));
   }
 
   protected static DatasetConfig addJson(DatasetPath path) throws Exception {
@@ -389,8 +390,7 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected void onlyAllowPeriodicWakeup(boolean periodicOnly) {
-    getSabotContext()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 SYSTEM, REFLECTION_PERIODIC_WAKEUP_ONLY.getOptionName(), periodicOnly));
@@ -405,15 +405,11 @@ public class BaseTestReflection extends BaseTestServer {
 
   protected static void setMaterializationCacheSettings(
       boolean enabled, long refreshDelayInSeconds) {
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 SYSTEM, MATERIALIZATION_CACHE_ENABLED.getOptionName(), enabled));
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createLong(
                 SYSTEM,
@@ -422,9 +418,7 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected static void setEnableReAttempts(boolean enableReAttempts) {
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 SYSTEM, ExecConstants.ENABLE_REATTEMPTS.getOptionName(), enableReAttempts));
@@ -435,21 +429,23 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected static void setManagerRefreshDelayMs(long delayInMillis) {
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createLong(
                 SYSTEM, REFLECTION_MANAGER_REFRESH_DELAY_MILLIS.getOptionName(), delayInMillis));
   }
 
-  protected static void setDeletionGracePeriod(long periodInSeconds) {
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+  protected static void setDeletionGracePeriod(int deletionGracePeriodInSecond) {
+    getOptionManager()
         .setOption(
             OptionValue.createLong(
-                SYSTEM, REFLECTION_DELETION_GRACE_PERIOD.getOptionName(), periodInSeconds));
+                SYSTEM,
+                REFLECTION_DELETION_GRACE_PERIOD.getOptionName(),
+                deletionGracePeriodInSecond));
+  }
+
+  protected static void setDeletionGracePeriod() {
+    setDeletionGracePeriod(1);
   }
 
   protected void setDatasetAccelerationSettings(
@@ -510,6 +506,7 @@ public class BaseTestReflection extends BaseTestServer {
                 .setMethod(incremental ? RefreshMethod.INCREMENTAL : RefreshMethod.FULL)
                 .setRefreshPeriod(refreshPeriod)
                 .setGracePeriod(gracePeriod)
+                .setSnapshotBased(true)
                 .setRefreshField(refreshField)
                 .setNeverExpire(neverExpire)
                 .setNeverRefresh(neverRefresh)
@@ -675,8 +672,28 @@ public class BaseTestReflection extends BaseTestServer {
             .setUserName(SYSTEM_USERNAME)
             .build();
     final com.dremio.service.job.JobDetails refreshJob = getJobsService().getJobDetails(request);
-    final JobDetails jobDetails = JobsProtoUtil.getLastAttempt(refreshJob).getDetails();
-    return jobDetails.getOutputRecords();
+    return JobsProtoUtil.getLastAttempt(refreshJob).getStats().getOutputRecords();
+  }
+
+  /**
+   * Get the query profile from a materialization
+   *
+   * @param m materialization of a reflection
+   * @return QueryProfile
+   */
+  protected static UserBitShared.QueryProfile getMaterializationRefreshProfile(Materialization m)
+      throws JobNotFoundException {
+
+    // Get refresh job profile
+    QueryProfileRequest refreshRequest =
+        QueryProfileRequest.newBuilder()
+            .setJobId(JobProtobuf.JobId.newBuilder().setId(m.getInitRefreshJobId()).build())
+            .setAttempt(0)
+            .setUserName(SYSTEM_USERNAME)
+            .build();
+
+    UserBitShared.QueryProfile refreshProfile = getJobsService().getProfile(refreshRequest);
+    return refreshProfile;
   }
 
   /**
@@ -795,7 +812,7 @@ public class BaseTestReflection extends BaseTestServer {
       f2.println("{colour:\"green\", sum_price:50.0, count_price:5}");
     }
 
-    newSourceService().registerSourceWithRuntime(source);
+    getSourceService().registerSourceWithRuntime(source);
 
     // create PDS for json file
     final DatasetPath path1 = new DatasetPath(ImmutableList.of(sourceName, "file1.json"));
@@ -897,6 +914,18 @@ public class BaseTestReflection extends BaseTestServer {
     return profile.getPlan();
   }
 
+  /** Get the plan for a reflection */
+  protected static UserBitShared.QueryProfile getQueryProfile(final JobId jobId)
+      throws JobNotFoundException {
+    final QueryProfileRequest request =
+        QueryProfileRequest.newBuilder()
+            .setJobId(JobProtobuf.JobId.newBuilder().setId(jobId.getId()).build())
+            .setAttempt(0)
+            .setUserName(SYSTEM_USERNAME)
+            .build();
+    return getJobsService().getProfile(request);
+  }
+
   /**
    * Get the current latest snapshot of tableNamespaceKey
    *
@@ -913,5 +942,22 @@ public class BaseTestReflection extends BaseTestServer {
   /** Returns the namespace key for a fully qualified table name */
   public NamespaceKey getNamespaceKey(final String fullTableName) {
     return new NamespaceKey(parseFullPath(fullTableName));
+  }
+
+  protected void checkAccelerator(String query, boolean isAccelerated, String reflectionId) {
+    String plan = getQueryPlan(query);
+    if (isAccelerated) {
+      assertTrue(
+          "query should be accelerated",
+          plan.contains(
+              String.format(
+                  "\"%s\".\"%s\"",
+                  ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME, reflectionId)));
+    } else {
+      assertFalse(
+          "query should not be accelerated",
+          plan.contains(
+              String.format("\"%s\"", ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME)));
+    }
   }
 }

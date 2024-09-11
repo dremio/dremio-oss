@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/variables.less";
 @import "~@app/uiTheme/less/commonModifiers.less";
 
 :global {
   .--bgColor {
     &-header {
-      background-color: @CELL_EXPANSION_HEADER;
+      background-color: var(--fill--secondary);
     }
 
     &-highlight {
-      background-color: @PALE_ORANGE;
+      background-color: var(--color--orange--50);
     }
 
     &-white {
-      background-color: @WHITE;
+      background-color: var(--fill--primary);
     }
 
     &-transparent {
@@ -38,30 +37,30 @@
 
     // advanced enabled light row
     &-advEnLight {
-      background-color: @ACTIVE_ADVANCED_LIGHT_ROW;
+      background-color: var(--fill--brand);
     }
 
     // advanced enabled dark row
     &-advEnDark {
-      background-color: @ACTIVE_ADVANCED_DARK_ROW;
+      background-color: var(--fill--primary--selected);
     }
 
     // advanced disabled light row
     &-advDisLight {
-      background-color: @DISABLED_ADVANCED_LIGHT_ROW;
+      background-color: var(--fill--primary);
     }
 
     // advanced disabled dark row
     &-advDisDark {
-      background-color: @DISABLED_ADVANCED_DARK_ROW;
+      background-color: var(--fill--secondary);
     }
 
     &-advEnDrag {
-      background-color: @ACTIVE_DRAG_AREA_BACKGROUND_COLOR;
+      background-color: var(--fill--brand);
     }
 
     &-advDisDrag {
-      background-color: @DISABLED_DRAG_AREA_BACKGROUND_COLOR;
+      background-color: var(--fill--primary);
     }
   }
 
@@ -69,13 +68,13 @@
   .--bColor {
     // set border color for every side: b-col-full
     &-full {
-      border: 1px solid @BORDER_TABLE;
+      border: 1px solid var(--border--neutral);
     }
 
     each(@directions, .(@direction-val) {
       // set border color for specific side: b-col-@{direction-key}
       &-@{direction-val} {
-        border-@{direction-val}: 1px solid @BORDER_TABLE;
+        border-@{direction-val}: 1px solid var(--border--neutral);
       }
     });
   }
@@ -97,14 +96,14 @@
       font-family: @acceleration_font;
       font-weight: 400;
       font-size: 13px;
-      color: @TEXT_COLOR;
+      color: var(--text--faded);
       display: flex;
       align-content: center;
       padding: 5px;
       margin-right: 10px;
 
       &:hover {
-        background-color: @CELL_EXPANSION_HEADER !important;
+        background-color: var(--fill--primary--hover--alt) !important;
         cursor: pointer;
       }
     }
@@ -121,6 +120,10 @@
       flex-flow: column nowrap !important;
       flex-grow: 1;
       padding: 10px 10px 0;
+
+      &__loading {
+        opacity: 0.5;
+      }
     }
 
     &__header {
@@ -128,7 +131,7 @@
       justify-content: space-between;
       align-items: center;
       min-height: @row-min-height;
-      background-color: @CELL_EXPANSION_HEADER;
+      background-color: var(--fill--secondary);
       padding: 3px;
     }
 
@@ -165,10 +168,10 @@
       justify-content: space-between;
       align-items: center;
       min-height: 40px;
-      background-color: @CELL_EXPANSION_HEADER;
-      border-top: 1px solid @BORDER_TABLE;
-      border-left: 1px solid @BORDER_TABLE;
-      border-right: 1px solid @BORDER_TABLE;
+      background-color: var(--fill--secondary);
+      border-top: 1px solid var(--border--neutral);
+      border-left: 1px solid var(--border--neutral);
+      border-right: 1px solid var(--border--neutral);
       padding: 3px;
     }
 
@@ -186,14 +189,14 @@
       font-family: @acceleration_font;
       font-weight: 400;
       font-size: 13px;
-      color: @TEXT_COLOR;
+      color: var(--text--faded);
       display: flex;
       justify-content: space-between;
       align-items: center;
       height: 30px;
       margin-left: 10px;
-      border-right: 1px solid @BORDER_TABLE;
-      border-left: 1px solid @BORDER_TABLE;
+      border-right: 1px solid var(--border--neutral);
+      border-left: 1px solid var(--border--neutral);
     }
   }
 
@@ -203,7 +206,7 @@
       align-items: center;
       width: 100%;
       height: 100%;
-      border-right: 1px solid @BORDER_TABLE;
+      border-right: 1px solid var(--border--neutral);
     }
 
     &__lastSubCell {
@@ -212,7 +215,7 @@
       align-items: center;
       width: 100%;
       height: 100%;
-      border-right: 1px solid @BORDER_TABLE;
+      border-right: 1px solid var(--border--neutral);
       border-right: 0;
     }
 
@@ -227,7 +230,7 @@
       display: flex;
       flex-grow: 1;
       justify-content: center;
-      border-left: 1px solid @BORDER_TABLE;
+      border-left: 1px solid var(--border--neutral);
 
       &--icon {
         cursor: pointer;
@@ -245,10 +248,10 @@
       justify-content: space-between;
       align-items: center;
       min-height: @row-min-height;
-      background-color: @CELL_EXPANSION_HEADER;
-      border-top: 1px solid @BORDER_TABLE;
-      border-left: 1px solid @BORDER_TABLE;
-      border-right: 1px solid @BORDER_TABLE;
+      background-color: var(--fill--secondary);
+      border-top: 1px solid var(--border--neutral);
+      border-left: 1px solid var(--border--neutral);
+      border-right: 1px solid var(--border--neutral);
       padding: 3px;
     }
 
@@ -268,13 +271,13 @@
     overflow: hidden;
 
     &__AccelerationAggregate {
-      background-color: @CELL_EXPANSION_HEADER;
-      border: 1px solid @BORDER_TABLE;
+      background-color: var(--fill--secondary);
+      border: 1px solid var(--border--neutral);
     }
 
     &__header {
-      background-color: @CELL_EXPANSION_HEADER;
-      border: 1px solid @BORDER_TABLE;
+      background-color: var(--fill--secondary);
+      border: 1px solid var(--border--neutral);
       margin-bottom: 15px;
     }
 
@@ -292,8 +295,9 @@
       justify-content: space-between;
       align-items: center;
       min-height: @row-min-height;
-      background-color: @CELL_EXPANSION_HEADER;
+      background-color: var(--fill--secondary);
       padding: 3px;
+      position: relative;
     }
 
     &__toggleLabel {
@@ -312,8 +316,8 @@
       display: flex;
       height: 20px;
       align-items: center;
-      border: 1px solid @ACTIVE_COLUMN_BORDER;
-      background-color: @ACTIVE_COLUMN_BACKGROUND_COLOR;
+      border: 1px solid var(--color--mint--300);
+      background-color: var(--fill--brand);
     }
 
     &__disabledColumn {
@@ -321,20 +325,20 @@
       display: flex;
       height: 20px;
       align-items: center;
-      border: 1px solid @DISABLED_COLUMN_BORDER;
-      background-color: @DISABLED_COLUMN_BACKGROUND_COLOR;
+      border: 1px solid var(--color--neutral--50);
+      background-color: var(--fill--primary);
     }
 
     &__columnIndex {
       font-family: @acceleration_font;
       font-weight: 400;
       font-size: 13px;
-      color: @TEXT_COLOR;
+      color: var(--text--faded);
       width: 20px;
       display: flex;
       justify-content: center;
       align-items: center;
-      background-color: @ACTIVE_COLUMN_INDEX_BACKGROUND_COLOR;
+      background-color: #96e3d1;
       height: 100%;
     }
 
@@ -347,16 +351,16 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background-color: @DISABLED_COLUMN_INDEX_BACKGROUND_COLOR;
+      background-color: var(--fill--disabled);
       height: 100%;
-      color: @DISABLED_COLUMN_INDEX_TEXT_COLOR;
+      color: var(--text--disabled);
     }
 
     &__menuHeader {
       font-family: @acceleration_font;
       font-weight: 400;
       font-size: 13px;
-      color: @TEXT_COLOR;
+      color: var(--text--faded);
       display: flex;
       align-items: center;
       height: 32px;
@@ -391,7 +395,7 @@
       font-family: @acceleration_font;
       font-weight: 400;
       font-size: 13;
-      color: @font-color2;
+      color: var(--text--faded);
       padding: 0 5px;
       display: flex;
       align-items: center;

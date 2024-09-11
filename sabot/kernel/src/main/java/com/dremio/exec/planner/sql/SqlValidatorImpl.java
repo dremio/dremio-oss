@@ -15,24 +15,22 @@
  */
 package com.dremio.exec.planner.sql;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS;
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
 import static com.dremio.exec.ExecConstants.SHOW_CREATE_ENABLED;
 import static com.dremio.exec.tablefunctions.DremioCalciteResource.DREMIO_CALCITE_RESOURCE;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.DmlPositionalMergeOnReadPlanGenerator;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
+import com.dremio.exec.planner.sql.parser.SqlInsertTable;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
-import com.dremio.exec.planner.sql.parser.SqlPartitionTransform;
 import com.dremio.exec.planner.sql.parser.SqlShowCreate;
 import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableCollectionCall;
@@ -100,6 +98,7 @@ import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.sql.validate.SqlValidatorTable;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.util.Static;
 import org.apache.calcite.util.Util;
 import org.apache.iceberg.RowLevelOperationMode;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -259,7 +258,12 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
   private SqlSelect createSourceSelectForCopyIntoTable(SqlCopyIntoTable call) {
     final SqlNodeList selectList = new SqlNodeList(SqlParserPos.ZERO);
-    selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
+    List<SqlNode> selectNodes = call.getSelectNodes();
+    if (selectNodes.isEmpty()) {
+      selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
+    } else {
+      selectNodes.forEach(selectList::add);
+    }
     SqlNode table = call.getTargetTable();
 
     return new SqlSelect(
@@ -460,18 +464,27 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
     List<RelDataTypeField> sourceFields = sourceRowType.getFieldList();
     List<RelDataTypeField> targetFields = targetRowType.getFieldList();
+
+    final int targetColumnCount = ((SqlUpdate) query).getTargetColumnList().size();
+    checkTypeAssignment(sourceFields, targetFields, targetColumnCount, query);
+  }
+
+  private void checkTypeAssignment(
+      List<RelDataTypeField> sourceFields,
+      List<RelDataTypeField> targetFields,
+      int columnsToCompare,
+      final SqlNode query) {
+
     final int sourceCount = sourceFields.size();
     final int targetCount = targetFields.size();
-    final int targetColumnCount = ((SqlUpdate) query).getTargetColumnList().size();
 
     // compare target columns between source table and target table, in a backwards direction
-    for (int i = 0; i < targetColumnCount; ++i) {
+    for (int i = 0; i < columnsToCompare; ++i) {
       RelDataTypeField sourceField = sourceFields.get(sourceCount - i - 1);
       RelDataTypeField targetField = targetFields.get(targetCount - i - 1);
       RelDataType sourceType = sourceField.getType();
       RelDataType targetType = targetField.getType();
       if (!MoreRelOptUtil.checkFieldTypesCompatibility(sourceType, targetType, false, false)) {
-        SqlNode node = ((SqlUpdate) query).getTargetColumnList().get(targetColumnCount - i - 1);
         String targetTypeString;
         String sourceTypeString;
         if (SqlTypeUtil.areCharacterSetsMismatched(sourceType, targetType)) {
@@ -482,7 +495,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
           targetTypeString = targetType.toString();
         }
         throw newValidationError(
-            node,
+            query,
             RESOURCE.typeNotAssignable(
                 targetField.getName(), targetTypeString,
                 sourceField.getName(), sourceTypeString));
@@ -523,9 +536,75 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
             .forEach(s -> sqlSelect.getSelectList().add(s));
       }
     }
-    if (call.getInsertCall() != null) {
-      validateInsert(call.getInsertCall());
+    SqlInsertTable insertCall = (SqlInsertTable) call.getInsertCall();
+    if (insertCall != null) {
+      if (insertCall.getQuery() instanceof SqlIdentifier
+          && ((SqlIdentifier) (insertCall.getQuery())).isStar()) {
+        validateMergeInsertWithStar(insertCall);
+      } else {
+        validateInsert(insertCall);
+      }
     }
+  }
+
+  /**
+   * The source of Merge's insert is set as the join between source table and target table in
+   * rewriteMerge() The selectList of the joined table is * for insert clause "Insert *" Since we
+   * dont have the specific column list in the select list, we are going to validate the whole
+   * joined table as the insert source. This function is customized to validate the source table
+   * portion of the joined table 1. check the length of source table is the same as target table 2.
+   * check the source column assignable to target columns
+   */
+  private void validateMergeInsertWithStar(SqlInsert insert) {
+    Preconditions.checkArgument(insert instanceof SqlInsertTable);
+
+    SqlValidatorNamespace targetNamespace = this.getNamespace(insert);
+    this.validateNamespace(targetNamespace, this.unknownType);
+    RelOptTable relOptTable =
+        SqlValidatorUtil.getRelOptTable(
+            targetNamespace, getCatalogReader().unwrap(Prepare.CatalogReader.class), null, null);
+    SqlValidatorTable table =
+        relOptTable == null
+            ? targetNamespace.getTable()
+            : relOptTable.unwrap(SqlValidatorTable.class);
+    RelDataType targetRowType =
+        this.createTargetRowType(table, insert.getTargetColumnList(), false);
+    SqlNode source = insert.getSource();
+    if (source instanceof SqlSelect) {
+      SqlSelect sqlSelect = (SqlSelect) source;
+      this.validateSelect(sqlSelect, targetRowType);
+    } else {
+      SqlValidatorScope scope = this.scopes.get(source);
+      this.validateQuery(source, scope, targetRowType);
+    }
+
+    RelDataType sourceRowType = this.getNamespace(source).getRowType();
+    RelDataType logicalTargetRowType = this.getLogicalTargetRowType(targetRowType, insert);
+    this.setValidatedNodeType(insert, logicalTargetRowType);
+    RelDataType logicalSourceRowType = this.getLogicalSourceRowType(sourceRowType, insert);
+
+    // source of the Insert in the merge query is a join between the source table and target table
+    // source table column count = joined table column count - target table columns - system column
+    // count
+    int sourceFieldCountFromMergeJoin = logicalSourceRowType.getFieldCount();
+    int targetFieldCount = logicalTargetRowType.getFieldCount();
+    int sourceFieldCount =
+        sourceFieldCountFromMergeJoin - targetFieldCount - DmlUtils.SYSTEM_COLUMN_COUNT;
+    if (sourceFieldCount != targetFieldCount) {
+      throw this.newValidationError(
+          insert, Static.RESOURCE.unmatchInsertColumn(targetFieldCount, sourceFieldCount));
+    }
+    checkTypeAssignmentForMergeInsertWithStar(logicalSourceRowType, targetRowType, insert);
+  }
+
+  private void checkTypeAssignmentForMergeInsertWithStar(
+      RelDataType sourceRowType, RelDataType targetRowType, final SqlInsert insert) {
+
+    List<RelDataTypeField> targetFields = targetRowType.getFieldList();
+    List<RelDataTypeField> sourceFields =
+        sourceRowType.getFieldList().subList(0, targetFields.size());
+
+    checkTypeAssignment(sourceFields, targetFields, targetFields.size(), insert);
   }
 
   @Override
@@ -695,7 +774,9 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
   private SqlNode joinSourceAndTargetTable(
       SqlNode targetTable, SqlNode sourceTable, SqlNode condition, JoinType joinType) {
+
     final SqlNode sourceTableCopy = DeepCopier.copy(sourceTable);
+
     return new SqlJoin(
         SqlParserPos.ZERO,
         sourceTableCopy,
@@ -711,8 +792,6 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
   /** Create selects by joining target table with source table */
   private SqlSelect createSourceSelectForSqlDmlOperator(SqlCall call) {
     Preconditions.checkState(call instanceof SqlDmlOperator);
-
-    // only keep filePath and rowIndex system columns
     SqlNodeList selectList = getExtendedColumns(call);
     if (selectList == null) {
       return null;
@@ -720,43 +799,38 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
     SqlDmlOperator sqlDmlOperatorCall = (SqlDmlOperator) call;
     SqlNode targetTable = sqlDmlOperatorCall.getTargetTable();
-    SqlNode targetNonExtTable = sqlDmlOperatorCall.getTargetTableWithoutExtendedCols();
-
     if (sqlDmlOperatorCall.getAlias() != null) {
       targetTable =
           SqlValidatorUtil.addAlias(targetTable, sqlDmlOperatorCall.getAlias().getSimple());
-
-      targetNonExtTable =
-          SqlValidatorUtil.addAlias(targetNonExtTable, sqlDmlOperatorCall.getAlias().getSimple());
     }
 
     // For Merge On Read Case, we will want to run 'targetTable.*' to acquire all target cols in the
-    // join.
-    // Thus, we must remove "System col call" extension, or else we'd be running 'targetTable EXTEND
-    // (...sys cols).*'
-    // Which is invalid...
-    if (call.getKind().equals(SqlKind.UPDATE)
-        && sqlDmlOperatorCall.getDmlWriteMode() == RowLevelOperationMode.MERGE_ON_READ) {
-      selectList = new SqlNodeList(SqlParserPos.ZERO);
-      List<String> targetStarList = new ArrayList<>(((SqlIdentifier) targetNonExtTable).names);
-      targetStarList.add("");
-      selectList.add(new SqlIdentifier(targetStarList, SqlParserPos.ZERO));
+    // join. However, we must remove the 'EXTEND' from the target table call. order-by clause is
+    // required for MOR Dml to guarantee records are sorted by system columns during join.
+    // Our duplicate-check logic relies on this.
+    if (sqlDmlOperatorCall.getDmlWriteMode() == RowLevelOperationMode.MERGE_ON_READ) {
+      boolean isDelete = call.getKind().equals(SqlKind.DELETE);
+      boolean isUpdate = call.getKind().equals(SqlKind.UPDATE);
+
+      // orderByList we need will always be the system columns,
+      // we already calculate this in 'getExtendedColumns' earlier
+
+      if ((isUpdate
+          || (isDelete && !((SqlDeleteFromTable) call).getPartitionColumns().isEmpty()))) {
+        selectList = new SqlNodeList(SqlParserPos.ZERO);
+        List<String> targetStarList =
+            (sqlDmlOperatorCall.getAlias() != null)
+                ? new ArrayList<>(sqlDmlOperatorCall.getAlias().names)
+                : new ArrayList<>(List.copyOf(getTargetOperandNames(targetTable).names));
+        targetStarList.add("");
+        selectList.add(new SqlIdentifier(targetStarList, SqlParserPos.ZERO));
+      }
     }
 
     SqlNode from = targetTable;
     SqlNode condition = sqlDmlOperatorCall.getCondition();
 
     SqlNode sourceTable = sqlDmlOperatorCall.getSourceTableRef();
-    // TODO: remove feature flag ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE
-    if (sourceTable != null
-        && !optionResolver.getOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE)) {
-      throw UserException.unsupportedError()
-          .message(
-              String.format(
-                  "Using joined tables is not supported in the %s statement.",
-                  sqlDmlOperatorCall instanceof SqlDeleteFromTable ? " DELETE" : "UPDATE"))
-          .buildSilently();
-    }
 
     // join the source table with target table
     if (sourceTable != null) {
@@ -784,6 +858,13 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
         null,
         null,
         null);
+  }
+
+  private SqlIdentifier getTargetOperandNames(SqlNode targetTable) {
+    if (targetTable.getKind() == SqlKind.EXTEND) {
+      return getTargetOperandNames(((SqlCall) targetTable).operand(0));
+    }
+    return (SqlIdentifier) targetTable;
   }
 
   /**
@@ -838,9 +919,10 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
    * represent deleted rows With copy-on-write DML framework, deleted rows are joined with original
    * data so that we could get a "copy" of original data minus deleted values. Since original data
    * already contain user columns, there is no need for deleted rows to carry duplicated user
-   * columns. Instead, only filePath and rowIndex are kept since they are join columns. ... With
-   * Merge_On_Read DML framework, deleted rows are detailed by their system columns, which are later
-   * projected during the Physical Plan in prep for a 'Delete File'
+   * columns. Instead, only filePath and rowIndex are kept since they are join columns.
+   *
+   * <p>With Merge_On_Read DML framework, deleted rows are detailed by their system columns, which
+   * are later projected during the Physical Plan in prep for a 'Delete File'
    */
   @Override
   protected SqlSelect createSourceSelectForDelete(SqlDelete call) {
@@ -857,7 +939,6 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     if (call == null) {
       return false;
     }
-
     Preconditions.checkState(call instanceof SqlDmlOperator);
     SqlDmlOperator sqlDmlOperatorCall = (SqlDmlOperator) call;
 
@@ -902,14 +983,15 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     SqlInsert insertCall = call.getInsertCall();
     JoinType joinType = (insertCall == null) ? JoinType.INNER : JoinType.LEFT;
 
-    SqlNode outerJoin =
+    SqlNode join =
         joinSourceAndTargetTable(targetTable, sourceTableRef, call.getCondition(), joinType);
+
     SqlSelect select =
         new SqlSelect(
             SqlParserPos.ZERO,
             null,
             selectList,
-            outerJoin,
+            join,
             null,
             null,
             null,
@@ -949,15 +1031,8 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     // select on the values row constructor; so we need to extract
     // that via the from clause on the select
     if (insertCall != null) {
-      if (isSqlDmlOperatorWithStar(insertCall)) {
-        // INSERT *,
-        if (!optionResolver.getOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR)) {
-          throw UserException.unsupportedError()
-              .message(String.format("Using INSERT * is not supported in the MERGE statement."))
-              .buildSilently();
-        }
-        // use Merge's source select as Insert's source
-        insertCall.setSource(select);
+      boolean withStar = isSqlDmlOperatorWithStar(insertCall);
+      if (withStar) {
         // use * as Insert's select
         selectList = new SqlNodeList(SqlParserPos.ZERO);
         selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
@@ -968,7 +1043,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
         selectList = new SqlNodeList(rowCall.getOperandList(), SqlParserPos.ZERO);
       }
 
-      final SqlNode insertSource = DeepCopier.copy(sourceTableRef);
+      final SqlNode insertSource = DeepCopier.copy(join);
       select =
           new SqlSelect(
               SqlParserPos.ZERO,
@@ -1225,14 +1300,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
     @Override
     public Void visit(SqlCall call) {
-      if (call instanceof SqlVersionedTableMacroCall) {
-        checkFeatureEnabled(ENABLE_ICEBERG_TIME_TRAVEL, "Time travel queries are not supported.");
-      } else if (call instanceof SqlPartitionTransform) {
-        if (!((SqlPartitionTransform) call).isIdentityTransform()) {
-          checkFeatureEnabled(
-              ENABLE_ICEBERG_PARTITION_TRANSFORMS, "Table partition transforms are not supported.");
-        }
-      } else if (call instanceof SqlShowCreate) {
+      if (call instanceof SqlShowCreate) {
         boolean isView = ((SqlShowCreate) call).getIsView();
         checkFeatureEnabled(
             SHOW_CREATE_ENABLED,

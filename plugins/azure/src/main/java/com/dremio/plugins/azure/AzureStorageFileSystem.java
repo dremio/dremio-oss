@@ -41,6 +41,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncHttpClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A container file system implementation for Azure Storage.
@@ -48,6 +50,7 @@ import org.asynchttpclient.AsyncHttpClient;
  * <p>Supports both Blob containers and Hierarchical containers
  */
 public class AzureStorageFileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
+  private static final Logger logger = LoggerFactory.getLogger(AzureStorageFileSystem.class);
   private static final String CONTAINER_HUMAN_NAME = "Container";
   public static final String ACCOUNT = "dremio.azure.account";
   public static final String KEY = "dremio.azure.key";
@@ -92,6 +95,13 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
         FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme(),
         CONTAINER_HUMAN_NAME,
         a -> true);
+  }
+
+  @Override
+  public long getTTL(com.dremio.io.file.FileSystem fileSystem, com.dremio.io.file.Path path) {
+    // TODO : fetch TTL for AzureStorageFileSystem
+    logger.error("Fetching TTL for AzureStorageFS is unavailable.");
+    return -1;
   }
 
   @Override

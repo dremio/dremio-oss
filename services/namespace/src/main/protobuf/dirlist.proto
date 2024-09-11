@@ -33,4 +33,5 @@ message DirListInputSplit {
   optional bool hasFiles = 6;
   repeated string files = 7;
   optional string globPattern = 8;
+  optional string schemeVariate = 9;
 }

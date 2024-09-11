@@ -19,7 +19,7 @@ import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.google.rpc.Status;
 import io.grpc.Metadata;
-import io.grpc.protobuf.lite.ProtoLiteUtils;
+import io.grpc.protobuf.ProtoUtils;
 import java.util.Optional;
 import org.apache.arrow.flight.ErrorFlightMetadata;
 import org.apache.arrow.flight.FlightRuntimeException;
@@ -29,7 +29,7 @@ public final class FlightRpcUtils {
 
   private static final String GRPC_STATUS_METADATA = "grpc-status-details-bin";
   private static final Metadata.BinaryMarshaller<Status> marshaller =
-      ProtoLiteUtils.metadataMarshaller(Status.getDefaultInstance());
+      ProtoUtils.metadataMarshaller(Status.getDefaultInstance());
 
   /**
    * Converts the given {@link FlightRuntimeException} to a {@link UserException}, if possible.

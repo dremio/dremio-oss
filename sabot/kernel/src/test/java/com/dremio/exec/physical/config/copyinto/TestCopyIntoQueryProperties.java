@@ -17,33 +17,44 @@ package com.dremio.exec.physical.config.copyinto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState;
+import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties.OnErrorOption;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 
 public class TestCopyIntoQueryProperties {
 
-  private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Test
   public void testPropertiesAccessors() {
     CopyIntoQueryProperties properties = new CopyIntoQueryProperties();
-    properties.setOnErrorOption(CopyIntoQueryProperties.OnErrorOption.CONTINUE);
-    properties.setStorageLocation("/path/to/storage");
+    OnErrorOption option = OnErrorOption.CONTINUE;
+    properties.setOnErrorOption(option);
+    String path = "/path/to/storage";
+    properties.setStorageLocation(path);
+    ImmutableSet<CopyIntoFileState> eventStates =
+        ImmutableSet.of(CopyIntoFileState.SKIPPED, CopyIntoFileState.IN_PROGRESS);
+    properties.setRecordStateEvents(eventStates);
+    String branch = "someBranch";
+    properties.setBranch(branch);
 
-    assertThat(properties.getOnErrorOption())
-        .isEqualTo(CopyIntoQueryProperties.OnErrorOption.CONTINUE);
-    assertThat(properties.getStorageLocation()).isEqualTo("/path/to/storage");
+    assertThat(properties.getOnErrorOption()).isEqualTo(option);
+    assertThat(properties.getStorageLocation()).isEqualTo(path);
+    assertThat(properties.getRecordStateEvents()).isEqualTo(eventStates);
+    assertThat(properties.getBranch()).isEqualTo(branch);
   }
 
   @Test
   public void testPropertiesConstructor() {
-    CopyIntoQueryProperties properties =
-        new CopyIntoQueryProperties(CopyIntoQueryProperties.OnErrorOption.ABORT, "/data");
+    OnErrorOption option = OnErrorOption.ABORT;
+    String storageLocation = "/data";
+    CopyIntoQueryProperties properties = new CopyIntoQueryProperties(option, storageLocation);
 
-    assertThat(properties.getOnErrorOption())
-        .isEqualTo(CopyIntoQueryProperties.OnErrorOption.ABORT);
-    assertThat(properties.getStorageLocation()).isEqualTo("/data");
+    assertThat(properties.getOnErrorOption()).isEqualTo(option);
+    assertThat(properties.getStorageLocation()).isEqualTo(storageLocation);
   }
 
   @Test

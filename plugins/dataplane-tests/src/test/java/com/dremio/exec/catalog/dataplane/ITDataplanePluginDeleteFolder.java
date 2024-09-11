@@ -18,16 +18,20 @@ package com.dremio.exec.catalog.dataplane;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createViewQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueFolderName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueRawRefName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTagName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueViewName;
-import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveTable;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveEntity;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
-import com.dremio.exec.store.NessieNamespaceNotEmptyException;
+import com.dremio.exec.store.NamespaceNotEmptyException;
 import com.dremio.service.namespace.NamespaceKey;
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,7 +52,7 @@ public class ITDataplanePluginDeleteFolder extends ITDataplanePluginTestSetup {
     getDataplanePlugin().deleteFolder(namespaceKey, version);
 
     // Assert
-    assertNessieDoesNotHaveTable(Collections.singletonList(rootFolder), DEFAULT_BRANCH_NAME, this);
+    assertNessieDoesNotHaveEntity(Collections.singletonList(rootFolder), DEFAULT_BRANCH_NAME, this);
   }
 
   @Test
@@ -67,7 +71,7 @@ public class ITDataplanePluginDeleteFolder extends ITDataplanePluginTestSetup {
 
     // Assert
     assertThatThrownBy(() -> getDataplanePlugin().deleteFolder(namespaceKey, version))
-        .isInstanceOf(NessieNamespaceNotEmptyException.class)
+        .isInstanceOf(NamespaceNotEmptyException.class)
         .hasMessageContaining("Folder '%s' is not empty", folderName);
   }
 
@@ -91,7 +95,7 @@ public class ITDataplanePluginDeleteFolder extends ITDataplanePluginTestSetup {
 
     // Assert
     assertThatThrownBy(() -> getDataplanePlugin().deleteFolder(namespaceKey, version))
-        .isInstanceOf(NessieNamespaceNotEmptyException.class)
+        .isInstanceOf(NamespaceNotEmptyException.class)
         .hasMessageContaining("Folder '%s' is not empty", folderName);
   }
 
@@ -113,7 +117,7 @@ public class ITDataplanePluginDeleteFolder extends ITDataplanePluginTestSetup {
 
     // Assert
     assertThatThrownBy(() -> getDataplanePlugin().deleteFolder(rootNamespaceKey, version))
-        .isInstanceOf(NessieNamespaceNotEmptyException.class)
+        .isInstanceOf(NamespaceNotEmptyException.class)
         .hasMessageContaining("Folder '%s' is not empty", folderName);
   }
 
@@ -136,6 +140,46 @@ public class ITDataplanePluginDeleteFolder extends ITDataplanePluginTestSetup {
     getDataplanePlugin().deleteFolder(rootNamespaceKey, version);
 
     // Assert
-    assertNessieDoesNotHaveTable(Collections.singletonList(rootFolder), DEFAULT_BRANCH_NAME, this);
+    assertNessieDoesNotHaveEntity(Collections.singletonList(rootFolder), DEFAULT_BRANCH_NAME, this);
+  }
+
+  @Test
+  public void deleteFolderWithTagContext() throws Exception {
+    final String rootFolder = generateUniqueFolderName();
+    final String someTag = generateUniqueTagName();
+    // Setup
+    final List<String> folderPath = Arrays.asList(DATAPLANE_PLUGIN_NAME, rootFolder);
+    final NamespaceKey namespaceKey = new NamespaceKey(folderPath);
+    runSQL(createTagQuery(someTag, DEFAULT_BRANCH_NAME));
+    getDataplanePlugin()
+        .createNamespace(namespaceKey, VersionContext.ofBranch(DEFAULT_BRANCH_NAME));
+
+    // Act + Assert
+    assertThatThrownBy(
+            () -> getDataplanePlugin().deleteFolder(namespaceKey, VersionContext.ofTag(someTag)))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(
+            "Delete folder is only supported for branches - not on tags or commits");
+  }
+
+  @Test
+  public void deleteFolderWithCommitContext() throws Exception {
+    final String rootFolder = generateUniqueFolderName();
+    final String someCommitHash = generateUniqueRawRefName();
+    // Setup
+    final List<String> folderPath = Arrays.asList(DATAPLANE_PLUGIN_NAME, rootFolder);
+    final NamespaceKey namespaceKey = new NamespaceKey(folderPath);
+    runSQL(createTagQuery(someCommitHash, DEFAULT_BRANCH_NAME));
+    getDataplanePlugin()
+        .createNamespace(namespaceKey, VersionContext.ofBranch(DEFAULT_BRANCH_NAME));
+
+    // Act + Assert
+    assertThatThrownBy(
+            () ->
+                getDataplanePlugin()
+                    .deleteFolder(namespaceKey, VersionContext.ofTag(someCommitHash)))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(
+            "Delete folder is only supported for branches - not on tags or commits");
   }
 }

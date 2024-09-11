@@ -70,6 +70,7 @@ const getIconEntityType = (datasetType: string, icon: string | undefined) => {
   let iconName: string | undefined = icon;
   switch (datasetType?.toLowerCase()) {
     case ENTITY_TYPES.folder:
+    case "blue-folder":
       iconName = "blue-folder";
       break;
     case ENTITY_TYPES.space:
@@ -86,7 +87,7 @@ const getIconEntityType = (datasetType: string, icon: string | undefined) => {
 
 export const addTooltip = (
   ref: { current: any },
-  setShowTooltip: (arg: boolean) => void
+  setShowTooltip: (arg: boolean) => void,
 ) => {
   const current = ref?.current;
   if (current.offsetWidth < current.scrollWidth) {
@@ -97,7 +98,7 @@ export const addTooltip = (
 export const openInNewTab = (
   to: string,
   fullPath: string,
-  sessionItemName: string
+  sessionItemName: string,
 ) => {
   const win = window.open(to, "_blank");
   win && win.sessionStorage.setItem(sessionItemName, fullPath);

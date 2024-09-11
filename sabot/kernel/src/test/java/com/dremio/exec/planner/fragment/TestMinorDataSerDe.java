@@ -17,20 +17,14 @@ package com.dremio.exec.planner.fragment;
 
 import static org.junit.Assert.assertEquals;
 
-import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.exec.ExecTest;
-import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TopN;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpointList;
-import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.service.DirectProvider;
-import com.dremio.test.DremioTest;
 import com.google.protobuf.ByteString;
 import java.util.Collections;
 import java.util.List;
@@ -38,28 +32,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 public class TestMinorDataSerDe extends ExecTest {
   MinorDataSerDe serDe;
 
   @Before
   public void setup() {
-    LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
-    SabotContext sabotContext = Mockito.mock(SabotContext.class);
-
-    Mockito.when(sabotContext.getConnectionReaderProvider())
-        .thenReturn(
-            DirectProvider.wrap(
-                ConnectionReader.of(
-                    DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
-    PhysicalPlanReader reader =
-        new PhysicalPlanReader(
-            CLASSPATH_SCAN_RESULT,
-            lpp,
-            CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-            DirectProvider.wrap(Mockito.mock(CatalogService.class)),
-            sabotContext);
+    PhysicalPlanReader reader = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader();
     serDe = new MinorDataSerDe(reader, FragmentCodec.SNAPPY);
   }
 

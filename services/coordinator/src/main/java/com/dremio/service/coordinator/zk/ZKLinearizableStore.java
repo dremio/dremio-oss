@@ -150,6 +150,28 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore, LostC
   }
 
   @Override
+  public byte[] getData(String fullPath, CompletableFuture<Void> onDataChanged)
+      throws PathMissingException {
+    try {
+      final ZKStoreOpWatcher watcher =
+          new ZKStoreOpWatcher(fullPath, onDataChanged, Watcher.Event.EventType.NodeDataChanged);
+      byte[] data;
+      if (onDataChanged == null || watcherMap.containsKey(watcher)) {
+        data = zkClient.getData().forPath(fullPath);
+      } else {
+        watcherMap.put(watcher, onDataChanged);
+        data = zkClient.getData().usingWatcher(watcher).forPath(fullPath);
+      }
+      return data;
+    } catch (Exception e) {
+      if (e instanceof KeeperException.NoNodeException) {
+        throw new PathMissingException(fullPath);
+      }
+      throw new StoreFatalException(e);
+    }
+  }
+
+  @Override
   public boolean checkExists(String fullPath) {
     try {
       return zkClient.checkExists().forPath(fullPath) != null;
@@ -178,6 +200,11 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore, LostC
             @Override
             public int getNumChanges() {
               return s.getVersion();
+            }
+
+            @Override
+            public long getSessionId() {
+              return s.getEphemeralOwner();
             }
           };
     } catch (Exception e) {
@@ -287,6 +314,7 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore, LostC
   public void notifyLostConnection() {
     // session is lost, notify registered observers
     LOGGER.info("Notifying connection lost to all external registered observers");
+    watcherMap.clear();
     lostConnectionObservers.forEach(LostConnectionObserver::notifyLostConnection);
   }
 
@@ -318,7 +346,9 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore, LostC
     public void doOp(PathCommand cmd) throws Exception {
       byte[] dataToSend =
           (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
-      zkClient.create().withMode(CreateMode.EPHEMERAL).forPath(cmd.getFullPath(), dataToSend);
+      String ret =
+          zkClient.create().withMode(CreateMode.EPHEMERAL).forPath(cmd.getFullPath(), dataToSend);
+      cmd.setReturnValue(ret);
     }
   }
 
@@ -338,10 +368,12 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore, LostC
     public void doOp(PathCommand cmd) throws Exception {
       byte[] dataToSend =
           (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
-      zkClient
-          .create()
-          .withMode(CreateMode.EPHEMERAL_SEQUENTIAL)
-          .forPath(cmd.getFullPath(), dataToSend);
+      String ret =
+          zkClient
+              .create()
+              .withMode(CreateMode.EPHEMERAL_SEQUENTIAL)
+              .forPath(cmd.getFullPath(), dataToSend);
+      cmd.setReturnValue(ret);
     }
   }
 
@@ -361,11 +393,13 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore, LostC
     public void doOp(PathCommand cmd) throws Exception {
       byte[] dataToSend =
           (cmd.getData() == null || cmd.getData().length == 0) ? null : cmd.getData();
-      zkClient
-          .create()
-          .creatingParentsIfNeeded()
-          .withMode(CreateMode.PERSISTENT)
-          .forPath(cmd.getFullPath(), dataToSend);
+      String ret =
+          zkClient
+              .create()
+              .creatingParentsIfNeeded()
+              .withMode(CreateMode.PERSISTENT)
+              .forPath(cmd.getFullPath(), dataToSend);
+      cmd.setReturnValue(ret);
     }
   }
 
@@ -499,6 +533,12 @@ public class ZKLinearizableStore implements LinearizableHierarchicalStore, LostC
             }
           } catch (Exception e) {
             LOGGER.warn("Internal Error: Unexpected exception while recovering watcher", e);
+          }
+          break;
+        case NodeDataChanged:
+          watcherMap.remove(this);
+          if (!onOpComplete.isDone()) {
+            onOpComplete.complete(null);
           }
           break;
         default:

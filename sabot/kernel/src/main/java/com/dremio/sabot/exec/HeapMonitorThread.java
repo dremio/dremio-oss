@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.exec;
 
+import com.dremio.common.exceptions.OutOfHeapMemoryException;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryNotificationInfo;
@@ -38,8 +39,11 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(HeapMonitorThread.class);
 
+  public static final String FAIL_CONTEXT = "Query canceled by executor heap monitor";
+
   // strategy to claw back heap.
   private final HeapClawBackStrategy strategy;
+  private final HeapClawBackContext clawBackContext;
 
   // threshold at which clawbacks will start happening
   private final long clawbackThresholdPercentage;
@@ -75,6 +79,11 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
     setDaemon(true);
     setName("heap-monitoring-thread-" + role.name().toLowerCase());
     this.strategy = strategy;
+    this.clawBackContext =
+        new HeapClawBackContext(
+            new OutOfHeapMemoryException("Heap monitor detected that the heap is almost full"),
+            String.format("%s (thread %s)", FAIL_CONTEXT, this.getName()),
+            HeapClawBackContext.Trigger.HEAP_MONITOR);
     this.clawbackThresholdPercentage = clawbackThreshold;
     this.lowMemSignallingEnabled = lowMemThreshold > 0;
     this.lowMemThresholdPercentage =
@@ -216,7 +225,7 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
       }
     }
     if (exceeded) {
-      strategy.clawBack("");
+      strategy.clawBack(clawBackContext);
       // block for a while to let the cancel do it's work.
       Thread.sleep(1000);
     }

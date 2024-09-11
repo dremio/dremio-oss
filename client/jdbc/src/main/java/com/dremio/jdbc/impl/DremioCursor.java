@@ -25,6 +25,7 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserProtos.PreparedStatement;
+import com.dremio.exec.proto.UserProtos.PreparedStatementParameterValue;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.ConnectionThrottle;
@@ -569,11 +570,15 @@ class DremioCursor implements Cursor {
             + " in loadInitialSchema()";
 
     final PreparedStatement preparedStatement;
+    final List<PreparedStatementParameterValue> values;
+
     if (statement instanceof DremioPreparedStatementImpl) {
       DremioPreparedStatementImpl dremioPreparedStatement = (DremioPreparedStatementImpl) statement;
       preparedStatement = dremioPreparedStatement.getPreparedStatementHandle();
+      values = dremioPreparedStatement.getProtoParameterValues();
     } else {
       preparedStatement = null;
+      values = null;
     }
 
     long queryTimeoutSecs = statement.getQueryTimeout();
@@ -585,7 +590,7 @@ class DremioCursor implements Cursor {
     if (preparedStatement != null) {
       connection
           .getClient()
-          .executePreparedStatement(preparedStatement.getServerHandle(), resultsListener);
+          .executePreparedStatement(preparedStatement.getServerHandle(), values, resultsListener);
     } else {
       connection.getClient().runQuery(QueryType.SQL, signature.sql, resultsListener);
     }

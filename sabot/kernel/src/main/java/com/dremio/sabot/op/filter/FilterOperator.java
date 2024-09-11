@@ -32,7 +32,6 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.filter.FilterStats.Metric;
-import com.dremio.sabot.op.llvm.GandivaSecondaryCacheWithStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
@@ -56,7 +55,6 @@ public class FilterOperator implements SingleInputOperator {
   private TransferPair[] tx;
   private Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
   private Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
-  private GandivaSecondaryCacheWithStats secondaryCache = null;
   private ExpressionSplitter splitter;
 
   public FilterOperator(Filter pop, OperatorContext context) throws OutOfMemoryException {
@@ -159,14 +157,11 @@ public class FilterOperator implements SingleInputOperator {
     stats.addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     stats.addLongStat(
         Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    if (secondaryCache != null) {
-      stats.addLongStat(Metric.PERSISTENT_CACHE_READ_TIME, secondaryCache.getReadTime());
-      stats.addLongStat(
-          Metric.BUILT_FROM_GANDIVA_CACHE, secondaryCache.getBuiltFromCache().ordinal());
+    // only for minor fragment 0 will save profile details
+    if (context.getFragmentHandle().getMinorFragmentId() == 0) {
+      stats.setProfileDetails(
+          OperatorProfileDetails.newBuilder().addAllSplitInfos(splitter.getSplitInfos()).build());
     }
-    stats.setProfileDetails(
-        OperatorProfileDetails.newBuilder().addAllSplitInfos(splitter.getSplitInfos()).build());
-
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }
@@ -183,10 +178,6 @@ public class FilterOperator implements SingleInputOperator {
   private void setupSplitter(VectorAccessible accessible) throws Exception {
     final LogicalExpression materializedExp =
         context.getClassProducer().materializeAndAllowComplex(config.getExpr(), input, true);
-    if (context.getOptions().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE)) {
-      // enable the secondary cache
-      secondaryCache = GandivaSecondaryCacheWithStats.createCache();
-    }
     splitter =
         new ExpressionSplitter(
             context,
@@ -197,8 +188,7 @@ public class FilterOperator implements SingleInputOperator {
         output,
         new NamedExpression(materializedExp, new FieldReference("_filter_")),
         javaCodeGenWatch,
-        gandivaCodeGenWatch,
-        secondaryCache);
+        gandivaCodeGenWatch);
   }
 
   private void doTransfers() {

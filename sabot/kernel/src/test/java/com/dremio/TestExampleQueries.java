@@ -321,6 +321,13 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void testConcat() throws Exception {
+    final String sql = "SELECT CONCAT('a', 'bc', 'd') as concol";
+
+    testBuilder().sqlQuery(sql).ordered().baselineColumns("concol").baselineValues("abcd").go();
+  }
+
+  @Test
   public void testCovarSamp() throws Exception {
     final String sql =
         "SELECT covar_samp(val, val) as col from cp.\"parquet/dremio_int_max.parquet\"";
@@ -824,13 +831,13 @@ public class TestExampleQueries extends PlanTestBase {
     Thread.sleep(
         1200); // sleep so we make sure the filesystem uses a different modification time for the
     // second file.
-    // getSabotContext().getCatalogService().refreshSource(new NamespaceKey("dfs_test"),
+    // getCatalogService().refreshSource(new NamespaceKey("dfs_test"),
     // CatalogService.REFRESH_EVERYTHING_NOW);
     PrintStream file2 = new PrintStream(new File(directory.getPath(), "file2.json"));
     file2.println("{\"a\":1,\"b\":[\"b\"]}");
     file2.close();
     // TODO(AH) force refresh schema
-    ((CatalogServiceImpl) getSabotContext().getCatalogService())
+    ((CatalogServiceImpl) getCatalogService())
         .refreshSource(
             new NamespaceKey("dfs_test"),
             CatalogService.REFRESH_EVERYTHING_NOW,
@@ -2032,7 +2039,7 @@ public class TestExampleQueries extends PlanTestBase {
 
     testBuilder()
         .sqlQuery(query)
-        .ordered()
+        .unOrdered()
         .baselineColumns("id")
         .baselineValues((long) 1)
         .baselineValues((long) 5)
@@ -2053,17 +2060,31 @@ public class TestExampleQueries extends PlanTestBase {
             + "select r_name from cp.\"tpch/region.parquet\" order by r_regionkey;";
 
     String queryCTAS2 =
+        "CREATE TABLE TestExampleQueries_testCTASOrderByCoumnNotInSelectClause2 as "
+            + "select r_name, r_regionkey as rkey, cast( 1 as double) from cp.\"tpch/region.parquet\" order by 1;";
+
+    String queryCTAS3 =
         String.format(
-            "CREATE TABLE TestExampleQueries_testCTASOrderByCoumnNotInSelectClause2 as "
+            "CREATE TABLE TestExampleQueries_testCTASOrderByCoumnNotInSelectClause3 as "
                 + "SELECT columns[1] as col FROM dfs.\"%s\" ORDER BY cast(columns[0] as double)",
+            root);
+
+    String queryCTAS4 =
+        String.format(
+            "CREATE TABLE TestExampleQueries_testCTASOrderByCoumnNotInSelectClause4 as "
+                + "SELECT columns[0] as col0, columns[1] as col1 FROM dfs.\"%s\" ORDER BY cast(columns[0] as double)",
             root);
 
     String query1 = "select * from TestExampleQueries_testCTASOrderByCoumnNotInSelectClause1";
     String query2 = "select * from TestExampleQueries_testCTASOrderByCoumnNotInSelectClause2";
+    String query3 = "select * from TestExampleQueries_testCTASOrderByCoumnNotInSelectClause3";
+    String query4 = "select * from TestExampleQueries_testCTASOrderByCoumnNotInSelectClause4";
 
     test("use dfs_test");
     test(queryCTAS1);
     test(queryCTAS2);
+    test(queryCTAS3);
+    test(queryCTAS4);
 
     testBuilder()
         .sqlQuery(query1)
@@ -2080,12 +2101,36 @@ public class TestExampleQueries extends PlanTestBase {
     testBuilder()
         .sqlQuery(query2)
         .ordered()
+        .baselineColumns("EXPR$2", "r_name", "rkey")
+        .baselineValues((Double) 1.0, "AFRICA", 0)
+        .baselineValues((Double) 1.0, "AMERICA", 1)
+        .baselineValues((Double) 1.0, "ASIA", 2)
+        .baselineValues((Double) 1.0, "EUROPE", 3)
+        .baselineValues((Double) 1.0, "MIDDLE EAST", 4)
+        .build()
+        .run();
+
+    testBuilder()
+        .sqlQuery(query3)
+        .ordered()
         .baselineColumns("col")
         .baselineValues("AFRICA")
         .baselineValues("AMERICA")
         .baselineValues("ASIA")
         .baselineValues("EUROPE")
         .baselineValues("MIDDLE EAST")
+        .build()
+        .run();
+
+    testBuilder()
+        .sqlQuery(query4)
+        .ordered()
+        .baselineColumns("col0", "col1")
+        .baselineValues("0", "AFRICA")
+        .baselineValues("1", "AMERICA")
+        .baselineValues("2", "ASIA")
+        .baselineValues("3", "EUROPE")
+        .baselineValues("4", "MIDDLE EAST")
         .build()
         .run();
   }

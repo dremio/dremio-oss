@@ -32,4 +32,7 @@ public enum AuthenticationType {
 
   @Tag(4)
   AWS_PROFILE,
+
+  @Tag(5)
+  SECRET,
 }

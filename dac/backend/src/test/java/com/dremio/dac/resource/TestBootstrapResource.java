@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.resource;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.dremio.common.perf.Timer;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
@@ -49,8 +51,8 @@ public class TestBootstrapResource extends BaseTestServer {
 
   @BeforeClass
   public static void init() throws Exception {
-    enableDefaultUser(false);
     Assume.assumeFalse(BaseTestServer.isMultinode());
+    enableDefaultUser(false);
     try (Timer.TimedBlock b = Timer.time("TestBootstrapResource.@BeforeClass")) {
       dacConfig = dacConfig.writePath(folder1.newFolder().getAbsolutePath());
       startDaemon();
@@ -59,10 +61,8 @@ public class TestBootstrapResource extends BaseTestServer {
 
   private static void startDaemon() throws Exception {
     setCurrentDremioDaemon(DACDaemon.newDremioDaemon(dacConfig, DremioTest.CLASSPATH_SCAN_RESULT));
-    setMasterDremioDaemon(null);
     getCurrentDremioDaemon().init();
     initClient();
-    setBinder(createBinder(getCurrentDremioDaemon().getBindingProvider()));
   }
 
   @Test
@@ -86,7 +86,7 @@ public class TestBootstrapResource extends BaseTestServer {
               Response.Status.FORBIDDEN,
               getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)),
               GenericErrorMessage.class);
-      assertErrorMessage(errorMessage, GenericErrorMessage.NO_USER_MSG, "");
+      assertThat(errorMessage.getErrorMessage()).isEqualTo(GenericErrorMessage.NO_USER_MSG);
     }
 
     {
@@ -96,7 +96,7 @@ public class TestBootstrapResource extends BaseTestServer {
               Response.Status.FORBIDDEN,
               getAPIv2().path("users/all").request().buildGet(),
               GenericErrorMessage.class);
-      assertErrorMessage(errorMessage, GenericErrorMessage.NO_USER_MSG, "");
+      assertThat(errorMessage.getErrorMessage()).isEqualTo(GenericErrorMessage.NO_USER_MSG);
     }
 
     doc("create first user");
@@ -133,7 +133,7 @@ public class TestBootstrapResource extends BaseTestServer {
                   .request(JSON)
                   .buildPut(Entity.json(new UserForm(uc, "dremio123"))),
               UserExceptionMapper.ErrorMessageWithContext.class);
-      assertErrorMessage(errorMessage, BootstrapResource.ERROR_MSG, "");
+      assertThat(errorMessage.getErrorMessage()).isEqualTo(BootstrapResource.ERROR_MSG);
     }
 
     // we should be able to login using the newly created user

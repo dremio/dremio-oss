@@ -17,17 +17,15 @@ package com.dremio.exec.store.dfs;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.logical.FormatPluginConfig;
-import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
-import com.google.inject.Injector;
 import java.util.Map;
-import javax.inject.Provider;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -52,16 +50,13 @@ public class TestPseudoDistributedFileSystemPluginE2E extends BaseTestQuery {
         new WorkspaceConfig(TEMPORARY_FOLDER.newFolder().getAbsolutePath(), true, "parquet");
     String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
 
-    final Injector injector = getInjector();
-    final Provider<SabotContext> sabotContext = injector.getProvider(SabotContext.class);
-
     service =
         new PDFSService(
-            injector.getProvider(FabricService.class),
-            () -> sabotContext.get().getEndpoint(),
-            () -> sabotContext.get().getExecutors(),
+            getProvider(FabricService.class),
+            getProvider(NodeEndpoint.class),
+            () -> getInstance(ClusterCoordinator.class).getExecutorEndpoints(),
             DremioTest.DEFAULT_SABOT_CONFIG,
-            getSabotContext().getAllocator());
+            getDremioRootAllocator());
     service.start();
 
     SourceConfig c = new SourceConfig();
@@ -71,9 +66,7 @@ public class TestPseudoDistributedFileSystemPluginE2E extends BaseTestQuery {
     c.setName("pdfs");
     c.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
     c.setConfig(conf.toBytesString());
-    ((CatalogServiceImpl) getSabotContext().getCatalogService())
-        .getSystemUserCatalog()
-        .createSource(c);
+    getCatalogService().getSystemUserCatalog().createSource(c);
   }
 
   @AfterClass

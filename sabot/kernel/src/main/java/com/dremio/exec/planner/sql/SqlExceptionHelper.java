@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.common.exceptions.UserCancellationException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import java.io.IOException;
 import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.parser.SqlParseException;
@@ -100,19 +102,26 @@ public final class SqlExceptionHelper {
   public static Exception coerceException(
       Logger logger, String sql, Exception e, boolean coerceToPlan) {
     if (e instanceof UserException) {
+      ((UserException) e).addErrorOrigin(ClusterCoordinator.Role.COORDINATOR.name());
       return e;
-    } else if (e instanceof ValidationException) {
-      throw validationError(sql, (ValidationException) e).build(logger);
+    } else if (e instanceof UserCancellationException) {
+      return e;
+    }
+    UserException.Builder builder = null;
+    if (e instanceof ValidationException) {
+      builder = validationError(sql, (ValidationException) e);
     } else if (e instanceof AccessControlException) {
-      throw UserException.permissionError(e).addContext(SQL_QUERY_CONTEXT, sql).build(logger);
+      builder = UserException.permissionError(e).addContext(SQL_QUERY_CONTEXT, sql);
     } else if (e instanceof SqlUnsupportedException) {
-      throw UserException.unsupportedError(e).addContext(SQL_QUERY_CONTEXT, sql).build(logger);
+      builder = UserException.unsupportedError(e).addContext(SQL_QUERY_CONTEXT, sql);
     } else if (e instanceof IOException || e instanceof RelConversionException) {
       return new QueryInputException("Failure handling SQL.", e);
     } else if (coerceToPlan) {
-      throw planError(sql, e).build(logger);
+      builder = planError(sql, e);
+    } else {
+      return e;
     }
-    return e;
+    throw builder.addErrorOrigin(ClusterCoordinator.Role.COORDINATOR.name()).build(logger);
   }
 
   private static UserException.Builder sqlError(

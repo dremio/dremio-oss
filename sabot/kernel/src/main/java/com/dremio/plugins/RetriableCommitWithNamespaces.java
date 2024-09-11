@@ -18,11 +18,13 @@ package com.dremio.plugins;
 import static org.projectnessie.model.ContentKey.MAX_ELEMENTS;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
 import com.dremio.exec.store.ReferenceNotFoundException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import com.google.common.annotations.VisibleForTesting;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.projectnessie.client.api.CommitMultipleOperationsBuilder;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.error.NessieConflictException;
@@ -44,79 +46,122 @@ public class RetriableCommitWithNamespaces {
   private final NessieApiV2 nessieApi;
   private final Branch branch;
   private final CommitMeta commitMeta;
-  private final Operation topLevelOperation;
-  private final Map<ContentKey, Operation> operations = new HashMap<>();
+  private final Operation.Put operation;
+  private final String logPrefix;
+  private final Set<ContentKey> parentNamespacesToCreate = new HashSet<>();
   private NessieConflictException lastCommitException;
 
   public RetriableCommitWithNamespaces(
-      NessieApiV2 nessieApi, Branch branch, CommitMeta commitMeta, Operation topLevelOperation) {
+      NessieApiV2 nessieApi, Branch branch, CommitMeta commitMeta, Operation.Put operation) {
     this.nessieApi = nessieApi;
     this.branch = branch;
     this.commitMeta = commitMeta;
-    this.topLevelOperation = topLevelOperation;
-    operations.put(topLevelOperation.getKey(), topLevelOperation);
+    this.operation = operation;
+    this.logPrefix = String.format("Nessie commit of %s to %s", operation, branch);
   }
 
-  public void commit() throws NessieConflictException {
+  public Branch commit() throws NessieConflictException {
     int retryCount = 0;
+    // note that before https://github.com/projectnessie/nessie/pull/7704 missing parent namespaces
+    // were being reported 1 by 1, so we keep using MAX_ELEMENTS here
     while (retryCount < MAX_ELEMENTS) {
-      if (this.tryCommit()) {
-        return;
+      Optional<Branch> maybeBranchHead = this.tryCommit();
+      if (maybeBranchHead.isPresent()) {
+        Branch branchHead = maybeBranchHead.get();
+        logger.info(
+            "{} succeeded as {} (retries: {}, createdNamespaces: {})",
+            logPrefix,
+            branchHead,
+            retryCount,
+            parentNamespacesToCreate);
+        return branchHead;
       }
       retryCount += 1;
     }
     throw this.getLastConflictException();
   }
 
-  public boolean tryCommit() throws NessieConflictException {
-    CommitMultipleOperationsBuilder commitMultipleOperationsBuilder =
+  @VisibleForTesting
+  Optional<Branch> tryCommit() throws NessieConflictException {
+    CommitMultipleOperationsBuilder commitBuilder =
         nessieApi.commitMultipleOperations().branch(branch).commitMeta(commitMeta);
-    for (Operation op : operations.values()) {
-      commitMultipleOperationsBuilder.operation(op);
+    commitBuilder.operation(operation);
+    for (ContentKey parentNamespace : parentNamespacesToCreate) {
+      commitBuilder.operation(Operation.Put.of(parentNamespace, Namespace.of(parentNamespace)));
     }
     try {
-      commitMultipleOperationsBuilder.commit();
-      return true;
-    } catch (org.projectnessie.error.NessieNamespaceAlreadyExistsException e) {
-      logger.error("Failed to create folder as folder already exists", e);
-      throw new NessieNamespaceAlreadyExistsException(e);
+      return Optional.of(commitBuilder.commit());
     } catch (NessieReferenceNotFoundException e) {
-      logger.error("Failed to create folder due to Reference not found", e);
+      logger.error("{} failed due to Reference not found", logPrefix, e);
       throw new ReferenceNotFoundException(e);
-    } catch (NessieConflictException e) {
-      logger.warn("Failed to create folder due to Nessie conflict", e);
-      lastCommitException = e;
-      for (Conflict conflict : ((ReferenceConflicts) e.getErrorDetails()).conflicts()) {
-        ContentKey currentConflictKey = conflict.key();
-        switch (conflict.conflictType()) {
-          case NAMESPACE_ABSENT:
-            operations.put(
-                currentConflictKey,
-                Operation.Put.of(currentConflictKey, Namespace.of(currentConflictKey)));
-            break;
-          case KEY_EXISTS:
-            // case for if only the original operation is still failing with key exists conflict.
-            if (currentConflictKey.compareTo(topLevelOperation.getKey()) == 0) {
-              throw e;
-            }
-            operations.remove(currentConflictKey);
-            break;
-          default:
-            throw e;
-        }
-      }
     } catch (NessieNotFoundException e) {
-      logger.error("Failed to create folder due to Nessie not found", e);
+      logger.error("{} failed due to Nessie not found", logPrefix, e);
       throw UserException.dataReadError(e).buildSilently();
+    } catch (NessieConflictException e) {
+      lastCommitException = e;
+      if (e.getErrorDetails() instanceof ReferenceConflicts) {
+        ReferenceConflicts referenceConflicts = (ReferenceConflicts) e.getErrorDetails();
+        List<Conflict> fatalConflicts = handleNamespaceConflicts(referenceConflicts.conflicts());
+        if (fatalConflicts.isEmpty() && !parentNamespacesToCreate.isEmpty()) {
+          logger.info(
+              "{} failed due to missing parent namespaces. Retry is possible with namespace creation: {}",
+              logPrefix,
+              parentNamespacesToCreate);
+          return Optional.empty();
+        }
+        logger.error("{} failed with unrecoverable conflicts: {}", logPrefix, fatalConflicts, e);
+        throw e;
+      }
+      logger.error("{} failed with unknown conflict", logPrefix, e);
+      throw e;
     }
-    return false;
   }
 
-  public Collection<Operation> getOperations() {
-    return operations.values();
+  private List<Conflict> handleNamespaceConflicts(List<Conflict> commitConflicts) {
+    List<Conflict> fatalConflicts = new ArrayList<>();
+    for (Conflict conflict : commitConflicts) {
+      ContentKey currentConflictKey = conflict.key();
+      switch (conflict.conflictType()) {
+        case NAMESPACE_ABSENT:
+          if (!operation.getKey().startsWith(currentConflictKey)) {
+            throw new IllegalStateException(
+                String.format(
+                    "%s NAMESPACE_ABSENT but %s is not a parent of %s",
+                    logPrefix, currentConflictKey, operation.getKey()));
+          }
+          parentNamespacesToCreate.add(currentConflictKey);
+          break;
+        case KEY_EXISTS:
+          if (operation.getKey().equals(currentConflictKey)) {
+            // a conflict for the primary operation can not be retried by this class
+            fatalConflicts.add(conflict);
+          } else {
+            // another commit created this parent namespace while we were retrying
+            boolean removed = parentNamespacesToCreate.remove(currentConflictKey);
+            if (!removed) {
+              throw new IllegalStateException(
+                  String.format(
+                      "%s KEY_EXISTS but %s was not in parentNamespacesToCreate",
+                      logPrefix, currentConflictKey));
+            }
+          }
+          break;
+        default:
+          // we are unable to retry other conflict types
+          fatalConflicts.add(conflict);
+          break;
+      }
+    }
+    return fatalConflicts;
   }
 
-  public NessieConflictException getLastConflictException() {
+  @VisibleForTesting
+  Set<ContentKey> getParentNamespacesToCreate() {
+    return parentNamespacesToCreate;
+  }
+
+  @VisibleForTesting
+  NessieConflictException getLastConflictException() {
     return lastCommitException;
   }
 }

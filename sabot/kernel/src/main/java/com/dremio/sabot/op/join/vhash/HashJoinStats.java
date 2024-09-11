@@ -29,6 +29,7 @@ import com.dremio.sabot.exec.context.MetricDef;
 public class HashJoinStats {
 
   public enum Metric implements MetricDef {
+    IS_SPILLING,
     NUM_BUCKETS,
     NUM_ENTRIES,
     NUM_RESIZING(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.MAX, "NUM_RESIZING"),

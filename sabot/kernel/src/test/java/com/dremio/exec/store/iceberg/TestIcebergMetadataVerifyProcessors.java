@@ -116,8 +116,7 @@ public class TestIcebergMetadataVerifyProcessors extends BaseTestQuery {
 
     List<String> keyPath = Arrays.asList(TEMP_SCHEMA_HADOOP, TEST_TABLE_NAME);
 
-    EntityExplorer entityExplorer =
-        CatalogUtil.getSystemCatalogForReflections(getSabotContext().getCatalogService());
+    EntityExplorer entityExplorer = CatalogUtil.getSystemCatalogForReflections(getCatalogService());
     Optional<TableMetadataVerifyResult> result =
         entityExplorer.verifyTableMetadata(
             CatalogEntityKey.newBuilder()
@@ -171,7 +170,7 @@ public class TestIcebergMetadataVerifyProcessors extends BaseTestQuery {
       String snapshot1 = ((Long) records.get(records.size() - 1).get("`snapshot_id`")).toString();
 
       EntityExplorer entityExplorer =
-          CatalogUtil.getSystemCatalogForReflections(getSabotContext().getCatalogService());
+          CatalogUtil.getSystemCatalogForReflections(getCatalogService());
       Optional<TableMetadataVerifyResult> result =
           entityExplorer.verifyTableMetadata(
               CatalogEntityKey.newBuilder()

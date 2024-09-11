@@ -20,19 +20,20 @@ import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_PROFILE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.GLUE_ACCESS_KEY_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.HADOOP_ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
 
 import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV2;
 import com.dremio.plugins.s3.store.STSCredentialProviderV2;
+import com.dremio.plugins.util.awsauth.GlueAwsCredentialsProviderV2;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 
 /** Utility for creating credential providers based on plugin configuration. */
 public final class AwsCredentialProviderUtils {
@@ -49,15 +50,14 @@ public final class AwsCredentialProviderUtils {
       throws IOException {
     switch (config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
-        return StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(
-                new String(config.getPassword(Constants.ACCESS_KEY)),
-                new String(config.getPassword(Constants.SECRET_KEY))));
+      case GLUE_ACCESS_KEY_PROVIDER:
+        return new GlueAwsCredentialsProviderV2(null, config);
       case EC2_METADATA_PROVIDER:
         return new SharedInstanceProfileCredentialsProvider();
       case NONE_PROVIDER:
         return AnonymousCredentialsProvider.create();
       case ASSUME_ROLE_PROVIDER:
+      case HADOOP_ASSUME_ROLE_PROVIDER:
         return new STSCredentialProviderV2(config);
       case DREMIO_ASSUME_ROLE_PROVIDER:
         return new DremioAssumeRoleCredentialsProviderV2();

@@ -29,6 +29,7 @@ import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableFindByRange;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.api.options.ImmutableMaxResultsOption;
 import com.dremio.datastore.format.visitor.SupportFindFormatVisitor;
 import com.dremio.datastore.format.visitor.SupportNullFieldsFormatVisitor;
 import com.dremio.datastore.generator.ByteContainerStoreGenerator;
@@ -339,9 +340,21 @@ public abstract class AbstractTestKVStore<K, V> {
   }
 
   @Test
+  public void testFindByExclusiveStartEndRange_maxResults() {
+    ignoreIfFindNotSupported();
+    testFindByRange(SAMPLING_SIZE, 0, SAMPLING_SIZE / 2, false, false, false, SAMPLING_SIZE / 4);
+  }
+
+  @Test
   public void testFindByExclusiveStartInclusiveEndRange() {
     ignoreIfFindNotSupported();
     testFindByRange(SAMPLING_SIZE, 0, SAMPLING_SIZE / 3, false, true, false);
+  }
+
+  @Test
+  public void testFindByExclusiveStartInclusiveEndRange_maxResults() {
+    ignoreIfFindNotSupported();
+    testFindByRange(SAMPLING_SIZE, 0, SAMPLING_SIZE / 3, false, true, false, SAMPLING_SIZE / 4);
   }
 
   @Test
@@ -598,14 +611,16 @@ public abstract class AbstractTestKVStore<K, V> {
    * @return expected size of the resutl set.
    */
   private int expectedSizeHelper(
-      int startRange, int endRange, boolean startInclusive, boolean endInclusive) {
+      int startRange, int endRange, boolean startInclusive, boolean endInclusive, int maxResults) {
+    int count;
     if (startInclusive && endInclusive) {
-      return endRange - startRange + 1;
+      count = endRange - startRange + 1;
     } else if (startInclusive || endInclusive) {
-      return endRange - startRange;
+      count = endRange - startRange;
     } else {
-      return endRange - startRange - 1;
+      count = endRange - startRange - 1;
     }
+    return Math.min(count, maxResults);
   }
 
   /**
@@ -626,11 +641,45 @@ public abstract class AbstractTestKVStore<K, V> {
       boolean startInclusive,
       boolean endInclusive,
       boolean testSortOrder) {
+    testFindByRange(
+        samplingSize,
+        startRange,
+        endRange,
+        startInclusive,
+        endInclusive,
+        testSortOrder,
+        Integer.MAX_VALUE);
+  }
+
+  /**
+   * Helper method to test FindByRange queries.
+   *
+   * @param samplingSize size of the dataset to test.
+   * @param startRange start range index.
+   * @param endRange end range index.
+   * @param startInclusive whether start is inclusive.
+   * @param endInclusive whether end is inclusive.
+   * @param testSortOrder boolean indicating whether test should take result set sort order into
+   *     account.
+   * @param maxResults maximum number of results to return.
+   */
+  private void testFindByRange(
+      int samplingSize,
+      int startRange,
+      int endRange,
+      boolean startInclusive,
+      boolean endInclusive,
+      boolean testSortOrder,
+      int maxResults) {
     final DocumentDataset<K, V> data =
         gen.sortDocumentDataset(generateDataAndPopulateKVStore(samplingSize));
-    final int expectedSize = expectedSizeHelper(startRange, endRange, startInclusive, endInclusive);
+    final int expectedSize =
+        expectedSizeHelper(startRange, endRange, startInclusive, endInclusive, maxResults);
     final int sliceStart = (startInclusive) ? startRange : startRange + 1;
-    final int sliceEnd = (endInclusive) ? endRange : endRange - 1;
+    int sliceEnd = (endInclusive) ? endRange : endRange - 1;
+    if (maxResults < Integer.MAX_VALUE) {
+      sliceEnd = Math.min(sliceEnd, sliceStart + maxResults - 1);
+    }
 
     final FindByRange<K> range =
         makeRange(
@@ -638,7 +687,14 @@ public abstract class AbstractTestKVStore<K, V> {
             startInclusive,
             data.getDocument(endRange).getKey(),
             endInclusive);
-    final Iterable<Document<K, V>> result = kvStore.find(range);
+    Iterable<Document<K, V>> result;
+    if (maxResults < Integer.MAX_VALUE) {
+      result =
+          kvStore.find(
+              range, new ImmutableMaxResultsOption.Builder().setMaxResults(maxResults).build());
+    } else {
+      result = kvStore.find(range);
+    }
 
     if (expectedSize <= 0 && (sliceStart > sliceEnd)) {
       // Testing empty ranges, result should be empty.

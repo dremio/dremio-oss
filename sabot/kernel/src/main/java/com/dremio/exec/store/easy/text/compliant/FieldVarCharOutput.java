@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -36,6 +37,10 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 class FieldVarCharOutput extends FieldTypeOutput {
   static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(FieldVarCharOutput.class);
+
+  // holds data as the column is being read
+  private ArrowBuf tmpBuf = null;
+  private final OutputMutator outputMutator;
 
   /**
    * We initialize and add the varchar vector for each incoming field in this constructor.
@@ -86,6 +91,7 @@ class FieldVarCharOutput extends FieldTypeOutput {
       }
     }
 
+    this.outputMutator = outputMutator;
     for (int i = 0; i <= maxField; i++) {
       if (selectedFields[i]) {
         Field field =
@@ -97,8 +103,44 @@ class FieldVarCharOutput extends FieldTypeOutput {
   }
 
   @Override
-  protected void writeValueInCurrentVector(
-      int index, byte[] fieldBytes, int startIndex, int endIndex) {
-    ((VarCharVector) currentVector).setSafe(recordCount, fieldBytes, 0, currentDataPointer);
+  public void init() {
+    this.tmpBuf = this.outputMutator.getManagedBuffer();
+  }
+
+  @Override
+  public void close() {
+    if (this.tmpBuf != null) {
+      this.tmpBuf.clear();
+    }
+  }
+
+  private void expandTmpBufIfNecessary(int currentIndex) {
+    if (currentIndex < tmpBuf.capacity()) {
+      return;
+    }
+
+    ArrowBuf oldBuf = tmpBuf;
+    // addref
+    oldBuf.getReferenceManager().retain();
+    try {
+      tmpBuf = tmpBuf.reallocIfNeeded(Math.min(tmpBuf.capacity() * 2, maxCellLimit + 1));
+      tmpBuf.setBytes(0, oldBuf, 0, oldBuf.capacity());
+    } finally {
+      oldBuf.getReferenceManager().release();
+    }
+  }
+
+  @Override
+  protected void appendByte(int currentIndex, byte b) {
+    // copy b into tmpBuf
+    // size limit check has already been done
+    expandTmpBufIfNecessary(currentIndex);
+    tmpBuf.setByte(currentIndex, b);
+  }
+
+  @Override
+  protected void writeValueInCurrentVector(int index, int endIndex) {
+    ((VarCharVector) currentVector).setSafe(index, 0, endIndex, tmpBuf);
+    tmpBuf.clear();
   }
 }

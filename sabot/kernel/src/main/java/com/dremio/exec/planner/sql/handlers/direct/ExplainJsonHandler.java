@@ -93,7 +93,8 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
     final LogicalPlanSerializer serializer =
         factory.getSerializer(
             config.getConverter().getCluster(),
-            DremioCompositeSqlOperatorTable.create(config.getContext().getFunctionRegistry()));
+            DremioCompositeSqlOperatorTable.create(
+                config.getContext().getFunctionRegistry(), options));
 
     for (TransformedNode n : nodes) {
       if (n.getPhase().equalsIgnoreCase(phase)) {

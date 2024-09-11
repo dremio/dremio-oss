@@ -27,14 +27,14 @@ import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,11 +53,11 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
    * {@see java.util.concurrent.ConcurrentHashMap} because those guarantee not to throw
    * ConcurrentModificationException.
    */
-  private final ConcurrentMap<String, DistributedSemaphore> semaphores = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, DistributedSemaphore> semaphores = new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<String, Election> elections = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, Election> elections = new ConcurrentHashMap<>();
 
-  private final ConcurrentMap<String, LocalServiceSet> serviceSets = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, LocalServiceSet> serviceSets = new ConcurrentHashMap<>();
 
   /**
    * Returns a new local cluster coordinator, already started
@@ -96,7 +96,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
   @Override
   public ServiceSet getOrCreateServiceSet(final String name) {
-    return serviceSets.computeIfAbsent(name, s -> new LocalServiceSet(s));
+    return serviceSets.computeIfAbsent(name, LocalServiceSet::new);
   }
 
   @Override
@@ -121,8 +121,8 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     return serviceSets.get(name);
   }
 
-  private final class LocalServiceSet extends AbstractServiceSet implements AutoCloseable {
-    private final Map<RegistrationHandle, NodeEndpoint> endpoints = new ConcurrentHashMap<>();
+  private static final class LocalServiceSet extends AbstractServiceSet implements AutoCloseable {
+    private final ConcurrentMap<Handle, NodeEndpoint> endpoints = new ConcurrentHashMap<>();
 
     private final String serviceName;
 
@@ -194,18 +194,12 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
   @Override
   public DistributedSemaphore getSemaphore(final String name, final int maximumLeases) {
-    if (!semaphores.containsKey(name)) {
-      semaphores.putIfAbsent(name, new LocalSemaphore(maximumLeases));
-    }
-    return semaphores.get(name);
+    return semaphores.computeIfAbsent(name, key -> new LocalSemaphore(maximumLeases));
   }
 
   @Override
   public ElectionRegistrationHandle joinElection(String name, ElectionListener listener) {
-    if (!elections.containsKey(name)) {
-      elections.putIfAbsent(name, new Election());
-    }
-    return elections.get(name).joinElection(listener);
+    return elections.computeIfAbsent(name, key -> new Election()).joinElection(listener);
   }
 
   @Override
@@ -213,12 +207,12 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     throw new UnsupportedOperationException("Hierarchical Store is not supported in Local");
   }
 
-  private class LocalSemaphore implements DistributedSemaphore {
+  private static final class LocalSemaphore implements DistributedSemaphore {
     private final Semaphore semaphore;
     private final int size;
     private final LocalLease singleLease = new LocalLease(1);
-    private final Map<UpdateListener, Void> listeners =
-        Collections.synchronizedMap(new WeakHashMap<UpdateListener, Void>());
+    private final Set<UpdateListener> listeners =
+        Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap<>()));
 
     LocalSemaphore(final int size) {
       this.semaphore = new Semaphore(size);
@@ -231,53 +225,49 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     }
 
     @Override
-    public DistributedLease acquire(int permits, long timeout, TimeUnit timeUnit) throws Exception {
-      Preconditions.checkArgument(permits > 0, "permits must be a positive integer");
-      update();
-      if (!semaphore.tryAcquire(permits, timeout, timeUnit)) {
+    public DistributedLease acquire(int numPermits, long timeout, TimeUnit timeUnit)
+        throws Exception {
+      Preconditions.checkArgument(numPermits > 0, "numPermits must be a positive integer");
+      notifyUpdateListeners();
+      if (!semaphore.tryAcquire(numPermits, timeout, timeUnit)) {
         return null;
       } else {
-        return permits == 1 ? singleLease : new LocalLease(permits);
-      }
-    }
-
-    private void update() {
-      Collection<UpdateListener> col = new ArrayList<>(listeners.keySet());
-      for (UpdateListener l : col) {
-        l.updated();
-      }
-    }
-
-    private class LocalLease implements DistributedLease {
-      private final int permits;
-
-      LocalLease(int permits) {
-        this.permits = permits;
-      }
-
-      @Override
-      public void close() throws Exception {
-        semaphore.release(permits);
-        update();
+        return numPermits == 1 ? singleLease : new LocalLease(numPermits);
       }
     }
 
     @Override
     public boolean registerUpdateListener(UpdateListener listener) {
-      listeners.put(
-          () -> {
-            try {
-              listener.updated();
-            } catch (Exception e) {
-              logger.warn("Exception occurred while notifying listener.", e);
-            }
-          },
-          null);
-      return true;
+      return listeners.add(listener);
+    }
+
+    private void notifyUpdateListeners() {
+      List<UpdateListener> copy = new ArrayList<>(listeners);
+      for (UpdateListener listener : copy) {
+        try {
+          listener.updated();
+        } catch (Exception e) {
+          logger.warn("Exception occurred while notifying listener: " + listener, e);
+        }
+      }
+    }
+
+    private class LocalLease implements DistributedLease {
+      private final int numPermits;
+
+      LocalLease(int numPermits) {
+        this.numPermits = numPermits;
+      }
+
+      @Override
+      public void close() throws Exception {
+        semaphore.release(numPermits);
+        notifyUpdateListeners();
+      }
     }
   }
 
-  private final class Candidate {
+  private static final class Candidate {
     private final ElectionListener listener;
 
     public Candidate(ElectionListener listener) {
@@ -285,7 +275,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     }
   }
 
-  private final class Election {
+  private static final class Election {
     private final Queue<Candidate> waiting = new LinkedBlockingQueue<>();
     private volatile Candidate currentLeader = null;
 

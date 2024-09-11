@@ -48,7 +48,6 @@ public class TableModifyRule extends RelOptRule {
             tableModify.getCreateTableEntry(),
             tableModify.getMergeUpdateColumnList(),
             tableModify.hasSource(),
-            tableModify.getOutdatedTargetColumns(),
             tableModify.getDmlWriteMode()));
   }
 }

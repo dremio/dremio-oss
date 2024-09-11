@@ -21,11 +21,16 @@ import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.common.concurrent.bulk.BulkFunction;
+import com.dremio.common.concurrent.bulk.BulkRequest;
+import com.dremio.common.concurrent.bulk.BulkResponse;
+import com.dremio.common.concurrent.bulk.ValueTransformer;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.datastore.SearchTypes;
-import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -48,10 +53,10 @@ import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
@@ -196,6 +201,48 @@ final class SourceAccessChecker implements Catalog {
   public Optional<TableMetadataVerifyResult> verifyTableMetadata(
       CatalogEntityKey key, TableMetadataVerifyRequest metadataVerifyRequest) {
     throw new UnsupportedOperationException();
+  }
+
+  private BulkResponse<NamespaceKey, Optional<DremioTable>> bulkGetTableIfVisible(
+      BulkRequest<NamespaceKey> keys,
+      BulkFunction<NamespaceKey, Optional<DremioTable>> bulkFunction) {
+
+    // partition the request keys into two sets - invisible keys and everything else
+    java.util.function.Function<NamespaceKey, Boolean> partitionByInvisibility =
+        key -> key != null && isInvisible(key);
+
+    // define the bulk functions for each partition
+    // - for invisible keys, just return Optional.empty()
+    // - for everything else, call into the provided bulkFunction
+    java.util.function.Function<Boolean, BulkFunction<NamespaceKey, Optional<DremioTable>>>
+        partitionBulkFunctions =
+            isInvisible ->
+                isInvisible ? BulkFunction.withConstantResponse(Optional.empty()) : bulkFunction;
+
+    // define a value transformer which checks visibility of the returned table, and converts
+    // to an Optional.empty() if the table is invisible
+    ValueTransformer<NamespaceKey, Optional<DremioTable>, NamespaceKey, Optional<DremioTable>>
+        checkIfResponseIsInvisible =
+            (key, unused, optTable) ->
+                optTable.map(table -> isInvisible(table.getPath()) ? null : table);
+
+    return keys.bulkPartitionAndHandleRequests(
+        partitionByInvisibility,
+        partitionBulkFunctions,
+        java.util.function.Function.identity(),
+        checkIfResponseIsInvisible);
+  }
+
+  @Override
+  public BulkResponse<NamespaceKey, Optional<DremioTable>> bulkGetTables(
+      BulkRequest<NamespaceKey> keys) {
+    return bulkGetTableIfVisible(keys, delegate::bulkGetTables);
+  }
+
+  @Override
+  public BulkResponse<NamespaceKey, Optional<DremioTable>> bulkGetTablesForQuery(
+      BulkRequest<NamespaceKey> keys) {
+    return bulkGetTableIfVisible(keys, delegate::bulkGetTablesForQuery);
   }
 
   @Override
@@ -388,7 +435,6 @@ final class SourceAccessChecker implements Catalog {
 
   @Override
   public boolean createOrUpdateDataset(
-      NamespaceService userNamespaceService,
       NamespaceKey source,
       NamespaceKey datasetPath,
       DatasetConfig datasetConfig,
@@ -396,8 +442,7 @@ final class SourceAccessChecker implements Catalog {
       throws NamespaceException {
     throwIfInvisible(source);
 
-    return delegate.createOrUpdateDataset(
-        userNamespaceService, source, datasetPath, datasetConfig, attributes);
+    return delegate.createOrUpdateDataset(source, datasetPath, datasetConfig, attributes);
   }
 
   @Override
@@ -456,7 +501,7 @@ final class SourceAccessChecker implements Catalog {
 
   @Override
   public Collection<org.apache.calcite.schema.Function> getFunctions(
-      NamespaceKey path, FunctionType functionType) {
+      CatalogEntityKey path, FunctionType functionType) {
     return delegate.getFunctions(path, functionType);
   }
 
@@ -639,6 +684,11 @@ final class SourceAccessChecker implements Catalog {
     delegate.clearDatasetCache(dataset, context);
   }
 
+  @Override
+  public void clearPermissionCache(String sourceName) {
+    delegate.clearPermissionCache(sourceName);
+  }
+
   //// Begin: NamespacePassthrough Methods
   @Override
   public boolean existsById(CatalogEntityId id) {
@@ -646,8 +696,7 @@ final class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys)
-      throws NamespaceNotFoundException {
+  public List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys) {
     return delegate.getEntities(lookupKeys);
   }
 
@@ -698,9 +747,13 @@ final class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(
-      LegacyIndexedStore.LegacyFindByCondition condition) {
+  public Iterable<Document<NamespaceKey, NameSpaceContainer>> find(FindByCondition condition) {
     return delegate.find(condition);
+  }
+
+  @Override
+  public List<NameSpaceContainer> getEntitiesByIds(List<EntityId> ids) {
+    return delegate.getEntitiesByIds(ids);
   }
   //// End: NamespacePassthrough Methods
 }

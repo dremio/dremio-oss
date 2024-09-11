@@ -19,7 +19,6 @@ import com.dremio.common.VM;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.WorkStats;
-import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
@@ -40,7 +39,7 @@ public class ThreadsIterator implements Iterator<Object> {
   private final WorkStats stats;
   private final ThreadMXBean threadMXBean;
 
-  public ThreadsIterator(final SabotContext dbContext, final OperatorContext context) {
+  public ThreadsIterator(final SabotContext dbContext) {
     this.dbContext = dbContext;
     threadMXBean = ManagementFactory.getThreadMXBean();
     final long[] ids = threadMXBean.getAllThreadIds();

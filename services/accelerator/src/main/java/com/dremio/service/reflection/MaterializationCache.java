@@ -18,16 +18,16 @@ package com.dremio.service.reflection;
 import static com.dremio.service.reflection.ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
 import static com.dremio.service.reflection.ReflectionMetrics.TAG_SOURCE_DOWN;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
-import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_INIT_TIMEOUT;
+import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_INIT_TIMEOUT_SECONDS;
 
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.ExpandedMaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.dremio.exec.planner.common.PlannerMetrics;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
@@ -36,9 +36,16 @@ import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.proto.ExternalReflection;
+import com.dremio.service.reflection.proto.Failure;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
+import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.store.MaterializationStore;
+import com.github.benmanes.caffeine.cache.CacheLoader;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -53,6 +60,8 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ConcurrentModificationException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -69,16 +78,41 @@ class MaterializationCache {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(MaterializationCache.class);
 
-  private static final Map<String, CachedMaterializationDescriptor> EMPTY_MAP = ImmutableMap.of();
+  private static final Map<String, ExpandedMaterializationDescriptor> EMPTY_MAP = ImmutableMap.of();
 
-  private final AtomicReference<Map<String, CachedMaterializationDescriptor>> cached =
+  private final AtomicReference<Map<String, ExpandedMaterializationDescriptor>> cached =
       new AtomicReference<>(EMPTY_MAP);
 
   private final CountDownLatch latch;
 
   private final Meter.MeterProvider<Timer> syncHistogram;
 
+  // Error with expanding materialization that may be retried
   private final Meter.MeterProvider<Counter> errorCounter;
+
+  // Permanent failures where materialization is marked as FAILED
+  private final Meter.MeterProvider<Counter> retryFailedCounter;
+
+  /**
+   * This retryMap tracks the timestamp of the first attempt to update a materialization into the
+   * materialization cache. Each update may rebuild the materialization plan, de-serialize the plan
+   * bytes and expand the descriptor. If this fails, we retry up to {@link
+   * ReflectionOptions#MATERIALIZATION_CACHE_RETRY_MINUTES} before marking the materialization as
+   * failed.
+   *
+   * <p>expireAfterWrite is needed to clean up the retryMap in case the materialization is
+   * deprecated by reflection manager and can't be cleaned up by a successful or failed update.
+   */
+  private final LoadingCache<MaterializationId, Long> retryMap =
+      Caffeine.newBuilder()
+          .expireAfterWrite(ReflectionOptions.MAX_RETRY_HOURS + 1, TimeUnit.HOURS)
+          .build(
+              new CacheLoader<MaterializationId, Long>() {
+                @Override
+                public Long load(MaterializationId key) {
+                  return System.currentTimeMillis();
+                }
+              });
 
   /**
    * CacheHelper helps with keeping MaterializationCache up to date and also handles materialization
@@ -105,7 +139,7 @@ class MaterializationCache {
      *
      * @return expanded descriptor, or null if failed to deserialize the plan
      */
-    CachedMaterializationDescriptor expand(Materialization materialization, Catalog catalog)
+    ExpandedMaterializationDescriptor expand(Materialization materialization, Catalog catalog)
         throws CacheException;
   }
 
@@ -119,17 +153,20 @@ class MaterializationCache {
   private final ReflectionStatusService reflectionStatusService;
   private final CatalogService catalogService;
   private final OptionManager optionManager;
+  private final MaterializationStore materializationStore;
 
   MaterializationCache(
       CacheHelper provider,
       ReflectionStatusService reflectionStatusService,
       CatalogService catalogService,
-      OptionManager optionManager) {
+      OptionManager optionManager,
+      MaterializationStore materializationStore) {
     this.provider = Preconditions.checkNotNull(provider, "materialization provider required");
     this.reflectionStatusService =
         Preconditions.checkNotNull(reflectionStatusService, "reflection status service required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
     this.optionManager = Preconditions.checkNotNull(optionManager, "option manager required");
+    this.materializationStore = materializationStore;
     latch = new CountDownLatch(1);
     syncHistogram =
         Timer.builder(ReflectionMetrics.createName(ReflectionMetrics.MAT_CACHE_SYNC))
@@ -145,6 +182,11 @@ class MaterializationCache {
         io.micrometer.core.instrument.Counter.builder(
                 ReflectionMetrics.createName(ReflectionMetrics.MAT_CACHE_ERRORS))
             .description("Counter for materialization cache errors")
+            .withRegistry(io.micrometer.core.instrument.Metrics.globalRegistry);
+    retryFailedCounter =
+        io.micrometer.core.instrument.Counter.builder(
+                ReflectionMetrics.createName(ReflectionMetrics.MAT_CACHE_RETRY_FAILED))
+            .description("Counter for materialization cache retry failures")
             .withRegistry(io.micrometer.core.instrument.Metrics.globalRegistry);
   }
 
@@ -172,8 +214,8 @@ class MaterializationCache {
     try {
       boolean exchanged;
       do {
-        Map<String, CachedMaterializationDescriptor> old = cached.get();
-        Map<String, CachedMaterializationDescriptor> updated = updateMaterializationCache(old);
+        Map<String, ExpandedMaterializationDescriptor> old = cached.get();
+        Map<String, ExpandedMaterializationDescriptor> updated = updateMaterializationCache(old);
         exchanged = cached.compareAndSet(old, updated);
         if (!exchanged) {
           logger.warn(
@@ -185,7 +227,7 @@ class MaterializationCache {
     } finally {
       if (latch.getCount() > 0) {
         logger.info(
-            "Initial cold materialization cache update took {} ms: expanded={} version={}",
+            "Materialization Cache Initialization: Cold cache update took {} ms: expanded={} version={}",
             Duration.between(coldStart, Instant.now()).toMillis(),
             cached.get().size(),
             DremioVersionInfo.getVersion());
@@ -197,7 +239,7 @@ class MaterializationCache {
   void resetCache() {
     boolean exchanged;
     do {
-      Map<String, CachedMaterializationDescriptor> old = cached.get();
+      Map<String, ExpandedMaterializationDescriptor> old = cached.get();
       exchanged = cached.compareAndSet(old, EMPTY_MAP);
     } while (!exchanged);
   }
@@ -211,13 +253,13 @@ class MaterializationCache {
    * @return updated cache
    */
   @WithSpan
-  private Map<String, CachedMaterializationDescriptor> updateMaterializationCache(
-      Map<String, CachedMaterializationDescriptor> old) {
+  private Map<String, ExpandedMaterializationDescriptor> updateMaterializationCache(
+      Map<String, ExpandedMaterializationDescriptor> old) {
 
     // new list of descriptors
     final Iterable<Materialization> provided = provider.getValidMaterializations();
     // this will hold the updated cache
-    final Map<String, CachedMaterializationDescriptor> updated = Maps.newHashMap();
+    final Map<String, ExpandedMaterializationDescriptor> updated = Maps.newHashMap();
 
     int materializationExpandCount = 0;
     int materializationReuseCount = 0;
@@ -228,19 +270,26 @@ class MaterializationCache {
     // add any descriptor that are not already cached
     final Catalog catalog = CatalogUtil.getSystemCatalogForMaterializationCache(catalogService);
     for (Materialization materialization : provided) {
-      final CachedMaterializationDescriptor cachedDescriptor =
+      final ExpandedMaterializationDescriptor cachedDescriptor =
           old.get(materialization.getId().getId());
-      if (cachedDescriptor == null
-          || !materialization.getTag().equals(cachedDescriptor.getVersion())
-          || schemaChanged(cachedDescriptor, materialization, catalog)) {
+      if (cachedDescriptor == null || schemaChanged(cachedDescriptor, materialization, catalog)) {
         if (updateMaterializationEntry(updated, materialization, catalog)) {
           materializationExpandCount++;
         } else {
           materializationErrorCount++;
         }
       } else {
-        // descriptor already in the cache, we can just reuse it
-        updated.put(materialization.getId().getId(), cachedDescriptor);
+        // Descriptor already in the cache, we can just reuse it.
+        // If materialization staleness changes after materialization is expanded and cached,
+        // simply update the staleness flag of cached descriptor.
+        if (cachedDescriptor.isStale() != materialization.getIsStale()) {
+          updated.put(
+              materialization.getId().getId(),
+              new ExpandedMaterializationDescriptor(
+                  cachedDescriptor, materialization.getIsStale(), materialization.getTag()));
+        } else {
+          updated.put(materialization.getId().getId(), cachedDescriptor);
+        }
         materializationReuseCount++;
       }
     }
@@ -249,7 +298,8 @@ class MaterializationCache {
     int externalReuseCount = 0;
     int externalErrorCount = 0;
     for (ExternalReflection externalReflection : provider.getExternalReflections()) {
-      final CachedMaterializationDescriptor cachedDescriptor = old.get(externalReflection.getId());
+      final ExpandedMaterializationDescriptor cachedDescriptor =
+          old.get(externalReflection.getId());
       if (cachedDescriptor == null
           || isExternalReflectionOutOfSync(externalReflection.getId())
           || isExternalReflectionMetadataUpdated(cachedDescriptor, catalog)) {
@@ -294,7 +344,7 @@ class MaterializationCache {
   }
 
   private boolean isExternalReflectionMetadataUpdated(
-      CachedMaterializationDescriptor descriptor, EntityExplorer catalog) {
+      ExpandedMaterializationDescriptor descriptor, EntityExplorer catalog) {
     DremioMaterialization materialization = descriptor.getMaterialization();
     Pointer<Boolean> updated = new Pointer<>(false);
     materialization
@@ -336,7 +386,7 @@ class MaterializationCache {
 
   @WithSpan
   private boolean updateExternalReflectionEntry(
-      Map<String, CachedMaterializationDescriptor> cache,
+      Map<String, ExpandedMaterializationDescriptor> cache,
       ExternalReflection entry,
       Catalog catalog) {
     Span.current().setAttribute("dremio.materialization_cache.reflection_id", entry.getId());
@@ -350,52 +400,93 @@ class MaterializationCache {
       if (descriptor != null) {
         final DremioMaterialization expanded = provider.expand(descriptor, catalog);
         if (expanded != null) {
-          cache.put(
-              entry.getId(),
-              new CachedMaterializationDescriptor(descriptor, expanded, catalogService));
+          cache.put(entry.getId(), new ExpandedMaterializationDescriptor(descriptor, expanded));
           return true;
         }
       }
-    } catch (AssertionError e) {
-      incrementErrorCount(e);
-      // Calcite can throw assertion errors even when assertions are disabled :( that's why we need
-      // to make sure we catch them here
-      logger.debug("couldn't expand materialization {}", entry.getId(), e);
-    } catch (Exception ignored) {
-      incrementErrorCount(ignored);
-      logger.debug("couldn't expand materialization {}", entry.getId(), ignored);
+    } catch (Throwable e) {
+      if (!isInitialized()) {
+        logger.warn(
+            "Materialization Cache Initialization: Error occurred with external materialization {}",
+            entry,
+            e);
+      } else {
+        logger.warn(
+            "Materialization Cache Retry: Error occurred with external materialization {}",
+            entry,
+            e);
+      }
+      incrementCounter(errorCounter, e);
     }
     return false;
   }
 
   @WithSpan
   private boolean updateMaterializationEntry(
-      Map<String, CachedMaterializationDescriptor> cache, Materialization entry, Catalog catalog) {
+      Map<String, ExpandedMaterializationDescriptor> cache,
+      Materialization materialization,
+      Catalog catalog) {
     try {
       Span.current()
           .setAttribute(
-              "dremio.materialization_cache.reflection_id", entry.getReflectionId().getId());
+              "dremio.materialization_cache.reflection_id",
+              materialization.getReflectionId().getId());
       Span.current()
-          .setAttribute("dremio.materialization_cache.materialization_id", entry.getId().getId());
-      final CachedMaterializationDescriptor descriptor = provider.expand(entry, catalog);
+          .setAttribute(
+              "dremio.materialization_cache.materialization_id", materialization.getId().getId());
+      final ExpandedMaterializationDescriptor descriptor =
+          provider.expand(materialization, catalog);
       if (descriptor != null) {
-        cache.put(entry.getId().getId(), descriptor);
+        cache.put(materialization.getId().getId(), descriptor);
+        retryMap.invalidate(materialization.getId());
         return true;
       }
-    } catch (AssertionError e) {
-      incrementErrorCount(e);
-      // Calcite can throw assertion errors even when assertions are disabled :( that's why we need
-      // to make sure we catch them here
-      logger.debug("couldn't expand materialization {}", entry.getId(), e);
-    } catch (Exception ignored) {
-      incrementErrorCount(ignored);
-      // Other exceptions are already logged through updateEntry function.
+    } catch (Throwable e) {
+      if (!isInitialized()) {
+        logger.warn(
+            "Materialization Cache Initialization: Error expanding {}. Will retry.",
+            ReflectionUtils.getId(materialization),
+            e);
+      } else {
+        logger.warn(
+            "Materialization Cache Retry: Error expanding {}. Will retry.",
+            ReflectionUtils.getId(materialization),
+            e);
+      }
+      incrementCounter(errorCounter, e);
+      Long retryMinutes =
+          optionManager.getOption(ReflectionOptions.MATERIALIZATION_CACHE_RETRY_MINUTES);
+      // Source down exceptions have unlimited retries
+      if (!ReflectionUtils.isSourceDown(e)
+          && Duration.of(
+                      System.currentTimeMillis() - retryMap.get(materialization.getId()),
+                      ChronoUnit.MILLIS)
+                  .toMinutes()
+              >= retryMinutes) {
+        // Exceeded max retry minutes so mark the materialization as failed and stop retrying.
+        // Next materialization will be rebuilt based on the reflection's refresh policy.
+        String failureMsg =
+            String.format(
+                "Materialization Cache Failure: Error expanding %s. All retries exhausted. Updated to FAILED. %s",
+                ReflectionUtils.getId(materialization), e.getMessage());
+        logger.error(failureMsg, e);
+        Materialization update = materializationStore.get(materialization.getId());
+        update.setState(MaterializationState.FAILED);
+        update.setFailure(new Failure().setMessage(failureMsg));
+        try {
+          materializationStore.save(update);
+          incrementCounter(retryFailedCounter, e);
+        } catch (ConcurrentModificationException e2) {
+          // ignore in case another coordinator also tries to mark the materialization as failed
+        }
+        retryMap.invalidate(materialization.getId());
+      }
     }
     return false;
   }
 
-  private void incrementErrorCount(Throwable t) {
-    errorCounter
+  private void incrementCounter(Meter.MeterProvider<Counter> counter, Throwable t) {
+    counter
         .withTags(
             PlannerMetrics.TAG_REASON,
             t.getClass().getSimpleName(),
@@ -418,7 +509,7 @@ class MaterializationCache {
     ByteString schemaString = datasetConfig.getRecordSchema();
     BatchSchema newSchema = BatchSchema.deserialize(schemaString);
     BatchSchema oldSchema =
-        ((CachedMaterializationDescriptor) old).getMaterialization().getSchema();
+        ((ExpandedMaterializationDescriptor) old).getMaterialization().getSchema();
     return !oldSchema.equals(newSchema);
   }
 
@@ -430,12 +521,12 @@ class MaterializationCache {
   void invalidate(MaterializationId mId) {
     boolean exchanged;
     do {
-      Map<String, CachedMaterializationDescriptor> old = cached.get();
+      Map<String, ExpandedMaterializationDescriptor> old = cached.get();
       if (!old.containsKey(mId.getId())) {
         break; // entry not present in the cache, nothing more to do
       }
       // copy over everything
-      Map<String, CachedMaterializationDescriptor> updated = Maps.newHashMap(old);
+      Map<String, ExpandedMaterializationDescriptor> updated = Maps.newHashMap(old);
       // remove the specific materialization.
       updated.remove(mId.getId());
       // update the cache.
@@ -457,13 +548,13 @@ class MaterializationCache {
     // long time
     // the update loop does not race with MaterializationCache.refresh() and falls into infinite
     // loop.
-    final CachedMaterializationDescriptor descriptor =
+    final ExpandedMaterializationDescriptor descriptor =
         provider.expand(m, CatalogUtil.getSystemCatalogForMaterializationCache(catalogService));
     if (descriptor != null) {
       boolean exchanged;
       do {
-        Map<String, CachedMaterializationDescriptor> old = cached.get();
-        Map<String, CachedMaterializationDescriptor> updated =
+        Map<String, ExpandedMaterializationDescriptor> old = cached.get();
+        Map<String, ExpandedMaterializationDescriptor> updated =
             Maps.newHashMap(old); // copy over everything
         updated.put(m.getId().getId(), descriptor);
         exchanged = cached.compareAndSet(old, updated); // update the cache.
@@ -480,7 +571,8 @@ class MaterializationCache {
     try {
       success =
           latch.await(
-              this.optionManager.getOption(MATERIALIZATION_CACHE_INIT_TIMEOUT), TimeUnit.SECONDS);
+              this.optionManager.getOption(MATERIALIZATION_CACHE_INIT_TIMEOUT_SECONDS),
+              TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       success = false;
     }
@@ -514,5 +606,10 @@ class MaterializationCache {
     public MaterializationCacheTimeoutException(String message) {
       super(message);
     }
+  }
+
+  @VisibleForTesting
+  LoadingCache<MaterializationId, Long> getRetryMap() {
+    return retryMap;
   }
 }

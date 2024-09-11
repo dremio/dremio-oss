@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.exec.catalog.CatalogOptions.SOURCE_SECRETS_ENCRYPTION_ENABLED;
-
 import com.dremio.catalog.exception.SourceAlreadyExistsException;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
@@ -51,10 +49,9 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
-import com.dremio.services.credentials.CredentialsServiceUtils;
+import com.dremio.services.credentials.MigrationSecretsCreator;
 import com.dremio.services.credentials.NoopSecretsCreator;
 import com.dremio.services.credentials.SecretsCreator;
-import com.dremio.services.credentials.SystemSecretCredentialsProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -62,7 +59,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
-import java.net.URI;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -235,6 +231,11 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     throw e;
   }
 
+  /**
+   * Migration required to support SecretRef, encrypted secrets, and combined plaintext and secret
+   * uri fields (24.x to 25.x). Encrypts any secret, including URIs. If the secret conforms to the
+   * scheme of an encrypted secret, check to see if the secret was encrypted already or not.
+   */
   private void migrateSourceSecrets() throws NamespaceException {
     final SecretsCreator secretsCreator = sabotContext.getSecretsCreator().get();
     // Short-circuit early if encryption is disabled via binding
@@ -264,28 +265,20 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
             stopwatchForEachPlugin.elapsed(TimeUnit.MILLISECONDS));
         continue;
       }
-      final boolean didEncryptionHappen;
+      final int countEncryptionHappen;
       try {
         final ConnectionConf<?, ?> connectionConf = source.getConnectionConf(reader);
-        Predicate<String> isNotSystemEncryptedFilter =
-            secret -> {
-              String scheme;
-              try {
-                final URI uri = CredentialsServiceUtils.safeURICreate(secret);
-                scheme = uri.getScheme();
-                if (!SystemSecretCredentialsProvider.SECRET_PROVIDER_SCHEME.equals(scheme)) {
-                  // Scheme is not system
-                  return true;
-                }
-                return !secretsCreator.isEncrypted(uri.getSchemeSpecificPart());
-              } catch (IllegalArgumentException ignored) {
-                // Not a URI
-                return true;
-              }
-            };
-        didEncryptionHappen =
-            connectionConf.encryptSecrets(secretsCreator, isNotSystemEncryptedFilter);
-        if (!didEncryptionHappen) {
+        logger.info(
+            "Read ConnectionConf for the source [{}]. {} milliseconds have passed.",
+            sourceName,
+            stopwatchForEachPlugin.elapsed(TimeUnit.MILLISECONDS));
+        countEncryptionHappen =
+            connectionConf.encryptSecrets(new MigrationSecretsCreator(secretsCreator));
+        logger.info(
+            "Encrypted credentials for the source [{}]. {} milliseconds have passed.",
+            sourceName,
+            stopwatchForEachPlugin.elapsed(TimeUnit.MILLISECONDS));
+        if (countEncryptionHappen == 0) {
           logger.info(
               "Did not need to migrate the source [{}]. Took {} milliseconds.",
               sourceName,
@@ -293,6 +286,10 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
           continue;
         }
         source.setConnectionConf(connectionConf);
+        logger.debug(
+            "Write ConnectionConf for the source [{}]. {} milliseconds have passed.",
+            sourceName,
+            stopwatchForEachPlugin.elapsed(TimeUnit.MILLISECONDS));
         // Update KVStore.
         try {
           systemNamespace.addOrUpdateSource(source.getKey(), source);
@@ -301,7 +298,8 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
           systemNamespace.addOrUpdateSource(source.getKey(), source);
         }
         logger.info(
-            "Successfully migrate the source [{}]. Took {} milliseconds.",
+            "Successfully migrated {} credentials in the source [{}]. Took {} milliseconds.",
+            countEncryptionHappen,
             sourceName,
             stopwatchForEachPlugin.elapsed(TimeUnit.MILLISECONDS));
 
@@ -327,18 +325,56 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
         stopwatchForAllPlugins.elapsed(TimeUnit.MILLISECONDS));
   }
 
+  private void migrateLegacySourceFormat() throws NamespaceException {
+    for (SourceConfig source : datasetListing.getSources(SystemUser.SYSTEM_USERNAME)) {
+      final String sourceName = source.getName();
+
+      final boolean migrationHappened;
+      try {
+        final ConnectionConf<?, ?> connectionConf = source.getConnectionConf(reader);
+        migrationHappened = connectionConf.migrateLegacyFormat();
+        if (!migrationHappened) {
+          continue;
+        }
+
+        source.setConnectionConf(connectionConf);
+        // Update KVStore.
+        try {
+          systemNamespace.addOrUpdateSource(source.getKey(), source);
+        } catch (ConcurrentModificationException cme) {
+          // Retry one more time.
+          logger.info("Retrying legacy format update for the source [{}].", sourceName, cme);
+          systemNamespace.addOrUpdateSource(source.getKey(), source);
+        }
+
+        logger.info("Successfully updated legacy format of the source [{}].", sourceName);
+      } catch (Exception e) {
+        logger.error(
+            "Failed to update legacy format for the source [{}]. Reason: {}.",
+            sourceName,
+            e.getMessage(),
+            e);
+        // Error here should not block Dremio from starting up.
+      }
+    }
+  }
+
   /**
    * @throws NamespaceException
    */
   public void start() throws NamespaceException {
-
     // Encryption starts.
     if ((sabotContext.isMaster()
-            || (this.config.isMasterlessEnabled() && sabotContext.isCoordinator()))
-        && this.optionManager.getOption(SOURCE_SECRETS_ENCRYPTION_ENABLED)) {
+        || (this.config.isMasterlessEnabled() && sabotContext.isCoordinator()))) {
       migrateSourceSecrets();
     }
     // Encryption ends.
+
+    // Migrate/update deprecated fields used in Sources.
+    if ((sabotContext.isMaster()
+        || (this.config.isMasterlessEnabled() && sabotContext.isCoordinator()))) {
+      migrateLegacySourceFormat();
+    }
 
     // Since this is run inside the system startup, no one should be able to interact with it until
     // we've already
@@ -684,5 +720,9 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
         || ("GANDIVA_CACHE".equalsIgnoreCase(srcType))
         || ("ESYSFLIGHT".equalsIgnoreCase(srcType))
         || ("SYSTEMICEBERGTABLES".equalsIgnoreCase(srcType));
+  }
+
+  SabotContext getSabotContext() {
+    return sabotContext;
   }
 }

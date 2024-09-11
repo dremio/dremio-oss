@@ -21,11 +21,12 @@ import static org.junit.Assert.assertTrue;
 import com.dremio.common.Version;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.dac.resource.TableauResource;
+import com.dremio.dac.options.TableauResourceOptions;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.service.DirectProvider;
 import com.dremio.test.DremioTest;
 import org.junit.After;
@@ -48,7 +49,7 @@ public class TestSetTableauDefaults extends DremioTest {
     }
 
     optionManager =
-        new SystemOptionManager(
+        new SystemOptionManagerImpl(
             new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT),
             lpp,
             DirectProvider.wrap(kvStoreProvider),
@@ -68,14 +69,14 @@ public class TestSetTableauDefaults extends DremioTest {
   public void testPre4x0Version() throws Exception {
     final Version version = new Version("3.9.0", 3, 9, 0, 0, "");
     assertTrue(SetTableauDefaults.updateOptionsIfNeeded(version, () -> optionManager, true));
-    assertFalse(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU));
+    assertFalse(optionManager.getOption(TableauResourceOptions.CLIENT_TOOLS_TABLEAU));
   }
 
   @Test
   public void testPre460Version() throws Exception {
     final Version version = new Version("4.5.9", 4, 5, 9, 0, "");
     assertTrue(SetTableauDefaults.updateOptionsIfNeeded(version, () -> optionManager, true));
-    assertFalse(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU));
+    assertFalse(optionManager.getOption(TableauResourceOptions.CLIENT_TOOLS_TABLEAU));
   }
 
   @Test
@@ -100,6 +101,6 @@ public class TestSetTableauDefaults extends DremioTest {
   public void testPre460VersionAndKeyExists() throws Exception {
     final Version version = new Version("5.1.0", 5, 2, 0, 0, "");
     assertFalse(SetTableauDefaults.updateOptionsIfNeeded(version, () -> optionManager, true));
-    assertFalse(optionManager.isSet(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName()));
+    assertFalse(optionManager.isSet(TableauResourceOptions.CLIENT_TOOLS_TABLEAU.getOptionName()));
   }
 }

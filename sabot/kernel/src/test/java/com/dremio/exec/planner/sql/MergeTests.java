@@ -19,8 +19,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.ColumnInfo;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.PARTITION_COLUMN_ONE_INDEX_SET;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Table;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Tables;
-import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables;
-import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.configureDmlWriteModeProperties;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTableWithFloats;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createRandomId;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createStockIcebergTable;
@@ -31,6 +30,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testDmlQuery;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQueries;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.exec.planner.sql.DmlQueryTestUtils.DmlRowwiseOperationWriteMode;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.ArrayUtils;
@@ -83,9 +83,11 @@ public class MergeTests {
         new Object[] {777, 777.0f}
       };
 
-  public static void testMalformedMergeQueries(String source) throws Exception {
-    try (Table sourceTable = createBasicTable(source, 3, 0);
-        Table targetTable = createBasicTable(source, 2, 0)) {
+  public static void testMalformedMergeQueries(
+      String source, DmlRowwiseOperationWriteMode dmlWriteMode) throws Exception {
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 3, 0);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 2, 0)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testMalformedDmlQueries(
           new Object[] {
             targetTable.fqn,
@@ -113,7 +115,9 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeOnView(BufferAllocator allocator, String source) throws Exception {
+  public static void testMergeOnView(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     String name = createRandomId();
     try (AutoCloseable ignored = createView(source, name)) {
       assertThatThrownBy(
@@ -129,17 +133,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateAllWithLiteral(BufferAllocator allocator, String source)
+  public static void testMergeUpdateAllWithLiteral(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -154,17 +162,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateAllWithScalar(BufferAllocator allocator, String source)
+  public static void testMergeUpdateAllWithScalar(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -181,17 +193,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateAllWithSubQuery(BufferAllocator allocator, String source)
+  public static void testMergeUpdateAllWithSubQuery(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -215,17 +231,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateHalfWithLiteral(BufferAllocator allocator, String source)
+  public static void testMergeUpdateHalfWithLiteral(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -242,17 +262,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateHalfWithScalar(BufferAllocator allocator, String source)
+  public static void testMergeUpdateHalfWithScalar(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -273,17 +297,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateHalfWithSubQuery(BufferAllocator allocator, String source)
+  public static void testMergeUpdateHalfWithSubQuery(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -311,10 +339,12 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateWithFloat(BufferAllocator allocator, String source)
+  public static void testMergeUpdateWithFloat(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTableWithFloats(source, 3, 10);
         Table targetTable = createBasicTableWithFloats(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -327,16 +357,20 @@ public class MergeTests {
   }
 
   public static void testMergeUpdateUsingSubQueryWithLiteral(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 15, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 15, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING (SELECT * FROM %s WHERE id < 5) s ON (%s.id = s.id)"
@@ -351,17 +385,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateWithStar(BufferAllocator allocator, String source)
+  public static void testMergeUpdateWithStar(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 3, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 3, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING (select id, concat(column_0, '_updated') from %s) as s ON (%s.id = s.id)"
@@ -381,16 +419,20 @@ public class MergeTests {
   }
 
   public static void testMergeUpdateWithStarColumnCountNotMatch1(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 3, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 3, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         assertThatThrownBy(
                 () ->
                     testDmlQuery(
@@ -407,16 +449,20 @@ public class MergeTests {
   }
 
   public static void testMergeUpdateWithStarColumnCountNotMatch2(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 3, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 3, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         assertThatThrownBy(
                 () ->
                     testDmlQuery(
@@ -433,15 +479,16 @@ public class MergeTests {
   }
 
   public static void testMergeUpdateWithStarSchemaNotMatchUpdateOnly(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable =
             createTable(
                 source,
                 createRandomId(),
                 new ColumnInfo[] {
-                  new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new ColumnInfo("data1", SqlTypeName.DATE, false),
-                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new ColumnInfo("data1", SqlTypeName.DATE, false, false),
+                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "2001-01-01", "source 1.2"},
@@ -453,15 +500,16 @@ public class MergeTests {
                 source,
                 createRandomId(),
                 new ColumnInfo[] {
-                  new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new ColumnInfo("data1", SqlTypeName.FLOAT, false),
-                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new ColumnInfo("data1", SqlTypeName.FLOAT, false, false),
+                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, 1.0, "target 1.1"},
                   new Object[] {20, 2.0, "target 2.1"},
                   new Object[] {30, 3.0, "target 3.1"}
                 })) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -479,16 +527,17 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateWithStarSchemaNotMatch(BufferAllocator allocator, String source)
+  public static void testMergeUpdateWithStarSchemaNotMatch(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable =
             createTable(
                 source,
                 createRandomId(),
                 new ColumnInfo[] {
-                  new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new ColumnInfo("data1", SqlTypeName.VARCHAR, false),
-                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new ColumnInfo("data1", SqlTypeName.VARCHAR, false, false),
+                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "insert-1", "source 1.1"},
@@ -500,15 +549,16 @@ public class MergeTests {
                 source,
                 createRandomId(),
                 new ColumnInfo[] {
-                  new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new ColumnInfo("data1", SqlTypeName.FLOAT, false),
-                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new ColumnInfo("data1", SqlTypeName.FLOAT, false, false),
+                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, 1.0, "target 1.1"},
                   new Object[] {20, 2.0, "target 2.1"},
                   new Object[] {30, 3.0, "target 3.1"}
                 })) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -528,17 +578,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateInsertWithStar(BufferAllocator allocator, String source)
+  public static void testMergeUpdateInsertWithStar(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 3, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 3, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s as s ON (%s.id = s.id)"
@@ -552,9 +606,11 @@ public class MergeTests {
   }
 
   public static void testMergeUpdateInsertWithReversedColumnSelectInSource(
-      BufferAllocator allocator, String source) throws Exception {
-    try (Table sourceTable = createBasicTable(source, 2, 5);
-        Table targetTable = createBasicTable(source, 2, 3)) {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 2, 5);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 2, 3)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s USING (select id, column_0 from (select column_0, id from %s)) as s ON (%s.id = s.id)"
@@ -566,17 +622,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeInsertWithScalar(BufferAllocator allocator, String source)
+  public static void testMergeInsertWithScalar(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING (SELECT * FROM %s) as s ON (%s.id = s.id)"
@@ -589,17 +649,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeInsertWithLiteral(BufferAllocator allocator, String source)
+  public static void testMergeInsertWithLiteral(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -614,10 +678,12 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeInsertWithFloat(BufferAllocator allocator, String source)
+  public static void testMergeInsertWithFloat(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTableWithFloats(source, 3, 10);
         Table targetTable = createBasicTableWithFloats(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -629,17 +695,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeInsertWithStar(BufferAllocator allocator, String source)
+  public static void testMergeInsertWithStar(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)" + " WHEN NOT MATCHED THEN INSERT *",
@@ -653,17 +723,49 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateInsertWithLiteral(BufferAllocator allocator, String source)
+  public static void testMergeInsertWrongColumnOrderWithStar(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables(
+                source, 3, 2, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables(
+                source, 2, 1, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
+        testDmlQuery(
+            allocator,
+            "MERGE INTO %s USING (select id, column_1 from %s) as s ON (%s.id = s.id)"
+                + " WHEN NOT MATCHED THEN INSERT *",
+            new Object[] {targetTable.fqn, sourceTable.fqn, targetTable.fqn, sourceTable.fqn},
+            targetTable,
+            1,
+            new Object[][] {
+              new Object[] {1, sourceTable.originalData[1][2]},
+              new Object[] {0, targetTable.originalData[0][1]}
+            });
+      }
+    }
+  }
+
+  public static void testMergeUpdateInsertWithLiteral(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
+    try (Tables sourceTables =
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+        Tables targetTables =
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (int i = 0; i < sourceTables.tables.length; i++) {
+        Table sourceTable = sourceTables.tables[i];
+        Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -680,16 +782,20 @@ public class MergeTests {
   }
 
   public static void testMergeInsertWithStarColumnCountNotMatch(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 3, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 3, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         assertThatThrownBy(
                 () ->
                     testDmlQuery(
@@ -705,10 +811,12 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateInsertWithFloats(BufferAllocator allocator, String source)
+  public static void testMergeUpdateInsertWithFloats(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTableWithFloats(source, 3, 10);
         Table targetTable = createBasicTableWithFloats(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -723,17 +831,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateInsertWithScalar(BufferAllocator allocator, String source)
+  public static void testMergeUpdateInsertWithScalar(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id)"
@@ -757,17 +869,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateInsertWithSubQuery(BufferAllocator allocator, String source)
+  public static void testMergeUpdateInsertWithSubQuery(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id and %s.column_0 = %s.column_0)"
@@ -800,17 +916,21 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeUpdateInsertStarWithSubQuery(BufferAllocator allocator, String source)
+  public static void testMergeUpdateInsertStarWithSubQuery(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables sourceTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET);
         Tables targetTables =
-            createBasicNonPartitionedAndPartitionedTables(
-                source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
+            DmlQueryTestUtils
+                .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                    source, 2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (int i = 0; i < sourceTables.tables.length; i++) {
         Table sourceTable = sourceTables.tables[i];
         Table targetTable = targetTables.tables[i];
+        configureDmlWriteModeProperties(targetTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "MERGE INTO %s USING %s ON (%s.id = %s.id and %s.column_0 = %s.column_0)"
@@ -841,10 +961,12 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeWithSubQuerySourceAndInsert(BufferAllocator allocator, String source)
+  public static void testMergeWithSubQuerySourceAndInsert(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
-    try (Table sourceTable = createBasicTable(source, 2, 10);
-        Table targetTable = createBasicTable(source, 2, 5)) {
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 2, 10);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s USING (SELECT * FROM %s WHERE id < 5 OR id > 7) s ON (%s.id = s.id)"
@@ -859,10 +981,12 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeWithSelectiveInsertColumns(BufferAllocator allocator, String source)
+  public static void testMergeWithSelectiveInsertColumns(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
-    try (Table sourceTable = createBasicTable(source, 3, 9);
-        Table targetTable = createBasicTable(source, 2, 5)) {
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 3, 9);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s USING (SELECT id, column_1 FROM %s "
@@ -876,11 +1000,32 @@ public class MergeTests {
     }
   }
 
+  public static void testMergeWithUnOrderedInsertColumns(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 4, 9);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
+      testDmlQuery(
+          allocator,
+          "MERGE INTO %s USING (SELECT id, column_1, column_2 FROM %s "
+              + " WHERE (id < 5 OR id > 7) and column_0 is not null) s ON (%s.id = s.id)"
+              + " WHEN MATCHED THEN UPDATE SET column_0 = %s"
+              + " WHEN NOT MATCHED THEN INSERT (column_0) VALUES (concat(s.column_2, '_inserted'))",
+          new Object[] {targetTable.fqn, sourceTable.fqn, targetTable.fqn, "777", 777, "777"},
+          targetTable,
+          6,
+          ArrayUtils.addAll(COLUMN_ALL_777S, new Object[][] {new Object[] {null, "8_2_inserted"}}));
+    }
+  }
+
   public static void testMergeTargetTableWithAndWithoutAlias(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     // without target table aliasing
-    try (Table sourceTable = createBasicTable(source, 2, 10);
-        Table targetTable = createBasicTable(source, 2, 5)) {
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 2, 10);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s USING (SELECT * FROM %s WHERE id < 5 OR id > 7) s ON (%s.id = s.id)"
@@ -895,8 +1040,9 @@ public class MergeTests {
     }
 
     //  with target table aliasing
-    try (Table sourceTable = createBasicTable(source, 2, 10);
-        Table targetTable = createBasicTable(source, 2, 5)) {
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 2, 10);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 2, 5)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s as t USING (SELECT * FROM %s WHERE id < 5 OR id > 7) s ON (t.id = s.id)"
@@ -911,16 +1057,17 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeWithDupsInSource(BufferAllocator allocator, String source)
+  public static void testMergeWithDupsInSource(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable =
             createTable(
                 source,
                 createRandomId(),
                 new ColumnInfo[] {
-                  new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new ColumnInfo("data1", SqlTypeName.VARCHAR, false),
-                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new ColumnInfo("data1", SqlTypeName.VARCHAR, false, false),
+                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "insert-1", "source 1.1"},
@@ -932,15 +1079,16 @@ public class MergeTests {
                 source,
                 createRandomId(),
                 new ColumnInfo[] {
-                  new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new ColumnInfo("data1", SqlTypeName.VARCHAR, false),
-                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false)
+                  new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new ColumnInfo("data1", SqlTypeName.VARCHAR, false, false),
+                  new ColumnInfo("data2", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {10, "insert-1", "target 1.1"},
                   new Object[] {20, "second insert-1", "target 2.1"},
                   new Object[] {30, "third insert-1", "target 3.1"}
                 })) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -962,9 +1110,11 @@ public class MergeTests {
 
   // BEGIN: Contexts + Paths
   public static void testMergeWithWrongContextWithPathTable(
-      BufferAllocator allocator, String source) throws Exception {
-    try (Table sourceTable = createBasicTable(source, 1, 2, 3);
-        Table targetTable = createBasicTable(source, 1, 2, 2)) {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 1, 2, 3);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 1, 2, 2)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -994,11 +1144,13 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeWithContextWithPathTable(BufferAllocator allocator, String source)
+  public static void testMergeWithContextWithPathTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
-    try (Table sourceTable = createBasicTable(source, 1, 2, 3);
-        Table targetTable = createBasicTable(source, 1, 2, 2);
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 1, 2, 3);
+        Table targetTable = DmlQueryTestUtils.createBasicTable(source, 1, 2, 2);
         AutoCloseable ignored = setContext(allocator, source)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s.%s target\n"
@@ -1026,11 +1178,13 @@ public class MergeTests {
     }
   }
 
-  public static void testMergeWithStockIcebergTargetTable(BufferAllocator allocator, String source)
+  public static void testMergeWithStockIcebergTargetTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
-    try (Table sourceTable = createBasicTable(source, 1, 2, 0);
+    try (Table sourceTable = DmlQueryTestUtils.createBasicTable(source, 1, 2, 0);
         Table targetTable = createStockIcebergTable(source, 1, 2, "merge_target_table");
         AutoCloseable ignored = setContext(allocator, source)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "MERGE INTO %s.%s target\n"

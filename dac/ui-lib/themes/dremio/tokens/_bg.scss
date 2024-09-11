@@ -2,12 +2,12 @@
   --bg--sunken: white;
   --bg--default: white;
 
-  --bg--nav--sonar: #2a394a;
+  --bg--nav--sonar: var(--color--navy--700);
 }
 
 @mixin bgDark {
-  --bg--sunken: #101214;
-  --bg--default: #101214;
+  --bg--sunken: var(--color--gray--900);
+  --bg--default: var(--fill--primary);
 
-  --bg--nav--sonar: #202124;
+  --bg--nav--sonar: var(--fill--primary);
 }

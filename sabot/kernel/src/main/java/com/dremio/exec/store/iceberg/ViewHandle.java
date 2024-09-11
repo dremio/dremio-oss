@@ -20,22 +20,21 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.VersionedDatasetAdapter;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.VersionedDatasetHandle;
-import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
 import java.util.Objects;
 
 public class ViewHandle implements VersionedDatasetHandle {
   private EntityPath viewPath;
-  private ViewVersionMetadata viewVersionMetadata;
+  private IcebergViewMetadata icebergViewMetadata;
   private String id;
   private String uniqueId;
 
   private ViewHandle(
       final EntityPath viewpath,
-      ViewVersionMetadata viewVersionMetadata,
+      IcebergViewMetadata icebergViewMetadata,
       String id,
       String uniqueId) {
     this.viewPath = viewpath;
-    this.viewVersionMetadata = viewVersionMetadata;
+    this.icebergViewMetadata = icebergViewMetadata;
     this.id = id;
     this.uniqueId = uniqueId;
   }
@@ -59,8 +58,8 @@ public class ViewHandle implements VersionedDatasetHandle {
     return uniqueId;
   }
 
-  public ViewVersionMetadata getViewVersionMetadata() {
-    return viewVersionMetadata;
+  public IcebergViewMetadata getIcebergViewMetadata() {
+    return icebergViewMetadata;
   }
 
   @Override
@@ -75,7 +74,7 @@ public class ViewHandle implements VersionedDatasetHandle {
 
   public static final class Builder {
     private EntityPath viewPath;
-    private ViewVersionMetadata viewVersionMetadata;
+    private IcebergViewMetadata icebergViewMetadata;
     String id;
     String uniqueId;
 
@@ -84,8 +83,8 @@ public class ViewHandle implements VersionedDatasetHandle {
       return this;
     }
 
-    public Builder viewVersionMetadata(ViewVersionMetadata viewVersionMetadata) {
-      this.viewVersionMetadata = viewVersionMetadata;
+    public Builder icebergViewMetadata(IcebergViewMetadata icebergViewMetadata) {
+      this.icebergViewMetadata = icebergViewMetadata;
       return this;
     }
 
@@ -101,7 +100,7 @@ public class ViewHandle implements VersionedDatasetHandle {
 
     public ViewHandle build() {
       Objects.requireNonNull(viewPath, "dataset path is required");
-      return new ViewHandle(viewPath, viewVersionMetadata, id, uniqueId);
+      return new ViewHandle(viewPath, icebergViewMetadata, id, uniqueId);
     }
   }
 }

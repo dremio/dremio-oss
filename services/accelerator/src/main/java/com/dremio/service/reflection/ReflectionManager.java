@@ -21,12 +21,14 @@ import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER
 import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_NUMBER_FILES;
 import static com.dremio.service.reflection.ReflectionOptions.ENABLE_COMPACTION;
 import static com.dremio.service.reflection.ReflectionOptions.ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS;
+import static com.dremio.service.reflection.ReflectionOptions.LOAD_MATERIALIZATION_JOB_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_ORPHAN_REFRESH;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_GRACE_PERIOD;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_NUM_ENTRIES;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_MANAGER_REFRESH_PENDING_ENABLED;
+import static com.dremio.service.reflection.ReflectionOptions.SKIP_DROP_TABLE_JOB_FOR_INCREMENTAL_REFRESH;
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 import static com.dremio.service.reflection.ReflectionUtils.computeDataPartitions;
 import static com.dremio.service.reflection.ReflectionUtils.getId;
@@ -42,6 +44,8 @@ import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESH_PENDING;
 import static com.dremio.service.reflection.proto.ReflectionState.UPDATE;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+import static com.dremio.telemetry.api.metrics.MeterProviders.newTimerProvider;
 
 import com.dremio.common.util.DremioEdition;
 import com.dremio.datastore.WarningTimer;
@@ -77,11 +81,12 @@ import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl.DescriptorCache;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
-import com.dremio.service.reflection.ReflectionServiceImpl.PlanCacheInvalidationHelper;
 import com.dremio.service.reflection.materialization.AccelerationStoragePlugin;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
@@ -107,16 +112,18 @@ import com.dremio.service.reflection.store.MaterializationPlanStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Timer;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
@@ -135,7 +142,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 
@@ -149,8 +158,11 @@ public class ReflectionManager implements Runnable {
   private static final long START_WAIT_MILLIS = 5 * 60 * 1000;
   @VisibleForTesting static final long GOAL_DELETION_WAIT_MILLIS = 60_000 * 60 * 4; // 4 hours
 
-  private static final String REFRESH_DONE_HANDLER =
-      "dremio.reflection.refresh.refresh-done-handler.class";
+  static final String REFRESH_DONE_HANDLER = "dremio.reflection.refresh.refresh-done-handler.class";
+
+  DependencyManager getDependencyManager() {
+    return dependencyManager;
+  }
 
   /** Callback that allows async handlers to wake up the manager once they are done. */
   public interface WakeUpCallback {
@@ -177,7 +189,6 @@ public class ReflectionManager implements Runnable {
   private final DescriptorCache descriptorCache;
   private final WakeUpCallback wakeUpCallback;
   private final Function<Catalog, ExpansionHelper> expansionHelper;
-  private final Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper;
   private final BufferAllocator allocator;
   private final ReflectionGoalChecker reflectionGoalChecker;
   private final RefreshStartHandler refreshStartHandler;
@@ -187,7 +198,9 @@ public class ReflectionManager implements Runnable {
   private long lastWakeupTime;
   private long lastOrphanCheckTime;
   private DependencyResolutionContextFactory dependencyResolutionContextFactory;
-  private final Meter.MeterProvider<Timer> syncHistogram;
+  private final MeterProvider<Timer> syncHistogram;
+  private final Meter.MeterProvider<Counter> deletedCounter;
+  private final DatasetEventHub datasetEventHub;
 
   ReflectionManager(
       SabotContext sabotContext,
@@ -204,11 +217,11 @@ public class ReflectionManager implements Runnable {
       DescriptorCache descriptorCache,
       WakeUpCallback wakeUpCallback,
       Function<Catalog, ExpansionHelper> expansionHelper,
-      Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper,
       BufferAllocator allocator,
       ReflectionGoalChecker reflectionGoalChecker,
       RefreshStartHandler refreshStartHandler,
-      DependencyResolutionContextFactory dependencyResolutionContextFactory) {
+      DependencyResolutionContextFactory dependencyResolutionContextFactory,
+      DatasetEventHub datasetEventHub) {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
     this.optionManager = Preconditions.checkNotNull(optionManager, "optionManager required");
@@ -224,9 +237,6 @@ public class ReflectionManager implements Runnable {
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
     this.expansionHelper =
         Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
-    this.planCacheInvalidationHelper =
-        Preconditions.checkNotNull(
-            planCacheInvalidationHelper, "planCacheInvalidatorHelper required");
     this.allocator = Preconditions.checkNotNull(allocator, "allocator required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalogService required");
     this.namespaceService =
@@ -235,21 +245,30 @@ public class ReflectionManager implements Runnable {
     this.refreshStartHandler = Preconditions.checkNotNull(refreshStartHandler);
     this.dependencyResolutionContextFactory =
         Preconditions.checkNotNull(dependencyResolutionContextFactory);
-    Metrics.newGauge(
+    newGauge(
         ReflectionMetrics.createName(ReflectionMetrics.RM_UNKNOWN),
         () -> ReflectionManager.this.lastStats.unknown);
-    Metrics.newGauge(
+    newGauge(
         ReflectionMetrics.createName(ReflectionMetrics.RM_FAILED),
         () -> ReflectionManager.this.lastStats.failed);
-    Metrics.newGauge(
+    newGauge(
+        ReflectionMetrics.createName(ReflectionMetrics.RM_RETRYING),
+        () -> ReflectionManager.this.lastStats.retrying);
+    newGauge(
         ReflectionMetrics.createName(ReflectionMetrics.RM_ACTIVE),
         () -> ReflectionManager.this.lastStats.active);
-    Metrics.newGauge(
+    newGauge(
         ReflectionMetrics.createName(ReflectionMetrics.RM_REFRESHING),
         () -> ReflectionManager.this.lastStats.refreshing);
-    syncHistogram =
-        Timer.builder(ReflectionMetrics.createName(ReflectionMetrics.RM_SYNC))
-            .description("Histogram of reflection manager sync times")
+    this.syncHistogram =
+        newTimerProvider(
+            ReflectionMetrics.createName(ReflectionMetrics.RM_SYNC),
+            "Histogram of reflection manager sync times");
+    this.datasetEventHub = Preconditions.checkNotNull(datasetEventHub, "datasetEventHub");
+    this.deletedCounter =
+        io.micrometer.core.instrument.Counter.builder(
+                ReflectionMetrics.createName(ReflectionMetrics.RM_DELETED))
+            .description("Counter for deleted reflections")
             .withRegistry(io.micrometer.core.instrument.Metrics.globalRegistry);
   }
 
@@ -313,6 +332,7 @@ public class ReflectionManager implements Runnable {
     }
     deprecateMaterializations();
     deleteDeprecatedGoals(deletionThreshold);
+    updateStaleMaterializations();
     this.lastWakeupTime = currentTime;
   }
 
@@ -480,18 +500,18 @@ public class ReflectionManager implements Runnable {
       } catch (RuntimeException e) {
         ec.unknown++;
         logger.error("Couldn't handle entry {}", getId(entry), e);
-        reportFailure(entry, entry.getState());
         entry.setLastFailure(
             new Failure()
                 .setMessage(
                     String.format("Couldn't handle entry %s: %s", getId(entry), e.getMessage()))
                 .setStackTrace(Throwables.getStackTraceAsString(e)));
-        updateReflectionEntry(entry);
+        reportFailure(entry, entry.getState());
       }
     }
     this.lastStats = ec;
     Span.current().setAttribute("dremio.reflectionmanager.entries_active", ec.active);
     Span.current().setAttribute("dremio.reflectionmanager.entries_failed", ec.failed);
+    Span.current().setAttribute("dremio.reflectionmanager.entries_retrying", ec.retrying);
     Span.current().setAttribute("dremio.reflectionmanager.entries_unknown", ec.unknown);
     Span.current().setAttribute("dremio.reflectionmanager.entries_refreshing", ec.refreshing);
   }
@@ -552,6 +572,7 @@ public class ReflectionManager implements Runnable {
   @VisibleForTesting
   static final class EntryCounts {
     private long failed;
+    private long retrying;
     private long refreshing;
     private long active;
     private long unknown;
@@ -583,10 +604,14 @@ public class ReflectionManager implements Runnable {
     // dontGiveUp=false
     if (dependencyResolutionContext.hasAccelerationSettingsChanged()
         && entry.getState() != ReflectionState.FAILED) {
-      dependencyManager.updateDontGiveUp(entry, dependencyResolutionContext);
+      dependencyManager.updateRefreshPolicyType(entry, dependencyResolutionContext);
     }
 
     final ReflectionState state = entry.getState();
+    // Count retrying reflections that are not given up nor deprecated
+    if (entry.getNumFailures() > 0 && state != FAILED && state != DEPRECATE) {
+      counts.retrying++;
+    }
     switch (state) {
       case FAILED:
         counts.failed++;
@@ -783,7 +808,6 @@ public class ReflectionManager implements Runnable {
                           "Unable to retrieve job %s: %s",
                           entry.getRefreshJobId().getId(), e.getMessage())));
       materializationStore.save(m);
-      reportFailure(entry, ACTIVE);
       entry.setLastFailure(
           new Failure()
               .setMessage(
@@ -791,7 +815,7 @@ public class ReflectionManager implements Runnable {
                       "Unable to retrieve job %s: %s",
                       entry.getRefreshJobId().getId(), e.getMessage()))
               .setStackTrace(Throwables.getStackTraceAsString(e)));
-      updateReflectionEntry(entry);
+      reportFailure(entry, ACTIVE);
       return;
     }
 
@@ -836,7 +860,6 @@ public class ReflectionManager implements Runnable {
           logger.error(message, e);
           m.setState(MaterializationState.FAILED).setFailure(new Failure().setMessage(message));
           materializationStore.save(m);
-          reportFailure(entry, ACTIVE);
           entry.setLastFailure(
               new Failure()
                   .setMessage(
@@ -844,7 +867,7 @@ public class ReflectionManager implements Runnable {
                           "Error occurred during job %s: %s",
                           job.getJobId().getId(), e.getMessage()))
                   .setStackTrace(Throwables.getStackTraceAsString(e)));
-          updateReflectionEntry(entry);
+          reportFailure(entry, ACTIVE);
         }
         break;
       case CANCELED:
@@ -859,8 +882,14 @@ public class ReflectionManager implements Runnable {
         rollbackIcebergTableIfNecessary(m, lastAttempt, handler);
         m.setState(MaterializationState.CANCELED);
         materializationStore.save(m);
-        entry.setState(ACTIVE);
-        updateReflectionEntry(entry);
+        // if the new retry policy flag is not on, we don't count the failure
+        // so that unlimited retry is submitted for canceled jobs
+        if (optionManager.getOption(ReflectionOptions.BACKOFF_RETRY_POLICY)) {
+          reportFailure(entry, ACTIVE);
+        } else {
+          entry.setState(ACTIVE);
+          updateReflectionEntry(entry);
+        }
         break;
       case FAILED:
         logger.debug("Job {} failed for {}", job.getJobId().getId(), getId(m));
@@ -877,9 +906,8 @@ public class ReflectionManager implements Runnable {
                 .orElse("Reflection Job failed without reporting an error message");
         m.setState(MaterializationState.FAILED).setFailure(new Failure().setMessage(jobFailure));
         materializationStore.save(m);
-        reportFailure(entry, ACTIVE);
         entry.setLastFailure(new Failure().setMessage(jobFailure));
-        updateReflectionEntry(entry);
+        reportFailure(entry, ACTIVE);
         break;
       default:
         // nothing to do for non terminal states
@@ -981,7 +1009,7 @@ public class ReflectionManager implements Runnable {
     // make sure the corresponding dataset was not deleted
     if (catalog.getTable(datasetId) == null) {
       // dataset not found, mark goal as deleted
-      logger.debug("dataset with id {} deleted for {}", datasetId, getId(goal));
+      logger.info("dataset with id {} deleted for {}", datasetId, getId(goal));
 
       final ReflectionGoal goal2 = userStore.get(goal.getId());
       if (goal2 != null) {
@@ -1048,7 +1076,8 @@ public class ReflectionManager implements Runnable {
           .setArrowCachingEnabled(goal.getArrowCachingEnabled())
           .setGoalVersion(goal.getTag())
           .setName(goal.getName())
-          .setReflectionGoalHash(reflectionGoalChecker.calculateReflectionGoalVersion(goal));
+          .setReflectionGoalHash(reflectionGoalChecker.calculateReflectionGoalVersion(goal))
+          .setNumFailures(0);
       updateReflectionEntry(entry);
     }
   }
@@ -1085,11 +1114,57 @@ public class ReflectionManager implements Runnable {
   }
 
   @WithSpan
+  private void deleteMaterializationLocally(Materialization materialization) {
+    // clean up materialization record, materialization plan record
+    materializationStore.delete(materialization.getId());
+    materializationPlanStore.delete(
+        MaterializationPlanStore.createMaterializationPlanId(materialization.getId()));
+
+    // clean up namespaceKey
+    NamespaceKey namespaceKey =
+        new NamespaceKey(
+            Lists.newArrayList(
+                ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+                materialization.getReflectionId().getId(),
+                materialization.getId().getId()));
+    try {
+      if (namespaceService.exists(namespaceKey)) {
+        namespaceService.deleteEntity(namespaceKey);
+      } else {
+        logger.error(
+            "Unable to find the namespace {} with namespace key {}",
+            getId(materialization),
+            namespaceKey);
+      }
+    } catch (Exception e) {
+      logger.error("Unable to delete materialization from namespace {}", getId(materialization), e);
+    }
+  }
+
+  @WithSpan
   private void deleteMaterialization(Materialization materialization) {
 
     // set the materialization to DELETED so we don't try to delete it again
     materialization.setState(MaterializationState.DELETED);
     materializationStore.save(materialization);
+
+    if (optionManager.getOption(SKIP_DROP_TABLE_JOB_FOR_INCREMENTAL_REFRESH)) {
+      ReflectionEntry entry = reflectionStore.get(materialization.getReflectionId());
+      List<Refresh> refreshes =
+          ImmutableList.copyOf(
+              materializationStore.getRefreshesExclusivelyOwnedBy(materialization));
+      // for deprecated materialization of incremental refresh that doesn't own any refreshes,
+      // we do the cleanup within reflection manager to save resources.
+      if (entry != null
+          && entry.getRefreshMethod() == RefreshMethod.INCREMENTAL
+          && refreshes.isEmpty()) {
+        deleteMaterializationLocally(materialization);
+        logger.info(
+            "Deleted incremental materialization {} without DROP TABLE job.",
+            getId(materialization));
+        return;
+      }
+    }
 
     try {
       final String pathString = constructFullPath(getMaterializationPath(materialization));
@@ -1161,6 +1236,11 @@ public class ReflectionManager implements Runnable {
   }
 
   private void handleMaterializationDone(ReflectionEntry entry, Materialization materialization) {
+    if (!optionManager.getOption(LOAD_MATERIALIZATION_JOB_ENABLED)) {
+      handleMaterializationDoneAfterLoadMaterializationJobRemoval(entry, materialization);
+      return;
+    }
+
     final long now = System.currentTimeMillis();
     final long materializationExpiry =
         Optional.ofNullable(materialization.getExpiration()).orElse(0L);
@@ -1214,6 +1294,145 @@ public class ReflectionManager implements Runnable {
     }
   }
 
+  /**
+   * the new version of handleMaterializationDone after removing LOAD MATERIALIZATION job and
+   * replacing it with a synchronous table registration process. see DX-86479
+   */
+  private void handleMaterializationDoneAfterLoadMaterializationJobRemoval(
+      ReflectionEntry entry, Materialization materialization) {
+    final long now = System.currentTimeMillis();
+    final long materializationExpiry =
+        Optional.ofNullable(materialization.getExpiration()).orElse(0L);
+    if (materializationExpiry <= now) {
+      materialization
+          .setState(MaterializationState.FAILED)
+          .setFailure(new Failure().setMessage("Successful materialization already expired"));
+      logger.warn(
+          "Successful materialization already expired for {}",
+          ReflectionUtils.getId(materialization));
+      entry.setLastFailure(new Failure().setMessage("Successful materialization already expired"));
+    } else {
+      // register materialization table
+      Catalog catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
+      try {
+        final ReflectionGoal goal = userStore.get(entry.getId());
+        final List<ReflectionField> sortedFields =
+            Optional.ofNullable(goal.getDetails().getSortFieldList()).orElse(ImmutableList.of());
+
+        final Function<DatasetConfig, DatasetConfig> datasetMutator;
+        if (sortedFields.isEmpty()) {
+          datasetMutator = Functions.identity();
+        } else {
+          datasetMutator =
+              new Function<DatasetConfig, DatasetConfig>() {
+                @Override
+                public DatasetConfig apply(DatasetConfig datasetConfig) {
+                  if (datasetConfig.getReadDefinition() == null) {
+                    logger.warn(
+                        "Trying to set sortColumnList on a datasetConfig that doesn't contain a read definition");
+                  } else {
+                    final List<String> sortColumnsList =
+                        FluentIterable.from(sortedFields)
+                            .transform(
+                                new Function<ReflectionField, String>() {
+                                  @Override
+                                  public String apply(ReflectionField field) {
+                                    return field.getName();
+                                  }
+                                })
+                            .toList();
+                    datasetConfig.getReadDefinition().setSortColumnsList(sortColumnsList);
+                  }
+                  return datasetConfig;
+                }
+              };
+        }
+
+        NamespaceKey materializationPath =
+            new NamespaceKey(getMaterializationPath(materialization));
+        catalog.createDataset(materializationPath, datasetMutator);
+
+        List<String> primaryKey = materialization.getPrimaryKeyList();
+        if (!CollectionUtils.isEmpty(primaryKey)) {
+          catalog.addPrimaryKey(materializationPath, primaryKey, null);
+        }
+      } catch (Exception | AssertionError e) {
+        logger.warn("Failed to register materialization table for {}", getId(materialization), e);
+        materialization
+            .setState(MaterializationState.FAILED)
+            .setFailure(
+                new Failure()
+                    .setMessage(
+                        String.format(
+                            "Failed to register materialization table: %s", e.getMessage())));
+        entry.setLastFailure(
+            new Failure()
+                .setMessage(
+                    String.format("Failed to register materialization table: %s", e.getMessage()))
+                .setStackTrace(Throwables.getStackTraceAsString(e)));
+      }
+
+      if (materialization.getState() != MaterializationState.FAILED) {
+        deprecateLastMaterialization(materialization);
+        materialization.setState(MaterializationState.DONE);
+        entry
+            .setState(ACTIVE)
+            .setLastSuccessfulRefresh(System.currentTimeMillis())
+            .setNumFailures(0)
+            .setLastFailure(null);
+
+        // Only update the vacuum info for incremental refreshes
+        if (entry.getRefreshMethod() == RefreshMethod.INCREMENTAL
+            && materialization.getIsIcebergDataset()
+            && materialization.getSeriesOrdinal() > 0) {
+          // Update current MaterializationId and SnapshotId cache, so we can determine when to
+          // vacuum
+          // the reflection
+          NamespaceKey namespaceKey =
+              new NamespaceKey(
+                  Lists.newArrayList(
+                      ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+                      entry.getId().getId(),
+                      materialization.getId().getId()));
+          DremioTable table = catalog.getTable(namespaceKey);
+          if (table == null) {
+            logger.error(
+                "Materialization table {} not found for namespaceKey {}",
+                entry.getId().getId(),
+                namespaceKey);
+          } else if (!materialization.getIsIcebergDataset()) {
+            logger.debug(
+                "Iceberg is disabled, cannot update materialization cache for reflection {}",
+                entry.getId().getId());
+          } else {
+            long snapshotId =
+                table.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getSnapshotId();
+            dependencyManager.updateMaterializationInfo(
+                entry.getId(), materialization.getId(), snapshotId, false);
+          }
+        }
+      }
+    }
+
+    if (materialization.getState() == MaterializationState.FAILED) {
+      materializationStore.save(materialization);
+      reportFailure(entry, ACTIVE);
+      return;
+    }
+
+    materializationStore.save(materialization);
+    updateReflectionEntry(entry);
+
+    updateMaterializationCache(entry, materialization);
+    // if the materialization fails during materialization cache update, then don't invalidate plan
+    // cache.
+    if (materialization.getState() == MaterializationState.FAILED) {
+      return;
+    }
+
+    datasetEventHub.fireRemoveDatasetEvent(new DatasetRemovedEvent(entry.getDatasetId()));
+  }
+
   private void cancelRefreshJobIfAny(ReflectionEntry entry) {
     if (entry.getState() != REFRESHING && entry.getState() != METADATA_REFRESH) {
       return;
@@ -1263,7 +1482,7 @@ public class ReflectionManager implements Runnable {
       RefreshDoneHandler handler) {
     switch (entry.getState()) {
       case REFRESHING:
-        refreshingJobSucceded(entry, materialization, job, handler);
+        refreshingJobSucceeded(entry, materialization, job, handler);
         break;
       case COMPACTING:
         // There are two types of compaction - COMPACT and OPTIMIZE.
@@ -1284,11 +1503,16 @@ public class ReflectionManager implements Runnable {
     }
   }
 
-  private void refreshingJobSucceded(
+  private void refreshingJobSucceeded(
       ReflectionEntry entry,
       Materialization materialization,
       com.dremio.service.job.JobDetails job,
       RefreshDoneHandler handler) {
+    if (!optionManager.getOption(LOAD_MATERIALIZATION_JOB_ENABLED)) {
+      refreshingJobSucceededAfterLoadMaterializationJobRemoval(
+          entry, materialization, job, handler);
+      return;
+    }
 
     try {
       final RefreshDecision decision = handler.handle();
@@ -1302,21 +1526,23 @@ public class ReflectionManager implements Runnable {
           .setShallowDatasetHash(decision.getDatasetHash());
     } catch (Exception | AssertionError e) {
       logger.warn("Failed to handle done job for {}", getId(entry), e);
+      String stackTrace = Throwables.getStackTraceAsString(e);
       materialization
           .setState(MaterializationState.FAILED)
           .setFailure(
               new Failure()
                   .setMessage(
                       String.format(
-                          "Failed to handle successful REFLECTION REFRESH job %s: %s",
-                          job.getJobId().getId(), e.getMessage())));
+                          "Failed to handle successful REFLECTION REFRESH job %s: %s. Stack trace \n%s",
+                          job.getJobId().getId(), e.getMessage(), stackTrace))
+                  .setStackTrace(stackTrace));
       entry.setLastFailure(
           new Failure()
               .setMessage(
                   String.format(
-                      "Failed to handle successful REFLECTION REFRESH job %s: %s",
-                      job.getJobId().getId(), e.getMessage()))
-              .setStackTrace(Throwables.getStackTraceAsString(e)));
+                      "Failed to handle successful REFLECTION REFRESH job %s: %s Stack trace \n%s",
+                      job.getJobId().getId(), e.getMessage(), stackTrace))
+              .setStackTrace(stackTrace));
     }
 
     // update the namespace metadata before saving information to the reflection store to avoid
@@ -1378,8 +1604,85 @@ public class ReflectionManager implements Runnable {
 
     materializationStore.save(materialization);
     updateReflectionEntry(entry);
-    try (PlanCacheInvalidationHelper helper = planCacheInvalidationHelper.get()) {
-      helper.invalidateReflectionAssociatedPlanCache(entry.getDatasetId());
+    datasetEventHub.fireRemoveDatasetEvent(new DatasetRemovedEvent(entry.getDatasetId()));
+  }
+
+  /**
+   * the new version of refreshingJobSucceeded after removing LOAD MATERIALIZATION job and replacing
+   * it with a synchronous table registration process. see DX-86479
+   */
+  private void refreshingJobSucceededAfterLoadMaterializationJobRemoval(
+      ReflectionEntry entry,
+      Materialization materialization,
+      com.dremio.service.job.JobDetails job,
+      RefreshDoneHandler handler) {
+
+    try {
+      final RefreshDecision decision = handler.handle();
+
+      // no need to set the following attributes if we fail to handle the refresh
+      entry
+          .setRefreshMethod(decision.getAccelerationSettings().getMethod())
+          .setRefreshField(decision.getAccelerationSettings().getRefreshField())
+          .setSnapshotBased(decision.getAccelerationSettings().getSnapshotBased())
+          .setExpandedPlanDatasetHash(decision.getDatasetHash())
+          .setShallowDatasetHash(decision.getDatasetHash());
+    } catch (Exception | AssertionError e) {
+      logger.warn("Failed to handle done job for {}", getId(entry), e);
+      materialization
+          .setState(MaterializationState.FAILED)
+          .setFailure(
+              new Failure()
+                  .setMessage(
+                      String.format(
+                          "Failed to handle successful REFLECTION REFRESH job %s: %s",
+                          job.getJobId().getId(), e.getMessage()))
+                  .setStackTrace(Throwables.getStackTraceAsString(e)));
+      materializationStore.save(materialization);
+      entry.setLastFailure(
+          new Failure()
+              .setMessage(
+                  String.format(
+                      "Failed to handle successful REFLECTION REFRESH job %s: %s",
+                      job.getJobId().getId(), e.getMessage()))
+              .setStackTrace(Throwables.getStackTraceAsString(e)));
+      reportFailure(entry, ACTIVE);
+    }
+
+    // update the namespace metadata before saving information to the reflection store to avoid
+    // concurrent updates.
+    if (materialization.getState() != MaterializationState.FAILED) {
+
+      // expiration may not be set if materialization has failed
+      final long materializationExpiry =
+          Optional.ofNullable(materialization.getExpiration()).orElse(0L);
+      if (materializationExpiry <= System.currentTimeMillis()) {
+        materialization
+            .setState(MaterializationState.FAILED)
+            .setFailure(new Failure().setMessage("Successful materialization already expired"));
+        materializationStore.save(materialization);
+        entry.setLastFailure(
+            new Failure().setMessage("Successful materialization already expired"));
+        logger.warn(
+            "Successful REFLECTION REFRESH but already expired for {}",
+            ReflectionUtils.getId(materialization));
+        reportFailure(entry, ACTIVE);
+      } else {
+        // even if the materialization didn't write any data it may still own refreshes if it's a
+        // non-initial incremental
+        final List<Refresh> refreshes = materializationStore.getRefreshes(materialization).toList();
+        Preconditions.checkState(
+            materialization.getState() != MaterializationState.FAILED, "failed materialization");
+        if (compactIfNecessary(entry, materialization, refreshes)) {
+          return;
+        }
+        handleMaterializationDone(entry, materialization);
+      }
+    }
+
+    if (entry.getState().equals(ACTIVE)
+        && materialization.getState().equals(MaterializationState.DONE)) {
+      maybeOptimizeIncrementalReflectionFiles(entry, materialization);
     }
   }
 
@@ -1678,14 +1981,19 @@ public class ReflectionManager implements Runnable {
 
     // start a metadata refresh and delete compacted materialization, in parallel
     deleteCompactedMaterialization(entry);
-    refreshMetadata(entry, materialization);
+
+    if (optionManager.getOption(LOAD_MATERIALIZATION_JOB_ENABLED)) {
+      refreshMetadata(entry, materialization);
+    } else {
+      handleMaterializationDone(entry, materialization);
+    }
   }
 
   private void optimizeJobSucceeded(
       ReflectionEntry entry,
       Materialization materialization,
       com.dremio.service.job.JobDetails job) {
-    // Submit a LOAD MATERIALIZATION job so the new snapshots can be used.
+    // Register materialization table so the new snapshots can be used.
     final Materialization newMaterialization =
         materializationStore.getRunningMaterialization(entry.getId());
 
@@ -1758,7 +2066,11 @@ public class ReflectionManager implements Runnable {
     refresh.setCompacted(true);
     materializationStore.save(refresh);
 
-    refreshMetadata(entry, newMaterialization);
+    if (optionManager.getOption(LOAD_MATERIALIZATION_JOB_ENABLED)) {
+      refreshMetadata(entry, newMaterialization);
+    } else {
+      handleMaterializationDone(entry, newMaterialization);
+    }
   }
 
   void optimizeJobCanceledOrFailed(
@@ -1885,6 +2197,26 @@ public class ReflectionManager implements Runnable {
         "Submitted LOAD MATERIALIZATION job {} for {}", jobId.getId(), getId(materialization));
   }
 
+  private void updateMaterializationCache(ReflectionEntry entry, Materialization materialization) {
+    try {
+      descriptorCache.update(materialization);
+    } catch (Exception | AssertionError e) {
+      logger.warn("Failed to update materialization cache for {}", getId(materialization), e);
+      materialization
+          .setState(MaterializationState.FAILED)
+          .setFailure(
+              new Failure()
+                  .setMessage(
+                      String.format("Materialization cache update failed: %s", e.getMessage())));
+      materializationStore.save(materialization);
+      entry.setLastFailure(
+          new Failure()
+              .setMessage(String.format("Materialization cache update failed: %s", e.getMessage()))
+              .setStackTrace(Throwables.getStackTraceAsString(e)));
+      reportFailure(entry, ACTIVE);
+    }
+  }
+
   private void startRefresh(ReflectionEntry entry) {
     final long jobSubmissionTime = System.currentTimeMillis();
     // we should always update lastSubmittedRefresh to avoid an immediate refresh if we fail to
@@ -1893,14 +2225,13 @@ public class ReflectionManager implements Runnable {
 
     if (DremioEdition.get() != DremioEdition.MARKETPLACE
         && sabotContext.getCoordinatorModeInfoProvider().get().isInSoftwareMode()) {
-      if (sabotContext.getExecutors().isEmpty()
+      if (sabotContext.getClusterCoordinator().getExecutorEndpoints().isEmpty()
           && System.currentTimeMillis() - sabotContext.getEndpoint().getStartTime()
               < START_WAIT_MILLIS) {
         logger.warn("No executors available to refresh {}", getId(entry));
-        reportFailure(entry, ACTIVE);
         entry.setLastFailure(
             new Failure().setMessage("No executors available to refresh reflection"));
-        updateReflectionEntry(entry);
+        reportFailure(entry, ACTIVE);
         return;
       }
     }
@@ -1928,13 +2259,12 @@ public class ReflectionManager implements Runnable {
                             "Failed to start REFRESH REFLECTION job: %s", e.getMessage())));
         materializationStore.save(m);
       }
-      reportFailure(entry, ACTIVE);
       entry.setLastFailure(
           new Failure()
               .setMessage(
                   String.format("Failed to start REFRESH REFLECTION job: %s", e.getMessage()))
               .setStackTrace(Throwables.getStackTraceAsString(e)));
-      updateReflectionEntry(entry);
+      reportFailure(entry, ACTIVE);
     }
   }
 
@@ -1967,11 +2297,17 @@ public class ReflectionManager implements Runnable {
   }
 
   private void reportFailure(ReflectionEntry entry, ReflectionState newState) {
-    if (entry.getDontGiveUp()) {
-      logger.debug("Due to dontGiveUp, ignoring failure on {}", getId(entry));
-      entry.setState(newState).setNumFailures(entry.getNumFailures() + 1);
-      updateReflectionEntry(entry);
-      return;
+    // if the new retry policy flag is not on, unlimited retry is submitted for DontGiveUp
+    // reflections
+    if (!optionManager.getOption(ReflectionOptions.BACKOFF_RETRY_POLICY)) {
+      if (entry.getRefreshPolicyTypeList() != null
+          && entry.getRefreshPolicyTypeList().size() == 1
+          && RefreshPolicyType.NEVER.equals(entry.getRefreshPolicyTypeList().get(0))) {
+        logger.debug("Due to dontGiveUp, ignoring failure on {}", getId(entry));
+        entry.setState(newState).setNumFailures(entry.getNumFailures() + 1);
+        updateReflectionEntry(entry);
+        return;
+      }
     }
 
     final int numFailures = entry.getNumFailures() + 1;
@@ -2047,5 +2383,21 @@ public class ReflectionManager implements Runnable {
   void deleteReflectionEntry(ReflectionId id) {
     reflectionStore.delete(id);
     dependencyManager.deleteMaterializationInfo(id);
+  }
+
+  /**
+   * Computes all reflections that will be refreshed if a refresh request is placed for given
+   * reflectionId. Also calculates the batch number for each output reflection, representing the
+   * depth from reflection's upstream base tables in the Dependency Graph.
+   */
+  public ImmutableMap<ReflectionId, Integer> computeReflectionLineage(ReflectionId id) {
+    return dependencyManager.computeReflectionLineage(id);
+  }
+
+  /** Updates the staleness info of all non-expired DONE materializations. */
+  private void updateStaleMaterializations() {
+    final long now = System.currentTimeMillis();
+    StreamSupport.stream(materializationStore.getAllDoneWhen(now).spliterator(), false)
+        .forEach(dependencyManager::updateStaleMaterialization);
   }
 }

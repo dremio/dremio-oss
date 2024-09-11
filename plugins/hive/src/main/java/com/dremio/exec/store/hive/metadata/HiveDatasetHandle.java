@@ -20,15 +20,20 @@ import java.util.Objects;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.options.InternalMetadataTableOption;
+import org.apache.hadoop.hive.metastore.api.Table;
 
 public final class HiveDatasetHandle implements DatasetHandle {
 
   private final EntityPath datasetpath;
   private final InternalMetadataTableOption internalMetadataTableOption;
+  private final Table table;
 
-  private HiveDatasetHandle(final EntityPath datasetpath, final InternalMetadataTableOption internalMetadataTableOption) {
+  private HiveDatasetHandle(final EntityPath datasetpath,
+                            final InternalMetadataTableOption internalMetadataTableOption,
+                            final Table table) {
     this.datasetpath = datasetpath;
     this.internalMetadataTableOption = internalMetadataTableOption;
+    this.table = table;
   }
 
   @Override
@@ -40,6 +45,10 @@ public final class HiveDatasetHandle implements DatasetHandle {
     return internalMetadataTableOption;
   }
 
+  public Table getTable() {
+    return table;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -47,6 +56,7 @@ public final class HiveDatasetHandle implements DatasetHandle {
   public static final class Builder {
     private EntityPath datasetpath;
     private InternalMetadataTableOption internalMetadataTableOption;
+    private Table table;
 
     public Builder datasetpath(EntityPath datasetpath) {
       this.datasetpath = datasetpath;
@@ -58,9 +68,14 @@ public final class HiveDatasetHandle implements DatasetHandle {
       return this;
     }
 
+    public Builder table(Table table) {
+      this.table = table;
+      return this;
+    }
+
     public HiveDatasetHandle build() {
       Objects.requireNonNull(datasetpath, "dataset path is required");
-      return new HiveDatasetHandle(datasetpath, internalMetadataTableOption);
+      return new HiveDatasetHandle(datasetpath, internalMetadataTableOption, table);
     }
   }
 }

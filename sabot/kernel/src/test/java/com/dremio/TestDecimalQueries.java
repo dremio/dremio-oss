@@ -402,6 +402,45 @@ public class TestDecimalQueries extends BaseTestQuery {
   }
 
   @Test
+  public void testVarcharComparison() throws Exception {
+    final String query =
+        "SELECT key, val\n"
+            + "FROM (\n"
+            + "VALUES\n"
+            + "     ('null', null),\n"
+            + "     ('min int minus one', -2147483649.00),\n"
+            + "     ('min int', -2147483648.00),\n"
+            + "     ('min short minus one', -32769.00),\n"
+            + "     ('min short', -32768.00),\n"
+            + "     ('pgtest float8 value 2', -34.84),\n"
+            + "     ('-two', -2.00),\n"
+            + "     ('-1.2', 1.20),\n"
+            + "     ('-one', -1.00),\n"
+            + "     ('zero', 0.00),\n"
+            + "     ('one', 1.00),\n"
+            + "     ('1.3', 1.30),\n"
+            + "     ('two', 2.00),\n"
+            + "     ('frac_without_whole', 0.25),\n"
+            + "     ('pgtest float8 value 1', 1004.30),\n"
+            + "     ('max short', 32767.00),\n"
+            + "     ('max short plus one', 32768.00),\n"
+            + "     ('max int', 2147483647.00),\n"
+            + "     ('max int plus one', 2147483648.00))\n"
+            + "AS temp_table(key, val) where val > '2'";
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("key", "val")
+        .baselineValues("pgtest float8 value 1", new BigDecimal("1004.30"))
+        .baselineValues("max short", new BigDecimal("32767.00"))
+        .baselineValues("max short plus one", new BigDecimal("32768.00"))
+        .baselineValues("max int", new BigDecimal("2147483647.00"))
+        .baselineValues("max int plus one", new BigDecimal("2147483648.00"))
+        .go();
+  }
+
+  @Test
   public void testRoundLiteralMinus30() throws Exception {
     final String query =
         "select trunc(k, -30) from cp" + ".\"parquet/decimals/decimal38p1s.parquet\" limit 2";

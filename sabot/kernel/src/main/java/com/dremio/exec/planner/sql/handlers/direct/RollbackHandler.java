@@ -47,13 +47,14 @@ public class RollbackHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final NamespaceKey path =
         CatalogUtil.getResolvePathForTableManagement(catalog, getTablePath(sqlNode));
-    CatalogEntityKey key = CatalogEntityKey.fromNamespaceKey(path);
-    validateCommand(catalog, config, key);
-    DremioTable table = catalog.getTable(path);
-
     final String sourceName = path.getRoot();
     final VersionContext sessionVersion =
         config.getContext().getSession().getSessionVersionForSource(sourceName);
+    CatalogEntityKey key =
+        CatalogEntityKey.buildCatalogEntityKeyDefaultToNotSpecifiedVersionContext(
+            path, sessionVersion);
+    validateCommand(catalog, config, key);
+    DremioTable table = catalog.getTable(path);
     ResolvedVersionContext resolvedVersionContext =
         CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);

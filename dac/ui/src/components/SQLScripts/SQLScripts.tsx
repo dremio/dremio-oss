@@ -17,7 +17,7 @@
 import { useMemo, useState, useRef, useEffect, MutableRefObject } from "react";
 import { connect } from "react-redux";
 import classNames from "clsx";
-import { debounce, isEqual } from "lodash";
+import { debounce } from "lodash";
 import moment from "@app/utils/dayjs";
 import { injectIntl } from "react-intl";
 import { withRouter } from "react-router";
@@ -37,12 +37,16 @@ import {
   deleteScript,
   setActiveScript,
 } from "@app/actions/resources/scripts";
-import { Avatar } from "dremio-ui-lib/components";
+import {
+  Avatar,
+  ModalContainer,
+  useModalContainer,
+} from "dremio-ui-lib/components";
 import { usePrevious } from "@app/utils/jobsUtils";
 import { resetQueryState } from "@app/actions/explore/view";
 
 import { loadPrivilegesListData } from "@app/actions/resources/privilegesModalApiActions";
-import Menu from "../Menus/Menu";
+import Menu, { styles } from "../Menus/Menu";
 import MenuItem from "../Menus/MenuItem";
 import SettingsBtn from "../Buttons/SettingsBtn";
 import SearchDatasetsComponent from "../DatasetList/SearchDatasetsComponent";
@@ -55,16 +59,34 @@ import {
   filterAndSortScripts,
   INITIAL_CALL_VALUE,
   SEARCH_CALL_VALUE,
-  prepareScriptsFromList,
   openPrivilegesModalForScript,
+  handleOpenTabScript,
 } from "./sqlScriptsUtils";
+import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 
 import SQLScriptRenameDialog from "./components/SQLScriptRenameDialog/SQLScriptRenameDialog";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 import "./SQLScripts.less";
 import { useSqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/providers/useSqlRunnerSession.js";
+import {
+  newTab,
+  closeTabs,
+  selectTab,
+} from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 
 import { useMultiTabIsEnabled } from "./useMultiTabIsEnabled";
+import {
+  ScriptCheckbox,
+  ScriptSelectAllCheckbox,
+  useSqlScriptsMultiSelect,
+} from "./components/SqlScriptsMultiSelect/SqlScriptsMultiSelect";
+import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { SQLScriptsBulkDeleteDialog } from "./components/SQLScriptsBulkDeleteDialog/SQLScriptsBulkDeleteDialog";
+import { v4 as uuidv4 } from "uuid";
+import { useSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { ENABLED_SCRIPTS_API_V3 } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { deleteQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
 
 export const VIEW_ID = "ScriptsPrivileges";
 
@@ -84,7 +106,6 @@ export type SQLScriptsProps = {
   }) => Promise<any>;
   updateSQLScript: (payload: any, scriptId?: string) => void;
   deleteScript: (scriptId: string) => any;
-  setActiveScript: (script: any) => void;
   showConfirmationDialog: (content: any) => void;
   resetQueryState: (exclude?: any) => void;
   dispatchLoadPrivilegesListData: (fullPathList: any[], viewId: string) => void;
@@ -92,11 +113,10 @@ export type SQLScriptsProps = {
 
 function SQLScripts(props: SQLScriptsProps): React.ReactElement {
   const {
-    scripts = [],
-    mineScripts,
+    scripts: allScripts = [],
+    mineScripts: myScripts,
     activeScript,
     fetchSQLScripts,
-    setActiveScript,
     user,
     router,
     location,
@@ -106,14 +126,19 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
   const isMultiTabEnabled = useMultiTabIsEnabled();
   const inputRef = useRef<any>();
   const focusRef = useRef<any>();
+  const [fetchKey, setFetchKey] = useState(() => uuidv4());
+  const forceRefetchScripts = () => {
+    setFetchKey(uuidv4());
+  };
   const [sort, setSort] = useState(SCRIPT_SORT_MENU[3]);
   const [search, setSearch] = useState("");
   const [scriptForRename, setScriptForRename] = useState<any>({});
   const [selectedScriptsTab, setSelectedScriptsTab] = useState(
-    ALL_MINE_SCRIPTS_TABS.all
+    ALL_MINE_SCRIPTS_TABS.all,
   );
   const scriptIdFromUrl = location?.query?.scriptId;
   const curScriptRef = useRef<any>(null);
+  const [hasScriptsV3Api] = useSupportFlag(ENABLED_SCRIPTS_API_V3);
 
   useEffect(() => {
     if (!curScriptRef.current) return;
@@ -126,6 +151,7 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
   });
 
   const prevSearch = usePrevious(search);
+  const prevFetchKey = usePrevious(fetchKey);
 
   const onFocus = () => {
     if (focusRef?.current)
@@ -139,26 +165,6 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
   const onFocusRef = (div: MutableRefObject<any>) => {
     focusRef.current = div;
   };
-
-  // Create scripts lists
-  const [allScripts, myScripts] = useMemo(() => {
-    return [
-      prepareScriptsFromList({
-        list: scripts,
-        updateActiveScript: (script: { id: string }) => {
-          if (
-            activeScript &&
-            activeScript.id === script.id &&
-            !isEqual(script, activeScript) &&
-            setActiveScript
-          ) {
-            setActiveScript({ script: script });
-          }
-        },
-      }),
-      prepareScriptsFromList({ list: mineScripts }),
-    ];
-  }, [scripts, mineScripts, activeScript, setActiveScript]);
 
   // -- Filter and sort based on the active list --
   // All: FE and BE filter for correct display number and correctly filtered list
@@ -189,24 +195,38 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
   // BE search for All list: user could have 100+ scripts in ALl tab so BE search
   // is needed
   useEffect(() => {
-    if (search !== "" && search !== prevSearch) {
+    if (search === prevSearch && fetchKey === prevFetchKey) {
+      return;
+    }
+
+    const hasSearchKey = search !== "";
+    fetchSQLScripts({
+      maxResults: hasSearchKey ? SEARCH_CALL_VALUE : INITIAL_CALL_VALUE,
+      searchTerm: hasSearchKey ? search : null,
+      createdBy: null,
+    });
+
+    // Fetch "Mine" tab scripts also
+    if (fetchKey !== prevFetchKey) {
       fetchSQLScripts({
-        maxResults: SEARCH_CALL_VALUE,
-        searchTerm: search,
-        createdBy: null,
-      });
-    } else if (search === "" && search !== prevSearch) {
-      fetchSQLScripts({
-        maxResults: INITIAL_CALL_VALUE,
-        searchTerm: null,
-        createdBy: null,
+        maxResults: hasSearchKey ? SEARCH_CALL_VALUE : INITIAL_CALL_VALUE,
+        searchTerm: hasSearchKey ? search : null,
+        createdBy: user.get("userId"),
       });
     }
-  }, [search, fetchSQLScripts, prevSearch, selectedScriptsTab, user]);
+  }, [
+    search,
+    fetchSQLScripts,
+    prevSearch,
+    selectedScriptsTab,
+    user,
+    fetchKey,
+    prevFetchKey,
+  ]);
 
   const debouncedSearch = debounce(
     (e: any): void => setSearch((e.target as any).value),
-    250
+    250,
   );
 
   const clearSearch = (): void => {
@@ -234,9 +254,6 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
           location,
           script,
           VIEW_ID,
-          noDataText: intl.formatMessage({
-            id: "Privileges.Script.Not.Shared",
-          }),
         });
       },
     },
@@ -250,7 +267,7 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
           () => {
             nextScript && handleOpenScript(args[0], nextScript);
           },
-          isMultiTabEnabled
+          isMultiTabEnabled,
         );
       },
       disabled: isMultiTabEnabled && allScriptsResults?.value?.length === 1,
@@ -268,7 +285,7 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
     const handleClick = (
       scriptAction: any,
       userId: string,
-      searchTerm: string
+      searchTerm: string,
     ): void => {
       scriptAction.onClick(props, script, userId, searchTerm, nextScript);
       closeMenu();
@@ -290,7 +307,7 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
                 className={script.className ? script.className : ""}
               >
                 {script.label}
-              </MenuItem>
+              </MenuItem>,
             );
           }
           return iterator;
@@ -300,17 +317,27 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
   };
 
   const currentScriptsList = selectedScriptsTab.startsWith(
-    ALL_MINE_SCRIPTS_TABS.all
+    ALL_MINE_SCRIPTS_TABS.all,
   )
     ? allScriptsWithFilter
     : myScriptsWithFilter;
 
+  const selectableScripts = useMemo(
+    () =>
+      currentScriptsList.filter(({ permissions }) =>
+        permissions.includes("DELETE"),
+      ),
+    [currentScriptsList],
+  );
+
+  const { onCheckboxClick, onAllClick, selectedScripts } =
+    useSqlScriptsMultiSelect(selectableScripts);
   const RenderScripts = !currentScriptsList.length ? (
     <span className="sqlScripts__empty">
       {intl.formatMessage({ id: "Script.NoneFound" })}
     </span>
   ) : (
-    <Menu>
+    <Menu style={{ ...styles.menuStyle, flex: 1 }}>
       {currentScriptsList.map((script, i) => (
         <MenuItem
           key={script.id}
@@ -323,28 +350,45 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
               setRef: (ref: any) => (curScriptRef.current = ref),
             })}
         >
-          <>
-            <div className="sqlScripts__menu-item__leftContent">
-              <div
-                className={classNames(
-                  "sideNav__user sideNav-item__dropdownIcon",
-                  "--narrow"
+          <div
+            className={classNames("sqlScripts__menu-item__leftContent", {
+              "--with-checkbox": hasScriptsV3Api,
+            })}
+          >
+            {hasScriptsV3Api && (
+              <ScriptCheckbox
+                disabled={!script.permissions.includes("DELETE")}
+                checked={selectedScripts.includes(script)}
+                onClick={onCheckboxClick(script)}
+              />
+            )}
+            <div
+              className={classNames(
+                "sideNav__user sideNav-item__dropdownIcon",
+                "--narrow",
+              )}
+            >
+              <Avatar
+                initials={nameToInitials(
+                  script.createdBy.name || script.createdBy.email,
                 )}
-              >
-                <Avatar initials={script.initials} />
-              </div>
-              <div className="sqlScripts__menu-item__nameContent">
-                <TextHighlight
-                  className="scriptName"
-                  text={script.name}
-                  inputValue={search}
-                  tooltipPlacement="top"
-                  tooltipEnterDelay={500}
-                  tooltipEnterNextDelay={500}
-                />
-                <div className="scriptCreator">
-                  {moment(script.modifiedAt).format(DATETIME_FORMAT)}
-                </div>
+              />
+            </div>
+            <div
+              className={classNames("sqlScripts__menu-item__nameContent", {
+                "--with-checkbox": hasScriptsV3Api,
+              })}
+            >
+              <TextHighlight
+                className="scriptName"
+                text={script.name}
+                inputValue={search}
+                tooltipPlacement="top"
+                tooltipEnterDelay={500}
+                tooltipEnterNextDelay={500}
+              />
+              <div className="scriptCreator">
+                {moment(script.modifiedAt).format(DATETIME_FORMAT)}
               </div>
             </div>
             <SettingsBtn
@@ -365,48 +409,123 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
                 alt={intl.formatMessage({ id: "Common.More" })}
               />
             </SettingsBtn>
-          </>
+          </div>
         </MenuItem>
       ))}
     </Menu>
   );
 
+  const bulkDeleteDialog = useModalContainer();
+
   return (
-    <div className="sqlScripts" data-qa="sqlScripts">
-      <div className="sqlScripts__subHeading">
-        <SubHeaderTabs
-          onClickFunc={setSelectedScriptsTab}
-          tabArray={numberedScriptsTabs}
-          selectedTab={selectedScriptsTab}
+    <>
+      <div
+        className="sqlScripts flex flex-1 flex-col"
+        style={{ minHeight: 0 }}
+        data-qa="sqlScripts"
+      >
+        <div className="sqlScripts__subHeading">
+          <SubHeaderTabs
+            onClickFunc={setSelectedScriptsTab}
+            tabArray={numberedScriptsTabs}
+            selectedTab={selectedScriptsTab}
+          />
+          <SortDropDownMenu
+            menuList={SCRIPT_SORT_MENU}
+            sortValue={sort}
+            disabled={allScripts.length === 0}
+            setSortValue={setSort}
+            selectClass={"sqlScripts__dropdown__disabled"}
+          />
+        </div>
+        <SearchDatasetsComponent
+          onInput={debouncedSearch}
+          clearFilter={clearSearch}
+          closeVisible={search !== ""}
+          onInputRef={onInputRef}
+          placeholderText={intl.formatMessage({ id: "Script.Search" })}
+          dataQa="sqlScripts__search"
+          onFocus={onFocus}
+          onBlur={onBlur}
+          onFocusRef={onFocusRef}
         />
-        <SortDropDownMenu
-          menuList={SCRIPT_SORT_MENU}
-          sortValue={sort}
-          disabled={scripts.length === 0}
-          setSortValue={setSort}
-          selectClass={"sqlScripts__dropdown__disabled"}
-        />
+        {RenderScripts}
+        {selectedScripts.length > 0 && (
+          <ScriptSelectAllCheckbox
+            onCheckboxClick={onAllClick}
+            onDeleteClick={bulkDeleteDialog.open}
+            scripts={selectableScripts}
+            selectedScripts={selectedScripts}
+          />
+        )}
+        {scriptForRename && scriptForRename.id && (
+          <SQLScriptRenameDialog
+            script={scriptForRename}
+            isOpen={!!scriptForRename.id}
+            onCancel={() => setScriptForRename({})}
+          />
+        )}
       </div>
-      <SearchDatasetsComponent
-        onInput={debouncedSearch}
-        clearFilter={clearSearch}
-        closeVisible={search !== ""}
-        onInputRef={onInputRef}
-        placeholderText={intl.formatMessage({ id: "Script.Search" })}
-        dataQa="sqlScripts__search"
-        onFocus={onFocus}
-        onBlur={onBlur}
-        onFocusRef={onFocusRef}
-      />
-      {RenderScripts}
-      {scriptForRename && scriptForRename.id && (
-        <SQLScriptRenameDialog
-          script={scriptForRename}
-          isOpen={!!scriptForRename.id}
-          onCancel={() => setScriptForRename({})}
+      <ModalContainer {...bulkDeleteDialog}>
+        <SQLScriptsBulkDeleteDialog
+          onCancel={bulkDeleteDialog.close}
+          onSuccess={async (deletedIds) => {
+            const curActiveScriptId =
+              $SqlRunnerSession.$merged.value?.currentScriptId;
+            let activeScriptDeleted = false;
+            deletedIds.forEach((scriptId) => {
+              deleteQuerySelectionsFromStorage(scriptId);
+
+              if (scriptId === curActiveScriptId) {
+                activeScriptDeleted = true;
+              }
+            });
+            const remainingOpenTabIds =
+              $SqlRunnerSession.$merged.value?.scriptIds.filter(
+                (cur) => !deletedIds.includes(cur),
+              ) || [];
+
+            // All tabs closed, either create a new script or open an existing one
+            let existingScriptToOpen = null;
+            if (remainingOpenTabIds.length === 0) {
+              await newTab(); // No more scripts, create a new one
+            } else {
+              // Or look for an existing script and create new tab if none after tabs closed
+              // Set the current tab in SQL Runner session, backend will throw an error when closing the last one
+              // Call handleOpenTabScript to push new route, load jobs etc after calling closeTabs
+              existingScriptToOpen = ScriptsResource.getResource().value?.find(
+                (script) => script.id === remainingOpenTabIds[0],
+              );
+              if (existingScriptToOpen) {
+                await selectTab(existingScriptToOpen.id);
+              }
+            }
+
+            await closeTabs(deletedIds);
+
+            if (existingScriptToOpen) {
+              handleOpenTabScript(router)(existingScriptToOpen);
+            } else if (
+              activeScriptDeleted ||
+              remainingOpenTabIds.length === 0
+            ) {
+              handleOpenTabScript(router)(
+                ScriptsResource.getResource().value?.find(
+                  (script) =>
+                    script.id ===
+                    $SqlRunnerSession.$merged.value?.currentScriptId,
+                ),
+              );
+            }
+
+            ScriptsResource.fetch();
+            forceRefetchScripts();
+            bulkDeleteDialog.close();
+          }}
+          scripts={selectedScripts}
         />
-      )}
-    </div>
+      </ModalContainer>
+    </>
   );
 }
 
@@ -427,13 +546,13 @@ const reduxActions = {
   showConfirmationDialog,
   fetchSQLScripts: fetchScripts,
   deleteScript,
-  setActiveScript,
   resetQueryState,
   dispatchLoadPrivilegesListData: loadPrivilegesListData,
+  setActiveScript,
 };
 
 export const TestSqlScripts = injectIntl(SQLScripts);
 
 export default withRouter(
-  connect(mapStateToProps, reduxActions)(TestSqlScripts)
+  connect(mapStateToProps, reduxActions)(TestSqlScripts),
 );

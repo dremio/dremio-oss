@@ -46,7 +46,7 @@ public class TestReIndexer {
   private static final class TestConverter implements DocumentConverter<String, String> {
 
     @Override
-    public void convert(DocumentWriter writer, String key, String record) {
+    public void convert(DocumentWriter writer, String key, String document) {
       writer.write(indexKey, key);
     }
 

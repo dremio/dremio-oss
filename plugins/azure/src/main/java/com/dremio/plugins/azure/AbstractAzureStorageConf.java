@@ -44,21 +44,25 @@ public abstract class AbstractAzureStorageConf
   /**
    * @return secret type for SharedAccess authentication
    */
+  @Deprecated
   public abstract SharedAccessSecretType getSharedAccessSecretType();
 
   /**
    * @return Azure Key Vault/VaultURI for SharedAccess authentication
    */
+  @Deprecated
   public abstract String getAccessKeyUri();
 
   /**
    * @return secret type for Azure Active Directory authentication
    */
+  @Deprecated
   public abstract AzureActiveDirectorySecretType getAzureADSecretType();
 
   /**
    * @return Azure Key Vault/VaultURI for Azure Active Directory authentication
    */
+  @Deprecated
   public abstract String getClientSecretUri();
 
   public static final List<String> KEY_AUTH_PROPS =
@@ -107,7 +111,7 @@ public abstract class AbstractAzureStorageConf
 
   @Tag(3)
   @Secret
-  @DisplayMetadata()
+  @DisplayMetadata(label = "Secret Store")
   public SecretRef accessKey;
 
   @Tag(4)
@@ -148,7 +152,7 @@ public abstract class AbstractAzureStorageConf
 
   @Tag(12)
   @Secret
-  @DisplayMetadata()
+  @DisplayMetadata(label = "Application Secret Store")
   public SecretRef clientSecret;
 
   @Tag(13)

@@ -72,6 +72,7 @@ public class ManifestFileProcessor implements AutoCloseable {
   private ManifestReader<?> manifestReader;
   private ManifestScanFilters manifestScanFilters;
   private Map<Integer, PartitionSpec> partitionSpecMap;
+  private String schemeVariate;
 
   public ManifestFileProcessor(
       FragmentExecutionContext fec,
@@ -104,6 +105,7 @@ public class ManifestFileProcessor implements AutoCloseable {
     this.manifestScanFilters =
         ((ManifestScanTableFunctionContext) functionConfig.getFunctionContext())
             .getManifestScanFilters();
+    this.schemeVariate = functionContext.getSchemeVariate();
   }
 
   public void setup(VectorAccessible incoming, VectorContainer outgoing) {
@@ -111,7 +113,10 @@ public class ManifestFileProcessor implements AutoCloseable {
   }
 
   public void setupManifestFile(ManifestFile manifestFile, int row) {
-    manifestReader = getManifestReader(manifestFile);
+    FileSystem fs = createFs(manifestFile.path(), context, opProps, icebergRootPointerPlugin);
+    Preconditions.checkState(fs != null, "Unexpected state");
+
+    manifestReader = getManifestReader(manifestFile, fs);
     if (manifestScanFilters.doesIcebergAnyColExpressionExists()) {
       manifestReader.filterRows(manifestScanFilters.getIcebergAnyColExpressionDeserialized());
     }
@@ -119,7 +124,8 @@ public class ManifestFileProcessor implements AutoCloseable {
     iterator = DremioManifestReaderUtils.liveManifestEntriesIterator(manifestReader).iterator();
     applyManifestScanFilters(manifestFile);
 
-    manifestEntryProcessor.initialise(manifestReader.spec(), row);
+    manifestEntryProcessor.initialise(
+        manifestReader.spec(), row, conf, fs.getScheme(), schemeVariate);
   }
 
   private void applyManifestScanFilters(ManifestFile manifestFile) {
@@ -179,19 +185,17 @@ public class ManifestFileProcessor implements AutoCloseable {
   }
 
   @VisibleForTesting
-  ManifestReader<? extends ContentFile<?>> getManifestReader(ManifestFile manifestFile) {
+  ManifestReader<? extends ContentFile<?>> getManifestReader(
+      ManifestFile manifestFile, FileSystem fs) {
     if (manifestFile.content() == ManifestContent.DATA) {
-      return ManifestFiles.read(manifestFile, getFileIO(manifestFile), partitionSpecMap);
+      return ManifestFiles.read(manifestFile, getFileIO(manifestFile, fs), partitionSpecMap);
     } else {
       return ManifestFiles.readDeleteManifest(
-          manifestFile, getFileIO(manifestFile), partitionSpecMap);
+          manifestFile, getFileIO(manifestFile, fs), partitionSpecMap);
     }
   }
 
-  private FileIO getFileIO(ManifestFile manifestFile) {
-
-    FileSystem fs = createFs(manifestFile.path(), context, opProps, icebergRootPointerPlugin);
-    Preconditions.checkState(fs != null, "Unexpected state");
+  private FileIO getFileIO(ManifestFile manifestFile, FileSystem fs) {
     return icebergRootPointerPlugin.createIcebergFileIO(
         fs, context, dataset, datasourcePluginUID, manifestFile.length());
   }

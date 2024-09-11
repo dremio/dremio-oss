@@ -184,13 +184,7 @@ public class ShowCreateHandler implements SqlDirectHandler<ShowCreateHandler.Def
         type != null, String.format("The row type of table [%s] is corrupted.", resolvedPath));
 
     String tableDefinition =
-        getTableDefinition(
-            datasetConfig,
-            resolvedPath,
-            type.getFieldList(),
-            resolvedVersionContext == null ? null : resolvedVersionContext.getType().toString(),
-            resolvedVersionContext == null ? null : resolvedVersionContext.getRefName(),
-            isVersioned);
+        getTableDefinition(datasetConfig, resolvedPath, type.getFieldList(), isVersioned);
 
     if (tableDefinition != null) {
       return Collections.singletonList(
@@ -220,17 +214,9 @@ public class ShowCreateHandler implements SqlDirectHandler<ShowCreateHandler.Def
       DatasetConfig datasetConfig,
       NamespaceKey resolvedPath,
       List<RelDataTypeField> fields,
-      String refType,
-      String refValue,
       boolean isVersioned) {
     return new TableDefinitionGenerator(
-            datasetConfig,
-            resolvedPath,
-            fields,
-            refType,
-            refValue,
-            isVersioned,
-            queryContext.getOptions())
+            datasetConfig, resolvedPath, fields, isVersioned, queryContext.getOptions())
         .generateTableDefinition();
   }
 

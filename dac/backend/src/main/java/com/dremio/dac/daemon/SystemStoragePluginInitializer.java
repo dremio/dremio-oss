@@ -26,8 +26,9 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
+import com.dremio.dac.service.nodeshistory.NodesHistoryPluginInitializer;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
@@ -36,8 +37,9 @@ import com.dremio.exec.store.dfs.GandivaPersistentCachePluginConfig;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfigFactory;
 import com.dremio.options.TypeValidators;
+import com.dremio.plugins.nodeshistory.NodeHistorySourceConfigFactory;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.Initializer;
@@ -53,6 +55,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ConcurrentModificationException;
+import java.util.concurrent.Callable;
 
 /**
  * Create all the system storage plugins, such as results, accelerator, etc. Also creates the
@@ -128,14 +131,21 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
 
     final boolean enableAsyncForSystemIcebergTablesStorage =
         enable(config, DremioConfig.DEBUG_SYSTEM_ICEBERG_TABLES_STORAGE_ASYNC_ENABLED);
-    createSafe(
-        catalogService,
-        ns,
-        SystemIcebergTablesStoragePluginConfig.create(
+
+    final SystemIcebergTablesStoragePluginConfigFactory factory =
+        provider.lookup(SystemIcebergTablesStoragePluginConfigFactory.class);
+
+    final ConnectionConf<?, ?> connectionConf =
+        factory.create(
             systemIcebergTablesPathConfig.getUri(),
             enableAsyncForSystemIcebergTablesStorage,
             isEnableS3FileStatusCheck(config, systemIcebergTablesPathConfig),
-            systemIcebergTablesPathConfig.getDataCredentials()),
+            systemIcebergTablesPathConfig.getDataCredentials());
+
+    createSafe(
+        catalogService,
+        ns,
+        SystemIcebergTablesStoragePluginConfigFactory.create(connectionConf),
         deferred);
   }
 
@@ -166,6 +176,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final ProjectConfig.DistPathConfig metadataPathConfig = projectConfig.getMetadataConfig();
     final ProjectConfig.DistPathConfig gandivaCachePathConfig =
         projectConfig.getGandivaPersistentCacheConfig();
+    final ProjectConfig.DistPathConfig nodeHistoryPathConfig = projectConfig.getNodeHistoryConfig();
     final URI downloadPath = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
     final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
     // Do not construct URI simply by concatenating, as it might not be encoded properly
@@ -311,6 +322,23 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
             null),
         deferred);
 
+    if (sabotContext.getOptionManager().getOption(ExecConstants.NODE_HISTORY_ENABLED)) {
+      NodesHistoryPluginInitializer nodesHistoryPluginInitializer =
+          provider.lookup(NodesHistoryPluginInitializer.class);
+      createSafe(
+          catalogService,
+          ns,
+          NodeHistorySourceConfigFactory.newSourceConfig(
+              nodeHistoryPathConfig.getUri(), nodeHistoryPathConfig.getDataCredentials()),
+          deferred);
+      deferExceptions(
+          () -> {
+            nodesHistoryPluginInitializer.initialize();
+            return null;
+          },
+          deferred);
+    }
+
     deferred.throwAndClear();
   }
 
@@ -338,13 +366,22 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     return !config.hasPath(path) || config.getBoolean(path);
   }
 
-  private void createSafe(
+  protected void createSafe(
       final CatalogService catalogService,
       final NamespaceService ns,
       final SourceConfig config,
       DeferredException deferred) {
+    deferExceptions(
+        () -> {
+          createOrUpdateSystemSource(catalogService, ns, config);
+          return null;
+        },
+        deferred);
+  }
+
+  private void deferExceptions(Callable<Void> callable, DeferredException deferred) {
     try {
-      createOrUpdateSystemSource(catalogService, ns, config);
+      callable.call();
     } catch (Exception ex) {
       deferred.addException(ex);
     }
@@ -392,6 +429,6 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     if (oldConfig.equals(updatedConfig)) {
       return;
     }
-    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().updateSource(updatedConfig);
+    catalogService.getSystemUserCatalog().updateSource(updatedConfig);
   }
 }

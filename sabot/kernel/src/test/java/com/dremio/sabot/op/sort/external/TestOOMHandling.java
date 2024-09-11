@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.sort.external;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.SortPrel;
@@ -56,8 +57,13 @@ public class TestOOMHandling extends BaseTestQuery {
       Assert.assertTrue(
           "Error message isn't related to memory error",
           uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));
+      OutOfMemoryOrResourceExceptionContext oomExceptionContext =
+          OutOfMemoryOrResourceExceptionContext.fromUserException(uex);
+      Assert.assertTrue("OutOfMemoryException context doesn't exit", oomExceptionContext != null);
+      String additionalInfo = oomExceptionContext.getAdditionalInfo();
       Assert.assertTrue(
-          "Error doesn't have context", uex.getMessage().contains("Allocator dominators:"));
+          "Error doesn't have required error message",
+          additionalInfo.contains("Allocator dominators:"));
     }
   }
 
@@ -105,8 +111,12 @@ public class TestOOMHandling extends BaseTestQuery {
       Assert.assertTrue(
           "Error message isn't related to memory error",
           uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));
+      OutOfMemoryOrResourceExceptionContext oomExceptionContext =
+          OutOfMemoryOrResourceExceptionContext.fromUserException(uex);
+      Assert.assertTrue("OutOfMemoryException context doesn't exit", oomExceptionContext != null);
+      String additionalInfo = oomExceptionContext.getAdditionalInfo();
       Assert.assertTrue(
-          "Error doesn't have context", uex.getMessage().contains("Allocator dominators:"));
+          "Error doesn't have required error message", additionalInfo.contains("Allocator(ROOT)"));
     }
   }
 }

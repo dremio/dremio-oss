@@ -195,6 +195,7 @@ public class Dataset implements CatalogEntity {
     private final Boolean neverRefresh;
     private final RefreshPolicyType activePolicyType;
     private final String refreshSchedule;
+    private final Boolean sourceRefreshOnDataChanges;
 
     @JsonCreator
     public RefreshSettings(
@@ -205,7 +206,8 @@ public class Dataset implements CatalogEntity {
         @JsonProperty("gracePeriodMs") Long gracePeriodMs,
         @JsonProperty("method") RefreshMethod method,
         @JsonProperty("neverExpire") Boolean neverExpire,
-        @JsonProperty("neverRefresh") Boolean neverRefresh) {
+        @JsonProperty("neverRefresh") Boolean neverRefresh,
+        @JsonProperty("sourceRefreshOnDataChanges") Boolean sourceRefreshOnDataChanges) {
       this.activePolicyType = activePolicyType;
       this.refreshField = refreshField;
       this.refreshPeriodMs = refreshPeriodMs;
@@ -214,6 +216,7 @@ public class Dataset implements CatalogEntity {
       this.method = method;
       this.neverExpire = neverExpire;
       this.neverRefresh = neverRefresh;
+      this.sourceRefreshOnDataChanges = sourceRefreshOnDataChanges;
     }
 
     public RefreshSettings(AccelerationSettings settings) {
@@ -225,6 +228,7 @@ public class Dataset implements CatalogEntity {
       gracePeriodMs = settings.getGracePeriod();
       neverExpire = settings.getNeverExpire();
       neverRefresh = settings.getNeverRefresh();
+      sourceRefreshOnDataChanges = settings.getSourceRefreshOnDataChanges();
     }
 
     public RefreshPolicyType getActivePolicyType() {
@@ -259,6 +263,10 @@ public class Dataset implements CatalogEntity {
       return neverRefresh;
     }
 
+    public Boolean getSourceRefreshOnDataChanges() {
+      return sourceRefreshOnDataChanges;
+    }
+
     public AccelerationSettings toAccelerationSettings() {
       AccelerationSettings settings = new AccelerationSettings();
 
@@ -270,8 +278,15 @@ public class Dataset implements CatalogEntity {
       settings.setRefreshField(getRefreshField());
       settings.setNeverRefresh(getNeverRefresh());
       settings.setNeverExpire(getNeverExpire());
+      settings.setSourceRefreshOnDataChanges(getSourceRefreshOnDataChanges());
 
       return settings;
     }
+  }
+
+  @Nullable
+  @Override
+  public String getNextPageToken() {
+    return null;
   }
 }

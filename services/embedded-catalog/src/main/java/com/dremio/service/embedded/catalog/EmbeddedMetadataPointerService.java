@@ -29,6 +29,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.function.Supplier;
 import javax.inject.Provider;
+import org.projectnessie.services.authz.AccessContext;
 import org.projectnessie.services.authz.Authorizer;
 import org.projectnessie.services.config.ServerConfig;
 import org.projectnessie.services.impl.ContentApiImpl;
@@ -64,7 +65,8 @@ public class EmbeddedMetadataPointerService implements Service {
     Supplier<EmbeddedUnversionedStore> unversionedStore =
         Suppliers.memoize(() -> new EmbeddedUnversionedStore(kvStoreProvider));
 
-    Supplier<Principal> principalSupplier = () -> nessieCommitter;
+    AccessContext accessContext = () -> nessieCommitter;
+
     Authorizer authorizer = context -> NOOP_ACCESS_CHECKER;
     // Note: This TreeService used to be backed by "old Nessie data model", which did not support
     // paging over
@@ -80,7 +82,7 @@ public class EmbeddedMetadataPointerService implements Service {
             Suppliers.memoize(
                 () ->
                     new TreeApiImpl(
-                        serverConfig, unversionedStore.get(), authorizer, principalSupplier)),
+                        serverConfig, unversionedStore.get(), authorizer, accessContext)),
             Integer.MAX_VALUE,
             MAX_COMMIT_LOG_ENTRIES);
     this.contentService =
@@ -88,7 +90,7 @@ public class EmbeddedMetadataPointerService implements Service {
             Suppliers.memoize(
                 () ->
                     new ContentApiImpl(
-                        serverConfig, unversionedStore.get(), authorizer, principalSupplier)));
+                        serverConfig, unversionedStore.get(), authorizer, accessContext)));
   }
 
   public List<BindableService> getGrpcServices() {

@@ -20,26 +20,32 @@ import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
-import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-public final class BitArrayAggAccumulator extends BaseArrayAggAccumulator<Integer, BitVector> {
-  private final int maxValuesPerBatch;
+public final class BitArrayAggAccumulator extends ArrayAggAccumulator<Integer> {
+  private final int maxFieldSizeBytes;
 
   public BitArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
-      BufferAllocator allocator) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
-    this.maxValuesPerBatch = maxValuesPerBatch;
+      BufferAllocator allocator,
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
+    super(
+        input,
+        transferVector,
+        tempAccumulatorHolder,
+        allocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
+    this.maxFieldSizeBytes = maxFieldSizeBytes;
   }
 
   @Override
   public int getDataBufferSize() {
-    return maxValuesPerBatch;
+    return maxFieldSizeBytes;
   }
 
   @Override
@@ -60,9 +66,9 @@ public final class BitArrayAggAccumulator extends BaseArrayAggAccumulator<Intege
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Integer, BitVector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
-    return new BitArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<Integer> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new BitArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

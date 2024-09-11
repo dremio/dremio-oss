@@ -22,6 +22,7 @@ import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -156,6 +157,39 @@ public class TestLargeFileCompilation extends BaseTestQuery {
   public void testProject() throws Exception {
     testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult(ITERATION_COUNT, LARGE_QUERY_SELECT_LIST);
+  }
+
+  @Ignore("Needs more than 8GB of ram to run. (oss/pom.xml) Also today fails to run.")
+  @Test
+  public void testLargeReduce() throws Exception {
+    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_ENABLE_LIMIT, "false");
+    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Gandiva'"); // Or Java
+    String sql = readResourceAsString("queries/huge_exp_expansion.sql");
+    testNoResult(sql); // FAILS
+  }
+
+  @Test
+  public void expressionLimits() throws Exception {
+    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_JAVA_LIMIT, "500");
+    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Java'");
+
+    List<String> s = new ArrayList<>();
+    for (int i = 0; i < 500; i++) {
+      s.add(String.format("regexp_matches(n_comment, '%d')", i));
+    }
+
+    String where = Joiner.on(" and\n").join(s);
+
+    String sql = String.format("select %s from cp.\"tpch/nation.parquet\" ", where);
+
+    errorMsgTestHelper(
+        sql, "Projection complexity/work estimate above limit for Java compilation, aborting.");
+
+    setSystemOption(ExecConstants.PROJECTION_COMPLEXITY_GANDIVA_LIMIT, "500");
+    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Gandiva'");
+
+    errorMsgTestHelper(
+        sql, "Projection complexity/work estimate above limit for Gandiva compilation, aborting.");
   }
 
   @Test

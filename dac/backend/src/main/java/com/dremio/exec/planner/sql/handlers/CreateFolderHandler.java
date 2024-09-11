@@ -26,7 +26,7 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlCreateFolder;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
-import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
+import com.dremio.exec.store.NamespaceAlreadyExistsException;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
@@ -68,7 +68,7 @@ public class CreateFolderHandler extends BaseVersionHandler<SimpleCommandResult>
 
     try {
       versionedPlugin.createNamespace(path, sourceVersion);
-    } catch (NessieNamespaceAlreadyExistsException e) {
+    } catch (NamespaceAlreadyExistsException e) {
       if (ifNotExists) {
         return Collections.singletonList(SimpleCommandResult.successful(e.getMessage()));
       }

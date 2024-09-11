@@ -29,6 +29,8 @@ import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
@@ -301,10 +303,7 @@ public abstract class ScanRelBase extends TableScan {
   @Override
   public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq) {
 
-    final double rowCount =
-        (PrelUtil.getPlannerSettings(this.getCluster()).useStatistics())
-            ? mq.getRowCount(this)
-            : estimateRowCount(mq);
+    final double rowCount = estimateRowCount(mq);
     // If the estimatedCount is actually 0, then make it 1, so that at least, we choose the scan
     // that
     // has fewer columns pushed down since all the cost scales with rowCount.
@@ -314,9 +313,7 @@ public abstract class ScanRelBase extends TableScan {
 
     double workCost =
         getCostAdjustmentFactor()
-            * (rowCount
-                * fieldCount
-                * getTableMetadata().getReadDefinition().getScanStats().getScanFactor())
+            * (rowCount * fieldCount * getScanFactor())
             * DremioCost.SCAN_CPU_COST_MULTIPLIER
             * getRowGroupFilterReduction();
 
@@ -333,6 +330,25 @@ public abstract class ScanRelBase extends TableScan {
     DremioCost cost = costFactory.makeCost(estimatedRowCount, workCost, workCost, workCost);
     Preconditions.checkArgument(!cost.isInfinite(), "infinite cost...");
     return cost;
+  }
+
+  /*
+   To handle NPE for getting the scan factor from table metadata.
+  */
+  private double getScanFactor() {
+    if (getTableMetadata().getDatasetConfig() != null) {
+      ReadDefinition readDefinition = getTableMetadata().getReadDefinition();
+      if (readDefinition != null) {
+        ScanStats stats = readDefinition.getScanStats();
+        if (stats != null) {
+          Double scanFactor = stats.getScanFactor();
+          if (scanFactor != null) {
+            return scanFactor;
+          }
+        }
+      }
+    }
+    return 1.0d;
   }
 
   /**
@@ -409,9 +425,7 @@ public abstract class ScanRelBase extends TableScan {
       if (firstLevelPaths.contains(field.getName())) {
         fields.put(
             field.getName(),
-            CalciteArrowHelper.wrap(CompleteType.fromField(field))
-                .toCalciteType(
-                    factory, PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()));
+            CalciteArrowHelper.wrap(CompleteType.fromField(field)).toCalciteType(factory, true));
       }
     }
 

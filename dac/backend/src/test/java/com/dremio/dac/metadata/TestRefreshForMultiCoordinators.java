@@ -56,12 +56,8 @@ public class TestRefreshForMultiCoordinators extends BaseTestServer {
     assumeTrue(isMultinode());
     BaseTestServer.init();
 
-    masterCatalogService =
-        ((CatalogServiceImpl)
-            getMasterDremioDaemon().getBindingProvider().lookup(CatalogService.class));
-    slaveCatalogService =
-        ((CatalogServiceImpl)
-            getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class));
+    masterCatalogService = ((CatalogServiceImpl) lMaster(CatalogService.class));
+    slaveCatalogService = ((CatalogServiceImpl) l(CatalogService.class));
   }
 
   /** Setup source config for create a source */

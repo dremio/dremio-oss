@@ -48,7 +48,7 @@ type DatasetSummaryOverlayProps = {
 };
 
 const DatasetSummaryOverlay = (
-  props: DatasetSummaryOverlayProps & WithRouterProps
+  props: DatasetSummaryOverlayProps & WithRouterProps,
 ) => {
   const {
     fullPath,
@@ -81,7 +81,7 @@ const DatasetSummaryOverlay = (
       undefined,
       contextType && contextValue
         ? { value: contextValue, type: contextType }
-        : undefined
+        : undefined,
     );
   }, [dispatchLoadSummaryDataset, fullPath, contextType, contextValue]);
 
@@ -134,7 +134,7 @@ const DatasetSummaryOverlay = (
 
 const mapStateToProps = (
   state: Record<string, any>,
-  props: { fullPath: string[] }
+  props: { fullPath: string[] },
 ) => {
   const fullPath = props.fullPath?.join(",");
   return {
@@ -144,5 +144,5 @@ const mapStateToProps = (
 };
 
 export default withRouter(
-  connect(mapStateToProps, { loadSummaryDataset })(DatasetSummaryOverlay)
+  connect(mapStateToProps, { loadSummaryDataset })(DatasetSummaryOverlay),
 );

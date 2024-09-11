@@ -77,4 +77,9 @@ public class FixedTTLTransientStore<K, V> implements TransientStore<K, V> {
   public boolean contains(K key) {
     return delegate.contains(key);
   }
+
+  @Override
+  public Iterable<Document<K, V>> find(String pattern, KVStore.GetOption... options) {
+    return delegate.find(pattern, options);
+  }
 }

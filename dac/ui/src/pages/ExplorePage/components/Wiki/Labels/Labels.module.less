@@ -16,14 +16,14 @@
 
 .common {
   outline: none;
-  background: white;
+  background: var(--fill--primary);
   min-height: 42px;
 }
 
 .container {
   display: inline-flex;
   flex-wrap: wrap;
-  border: 1px solid var(--color--neutral--100);
+  border: 1px solid var(--border--neutral--solid);
   border-radius: var(--dremio--radius--1);
   padding: 4px;
   &:focus-visible {
@@ -45,6 +45,11 @@
 
 .tag-element {
   height: 24px;
+}
+
+.tag-element-focused {
+  height: 24px;
+  outline: -webkit-focus-ring-color auto 1px !important;
 }
 
 .tag-wrapper {
@@ -69,7 +74,7 @@
 
 .unique-tags-error {
   margin-top: var(--dremio--spacing--05);
-  color: var(--dremio--color--status--error--foreground);
+  color: var(--fill--danger--solid);
 }
 
 .edit-tag {
@@ -98,7 +103,7 @@
   font-size: var(--dremio--font-size--sm);
   line-height: 14px;
   height: 24px;
-  border: 1px dashed var(--color--neutral--50);
+  border: 1px dashed var(--border--neutral);
   border-radius: var(--dremio--radius--1);
 }
 
@@ -109,5 +114,5 @@
 }
 
 .icons {
-  color: var(--color--neutral--600);
+  color: var(--icon--primary);
 }

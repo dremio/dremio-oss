@@ -15,9 +15,10 @@
  */
 
 import { forwardRef } from "react";
+import { type MonacoShortcut } from "@app/pages/ExplorePage/components/SqlEditor/utils/keyboardShortcuts";
 
 export const withExtraSQLEditorContent = <T,>(
-  WrappedComponent: React.ComponentClass
+  WrappedComponent: React.ComponentClass,
 ) =>
   forwardRef((props: T, ref: any) => {
     return (
@@ -25,13 +26,16 @@ export const withExtraSQLEditorContent = <T,>(
     );
   });
 
-export const renderExtraSQLKeyboardShortcuts = ({
+export const getExtraKeyboardShortcuts = ({
   editor,
   monaco,
   toggleExtraSQLPanel,
-  hasExtraSQLPanelContent,
-}: any) => {
-  return;
+}: {
+  editor?: Record<string, unknown> | null;
+  monaco: any;
+  toggleExtraSQLPanel?: () => void;
+}): MonacoShortcut[] => {
+  return [];
 };
 
 export const renderExtraSQLToolbarIcons = ({

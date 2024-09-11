@@ -36,7 +36,7 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
   public void testInvalidPartitionColumns() throws Exception {
     final String tableLower = "tableLower1";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String tableLowerCreate =
           String.format(
               "CREATE TABLE %s.%s(id int, code int) partition by (name, region)",
@@ -51,23 +51,21 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
 
   @Test
   public void testTimePartitionColumn() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      final String newTblName = "ctas_with_time_partition";
-      try {
-        final String testWorkingPath = TestTools.getWorkingPath();
-        final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/supplier";
-        final String ctasQuery =
-            String.format(
-                "CREATE TABLE %s.%s PARTITION BY (col_time)  "
-                    + " AS SELECT to_time(s_suppkey) as col_time from dfs.\""
-                    + parquetFiles
-                    + "\" limit 1",
-                TEMP_SCHEMA_HADOOP,
-                newTblName);
-        errorMsgTestHelper(ctasQuery, "Partition type TIME for column 'col_time' is not supported");
-      } finally {
-        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
-      }
+    final String newTblName = "ctas_with_time_partition";
+    try {
+      final String testWorkingPath = TestTools.getWorkingPath();
+      final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/supplier";
+      final String ctasQuery =
+          String.format(
+              "CREATE TABLE %s.%s PARTITION BY (col_time)  "
+                  + " AS SELECT to_time(s_suppkey) as col_time from dfs.\""
+                  + parquetFiles
+                  + "\" limit 1",
+              TEMP_SCHEMA_HADOOP,
+              newTblName);
+      errorMsgTestHelper(ctasQuery, "Partition type TIME for column 'col_time' is not supported");
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
     }
   }
 
@@ -103,10 +101,8 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
 
   @Test
   public void ctasWithIntPartition() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      verifyCtasWithIntPartition(
-          "ctas_with_int_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
-    }
+    verifyCtasWithIntPartition(
+        "ctas_with_int_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
   }
 
   private void verifyCtasWithStringPartition(
@@ -141,10 +137,8 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
 
   @Test
   public void ctasWithStringPartition() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      verifyCtasWithStringPartition(
-          "ctas_with_string_partition", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
-    }
+    verifyCtasWithStringPartition(
+        "ctas_with_string_partition", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
   }
 
   private void verifyCtasWithDoublePartition(
@@ -179,10 +173,8 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
 
   @Test
   public void ctasWithDoublePartition() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      verifyCtasWithDoublePartition(
-          "ctas_with_double_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
-    }
+    verifyCtasWithDoublePartition(
+        "ctas_with_double_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
   }
 
   private void verifyCtasWithDatePartition(
@@ -220,14 +212,9 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
 
   @Test
   public void ctasWithDatePartition() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      final String newTblName = "ctas_with_date_partition";
-      verifyCtasWithDatePartition(
-          "ctas_with_date_partition_v2",
-          "dfs_hadoop",
-          TEMP_SCHEMA_HADOOP,
-          IcebergCatalogType.HADOOP);
-    }
+    final String newTblName = "ctas_with_date_partition";
+    verifyCtasWithDatePartition(
+        "ctas_with_date_partition_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
   }
 
   private void verifyCtasWithNullPartition(
@@ -277,11 +264,9 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
 
   @Test
   public void ctasWithNullPartitionValues() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      final String newTblName = "ctas_with_null_partition";
-      verifyCtasWithNullPartition(
-          "ctas_with_null_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
-    }
+    final String newTblName = "ctas_with_null_partition";
+    verifyCtasWithNullPartition(
+        "ctas_with_null_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
   }
 
   private void verifyPartitionValue(
@@ -297,7 +282,7 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
   public void testCtasWithPartitionTransformation() throws Exception {
     String selectTable = "select_partition_transform";
     String ctasTable = "partition_transform";
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       String schema = TEMP_SCHEMA_HADOOP;
       IcebergCatalogType catalogType = IcebergCatalogType.HADOOP;
       String createQuery =

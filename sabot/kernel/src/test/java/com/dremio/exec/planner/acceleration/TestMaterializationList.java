@@ -23,10 +23,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.acceleration.descriptor.ExpandedMaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.ExternalMaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.ReflectionInfo;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.tablefunctions.ExternalQueryScanCrel;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.options.OptionResolver;
@@ -80,16 +83,14 @@ public class TestMaterializationList {
   public void setup() {
     when(desc1.getMaterializationFor(converter)).thenReturn(relOptMat1);
     when(desc1.getLayoutId()).thenReturn("rid-1");
-    when(desc1.getLayoutInfo())
-        .thenReturn(Mockito.mock(MaterializationDescriptor.ReflectionInfo.class));
+    when(desc1.getLayoutInfo()).thenReturn(Mockito.mock(ReflectionInfo.class));
     when(desc1.getMaterializationId()).thenReturn("m-1");
     when(desc1.getPath()).thenReturn(ImmutableList.of());
     when(relOptMat1.getReflectionId()).thenReturn("rid-1");
 
     when(desc2.getMaterializationFor(converter)).thenReturn(relOptMat2);
     when(desc2.getLayoutId()).thenReturn("rid-2");
-    when(desc2.getLayoutInfo())
-        .thenReturn(Mockito.mock(MaterializationDescriptor.ReflectionInfo.class));
+    when(desc2.getLayoutInfo()).thenReturn(Mockito.mock(ReflectionInfo.class));
     when(desc2.getMaterializationId()).thenReturn("m-2");
     when(desc2.getPath()).thenReturn(ImmutableList.of());
     when(relOptMat2.getReflectionId()).thenReturn("rid-2");
@@ -193,14 +194,14 @@ public class TestMaterializationList {
   @Test
   public void testQueryTableUsed() {
 
-    CachedMaterializationDescriptor cachedDesc1 =
-        new CachedMaterializationDescriptor(desc1, relOptMat1, Mockito.mock(CatalogService.class));
+    ExpandedMaterializationDescriptor cachedDesc1 =
+        new ExpandedMaterializationDescriptor(desc1, relOptMat1);
     RelNode relOptMat1QueryNode = createTableScan(Arrays.asList("schema", "t1"));
     when(relOptMat1.getQueryRel()).thenReturn(relOptMat1QueryNode);
     when(relOptMat1.accept(any(RelShuttle.class))).thenReturn(relOptMat1);
 
-    CachedMaterializationDescriptor cachedDesc2 =
-        new CachedMaterializationDescriptor(desc2, relOptMat2, Mockito.mock(CatalogService.class));
+    ExpandedMaterializationDescriptor cachedDesc2 =
+        new ExpandedMaterializationDescriptor(desc2, relOptMat2);
     RelNode relOptMat2QueryNode = createTableScan(Arrays.asList("schema", "t2"));
     when(relOptMat2.getQueryRel()).thenReturn(relOptMat2QueryNode);
     when(relOptMat2.accept(any(RelShuttle.class))).thenReturn(relOptMat2);
@@ -232,14 +233,14 @@ public class TestMaterializationList {
   @Test
   public void testQueryVdsUsed() {
 
-    CachedMaterializationDescriptor cachedDesc1 =
-        new CachedMaterializationDescriptor(desc1, relOptMat1, Mockito.mock(CatalogService.class));
+    ExpandedMaterializationDescriptor cachedDesc1 =
+        new ExpandedMaterializationDescriptor(desc1, relOptMat1);
     RelNode relOptMat1QueryNode = createExpansionNode(Arrays.asList("schema", "v1"));
     when(relOptMat1.getQueryRel()).thenReturn(relOptMat1QueryNode);
     when(relOptMat1.accept(any(RelShuttle.class))).thenReturn(relOptMat1);
 
-    CachedMaterializationDescriptor cachedDesc2 =
-        new CachedMaterializationDescriptor(desc2, relOptMat2, Mockito.mock(CatalogService.class));
+    ExpandedMaterializationDescriptor cachedDesc2 =
+        new ExpandedMaterializationDescriptor(desc2, relOptMat2);
     RelNode relOptMat2QueryNode = createExpansionNode(Arrays.asList("schema", "v2"));
     when(relOptMat2.getQueryRel()).thenReturn(relOptMat2QueryNode);
     when(relOptMat2.accept(any(RelShuttle.class))).thenReturn(relOptMat2);
@@ -269,14 +270,14 @@ public class TestMaterializationList {
   @Test
   public void testExternalQuery() {
 
-    CachedMaterializationDescriptor cachedDesc1 =
-        new CachedMaterializationDescriptor(desc1, relOptMat1, Mockito.mock(CatalogService.class));
+    ExpandedMaterializationDescriptor cachedDesc1 =
+        new ExpandedMaterializationDescriptor(desc1, relOptMat1);
     RelNode relOptMat1QueryNode = createExternalQueryScanCrel("plugin", "select 1");
     when(relOptMat1.getQueryRel()).thenReturn(relOptMat1QueryNode);
     when(relOptMat1.accept(any(RelShuttle.class))).thenReturn(relOptMat1);
 
-    CachedMaterializationDescriptor cachedDesc2 =
-        new CachedMaterializationDescriptor(desc2, relOptMat2, Mockito.mock(CatalogService.class));
+    ExpandedMaterializationDescriptor cachedDesc2 =
+        new ExpandedMaterializationDescriptor(desc2, relOptMat2);
     RelNode relOptMat2QueryNode = createExternalQueryScanCrel("plugin", "select 2");
     when(relOptMat2.getQueryRel()).thenReturn(relOptMat2QueryNode);
     when(relOptMat2.accept(any(RelShuttle.class))).thenReturn(relOptMat2);

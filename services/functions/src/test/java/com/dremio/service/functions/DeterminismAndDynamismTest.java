@@ -20,8 +20,10 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
-import com.dremio.exec.planner.sql.NonCacheableFunctionDetector;
+import com.dremio.exec.planner.sql.NonIncrementalRefreshFunctionDetector;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
+import com.dremio.exec.planner.sql.UncacheableFunctionDetector;
+import com.dremio.exec.planner.sql.UnmaterializableFunctionDetector;
 import com.dremio.test.GoldenFileTestBuilder;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.google.common.collect.ImmutableList;
@@ -35,8 +37,8 @@ import org.junit.Test;
 
 /**
  * Generates a baseline for all the functions that are either non deterministic or dynamic. This
- * allows us to better keep track of what functions we are excluding from plan caches, reduction
- * rules, and result cache.
+ * allows us to better keep track of what functions we are excluding from plan caches and reduction
+ * rules.
  */
 public final class DeterminismAndDynamismTest {
   private static final SabotConfig SABOT_CONFIG = SabotConfig.create();
@@ -84,6 +86,7 @@ public final class DeterminismAndDynamismTest {
                   boolean isNonDeterministic = !overload.isDeterministic();
                   boolean isDynamic = overload.isDynamicFunction();
                   boolean isReflectionAllowed = isReflectionAllowed(overload);
+                  boolean isIncrementalRefreshAllowed = isIncrementalRefreshAllowed(overload);
                   boolean isPlanCacheAllowed = isPlanCacheAllowed(overload);
 
                   return new ResultItem(
@@ -91,6 +94,7 @@ public final class DeterminismAndDynamismTest {
                       isNonDeterministic,
                       isDynamic,
                       isReflectionAllowed,
+                      isIncrementalRefreshAllowed,
                       isPlanCacheAllowed);
                 })
             .collect(Collectors.toList());
@@ -102,6 +106,7 @@ public final class DeterminismAndDynamismTest {
     "isNonDeterministic",
     "isDynamic",
     "isReflectionAllowed",
+    "isIncrementalRefreshAllowed",
     "isPlanCacheAllowed"
   })
   private static final class ResultItem {
@@ -109,6 +114,7 @@ public final class DeterminismAndDynamismTest {
     private final boolean isNonDeterministic;
     private final boolean isDynamic;
     private final boolean isReflectionAllowed;
+    private final boolean isIncrementalRefreshAllowed;
     private final boolean isPlanCacheAllowed;
 
     public ResultItem(
@@ -116,11 +122,13 @@ public final class DeterminismAndDynamismTest {
         boolean isNonDeterministic,
         boolean isDynamic,
         boolean isReflectionAllowed,
+        boolean isIncrementalRefreshAllowed,
         boolean isPlanCacheAllowed) {
       this.className = className;
       this.isNonDeterministic = isNonDeterministic;
       this.isDynamic = isDynamic;
       this.isReflectionAllowed = isReflectionAllowed;
+      this.isIncrementalRefreshAllowed = isIncrementalRefreshAllowed;
       this.isPlanCacheAllowed = isPlanCacheAllowed;
     }
 
@@ -138,6 +146,10 @@ public final class DeterminismAndDynamismTest {
 
     public boolean isReflectionAllowed() {
       return isReflectionAllowed;
+    }
+
+    public boolean isIncrementalRefreshAllowed() {
+      return isIncrementalRefreshAllowed;
     }
 
     public boolean isPlanCacheAllowed() {
@@ -164,10 +176,14 @@ public final class DeterminismAndDynamismTest {
   }
 
   private static boolean isReflectionAllowed(SqlOperator sqlOperator) {
-    return NonCacheableFunctionDetector.detect(sqlOperator).isReflectionAllowed();
+    return !UnmaterializableFunctionDetector.isA(sqlOperator);
   }
 
   private static boolean isPlanCacheAllowed(SqlOperator sqlOperator) {
-    return NonCacheableFunctionDetector.detect(sqlOperator).isPlanCacheable();
+    return !UncacheableFunctionDetector.isA(sqlOperator);
+  }
+
+  private static boolean isIncrementalRefreshAllowed(SqlOperator sqlOperator) {
+    return !NonIncrementalRefreshFunctionDetector.isA(sqlOperator);
   }
 }

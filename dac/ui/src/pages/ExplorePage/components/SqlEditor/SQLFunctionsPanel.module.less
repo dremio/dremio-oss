@@ -20,19 +20,19 @@
   right: 0;
   width: calc(40% - 17px);
   padding: 8px;
-  border: 1px solid var(--color--neutral--50);
+  border: 1px solid var(--border--neutral);
   border-radius: 4px;
-  background-color: white;
+  background-color: var(--fill--primary);
 
   &__search {
     input {
       &:hover {
-        border-color: var(--color--neutral--200);
+        border-color: var(--border--hover);
       }
 
       &:focus {
-        border-color: var(--color--brand--300);
-        background-color: white;
+        border-color: var(--border--focused);
+        background-color: var(--fill--primary);
       }
     }
   }
@@ -60,17 +60,17 @@
         display: inline-flex;
 
         &.--filtered {
-          background-color: white;
+          background-color: var(--fill--primary);
           .filterSelectMenu__downIcon {
-            color: var(--dremio--color--link);
+            color: var(--icon--brand);
           }
         }
       }
 
       .filterSelectMenu__downIcon {
-        color: var(--color--neutral--600);
+        color: var(--icon--primary);
         &:hover {
-          color: var(--dremio--color--link);
+          color: var(--icon--hover);
         }
       }
     }
@@ -96,7 +96,7 @@
   }
 
   &__resetFns {
-    color: var(--dremio--color--link);
+    color: var(--text--brand);
     cursor: pointer;
     font-weight: 400;
     &:hover:not(.--disabled) {
@@ -104,7 +104,7 @@
     }
 
     &.--disabled {
-      color: var(--dremio--color--text--faded);
+      color: var(--text--disabled);
       cursor: default;
     }
   }

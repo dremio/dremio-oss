@@ -28,6 +28,7 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAdjuster;
 import java.time.temporal.TemporalAmount;
+import java.util.concurrent.TimeUnit;
 
 /** Builder to create simple {@code Schedule} instances */
 final class ScheduleBuilderImpl implements Builder {
@@ -35,6 +36,9 @@ final class ScheduleBuilderImpl implements Builder {
   private Instant start;
   private TemporalAdjuster adjuster;
   private ZoneId zoneId;
+  private int staggerSeed;
+  private long staggerRange = 0;
+  private TimeUnit staggerUnit;
 
   ScheduleBuilderImpl(TemporalAmount amount) {
     this(Instant.now(), amount, NO_ADJUSTMENT, ZoneOffset.UTC);
@@ -69,13 +73,29 @@ final class ScheduleBuilderImpl implements Builder {
   }
 
   @Override
+  public Builder staggered(int staggerSeed, long staggerRange, TimeUnit timeUnit) {
+    Preconditions.checkArgument(staggerRange > 0, "staggerRange should be a positive number");
+    this.staggerSeed = staggerSeed;
+    this.staggerRange = staggerRange;
+    this.staggerUnit = timeUnit;
+    return this;
+  }
+
+  @Override
   public ClusteredSingletonBuilder asClusteredSingleton(String taskName) {
     return new ClusteredSingletonBuilderImpl(this, taskName);
   }
 
   @Override
   public Schedule build() {
-    return new BaseSchedule(start, amount, adjuster, zoneId);
+    Schedule schedule = new BaseSchedule(start, amount, adjuster, zoneId);
+
+    if (staggerRange > 0) {
+      schedule =
+          new StaggeredSchedule(schedule, this.staggerSeed, this.staggerRange, this.staggerUnit);
+    }
+
+    return schedule;
   }
 
   /**

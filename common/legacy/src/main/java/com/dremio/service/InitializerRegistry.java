@@ -27,12 +27,19 @@ public class InitializerRegistry implements Service {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(InitializerRegistry.class);
 
-  private final ScanResult scanResult;
-  private final BindingProvider provider;
+  private ScanResult scanResult;
+  private BindingProvider provider;
 
   private ImmutableMap<Class<?>, Object> outputs;
 
+  public InitializerRegistry() {}
+
   public InitializerRegistry(ScanResult scanResult, BindingProvider provider) {
+    this.scanResult = scanResult;
+    this.provider = provider;
+  }
+
+  protected void init(ScanResult scanResult, BindingProvider provider) {
     this.scanResult = scanResult;
     this.provider = provider;
   }

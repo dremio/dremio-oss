@@ -15,11 +15,12 @@
  */
 package com.dremio.service.commandpool;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.util.Closeable;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
@@ -31,6 +32,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.joda.time.DateTime;
 
 /**
  * Implementation of a bound {@link ReleasableCommandPool} where the threads that hold the slot can
@@ -42,6 +44,7 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(ReleasableBoundCommandPool.class);
 
+  @VisibleForTesting static String RELEASE_AND_REACQUIRE_JOB = "release and reacquire job";
   // Set of threads holding the slots. These are threads that currently have a slot in the
   // CommandPool
   private final Set<Long> threadsHoldingSlots = Sets.newConcurrentHashSet();
@@ -97,12 +100,9 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
 
   @Override
   public void start() throws Exception {
-    Metrics.newGauge(Metrics.join("jobs", "command_pool", "active_threads"), () -> numSlotHolders);
-    Metrics.newGauge(
-        Metrics.join("jobs", "command_pool", "queue_size"), () -> priorityBlockingQueue.size());
-    Metrics.newGauge(
-        Metrics.join("jobs", "command_pool", "reacquire_queue_size"),
-        () -> waitingToReacquire.size());
+    newGauge("jobs.command_pool.active_threads", () -> numSlotHolders);
+    newGauge("jobs.command_pool.queue_size", priorityBlockingQueue::size);
+    newGauge("jobs.command_pool.reacquire_queue_size", waitingToReacquire::size);
   }
 
   // Invoked when one of the submitted tasks is complete; or when a thread holding a slot wants to
@@ -222,6 +222,46 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
     return future;
   }
 
+  private void addToPriorityBlockingQueue(ReacquiringWaiter waiter, Priority reacquirePriority) {
+    final CommandWrapper<Command> wrapper =
+        new CommandWrapper<>(
+            reacquirePriority,
+            RELEASE_AND_REACQUIRE_JOB,
+            RELEASE_AND_REACQUIRE_JOB,
+            DateTime.now().getMillis(),
+            getWrappedCommand(
+                (waitInMillis) -> {
+                  waiter.complete(null);
+                  return null;
+                },
+                false));
+    synchronized (this) {
+      if (numSlotHolders >= maxPoolSize) {
+        // no slot available
+        // add to priority blocking queue
+        logger.debug(
+            "Adding {} to priority blocking queue because there are no slots available",
+            waiter.threadId);
+        priorityBlockingQueue.add(wrapper);
+        return;
+      }
+
+      if (!priorityBlockingQueue.isEmpty() || !waitingToReacquire.isEmpty()) {
+        // there are others ahead in the queue
+        logger.debug(
+            "Adding {} to priority blocking queue because there are others ahead", waiter.threadId);
+        priorityBlockingQueue.add(wrapper);
+        return;
+      }
+
+      // there is a slot available for this waiter
+      numSlotHolders++;
+    }
+
+    // complete the future for the re-acquiring waiter
+    waiter.complete(null);
+  }
+
   void addToReacquiringWaiters(ReacquiringWaiter waiter) {
     synchronized (this) {
       if (numSlotHolders >= maxPoolSize) {
@@ -257,8 +297,13 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
     return threadsHoldingSlots.contains(currentThreadId);
   }
 
+  @VisibleForTesting
+  boolean containsWaitingJobWithDescriptor(String name) {
+    return priorityBlockingQueue.stream().anyMatch(x -> name.equalsIgnoreCase(x.getDescriptor()));
+  }
+
   @Override
-  public Closeable releaseAndReacquireSlot() {
+  public Closeable releaseAndReacquireSlot(Priority reacquirePriority) {
     long currentThreadId = Thread.currentThread().getId();
 
     Preconditions.checkArgument(
@@ -282,7 +327,11 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
                     threadsHoldingSlots.add(currentThreadId),
                     "Thread already holds a command pool slot while re-acquiring after release");
               });
-      addToReacquiringWaiters(waiter);
+      if (Priority.VERY_HIGH.equals(reacquirePriority)) {
+        addToReacquiringWaiters(waiter);
+      } else {
+        addToPriorityBlockingQueue(waiter, reacquirePriority);
+      }
       // wait for the wake-up
       // wait for the threadId to be added back to threadsHoldingSlots set as well
       future.join();

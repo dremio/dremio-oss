@@ -28,7 +28,6 @@ import org.junit.runner.RunWith;
 
 import com.dremio.PlanTestBase;
 import com.dremio.common.util.TestTools;
-import com.dremio.exec.GuavaPatcherRunner;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 
@@ -36,7 +35,6 @@ import com.dremio.exec.store.hive.HiveTestDataGenerator;
  * Base class for Hive test. Takes care of generating and adding Hive test plugin before tests and deleting the
  * plugin after tests.
  */
-@RunWith(GuavaPatcherRunner.class)
 public class HiveTestBase extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveTestBase.class);
   @ClassRule
@@ -48,20 +46,17 @@ public class HiveTestBase extends PlanTestBase {
 
   @BeforeClass
   public static void generateHive() throws Exception{
-    SabotContext sabotContext = getSabotContext();
-    Objects.requireNonNull(sabotContext);
-
     dataGenerator = HiveTestDataGenerator.getInstance();
     Objects.requireNonNull(dataGenerator);
-    dataGenerator.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
-    dataGenerator.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
+    dataGenerator.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getCatalogService());
+    dataGenerator.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getCatalogService());
   }
 
   @AfterClass
   public static void cleanupHiveTestData() {
     if (dataGenerator != null) {
-      dataGenerator.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
-      dataGenerator.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
+      dataGenerator.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getCatalogService());
+      dataGenerator.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getCatalogService());
     }
   }
 
@@ -71,7 +66,7 @@ public class HiveTestBase extends PlanTestBase {
     final int maxRetries = 10;
     for (int i = 0; i < maxRetries; i++) {
       try {
-        dbDir = getTempDir(hiveMetastorePath);
+        dbDir = hiveMetastorePath;
         dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", dbDir);
         // Set login timeout to 90 seconds
         DriverManager.setLoginTimeout(90);

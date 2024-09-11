@@ -122,8 +122,8 @@ public class ExecutorServiceImpl extends ExecutorService {
   }
 
   public static CoordExecRPC.NodeStats getNodeStatsFromContext(SabotContext context) {
-    final ThreadsIterator threads = new ThreadsIterator(context, null);
-    final MemoryIterator memoryIterator = new MemoryIterator(context, null);
+    final ThreadsIterator threads = new ThreadsIterator(context);
+    final MemoryIterator memoryIterator = new MemoryIterator(context);
     final WorkStats stats = context.getWorkStatsProvider().get();
     final CoordinationProtos.NodeEndpoint ep = context.getEndpoint();
     final double load = stats.getClusterLoad();

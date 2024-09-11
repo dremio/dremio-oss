@@ -45,7 +45,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
 
     String result = "MAX_DATE=" + t + "; " + "MIN_DATE=" + t1 + "\n";
 
-    JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp").sql(query).returns(result);
+    JdbcAssert.withFull(getJDBCURL(), "cp").sql(query).returns(result);
   }
 
   @Test
@@ -55,7 +55,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
             "select max(date_diff(date'2014-5-2', cast(HIRE_DATE as date))) as MAX_DAYS,  min(date_diff(date'2014-5-2', cast(HIRE_DATE as date))) MIN_DAYS"
                 + " FROM \"employee.json\"");
 
-    JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp")
+    JdbcAssert.withFull(getJDBCURL(), "cp")
         .sql(query)
         .returns("MAX_DAYS=+7671 00:00:00.000; " + "MIN_DAYS=+5965 00:00:00.000\n");
   }
@@ -72,7 +72,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
                 + "max(cast(EMPLOYEE_ID as decimal(38, 11))) as MAX_DEC38, min(cast(EMPLOYEE_ID as decimal(38, 11))) as MIN_DEC38"
                 + " FROM \"employee.json\"");
 
-    JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp")
+    JdbcAssert.withFull(getJDBCURL(), "cp")
         .sql(query)
         .returns(
             "MAX_DEC9=1156.00; "
@@ -92,7 +92,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
             "select max(full_name) as MAX_NAME,  min(full_name) as MIN_NAME"
                 + " FROM \"employee.json\"");
 
-    JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp")
+    JdbcAssert.withFull(getJDBCURL(), "cp")
         .sql(query)
         .returns("MAX_NAME=Zach Lovell; " + "MIN_NAME=A. Joyce Jarvis\n");
   }

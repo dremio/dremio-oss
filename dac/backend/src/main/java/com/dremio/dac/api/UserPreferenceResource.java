@@ -23,8 +23,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.userpreferences.Entity;
 import com.dremio.dac.model.userpreferences.PreferenceData;
-import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.service.namespace.NamespaceService;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.userpreferences.EntityAlreadyInPreferenceException;
@@ -62,21 +61,19 @@ import javax.ws.rs.QueryParam;
 public class UserPreferenceResource {
 
   private final UserPreferenceService userPreferenceService;
-  private final NamespaceService namespaceService;
+  private final Catalog catalog;
 
   @Inject
-  public UserPreferenceResource(
-      UserPreferenceService userPreferenceService, NamespaceService namespaceService) {
+  public UserPreferenceResource(UserPreferenceService userPreferenceService, Catalog catalog) {
     this.userPreferenceService = userPreferenceService;
-    this.namespaceService = namespaceService;
+    this.catalog = catalog;
   }
 
   @GET
   @Path("/{preferenceType}")
   public PreferenceData getPreferenceByType(
       @PathParam("preferenceType") String preferenceType,
-      @QueryParam("showCatalogInfo") @DefaultValue("false") boolean showCatalogInfo)
-      throws NamespaceNotFoundException {
+      @QueryParam("showCatalogInfo") @DefaultValue("false") boolean showCatalogInfo) {
     try {
       UserPreferenceProto.Preference preference =
           userPreferenceService.getPreferenceByType(validatePreferenceType(preferenceType));
@@ -88,9 +85,10 @@ public class UserPreferenceResource {
                     Collectors.toMap(UserPreferenceProto.Entity::getEntityId, entity -> entity));
 
         List<NameSpaceContainer> entities =
-            namespaceService.getEntitiesByIds(
+            catalog.getEntitiesByIds(
                 preference.getEntitiesList().stream()
                     .map(UserPreferenceProto.Entity::getEntityId)
+                    .map(EntityId::new)
                     .collect(Collectors.toList()));
         return new PreferenceData(
             preference.getType(),

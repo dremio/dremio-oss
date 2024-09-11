@@ -42,6 +42,8 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.apache.iceberg.PartitionSpec;
@@ -63,6 +65,9 @@ public class DataFileContentReader implements ManifestEntryProcessor {
   private Map<Integer, Type> idTypeMap;
   private ArrowBuf tmpBuf;
   private final BufferManager bufferManager;
+  private Configuration conf;
+  private String fsScheme;
+  private String pathSchemeVariate;
 
   public DataFileContentReader(OperatorContext context, TableFunctionContext functionContext) {
     outputSchema = functionContext.getFullSchema();
@@ -100,8 +105,16 @@ public class DataFileContentReader implements ManifestEntryProcessor {
   }
 
   @Override
-  public void initialise(PartitionSpec partitionSpec, int row) {
+  public void initialise(
+      PartitionSpec partitionSpec,
+      int row,
+      Configuration conf,
+      String fsScheme,
+      String pathSchemeVariate) {
     icebergPartitionSpec = partitionSpec;
+    this.conf = conf;
+    this.fsScheme = fsScheme;
+    this.pathSchemeVariate = pathSchemeVariate;
     Schema fileSchema = icebergPartitionSpec.schema();
     idTypeMap =
         fileSchema.columns().stream()
@@ -146,7 +159,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
         return () -> currentDataFile.content().name();
       case "file_path":
       case "datafilePath":
-        return () -> getStringValue(currentDataFile.path());
+        return () -> getFilePathStringValue(currentDataFile.path());
       case "file_format":
         return () -> currentDataFile.format().name();
       case "partition":
@@ -286,9 +299,16 @@ public class DataFileContentReader implements ManifestEntryProcessor {
     return stringBuilder.toString();
   }
 
-  private String getStringValue(Object ob) {
+  private String getFilePathStringValue(Object ob) {
     if (ob != null) {
-      return ob.toString();
+      String filePath = ob.toString();
+      // Need to adjust the manifest entry path to the path with full scheme info.
+      if (!StringUtils.isEmpty(pathSchemeVariate)) {
+        filePath =
+            IcebergUtils.getIcebergPathAndValidateScheme(
+                filePath, conf, fsScheme, pathSchemeVariate);
+      }
+      return filePath;
     }
     return null;
   }

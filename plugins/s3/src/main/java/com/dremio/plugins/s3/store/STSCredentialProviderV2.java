@@ -18,9 +18,11 @@ package com.dremio.plugins.s3.store;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.GLUE_ACCESS_KEY_PROVIDER;
 
 import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.plugins.util.awsauth.GlueAwsCredentialsProviderV2;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -30,10 +32,8 @@ import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.services.sts.StsClient;
@@ -54,10 +54,8 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoC
     logger.debug("assumed_role_credentials_provider: {}", assumeRoleProvider);
     switch (assumeRoleProvider) {
       case ACCESS_KEY_PROVIDER:
-        awsCredentialsProvider =
-            StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(
-                    conf.get(Constants.ACCESS_KEY), conf.get(Constants.SECRET_KEY)));
+      case GLUE_ACCESS_KEY_PROVIDER:
+        awsCredentialsProvider = new GlueAwsCredentialsProviderV2(null, conf);
         break;
       case EC2_METADATA_PROVIDER:
         awsCredentialsProvider = new SharedInstanceProfileCredentialsProvider();
@@ -68,15 +66,6 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoC
       default:
         throw new IllegalArgumentException(
             "Assumed role credentials provided " + assumeRoleProvider + " is not supported.");
-    }
-    if (ACCESS_KEY_PROVIDER.equals(conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER))) {
-      awsCredentialsProvider =
-          StaticCredentialsProvider.create(
-              AwsBasicCredentials.create(
-                  conf.get(Constants.ACCESS_KEY), conf.get(Constants.SECRET_KEY)));
-    } else if (EC2_METADATA_PROVIDER.equals(
-        conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER))) {
-      awsCredentialsProvider = new SharedInstanceProfileCredentialsProvider();
     }
 
     final StsClientBuilder builder =

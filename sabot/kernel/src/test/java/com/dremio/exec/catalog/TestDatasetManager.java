@@ -15,21 +15,29 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 import static com.dremio.exec.store.Views.isComplexType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Fail.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
@@ -44,7 +52,6 @@ import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.AuthorizationContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
-import com.dremio.exec.store.NessieReferenceException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -65,6 +72,7 @@ import com.google.common.collect.Lists;
 import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
 import javax.inject.Provider;
@@ -75,9 +83,15 @@ import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
+import org.mockito.stubbing.Stubber;
+import org.projectnessie.error.NessieBadRequestException;
+import org.projectnessie.error.NessieError;
+import org.projectnessie.error.NessieForbiddenException;
+import org.projectnessie.error.NessieRuntimeException;
 
 /** Tests for DatasetManager */
 public class TestDatasetManager {
@@ -164,13 +178,14 @@ public class TestDatasetManager {
             "username",
             new CatalogIdentityResolver(),
             null,
+            null,
             null);
     datasetManager.getTable(namespaceKey, metadataRequestOptions, false);
   }
 
   /** DX-16198 if doing a drop ignore the 800 line policy */
   @Test
-  public void ignoreColumnCountOnDrop() throws Exception {
+  public void testIgnoreColumnCountOnDrop() throws Exception {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
     final ViewExpansionContext viewExpansionContext = mock(ViewExpansionContext.class);
@@ -204,7 +219,7 @@ public class TestDatasetManager {
     when(managedStoragePlugin.getDatasetHandle(any(), any(), any()))
         .thenAnswer(
             invocation -> {
-              Assert.assertEquals(
+              assertEquals(
                   invocation.getArgument(2, DatasetRetrievalOptions.class).maxMetadataLeafColumns(),
                   Integer.MAX_VALUE);
               return Optional.empty();
@@ -226,6 +241,7 @@ public class TestDatasetManager {
             "username",
             new CatalogIdentityResolver(),
             null,
+            null,
             null);
     datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
   }
@@ -239,7 +255,6 @@ public class TestDatasetManager {
     when(viewExpansionContext.getQueryUser()).thenReturn(CatalogUser.from("newaccessuser"));
 
     final OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT)).thenReturn(true);
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
     when(schemaConfig.getUserName()).thenReturn("username");
@@ -291,7 +306,7 @@ public class TestDatasetManager {
     when(managedStoragePlugin.getDatasetHandle(any(), any(), any()))
         .thenAnswer(
             invocation -> {
-              Assert.assertEquals(
+              assertEquals(
                   invocation.getArgument(2, DatasetRetrievalOptions.class).maxMetadataLeafColumns(),
                   Integer.MAX_VALUE);
               return Optional.empty();
@@ -312,11 +327,12 @@ public class TestDatasetManager {
             "username",
             new CatalogIdentityResolver(),
             null,
+            null,
             null);
     DremioTable table = datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
     View.FieldType updatedField = ((ViewTable) table).getView().getFields().get(0);
-    Assert.assertTrue(isComplexType(updatedField.getType()));
-    Assert.assertEquals(
+    assertTrue(isComplexType(updatedField.getType()));
+    assertEquals(
         updatedField.getField().toString(), "struct_col: Struct<col1: Int(32, true), col2: Utf8>");
   }
 
@@ -400,6 +416,7 @@ public class TestDatasetManager {
             "username",
             new CatalogIdentityResolver(),
             null,
+            null,
             null);
 
     assertThatThrownBy(() -> datasetManager.getTable(namespaceKey, metadataRequestOptions, false))
@@ -408,7 +425,7 @@ public class TestDatasetManager {
   }
 
   @Test
-  public void checkNeverPromoteWithNullConfig() throws Exception {
+  public void testCheckNeverPromoteWithNullConfig() throws Exception {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
@@ -445,13 +462,13 @@ public class TestDatasetManager {
 
     final DatasetManager datasetManager =
         new DatasetManager(
-            pluginRetriever, namespaceService, optionManager, "username", null, null, null);
+            pluginRetriever, namespaceService, optionManager, "username", null, null, null, null);
     DremioTable table = datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
     assertThat(table).isNull();
   }
 
   @Test
-  public void checkNeverPromoteWithShallowConfig() throws Exception {
+  public void testCheckNeverPromoteWithShallowConfig() throws Exception {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
@@ -497,7 +514,7 @@ public class TestDatasetManager {
 
     final DatasetManager datasetManager =
         new DatasetManager(
-            pluginRetriever, namespaceService, optionManager, "username", null, null, null);
+            pluginRetriever, namespaceService, optionManager, "username", null, null, null, null);
     DremioTable table = datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
     assertThat(table).isNull();
   }
@@ -514,7 +531,7 @@ public class TestDatasetManager {
    * @throws Exception
    */
   @Test
-  public void checkErrorOnUnspecifiedSourceVersion() throws Exception {
+  public void testCheckErrorOnUnspecifiedSourceVersion() throws Exception {
     final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
@@ -554,7 +571,7 @@ public class TestDatasetManager {
 
     final DatasetManager datasetManager =
         new DatasetManager(
-            pluginRetriever, namespaceService, optionManager, "username", null, null, null);
+            pluginRetriever, namespaceService, optionManager, "username", null, null, null, null);
     try {
       datasetManager.getTable(sourceKey, metadataRequestOptions, true);
     } catch (UserException e) {
@@ -567,7 +584,60 @@ public class TestDatasetManager {
   }
 
   @Test
-  public void checkGetTableReturnsNullOnVersionException() throws Exception {
+  public void testCheckGetTableReturnsNullOnVersionException() throws Exception {
+    final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
+    final VersionContext versionContext = VersionContext.ofBranch("testBranch");
+    final VersionContextResolver versionContextResolver = mock(VersionContextResolver.class);
+    final VersionedDatasetAdapterFactory versionedDatasetAdapterFactory =
+        mock(VersionedDatasetAdapterFactory.class);
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+    final MetadataRequestOptions metadataRequestOptions = mock(MetadataRequestOptions.class);
+    when(metadataRequestOptions.getSchemaConfig()).thenReturn(schemaConfig);
+
+    final DatasetConfig shallowDatasetConfig = new DatasetConfig();
+    shallowDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    shallowDatasetConfig.setFullPathList(ImmutableList.of("VersionedCatalog", "Table"));
+    NamespaceKey tableKey = new NamespaceKey(shallowDatasetConfig.getFullPathList());
+    when(metadataRequestOptions.getVersionForSource(sourceKey.getRoot(), tableKey))
+        .thenReturn(versionContext);
+    FakeVersionedPlugin sp = mock(FakeVersionedPlugin.class);
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.DEFAULT);
+    when(managedStoragePlugin.getPlugin()).thenReturn(sp);
+    when(sp.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(managedStoragePlugin.getName()).thenReturn(sourceKey);
+    when(managedStoragePlugin.checkValidity(any(), eq(metadataRequestOptions))).thenReturn(false);
+    when(versionContextResolver.resolveVersionContext(sourceKey.toString(), versionContext))
+        .thenThrow(new VersionNotFoundInNessieException() {});
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(sourceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(sourceKey)).thenReturn(shallowDatasetConfig);
+
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever,
+            namespaceService,
+            optionManager,
+            "username",
+            null,
+            versionContextResolver,
+            versionedDatasetAdapterFactory,
+            null);
+
+    DremioTable returnedTable = datasetManager.getTable(sourceKey, metadataRequestOptions, true);
+    assertThat(returnedTable).isNull();
+  }
+
+  @Test
+  public void testCheckGetTableThrowsExceptionOnForbiddenException() throws Exception {
     final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
     final VersionContext versionContext = VersionContext.ofBranch("testBranch");
     final VersionContextResolver versionContextResolver = mock(VersionContextResolver.class);
@@ -592,10 +662,68 @@ public class TestDatasetManager {
     when(managedStoragePlugin.getDefaultRetrievalOptions())
         .thenReturn(DatasetRetrievalOptions.DEFAULT);
     when(managedStoragePlugin.getPlugin()).thenReturn(sp);
+    when(sp.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
     when(managedStoragePlugin.getName()).thenReturn(sourceKey);
     when(managedStoragePlugin.checkValidity(any(), eq(metadataRequestOptions))).thenReturn(false);
-    when(versionContextResolver.resolveVersionContext(sourceKey.toString(), versionContext))
-        .thenThrow(new NessieReferenceException());
+
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(sourceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(sourceKey)).thenReturn(shallowDatasetConfig);
+    doThrow(new NessieForbiddenException(mock(NessieError.class)))
+        .when(versionContextResolver)
+        .resolveVersionContext(sourceKey.toString(), versionContext);
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever,
+            namespaceService,
+            optionManager,
+            "username",
+            null,
+            versionContextResolver,
+            versionedDatasetAdapterFactory,
+            null);
+
+    assertThrows(
+        NessieRuntimeException.class,
+        () -> datasetManager.getTable(sourceKey, metadataRequestOptions, true));
+  }
+
+  @Test
+  public void testCheckGetTableThrowsExceptionOnBadRequestException() throws Exception {
+    final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
+    final VersionContext versionContext = VersionContext.ofBranch("testBranch");
+    final VersionContextResolver versionContextResolver = mock(VersionContextResolver.class);
+    final VersionedDatasetAdapterFactory versionedDatasetAdapterFactory =
+        mock(VersionedDatasetAdapterFactory.class);
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+    final MetadataRequestOptions metadataRequestOptions = mock(MetadataRequestOptions.class);
+    when(metadataRequestOptions.getSchemaConfig()).thenReturn(schemaConfig);
+
+    final DatasetConfig shallowDatasetConfig = new DatasetConfig();
+    shallowDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    shallowDatasetConfig.setFullPathList(ImmutableList.of("VersionedCatalog", "Table"));
+    NamespaceKey tableKey = new NamespaceKey(shallowDatasetConfig.getFullPathList());
+    when(metadataRequestOptions.getVersionForSource(sourceKey.getRoot(), tableKey))
+        .thenReturn(versionContext);
+    FakeVersionedPlugin sp = mock(FakeVersionedPlugin.class);
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.DEFAULT);
+    when(managedStoragePlugin.getPlugin()).thenReturn(sp);
+    when(sp.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(managedStoragePlugin.getName()).thenReturn(sourceKey);
+    when(managedStoragePlugin.checkValidity(any(), eq(metadataRequestOptions))).thenReturn(false);
+    doThrow(new NessieBadRequestException(mock(NessieError.class)))
+        .when(versionContextResolver)
+        .resolveVersionContext(sourceKey.toString(), versionContext);
     final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
     when(pluginRetriever.getPlugin(sourceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
 
@@ -612,14 +740,130 @@ public class TestDatasetManager {
             "username",
             null,
             versionContextResolver,
-            versionedDatasetAdapterFactory);
+            versionedDatasetAdapterFactory,
+            null);
 
-    DremioTable returnedTable = datasetManager.getTable(sourceKey, metadataRequestOptions, true);
-    assertThat(returnedTable).isNull();
+    assertThrows(
+        RuntimeException.class,
+        () -> datasetManager.getTable(sourceKey, metadataRequestOptions, true));
   }
 
   @Test
-  public void checkGetTableReturnsExceptionOnSourceException() throws Exception {
+  public void testCheckGetTableThrowsExceptionOnRuntimeException() throws Exception {
+    final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
+    final VersionContext versionContext = VersionContext.ofBranch("testBranch");
+    final VersionContextResolver versionContextResolver = mock(VersionContextResolver.class);
+    final VersionedDatasetAdapterFactory versionedDatasetAdapterFactory =
+        mock(VersionedDatasetAdapterFactory.class);
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+    final MetadataRequestOptions metadataRequestOptions = mock(MetadataRequestOptions.class);
+    when(metadataRequestOptions.getSchemaConfig()).thenReturn(schemaConfig);
+
+    final DatasetConfig shallowDatasetConfig = new DatasetConfig();
+    shallowDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    shallowDatasetConfig.setFullPathList(ImmutableList.of("VersionedCatalog", "Table"));
+    NamespaceKey tableKey = new NamespaceKey(shallowDatasetConfig.getFullPathList());
+    when(metadataRequestOptions.getVersionForSource(sourceKey.getRoot(), tableKey))
+        .thenReturn(versionContext);
+    FakeVersionedPlugin sp = mock(FakeVersionedPlugin.class);
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.DEFAULT);
+    when(managedStoragePlugin.getPlugin()).thenReturn(sp);
+    when(sp.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(sp.unwrap(VersionedPlugin.class)).thenReturn(sp);
+    when(managedStoragePlugin.getName()).thenReturn(sourceKey);
+    when(managedStoragePlugin.checkValidity(any(), eq(metadataRequestOptions))).thenReturn(false);
+    doThrow(new RuntimeException())
+        .when(versionContextResolver)
+        .resolveVersionContext(sourceKey.toString(), versionContext);
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(sourceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(sourceKey)).thenReturn(shallowDatasetConfig);
+
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever,
+            namespaceService,
+            optionManager,
+            "username",
+            null,
+            versionContextResolver,
+            versionedDatasetAdapterFactory,
+            null);
+
+    assertThrows(
+        RuntimeException.class,
+        () -> datasetManager.getTable(sourceKey, metadataRequestOptions, true));
+  }
+
+  @Test
+  public void testCheckGetTableThrowsExceptionOnGenericException() throws Exception {
+    final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
+    final VersionContext versionContext = VersionContext.ofBranch("testBranch");
+    final VersionContextResolver versionContextResolver = mock(VersionContextResolver.class);
+    final VersionedDatasetAdapterFactory versionedDatasetAdapterFactory =
+        mock(VersionedDatasetAdapterFactory.class);
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+    final MetadataRequestOptions metadataRequestOptions = mock(MetadataRequestOptions.class);
+    when(metadataRequestOptions.getSchemaConfig()).thenReturn(schemaConfig);
+
+    final DatasetConfig shallowDatasetConfig = new DatasetConfig();
+    shallowDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    shallowDatasetConfig.setFullPathList(ImmutableList.of("VersionedCatalog", "Table"));
+    NamespaceKey tableKey = new NamespaceKey(shallowDatasetConfig.getFullPathList());
+    when(metadataRequestOptions.getVersionForSource(sourceKey.getRoot(), tableKey))
+        .thenReturn(versionContext);
+    FakeVersionedPlugin sp = mock(FakeVersionedPlugin.class);
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.DEFAULT);
+    when(managedStoragePlugin.getPlugin()).thenReturn(sp);
+    when(sp.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
+    when(sp.unwrap(VersionedPlugin.class)).thenReturn(sp);
+    when(managedStoragePlugin.getName()).thenReturn(sourceKey);
+    when(managedStoragePlugin.checkValidity(any(), eq(metadataRequestOptions))).thenReturn(false);
+    doThrow(new IllegalStateException())
+        .when(versionContextResolver)
+        .resolveVersionContext(sourceKey.toString(), versionContext);
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(sourceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(sourceKey)).thenReturn(shallowDatasetConfig);
+
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever,
+            namespaceService,
+            optionManager,
+            "username",
+            null,
+            versionContextResolver,
+            versionedDatasetAdapterFactory,
+            null);
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> datasetManager.getTable(sourceKey, metadataRequestOptions, true));
+  }
+
+  @Test
+  public void testCheckGetTableReturnsExceptionOnSourceException() throws Exception {
     final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
     final VersionContext versionContext = VersionContext.ofBranch("testBranch");
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
@@ -662,7 +906,8 @@ public class TestDatasetManager {
             "username",
             null,
             versionContextResolver,
-            versionedDatasetAdapterFactory);
+            versionedDatasetAdapterFactory,
+            null);
     try {
       DremioTable returnedTable = datasetManager.getTable(sourceKey, metadataRequestOptions, true);
       assertThat(returnedTable).isNull();
@@ -674,7 +919,7 @@ public class TestDatasetManager {
   }
 
   @Test
-  public void checkGetTableReturnsExceptionOnAccessException() throws Exception {
+  public void testCheckGetTableReturnsExceptionOnAccessException() throws Exception {
     final NamespaceKey sourceKey = new NamespaceKey("VersionedCatalog");
     final VersionContext versionContext = VersionContext.ofBranch("testBranch");
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
@@ -708,7 +953,7 @@ public class TestDatasetManager {
 
     final DatasetManager datasetManager =
         new DatasetManager(
-            pluginRetriever, namespaceService, optionManager, "username", null, null, null);
+            pluginRetriever, namespaceService, optionManager, "username", null, null, null, null);
     try {
       DremioTable returnedTable = datasetManager.getTable(sourceKey, metadataRequestOptions, true);
       assertThat(returnedTable).isNull();
@@ -720,7 +965,7 @@ public class TestDatasetManager {
   }
 
   @Test
-  public void test() throws Exception {
+  public void testViewOwner() throws Exception {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
     final ViewExpansionContext viewExpansionContext = mock(ViewExpansionContext.class);
@@ -754,7 +999,7 @@ public class TestDatasetManager {
     when(managedStoragePlugin.getDatasetHandle(any(), any(), any()))
         .thenAnswer(
             invocation -> {
-              Assert.assertEquals(
+              assertEquals(
                   invocation.getArgument(2, DatasetRetrievalOptions.class).maxMetadataLeafColumns(),
                   Integer.MAX_VALUE);
               return Optional.empty();
@@ -779,13 +1024,14 @@ public class TestDatasetManager {
             "username",
             new CatalogIdentityResolver(),
             null,
-            new VersionedDatasetAdapterFactory());
+            new VersionedDatasetAdapterFactory(),
+            null);
 
     datasetManager.getTable(datasetId, metadataRequestOptions);
   }
 
   @Test
-  public void checkPathTraversalNamespaceTableCannotBeAccessed() throws Exception {
+  public void testCheckPathTraversalNamespaceTableCannotBeAccessed() throws Exception {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
@@ -822,10 +1068,209 @@ public class TestDatasetManager {
 
     final DatasetManager datasetManager =
         new DatasetManager(
-            pluginRetriever, namespaceService, optionManager, "username", null, null, null);
+            pluginRetriever, namespaceService, optionManager, "username", null, null, null, null);
     assertThatThrownBy(() -> datasetManager.getTable(namespaceKey, metadataRequestOptions, true))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("Not allowed to perform directory traversal");
+  }
+
+  /**
+   * Test recovery from concurrent source modification. Number of exceptions thrown parameter
+   * defines three tests: no concurrent modification, one concurrent modification (and successful
+   * recovery), two concurrent modifications (and failure).
+   */
+  @ParameterizedTest
+  @ValueSource(ints = {0, 1, 2})
+  public void testCGetTable_sourceIsChangingRetry(int numExceptionsThrown) throws Exception {
+    NamespaceKey namespaceKey = new NamespaceKey("test");
+
+    // Metadata request options.
+    SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+    MetadataRequestOptions metadataRequestOptions =
+        MetadataRequestOptions.newBuilder()
+            .setSchemaConfig(schemaConfig)
+            .setCheckValidity(true)
+            .build();
+
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET)
+            .setId(new EntityId("test"))
+            .setFullPathList(ImmutableList.of("test", "folder", "file"))
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L))
+            .setTotalNumSplits(0);
+
+    // Storage plugin mock.
+    ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    StoragePlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    when(managedStoragePlugin.checkValidity(any(), any())).thenReturn(false);
+    when(managedStoragePlugin.getPlugin()).thenReturn(fileSystemPlugin);
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.newBuilder().setMaxNestedLevel(1).build());
+    when(managedStoragePlugin.getDatasetMetadataState(any()))
+        .thenReturn(DatasetMetadataState.builder().setIsComplete(false).setIsExpired(true).build());
+    DatasetHandle datasetHandle = mock(DatasetHandle.class);
+    when(managedStoragePlugin.getDatasetHandle(any(), any(), any()))
+        .thenReturn(Optional.of(datasetHandle));
+    when(datasetHandle.getDatasetPath())
+        .thenReturn(new EntityPath(datasetConfig.getFullPathList()));
+
+    PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(namespaceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    // Namespace service mock.
+    NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(namespaceKey)).thenReturn(datasetConfig);
+
+    // Mock throwing exceptions.
+    DatasetSaver saver = mock(DatasetSaver.class);
+    when(managedStoragePlugin.getSaver()).thenReturn(saver);
+    Stubber stubber =
+        numExceptionsThrown == 0
+            ? doNothing()
+            : doThrow(managedStoragePlugin.new StoragePluginChanging("first call"));
+    if (numExceptionsThrown == 2) {
+      stubber = stubber.doThrow(managedStoragePlugin.new StoragePluginChanging("second call"));
+    } else {
+      stubber = stubber.doNothing();
+    }
+    stubber.when(saver).save(any(), any(), any(), anyBoolean(), any(), anyString());
+
+    DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever,
+            namespaceService,
+            mock(OptionManager.class),
+            "username",
+            null,
+            null,
+            null,
+            null);
+
+    if (numExceptionsThrown <= 1) {
+      // Verify that when one exception is thrown, the save call is retried.
+      assertThat(datasetManager.getTable(namespaceKey, metadataRequestOptions, true)).isNotNull();
+    } else {
+      // Verify that when the second save() call fails, the exception is thrown from the getTable
+      // method.
+      ManagedStoragePlugin.StoragePluginChanging e =
+          assertThrows(
+              ManagedStoragePlugin.StoragePluginChanging.class,
+              () -> datasetManager.getTable(namespaceKey, metadataRequestOptions, true));
+      assertThat(e.getMessage()).isEqualTo("second call");
+    }
+
+    // Two calls were made when the first call threw.
+    verify(saver, times(numExceptionsThrown == 0 ? 1 : 2))
+        .save(any(), any(), any(), anyBoolean(), any(), anyString());
+  }
+
+  /**
+   * Test recovery from concurrent modification with null read definition in {@link DatasetConfig}.
+   * Number of exceptions thrown parameter defines three tests: no concurrent modification, one
+   * concurrent modification (and successful recovery), two concurrent modifications (and failure).
+   */
+  @ParameterizedTest
+  @ValueSource(ints = {0, 1, 2})
+  public void testCGetTable_nullReadDefinitionInCME(int numExceptionsThrown) throws Exception {
+    NamespaceKey namespaceKey = new NamespaceKey("test");
+
+    // Metadata request options.
+    SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+    MetadataRequestOptions metadataRequestOptions =
+        MetadataRequestOptions.newBuilder()
+            .setSchemaConfig(schemaConfig)
+            .setCheckValidity(true)
+            .build();
+
+    // Normal config.
+    DatasetConfig datasetConfig =
+        new DatasetConfig()
+            .setType(DatasetType.PHYSICAL_DATASET)
+            .setId(new EntityId("test"))
+            .setFullPathList(ImmutableList.of("test", "folder", "file"))
+            .setReadDefinition(new ReadDefinition().setSplitVersion(0L))
+            .setTotalNumSplits(0);
+    DatasetConfig datasetConfigWithNull =
+        ProtostuffUtil.copy(datasetConfig).setReadDefinition(null);
+
+    // Storage plugin mock.
+    ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    StoragePlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    when(managedStoragePlugin.checkValidity(any(), any())).thenReturn(false);
+    when(managedStoragePlugin.getPlugin()).thenReturn(fileSystemPlugin);
+    when(managedStoragePlugin.getDefaultRetrievalOptions())
+        .thenReturn(DatasetRetrievalOptions.newBuilder().setMaxNestedLevel(1).build());
+    when(managedStoragePlugin.getDatasetMetadataState(any()))
+        .thenReturn(DatasetMetadataState.builder().setIsComplete(false).setIsExpired(true).build());
+    DatasetHandle datasetHandle = mock(DatasetHandle.class);
+    when(managedStoragePlugin.getDatasetHandle(any(), any(), any()))
+        .thenReturn(Optional.of(datasetHandle));
+    when(datasetHandle.getDatasetPath())
+        .thenReturn(new EntityPath(datasetConfig.getFullPathList()));
+
+    PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(namespaceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    // Namespace service mock.
+    NamespaceService namespaceService = mock(NamespaceService.class);
+    if (numExceptionsThrown == 0) {
+      when(namespaceService.getDataset(any())).thenReturn(datasetConfig);
+    } else if (numExceptionsThrown == 1) {
+      // Return null for first two calls, then return dataset with null read definition and finally
+      // correct config.
+      when(namespaceService.getDataset(any()))
+          .thenReturn(null, null, datasetConfigWithNull, datasetConfig);
+    } else {
+      // Return null for first two calls and then return dataset with null read definition.
+      when(namespaceService.getDataset(any())).thenReturn(null, null, datasetConfigWithNull);
+    }
+
+    // Mock throwing exceptions.
+    DatasetSaver saver = mock(DatasetSaver.class);
+    when(managedStoragePlugin.getSaver()).thenReturn(saver);
+    Stubber stubber =
+        numExceptionsThrown == 0
+            ? doNothing()
+            : doThrow(new ConcurrentModificationException("first call"));
+    if (numExceptionsThrown == 2) {
+      stubber = stubber.doThrow(new ConcurrentModificationException("second call"));
+    } else {
+      stubber = stubber.doNothing();
+    }
+    stubber.when(saver).save(any(), any(), any(), anyBoolean(), any(), anyString());
+
+    DatasetManager datasetManager =
+        new DatasetManager(
+            pluginRetriever,
+            namespaceService,
+            mock(OptionManager.class),
+            "username",
+            null,
+            null,
+            null,
+            null);
+
+    if (numExceptionsThrown <= 1) {
+      // Verify that when one exception is thrown, the save call is retried.
+      assertThat(datasetManager.getTable(namespaceKey, metadataRequestOptions, true)).isNotNull();
+    } else {
+      // Verify that when the second save() call fails, the exception is thrown from the
+      // getTable method.
+      ConcurrentModificationException e =
+          assertThrows(
+              ConcurrentModificationException.class,
+              () -> datasetManager.getTable(namespaceKey, metadataRequestOptions, true));
+      assertThat(e.getMessage()).isEqualTo("second call");
+    }
+
+    // Two calls were made when the first call threw.
+    verify(saver, times(numExceptionsThrown == 0 ? 1 : 2))
+        .save(any(), any(), any(), anyBoolean(), any(), anyString());
   }
 
   /** Fake Versioned Plugin interface for test */

@@ -16,7 +16,9 @@
 package com.dremio.common.expression;
 
 import com.dremio.common.expression.PathSegment.ArraySegment;
+import com.dremio.common.expression.PathSegment.ArraySegmentInputRef;
 import com.dremio.common.expression.PathSegment.NameSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.NamePart.Type;
 import java.util.ArrayList;
@@ -52,6 +54,8 @@ public abstract class BasePath implements ProvidesUnescapedPath {
     public OUT visitName(NameSegment segment, IN in);
 
     public OUT visitArray(ArraySegment segment, IN in);
+
+    public OUT visitArrayInput(ArraySegmentInputRef inputRef, IN in);
   }
 
   private static NamePart getNamePart(PathSegment s) {
@@ -63,7 +67,7 @@ public abstract class BasePath implements ProvidesUnescapedPath {
       b.setChild(getNamePart(s.getChild()));
     }
 
-    if (s.isArray()) {
+    if (s.getType().equals(PathSegmentType.ARRAY_INDEX)) {
       if (s.getArraySegment().hasIndex()) {
         throw new IllegalStateException(
             "You cannot convert a indexed schema path to a NamePart.  NameParts can only reference Vectors, not individual records or values.");
@@ -80,7 +84,7 @@ public abstract class BasePath implements ProvidesUnescapedPath {
     List<String> segments = new ArrayList<>();
     PathSegment seg = rootSegment;
     while (seg != null) {
-      if (seg.isNamed()) {
+      if (seg.getType().equals(PathSegmentType.NAME)) {
         segments.add(seg.getNameSegment().getPath());
       }
       seg = seg.getChild();
@@ -92,9 +96,9 @@ public abstract class BasePath implements ProvidesUnescapedPath {
     List<String> segments = new ArrayList<>();
     PathSegment seg = rootSegment;
     while (seg != null) {
-      if (seg.isNamed()) {
+      if (seg.getType().equals(PathSegmentType.NAME)) {
         segments.add(seg.getNameSegment().getPath());
-      } else if (seg.isArray()) {
+      } else if (seg.getType().equals(PathSegmentType.ARRAY_INDEX)) {
         segments.add("list");
         segments.add("element");
       }
@@ -120,7 +124,9 @@ public abstract class BasePath implements ProvidesUnescapedPath {
   public boolean isSimplePath() {
     PathSegment seg = rootSegment;
     while (seg != null) {
-      if (seg.isArray() && !seg.isLastPath()) {
+      if ((seg.getType().equals(PathSegmentType.ARRAY_INDEX)
+              || seg.getType().equals(PathSegmentType.ARRAY_INDEX_REF))
+          && !seg.isLastPath()) {
         return false;
       }
       seg = seg.getChild();
@@ -144,15 +150,20 @@ public abstract class BasePath implements ProvidesUnescapedPath {
   public String getAsUnescapedPath() {
     StringBuilder sb = new StringBuilder();
     PathSegment seg = getRootSegment();
-    if (seg.isArray()) {
+    if (seg.getType().equals(PathSegmentType.ARRAY_INDEX)
+        || seg.getType().equals(PathSegmentType.ARRAY_INDEX_REF)) {
       throw new IllegalStateException("Dremio doesn't currently support top level arrays");
     }
     sb.append(seg.getNameSegment().getPath());
 
     while ((seg = seg.getChild()) != null) {
-      if (seg.isNamed()) {
+      if (seg.getType().equals(PathSegmentType.NAME)) {
         sb.append('.');
         sb.append(seg.getNameSegment().getPath());
+      } else if (seg.getType().equals(PathSegmentType.ARRAY_INDEX_REF)) {
+        sb.append('[');
+        sb.append(seg.getArrayInputRef().getPath());
+        sb.append(']');
       } else {
         sb.append('[');
         sb.append(seg.getArraySegment().getOptionalIndex());

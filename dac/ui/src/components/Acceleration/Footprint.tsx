@@ -40,21 +40,19 @@ function Footprint({
       title={
         <div>
           <div className="flex --alignCenter justify-between mb-05">
-            {t("Sonar.Reflection.Column.CurrentFootprint.Label", {
+            {t("Reflection.CurrentFootprint.Label", {
               b: (chunk: string[]) => <b>{chunk}</b>,
             })}
             <b>{currentSize}</b>
           </div>
-          <p className="mb-1">
-            {t("Sonar.Reflection.Column.CurrentFootprint.Hint")}
-          </p>
+          <p className="mb-1">{t("Reflection.CurrentFootprint.Hint")}</p>
           <div className="flex --alignCenter justify-between mb-05">
-            {t("Sonar.Reflection.Column.TotalFootprint.Label", {
+            {t("Reflection.TotalFootprint.Label", {
               b: (chunk: string[]) => <b>{chunk}</b>,
             })}
             <b>{totalSize}</b>
           </div>
-          <p>{t("Sonar.Reflection.Column.TotalFootprint.Hint")}</p>
+          <p>{t("Reflection.TotalFootprint.Hint")}</p>
         </div>
       }
       placement={tooltipPlacement}

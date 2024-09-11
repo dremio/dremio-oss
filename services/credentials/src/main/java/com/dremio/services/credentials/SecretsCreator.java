@@ -16,8 +16,9 @@
 package com.dremio.services.credentials;
 
 import java.net.URI;
+import java.util.Optional;
 
-/** Primarily interface for in-line encryption of secrets. */
+/** Primary interface for in-line encryption of source secrets. */
 public interface SecretsCreator {
 
   /** Validate and return true if the secret has already been encrypted. */
@@ -25,6 +26,12 @@ public interface SecretsCreator {
 
   /**
    * Encrypt the given secret in-line, returning the encrypted value as a CredentialsService URI.
+   * Rejects secrets that match the pattern of a {@link CredentialsProvider} URI. Always encrypts
+   * secrets encoded as data credentials; callers should encode plaintext secrets where possible to
+   * ensure secrets are encrypted.
+   *
+   * @throws CredentialsException if error occurs during encryption.
+   * @return URI representation of encrypted secret, empty if encryption was refused.
    */
-  public URI encrypt(String secret) throws CredentialsException;
+  public Optional<URI> encrypt(String secret) throws CredentialsException;
 }

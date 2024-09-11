@@ -18,6 +18,7 @@ package com.dremio.exec.store.ischema;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
@@ -54,6 +55,8 @@ import org.apache.calcite.rel.type.RelDataType;
 public class InformationSchemaRecordReader extends AbstractRecordReader {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(InformationSchemaRecordReader.class);
+
+  private final OperatorContext operatorContext;
   private final InformationSchemaServiceBlockingStub catalogStub;
   private final InformationSchemaTable table;
   private final String catalogName;
@@ -74,6 +77,7 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
       SearchQuery searchQuery,
       boolean complexTypeSupport) {
     super(context, fields);
+    this.operatorContext = context;
     this.catalogStub = catalogStub;
     this.table = table;
     this.catalogName = catalogName;
@@ -130,7 +134,10 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
       case CATALOGS:
         {
           final ListCatalogsRequest.Builder catalogsRequest =
-              ListCatalogsRequest.newBuilder().setUsername(username);
+              ListCatalogsRequest.newBuilder()
+                  .setUsername(username)
+                  .setRequesterId(
+                      QueryIdHelper.getQueryIdentifier(operatorContext.getFragmentHandle()));
           if (searchQuery != null) {
             catalogsRequest.setQuery(searchQuery);
           }
@@ -143,7 +150,10 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
       case SCHEMATA:
         {
           final ListSchemataRequest.Builder schemataRequest =
-              ListSchemataRequest.newBuilder().setUsername(username);
+              ListSchemataRequest.newBuilder()
+                  .setUsername(username)
+                  .setRequesterId(
+                      QueryIdHelper.getQueryIdentifier(operatorContext.getFragmentHandle()));
           if (searchQuery != null) {
             schemataRequest.setQuery(searchQuery);
           }
@@ -156,7 +166,10 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
       case TABLES:
         {
           final ListTablesRequest.Builder tablesRequest =
-              ListTablesRequest.newBuilder().setUsername(username);
+              ListTablesRequest.newBuilder()
+                  .setUsername(username)
+                  .setRequesterId(
+                      QueryIdHelper.getQueryIdentifier(operatorContext.getFragmentHandle()));
           if (searchQuery != null) {
             tablesRequest.setQuery(searchQuery);
           }
@@ -169,7 +182,10 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
       case VIEWS:
         {
           final ListViewsRequest.Builder viewsRequest =
-              ListViewsRequest.newBuilder().setUsername(username);
+              ListViewsRequest.newBuilder()
+                  .setUsername(username)
+                  .setRequesterId(
+                      QueryIdHelper.getQueryIdentifier(operatorContext.getFragmentHandle()));
           if (searchQuery != null) {
             viewsRequest.setQuery(searchQuery);
           }
@@ -182,7 +198,10 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
       case COLUMNS:
         {
           final ListTableSchemataRequest.Builder columnsRequest =
-              ListTableSchemataRequest.newBuilder().setUsername(username);
+              ListTableSchemataRequest.newBuilder()
+                  .setUsername(username)
+                  .setRequesterId(
+                      QueryIdHelper.getQueryIdentifier(operatorContext.getFragmentHandle()));
           if (searchQuery != null) {
             columnsRequest.setQuery(searchQuery);
           }

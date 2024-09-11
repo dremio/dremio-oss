@@ -94,6 +94,7 @@ public class FileSystemFullRefreshPlanBuilder extends AbstractRefreshPlanBuilder
     DatasetConfig config = super.setupDatasetConfig();
     final FileConfig format = new FileConfig();
     format.setType(datasetFileType);
+    sqlNode.getFileNameRegex().ifPresent(format::setFileNameRegex);
     config.getPhysicalDataset().setFormatSettings(format);
     checkAndUpdateIsFileDataset();
     DatasetType datasetType =

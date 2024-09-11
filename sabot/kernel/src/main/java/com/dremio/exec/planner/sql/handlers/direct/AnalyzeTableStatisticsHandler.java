@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -69,11 +70,6 @@ public class AnalyzeTableStatisticsHandler extends SimpleDirectHandler {
 
     boolean isAnalysis = sqlAnalyzeTableStatistics.isAnalyze().booleanValue();
     final DremioTable table = catalog.getTable(path);
-    Double samplingRate =
-        table.getStatistic().getRowCount() > plannerSettings.getStatisticsSamplingThreshold()
-            ? plannerSettings.getStatisticsSamplingRate()
-            : null;
-
     if (table == null) {
       throw UserException.validationError()
           .message("Cannot find the requested table: %s", path.toString())
@@ -119,6 +115,13 @@ public class AnalyzeTableStatisticsHandler extends SimpleDirectHandler {
                     + maxColumnLimit
                     + "."));
       }
+
+      Double samplingRate =
+          Optional.ofNullable(table.getStatistic().getRowCount())
+              .filter(rowCount -> rowCount > plannerSettings.getStatisticsSamplingThreshold())
+              .map(rowCount -> plannerSettings.getStatisticsSamplingRate())
+              .orElse(null);
+
       String id =
           statisticsAdministrationService.requestStatistics(
               new ArrayList<>(supportedFields), path, samplingRate);

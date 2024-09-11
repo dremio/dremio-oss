@@ -18,10 +18,10 @@ package com.dremio.dac.api;
 import static com.dremio.exec.ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS;
 import static com.dremio.exec.ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR;
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
+import static com.dremio.service.reflection.ReflectionOptions.ENABLE_EXPONENTIAL_BACKOFF_FOR_RETRY_POLICY;
 import static com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS.NONE;
 import static com.dremio.service.reflection.ReflectionStatus.REFRESH_STATUS.GIVEN_UP;
 import static com.dremio.service.reflection.ReflectionStatus.REFRESH_STATUS.MANUAL;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -34,19 +34,19 @@ import static org.junit.Assert.fail;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.reflection.ReflectionStatusUI;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.store.SchemaConfig;
+import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.AccelerationTestUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
 import com.dremio.service.reflection.ReflectionMonitor;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
@@ -109,6 +109,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
             l(MaterializationDescriptorProvider.class),
             l(JobsService.class),
             new MaterializationStore(p(LegacyKVStoreProvider.class)),
+            getOptionManager(),
             SECONDS.toMillis(1),
             SECONDS.toMillis(30));
 
@@ -130,6 +131,10 @@ public class TestReflectionResource extends AccelerationTestUtil {
     // exception trying to
     // close query allocators that are still being used
     monitor.waitUntilNoMaterializationsAvailable();
+  }
+
+  protected static ReflectionServiceHelper getReflectionServiceHelper() {
+    return l(ReflectionServiceHelper.class);
   }
 
   @Test
@@ -161,7 +166,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
         response.getPartitionDistributionStrategy(),
         newReflection.getPartitionDistributionStrategy());
 
-    newReflectionServiceHelper().removeReflection(response.getId());
+    getReflectionServiceHelper().removeReflection(response.getId());
   }
 
   @Test
@@ -203,15 +208,16 @@ public class TestReflectionResource extends AccelerationTestUtil {
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
 
+    Reflection request = createReflectionRequest(response);
     String betterName = "much better name";
-    response.setName(betterName);
+    request.setName(betterName);
     Reflection response2 =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(response.getId()))
-                .buildPut(Entity.entity(response, JSON)),
+            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(request.getId()))
+                .buildPut(Entity.entity(request, JSON)),
             Reflection.class);
 
-    assertEquals(response2.getId(), response.getId());
+    assertEquals(response2.getId(), request.getId());
     assertEquals(response2.getName(), betterName);
     assertEquals(response2.getType(), response.getType());
     assertEquals(response2.getCreatedAt(), response.getCreatedAt());
@@ -226,7 +232,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
     assertEquals(
         response2.getPartitionDistributionStrategy(), response.getPartitionDistributionStrategy());
 
-    newReflectionServiceHelper().removeReflection(response2.getId());
+    getReflectionServiceHelper().removeReflection(response2.getId());
   }
 
   @Test
@@ -239,12 +245,13 @@ public class TestReflectionResource extends AccelerationTestUtil {
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
     assertFalse(response.isArrowCachingEnabled());
-    response.setArrowCachingEnabled(true);
+    Reflection request = createReflectionRequest(response);
+    request.setArrowCachingEnabled(true);
 
     response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(response.getId()))
-                .buildPut(Entity.entity(response, JSON)),
+            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(request.getId()))
+                .buildPut(Entity.entity(request, JSON)),
             Reflection.class);
     assertTrue(response.isArrowCachingEnabled());
   }
@@ -259,12 +266,13 @@ public class TestReflectionResource extends AccelerationTestUtil {
                 .buildPost(Entity.entity(newReflection, JSON)),
             Reflection.class);
     assertFalse(response.isArrowCachingEnabled());
-    response.setArrowCachingEnabled(true);
+    Reflection request = createReflectionRequest(response);
+    request.setArrowCachingEnabled(true);
 
     response =
         expectSuccess(
-            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(response.getId()))
-                .buildPut(Entity.entity(response, JSON)),
+            getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(request.getId()))
+                .buildPut(Entity.entity(request, JSON)),
             Reflection.class);
     assertTrue(response.isArrowCachingEnabled());
   }
@@ -281,7 +289,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
     expectSuccess(
         getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(response.getId())).buildDelete());
 
-    assertFalse(newReflectionServiceHelper().getReflectionById(response.getId()).isPresent());
+    assertFalse(getReflectionServiceHelper().getReflectionById(response.getId()).isPresent());
   }
 
   @Test
@@ -304,9 +312,9 @@ public class TestReflectionResource extends AccelerationTestUtil {
       ReflectionEntry entry =
           monitor.waitForState(new ReflectionId(createResponse.getId()), ReflectionState.ACTIVE);
       ReflectionStatusUI status =
-          newReflectionServiceHelper().getStatusForReflection(createResponse.getId());
+          getReflectionServiceHelper().getStatusForReflection(createResponse.getId());
       assertEquals(1, entry.getNumFailures().intValue());
-      assertEquals(true, entry.getDontGiveUp());
+      assertEquals(RefreshPolicyType.NEVER, entry.getRefreshPolicyTypeList().get(0));
       assertEquals(NONE, status.getAvailability());
       assertEquals(MANUAL, status.getRefresh());
 
@@ -327,14 +335,14 @@ public class TestReflectionResource extends AccelerationTestUtil {
       ReflectionEntry entry2 =
           monitor.waitForState(new ReflectionId(createResponse.getId()), ReflectionState.ACTIVE);
       ReflectionStatusUI status2 =
-          newReflectionServiceHelper().getStatusForReflection(createResponse.getId());
+          getReflectionServiceHelper().getStatusForReflection(createResponse.getId());
       assertEquals(1, entry2.getNumFailures().intValue());
-      assertEquals(true, entry2.getDontGiveUp());
+      assertEquals(RefreshPolicyType.NEVER, entry2.getRefreshPolicyTypeList().get(0));
       assertEquals(NONE, status2.getAvailability());
       assertEquals(MANUAL, status2.getRefresh());
       assertEquals(1, status2.getFailureCount());
 
-      newReflectionServiceHelper().removeReflection(createResponse.getId());
+      getReflectionServiceHelper().removeReflection(createResponse.getId());
     }
   }
 
@@ -344,6 +352,15 @@ public class TestReflectionResource extends AccelerationTestUtil {
             withSystemOption(PARQUET_MAXIMUM_PARTITIONS_VALIDATOR.getOptionName(), "2");
         AutoCloseable option2 =
             withSystemOption(LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(), "1")) {
+
+      // skip retry backoff and retry immediately for this test because
+      // it will take too long to get a GIVEN_UP status to proceed to the next step
+      getOptionManager()
+          .setOption(
+              OptionValue.createBoolean(
+                  OptionValue.OptionType.SYSTEM,
+                  ENABLE_EXPONENTIAL_BACKOFF_FOR_RETRY_POLICY.getOptionName(),
+                  false));
 
       // Create reflection on table that has a 1 hour default refresh policy
       final List<NameSpaceContainer> entities =
@@ -370,9 +387,9 @@ public class TestReflectionResource extends AccelerationTestUtil {
       Materialization m1 = monitor.waitUntilMaterializationFails(testReflectionId);
       ReflectionEntry entry = monitor.waitForState(testReflectionId, ReflectionState.FAILED);
       ReflectionStatusUI status =
-          newReflectionServiceHelper().getStatusForReflection(testReflectionId.getId());
+          getReflectionServiceHelper().getStatusForReflection(testReflectionId.getId());
       assertEquals(1, entry.getNumFailures().intValue());
-      assertEquals(false, entry.getDontGiveUp());
+      assertEquals(RefreshPolicyType.PERIOD, entry.getRefreshPolicyTypeList().get(0));
       assertEquals(NONE, status.getAvailability());
       assertEquals(GIVEN_UP, status.getRefresh());
 
@@ -384,14 +401,14 @@ public class TestReflectionResource extends AccelerationTestUtil {
       Materialization m2 = monitor.waitUntilMaterializationFails(testReflectionId, m1);
       ReflectionEntry entry2 = monitor.waitForState(testReflectionId, ReflectionState.FAILED);
       ReflectionStatusUI status2 =
-          newReflectionServiceHelper().getStatusForReflection(testReflectionId.getId());
+          getReflectionServiceHelper().getStatusForReflection(testReflectionId.getId());
       assertEquals(1, entry2.getNumFailures().intValue());
-      assertEquals(false, entry2.getDontGiveUp());
+      assertEquals(RefreshPolicyType.PERIOD, entry2.getRefreshPolicyTypeList().get(0));
       assertEquals(NONE, status2.getAvailability());
       assertEquals(GIVEN_UP, status2.getRefresh());
       assertEquals(1, status2.getFailureCount());
 
-      newReflectionServiceHelper().removeReflection(testReflectionId.getId());
+      getReflectionServiceHelper().removeReflection(testReflectionId.getId());
     }
   }
 
@@ -399,12 +416,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
     // create an agg reflection
     List<ReflectionDimensionField> dimensionFields = new ArrayList<>();
 
-    DremioTable table =
-        newCatalogService()
-            .getCatalog(
-                MetadataRequestOptions.of(
-                    SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()))
-            .getTable(datasetId);
+    DremioTable table = getCatalogService().getSystemUserCatalog().getTable(datasetId);
     for (int i = 0; i < table.getSchema().getFieldCount(); i++) {
       Field field = table.getSchema().getColumn(i);
       if (field.getType().getTypeID() == ArrowType.ArrowTypeID.Utf8) {
@@ -436,12 +448,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
     // create a reflection
     List<ReflectionField> displayFields = new ArrayList<>();
 
-    DremioTable table =
-        newCatalogService()
-            .getCatalog(
-                MetadataRequestOptions.of(
-                    SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()))
-            .getTable(datasetId);
+    DremioTable table = getCatalogService().getSystemUserCatalog().getTable(datasetId);
     for (int i = 0; i < table.getSchema().getFieldCount(); i++) {
       Field field = table.getSchema().getColumn(i);
       if (field.getName().equals(UPDATE_COLUMN)) {
@@ -467,6 +474,36 @@ public class TestReflectionResource extends AccelerationTestUtil {
         null,
         null,
         PartitionDistributionStrategy.CONSOLIDATED);
+  }
+
+  /**
+   * Create a Reflection object to be used in a reflection request
+   *
+   * @param reflection reflection object to base the request on.
+   * @return A Reflection object containing only the values in the REST API specification for
+   *     requests.
+   */
+  private Reflection createReflectionRequest(Reflection reflection) {
+    return new Reflection(
+        reflection.getId(),
+        reflection.getType(),
+        reflection.getName(),
+        reflection.getTag(),
+        null,
+        null,
+        reflection.getDatasetId(),
+        null,
+        null,
+        reflection.isEnabled(),
+        reflection.isArrowCachingEnabled(),
+        null,
+        reflection.getDimensionFields(),
+        reflection.getMeasureFields(),
+        reflection.getDisplayFields(),
+        reflection.getDistributionFields(),
+        reflection.getPartitionFields(),
+        reflection.getSortFields(),
+        reflection.getPartitionDistributionStrategy());
   }
 
   private Dataset createDataset() {

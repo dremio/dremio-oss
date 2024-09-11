@@ -15,14 +15,16 @@
  */
 @import "~@app/uiTheme/less/mixins.less"; // replacement of typography.less with mixins.less changes the output significantly
 //but the change is in better direction. Duplicated styles from typography are not loaded
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .fixed-data-table {
+    font-feature-settings:
+      "calt" off,
+      "cv08" on;
     // todo: this needs to be scoped!
-    background-color: #fff;
+    background-color: var(--fill--primary);
     padding-top: 0;
     position: relative;
 
@@ -49,12 +51,16 @@
       .fixedWidthSmall();
     }
 
+    input.cell-header {
+      margin: 0;
+    }
+
     .right-dropdown {
       width: 140px;
       top: 30px;
       position: absolute;
       left: 0;
-      border: 1px solid @CONTAINER_BORDER;
+      border: 1px solid var(--color--neutral--200);
       z-index: 3;
       box-shadow: var(--dremio--shadow--layer-1);
       background: #f4f4f4;
@@ -62,7 +68,7 @@
       font-size: 15px;
 
       .block {
-        border-bottom: 1px solid #e1e1e1;
+        border-bottom: 1px solid var(--border--neutral);
         padding-bottom: 5px;
         display: flex;
         flex-direction: column;
@@ -106,7 +112,6 @@
       font-size: 12px;
       cursor: pointer;
       position: relative;
-      margin: 0 0 0 5px;
     }
 
     .fixedDataTableCellGroupLayout_cellGroup {
@@ -130,7 +135,7 @@
       margin-left: 0;
       margin-right: 0;
       border: 0;
-      border: 1px solid #e1e1e1;
+      border: 1px solid var(--border--neutral);
       z-index: 0 !important;
     }
 
@@ -217,7 +222,7 @@
 
     .public_fixedDataTable_header,
     .public_fixedDataTable_header .public_fixedDataTableCell_main {
-      background: #f3f3f3;
+      background: var(--fill--secondary);
     }
 
     .public_fixedDataTableRow_highlighted,
@@ -226,13 +231,14 @@
     }
 
     .public_fixedDataTableRow_main {
-      border-bottom: 1px solid #e1e1e1;
+      border-bottom: 1px solid var(--border--neutral);
+      background: var(--fill--primary);
     }
 
     .action-menu-icon {
       height: 16px;
       width: 16px;
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
       cursor: pointer;
     }
   }

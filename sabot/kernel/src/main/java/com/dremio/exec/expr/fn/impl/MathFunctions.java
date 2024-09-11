@@ -149,7 +149,10 @@ public class MathFunctions {
     }
   }
 
-  @FunctionTemplate(name = "power", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(
+      names = {"power", "pow"},
+      scope = FunctionScope.SIMPLE,
+      nulls = NullHandling.NULL_IF_NULL)
   public static class Power implements SimpleFunction {
 
     @Param Float8Holder a;

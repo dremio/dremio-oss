@@ -1,0 +1,20 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg  id="column-types/null" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M3.2243 19.7157C2.93141 20.0086 2.93141 20.4835 3.2243 20.7763C3.51719 21.0692 3.99207 21.0692 4.28496 20.7763L6.18869 18.8726C7.75666 20.1998 9.78488 21 12 21C16.9706 21 21 16.9706 21 12C21 9.78491 20.1997 7.7567 18.8726 6.18873L20.7829 4.27838C21.0758 3.98548 21.0758 3.51061 20.7829 3.21772C20.49 2.92482 20.0152 2.92482 19.7223 3.21772L17.812 5.12802C16.2439 3.80052 14.2154 3.00004 12 3.00004C7.02944 3.00004 3 7.02948 3 12C3 14.2155 3.80048 16.2439 5.12798 17.812L3.2243 19.7157ZM7.25378 17.8075C8.54664 18.8654 10.1992 19.5 12 19.5C16.1421 19.5 19.5 16.1422 19.5 12C19.5 10.1992 18.8653 8.54668 17.8075 7.25382L7.25378 17.8075ZM16.7469 6.1931L6.19306 16.7469C5.13488 15.454 4.5 13.8011 4.5 12C4.5 7.8579 7.85786 4.50004 12 4.50004C13.8011 4.50004 15.4539 5.13492 16.7469 6.1931Z" fill="currentColor"/>
+</svg>

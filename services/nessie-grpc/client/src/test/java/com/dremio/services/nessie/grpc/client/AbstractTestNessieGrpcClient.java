@@ -20,7 +20,6 @@ import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc.ConfigServiceImplBase;
 import com.dremio.services.nessie.grpc.api.Content;
 import com.dremio.services.nessie.grpc.api.ContentKey;
-import com.dremio.services.nessie.grpc.api.ContentRequest;
 import com.dremio.services.nessie.grpc.api.ContentServiceGrpc.ContentServiceImplBase;
 import com.dremio.services.nessie.grpc.api.ContentWithKey;
 import com.dremio.services.nessie.grpc.api.Empty;
@@ -39,10 +38,8 @@ import io.grpc.Server;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
-import io.grpc.Status.Code;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcCleanupRule;
 import java.io.IOException;
@@ -101,22 +98,6 @@ public abstract class AbstractTestNessieGrpcClient {
   /** Just a dummy implementation of a gRPC service to simulate a client call. */
   private final ContentServiceImplBase contentService =
       new ContentServiceImplBase() {
-        @Override
-        public void getContent(ContentRequest request, StreamObserver<Content> responseObserver) {
-          if (request.getContentKey().equals(INVALID_KEY)) {
-            responseObserver.onError(
-                StatusProto.toStatusRuntimeException(
-                    com.google.rpc.Status.newBuilder()
-                        .setCode(Code.NOT_FOUND.value())
-                        .setMessage("Table not found")
-                        .build(),
-                    new Metadata()));
-            return;
-          }
-          responseObserver.onNext(ICEBERG_TABLE);
-          responseObserver.onCompleted();
-        }
-
         @Override
         public void getMultipleContents(
             MultipleContentsRequest request,

@@ -13,27 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
   .containsText {
     display: flex;
-    background-color: white;
+    background-color: var(--fill--primary);
     height: 24px;
     width: 300px;
     border-radius: 4px;
-    border: 1px solid @swiss-white;
+    border: 1px solid var(--border--neutral--solid);
 
     &__searchIcon {
       height: 24px;
       width: 24px;
     }
 
-    &:hover {
-      border-color: var(--color--neutral--200);
-    }
-
     &.--focused {
-      border-color: var(--color--brand--300);
+      border-color: var(--border--focused);
     }
   }
 }

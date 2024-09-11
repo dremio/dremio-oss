@@ -29,8 +29,6 @@ public interface SpaceNamespaceService {
 
   SpaceConfig getSpace(NamespaceKey spacePath) throws NamespaceException;
 
-  SpaceConfig getSpaceById(String id) throws NamespaceException;
-
   List<SpaceConfig> getSpaces();
 
   void deleteSpace(NamespaceKey spacePath, String version) throws NamespaceException;

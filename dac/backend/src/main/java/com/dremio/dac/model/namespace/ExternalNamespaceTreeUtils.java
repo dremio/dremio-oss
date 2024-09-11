@@ -15,12 +15,13 @@
  */
 package com.dremio.dac.model.namespace;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.SourceName;
-import com.dremio.exec.catalog.VersionedDatasetId;
+import com.dremio.dac.service.source.ExternalListResponse;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import java.util.List;
@@ -33,10 +34,12 @@ public final class ExternalNamespaceTreeUtils {
   private ExternalNamespaceTreeUtils() {}
 
   public static NamespaceTree namespaceTreeOf(
-      SourceName sourceName, Stream<ExternalNamespaceEntry> entries) {
+      SourceName sourceName, ExternalListResponse response) {
     Objects.requireNonNull(sourceName);
 
     final NamespaceTree namespaceTree = new NamespaceTree();
+    namespaceTree.setNextPageToken(response.getPageToken());
+    Stream<ExternalNamespaceEntry> entries = response.getEntriesStream();
     entries.forEach(
         entry -> {
           final String id = entry.getId();

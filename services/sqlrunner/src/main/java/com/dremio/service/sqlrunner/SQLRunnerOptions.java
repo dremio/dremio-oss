@@ -20,10 +20,6 @@ import com.dremio.options.TypeValidators;
 
 @Options
 public class SQLRunnerOptions {
-  public static final TypeValidators.BooleanValidator SQLRUNNER_TABS =
-      new TypeValidators.BooleanValidator("sqlrunner.tabs", true);
   public static final TypeValidators.BooleanValidator SQLRUNNER_TABS_UI =
       new TypeValidators.BooleanValidator("sqlrunner.tabs_ui", true);
-  public static final TypeValidators.BooleanValidator SQLRUNNER_REMOVE_CONTEXT =
-      new TypeValidators.BooleanValidator("sqlrunner.remove_context", false);
 }

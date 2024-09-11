@@ -15,6 +15,8 @@
  */
 package com.dremio.telemetry.api.metrics;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.dremio.service.BinderImpl;
 import com.dremio.service.SingletonRegistry;
 import io.micrometer.core.instrument.Counter;
@@ -52,10 +54,7 @@ public class TestDynamicContextInserterWithSingletonRegistry {
     SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
     meterRegistry.config().meterFilter(dynamicContextInserter);
 
-    Counter counter = meterRegistry.counter("test");
-    List<Tag> tags = counter.getId().getTags();
-    Assertions.assertEquals(1, tags.size());
-    Assertions.assertEquals("foo", tags.get(0).getKey());
-    Assertions.assertEquals("bar", tags.get(0).getValue());
+    Counter counter = Counter.builder("test").withRegistry(meterRegistry).withTags();
+    assertThat(counter.getId().getTags()).containsExactlyInAnyOrder(Tag.of("foo", "bar"));
   }
 }

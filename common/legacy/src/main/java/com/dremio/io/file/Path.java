@@ -18,6 +18,7 @@ package com.dremio.io.file;
 import static com.dremio.io.file.UriSchemes.ADL_SCHEME;
 import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
 import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
+import static com.dremio.io.file.UriSchemes.S3A_SCHEME;
 import static com.dremio.io.file.UriSchemes.S3_SCHEME;
 
 import com.google.common.base.Preconditions;
@@ -42,7 +43,7 @@ public final class Path implements Comparable<Path> {
   public static final String AZURE_AUTHORITY_SUFFIX = ".blob.core.windows.net";
   public static final String CONTAINER_SEPARATOR = "@";
 
-  public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of("s3a", S3_SCHEME, "s3n");
+  public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of(S3A_SCHEME, S3_SCHEME, "s3n");
   public static final Set<String> GCS_FILE_SYSTEM = ImmutableSet.of(GCS_SCHEME);
   public static final Set<String> AZURE_FILE_SYSTEM =
       ImmutableSet.of("wasbs", "wasb", "abfs", "abfss");

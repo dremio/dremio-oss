@@ -15,15 +15,15 @@
  */
 package com.dremio.plugins.gcs;
 
+import static com.dremio.hadoop.security.alias.DremioCredentialProvider.DREMIO_SCHEME_PREFIX;
 import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_STATUS_PARALLEL_ENABLE;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.SuppressForbidden;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.conf.ConnectionSchema;
 import com.dremio.exec.catalog.conf.Property;
-import com.dremio.exec.catalog.conf.SecretRefUnsafe;
+import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.io.AsyncByteReader;
@@ -40,6 +40,8 @@ import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayInputStream;
@@ -48,11 +50,12 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import net.minidev.json.JSONObject;
-import org.apache.commons.lang3.function.Suppliers;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -77,6 +80,8 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
   public static final String DREMIO_PRIVATE_KEY_ID = "dremio.gcs.privateKeyId";
   public static final String DREMIO_PRIVATE_KEY = "dremio.gcs.privateKey";
   public static final String DREMIO_WHITELIST_BUCKETS = "dremio.gcs.whitelisted.buckets";
+  public static final String DREMIO_BYPASS_AUTH_CONFIG_FOR_TESTING_WITH_URL =
+      "dremio.gcs.bypassAuthConfigForTestingWithUrl";
 
   private static final List<String> UNIQUE_PROPERTIES =
       ImmutableList.<String>of(
@@ -95,10 +100,10 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
 
   private final DremioFileSystemCache fsCache = new DremioFileSystemCache();
   private GCSConf connectionConf;
-  private Storage storage;
+  private Supplier<Storage> storageProvider;
   private GCSAsyncClient client;
 
-  public static final Predicate<CorrectableFileStatus> ELIMINATE_PARENT_DIRECTORY =
+  static final Predicate<CorrectableFileStatus> ELIMINATE_PARENT_DIRECTORY =
       (input -> {
         final FileStatus status = input.getStatus();
         if (!status.isDirectory()) {
@@ -112,8 +117,40 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
     super(DREMIO_GCS_SCHEME, "bucket", ELIMINATE_PARENT_DIRECTORY);
   }
 
-  @SuppressForbidden // Maps Configuration to GCSConf for internal use. Secrets are already
-  // resolved.
+  // Resolves private key from hadoop Configuration.
+  private String getPrivateKey(Configuration conf) throws IOException {
+    char[] privateKey = conf.getPassword(DREMIO_PRIVATE_KEY);
+    if (privateKey == null) {
+      privateKey = conf.getPassword(CONF_PRIVATE_KEY);
+    }
+    if (privateKey == null) {
+      privateKey = new char[0];
+    }
+    return String.valueOf(privateKey).replaceAll("\\\\n", "\n");
+  }
+
+  // converts privateKey from source or hadoop config to a string/uri resolvable by further
+  // Configuration.getPassword() call
+  private String getPrivateKeyUri(Configuration conf) {
+    if (!SecretRef.isNullOrEmpty(connectionConf.privateKey)) {
+      return SecretRef.toConfiguration(connectionConf.privateKey, DREMIO_SCHEME_PREFIX);
+    }
+
+    String privateKeyUri = conf.get(DREMIO_PRIVATE_KEY, EMPTY_STRING);
+    if (EMPTY_STRING.equals(privateKeyUri)) {
+      privateKeyUri = conf.get(CONF_PRIVATE_KEY, EMPTY_STRING);
+    }
+
+    return StringUtils.prependIfMissingIgnoreCase(privateKeyUri, DREMIO_SCHEME_PREFIX);
+  }
+
+  @Override
+  public long getTTL(com.dremio.io.file.FileSystem fileSystem, com.dremio.io.file.Path path) {
+    // TODO: Implement fetching TTL for GoogleBucketFileSystem
+    logger.error("Fetching TTL for GoogleBucketFileSystem is unavailable.");
+    return -1;
+  }
+
   @Override
   protected void setup(Configuration conf) throws IOException {
     GCSConf gcsConf = SCHEMA.newMessage();
@@ -129,27 +166,51 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
       }
       gcsConf.privateKeyId = conf.get(DREMIO_PRIVATE_KEY_ID, EMPTY_STRING);
       if (gcsConf.privateKeyId.equals(EMPTY_STRING)) {
-        gcsConf.privateKeyId = conf.get("fs.gs.auth.service.account.private.key.id", EMPTY_STRING);
+        gcsConf.privateKeyId = conf.get(CONF_PRIVATE_KEY_ID, EMPTY_STRING);
       }
-      String privateKey = conf.get(DREMIO_PRIVATE_KEY, EMPTY_STRING);
-      if (privateKey.equals(EMPTY_STRING)) {
-        privateKey = conf.get("fs.gs.auth.service.account.private.key", EMPTY_STRING);
-      }
-      gcsConf.privateKey = new SecretRefUnsafe(privateKey);
     } else {
       gcsConf.authMode = AuthMode.AUTO;
     }
 
     gcsConf.projectId = conf.get(DREMIO_PROJECT_ID, EMPTY_STRING);
     if (gcsConf.projectId.equals(EMPTY_STRING)) {
-      gcsConf.projectId = conf.get("fs.gs.project.id", EMPTY_STRING);
+      gcsConf.projectId = conf.get(CONF_PROJECT_ID, EMPTY_STRING);
     }
     gcsConf.asyncEnabled = true;
     gcsConf.bucketWhitelist = getWhiteListBuckets(conf);
 
     this.connectionConf = gcsConf;
 
-    final GoogleCredentials credentials;
+    String bypassAuthConfigForTestingUrl = conf.get(DREMIO_BYPASS_AUTH_CONFIG_FOR_TESTING_WITH_URL);
+    if (!Strings.isNullOrEmpty(bypassAuthConfigForTestingUrl)) {
+      this.storageProvider =
+          Suppliers.memoize(
+              () -> {
+                StorageOptions.Builder storageOptionsBuilder =
+                    StorageOptions.getDefaultInstance().toBuilder();
+                // Use provided test host
+                storageOptionsBuilder.setHost(bypassAuthConfigForTestingUrl);
+                if (!gcsConf.projectId.equals(EMPTY_STRING)) {
+                  storageOptionsBuilder.setProjectId(gcsConf.projectId);
+                }
+                return storageOptionsBuilder.build().getService();
+              });
+
+      // Skip client setup that requires credentials
+      this.client =
+          new GCSAsyncClient("gbfs", null, bypassAuthConfigForTestingUrl, GcsApiType.JSON);
+    } else {
+      // both client and storage call createCredentials at read time to have the latest
+      // resolved credentials in case of secret rotation
+      this.storageProvider =
+          Suppliers.memoizeWithExpiration(this::createStorage, 5, TimeUnit.MINUTES);
+      this.client =
+          new GCSAsyncClient(
+              "gbfs", this::createCredentials, "https://storage.googleapis.com", GcsApiType.XML);
+    }
+  }
+
+  private GoogleCredentials createCredentials() {
     try {
       switch (connectionConf.authMode) {
         case SERVICE_ACCOUNT_KEYS:
@@ -158,8 +219,7 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
               .put("type", "service_account")
               .put("client_id", connectionConf.clientId)
               .put("client_email", connectionConf.clientEmail)
-              .put(
-                  "private_key", Suppliers.get(connectionConf.privateKey).replaceAll("\\\\n", "\n"))
+              .put("private_key", getPrivateKey(getConf()))
               .put("private_key_id", connectionConf.privateKeyId);
 
           if (connectionConf.projectId != null) {
@@ -167,25 +227,26 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
           }
           JSONObject connectionCredsJson = new JSONObject(connectionCreds.build());
           InputStream is = new ByteArrayInputStream(connectionCredsJson.toString().getBytes());
-          credentials = GoogleCredentials.fromStream(is);
-          break;
+          return GoogleCredentials.fromStream(is);
 
         case AUTO:
         default:
-          credentials = GoogleCredentials.getApplicationDefault();
+          return GoogleCredentials.getApplicationDefault();
       }
     } catch (IOException ioe) {
       throw UserException.ioExceptionError(ioe)
           .message("Failure creating GCS connection.")
-          .build(logger);
+          .buildSilently();
     }
-    this.client = new GCSAsyncClient("gbfs", credentials);
+  }
+
+  private Storage createStorage() {
     StorageOptions.Builder storageOptionsBuilder = StorageOptions.getDefaultInstance().toBuilder();
-    storageOptionsBuilder.setCredentials(credentials);
-    if (!gcsConf.projectId.equals(EMPTY_STRING)) {
-      storageOptionsBuilder.setProjectId(gcsConf.projectId);
+    storageOptionsBuilder.setCredentials(createCredentials());
+    if (!connectionConf.projectId.equals(EMPTY_STRING)) {
+      storageOptionsBuilder.setProjectId(connectionConf.projectId);
     }
-    this.storage = storageOptionsBuilder.build().getService();
+    return storageOptionsBuilder.build().getService();
   }
 
   private List<String> getWhiteListBuckets(Configuration conf) {
@@ -205,7 +266,12 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
       try {
         bucketNames =
             StreamSupport.stream(
-                    storage.list(BucketListOption.pageSize(100)).iterateAll().spliterator(), false)
+                    storageProvider
+                        .get()
+                        .list(BucketListOption.pageSize(100))
+                        .iterateAll()
+                        .spliterator(),
+                    false)
                 .map(b -> b.getName());
       } catch (StorageException se) {
         throw UserException.validationError(se).message("Failed to list buckets.").build(logger);
@@ -244,7 +310,7 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
       switch (connectionConf.authMode) {
         case SERVICE_ACCOUNT_KEYS:
           conf.set(CONF_ACCOUNT_EMAIL, connectionConf.clientEmail);
-          conf.set(CONF_PRIVATE_KEY, Suppliers.get(connectionConf.privateKey));
+          conf.set(CONF_PRIVATE_KEY, getPrivateKeyUri(getConf()));
           conf.set(CONF_PRIVATE_KEY_ID, connectionConf.privateKeyId);
           conf.setBoolean(CONF_SERVICE_ACCT, true);
           break;
@@ -288,7 +354,7 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
   protected ContainerHolder getUnknownContainer(String bucket) throws IOException {
     // run this to ensure we don't fail.
     try {
-      storage.list(bucket, BlobListOption.pageSize(1));
+      storageProvider.get().list(bucket, BlobListOption.pageSize(1));
     } catch (StorageException e) {
       int status = e.getCode();
       throw new ContainerNotFoundException(

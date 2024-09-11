@@ -28,6 +28,7 @@ import com.dremio.datastore.SearchTypes;
 import com.dremio.edition.EditionProvider;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.job.JobStats;
 import com.dremio.service.job.JobStatsRequest;
 import com.dremio.service.jobs.JobTypeStats;
@@ -102,16 +103,16 @@ public class ClusterStatsResource {
 
   ClusterStats createStats(boolean showCompactStats) {
     final ClusterStats result = new ClusterStats();
-    final SabotContext sabotContext = this.context.get();
+    final ClusterCoordinator clusterCoordinator = this.context.get().getClusterCoordinator();
 
     if (showCompactStats) {
       ClusterNodes nodes = new ClusterNodes();
-      nodes.setCoordinator(getNodeStats(sabotContext.getCoordinators()));
-      nodes.setExecutor(getNodeStats(sabotContext.getExecutors()));
+      nodes.setCoordinator(getNodeStats(clusterCoordinator.getCoordinatorEndpoints()));
+      nodes.setExecutor(getNodeStats(clusterCoordinator.getExecutorEndpoints()));
       result.setClusterNodes(nodes);
     } else {
-      result.setExecutors(processEndPoints(sabotContext.getExecutors()));
-      result.setCoordinators(processEndPoints(sabotContext.getCoordinators()));
+      result.setExecutors(processEndPoints(clusterCoordinator.getExecutorEndpoints()));
+      result.setCoordinators(processEndPoints(clusterCoordinator.getCoordinatorEndpoints()));
     }
 
     final Stats resource = getSources(this.sourceService.getSources());
@@ -179,8 +180,7 @@ public class ClusterStatsResource {
       AVAILABILITY_STATUS availability = status.getAvailability();
       if (availability == AVAILABILITY_STATUS.AVAILABLE) {
         activeReflections++;
-      } else if (availability == AVAILABILITY_STATUS.INCOMPLETE
-          || status.getRefresh() == REFRESH_STATUS.GIVEN_UP) {
+      } else if (status.getRefresh() == REFRESH_STATUS.GIVEN_UP) {
         errorReflections++;
       }
 

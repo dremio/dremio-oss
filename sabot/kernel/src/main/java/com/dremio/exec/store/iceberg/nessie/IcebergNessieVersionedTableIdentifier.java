@@ -39,6 +39,7 @@ public class IcebergNessieVersionedTableIdentifier implements IcebergTableIdenti
   private final List<String> tableKey;
   private final String rootFolder;
   private final ResolvedVersionContext version;
+  private final IcebergNessieFilePathSanitizer pathSanitizer;
 
   /**
    * @param tableKey The list of table key elements. From the example above, this would be
@@ -46,9 +47,13 @@ public class IcebergNessieVersionedTableIdentifier implements IcebergTableIdenti
    * @param rootFolder The root folder to use. A trailing slash is optional and will be added
    *     automatically. From the example above, this would be "/root/path"
    * @param version The version to use.
+   * @param pathSanitizer The sanitizer to calculate the correct table path
    */
   public IcebergNessieVersionedTableIdentifier(
-      List<String> tableKey, String rootFolder, ResolvedVersionContext version) {
+      List<String> tableKey,
+      String rootFolder,
+      ResolvedVersionContext version,
+      IcebergNessieFilePathSanitizer pathSanitizer) {
     if (!rootFolder.endsWith("/")) {
       this.rootFolder = rootFolder + "/";
     } else {
@@ -56,6 +61,7 @@ public class IcebergNessieVersionedTableIdentifier implements IcebergTableIdenti
     }
     this.tableKey = tableKey;
     this.version = version;
+    this.pathSanitizer = pathSanitizer;
   }
 
   /**
@@ -75,10 +81,11 @@ public class IcebergNessieVersionedTableIdentifier implements IcebergTableIdenti
 
   /**
    * @return The full table path, including the root folder prefix, e.g.
-   *     "/root/path/folder1/folder2/tableZ"
+   *     "/root/path/folder1/folder2/tableZ" The path may not match with the name of the table
+   *     depending on the storage type
    */
-  public String getTableFolder() {
-    return rootFolder + String.join("/", tableKey);
+  public String getTableLocation() {
+    return rootFolder + String.join("/", this.pathSanitizer.getPath(tableKey));
   }
 
   /**

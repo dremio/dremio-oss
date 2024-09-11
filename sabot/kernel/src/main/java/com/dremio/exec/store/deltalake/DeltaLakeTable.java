@@ -130,7 +130,8 @@ public class DeltaLakeTable {
       final List<DatasetSplitAffinity> datasetAffinities = new ArrayList<>();
       final Set<HostAndPort> hostEndpointMap = Sets.newHashSet();
       final Set<HostAndPort> hostPortEndpointMap = Sets.newHashSet();
-      for (CoordinationProtos.NodeEndpoint endpoint : context.getExecutors()) {
+      for (CoordinationProtos.NodeEndpoint endpoint :
+          context.getClusterCoordinator().getExecutorEndpoints()) {
         hostEndpointMap.add(HostAndPort.fromHost(endpoint.getAddress()));
         hostPortEndpointMap.add(
             HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));

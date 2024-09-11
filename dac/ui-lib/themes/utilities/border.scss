@@ -41,15 +41,23 @@
 }
 
 .border-foreground {
-  border-color: var(--color--neutral--50);
+  border-color: var(--border--neutral);
 }
 
 .border-danger-bold {
-  border-color: var(--color--red--500);
+  border-color: var(--color--red--400);
 }
 
 .dremio-dark {
   .border-foreground {
-    border-color: var(--color--neutral--600);
+    border-color: var(--color--neutral--500);
   }
+}
+
+/**
+ * New theming classes and variables below
+ */
+
+.border-thin {
+  border: 1px solid var(--border--color);
 }

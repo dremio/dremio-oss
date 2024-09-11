@@ -4,8 +4,8 @@
     color: var(--color--sunken);
   }
   &-default {
-    background-color: var(--bg--default);
-    color: var(--color--default);
+    background-color: var(--fill--primary);
+    color: var(--text--primary);
   }
   &-raised {
     background-color: var(--bg--raised);

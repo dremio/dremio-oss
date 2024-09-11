@@ -21,7 +21,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -102,18 +101,13 @@ public class TestParquetPartitionColumns extends BaseTestServer {
     DatasetConfig config = addDataSet(parquet);
 
     DremioTable table =
-        p(CatalogService.class)
-            .get()
+        getCatalogService()
             .getCatalog(
                 MetadataRequestOptions.of(
                     SchemaConfig.newBuilder(CatalogUser.from(DEFAULT_USERNAME)).build()))
             .getTable(config.getId().getId());
 
     return table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
-  }
-
-  private NamespaceService getNamespaceService() {
-    return p(NamespaceService.class).get();
   }
 
   protected DatasetConfig addDataSet(DatasetPath path) throws Exception {

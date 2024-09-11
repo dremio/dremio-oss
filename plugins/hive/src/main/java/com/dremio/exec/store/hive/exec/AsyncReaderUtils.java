@@ -32,37 +32,52 @@ import org.apache.hadoop.mapred.JobConf;
 
 import com.google.common.collect.ImmutableSet;
 
-/**
- * Used to modify URI to provide async reader implementations.
- */
-public class AsyncReaderUtils {
+/** Used to modify URI to provide async reader implementations. */
+public final class AsyncReaderUtils {
 
   public static final Set<String> GCS_FILE_SYSTEM = ImmutableSet.of(GCS_SCHEME, DREMIO_GCS_SCHEME);
-  public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of("s3a", S3_SCHEME,"s3n", DREMIO_S3_SCHEME);
-  public static final Set<String> AZURE_FILE_SYSTEM = ImmutableSet.of(AZURE_SCHEME, "wasb", "abfs", "abfss");
+  public static final Set<String> S3_FILE_SYSTEM =
+      ImmutableSet.of("s3a", S3_SCHEME, "s3n", DREMIO_S3_SCHEME);
+  public static final Set<String> AZURE_FILE_SYSTEM =
+      ImmutableSet.of(AZURE_SCHEME, "wasb", "abfs", "abfss");
   public static final Set<String> HDFS_FILE_SYSTEM = ImmutableSet.of(HDFS_SCHEME);
   public static final String FS_DREMIO_S3_IMPL = "fs.dremioS3.impl";
   public static final String FS_DREMIO_GCS_IMPL = "fs.dremiogcs.impl";
   public static final String FS_DREMIO_AZURE_IMPL = "fs.dremioAzureStorage.impl";
   public static final String FS_DREMIO_HDFS_IMPL = "fs.hdfs.impl";
 
+  private AsyncReaderUtils() {}
+
   /**
    * Modify the scheme and map to wrapper file system to support async.
+   *
    * @param uri
    * @param jobConf
    * @return
    * @throws URISyntaxException
    */
-  public static URI injectDremioConfigForAsyncRead(URI uri, JobConf jobConf) throws URISyntaxException {
+  public static URI injectDremioConfigForAsyncRead(URI uri, JobConf jobConf)
+      throws URISyntaxException {
     URI modifiedURI = uri;
     String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
     if (S3_FILE_SYSTEM.contains(scheme)) {
-      modifiedURI = new URI(DREMIO_S3_SCHEME,  uri.getRawAuthority(), "/" + uri.getRawAuthority() +  uri.getPath(),
-        uri.getQuery(), uri.getFragment());
+      // The authority duplication here is intentional, it will break if removed.
+      modifiedURI =
+          new URI(
+              DREMIO_S3_SCHEME,
+              uri.getRawAuthority(),
+              "/" + uri.getRawAuthority() + uri.getPath(),
+              uri.getQuery(),
+              uri.getFragment());
       jobConf.set(FS_DREMIO_S3_IMPL, DremioFileSystem.class.getName());
     } else if (AZURE_FILE_SYSTEM.contains(scheme)) {
-      modifiedURI = new URI(DREMIO_AZURE_SCHEME,  uri.getRawAuthority(), "/" + uri.getUserInfo() +  uri.getPath(),
-        uri.getQuery(), uri.getFragment());
+      modifiedURI =
+          new URI(
+              DREMIO_AZURE_SCHEME,
+              uri.getRawAuthority(),
+              "/" + uri.getUserInfo() + uri.getPath(),
+              uri.getQuery(),
+              uri.getFragment());
       jobConf.set("old_scheme", scheme);
       jobConf.set("authority", uri.getRawAuthority());
       jobConf.set(FS_DREMIO_AZURE_IMPL, DremioFileSystem.class.getName());
@@ -70,11 +85,15 @@ public class AsyncReaderUtils {
       modifiedURI = uri;
       jobConf.set(FS_DREMIO_HDFS_IMPL, DremioFileSystem.class.getName());
     } else if (GCS_FILE_SYSTEM.contains(scheme)) {
-      modifiedURI = new URI(DREMIO_GCS_SCHEME,  uri.getRawAuthority(), "/" + uri.getRawAuthority() +  uri.getPath(),
-              uri.getQuery(), uri.getFragment());
+      modifiedURI =
+          new URI(
+              DREMIO_GCS_SCHEME,
+              uri.getRawAuthority(),
+              "/" + uri.getRawAuthority() + uri.getPath(),
+              uri.getQuery(),
+              uri.getFragment());
       jobConf.set(FS_DREMIO_GCS_IMPL, DremioFileSystem.class.getName());
     }
-    return  modifiedURI;
+    return modifiedURI;
   }
-
 }

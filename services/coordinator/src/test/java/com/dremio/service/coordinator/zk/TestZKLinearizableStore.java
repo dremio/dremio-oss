@@ -155,17 +155,26 @@ public class TestZKLinearizableStore {
     final String path = Path.SEPARATOR + "task5" + Path.SEPARATOR + "234567";
     store.executeSingle(new PathCommand(CREATE_PERSISTENT, path));
     final String donePath = path + Path.SEPARATOR + "done-";
-    store.executeSingle(new PathCommand(CREATE_EPHEMERAL_SEQUENTIAL, donePath));
+    var cmd = new PathCommand(CREATE_EPHEMERAL_SEQUENTIAL, donePath);
+    store.executeSingle(cmd);
     assertTrue(store.checkExists(path));
+    var stats = store.getStats(cmd.getReturnValue());
+    assertNotNull(stats);
+    assertThat(stats.getSessionId()).isGreaterThan(0);
     CountDownLatch latch = new CountDownLatch(1);
     CompletableFuture<Void> onChange = new CompletableFuture<>();
     onChange.thenRun(latch::countDown);
     List<String> roundOneChildren = store.getChildren(path, onChange);
     assertThat(roundOneChildren.size()).isEqualTo(1);
     final LinearizableHierarchicalStore secondStore = zkCoordinator2.getHierarchicalStore();
-    secondStore.executeSingle(new PathCommand(CREATE_EPHEMERAL_SEQUENTIAL, donePath));
+    var cmd1 = new PathCommand(CREATE_EPHEMERAL_SEQUENTIAL, donePath);
+    secondStore.executeSingle(cmd1);
     List<String> roundTwoChildren = secondStore.getChildren(path, null);
     assertThat(roundTwoChildren.size()).isEqualTo(2);
+    var stats1 = secondStore.getStats(cmd1.getReturnValue());
+    assertNotNull(stats1);
+    assertThat(stats1.getSessionId()).isGreaterThan(0);
+    assertThat(stats1.getSessionId()).isNotEqualTo(stats.getSessionId());
     // latch countdown should have been triggered by now
     latch.await();
     // when the first coordinator closes we should succeed

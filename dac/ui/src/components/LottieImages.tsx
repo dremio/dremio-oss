@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-import { allJsons } from "@app/components/jsonImageLoader";
-//@ts-ignore
-import Lottie from "react-lottie";
-//@ts-ignore
+import "@dotlottie/player-component";
 import { Tooltip } from "dremio-ui-lib";
 
 type LottieImagesProps = {
-  src: string;
+  src: any;
   alt?: string;
   title?: any;
   interactive?: boolean;
@@ -48,36 +45,28 @@ const LottieImages = ({
     title = alt;
   }
 
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: allJsons[`./${src}`],
-    rendererSettings: {
-      preserveAspectRatio: "xMidYMid slice",
-    },
-  };
+  const Animation = (
+    <dotlottie-player
+      src={src}
+      loop
+      autoplay
+      mode="normal"
+      style={{
+        ...(imageWidth && { width: `${imageWidth}px` }),
+        ...(imageHeight && { height: `${imageHeight}px` }),
+        ...style,
+      }}
+    ></dotlottie-player>
+  );
+
   return title ? (
     <div className={wrapperClassname}>
       <Tooltip title={title} interactive={interactive} open={tooltipOpen}>
-        <div>
-          <Lottie
-            options={defaultOptions}
-            height={imageHeight}
-            width={imageWidth}
-            style={style}
-          />
-        </div>
+        <div>{Animation}</div>
       </Tooltip>
     </div>
   ) : (
-    <div className={wrapperClassname}>
-      <Lottie
-        options={defaultOptions}
-        height={imageHeight}
-        width={imageWidth}
-        style={style}
-      />
-    </div>
+    <div className={wrapperClassname}>{Animation}</div>
   );
 };
 

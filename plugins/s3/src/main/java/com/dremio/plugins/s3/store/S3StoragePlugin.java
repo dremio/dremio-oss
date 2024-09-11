@@ -70,11 +70,18 @@ public class S3StoragePlugin
 
   // AWS Credential providers
   public static final String ACCESS_KEY_PROVIDER = SimpleAWSCredentialsProvider.NAME;
+  public static final String GLUE_ACCESS_KEY_PROVIDER =
+      "com.dremio.exec.store.hive.GlueAWSCredentialsProvider";
   public static final String EC2_METADATA_PROVIDER =
       "com.amazonaws.auth.InstanceProfileCredentialsProvider";
   public static final String NONE_PROVIDER = AnonymousAWSCredentialsProvider.NAME;
   public static final String ASSUME_ROLE_PROVIDER =
       "com.dremio.plugins.s3.store.STSCredentialProviderV1";
+
+  // Hadoop Credential Providers
+  public static final String HADOOP_ASSUME_ROLE_PROVIDER =
+      "org.apache.hadoop.fs.s3a.auth.AssumedRoleCredentialProvider";
+
   // Credential provider for DCS data roles
   public static final String DREMIO_ASSUME_ROLE_PROVIDER =
       "com.dremio.service.coordinator" + ".DremioAssumeRoleCredentialsProviderV1";

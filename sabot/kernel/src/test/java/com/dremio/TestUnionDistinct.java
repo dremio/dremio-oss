@@ -235,7 +235,8 @@ public class TestUnionDistinct extends BaseTestQuery {
   }
 
   @Test // Union-Distinct constant literals
-  @Ignore
+  @Ignore // The schema is not preserved with literals, since it doesn't know which column name to
+  // use
   public void testUnionDistinct10() throws Exception {
     String query =
         "(select n_name, 'LEFT' as LiteralConstant, n_nationkey, '1' as NumberConstant from cp.\"tpch/nation.parquet\") \n"

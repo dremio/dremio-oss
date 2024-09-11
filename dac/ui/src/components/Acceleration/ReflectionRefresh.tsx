@@ -23,6 +23,9 @@ import { ScheduleRefresh } from "@app/components/Forms/ScheduleRefresh";
 import Checkbox from "@app/components/Fields/Checkbox";
 import { formDefault } from "uiTheme/radium/typography";
 import { SCHEDULE_POLICIES } from "@app/components/Forms/DataFreshnessSection";
+import { withFormContext } from "@app/pages/HomePage/components/modals/formContext";
+import { isIcebergSource } from "@inject/utils/sourceUtils";
+import Immutable from "immutable";
 
 type ReflectionRefreshProps = {
   fields: {
@@ -32,12 +35,16 @@ type ReflectionRefreshProps = {
     accelerationNeverRefresh: any;
     accelerationRefreshSchedule: any;
     accelerationActivePolicyType: any;
+    accelerationRefreshOnDataChanges: any;
   };
   entityType: string;
   refreshingReflections: boolean;
   isRefreshAllowed: boolean;
   minDuration: number;
   refreshAll: () => void;
+  isLiveReflectionEnabled: boolean;
+  formContext: Record<string, any>;
+  fileFormatType: string;
 };
 
 const ReflectionRefresh = ({
@@ -47,6 +54,9 @@ const ReflectionRefresh = ({
   isRefreshAllowed,
   refreshAll,
   minDuration,
+  isLiveReflectionEnabled,
+  formContext,
+  fileFormatType,
 }: ReflectionRefreshProps) => {
   const {
     accelerationRefreshPeriod,
@@ -54,7 +64,16 @@ const ReflectionRefresh = ({
     accelerationNeverExpire,
     accelerationRefreshSchedule,
     accelerationActivePolicyType,
+    accelerationRefreshOnDataChanges,
   } = fields;
+  const isLiveReflectionEnabledForSource =
+    isLiveReflectionEnabled &&
+    isIcebergSource(formContext?.sourceType || "") &&
+    entityType === "source";
+  const isLiveReflectionEnabledForTable =
+    isLiveReflectionEnabled &&
+    entityType === "dataset" &&
+    fileFormatType === "Iceberg";
 
   return (
     <div className="flex flex-col">
@@ -78,100 +97,131 @@ const ReflectionRefresh = ({
           </Button>
         </div>
       )}
-      <div>
-        <p className="text-semibold text-base pb-05">
-          {intl.formatMessage({
-            id: "Reflection.Refresh.Settings",
-          })}
-        </p>
-      </div>
-      <div>
-        <Radio
-          {...accelerationActivePolicyType}
-          radioValue={SCHEDULE_POLICIES.NEVER}
-          label={intl.formatMessage({
-            id: "Reflection.Refresh.Never",
-          })}
-        />
-      </div>
-      <div>
-        <Radio
-          {...accelerationActivePolicyType}
-          radioValue={SCHEDULE_POLICIES.PERIOD}
-          label={
-            <>
-              <td>
-                <div style={styles.inputLabel}>
-                  {intl.formatMessage({
-                    id: "Reflection.Refresh.Every",
-                  })}
-                </div>
-              </td>
-              <td>
-                <FieldWithError
-                  errorPlacement="right"
-                  {...accelerationRefreshPeriod}
-                >
-                  <div style={{ display: "flex" }}>
-                    <DurationField
-                      {...accelerationRefreshPeriod}
-                      min={minDuration}
-                      style={styles.durationField}
-                      disabled={
-                        accelerationActivePolicyType.value !==
-                        SCHEDULE_POLICIES.PERIOD
-                      }
-                    />
+      <div className="mb-3">
+        <div>
+          <p className="text-semibold text-base pb-05">
+            {intl.formatMessage({
+              id: "Reflection.Refresh.Settings",
+            })}
+          </p>
+        </div>
+        <div>
+          <Radio
+            {...accelerationActivePolicyType}
+            radioValue={SCHEDULE_POLICIES.NEVER}
+            label={intl.formatMessage({
+              id: "Reflection.Refresh.Never",
+            })}
+          />
+        </div>
+        <div className="flex flex-col">
+          <Radio
+            {...accelerationActivePolicyType}
+            radioValue={SCHEDULE_POLICIES.PERIOD}
+            label={
+              <>
+                <td>
+                  <div style={styles.inputLabel}>
+                    {intl.formatMessage({
+                      id: "Reflection.Refresh.Every",
+                    })}
                   </div>
-                </FieldWithError>
-              </td>
-            </>
-          }
-        />
-      </div>
-      <div>
-        <Radio
-          {...accelerationActivePolicyType}
-          style={{
-            alignItems: "flex-start",
-            marginBottom: 24,
-            marginTop: 10,
-          }}
-          radioValue={SCHEDULE_POLICIES.SCHEDULE}
-          label={
-            <div className="flex flex-col">
-              <td>
-                <div style={styles.inputLabel}>
-                  {intl.formatMessage({
-                    id: "Reflection.Refresh.SetSchedule",
-                  })}
-                </div>
-              </td>
-              {SCHEDULE_POLICIES.SCHEDULE ===
-                accelerationActivePolicyType.value && (
+                </td>
                 <td>
                   <FieldWithError
                     errorPlacement="right"
-                    {...accelerationRefreshSchedule}
+                    {...accelerationRefreshPeriod}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                      }}
-                    >
-                      <ScheduleRefresh
-                        accelerationRefreshSchedule={
-                          accelerationRefreshSchedule
+                    <div style={{ display: "flex" }}>
+                      <DurationField
+                        {...accelerationRefreshPeriod}
+                        min={minDuration}
+                        style={styles.durationField}
+                        disabled={
+                          accelerationActivePolicyType.value !==
+                          SCHEDULE_POLICIES.PERIOD
                         }
                       />
                     </div>
                   </FieldWithError>
                 </td>
-              )}
-            </div>
-          }
-        />
+              </>
+            }
+          />
+          {isLiveReflectionEnabledForSource &&
+            accelerationActivePolicyType.value === SCHEDULE_POLICIES.PERIOD && (
+              <Checkbox
+                {...accelerationRefreshOnDataChanges}
+                label={intl.formatMessage({
+                  id: "Reflection.Refresh.AutoRefresh",
+                })}
+                className="pb-1 pl-3"
+              />
+            )}
+        </div>
+        <div className="flex flex-col">
+          <Radio
+            {...accelerationActivePolicyType}
+            style={{ alignItems: "flex-start", marginTop: 10 }}
+            radioValue={SCHEDULE_POLICIES.SCHEDULE}
+            label={
+              <div className="flex flex-col">
+                <td>
+                  <div style={styles.inputLabel}>
+                    {intl.formatMessage({
+                      id: "Reflection.Refresh.SetSchedule",
+                    })}
+                  </div>
+                </td>
+                {SCHEDULE_POLICIES.SCHEDULE ===
+                  accelerationActivePolicyType.value && (
+                  <td>
+                    <FieldWithError
+                      errorPlacement="right"
+                      {...accelerationRefreshSchedule}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                        }}
+                      >
+                        <ScheduleRefresh
+                          accelerationRefreshSchedule={
+                            accelerationRefreshSchedule
+                          }
+                        />
+                      </div>
+                    </FieldWithError>
+                  </td>
+                )}
+              </div>
+            }
+          />
+          {isLiveReflectionEnabledForSource &&
+            accelerationActivePolicyType.value ===
+              SCHEDULE_POLICIES.SCHEDULE && (
+              <Checkbox
+                {...accelerationRefreshOnDataChanges}
+                label={intl.formatMessage({
+                  id: "Reflection.Refresh.AutoRefresh",
+                })}
+                className="pt-05 pl-3"
+              />
+            )}
+        </div>
+        {isLiveReflectionEnabledForTable && (
+          <div>
+            <Radio
+              {...accelerationActivePolicyType}
+              radioValue={SCHEDULE_POLICIES.REFRESH_ON_DATA_CHANGES}
+              label={intl.formatMessage({
+                id: "Reflection.Refresh.AutoRefresh",
+              })}
+              style={{ marginTop: 14 }}
+            />
+          </div>
+        )}
       </div>
       <div>
         <p className="text-semibold text-base pb-05">
@@ -187,6 +237,11 @@ const ReflectionRefresh = ({
             label={intl.formatMessage({
               id: "Reflection.Expire.Never",
             })}
+            style={{ fontSize: 14 }}
+            disabled={
+              accelerationActivePolicyType.value ===
+              SCHEDULE_POLICIES.REFRESH_ON_DATA_CHANGES
+            }
           />
         </div>
       </div>
@@ -232,7 +287,7 @@ const styles = {
     margin: "0 0 8px 0px",
     display: "flex",
     alignItems: "center",
-    color: "var(--color--neutral--900)",
+    color: "var(--text--primary)",
   },
   inputLabel: {
     ...formDefault,
@@ -250,4 +305,4 @@ const styles = {
   },
 };
 
-export default ReflectionRefresh;
+export default withFormContext(ReflectionRefresh);

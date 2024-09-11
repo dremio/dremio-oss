@@ -22,15 +22,15 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
-public final class ArrayConcatConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE =
-      new NullableArrayFunctionConvertlet(new ArrayConcatConvertlet());
+public final class ArrayConcatConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE =
+      new NullableArrayRexCallConvertlet(new ArrayConcatConvertlet());
 
   private ArrayConcatConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
-    return call.getOperator() == ARRAY_CONCAT;
+  public boolean matchesCall(RexCall call) {
+    return (call.getOperator() == ARRAY_CONCAT);
   }
 
   @Override
@@ -49,6 +49,10 @@ public final class ArrayConcatConvertlet implements FunctionConvertlet {
     */
     RexBuilder rexBuilder = cx.getRexBuilder();
 
+    // We need to use ARRAY_CAT, instead of ARRAY_CONCAT to avoid infinite recursion.
+    // If we have ARRAY_CONCAT, then it will get wrapped in a null check (for
+    // NullableArrayFunctionConvertlet)
+    // And the outer loop will match on ARRAY_CONCAT again.
     RexNode nestedArrayConcat =
         rexBuilder.makeCall(ARRAY_CAT, call.getOperands().get(0), call.getOperands().get(1));
     for (int i = 2; i < call.getOperands().size(); i++) {

@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.work.protector;
 
+import static com.dremio.exec.ExecConstants.JOB_PROFILE_PLANNING_UPDATE_INTERVAL_SECONDS;
 import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
 import static com.dremio.proto.model.PartitionStats.PartitionStatsKey;
 import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableExecutorService;
@@ -34,10 +36,10 @@ import com.dremio.datastore.format.Format;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
-import com.dremio.exec.planner.CachedPlan;
-import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.observer.OutOfBandQueryObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
+import com.dremio.exec.planner.plancache.CachedPlan;
+import com.dremio.exec.planner.plancache.LegacyPlanCache;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared;
@@ -59,6 +61,7 @@ import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.OptionProvider;
+import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
 import com.dremio.partitionstats.cache.PartitionStatsCache;
 import com.dremio.partitionstats.storeprovider.PartitionStatsCacheStoreProvider;
@@ -76,7 +79,6 @@ import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -118,10 +120,6 @@ public class ForemenWorkManager implements Service, SafeExit {
   private static final String PREPARE_HANDLE_TIMEOUT_MS = "dremio.prepare.handle.timeout_ms";
   private static final String PLAN_CACHE_TIMEOUT_S = "dremio.plan.cache.timeout_s";
 
-  // send profile updates to the job-telemetry-service for all active queries at this
-  // interval.
-  private static final int PROFILE_SEND_INTERVAL_SECONDS = 5;
-
   // cache of prepared statement queries.
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final Cache<Long, PreparedPlan> preparedHandles =
@@ -144,7 +142,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final Provider<MaestroForwarder> forwarder;
   private final ForemenTool foremenTool;
   private final QueryCancelTool queryCancelTool;
-  private final BufferAllocator jobResultsAllocator;
+  private BufferAllocator jobResultsAllocator;
 
   private ExtendedLatch exitLatch =
       null; // This is used to wait to exit when things are still running
@@ -154,9 +152,9 @@ public class ForemenWorkManager implements Service, SafeExit {
   private CoordTunnelCreator coordTunnelCreator;
   private UserWorker userWorker;
   private LocalQueryExecutor localQueryExecutor;
-  private final CloseableSchedulerThreadPool profileSender;
+  private CloseableSchedulerThreadPool profileSender;
   private Cache<String, CachedPlan> cachedPlans;
-  private PlanCache planCache;
+  private LegacyPlanCache legacyPlanCache;
   private final Provider<RequestContext> requestContextProvider;
   private final Provider<PartitionStatsCacheStoreProvider> transientStoreProvider;
   private PartitionStatsCache partitionStatsCache;
@@ -169,7 +167,6 @@ public class ForemenWorkManager implements Service, SafeExit {
       final Provider<JobTelemetryClient> jobTelemetryClient,
       final Provider<MaestroForwarder> forwarder,
       final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector,
-      final BufferAllocator jobResultsAllocator,
       final Provider<RequestContext> requestContextProvider,
       final Provider<PartitionStatsCacheStoreProvider> transientStoreProvider) {
     this.dbContext = dbContext;
@@ -179,13 +176,10 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.jobTelemetryClient = jobTelemetryClient;
     this.forwarder = forwarder;
 
-    this.pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("foreman"));
     this.ruleBasedEngineSelector = ruleBasedEngineSelector;
     this.execToCoordResultsHandler = new NoExecToCoordResultsHandler();
     this.foremenTool = new ForemenToolImpl();
     this.queryCancelTool = new QueryCancelToolImpl();
-    this.profileSender = new CloseableSchedulerThreadPool("profile-sender", 1);
-    this.jobResultsAllocator = jobResultsAllocator;
     this.requestContextProvider = requestContextProvider;
     this.transientStoreProvider = transientStoreProvider;
   }
@@ -214,14 +208,22 @@ public class ForemenWorkManager implements Service, SafeExit {
     return localQueryExecutor;
   }
 
-  public PlanCache getPlanCacheHandle() {
-    return planCache;
+  public LegacyPlanCache getLegacyPlanCache() {
+    return legacyPlanCache;
   }
 
   @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   @Override
   public void start() throws Exception {
-    Metrics.newGauge(Metrics.join("jobs", "active"), () -> externalIdToForeman.size());
+    newGauge("jobs.active", externalIdToForeman::size);
+
+    this.jobResultsAllocator =
+        dbContext
+            .get()
+            .getAllocator()
+            .newChildAllocator("ForemenWorkManager-JobResults", 0, Long.MAX_VALUE);
+
+    this.pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("foreman"));
 
     execToCoordResultsHandler = new ExecToCoordResultsHandlerImpl();
 
@@ -235,11 +237,14 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     this.userWorker = new UserWorkerImpl(dbContext.get().getOptionManager(), pool);
     this.localQueryExecutor = new LocalQueryExecutorImpl(dbContext.get().getOptionManager(), pool);
-    this.profileSender.scheduleWithFixedDelay(
-        this::sendAllProfiles,
-        PROFILE_SEND_INTERVAL_SECONDS,
-        PROFILE_SEND_INTERVAL_SECONDS,
-        TimeUnit.SECONDS);
+
+    scheduleProfileSender(
+        dbContext.get().getOptionManager().getOption(JOB_PROFILE_PLANNING_UPDATE_INTERVAL_SECONDS));
+    dbContext
+        .get()
+        .getOptionManager()
+        .addOptionChangeListener(
+            new ProfileSenderOptionsChangeListener(dbContext.get().getOptionManager()));
 
     // cache for physical plans.
     cachedPlans =
@@ -255,7 +260,7 @@ public class ForemenWorkManager implements Service, SafeExit {
                 new RemovalListener<String, CachedPlan>() {
                   @Override
                   public void onRemoval(RemovalNotification<String, CachedPlan> notification) {
-                    PlanCache.clearDatasetMapOnCacheGC(notification.getKey());
+                    legacyPlanCache.clearDatasetMapOnCacheGC(notification.getKey());
                   }
                 })
             .expireAfterAccess(
@@ -263,8 +268,9 @@ public class ForemenWorkManager implements Service, SafeExit {
                 TimeUnit.MINUTES)
             .build();
 
-    planCache =
-        new PlanCache(cachedPlans, Multimaps.synchronizedListMultimap(ArrayListMultimap.create()));
+    legacyPlanCache =
+        new LegacyPlanCache(
+            cachedPlans, Multimaps.synchronizedListMultimap(ArrayListMultimap.create()));
 
     partitionStatsCache =
         new PartitionStatsCache(
@@ -281,7 +287,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(pool, profileSender, jobResultsAllocator);
+    AutoCloseables.close(profileSender, pool, jobResultsAllocator);
   }
 
   @VisibleForTesting
@@ -303,6 +309,7 @@ public class ForemenWorkManager implements Service, SafeExit {
       final TerminationListenerRegistry registry,
       final OptionProvider config,
       final ReAttemptHandler attemptHandler) {
+    Preconditions.checkNotNull(pool, "ForemanWorkManager is not started yet");
 
     final DelegatingCompletionListener delegate = new DelegatingCompletionListener();
     final Foreman foreman =
@@ -317,12 +324,16 @@ public class ForemenWorkManager implements Service, SafeExit {
             config,
             attemptHandler,
             preparedHandles,
-            planCache,
+            legacyPlanCache,
             partitionStatsCache);
     final ManagedForeman managed = new ManagedForeman(registry, foreman);
     externalIdToForeman.put(foreman.getExternalId(), managed);
     delegate.setListener(managed);
     foreman.start();
+  }
+
+  public CommandPool getCommandPool() {
+    return this.commandPool.get();
   }
 
   protected Foreman newForeman(
@@ -336,7 +347,7 @@ public class ForemenWorkManager implements Service, SafeExit {
       OptionProvider config,
       ReAttemptHandler attemptHandler,
       Cache<Long, PreparedPlan> preparedPlans,
-      PlanCache planCache,
+      LegacyPlanCache planCache,
       PartitionStatsCache partitionStatsCache) {
     return new Foreman(
         dbContext.get(),
@@ -504,6 +515,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     public void dataArrived(
         QueryData header, ByteBuf data, JobResultsRequest request, ResponseSender sender)
         throws RpcException {
+      Preconditions.checkNotNull(jobResultsAllocator, "ForemanWorkManager is not started yet");
       Preconditions.checkNotNull(header, "header parameter cannot be null");
 
       String queryId = QueryIdHelper.getQueryId(header.getQueryId());
@@ -841,7 +853,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   private void sendAllProfiles() {
     final List<ListenableFuture<Empty>> futures = Lists.newArrayList();
-
+    logger.debug("About to send all planning profiles");
     for (ManagedForeman managedForeman : externalIdToForeman.values()) {
       try {
         Optional<ListenableFuture<Empty>> future = managedForeman.foreman.sendPlanningProfile();
@@ -857,6 +869,43 @@ public class ForemenWorkManager implements Service, SafeExit {
       Futures.successfulAsList(futures).get();
     } catch (final Exception ex) {
       logger.info("Failure while sending profile to JobTelemetryService", ex);
+    }
+  }
+
+  private void scheduleProfileSender(long profileSendIntervalSeconds) {
+    // send profile updates to the job-telemetry-service for all active queries at this interval.
+    logger.debug(
+        "About to schedule Profile Sender wih interval of {} sec", profileSendIntervalSeconds);
+    if (this.profileSender != null && !this.profileSender.isTerminated()) {
+      this.profileSender.shutdown();
+    }
+    this.profileSender = new CloseableSchedulerThreadPool("profile-sender", 1);
+    this.profileSender.scheduleWithFixedDelay(
+        this::sendAllProfiles,
+        profileSendIntervalSeconds,
+        profileSendIntervalSeconds,
+        TimeUnit.SECONDS);
+  }
+
+  class ProfileSenderOptionsChangeListener implements OptionChangeListener {
+    private final OptionManager optionManager;
+    private volatile long profileSendIntervalSeconds;
+
+    public ProfileSenderOptionsChangeListener(OptionManager optionManager) {
+      this.optionManager = optionManager;
+      this.profileSendIntervalSeconds =
+          optionManager.getOption(JOB_PROFILE_PLANNING_UPDATE_INTERVAL_SECONDS);
+    }
+
+    @Override
+    public void onChange() {
+      long newProfileSendIntervalSeconds =
+          optionManager.getOption(JOB_PROFILE_PLANNING_UPDATE_INTERVAL_SECONDS);
+      if (profileSendIntervalSeconds != newProfileSendIntervalSeconds) {
+        logger.debug("Profile Sender Options Change Triggered.");
+        this.profileSendIntervalSeconds = newProfileSendIntervalSeconds;
+        scheduleProfileSender(newProfileSendIntervalSeconds);
+      }
     }
   }
 

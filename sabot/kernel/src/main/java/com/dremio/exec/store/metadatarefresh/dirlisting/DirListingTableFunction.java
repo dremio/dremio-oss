@@ -91,6 +91,8 @@ public class DirListingTableFunction extends AbstractTableFunction {
             .setRootPath(path)
             .setHasVersion(dirListingContext.hasVersion())
             .setReadSignature(Long.MAX_VALUE)
+            .setSchemeVariate(
+                dirListingContext.schemeVariate() != null ? dirListingContext.schemeVariate() : "")
             .build();
 
     FileSystem fs;

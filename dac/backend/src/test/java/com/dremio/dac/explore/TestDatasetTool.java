@@ -21,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -36,7 +37,6 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.jobs.JobsService;

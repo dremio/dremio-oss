@@ -1,0 +1,7 @@
+<svg id="sql-editor/join-inner" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" fill-rule="evenodd">
+    <path d="M0 0h24v24H0z"/>
+    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M12 16a5 5 0 1 1 0-8 5 5 0 1 1 0 8Zm0 0a4.992 4.992 0 0 0 2-4 4.993 4.993 0 0 0-2-4 4.992 4.992 0 0 0-2 4c0 1.636.785 3.088 2 4Z"/>
+    <path fill="currentColor" fill-opacity=".25" d="M12 16a4.992 4.992 0 0 0 2-4 4.993 4.993 0 0 0-2-4 4.992 4.992 0 0 0-2 4c0 1.636.785 3.088 2 4Z"/>
+  </g>
+</svg>

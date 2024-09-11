@@ -36,8 +36,24 @@ message JobsFlightTicket {
   int32 limit = 3;
 }
 
+message ReflectionLineageParameters {
+  string reflection_id = 1;
+}
+
+message SysTableFunctionParameters {
+  oneof identifier {
+    ReflectionLineageParameters reflection_lineage_parameters = 1;
+  }
+}
+
+message SysTableFunction {
+  string name = 1;
+  SysTableFunctionParameters parameters = 2;
+}
+
 message SysFlightTicket {
   string dataset_name = 1;
   exec.search.SearchQuery query = 2;
   string user_name = 3;
+  SysTableFunction table_function = 4;
 }

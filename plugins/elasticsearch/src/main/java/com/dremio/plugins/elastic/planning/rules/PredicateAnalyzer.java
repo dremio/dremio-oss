@@ -50,6 +50,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Map;
@@ -1247,7 +1248,7 @@ public class PredicateAnalyzer {
     query.toXContent(x, ToXContent.EMPTY_PARAMS);
     x.close();
 
-    return baos.toString("UTF-8");
+    return baos.toString(StandardCharsets.UTF_8);
   }
 
   /**

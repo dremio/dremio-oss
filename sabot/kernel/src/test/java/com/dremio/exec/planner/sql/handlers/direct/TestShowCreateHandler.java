@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.planner.sql.parser.SqlShowCreate;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
@@ -74,10 +75,14 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateView() throws Exception {
     doReturn(DEFAULT_VIEW_KEY).when(catalog).resolveSingle(DEFAULT_VIEW_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VIEW_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VIEW_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VIEW_PATH)
+                .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(VIRTUAL_DATASET);
     String sql = "SELECT * FROM foo";
@@ -97,16 +102,20 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateVersionedView() throws Exception {
     doReturn(DEFAULT_VERSIONED_VIEW_KEY).when(catalog).resolveSingle(DEFAULT_VERSIONED_VIEW_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VERSIONED_VIEW_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(resolvedVersionContext)
         .when(showCreateHandler)
         .getResolvedVersionContext(
-            DEFAULT_VERSIONED_VIEW_KEY.getRoot(), VersionContext.ofBranch(DEFAULT_BRANCH_NAME));
+            DEFAULT_VERSIONED_VIEW_KEY.getRoot(), DEFAULT_BRANCH_VERSION_CONTEXT);
     when(resolvedVersionContext.getType()).thenReturn(ResolvedVersionContext.Type.BRANCH);
     when(resolvedVersionContext.getRefName()).thenReturn(DEFAULT_BRANCH_NAME);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VERSIONED_VIEW_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VERSIONED_VIEW_PATH)
+                .tableVersionContext(TableVersionContext.of(DEFAULT_BRANCH_VERSION_CONTEXT))
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(VIRTUAL_DATASET);
     String sql = "SELECT * FROM arctic.table";
@@ -131,13 +140,17 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateViewNotFound() throws Exception {
     doReturn(DEFAULT_VIEW_KEY).when(catalog).resolveSingle(DEFAULT_VIEW_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VIEW_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(resolvedVersionContext)
         .when(showCreateHandler)
-        .getResolvedVersionContext(DEFAULT_VIEW_KEY.getRoot(), sessionVersion);
+        .getResolvedVersionContext(DEFAULT_VIEW_KEY.getRoot(), VersionContext.NOT_SPECIFIED);
     doReturn(null)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VIEW_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VIEW_PATH)
+                .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+                .build());
 
     UserExceptionAssert.assertThatThrownBy(() -> showCreateHandler.toResult("", SHOW_CREATE_VIEW))
         .hasErrorType(VALIDATION)
@@ -148,13 +161,17 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateViewOnTable() throws Exception {
     doReturn(DEFAULT_VIEW_KEY).when(catalog).resolveSingle(DEFAULT_VIEW_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VIEW_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(resolvedVersionContext)
         .when(showCreateHandler)
-        .getResolvedVersionContext(DEFAULT_VIEW_KEY.getRoot(), sessionVersion);
+        .getResolvedVersionContext(DEFAULT_VIEW_KEY.getRoot(), VersionContext.NOT_SPECIFIED);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VIEW_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VIEW_PATH)
+                .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(PHYSICAL_DATASET_SOURCE_FOLDER);
     when(table.getDatasetConfig()).thenReturn(datasetConfig);
@@ -168,13 +185,17 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateViewOnCorruptedView() throws Exception {
     doReturn(DEFAULT_VIEW_KEY).when(catalog).resolveSingle(DEFAULT_VIEW_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VIEW_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(resolvedVersionContext)
         .when(showCreateHandler)
-        .getResolvedVersionContext(DEFAULT_VIEW_KEY.getRoot(), sessionVersion);
+        .getResolvedVersionContext(DEFAULT_VIEW_KEY.getRoot(), VersionContext.NOT_SPECIFIED);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VIEW_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VIEW_PATH)
+                .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(VIRTUAL_DATASET);
     when(table.getDatasetConfig()).thenReturn(datasetConfig);
@@ -188,10 +209,14 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateTableShouldReturnPrePopulatedSelectStatement() throws Exception {
     doReturn(DEFAULT_TABLE_KEY).when(catalog).resolveSingle(DEFAULT_TABLE_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_TABLE_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_TABLE_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_TABLE_PATH)
+                .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(PHYSICAL_DATASET_SOURCE_FOLDER);
     when(table.getDatasetConfig()).thenReturn(datasetConfig);
@@ -200,7 +225,7 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
     when(type.getFieldList()).thenReturn(fieldList);
     doReturn(null)
         .when(showCreateHandler)
-        .getTableDefinition(datasetConfig, DEFAULT_TABLE_KEY, fieldList, null, null, false);
+        .getTableDefinition(datasetConfig, DEFAULT_TABLE_KEY, fieldList, false);
 
     List<ShowCreateHandler.DefinitionResult> result =
         showCreateHandler.toResult("", SHOW_CREATE_TABLE);
@@ -214,16 +239,20 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateVersionedTable() throws Exception {
     doReturn(DEFAULT_VERSIONED_TABLE_KEY).when(catalog).resolveSingle(DEFAULT_VERSIONED_TABLE_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VERSIONED_TABLE_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(resolvedVersionContext)
         .when(showCreateHandler)
         .getResolvedVersionContext(
-            DEFAULT_VERSIONED_VIEW_KEY.getRoot(), VersionContext.ofBranch(DEFAULT_BRANCH_NAME));
+            DEFAULT_VERSIONED_VIEW_KEY.getRoot(), DEFAULT_BRANCH_VERSION_CONTEXT);
     when(resolvedVersionContext.getType()).thenReturn(ResolvedVersionContext.Type.BRANCH);
     when(resolvedVersionContext.getRefName()).thenReturn(DEFAULT_BRANCH_NAME);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VERSIONED_TABLE_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VERSIONED_TABLE_PATH)
+                .tableVersionContext(TableVersionContext.of(DEFAULT_BRANCH_VERSION_CONTEXT))
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(PHYSICAL_DATASET_SOURCE_FOLDER);
     when(table.getDatasetConfig()).thenReturn(datasetConfig);
@@ -235,13 +264,7 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
         String.format("CREATE TABLE %s (foo INT, bar VARCHAR)", DEFAULT_VERSIONED_TABLE_KEY);
     doReturn(expected)
         .when(showCreateHandler)
-        .getTableDefinition(
-            datasetConfig,
-            DEFAULT_VERSIONED_TABLE_KEY,
-            fieldList,
-            ResolvedVersionContext.Type.BRANCH.toString(),
-            DEFAULT_BRANCH_NAME,
-            true);
+        .getTableDefinition(datasetConfig, DEFAULT_VERSIONED_TABLE_KEY, fieldList, true);
 
     List<ShowCreateHandler.DefinitionResult> result =
         showCreateHandler.toResult("", SHOW_CREATE_VERSIONED_TABLE);
@@ -261,10 +284,14 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
         .when(catalog)
         .resolveSingle(DEFAULT_TABLE_IN_SCRATCH_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_TABLE_IN_SCRATCH_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_TABLE_IN_SCRATCH_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_TABLE_IN_SCRATCH_PATH)
+                .tableVersionContext(TableVersionContext.NOT_SPECIFIED)
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(PHYSICAL_DATASET_SOURCE_FOLDER);
     when(table.getDatasetConfig()).thenReturn(datasetConfig);
@@ -276,8 +303,7 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
         String.format("CREATE TABLE %s (foo INT, bar VARCHAR)", DEFAULT_TABLE_IN_SCRATCH_KEY);
     doReturn(expected)
         .when(showCreateHandler)
-        .getTableDefinition(
-            datasetConfig, DEFAULT_TABLE_IN_SCRATCH_KEY, fieldList, null, null, false);
+        .getTableDefinition(datasetConfig, DEFAULT_TABLE_IN_SCRATCH_KEY, fieldList, false);
 
     List<ShowCreateHandler.DefinitionResult> result =
         showCreateHandler.toResult("", SHOW_CREATE_TABLE_IN_SCRATCH);
@@ -290,10 +316,14 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateTableNotFound() throws Exception {
     doReturn(DEFAULT_VERSIONED_TABLE_KEY).when(catalog).resolveSingle(DEFAULT_VERSIONED_TABLE_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VERSIONED_TABLE_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(null)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VERSIONED_TABLE_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VERSIONED_TABLE_PATH)
+                .tableVersionContext(TableVersionContext.of(DEFAULT_BRANCH_VERSION_CONTEXT))
+                .build());
 
     UserExceptionAssert.assertThatThrownBy(
             () -> showCreateHandler.toResult("", SHOW_CREATE_VERSIONED_TABLE))
@@ -305,10 +335,14 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateTableOnView() throws Exception {
     doReturn(DEFAULT_VERSIONED_TABLE_KEY).when(catalog).resolveSingle(DEFAULT_VERSIONED_TABLE_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VERSIONED_TABLE_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VERSIONED_TABLE_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VERSIONED_TABLE_PATH)
+                .tableVersionContext(TableVersionContext.of(DEFAULT_BRANCH_VERSION_CONTEXT))
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(VIRTUAL_DATASET);
     when(table.getDatasetConfig()).thenReturn(datasetConfig);
@@ -323,16 +357,18 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   public void testShowCreateVersionedTableWithoutColumns() throws Exception {
     doReturn(DEFAULT_VERSIONED_TABLE_KEY).when(catalog).resolveSingle(DEFAULT_VERSIONED_TABLE_KEY);
     when(context.getSession().getSessionVersionForSource(DEFAULT_VERSIONED_TABLE_KEY.getRoot()))
-        .thenReturn(sessionVersion);
+        .thenReturn(VersionContext.NOT_SPECIFIED);
     doReturn(resolvedVersionContext)
         .when(showCreateHandler)
         .getResolvedVersionContext(
-            DEFAULT_VERSIONED_TABLE_KEY.getRoot(), VersionContext.ofBranch(DEFAULT_BRANCH_NAME));
-    when(resolvedVersionContext.getType()).thenReturn(ResolvedVersionContext.Type.BRANCH);
-    when(resolvedVersionContext.getRefName()).thenReturn(DEFAULT_BRANCH_NAME);
+            DEFAULT_VERSIONED_TABLE_KEY.getRoot(), DEFAULT_BRANCH_VERSION_CONTEXT);
     doReturn(table)
         .when(showCreateHandler)
-        .getTable(CatalogEntityKey.fromNamespaceKey(DEFAULT_VERSIONED_TABLE_KEY));
+        .getTable(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(DEFAULT_VERSIONED_TABLE_PATH)
+                .tableVersionContext(TableVersionContext.of(DEFAULT_BRANCH_VERSION_CONTEXT))
+                .build());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setType(PHYSICAL_DATASET_SOURCE_FOLDER);
     when(table.getDatasetConfig()).thenReturn(datasetConfig);
@@ -347,7 +383,7 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
   }
 
   @Test
-  public void testShowCreateVersionedTableWithCommit() throws Exception {
+  public void testShowCreateVersionedTableWithReference() throws Exception {
     RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
     RelDataTypeField field0 =
         new RelDataTypeFieldImpl("foo", 0, typeFactory.createSqlType(SqlTypeName.INTEGER));
@@ -358,28 +394,7 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
         String.format(
             "CREATE TABLE %s (\"%s\" INTEGER NOT NULL, \"%s\" VARCHAR NOT NULL)",
             DEFAULT_VERSIONED_TABLE_KEY, field0.getName(), field1.getName());
-    testShowCreateVersionedTableWithReference(
-        "COMMIT", ResolvedVersionContext.DETACHED_REF_NAME, fieldList, expected);
-  }
 
-  @Test
-  public void testShowCreateVersionedTableWithBranch() throws Exception {
-    RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
-    RelDataTypeField field0 =
-        new RelDataTypeFieldImpl("foo", 0, typeFactory.createSqlType(SqlTypeName.INTEGER));
-    RelDataTypeField field1 =
-        new RelDataTypeFieldImpl("bar", 1, typeFactory.createSqlType(SqlTypeName.VARCHAR));
-    List<RelDataTypeField> fieldList = Arrays.asList(field0, field1);
-    String expected =
-        String.format(
-            "CREATE TABLE %s (\"%s\" INTEGER NOT NULL, \"%s\" VARCHAR NOT NULL) AT BRANCH \"%s\"",
-            DEFAULT_VERSIONED_TABLE_KEY, field0.getName(), field1.getName(), DEFAULT_BRANCH_NAME);
-    testShowCreateVersionedTableWithReference("BRANCH", DEFAULT_BRANCH_NAME, fieldList, expected);
-  }
-
-  private void testShowCreateVersionedTableWithReference(
-      String refType, String refValue, List<RelDataTypeField> fieldList, String expected)
-      throws Exception {
     DatasetConfig datasetConfig = new DatasetConfig();
     PhysicalDataset physicalDataset = new PhysicalDataset();
     datasetConfig.setType(PHYSICAL_DATASET_SOURCE_FOLDER);
@@ -388,7 +403,7 @@ public class TestShowCreateHandler extends TestShowCreateHandlerBase {
 
     String actual =
         showCreateHandler.getTableDefinition(
-            datasetConfig, DEFAULT_VERSIONED_TABLE_KEY, fieldList, refType, refValue, true);
+            datasetConfig, DEFAULT_VERSIONED_TABLE_KEY, fieldList, true);
     assertThat(actual).isEqualTo(expected);
   }
 }

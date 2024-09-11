@@ -37,7 +37,10 @@ import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import java.lang.reflect.Constructor;
@@ -94,6 +97,7 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
     ResolvedVersionContext resolvedVersionContext =
         getResolvedVersionContextIfVersioned(catalogEntityKey, catalog);
 
+    validateInSource(catalogEntityKey, catalog);
     validateCreateTableFormatOptions(
         catalog,
         catalogEntityKey,
@@ -105,6 +109,23 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
           catalog, catalogEntityKey, config, sql, sqlCreateTable, resolvedVersionContext);
     } catch (Exception e) {
       throw SqlExceptionHelper.coerceException(logger, sql, e, true);
+    }
+  }
+
+  private static void validateInSource(CatalogEntityKey catalogEntityKey, Catalog catalog)
+      throws NamespaceException {
+    final String name = catalogEntityKey.getRootEntity();
+    try {
+      final NameSpaceContainer entity = catalog.getEntityByPath(new NamespaceKey(name));
+      if (entity != null && entity.getType().equals(NameSpaceContainer.Type.SPACE)) {
+        throw UserException.validationError()
+            .message("You cannot create a table in a space (name: %s).", name)
+            .build(logger);
+      }
+    } catch (NamespaceNotFoundException ex) {
+      throw UserException.validationError(ex)
+          .message("Tried to access non-existent source [%s].", name)
+          .build(logger);
     }
   }
 

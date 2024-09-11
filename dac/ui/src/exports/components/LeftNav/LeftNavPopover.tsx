@@ -24,25 +24,34 @@ type LeftNavPopoverProps = {
   icon: ReactElement;
   mode: Parameters<typeof Popover>[0]["mode"];
   role: Parameters<typeof Popover>[0]["role"];
+  portal?: boolean;
+  dataQa?: string;
+  forceTooltipOnHover?: boolean;
 };
 
 export const LeftNavPopover = (props: LeftNavPopoverProps) => {
   return (
-    <div className="sideNav-item item__hover" style={{ color: "white" }}>
+    <div className="sideNav-item">
       <Popover
         mode={props.mode}
         role={props.role}
         content={props.content}
         placement="right-end"
-        portal
+        portal={props.portal ?? true}
       >
         <IconButton
-          data-qa="Tutorials"
-          tooltip={props.tooltip}
-          tooltipPlacement="right"
+          data-qa={props.dataQa}
+          {...(props.mode === "hover" && !props.forceTooltipOnHover
+            ? { "aria-label": props.tooltip }
+            : {
+                tooltip: props.tooltip,
+                tooltipPortal: true,
+                tooltipPlacement: props.mode === "hover" ? "top" : "right",
+              })}
           className={clsx(
-            "w-8 h-8 position-relative",
-            classes["left-nav-popover"]
+            "w-8 h-8 position-relative sideNav-item__icon left-nav-popover",
+            classes["left-nav-popover"],
+            props.mode === "hover" ? "hover-expand" : "",
           )}
         >
           {props.icon}

@@ -16,12 +16,12 @@
 
 /* stylelint-disable selector-class-pattern */
 .mantine-Input-invalid {
-  border-color: var(--dremio--color--status--error--foreground) !important;
+  border-color: var(--fill--danger--solid) !important;
   color: inherit !important;
 }
 
 .mantine-InputWrapper-error {
-  color: var(--dremio--color--status--error--foreground) !important;
+  color: var(--fill--danger--solid) !important;
 }
 
 .mantine-InputWrapper-label {
@@ -32,8 +32,8 @@
 
 .mantine-TextInput-icon--text {
   .mantine-TextInput-icon {
-    color: var(--dremio--color--text--main);
-    background-color: var(--color--neutral--25);
+    color: var(--text--primary);
+    background-color: var(--icon--primary);
     inset: 1px;
     border-end-start-radius: var(--dremio--radius--1);
     border-start-start-radius: var(--dremio--radius--1);
@@ -47,24 +47,25 @@
 .mantine-Select-dropdown {
   border: none;
   color: inherit;
+  background-color: var(--fill--popover);
   border-radius: var(--dremio--radius--1);
 }
 
 .mantine-Select-item {
   border-radius: 0;
-  color: var(--dremio--color--text--main);
+  color: var(--text--primary);
 }
 
 .mantine-Select-item[data-hovered="true"] {
-  background-color: var(--color--brand--25);
+  background-color: var(--fill--primary--hover);
 }
 
 .mantine-Select-item[data-selected="true"] {
-  color: var(--dremio--color--text--main);
-  background-color: var(--color--brand--50);
+  color: var(--text--primary);
+  background-color: var(--fill--primary--selected);
 
   &:hover {
-    background-color: var(--color--brand--100);
+    background-color: var(--fill--primary--hover);
   }
 }
 
@@ -72,8 +73,13 @@
   block-size: 32px;
   min-block-size: 32px;
   line-height: 32px;
-  background-color: var(--bg--default);
-  color: var(--color--default);
+  background-color: var(--fill--primary);
+  color: var(--text--primary);
+  border-color: var(--border--neutral--solid);
+  &:disabled {
+    color: var(--text--disabled);
+    background-color: var(--fill--disabled);
+  }
 }
 
 .mantine-Select-rightSection {
@@ -85,15 +91,15 @@
 }
 
 .mantine-Checkbox-input {
-  border-color: var(--color--neutral--100);
+  border-color: var(--border--neutral--solid);
   &:hover {
     cursor: pointer;
-    border-color: var(--color--neutral--200);
+    border-color: var(--border--hover);
   }
   &:checked {
     &:hover {
-      background-color: var(--color--brand--400);
-      border-color: var(--color--brand--400);
+      background-color: var(--fill--brand--solid);
+      border-color: var(--border--focused);
     }
   }
 }

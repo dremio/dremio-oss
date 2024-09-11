@@ -15,10 +15,17 @@
  */
 package com.dremio.exec.catalog;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+
 import com.dremio.common.expression.CompleteType;
-import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.SchemaType;
 import com.dremio.service.catalog.Table;
@@ -36,12 +43,15 @@ import com.google.flatbuffers.FlatBufferBuilder;
 import io.protostuff.ByteString;
 import java.util.Set;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /** Test information schema catalog. */
+@ExtendWith(MockitoExtension.class)
 public class TestInformationSchemaCatalog {
   private static final String DEFAULT_CATALOG = "DREMIO";
   private static final String SOURCE = "source";
@@ -51,16 +61,21 @@ public class TestInformationSchemaCatalog {
   private static final String SUBFOLDER = "space.folder.subfolder";
   private static final String PDS = "space.folder.pds";
 
+  @Mock private OptionManager optionManager;
+
   private LegacyKVStoreProvider kvStoreProvider;
   private NamespaceService namespaceService;
   private InformationSchemaCatalog catalog;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
-    kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    LocalKVStoreProvider storeProvider =
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    storeProvider.start();
+    kvStoreProvider = storeProvider.asLegacy();
     kvStoreProvider.start();
 
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
 
     NamespaceTestUtils.addSource(namespaceService, SOURCE);
     NamespaceTestUtils.addSpace(namespaceService, EMPTYSPACE);
@@ -84,24 +99,34 @@ public class TestInformationSchemaCatalog {
     final String vds2 = "space.folder.subfolder.vds2";
     NamespaceTestUtils.addDS(namespaceService, vds2, "select * from space.folder.vds1");
 
-    this.catalog = new InformationSchemaCatalogImpl(namespaceService, null, null);
+    this.catalog = new InformationSchemaCatalogImpl(namespaceService, null, optionManager, null);
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws Exception {
     if (kvStoreProvider != null) {
       kvStoreProvider.close();
     }
   }
 
+  private void mockOptionManager() {
+    doAnswer(
+            (args) -> {
+              TypeValidators.LongValidator validator = args.getArgument(0);
+              return validator.getDefault().getNumVal();
+            })
+        .when(optionManager)
+        .getOption(any(TypeValidators.LongValidator.class));
+  }
+
   @Test
   public void listCatalogs() {
-    Assert.assertEquals(1, Iterators.size(catalog.listCatalogs(null)));
-    Assert.assertEquals(DEFAULT_CATALOG, catalog.listCatalogs(null).next().getCatalogName());
+    assertEquals(1, Iterators.size(catalog.listCatalogs(null)));
+    assertEquals(DEFAULT_CATALOG, catalog.listCatalogs(null).next().getCatalogName());
 
-    Assert.assertEquals("", catalog.listCatalogs(null).next().getCatalogConnect());
+    assertEquals("", catalog.listCatalogs(null).next().getCatalogConnect());
 
-    Assert.assertEquals(
+    assertEquals(
         "The internal metadata used by Dremio",
         catalog.listCatalogs(null).next().getCatalogDescription());
   }
@@ -118,11 +143,13 @@ public class TestInformationSchemaCatalog {
 
   @Test
   public void listSchemata() {
-    Assert.assertEquals(5, Iterators.size(catalog.listSchemata(null)));
+    mockOptionManager();
+
+    assertEquals(5, Iterators.size(catalog.listSchemata(null)));
     final Set<Schema> schemaSet1 =
         Sets.newHashSet(
             schema(SOURCE), schema(EMPTYSPACE), schema(SPACE), schema(FOLDER), schema(SUBFOLDER));
-    Assert.assertEquals(schemaSet1, Sets.newHashSet(catalog.listSchemata(null)));
+    assertEquals(schemaSet1, Sets.newHashSet(catalog.listSchemata(null)));
   }
 
   private static Table table(String parentName, String tableName, TableType tableType) {
@@ -136,21 +163,25 @@ public class TestInformationSchemaCatalog {
 
   @Test
   public void listTables() {
-    Assert.assertEquals(3, Iterators.size(catalog.listTables(null)));
+    mockOptionManager();
+
+    assertEquals(3, Iterators.size(catalog.listTables(null)));
     final Table pdsTable = table(FOLDER, "pds", TableType.TABLE);
     final Table vds1Table = table(FOLDER, "vds1", TableType.VIEW);
     final Table vds2Table = table(SUBFOLDER, "vds2", TableType.VIEW);
     final Set<Table> tableSet1 = Sets.newHashSet(pdsTable, vds1Table, vds2Table);
-    Assert.assertEquals(tableSet1, Sets.newHashSet(catalog.listTables(null)));
+    assertEquals(tableSet1, Sets.newHashSet(catalog.listTables(null)));
   }
 
   @Test
   public void testTableSchemaIsSubsetOfSchemaName() {
-    final Set<String> schemaNameSet = Sets.newHashSet();
+    mockOptionManager();
+
+    Set<String> schemaNameSet = Sets.newHashSet();
     catalog.listSchemata(null).forEachRemaining(e -> schemaNameSet.add(e.getSchemaName()));
     catalog
         .listTables(null)
-        .forEachRemaining(e -> Assert.assertTrue(schemaNameSet.contains(e.getSchemaName())));
+        .forEachRemaining(e -> assertTrue(schemaNameSet.contains(e.getSchemaName())));
   }
 
   private static View view(String parentName, String tableName, String sql) {
@@ -164,16 +195,20 @@ public class TestInformationSchemaCatalog {
 
   @Test
   public void listViews() {
-    Assert.assertEquals(2, Iterators.size(catalog.listViews(null)));
+    mockOptionManager();
+
+    assertEquals(2, Iterators.size(catalog.listViews(null)));
     final View view1 = view(FOLDER, "vds1", "select * from space.folder.pds");
     final View view2 = view(SUBFOLDER, "vds2", "select * from space.folder.vds1");
     final Set<View> viewSet1 = Sets.newHashSet(view1, view2);
-    Assert.assertEquals(viewSet1, Sets.newHashSet(catalog.listViews(null)));
+    assertEquals(viewSet1, Sets.newHashSet(catalog.listViews(null)));
   }
 
   @Test
   public void listColumns() {
-    Assert.assertEquals(1, Iterators.size(catalog.listTableSchemata(null)));
+    mockOptionManager();
+
+    assertEquals(1, Iterators.size(catalog.listTableSchemata(null)));
 
     final Field field1 = CompleteType.INT.toField("a");
     final Field child1 = CompleteType.VARCHAR.toField("c");
@@ -187,6 +222,6 @@ public class TestInformationSchemaCatalog {
                 BatchSchema.deserialize(
                         ByteString.copyFrom(tableSchema.getBatchSchema().toByteArray()))
                     .iterator()
-                    .forEachRemaining(field -> Assert.assertTrue(topLevelFields.contains(field))));
+                    .forEachRemaining(field -> assertTrue(topLevelFields.contains(field))));
   }
 }

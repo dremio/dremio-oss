@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.dfs.system;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.physical.base.IcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
@@ -34,6 +35,7 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
+import org.apache.iceberg.Metrics;
 
 /**
  * *** IMPORTANT *** This record writer must be used only in the context of copy into command.
@@ -41,7 +43,7 @@ import com.google.common.collect.ImmutableList;
  * Parquet format. It encapsulates the logic of setting up the {@link ParquetRecordWriter},
  * initializing it, writing records, and closing it.
  */
-public class SystemIcebergTableRecordWriter {
+public class SystemIcebergTableRecordWriter implements AutoCloseable {
 
   private final ParquetRecordWriter recordWriter;
 
@@ -66,32 +68,22 @@ public class SystemIcebergTableRecordWriter {
   }
 
   /**
-   * Writes the contents of a {@link VectorContainer} to a Parquet data file. After the write
-   * operation the provided {@link VectorContainer} is cleared and closed.
+   * Writes the contents of a {@link VectorContainer} to a Parquet data file.
    *
    * @param container The {@link VectorContainer} containing the data to be written.
    * @param dataFileLocationPath The path where the Parquet data file will be created.
    * @throws Exception If an error occurs during the writing process.
    */
   public void write(VectorContainer container, Path dataFileLocationPath) throws Exception {
-    try {
-      recordWriter.setup(container, null, null);
-      recordWriter.startPartition(WritePartition.NONE);
-      recordWriter.initRecordWriter(dataFileLocationPath);
-      recordWriter.writeBatch(0, container.getRecordCount());
-    } finally {
-      container.clear();
-      container.close();
-    }
+    recordWriter.setup(container, null, null);
+    recordWriter.startPartition(WritePartition.NONE);
+    recordWriter.initRecordWriter(dataFileLocationPath);
+    recordWriter.writeBatch(0, container.getRecordCount());
   }
 
-  /**
-   * Close the underlying {@link ParquetRecordWriter} instance.
-   *
-   * @throws Exception if an error occurs during the closing process.
-   */
+  @Override
   public void close() throws Exception {
-    recordWriter.close();
+    AutoCloseables.close(recordWriter);
   }
 
   /**
@@ -104,11 +96,21 @@ public class SystemIcebergTableRecordWriter {
   }
 
   /**
+   * Get the iceberg metrics of the written parquet file.
+   *
+   * @return Iceberg metrics, can be null
+   */
+  public Metrics getIcebergMetrics() {
+    return recordWriter.getIcebergMetrics();
+  }
+
+  /**
    * Get a ParquetWriter instance for writing Parquet data.
    *
    * @param plugin The MutablePlugin instance associated with the writer.
    * @param dataLocation The location where the data will be written.
-   * @param icebergTableProps
+   * @param icebergTableProps The {@link IcebergTableProps} containing properties specific to the
+   *     Iceberg table.
    * @return A ParquetWriter instance for writing data.
    */
   private ParquetWriter getWriter(
@@ -135,7 +137,8 @@ public class SystemIcebergTableRecordWriter {
         false,
         Long.MAX_VALUE,
         getTableFormatWriterOptions(icebergTableProps),
-        null);
+        null,
+        false);
   }
 
   /**

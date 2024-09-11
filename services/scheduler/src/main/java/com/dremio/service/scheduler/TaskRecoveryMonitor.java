@@ -56,7 +56,8 @@ import javax.inject.Provider;
 final class TaskRecoveryMonitor implements NodeStatusListener, AutoCloseable {
   private static final org.slf4j.Logger LOGGER =
       org.slf4j.LoggerFactory.getLogger(TaskRecoveryMonitor.class);
-  private static final int SET_WATCH_DELAY_SECS = 30;
+  private static final int SET_WATCH_SHORT_DELAY_SECS = 10;
+  private static final int SET_WATCH_LONG_DELAY_SECS = 60;
   private static final Comparator<NodeEndpoint> ENDPOINT_COMPARATOR =
       Comparator.comparing(NodeEndpoint::getAddress).thenComparing(NodeEndpoint::getFabricPort);
 
@@ -117,9 +118,15 @@ final class TaskRecoveryMonitor implements NodeStatusListener, AutoCloseable {
   }
 
   void refresh() {
-    if (this.registrationHandle != null) {
-      this.registrationHandle.close();
-      this.groupMembers.clear();
+    membershipLock.lock();
+    try {
+      if (this.registrationHandle != null) {
+        this.registrationHandle.close();
+        this.groupMembers.clear();
+        this.locallyMonitoredTasks.clear();
+      }
+    } finally {
+      membershipLock.unlock();
     }
     start();
   }
@@ -169,6 +176,9 @@ final class TaskRecoveryMonitor implements NodeStatusListener, AutoCloseable {
 
   @Override
   public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
+    if (schedulerCommon.isZombie()) {
+      return;
+    }
     if (unregisteredNodes.isEmpty()) {
       // nothing to unregister. spurious request
       return;
@@ -184,6 +194,9 @@ final class TaskRecoveryMonitor implements NodeStatusListener, AutoCloseable {
 
   @Override
   public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
+    if (schedulerCommon.isZombie() || schedulerCommon.shouldIgnoreReconnects()) {
+      return;
+    }
     if (registeredNodes.isEmpty()) {
       // nothing to register. spurious request
       return;
@@ -373,6 +386,7 @@ final class TaskRecoveryMonitor implements NodeStatusListener, AutoCloseable {
       // (except during cancellation).
       if (!taskRecoveryInfo.isBookingOwner() && recoveryOwner && schedulerCommon.isActive()) {
         try {
+          LOGGER.debug("Setting Recovery watch for {}", this.getTaskName());
           schedulerCommon
               .getTaskStore()
               .whenDeleted(taskRecoveryInfo.getBookFqPathLocal())
@@ -380,12 +394,15 @@ final class TaskRecoveryMonitor implements NodeStatusListener, AutoCloseable {
         } catch (PathMissingException e) {
           // the booking path does not exist. Try and grab it after a delay.
           LOGGER.info(
-              "No one has booked the task {}. Calling recovery directly after a delay",
+              "{}: No one has booked the task {}. Calling recovery directly after a delay",
+              schedulerCommon.getThisEndpoint().getAddress(),
               getTaskName());
           if (recoveryOwner) {
-            schedulerCommon
-                .getSchedulePool()
-                .schedule(this::recover, SET_WATCH_DELAY_SECS, TimeUnit.SECONDS);
+            var delay =
+                (taskRecoveryInfo.notInRunSet())
+                    ? SET_WATCH_SHORT_DELAY_SECS
+                    : SET_WATCH_LONG_DELAY_SECS;
+            schedulerCommon.getSchedulePool().schedule(this::recover, delay, TimeUnit.SECONDS);
           }
         }
       }

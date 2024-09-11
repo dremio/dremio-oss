@@ -160,8 +160,6 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
   /** Class to keep MapR YARN setup defaults */
   public static class MapRYarnDefaults extends YarnConfiguratorBaseClass {
 
-    public static final String MAPR_IMPALA_RA_THROTTLE_BOOL = "MAPR_IMPALA_RA_THROTTLE";
-    public static final String MAPR_MAX_RA_STREAMS = "MAPR_MAX_RA_STREAMS";
     private static String APP_CLASSPATH =
         File.separatorChar
             + "jars"
@@ -176,16 +174,6 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
             + "3rdparty"
             + File.separatorChar
             + "dremio-maprfs-shaded-.*.jar";
-
-    private static ImmutableMap<String, String> createMaprFSDefaultProps() {
-      ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-
-      // maprfs specific system properties to enable read ahead throttling
-      builder = copySystemProperty(MAPR_IMPALA_RA_THROTTLE_BOOL, builder);
-      builder = copySystemProperty(MAPR_MAX_RA_STREAMS, builder);
-
-      return builder.build();
-    }
 
     private static ImmutableMap.Builder<String, String> copySystemProperty(
         String name, ImmutableMap.Builder<String, String> target) {
@@ -262,7 +250,6 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
       public Map<String, String> getAllDefaults() {
         return ImmutableMap.<String, String>builder()
             .putAll(baseYarnDefaultPropsSecurityOn)
-            .putAll(createMaprFSDefaultProps())
             .putAll(createNettyDefaultProps())
             .build();
       }
@@ -282,7 +269,6 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
     public Map<String, String> getAllDefaults() {
       return ImmutableMap.<String, String>builder()
           .putAll(baseYarnDefaultPropsSecurityOff)
-          .putAll(createMaprFSDefaultProps())
           .putAll(createNettyDefaultProps())
           .build();
     }

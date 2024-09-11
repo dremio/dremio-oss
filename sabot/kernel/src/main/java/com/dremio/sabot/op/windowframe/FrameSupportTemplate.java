@@ -29,6 +29,7 @@ import javax.inject.Named;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * WindowFramer implementation that supports the FRAME clause. <br>
@@ -54,6 +55,9 @@ public abstract class FrameSupportTemplate implements WindowFramer {
   private boolean requireFullPartition;
 
   private long remainingRows; // num unprocessed rows in current partition
+  private long
+      remainingPeersFull; // num unprocessed peer rows in full frame (for unbounded following will
+  // be full partition)
   private long remainingPeers; // num unprocessed peer rows in current frame
   private boolean
       partialPartition; // true if we remainingRows only account for the current batch and more
@@ -128,6 +132,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
   private void newPartition(final VectorAccessible current, final int currentRow)
       throws SchemaChangeException {
     remainingRows = 0;
+    remainingPeersFull = 0;
     remainingPeers = 0;
     updatePartitionSize(currentRow);
 
@@ -220,7 +225,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
       outputRow(row);
       remainingRows--;
       row++;
-      resetValues();
+      reset();
     }
     return row;
   }
@@ -244,7 +249,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
     int endOffset = row + (int) remainingRows - 1;
     int currentEndOffset = Math.min(endOffset, outputCount - 1);
     // it's possible that frame could contain rows from next batch
-    endOffset = getEndOffsetForNextBatch(endOffset, outputCount);
+    endOffset = getEndOffsetForNextBatch(endOffset, outputCount, currentBatchIndex);
     int startOffset = currentEndOffset;
     setupEvaluatePeer(current, container);
     while (row < outputCount && !isPartitionDone()) {
@@ -258,24 +263,27 @@ public abstract class FrameSupportTemplate implements WindowFramer {
       remainingRows--;
       row++;
     }
-    resetValues();
+    reset();
     return row;
   }
 
-  private int getEndOffsetForNextBatch(int endOffset, int outputCount) {
+  private int getEndOffsetForNextBatch(int endOffset, int outputCount, int currentBatchIndex) {
     if (endOffset > outputCount) {
       endOffset = endOffset - outputCount;
       VectorContainer next = getNextBatch(currentBatchIndex);
+      int currentEndOffset = endOffset;
       if (next.getRecordCount() < endOffset) {
-        return getEndOffsetForNextBatch(endOffset, next.getRecordCount());
+        endOffset =
+            getEndOffsetForNextBatch(endOffset, next.getRecordCount(), currentBatchIndex + 1);
+        currentEndOffset = outputCount - 1;
       } else {
+        // if endOffset is less than outputCount - last value will be here
         setupReadLastValue(next, container);
-        setupEvaluatePeer(next, container);
-        int currentOffset = endOffset;
-        while (currentOffset >= 0) {
-          evaluatePeer(currentOffset);
-          currentOffset--;
-        }
+      }
+      setupEvaluatePeer(next, container);
+      while (currentEndOffset >= 0) {
+        evaluatePeer(currentEndOffset);
+        currentEndOffset--;
       }
     }
     return endOffset;
@@ -390,7 +398,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
       offset = i;
     }
     // process first value if it's in this partition
-    if (previousBatchLastRow + startOffset >= 0 || !hasPrevBatch) {
+    if (previous.getRecordCount() + startOffset >= 0 || !hasPrevBatch) {
       setupSaveFirstValue(previous, internal);
       saveFirstValue(offset, row);
       writeFirstValue(row, row);
@@ -400,7 +408,8 @@ public abstract class FrameSupportTemplate implements WindowFramer {
   private void processROWFromNextBatch(
       int row, int startOffset, int endOffset, int currentBatchIndex) {
     VectorContainer next = getNextBatch(currentBatchIndex);
-    int lastRow = getLastRowIndex(next.getRecordCount());
+    int nextRecordCount = next.getRecordCount();
+    int lastRow = getLastRowIndex(nextRecordCount);
     int targetStartOffset = startOffset;
     int targetEndOffset = endOffset;
 
@@ -412,8 +421,8 @@ public abstract class FrameSupportTemplate implements WindowFramer {
         // or contains rows only from next batch (startOffset = targetStartOffset - lastRow).
         processROWFromNextBatch(
             row,
-            Math.max(targetStartOffset - lastRow, 0),
-            endOffset - lastRow,
+            Math.max(targetStartOffset - nextRecordCount, 0),
+            endOffset - nextRecordCount,
             currentBatchIndex + 1);
       }
       // targetEndOffset in this case will last row in this batch
@@ -448,81 +457,36 @@ public abstract class FrameSupportTemplate implements WindowFramer {
   }
 
   private int processRANGE(int row) throws Exception {
-    if (popConfig.getLowerBound().getType().equals(BoundType.CURRENT_ROW)
-        && popConfig.getUpperBound().isUnbounded()) {
-      return processRANGECurrentToUnbound(row);
-    } else {
-      return processRANGEUnboundTo(row);
-    }
-  }
-
-  private int processRANGEUnboundTo(int row) throws Exception {
     while (row < outputCount && !isPartitionDone()) {
-      if (remainingPeers == 0) {
+      if (remainingPeersFull == 0 || shouldUpdateForFollowing()) {
         // because all peer rows share the same frame, we only need to compute and aggregate the
         // frame once
         if (popConfig.getLowerBound().getType().equals(BoundType.CURRENT_ROW)) {
           reset();
           saveFirstValue(row, 0);
         }
-        remainingPeers = aggregatePeersForNextBatch(row, currentBatchIndex);
+        Pair<Long, Long> peers = aggregatePeersForNextBatch(row, currentBatchIndex);
+        remainingPeersFull = peers.getLeft();
+        remainingPeers = peers.getRight();
       }
       writeFirstValue(0, row);
       outputRow(row);
       writeLastValue(frameLastRow, row);
 
       remainingRows--;
+      remainingPeersFull--;
       remainingPeers--;
       row++;
     }
     return row;
   }
 
-  private int processRANGECurrentToUnbound(int row) throws Exception {
-    int endOffset = row + (int) remainingRows - 1;
-    int currentEndOffset = Math.min(endOffset, outputCount - 1);
-    endOffset = getEndOffsetForNextBatchForRange(endOffset, outputCount, currentBatchIndex);
-    int startOffset = currentEndOffset;
-    while (row < outputCount && !isPartitionDone()) {
-      saveFirstValue(row, row);
-      writeFirstValue(row, row);
-      if (currentEndOffset < outputCount - 1) {
-        setupReadLastValue(current, container);
-      }
-      if (remainingPeers == 0) {
-        // because all peer rows share the same frame, we only need to compute and aggregate the
-        // frame once
-        remainingPeers = aggregatePeersForPrevBatch(startOffset, currentBatchIndex);
-      }
-      outputRow(startOffset);
-      writeLastValue(endOffset, row);
-      startOffset--;
-      remainingRows--;
-      remainingPeers--;
-      row++;
-    }
-    resetValues();
-    return row;
-  }
-
-  private int getEndOffsetForNextBatchForRange(int endOffset, int outputCount, int batchIndex) {
-    if (endOffset > outputCount) {
-      endOffset = endOffset - outputCount;
-      VectorContainer next = getNextBatch(batchIndex);
-      if (next.getRecordCount() < endOffset) {
-        return getEndOffsetForNextBatchForRange(endOffset, next.getRecordCount(), batchIndex + 1);
-      } else {
-        int currentOffset = endOffset;
-        while (currentOffset >= 0) {
-          if (remainingPeers == 0) {
-            remainingPeers = aggregatePeersForNextBatch(currentOffset, batchIndex + 1);
-          }
-          remainingPeers--;
-          currentOffset--;
-        }
-      }
-    }
-    return endOffset;
+  // if upper bound is unbounded following, should be processed current frame + all following
+  // frames.
+  private boolean shouldUpdateForFollowing() {
+    return popConfig.getLowerBound().getType().equals(BoundType.CURRENT_ROW)
+        && popConfig.getUpperBound().isUnbounded()
+        && remainingPeers == 0;
   }
 
   /**
@@ -540,12 +504,9 @@ public abstract class FrameSupportTemplate implements WindowFramer {
     // keep increasing length until we find first row of next partition or we reach the very last
     // batch
 
-    int batchIndex = 0;
     outer:
-    for (VectorAccessible batch : batches) {
-      if (batchIndex++ < currentBatchIndex) {
-        continue;
-      }
+    for (int i = currentBatchIndex; i < batches.size(); i++) {
+      final VectorAccessible batch = batches.get(i);
       final int recordCount = batch.getRecordCount();
       // check first container from start row, and subsequent containers from first row
 
@@ -584,16 +545,18 @@ public abstract class FrameSupportTemplate implements WindowFramer {
    * @return num peer rows for current row
    * @throws SchemaChangeException
    */
-  private long aggregatePeersForNextBatch(final int start, int batchIndex)
+  private Pair<Long, Long> aggregatePeersForNextBatch(final int start, int batchIndex)
       throws SchemaChangeException {
     logger.trace("aggregating rows starting from {}", start);
 
     final boolean unboundedFollowing = popConfig.getUpperBound().isUnbounded();
     VectorAccessible last = current;
     long length = 0;
+    long lengthWithSamePeer = 0;
 
     // a single frame can include rows from multiple batches
     // start processing first batch and, if necessary, move to next batches
+    outer:
     for (int i = batchIndex; i < batches.size(); i++) {
       VectorAccessible batch = batches.get(i);
       setupEvaluatePeer(batch, container);
@@ -603,11 +566,15 @@ public abstract class FrameSupportTemplate implements WindowFramer {
       for (int row = (batch == current) ? start : 0; row < recordCount; row++, length++) {
         if (unboundedFollowing) {
           if (length >= remainingRows) {
-            break;
+            break outer;
+          }
+          // for unbounded following, we need to process all rows in partition
+          if (isPeer(start, current, row, batch)) {
+            lengthWithSamePeer++;
           }
         } else {
           if (!isPeer(start, current, row, batch)) {
-            break;
+            break outer;
           }
         }
 
@@ -618,34 +585,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
     }
 
     setupReadLastValue(last, container);
-    return length;
-  }
-
-  private long aggregatePeersForPrevBatch(final int start, int batchIndex)
-      throws SchemaChangeException {
-    logger.trace("aggregating rows starting from {}", start);
-
-    long length = 0;
-
-    // a single frame can include rows from multiple batches
-    // start processing first batch and, if necessary, move to prev batches
-    for (int i = batchIndex; i >= 0; i--) {
-      VectorAccessible batch = batches.get(i);
-      if (((VectorContainer) batch).isNewSchema()) {
-        break;
-      }
-      setupEvaluatePeer(batch, container);
-      final int recordCount = batch.getRecordCount();
-
-      // for every remaining row in the partition, count it if it's a peer row
-      for (int row = (batch == current) ? start : recordCount - 1; row >= 0; row--, length++) {
-        if (!isPeer(start, current, row, batch)) {
-          break;
-        }
-        evaluatePeer(row);
-      }
-    }
-    return length;
+    return Pair.of(length, lengthWithSamePeer);
   }
 
   private boolean moreThanNBatchLeft(int currentBatchIndex, int n) {
@@ -653,7 +593,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
   }
 
   private boolean prevNBatchesExist(int currentBatchIndex, int n) {
-    return currentBatchIndex > n;
+    return currentBatchIndex >= n;
   }
 
   private VectorContainer getNextBatch(int currentBatchIndex) {

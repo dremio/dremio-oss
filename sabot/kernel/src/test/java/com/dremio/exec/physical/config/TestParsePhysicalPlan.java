@@ -21,23 +21,17 @@ import static org.junit.Assert.assertTrue;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.store.StoragePluginConfig;
 import com.dremio.exec.ExecTest;
-import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PhysicalPlanReader;
-import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
 import com.dremio.exec.store.dfs.FileSystemConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.service.DirectProvider;
-import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import java.net.URI;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 public class TestParsePhysicalPlan extends ExecTest {
   static final org.slf4j.Logger logger =
@@ -45,21 +39,8 @@ public class TestParsePhysicalPlan extends ExecTest {
 
   @Test
   public void parseSimplePlan() throws Exception {
-    LogicalPlanPersistence lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
-    SabotContext sabotContext = Mockito.mock(SabotContext.class);
-    Mockito.when(sabotContext.getConnectionReaderProvider())
-        .thenReturn(
-            DirectProvider.wrap(
-                ConnectionReader.of(
-                    DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
-
-    PhysicalPlanReader reader =
-        new PhysicalPlanReader(
-            CLASSPATH_SCAN_RESULT,
-            lpp,
-            CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-            DirectProvider.wrap(Mockito.mock(CatalogService.class)),
-            sabotContext);
+    PhysicalPlanReader reader = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader();
+    LogicalPlanPersistence lpp = reader.getLpPersistance();
     ObjectWriter writer = lpp.getMapper().writer();
     PhysicalPlan plan = reader.readPhysicalPlan(readResourceAsString("/physical_test1.json"));
     String unparse = plan.unparse(writer);

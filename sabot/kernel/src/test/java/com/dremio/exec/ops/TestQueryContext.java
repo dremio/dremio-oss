@@ -22,10 +22,10 @@ import com.dremio.BaseTestQuery;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
-import com.dremio.exec.server.options.EagerCachingOptionManager;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
+import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.options.impl.OptionManagerWrapper;
@@ -45,7 +45,7 @@ public class TestQueryContext extends BaseTestQuery {
       assertEquals(4, optionManagerList.size());
       assertTrue(optionManagerList.get(0) instanceof QueryOptionManager);
       assertTrue(optionManagerList.get(1) instanceof SessionOptionManager);
-      assertTrue(optionManagerList.get(2) instanceof EagerCachingOptionManager);
+      assertTrue(optionManagerList.get(2) instanceof SystemOptionManager);
       assertTrue(optionManagerList.get(3) instanceof DefaultOptionManager);
     }
   }

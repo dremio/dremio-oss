@@ -72,6 +72,12 @@ public class ReflectionResource {
 
   @POST
   public Reflection createReflection(Reflection reflection) throws ForbiddenException {
+    return createReflectionHelper(reflection, reflectionServiceHelper);
+  }
+
+  public static Reflection createReflectionHelper(
+      Reflection reflection, ReflectionServiceHelper reflectionServiceHelper)
+      throws ForbiddenException {
     // TODO: handle exceptions
     if (SupportContext.isSupportUser()) {
       throw new ForbiddenException("Permission denied. A support user cannot create a reflection");

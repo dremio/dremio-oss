@@ -24,7 +24,6 @@ import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ALLPARENTS;
 import static com.dremio.service.namespace.dataset.DatasetVersion.MAX_VERSION;
 import static com.dremio.service.namespace.dataset.DatasetVersion.MIN_VERSION;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.lang.String.format;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
@@ -47,8 +46,9 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
+import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.KVStore;
-import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
@@ -57,20 +57,17 @@ import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.ContextService;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.SabotQueryContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.InternalFileConf;
@@ -122,7 +119,7 @@ public class DatasetVersionMutator {
 
   protected final JobsService jobsService;
   protected final CatalogService catalogService;
-  private final ContextService contextService;
+  private final SabotQueryContext sabotQueryContext;
   private final LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions;
   protected final OptionManager optionManager;
 
@@ -132,11 +129,11 @@ public class DatasetVersionMutator {
       final JobsService jobsService,
       final CatalogService catalogService,
       final OptionManager optionManager,
-      final ContextService contextService) {
+      final SabotContext sabotContext) {
     this.jobsService = jobsService;
     this.datasetVersions = kv.getStore(VersionStoreCreator.class);
     this.catalogService = catalogService;
-    this.contextService = contextService;
+    this.sabotQueryContext = sabotContext;
     this.optionManager = optionManager;
   }
 
@@ -224,7 +221,6 @@ public class DatasetVersionMutator {
     ds.setId(null);
     ds.setPreviousVersion(null);
     ds.setOwner(ownerName);
-    putVersion(ds);
 
     try {
       put(ds);
@@ -243,6 +239,7 @@ public class DatasetVersionMutator {
     final SqlQuery query = new SqlQuery(ds.getSql(), ds.getState().getContextList(), ds.getOwner());
     validateVersions(query, null);
     DatasetConfig datasetConfig = toVirtualDatasetVersion(ds).getDataset();
+    datasetConfig.getVirtualDataset().setSchemaOutdated(false);
     getCatalog().addOrUpdateDataset(path.toNamespaceKey(), datasetConfig, attributes);
     ds.setId(datasetConfig.getId().getId());
     ds.setSavedTag(datasetConfig.getTag());
@@ -264,9 +261,7 @@ public class DatasetVersionMutator {
     Catalog catalog = getCatalog().resolveCatalog(contextMap);
     final SqlQuery query = new SqlQuery(ds.getSql(), ds.getState().getContextList(), ds.getOwner());
 
-    // TODO: Once DX-65418 is fixed, injected catalog will validate the right entity accordingly
-    catalog.validatePrivilege(new NamespaceKey(path.getRoot().getName()), SqlGrant.Privilege.ALTER);
-    validateVersions(query, contextMap);
+    validatePutWithVersionedSource(path, catalog, query, contextMap);
     BatchSchema schema = CalciteArrowHelper.fromDataset(datasetConfig);
     View view =
         Views.fieldTypesToView(
@@ -302,6 +297,7 @@ public class DatasetVersionMutator {
                 viewExists
                     ? ViewOptions.ActionType.UPDATE_VIEW
                     : ViewOptions.ActionType.CREATE_VIEW)
+            .icebergViewVersion(optionManager)
             .build();
     if (viewExists) {
       catalog.updateView(new NamespaceKey(path.toPathList()), view, viewOptions);
@@ -325,11 +321,7 @@ public class DatasetVersionMutator {
   }
 
   public Catalog getCatalog() {
-    // TODO - Why are we using the System User when interacting with Catalog when most of the
-    // DatasetTool should be in the context of a user?
-    return catalogService.getCatalog(
-        MetadataRequestOptions.of(
-            SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
+    return catalogService.getSystemUserCatalog();
   }
 
   public boolean checkIfVersionedViewEnabled() {
@@ -503,11 +495,14 @@ public class DatasetVersionMutator {
 
     // Temporary VDS are not saved in namespace.
     if (!isTemporaryPath(path.toPathList())) {
-      final DremioTable dremioTable = getCatalog().getTableForQuery(path.toNamespaceKey());
-      datasetPath =
-          dremioTable != null
-              ? new DatasetPath(dremioTable.getDatasetConfig().getFullPathList())
-              : datasetPath;
+      try {
+        final DatasetConfig datasetConfig = getCatalog().getDataset(path.toNamespaceKey());
+        datasetPath = new DatasetPath(datasetConfig.getFullPathList());
+      } catch (NamespaceException e) {
+        // We have tests save dataset versions without saving to namespace. If the dataset is not
+        // found in namespace,
+        // fallback to the path passed in.
+      }
     }
 
     return datasetPath;
@@ -626,16 +621,17 @@ public class DatasetVersionMutator {
    * @throws NamespaceException
    */
   public Iterable<DatasetPath> getDescendants(DatasetPath path) throws NamespaceException {
-    LegacyFindByCondition condition =
-        new LegacyFindByCondition()
+    FindByCondition condition =
+        new ImmutableFindByCondition.Builder()
             .setCondition(
                 SearchQueryUtils.newTermQuery(DATASET_ALLPARENTS, path.toNamespaceKey().toString()))
-            .setLimit(1000);
+            .setLimit(1000)
+            .build();
     return Iterables.transform(
         getCatalog().find(condition),
-        new Function<Entry<NamespaceKey, NameSpaceContainer>, DatasetPath>() {
+        new Function<>() {
           @Override
-          public DatasetPath apply(Entry<NamespaceKey, NameSpaceContainer> input) {
+          public DatasetPath apply(Document<NamespaceKey, NameSpaceContainer> input) {
             return new DatasetPath(input.getKey().getPathComponents());
           }
         });
@@ -788,14 +784,30 @@ public class DatasetVersionMutator {
 
   private static boolean withinThreshold(
       long daysThreshold, long now, VirtualDatasetVersion version) {
-    final long daysThresholdMillis = TimeUnit.DAYS.toMillis(daysThreshold);
-    final Long dsCreation = version.getDataset().getCreatedAt();
-    return dsCreation != null && now - dsCreation < daysThresholdMillis;
+    long daysThresholdMillis = TimeUnit.DAYS.toMillis(daysThreshold);
+
+    // In older versions, createdAt was set to current millis, later it was changed to be createdAt
+    // time of the dataset and even later lastModified was set to current millis.
+    Long dsCreation = version.getDataset().getCreatedAt();
+    Long dsLastModified = version.getDataset().getLastModified();
+    // The dataset versions created between changes described above may be deleted, resulting in job
+    // results not
+    // found.
+    return dsLastModified != null && now - dsLastModified < daysThresholdMillis
+        || dsCreation != null && now - dsCreation < daysThresholdMillis;
+  }
+
+  protected void validatePutWithVersionedSource(
+      DatasetPath path,
+      Catalog catalog,
+      SqlQuery query,
+      Map<String, VersionContext> sourceVersionMapping) {
+    validateVersions(query, sourceVersionMapping);
   }
 
   private void validateVersions(SqlQuery query, Map<String, VersionContext> sourceVersionMapping) {
     try {
-      QueryParser.validateVersions(query, contextService.get(), sourceVersionMapping);
+      QueryParser.validateVersions(query, sabotQueryContext, sourceVersionMapping);
     } catch (ValidationException | RelConversionException e) {
       // Calcite exception could wrap exceptions in layers.  Find the root cause to get the original
       // error message.

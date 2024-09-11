@@ -23,6 +23,7 @@ import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
@@ -35,6 +36,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import java.util.List;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -119,6 +121,9 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   public void planStart(String rawPlan) {}
 
   @Override
+  public void resourcesPlanned(GroupResourceInformation resourceInformation, long millisTaken) {}
+
+  @Override
   public void planValidated(
       RelDataType rowType,
       SqlNode node,
@@ -162,10 +167,10 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
       String detailsText) {}
 
   @Override
-  public void recordsProcessed(long recordCount) {}
+  public void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount) {}
 
   @Override
-  public void recordsOutput(long recordCount) {}
+  public void outputLimited() {}
 
   @Override
   public void planGenerationTime(long millisTaken) {}
@@ -197,4 +202,7 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
 
   @Override
   public void setNumJoinsInFinalPrel(Integer joins) {}
+
+  @Override
+  public void putProfileFailed() {}
 }

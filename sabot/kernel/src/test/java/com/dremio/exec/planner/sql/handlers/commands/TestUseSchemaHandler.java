@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static java.lang.String.format;
+import static org.junit.Assert.assertEquals;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.ErrorHelper;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import java.util.Arrays;
 import java.util.Properties;
@@ -118,5 +122,45 @@ public class TestUseSchemaHandler extends BaseTestQuery {
     //      .baselineColumns("result")
     //      .baselineValues("ok")
     //      .go();
+  }
+
+  @Test
+  public void checkClear() throws Exception {
+    // First set the default schema
+    // Then run a query to confirm the content
+    // Second, clear the schema
+    // Verify same query fails
+    testBuilder()
+        .sqlQuery(format("USE %s", USE_TEST_PATH))
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, format("Default schema changed to [%s]", USE_TEST_PATH))
+        .go();
+
+    testBuilder()
+        .sqlQuery(format("SELECT * FROM %s", SqlUtils.quoteIdentifier("foo.json")))
+        .unOrdered()
+        .baselineColumns("result")
+        .baselineValues("ok")
+        .go();
+
+    testBuilder()
+        .sqlQuery(format("USE;"))
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, "Default schema cleared")
+        .go();
+
+    try {
+      testBuilder()
+          .sqlQuery(format("SELECT * FROM %s", SqlUtils.quoteIdentifier("foo.json")))
+          .unOrdered()
+          .baselineColumns("result")
+          .baselineValues("ok")
+          .go();
+    } catch (Exception exception) {
+      UserException ue = ErrorHelper.findWrappedCause(exception, UserException.class);
+      assertEquals(VALIDATION, ue.getErrorType());
+    }
   }
 }

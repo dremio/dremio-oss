@@ -37,7 +37,7 @@ public class Bug1735ResultSetCloseReleasesBuffersTest extends JdbcTestQueryBase 
 
   @Test
   public void test() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .withConnection(
             new Function<Connection, Void>() {
               @Override

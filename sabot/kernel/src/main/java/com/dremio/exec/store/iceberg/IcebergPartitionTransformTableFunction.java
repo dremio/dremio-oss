@@ -50,7 +50,9 @@ public class IcebergPartitionTransformTableFunction extends AbstractTableFunctio
   private final Schema schema;
   private final Map<String, CompleteType> inputFieldsType = new HashMap<>();
   private final Map<String, ValueVector> outputValueVectorMap = new HashMap<>();
+  private final Map<String, ValueVector> partitionFieldsInputValueVectorMap = new HashMap<>();
   private boolean doneWithRow = false;
+  private int currentRow;
 
   public IcebergPartitionTransformTableFunction(
       OperatorContext context, TableFunctionConfig functionConfig) {
@@ -79,9 +81,12 @@ public class IcebergPartitionTransformTableFunction extends AbstractTableFunctio
       if (isIdentityPartitionColumn(partitionField)) {
         continue;
       }
-      ValueVector vvOut =
-          getVectorFromSchemaPath(outgoing, IcebergUtils.getPartitionFieldName(partitionField));
-      outputValueVectorMap.put(IcebergUtils.getPartitionFieldName(partitionField), vvOut);
+      String partitionFieldName = IcebergUtils.getPartitionFieldName(partitionField);
+      String inputColumnName = schema.findField(partitionField.sourceId()).name();
+      ValueVector vvIn = getVectorFromSchemaPath(incoming, inputColumnName);
+      partitionFieldsInputValueVectorMap.put(partitionFieldName, vvIn);
+      ValueVector vvOut = getVectorFromSchemaPath(outgoing, partitionFieldName);
+      outputValueVectorMap.put(partitionFieldName, vvOut);
     }
 
     for (Field field : incoming.getSchema()) {
@@ -94,50 +99,49 @@ public class IcebergPartitionTransformTableFunction extends AbstractTableFunctio
 
   @Override
   public void startRow(int row) throws Exception {
+    currentRow = row;
+    if (row != 0) {
+      return;
+    }
     doneWithRow = false;
   }
 
   @Override
   public int processRow(int startOutIndex, int maxRecords) throws Exception {
-    if (doneWithRow) {
+    if (currentRow != 0 || doneWithRow) {
       return 0;
     }
 
+    int recordCount = Math.min(maxRecords, incoming.getRecordCount());
     for (PartitionField partitionField : partitionSpec.fields()) {
       // skip identity transform since it returns the original value
       if (isIdentityPartitionColumn(partitionField)) {
         continue;
       }
-      ValueVector inputVector = getInputVectorForPartitionField(partitionField, schema);
+
       String inputColumnName = schema.findField(partitionField.sourceId()).name();
-      Object columnValue = null;
-      columnValue = getValue(startOutIndex, inputVector, inputColumnName);
       Transform transform = partitionField.transform();
-      Object transformedValue = transform.apply(columnValue);
-      ValueVector outputVector =
-          outputValueVectorMap.get(IcebergUtils.getPartitionFieldName(partitionField));
-      writeToVector(outputVector, startOutIndex, transformedValue);
+      String partitionFieldName = IcebergUtils.getPartitionFieldName(partitionField);
+      ValueVector inputVector = partitionFieldsInputValueVectorMap.get(partitionFieldName);
+      ValueVector outputVector = outputValueVectorMap.get(partitionFieldName);
+
+      for (int row = 0; row < recordCount; row++) {
+        Object columnValue = getValue(row, inputVector, inputFieldsType.get(inputColumnName));
+        Object transformedValue = transform.apply(columnValue);
+        writeToVector(outputVector, startOutIndex + row, transformedValue);
+      }
     }
 
-    if (startOutIndex == incoming.getRecordCount() - 1) {
-      transfers.forEach(TransferPair::transfer);
-      outgoing.setAllCount(incoming.getRecordCount());
-    }
+    transfers.forEach(TransferPair::transfer);
+    outgoing.setAllCount(recordCount);
     doneWithRow = true;
-    return 1;
+    return recordCount;
   }
 
   @Override
   public void closeRow() throws Exception {}
 
-  private ValueVector getInputVectorForPartitionField(
-      PartitionField partitionField, Schema schema) {
-    String inputColumnName = schema.findField(partitionField.sourceId()).name();
-    return getVectorFromSchemaPath(incoming, inputColumnName);
-  }
-
-  public Object getValue(int index, ValueVector vvIn, String inputColumnName) {
-    CompleteType completeType = inputFieldsType.get(inputColumnName);
+  public static Object getValue(int index, ValueVector vvIn, CompleteType completeType) {
     if (vvIn.isNull(index)) {
       return null;
     }

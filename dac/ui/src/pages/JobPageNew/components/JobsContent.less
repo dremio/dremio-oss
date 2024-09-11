@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
   .jobsContent {
     &__fullHeight {
@@ -37,7 +37,7 @@
       min-height: 40px;
     }
     &__columnTooltipText {
-      color: @font-color1;
+      color: var(--text--primary);
       font-size: 12px;
       line-height: 20px;
     }
@@ -51,7 +51,7 @@
       top: 0;
     }
     &__sqlTooltipText {
-      color: @font-color1;
+      color: var(--text--primary);
       font-family: var(--dremio--font-family--monospace);
       font-size: 12px;
       line-height: 20px;
@@ -69,7 +69,7 @@
       line-height: 20px;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: @greyish-blue;
+      color: var(--text--primary);
 
       &::after {
         content: "";
@@ -112,7 +112,7 @@
         flex-basis: 72%;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: @font-color1;
+        color: var(--text--primary);
       }
       &__versionContext {
         display: inline-flex;
@@ -129,7 +129,7 @@
         font-weight: 600;
         font-size: 12px;
         line-height: 16px;
-        color: @font-color1;
+        color: var(--text--primary);
         text-overflow: ellipsis;
         overflow: hidden;
       }
@@ -138,7 +138,7 @@
         font-weight: normal;
         font-size: 12px;
         line-height: 16px;
-        color: @font-color1;
+        color: var(--text--primary);
         text-overflow: ellipsis;
       }
       &__nameWrapper {
@@ -148,7 +148,7 @@
       &-icon {
         cursor: pointer;
         &:hover {
-          color: var(--dremio--color--link);
+          color: var(--icon--hover);
         }
       }
     }
@@ -161,16 +161,16 @@
     width: 8px;
     height: 8px;
     border-radius: 8px;
-    background-color: @white;
+    background-color: white;
   }
   .ReactVirtualized__Table__Grid::-webkit-scrollbar-thumb {
     width: 8px;
     height: 5px;
     border-radius: 8px;
-    background-color: @DARK_600;
+    background-color: var(--color--neutral--300);
   }
   .ReactVirtualized__Table .ReactVirtualized__Table__row:hover {
-    background: @PRIMARY_100 !important;
+    background: var(--fill--primary--hover) !important;
 
     .pin {
       opacity: 1;
@@ -225,15 +225,15 @@
     &__actions {
       display: flex;
       align-items: center;
-      color: var(--color--neutral--600);
+      color: var(--icon--primary);
 
       &-button {
         height: 32px;
         width: 32px;
-        color: var(--dremio--color--neutral--600) !important;
+        color: var(--dremio--color--neutral--500) !important;
 
         &:hover {
-          color: var(--dremio--color--link) !important;
+          color: var(--icon--hover) !important;
         }
       }
     }

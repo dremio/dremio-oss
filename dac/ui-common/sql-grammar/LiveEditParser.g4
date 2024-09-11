@@ -46,10 +46,10 @@ options { tokenVocab=LiveEditLexer; }
 // Overriden to allow suggestions in e.g. "SELECT FROM ^" and "FROM ^" by treating select clause as optional
 sqlSelect :
   SELECT (HINT_BEG commaSepatatedSqlHints COMMENT_END)? STREAM? (DISTINCT | ALL)? (
-    selectList (FROM fromClause whereOpt groupByOpt havingOpt windowOpt)?
-    | invalidFrom fromClause whereOpt groupByOpt havingOpt windowOpt
+    selectList (FROM fromClause whereOpt groupByOpt havingOpt windowOpt qualifyOpt)?
+    | invalidFrom fromClause whereOpt groupByOpt havingOpt windowOpt qualifyOpt
   )
-  | invalidFrom fromClause whereOpt groupByOpt havingOpt windowOpt  ;
+  | invalidFrom fromClause whereOpt groupByOpt havingOpt windowOpt qualifyOpt  ;
 
 // Overriden to allow suggestions in e.g. "SELECT col1, FROM ^"
 selectList : selectItem (COMMA selectItem)* trailingSelectComma?  ;

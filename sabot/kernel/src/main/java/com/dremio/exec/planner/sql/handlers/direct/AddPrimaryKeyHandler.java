@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddPrimaryKey;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -27,7 +26,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
 /** Adds primary key info to the table metadata */
-public class AddPrimaryKeyHandler extends SimpleDirectHandler {
+public class AddPrimaryKeyHandler extends SimpleDirectHandlerWithValidator {
   private final Catalog catalog;
 
   public AddPrimaryKeyHandler(Catalog catalog) {
@@ -40,7 +39,8 @@ public class AddPrimaryKeyHandler extends SimpleDirectHandler {
         SqlNodeUtil.unwrap(sqlNode, SqlAlterTableAddPrimaryKey.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlAddPrimaryKey.getTable());
-    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
+
+    validate(path);
 
     catalog.addPrimaryKey(
         path,

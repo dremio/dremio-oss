@@ -66,7 +66,7 @@ public class AlterClearPlanCacheHandler extends SimpleDirectHandler {
               .build(logger);
       }
     }
-    context.getPlanCache().getCachePlans().invalidateAll();
+    context.getPlanCache().invalidateAll();
     return Collections.singletonList(SimpleCommandResult.successful("Plan cache cleared."));
   }
 }

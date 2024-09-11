@@ -22,10 +22,8 @@ import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
-import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
@@ -61,6 +59,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
       org.slf4j.LoggerFactory.getLogger(MaestroProxyQueryTracker.class);
   private static final int INITIAL_BACKOFF_MILLIS = 5;
   private static final int MAX_BACKOFF_MILLIS = 60_000;
+  private static final int MAX_RETRIES = 6;
 
   private final QueryId queryId;
   private final Provider<NodeEndpoint> selfEndpoint;
@@ -232,53 +231,10 @@ class MaestroProxyQueryTracker implements QueryTracker {
         ExecutorQueryProfile.newBuilder()
             .setQueryId(queryId)
             .setEndpoint(EndpointHelper.getMinimalEndpoint(selfEndpoint.get()))
-            .setProgress(buildProgressMetrics(fragmentStatuses))
             .setNodeStatus(queryTicket.getStatus())
             .addAllFragments(fragmentStatuses)
             .build();
     return profile;
-  }
-
-  private static QueryProgressMetrics buildProgressMetrics(List<FragmentStatus> fragmentStatuses) {
-    long recordCount = 0;
-    long ctasRecordCount = 0;
-    long arrowRecordCount = 0;
-    for (FragmentStatus fragmentStatus : fragmentStatuses) {
-      for (OperatorProfile operatorProfile : fragmentStatus.getProfile().getOperatorProfileList()) {
-        for (StreamProfile streamProfile : operatorProfile.getInputProfileList()) {
-          recordCount += streamProfile.getRecords();
-          if (isCtasOperator(CoreOperatorType.valueOf(operatorProfile.getOperatorType()))) {
-            ctasRecordCount += streamProfile.getRecords();
-          } else if (isArrowOperator(CoreOperatorType.valueOf(operatorProfile.getOperatorType()))) {
-            arrowRecordCount += streamProfile.getRecords();
-          }
-        }
-      }
-    }
-    // derived from QueryProfileParser.java, all operators which produce output to client except
-    // SCREEN,
-    // first check ctas writers, if not present then arrow writer.
-    long outputRecords = (ctasRecordCount > 0) ? ctasRecordCount : arrowRecordCount;
-    return QueryProgressMetrics.newBuilder()
-        .setRowsProcessed(recordCount)
-        .setOutputRecords(outputRecords)
-        .build();
-  }
-
-  private static boolean isCtasOperator(CoreOperatorType type) {
-    switch (type) {
-      case PARQUET_WRITER:
-      case TEXT_WRITER:
-      case JSON_WRITER:
-        return true;
-
-      default:
-        return false;
-    }
-  }
-
-  private static boolean isArrowOperator(CoreOperatorType type) {
-    return type == CoreOperatorType.ARROW_WRITER;
   }
 
   /**
@@ -508,15 +464,19 @@ class MaestroProxyQueryTracker implements QueryTracker {
   private class RetryingObserver implements StreamObserver<Empty> {
     Consumer<StreamObserver<Empty>> retryFunction;
     int backoffMillis;
+    int numRetriesDone;
 
     RetryingObserver(Consumer<StreamObserver<Empty>> retryFunction) {
       this.retryFunction = retryFunction;
       this.backoffMillis = INITIAL_BACKOFF_MILLIS;
+      this.numRetriesDone = 0;
       incrementPendingMessages();
     }
 
     @Override
     public void onNext(Empty o) {
+      // reset number of retries back to zero
+      this.numRetriesDone = 0;
       // no-op
     }
 
@@ -525,8 +485,17 @@ class MaestroProxyQueryTracker implements QueryTracker {
       if (foremanDead) {
         // if foreman is dead, the message can be discarded.
         decrementPendingMessages();
+      } else if (numRetriesDone >= MAX_RETRIES) {
+        logger.error(
+            "sending failure for query {} to maestro failed, all {} retries exhausted",
+            QueryIdHelper.getQueryId(queryId),
+            MAX_RETRIES,
+            throwable);
+        // Coord is unreachable, the message can be discarded
+        decrementPendingMessages();
       } else {
-        // retry with back-off
+        // retry with back-off till MAX_RETRIES
+        numRetriesDone++;
         backoffMillis = Integer.min(backoffMillis * 2, MAX_BACKOFF_MILLIS);
         logger.warn(
             "sending failure for query {} to maestro failed, will retry after " + "backoff {} ms",

@@ -52,7 +52,7 @@ public class TestDateFunctions extends PopUnitTestBase {
               com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
               readResourceAsString(physicalPlan).replace("#{TEST_FILE}", resourceFile));
 
-      try (RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator())) {
+      try (RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator())) {
         QueryDataBatch batch = results.get(0);
         assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 

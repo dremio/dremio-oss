@@ -38,7 +38,7 @@ public class TestXlsInputStream extends BaseTestQuery {
       new XlsInputStream.BufferManager() {
         @Override
         public ArrowBuf allocate(int size) {
-          final ArrowBuf buf = getAllocator().buffer(size);
+          final ArrowBuf buf = getTestAllocator().buffer(size);
           buffers.add(buf);
           return buf;
         }

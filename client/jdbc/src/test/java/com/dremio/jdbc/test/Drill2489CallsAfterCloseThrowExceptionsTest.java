@@ -23,7 +23,6 @@ import static org.slf4j.LoggerFactory.getLogger;
 import com.dremio.jdbc.AlreadyClosedSqlException;
 import com.dremio.jdbc.Driver;
 import com.dremio.jdbc.JdbcTestBase;
-import com.dremio.jdbc.SabotNodeRule;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Connection;
@@ -39,7 +38,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Test;
 import org.slf4j.Logger;
 
@@ -54,7 +52,6 @@ import org.slf4j.Logger;
  * such as {@link Array} or {@link Struct}).
  */
 public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
-  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
 
   private static final Logger logger = getLogger(Drill2489CallsAfterCloseThrowExceptionsTest.class);
 
@@ -74,11 +71,9 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     // (Note: Can't use JdbcTest's connect(...) for this test class.)
 
     final Connection connToClose =
-        new Driver()
-            .connect(sabotNode.getJDBCConnectionString(), JdbcAssert.getDefaultProperties());
+        new Driver().connect(getJDBCURL(), JdbcAssert.getDefaultProperties());
     final Connection connToKeep =
-        new Driver()
-            .connect(sabotNode.getJDBCConnectionString(), JdbcAssert.getDefaultProperties());
+        new Driver().connect(getJDBCURL(), JdbcAssert.getDefaultProperties());
 
     final Statement plainStmtToClose = connToKeep.createStatement();
     final Statement plainStmtToKeep = connToKeep.createStatement();

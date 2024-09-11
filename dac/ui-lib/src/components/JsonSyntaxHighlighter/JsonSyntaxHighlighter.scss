@@ -18,7 +18,7 @@
   &:focus-within {
     .json-container,
     .label-container {
-      border-color: var(--color--brand--300);
+      border-color: var(--border--focused);
     }
   }
 }
@@ -27,7 +27,7 @@
   overflow: auto;
   height: 130px;
   margin-bottom: 15px;
-  border: 1px solid var(--color--neutral--100);
+  border: 1px solid var(--border--neutral--solid);
   border-top: none;
   border-radius: 0 0 var(--dremio--radius--1) var(--dremio--radius--1);
 }
@@ -37,7 +37,7 @@
   align-items: center;
   justify-content: space-between;
   border-radius: var(--dremio--radius--1) var(--dremio--radius--1) 0 0;
-  background-color: var(--color--neutral--25);
-  border: 1px solid var(--color--neutral--100);
-  border-bottom: 1px solid var(--color--neutral--50) !important;
+  background-color: var(--fill--secondary);
+  border: 1px solid var(--border--neutral--solid);
+  border-bottom: 1px solid var(--border--neutral) !important;
 }

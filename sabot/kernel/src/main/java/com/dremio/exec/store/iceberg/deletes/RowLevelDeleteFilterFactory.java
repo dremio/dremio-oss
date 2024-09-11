@@ -26,6 +26,7 @@ import com.dremio.sabot.exec.context.DelegatingOperatorContext;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -143,13 +144,16 @@ public class RowLevelDeleteFilterFactory implements AutoCloseable {
   }
 
   public EqualityDeleteFilter createEqualityDeleteFilter(
-      String dataFilePath, List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds) {
+      String dataFilePath,
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds,
+      List<DefaultNameMapping> icebergDefaultNameMapping) {
     EqualityDeleteFilter equalityDeleteFilter = null;
     if (dataFileInfo != null && dataFileInfo.containsKey(dataFilePath)) {
       List<DeleteFileInfo> deleteFiles = dataFileInfo.get(dataFilePath).getEqualityDeleteFiles();
       if (deleteFiles != null && !deleteFiles.isEmpty()) {
         equalityDeleteFilter =
-            getOrCreateEqualityDeleteFilter(dataFilePath, deleteFiles, icebergColumnIds);
+            getOrCreateEqualityDeleteFilter(
+                dataFilePath, deleteFiles, icebergColumnIds, icebergDefaultNameMapping);
       }
     }
 
@@ -317,7 +321,9 @@ public class RowLevelDeleteFilterFactory implements AutoCloseable {
   }
 
   private EqualityDeleteFileReader getOrCreateEqualityDeleteReader(
-      DeleteFileInfo deleteFile, List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds) {
+      DeleteFileInfo deleteFile,
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds,
+      List<DefaultNameMapping> icebergDefaultNameMapping) {
     Preconditions.checkArgument(deleteFile.getContent() == FileContent.EQUALITY_DELETES);
     EqualityDeleteFileReader reader =
         readerFactory.createEqualityDeleteFileReader(
@@ -325,7 +331,8 @@ public class RowLevelDeleteFilterFactory implements AutoCloseable {
             Path.of(deleteFile.getPath()),
             deleteFile.getRecordCount(),
             deleteFile.getEqualityIds(),
-            icebergColumnIds);
+            icebergColumnIds,
+            icebergDefaultNameMapping);
     try {
       reader.setup();
       baseStats.addLongStat(NUM_DELETE_FILE_READERS, 1);
@@ -339,7 +346,8 @@ public class RowLevelDeleteFilterFactory implements AutoCloseable {
   private EqualityDeleteFilter getOrCreateEqualityDeleteFilter(
       String dataFilePath,
       List<DeleteFileInfo> deleteFiles,
-      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds) {
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds,
+      List<DefaultNameMapping> icebergDefaultNameMapping) {
     return equalityDeleteFilters.computeIfAbsent(
         dataFilePath,
         path -> {
@@ -348,7 +356,10 @@ public class RowLevelDeleteFilterFactory implements AutoCloseable {
           // the files can start immediately
           List<EqualityDeleteFileReader> readers =
               deleteFiles.stream()
-                  .map(f -> getOrCreateEqualityDeleteReader(f, icebergColumnIds))
+                  .map(
+                      f ->
+                          getOrCreateEqualityDeleteReader(
+                              f, icebergColumnIds, icebergDefaultNameMapping))
                   .collect(Collectors.toList());
 
           // LazyEqualityDeleteTableSupplier is used here so that the hash tables for each equality

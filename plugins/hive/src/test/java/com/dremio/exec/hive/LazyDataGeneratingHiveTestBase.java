@@ -33,7 +33,6 @@ import org.junit.runner.RunWith;
 import com.dremio.PlanTestBase;
 import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
-import com.dremio.exec.GuavaPatcherRunner;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 
@@ -41,7 +40,6 @@ import com.dremio.exec.store.hive.HiveTestDataGenerator;
  * Base class for Hive test. Takes care of adding Hive test plugin before tests and deleting the
  * plugin after tests. This class should replace {@link HiveTestBase} at some point.
  */
-@RunWith(GuavaPatcherRunner.class)
 public class LazyDataGeneratingHiveTestBase extends PlanTestBase {
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);

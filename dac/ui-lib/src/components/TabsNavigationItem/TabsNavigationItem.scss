@@ -22,28 +22,32 @@
   font-weight: 400;
   font-size: 14px;
   line-height: 20px;
-  color: $FIGMA_TEXT_MAIN;
+  color: var(--text--primary);
   text-align: center;
 
   dremio-icon {
-    color: var(--dremio--color--icon--main);
+    color: var(--icon--primary);
   }
 
   &:hover {
-    color: $FIGMA_TEXT_LINK;
+    color: var(--text--brand);
 
     dremio-icon {
-      color: var(--dremio--color--link);
+      color: var(--icon--hover);
     }
   }
 
+  &:focus-visible {
+    outline: -webkit-focus-ring-color auto 1px !important;
+  }
+
   &.-active {
-    color: $FIGMA_TEXT_LINK;
-    border-bottom: 2px solid $FIGMA_TEXT_LINK;
+    color: var(--text--brand);
+    border-bottom: 2px solid var(--border--brand--solid);
     font-weight: 600;
 
     dremio-icon {
-      color: var(--dremio--color--link);
+      color: var(--icon--brand);
     }
   }
 }

@@ -81,6 +81,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.sql.SqlOperator;
 
 class RefreshDecisionMaker {
 
@@ -113,7 +114,7 @@ class RefreshDecisionMaker {
       OptionManager optionManager,
       final SqlHandlerConfig sqlHandlerConfig,
       final SabotConfig config,
-      boolean nonIncrementalRefreshFunctionEventReceived) {
+      List<SqlOperator> nonIncrementalRefreshFunctions) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     final long newSeriesId = System.currentTimeMillis();
 
@@ -127,7 +128,7 @@ class RefreshDecisionMaker {
             service,
             optionManager,
             config,
-            nonIncrementalRefreshFunctionEventReceived);
+            nonIncrementalRefreshFunctions);
     final AccelerationSettings settings =
         IncrementalUpdateServiceUtils.extractRefreshSettings(refreshDetails);
 
@@ -207,6 +208,7 @@ class RefreshDecisionMaker {
                   strippedPlan,
                   strippedPlan.getRowType(),
                   false,
+                  null,
                   null);
         } else {
           deprecatedStrippedPlan = strippedPlan;
@@ -257,7 +259,8 @@ class RefreshDecisionMaker {
         dependencyRefreshReason =
             hasNewSnapshotsForRefresh(
                 entry, catalog, dependencyStore.get(entry.getId()), materializationStore);
-        if (dependencyRefreshReason.isEmpty()) {
+        // reflections containing dynamic functions cannot noop refresh
+        if (dependencyRefreshReason.isEmpty() && nonIncrementalRefreshFunctions.isEmpty()) {
           logger.trace("Noop refresh due to no new snapshots");
           return new RefreshDecisionWrapper(
               decision
@@ -514,17 +517,22 @@ class RefreshDecisionMaker {
                 .build();
         DremioTable table = catalog.getTable(key);
 
+        if (table == null) {
+          return String.format(
+              "Refresh couldn't be skipped because dataset dependency %s was not found",
+              key.toNamespaceKey());
+        }
+
         // Eliminating redundant refresh only works for Iceberg
-        if (table == null
-            || (!DatasetHelper.isIcebergDataset(table.getDatasetConfig())
-                && !DatasetHelper.isInternalIcebergTable(table.getDatasetConfig()))) {
+        if (!DatasetHelper.isIcebergDataset(table.getDatasetConfig())
+            && !DatasetHelper.isInternalIcebergTable(table.getDatasetConfig())) {
           return String.format(
               "Refresh couldn't be skipped because dataset dependency %s is not an Iceberg table",
-              table.getPath().toString());
+              key.toNamespaceKey());
         }
 
         long snapshotId =
-            Optional.ofNullable(table)
+            Optional.of(table)
                 .map(DremioTable::getDatasetConfig)
                 .map(DatasetConfig::getPhysicalDataset)
                 .map(PhysicalDataset::getIcebergMetadata)

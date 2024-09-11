@@ -66,7 +66,7 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
   private SqlNode sourceOperand;
   private final SqlTableVersionSpec sqlTableVersionSpec;
 
-  // Default Dml Write.Update.Mode TableProperty in Dremio for now.
+  /** The DML mode for write operations. Default in dremio (for now) is COPY_ON_WRITE */
   private RowLevelOperationMode dmlWriteMode = RowLevelOperationMode.COPY_ON_WRITE;
 
   public SqlUpdateTable(
@@ -94,11 +94,6 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
   @Override
   public SqlNode getTargetTable() {
     return extendedTargetTable == null ? super.getTargetTable() : extendedTargetTable;
-  }
-
-  @Override
-  public SqlNode getTargetTableWithoutExtendedCols() {
-    return super.getTargetTable();
   }
 
   @Override

@@ -37,13 +37,13 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tableP
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithSource;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.SourceFolderPath;
@@ -54,9 +54,10 @@ import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.collaboration.Tags;
 import com.dremio.dac.service.collaboration.Wiki;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogOptions;
-import com.dremio.exec.catalog.VersionedDatasetId;
+import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -102,7 +103,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             DatasetSummary.class);
     // Assert
     assertThat(summary).isNotNull();
-    assertThat(VersionedDatasetId.isVersionedDatasetId(summary.getEntityId())).isTrue();
+    assertThat(VersionedDatasetId.tryParse(summary.getEntityId())).isNotNull();
   }
 
   @Test
@@ -129,7 +130,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             DatasetSummary.class);
     // Assert
     assertThat(summary).isNotNull();
-    assertThat(VersionedDatasetId.isVersionedDatasetId(summary.getEntityId())).isTrue();
+    assertThat(VersionedDatasetId.tryParse(summary.getEntityId())).isNotNull();
   }
 
   // ****************Wiki test cases*****************//
@@ -825,9 +826,9 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
 
   @Test
   public void testOrphanPruningWithVersioned() throws Exception {
-    final DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
-    CollaborationHelper.pruneOrphans(
-        daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    LegacyKVStoreProvider legacyKVStoreProvider = lMaster(LegacyKVStoreProvider.class);
+    KVStoreProvider kvStoreProvider = lMaster(KVStoreProvider.class);
+    CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider);
 
     // Setup
     // create a source
@@ -839,7 +840,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     sourceConfig.setName(sourceKey.getRoot());
     sourceConfig.setConfig(nasConf.toBytesString());
     sourceConfig.setType("NAS");
-    newNamespaceService().addOrUpdateSource(sourceKey, sourceConfig);
+    getNamespaceService().addOrUpdateSource(sourceKey, sourceConfig);
 
     // create space
     final NamespaceKey spacePath = new NamespaceKey("testspace");
@@ -894,23 +895,17 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
 
     // Act
     // nothing deleted so no pruned items
-    int pruneCount =
-        CollaborationHelper.pruneOrphans(
-            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    int pruneCount = CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider);
     assertEquals(0, pruneCount);
 
     // delete the space and children
-    newNamespaceService().deleteSpace(spacePath, spaceVersion);
-    pruneCount =
-        CollaborationHelper.pruneOrphans(
-            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    getNamespaceService().deleteSpace(spacePath, spaceVersion);
+    pruneCount = CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider);
     assertEquals(6, pruneCount);
 
     // delete the source
-    newNamespaceService().deleteSource(sourceKey, sourceConfig.getTag());
-    pruneCount =
-        CollaborationHelper.pruneOrphans(
-            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    getNamespaceService().deleteSource(sourceKey, sourceConfig.getTag());
+    pruneCount = CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider);
     assertEquals(1, pruneCount);
 
     // Assert
@@ -926,7 +921,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   @Test
   public void testVersionedGetFolderId() throws Exception {
     // Arrange
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     final String folderName = generateUniqueFolderName();
     final List<String> folderPath = generateFolderPath(Collections.singletonList(folderName));
     runQuery(createFolderQuery(DATAPLANE_PLUGIN_NAME, folderPath));
@@ -943,7 +938,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
 
     // Assert
     assertThat(folder).isNotNull();
-    assertThat(VersionedDatasetId.isVersionedDatasetId(folder.getId())).isTrue();
+    assertThat(VersionedDatasetId.tryParse(folder.getId())).isNotNull();
   }
 
   @Test
@@ -990,7 +985,6 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   @Test
   public void testVersionedSetFolderLabel() throws Exception {
     // Arrange
-    SourceService sourceService = l(SourceService.class);
     final String folderName = generateUniqueFolderName();
     final List<String> folderPath = generateFolderPath(Collections.singletonList(folderName));
     runQuery(createFolderQuery(DATAPLANE_PLUGIN_NAME, folderPath));
@@ -1012,7 +1006,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   @Test
   public void testVersionedGetFolderLabel() throws Exception {
     // Arrange
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     final String folderName = generateUniqueFolderName();
     final List<String> folderPath = generateFolderPath(Collections.singletonList(folderName));
     runQuery(createFolderQuery(DATAPLANE_PLUGIN_NAME, folderPath));
@@ -1027,7 +1021,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
             "BRANCH",
             "main");
     String versionedDatasetIdAsString = folder.getId();
-    CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+    CollaborationHelper collaborationHelper = getCollaborationHelper();
     List<String> labelList = Arrays.asList("tag1", "tag2");
     Tags newLabels = new Tags(labelList, null);
     collaborationHelper.setTags(versionedDatasetIdAsString, newLabels);
@@ -1043,7 +1037,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   @Test
   public void testVersionedSetFolderWikiNoFeatureFlag() throws Exception {
     // Arrange
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     final String folderName = generateUniqueFolderName();
     final List<String> folderPath = generateFolderPath(Collections.singletonList(folderName));
     runQuery(createFolderQuery(DATAPLANE_PLUGIN_NAME, folderPath));
@@ -1082,7 +1076,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   @Test
   public void testVersionedGetFolderWikiNoFeatureFlag() throws Exception {
     // Arrange
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     final String folderName = generateUniqueFolderName();
     final List<String> folderPath = generateFolderPath(Collections.singletonList(folderName));
     runQuery(createFolderQuery(DATAPLANE_PLUGIN_NAME, folderPath));
@@ -1118,7 +1112,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   @Test
   public void testVersionedSetFolderTagNoFeatureFlag() throws Exception {
     // Arrange
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     final String folderName = generateUniqueFolderName();
     final List<String> folderPath = generateFolderPath(Collections.singletonList(folderName));
     runQuery(createFolderQuery(DATAPLANE_PLUGIN_NAME, folderPath));
@@ -1157,7 +1151,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   @Test
   public void testVersionedGetFolderTagNoFeatureFlag() throws Exception {
     // Arrange
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     final String folderName = generateUniqueFolderName();
     final List<String> folderPath = generateFolderPath(Collections.singletonList(folderName));
     runQuery(createFolderQuery(DATAPLANE_PLUGIN_NAME, folderPath));
@@ -1248,7 +1242,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   @Test
   public void testVersionedSetFolderWikiOnBranch() throws Exception {
     // Arrange
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     final String folderName = generateUniqueFolderName();
     final List<String> folderPath = generateFolderPath(Collections.singletonList(folderName));
     runQuery(createFolderQuery(DATAPLANE_PLUGIN_NAME, folderPath));
@@ -1407,7 +1401,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
 
   private Wiki getWikiForVersionedFolder(final String sourceName, List<String> sourceFolderPath)
       throws NamespaceException, IOException {
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     Folder folder =
         sourceService.getFolder(
             new SourceName(sourceName),
@@ -1433,7 +1427,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   private Wiki setWikiForVersionedFolder(
       final String sourceName, List<String> sourceFolderPath, Wiki wiki)
       throws NamespaceException, IOException {
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     Folder folder =
         sourceService.getFolder(
             new SourceName(sourceName),
@@ -1459,7 +1453,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
   private Tags setLabelsForVersionedFolder(
       final String sourceName, List<String> sourceFolderPath, Tags labelList)
       throws NamespaceException, IOException {
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     Folder folder =
         sourceService.getFolder(
             new SourceName(sourceName),
@@ -1486,7 +1480,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
 
   private Tags getLabelsForVersionedFolder(final String sourceName, List<String> sourceFolderPath)
       throws NamespaceException, IOException {
-    SourceService sourceService = l(SourceService.class);
+    SourceService sourceService = getSourceService();
     Folder folder =
         sourceService.getFolder(
             new SourceName(sourceName),
@@ -1518,21 +1512,21 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     config.setName(folderName);
     config.setFullPathList(folderPath);
 
-    newNamespaceService().addOrUpdateFolder(new NamespaceKey(folderPath), config);
+    getNamespaceService().addOrUpdateFolder(new NamespaceKey(folderPath), config);
   }
 
   private void addWikiToNamespaceEntity(List<String> path, String text) throws Exception {
     final NameSpaceContainer container =
-        newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
-    final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+        getNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
+    final CollaborationHelper collaborationHelper = getCollaborationHelper();
 
     collaborationHelper.setWiki(NamespaceUtils.getIdOrNull(container), new Wiki(text, null));
   }
 
   private void addlabelsToNamespaceEntity(List<String> path, List<String> labels) throws Exception {
     final NameSpaceContainer container =
-        newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
-    final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+        getNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
+    final CollaborationHelper collaborationHelper = getCollaborationHelper();
 
     collaborationHelper.setTags(NamespaceUtils.getIdOrNull(container), new Tags(labels, null));
   }
@@ -1542,7 +1536,7 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     // create space
     final SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName(spacePath.getRoot());
-    newNamespaceService().addOrUpdateSpace(spacePath, spaceConfig);
+    getNamespaceService().addOrUpdateSpace(spacePath, spaceConfig);
 
     createVDS(vdsPath);
     return spaceConfig.getTag();
@@ -1559,8 +1553,8 @@ public class ITVersionedSourceCollaborationResource extends ITBaseTestVersioned 
     datasetConfig.setType(DatasetType.VIRTUAL_DATASET);
     datasetConfig.setVirtualDataset(virtualDataset);
 
-    getSabotContext()
-        .getViewCreator(SystemUser.SYSTEM_USERNAME)
+    l(ViewCreatorFactory.class)
+        .get(SystemUser.SYSTEM_USERNAME)
         .createView(vdsPath, "select * from sys.version", null, false);
   }
 }

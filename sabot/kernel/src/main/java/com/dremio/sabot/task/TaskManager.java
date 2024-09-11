@@ -136,6 +136,10 @@ public interface TaskManager<T extends Task> extends GroupManager<T>, AutoClosea
 
   void changeObserver(Observer.Type observerType);
 
+  int getNumRunnableTasks();
+
+  int getNumInActiveRunnableTasks();
+
   @Override
   void close();
 }

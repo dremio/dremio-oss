@@ -60,12 +60,9 @@
   }
 
   .dremio-dialog-content__header-toolbar > button {
-    &:focus {
-      outline: none;
-      color: var(--color--neutral--600);
-    }
-    &:hover {
-      color: var(--dremio--color--link);
+    &:hover,
+    &:focus-visible {
+      color: var(--text--brand);
     }
   }
 

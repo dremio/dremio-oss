@@ -19,6 +19,7 @@
 @use "../../utilities/rounded";
 
 .float-container {
+  background: var(--fill--popover);
   display: flex;
   flex-direction: column;
   overflow: auto;
@@ -26,7 +27,6 @@
 }
 
 .float-container {
-  @extend .bg-foreground;
   @extend .rounded;
   @extend .drop-shadow-lg;
 }

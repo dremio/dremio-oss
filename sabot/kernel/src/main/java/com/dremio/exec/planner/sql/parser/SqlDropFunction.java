@@ -29,9 +29,10 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/** DROP FUNCTION [ IF EXISTS ] function_name */
+/** DROP FUNCTION [ IF EXISTS ] function_name [ AT BRANCH refValue ] */
 public class SqlDropFunction extends SqlCall {
   private final SqlIdentifier name;
+  private final SqlTableVersionSpec sqlTableVersionSpec;
   private boolean ifExists;
 
   public static final SqlSpecialOperator OPERATOR =
@@ -40,15 +41,24 @@ public class SqlDropFunction extends SqlCall {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 2, "SqlCreateFunction.createCall() has to get 5 operands!");
-          return new SqlDropFunction(pos, (SqlLiteral) operands[0], (SqlIdentifier) operands[1]);
+              operands.length == 3, "SqlDropFunction.createCall() has to get 3 operands!");
+          return new SqlDropFunction(
+              pos,
+              (SqlLiteral) operands[0],
+              (SqlIdentifier) operands[1],
+              (SqlTableVersionSpec) operands[2]);
         }
       };
 
-  public SqlDropFunction(SqlParserPos pos, SqlLiteral ifExists, SqlIdentifier name) {
+  public SqlDropFunction(
+      SqlParserPos pos,
+      SqlLiteral ifExists,
+      SqlIdentifier name,
+      SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos);
     this.ifExists = ifExists.booleanValue();
     this.name = name;
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   public SqlIdentifier getName() {
@@ -63,6 +73,10 @@ public class SqlDropFunction extends SqlCall {
     return ifExists;
   }
 
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
+  }
+
   @Override
   public SqlOperator getOperator() {
     return OPERATOR;
@@ -70,7 +84,8 @@ public class SqlDropFunction extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO), name);
+    return ImmutableList.of(
+        SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO), name, sqlTableVersionSpec);
   }
 
   @Override
@@ -82,5 +97,8 @@ public class SqlDropFunction extends SqlCall {
     }
     writer.keyword("FUNCTION");
     name.unparse(writer, leftPrec, rightPrec);
+    if (sqlTableVersionSpec != null) {
+      sqlTableVersionSpec.unparse(writer, leftPrec, rightPrec);
+    }
   }
 }

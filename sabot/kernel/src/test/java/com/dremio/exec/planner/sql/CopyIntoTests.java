@@ -81,6 +81,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.ArrayUtils;
@@ -627,6 +628,8 @@ public class CopyIntoTests extends ITCopyIntoBase {
 
     new CopyIntoPlanBuilder(
         Mockito.mock(RelOptTable.class),
+        Mockito.mock(RelNode.class),
+        Mockito.mock(RelDataType.class),
         Mockito.mock(RelDataType.class),
         null,
         null,
@@ -769,31 +772,38 @@ public class CopyIntoTests extends ITCopyIntoBase {
 
   @Test
   public void testCopyIntoTableContextUnsupportedFormatOptions() {
-    Assert.assertThrows(
-        "Unsupported format options for file type",
-        UserException.class,
-        () ->
-            new CopyIntoTableContext(
-                mockSqlCopyIntoTable(
-                    "@test/folder1",
-                    ImmutableList.of("file1.json", "file2.json"),
-                    Optional.empty(),
-                    Optional.empty(),
-                    ImmutableList.of("TRIM_SPACE", "SKIP_LINES", "TIME_FORMAT"),
-                    ImmutableList.of("true", "10", "HH24:MI:SS"))));
+    UserException thrown =
+        Assert.assertThrows(
+            "Unsupported format options for file type",
+            UserException.class,
+            () ->
+                new CopyIntoTableContext(
+                    mockSqlCopyIntoTable(
+                        "@test/folder1",
+                        ImmutableList.of("file1.json", "file2.json"),
+                        Optional.empty(),
+                        Optional.empty(),
+                        ImmutableList.of("TRIM_SPACE", "SKIP_LINES", "TIME_FORMAT"),
+                        ImmutableList.of("true", "10", "HH24:MI:SS"))));
+    assertEquals(
+        "Unsupported format option SKIP_LINES for file type JSON. Supported format options are: DATE_FORMAT, NULL_IF, TIME_FORMAT, TIMESTAMP_FORMAT, TRIM_SPACE, EMPTY_AS_NULL",
+        thrown.getMessage());
 
-    Assert.assertThrows(
-        "Unsupported format options for file type",
-        UserException.class,
-        () ->
-            new CopyIntoTableContext(
-                mockSqlCopyIntoTable(
-                    "@test/folder1",
-                    ImmutableList.of("file1.parquet", "file2.parquet"),
-                    Optional.empty(),
-                    Optional.of("PARQUET"),
-                    ImmutableList.of("TRIM_SPACE", "SKIP_LINES", "TIME_FORMAT"),
-                    ImmutableList.of("true", "10", "HH24:MI:SS"))));
+    thrown =
+        Assert.assertThrows(
+            "Unsupported format options for file type",
+            UserException.class,
+            () ->
+                new CopyIntoTableContext(
+                    mockSqlCopyIntoTable(
+                        "@test/folder1",
+                        ImmutableList.of("file1.parquet", "file2.parquet"),
+                        Optional.empty(),
+                        Optional.of("PARQUET"),
+                        ImmutableList.of("TRIM_SPACE", "SKIP_LINES", "TIME_FORMAT"),
+                        ImmutableList.of("true", "10", "HH24:MI:SS"))));
+    assertEquals(
+        "Unsupported format option TRIM_SPACE for file type PARQUET.", thrown.getMessage());
   }
 
   private static String convertToCSVRow(Object[] row, String delimiter) {
@@ -3668,10 +3678,46 @@ public class CopyIntoTests extends ITCopyIntoBase {
             TEMP_SCHEMA, tableName, storageLocation, fileName);
 
     UserExceptionAssert.assertThatThrownBy(() -> test(copyIntoQuery))
-        .satisfies(ex -> assertThat(ex).hasMessageContaining("Source '%s' not found", source));
+        .hasMessageContaining("Source [%s] does not exist", source);
 
     Assert.assertTrue(newSourceFile.delete());
     String dropQuery = String.format("DROP TABLE %s.%s", TEMP_SCHEMA, tableName);
+    test(dropQuery);
+  }
+
+  @Test
+  public void testCopyIntoMap() throws Exception {
+    String targetTable = "target1" + "tableWithMap";
+    String tableSchema = "col1 INT, col2 MAP<VARCHAR, VARCHAR>, col3 VARCHAR";
+    String createQuery =
+        String.format("CREATE TABLE %s.%s (%s)", TEMP_SCHEMA, targetTable, tableSchema);
+    test(createQuery);
+
+    File location = createTempLocation();
+    String fileName = "mapcolumn.parquet";
+    String relativePath = String.format("/parquet/map_data_types/%s", fileName);
+    File newSourceFile = new File(location.toString(), fileName);
+    File oldSourceFile = FileUtils.getResourceAsFile(relativePath);
+    Files.copy(oldSourceFile, newSourceFile);
+    String storageLocation = "\'@" + TEMP_SCHEMA_HADOOP + "/" + location.getName() + "\'";
+
+    String copyIntoQuery =
+        String.format(
+            "COPY INTO %s.%s FROM %s regex \'%s\'",
+            TEMP_SCHEMA, targetTable, storageLocation, fileName);
+    test(copyIntoQuery);
+
+    new TestBuilder(allocator)
+        .sqlQuery(
+            "SELECT col1, CAST(CONVERT_TOJSON(col2) AS VARCHAR) as col2, col3 FROM %s.%s ",
+            TEMP_SCHEMA, targetTable)
+        .unOrdered()
+        .baselineColumns("col1", "col2", "col3")
+        .baselineValues(2, "{\n" + "  \"b\" : \"bb\"\n" + "}", "def")
+        .baselineValues(12, "{\n" + "  \"c\" : \"cc\"\n" + "}", "abc")
+        .go();
+
+    String dropQuery = String.format("DROP TABLE %s.%s", TEMP_SCHEMA, targetTable);
     test(dropQuery);
   }
 }

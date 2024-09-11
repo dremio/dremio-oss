@@ -238,18 +238,21 @@ public class DremioCatalogReader
     if (null == paramSqlFunctionCategory || null == paramSqlIdentifier) {
       return;
     }
-    findFunctions(new NamespaceKey(paramSqlIdentifier.names), paramSqlFunctionCategory).stream()
+    findFunctions(
+            CatalogEntityKey.fromNamespaceKey(new NamespaceKey(paramSqlIdentifier.names)),
+            paramSqlFunctionCategory)
+        .stream()
         .map(input -> toOp(paramSqlIdentifier, input))
         .forEach(paramList::add);
   }
 
   private Collection<Function> findFunctions(
-      NamespaceKey namespaceKey, SqlFunctionCategory paramSqlFunctionCategory) {
+      CatalogEntityKey catalogEntityKey, SqlFunctionCategory paramSqlFunctionCategory) {
     switch (paramSqlFunctionCategory) {
       case USER_DEFINED_FUNCTION:
-        return plannerCatalog.getFunctions(namespaceKey, SimpleCatalog.FunctionType.SCALAR);
+        return plannerCatalog.getFunctions(catalogEntityKey, SimpleCatalog.FunctionType.SCALAR);
       case USER_DEFINED_TABLE_FUNCTION:
-        return plannerCatalog.getFunctions(namespaceKey, SimpleCatalog.FunctionType.TABLE);
+        return plannerCatalog.getFunctions(catalogEntityKey, SimpleCatalog.FunctionType.TABLE);
       default:
         return ImmutableList.of();
     }

@@ -50,7 +50,6 @@ import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.physical.base.ViewOptions;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SqlQuery;
@@ -333,15 +332,10 @@ public class DatasetResource extends BaseResourceWithAllocator {
     final AccelerationSettings settings =
         reflectionSettings.getReflectionSettings(catalogEntityKey);
     AccelerationSettings descriptorSettings =
-        new AccelerationSettings()
+        reflectionServiceHelper
+            .fromAccelerationSettingsDescriptor(descriptor, settings, config)
             .setAccelerationTTL(settings.getAccelerationTTL()) // needed to use protobuf equals
-            .setTag(settings.getTag()) // needed to use protobuf equals
-            .setRefreshPolicyType(descriptor.getAccelerationActivePolicyType())
-            .setGracePeriod(descriptor.getAccelerationGracePeriod())
-            .setMethod(descriptor.getMethod())
-            .setRefreshField(descriptor.getRefreshField())
-            .setNeverExpire(descriptor.getAccelerationNeverExpire())
-            .setNeverRefresh(descriptor.getAccelerationNeverRefresh());
+            .setTag(settings.getTag()); // needed to use protobuf equals
 
     if (descriptor.getAccelerationActivePolicyType() == RefreshPolicyType.PERIOD) {
       descriptorSettings.setRefreshPeriod(descriptor.getAccelerationRefreshPeriod());
@@ -354,12 +348,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
     }
 
     settings
-        .setRefreshPolicyType(descriptor.getAccelerationActivePolicyType())
-        .setGracePeriod(descriptor.getAccelerationGracePeriod())
-        .setMethod(descriptor.getMethod())
-        .setRefreshField(descriptor.getRefreshField())
-        .setNeverExpire(descriptor.getAccelerationNeverExpire())
-        .setNeverRefresh(descriptor.getAccelerationNeverRefresh());
+        .setRefreshPolicyType(descriptorSettings.getRefreshPolicyType())
+        .setGracePeriod(descriptorSettings.getGracePeriod())
+        .setMethod(descriptorSettings.getMethod())
+        .setRefreshField(descriptorSettings.getRefreshField())
+        .setNeverExpire(descriptorSettings.getNeverExpire())
+        .setNeverRefresh(descriptorSettings.getNeverRefresh());
 
     if (descriptor.getAccelerationActivePolicyType() == RefreshPolicyType.PERIOD) {
       settings.setRefreshPeriod(descriptor.getAccelerationRefreshPeriod());
@@ -390,7 +384,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
       @QueryParam("savedTag") String savedTag,
       @QueryParam("refType") String refType,
       @QueryParam("refValue") String refValue)
-      throws DatasetNotFoundException, UserNotFoundException, NamespaceException, IOException {
+      throws DatasetNotFoundException, NamespaceException, IOException {
     final VersionContextReq versionContextReq = VersionContextReq.tryParse(refType, refValue);
     final boolean versioned = isDatasetVersioned();
 
@@ -403,33 +397,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
 
     DatasetUI datasetUI = null;
     if (versioned) {
-      NamespaceKey namespaceKey = new NamespaceKey(datasetPath.toPathList());
-      final ResolvedVersionContext resolvedVersionContext =
-          CatalogUtil.resolveVersionContext(
-              catalog, datasetPath.getRoot().getName(), VersionContext.ofBranch(refValue));
-      DatasetType datasetType =
-          catalog.getDatasetType(
-              CatalogEntityKey.newBuilder()
-                  .keyComponents(datasetPath.toPathList())
-                  .tableVersionContext(TableVersionContext.of(resolvedVersionContext))
-                  .build());
-      if (datasetType == DatasetType.VIRTUAL_DATASET) {
-        catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.ALTER);
-        final ViewOptions viewOptions =
-            new ViewOptions.ViewOptionsBuilder().version(resolvedVersionContext).build();
-
-        catalog.dropView(namespaceKey, viewOptions);
-      } else if (datasetType == DatasetType.PHYSICAL_DATASET) {
-        catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.DROP);
-        final TableMutationOptions tableMutationOptions =
-            TableMutationOptions.newBuilder()
-                .setResolvedVersionContext(resolvedVersionContext)
-                .build();
-
-        catalog.dropTable(namespaceKey, tableMutationOptions);
-      } else {
-        throw new ClientErrorException("Dataset not found");
-      }
+      deleteVersionedDatasetHelper(refValue);
     } else {
       try {
         final VirtualDatasetUI virtualDataset = datasetVersionMutator.get(datasetPath);
@@ -444,6 +412,40 @@ public class DatasetResource extends BaseResourceWithAllocator {
     reflectionSettings.removeSettings(datasetPath.toNamespaceKey());
 
     return datasetUI;
+  }
+
+  private void deleteVersionedDatasetHelper(String branchName) throws IOException {
+    NamespaceKey namespaceKey = new NamespaceKey(datasetPath.toPathList());
+    final ResolvedVersionContext resolvedVersionContext =
+        CatalogUtil.resolveVersionContext(
+            catalog, datasetPath.getRoot().getName(), VersionContext.ofBranch(branchName));
+    DatasetType datasetType =
+        catalog.getDatasetType(
+            CatalogEntityKey.newBuilder()
+                .keyComponents(datasetPath.toPathList())
+                .tableVersionContext(TableVersionContext.of(resolvedVersionContext))
+                .build());
+    if (datasetType == DatasetType.VIRTUAL_DATASET) {
+      deleteVersionedView(namespaceKey, resolvedVersionContext);
+    } else if (datasetType == DatasetType.PHYSICAL_DATASET) {
+      deleteVersionedTable(namespaceKey, resolvedVersionContext);
+    } else {
+      throw new ClientErrorException("Dataset not found");
+    }
+  }
+
+  protected void deleteVersionedTable(
+      NamespaceKey namespaceKey, ResolvedVersionContext resolvedVersionContext) {
+    final TableMutationOptions tableMutationOptions =
+        TableMutationOptions.newBuilder().setResolvedVersionContext(resolvedVersionContext).build();
+    catalog.dropTable(namespaceKey, tableMutationOptions);
+  }
+
+  protected void deleteVersionedView(
+      NamespaceKey namespaceKey, ResolvedVersionContext resolvedVersionContext) throws IOException {
+    final ViewOptions viewOptions =
+        new ViewOptions.ViewOptionsBuilder().version(resolvedVersionContext).build();
+    catalog.dropView(namespaceKey, viewOptions);
   }
 
   private boolean isDatasetVersioned() {

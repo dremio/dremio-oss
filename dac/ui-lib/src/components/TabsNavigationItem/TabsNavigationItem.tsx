@@ -47,6 +47,14 @@ const TabsNavigationItem = (props: TabsNavigationItemProps) => {
       key={key}
       onClick={onClick}
       data-qa={key}
+      tabIndex={0}
+      role="tab"
+      aria-selected={activeTab === tabName}
+      onKeyPress={(e) => {
+        if (e.code === "Space" || e.code === "Enter") {
+          onClick();
+        }
+      }}
     >
       {children}
     </div>

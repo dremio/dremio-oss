@@ -22,6 +22,9 @@
     position: relative;
     width: 300px;
 
+    height: 100%;
+    overflow: hidden;
+
     &.--active {
       pointer-events: none;
 
@@ -89,11 +92,11 @@
       width: 100%;
       position: absolute;
       top: 8px;
-      background-color: var(--color--neutral--50);
+      background-color: var(--border--neutral);
       transition: background-color 0.25s linear;
 
       &.--dragging {
-        background-color: var(--color--neutral--50) !important;
+        background-color: var(--border--neutral) !important;
         transition: none;
       }
     }
@@ -102,7 +105,7 @@
       cursor: row-resize;
 
       .resizeIndicator {
-        background-color: var(--dremio--color--link);
+        background-color: var(--fill--brand--solid);
       }
     }
   }
@@ -114,6 +117,6 @@
     left: 8.5px;
     z-index: 10;
     cursor: row-resize;
-    background-color: var(--dremio--color--link);
+    background-color: var(--fill--brand--solid);
   }
 }

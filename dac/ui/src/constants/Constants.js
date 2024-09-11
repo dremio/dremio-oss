@@ -477,26 +477,6 @@ export const ScansForFilter = [
   { key: "nrScannedRows", label: "Scans.RowScanned", content: "143K" },
 ];
 
-export const ReflectionsUsed = [
-  {
-    icon: "ReflectionsUsed.svg",
-    label: "Reflection.CustomersRaw",
-    subScript: "transaction_analysis.base_views.Customers",
-  },
-  {
-    icon: "ReflectionsUsed.svg",
-    label: "Reflection.TransactionsRaw",
-    subScript: "lake_source.incoming_data.transactions",
-  },
-];
-export const ReflectionsNotUsed = [
-  {
-    icon: "ReflectionsNotUsed.svg",
-    label: "Reflection.TransactionAgg",
-    subScript: "lake_source.incoming_data.transactions",
-  },
-];
-
 export const EXECUTION_DROPDOWN_OPTIONS = [
   { option: "Runtime", label: "Runtime" },
   { option: "Total Memory", label: "Total Memory" },

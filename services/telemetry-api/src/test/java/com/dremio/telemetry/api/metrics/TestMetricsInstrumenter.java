@@ -15,13 +15,14 @@
  */
 package com.dremio.telemetry.api.metrics;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.micrometer.core.instrument.Timer;
 import java.util.concurrent.Callable;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,8 +32,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestMetricsInstrumenter {
-  private static final String SERVICE_NAME = "serviceName";
-  private static final String OPERATION_NAME = "operationName";
+  private static final String SERVICE_NAME = "service_name";
+  private static final String OPERATION_NAME = "operation_name";
   private static final String TIME_METRIC_NAME =
       Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.TIME_METRIC_SUFFIX);
   private static final String COUNT_METRIC_NAME =
@@ -41,13 +42,13 @@ public class TestMetricsInstrumenter {
       Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.ERROR_METRIC_SUFFIX);
   private static final String EXPECTED_CALLABLE_RESULT = "cookie";
 
-  @Mock private Counter counter;
+  @Mock private SimpleCounter counter;
 
-  @Mock private Counter errorCounter;
+  @Mock private SimpleCounter errorCounter;
 
-  @Mock private Timer timer;
+  @Mock private SimpleTimer timer;
 
-  @Mock private Timer.TimerContext timerContext;
+  @Mock private Timer.ResourceSample timerSample;
 
   @Mock private MetricsProvider mockProvider;
 
@@ -55,7 +56,7 @@ public class TestMetricsInstrumenter {
 
   @Before
   public void setup() {
-    when(timer.start()).thenReturn(timerContext);
+    when(timer.start()).thenReturn(timerSample);
     when(mockProvider.timer(TIME_METRIC_NAME)).thenReturn(timer);
     when(mockProvider.counter(COUNT_METRIC_NAME)).thenReturn(counter);
     when(mockProvider.counter(ERROR_METRIC_NAME)).thenReturn(errorCounter);
@@ -79,7 +80,7 @@ public class TestMetricsInstrumenter {
 
     Runnable instrumented = metrics.instrument(OPERATION_NAME, succesfulOperation);
 
-    verifyNoInteractions(counter, errorCounter, timerContext);
+    verifyNoInteractions(counter, errorCounter, timerSample);
 
     instrumented.run();
 
@@ -93,7 +94,7 @@ public class TestMetricsInstrumenter {
 
     Callable<String> instrumented = metrics.instrument(OPERATION_NAME, callable);
 
-    verifyNoInteractions(counter, errorCounter, timerContext);
+    verifyNoInteractions(counter, errorCounter, timerSample);
 
     String result = instrumented.call();
 
@@ -150,13 +151,13 @@ public class TestMetricsInstrumenter {
 
   private void assertSuccessMetricsLogged() {
     verify(counter, times(1)).increment();
-    verify(timerContext, times(1)).close();
+    verify(timerSample, times(1)).close();
     verifyNoInteractions(errorCounter);
   }
 
   private void assertErrorMetricsLogged() {
     verify(counter, times(1)).increment();
-    verify(timerContext, times(1)).close();
+    verify(timerSample, times(1)).close();
     verify(errorCounter, times(1)).increment();
   }
 

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog.dataplane;
 
+import static com.dremio.exec.catalog.CatalogOptions.SUPPORT_V1_ICEBERG_VIEWS;
+import static com.dremio.exec.catalog.CatalogOptions.V0_ICEBERG_VIEW_WRITES;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_COUNT_COLUMN;
@@ -25,10 +27,12 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.alterV
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQueryWithAt;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createFolderQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createReplaceViewQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTableAsQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTableWithColDefsQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createUdfQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createViewQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createViewQueryWithAt;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createViewQueryWithEmptySql;
@@ -39,6 +43,8 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.dropVi
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.dropViewQueryWithAt;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateSchemaPath;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueBranchName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueFolderName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueFunctionName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTagName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueViewName;
@@ -60,7 +66,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.update
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useContextQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
-import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveView;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveEntity;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasView;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,11 +75,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.IcebergViewMetadata;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadata;
+import com.dremio.exec.store.iceberg.viewdepoc.ViewVersionMetadataParser;
 import com.dremio.test.UserExceptionAssert;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -83,10 +92,21 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.calcite.util.TimestampString;
 import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.view.ViewMetadata;
+import org.apache.iceberg.view.ViewMetadataParser;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
+
+  @AfterEach
+  void afterEach() {
+    // Reset support keys
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+  }
 
   @Test
   public void createView() throws Exception {
@@ -181,7 +201,7 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     runSQL(dropViewQuery(viewKey));
 
     // Assert
-    assertNessieDoesNotHaveView(viewKey, DEFAULT_BRANCH_NAME, this);
+    assertNessieDoesNotHaveEntity(viewKey, DEFAULT_BRANCH_NAME, this);
 
     assertCommitLogTail(
         String.format("CREATE VIEW %s", joinedTableKey(viewKey)),
@@ -201,7 +221,7 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     runSQL(createViewQuery(viewKey, tablePath));
     assertNessieHasView(viewKey, DEFAULT_BRANCH_NAME, this);
     runSQL(dropViewQuery(viewKey));
-    assertNessieDoesNotHaveView(viewKey, DEFAULT_BRANCH_NAME, this);
+    assertNessieDoesNotHaveEntity(viewKey, DEFAULT_BRANCH_NAME, this);
 
     // Assert
     assertThatThrownBy(() -> runSQL(dropViewQuery(viewKey))).hasMessageContaining("Unknown view");
@@ -255,7 +275,7 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     assertNessieHasView(viewKey, devBranch, this);
 
     runSQL(dropViewQueryWithAt(viewKey, devBranch));
-    assertNessieDoesNotHaveView(viewKey, devBranch, this);
+    assertNessieDoesNotHaveEntity(viewKey, devBranch, this);
   }
 
   @Test
@@ -309,6 +329,24 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
         .hasMessageContaining("already exists in schema");
   }
 
+  @Test
+  public void createViewClashWithUdf() throws Exception {
+    enableVersionedSourceUdf();
+    String functionName = generateUniqueFunctionName();
+    List<String> functionKey = tablePathWithFolders(functionName);
+
+    runSQL(createUdfQuery(functionKey));
+
+    String tableName = generateUniqueTableName();
+    List<String> tablePath = tablePathWithFolders(tableName);
+    runSQL(createEmptyTableQuery(tablePath));
+
+    // Act and Assert
+    assertThatThrownBy(() -> runSQL(createViewQuery(functionKey, tablePath)))
+        .hasMessageContaining("An Entity of type UDF with given name ")
+        .hasMessageContaining("already exists");
+  }
+
   // View will be created with fully qualified name represented by viewCreationPath
   // Table tableName1 will be resolved to the current schema path (workspaceSchemaPath) set in the
   // context
@@ -316,8 +354,13 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   @Test
   public void createViewWithTableOnDifferentPathContext() throws Exception {
     List<String> workspaceSchemaPath = generateSchemaPath();
+    runSQL(
+        createFolderQuery(
+            workspaceSchemaPath.get(0),
+            workspaceSchemaPath.subList(1, workspaceSchemaPath.size())));
+
     // current schema context
-    useContextQuery(workspaceSchemaPath);
+    runSQL(useContextQuery(workspaceSchemaPath));
     // Create table1 with 10 rows
     String tableName1 = generateUniqueTableName();
     runSQL(createTableAsQuery(Collections.singletonList(tableName1), 10));
@@ -331,6 +374,10 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   @Test
   public void updateView() throws Exception {
     // Arrange
+    // Enable V0 + disable V1 support key for creating views
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    FileIO fileIO = getFileIO(getDataplanePlugin());
     String tableName1 = generateUniqueTableName();
     final List<String> tablePath1 = tablePathWithFolders(tableName1);
     String tableName2 = generateUniqueTableName();
@@ -340,7 +387,12 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     runSQL(createTableAsQuery(tablePath1, 10));
     final String viewName = generateUniqueViewName();
     List<String> viewKey = tablePathWithFolders(viewName);
+
     runSQL(createViewQuery(viewKey, tablePath1));
+    String viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+    ViewVersionMetadata origViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+
     assertViewHasExpectedNumRows(viewKey, 10);
     long mtime1 =
         getMtimeForTable(
@@ -350,6 +402,9 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
 
     // Act
     runSQL(createReplaceViewQuery(viewKey, tablePath2));
+    viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+    ViewVersionMetadata newViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
     long mtime2 =
         getMtimeForTable(
             viewKey, new TableVersionContext(TableVersionType.BRANCH, DEFAULT_BRANCH_NAME), this);
@@ -1373,17 +1428,17 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     // Arrange
     /*
      view3 - only exists in branch main
-          ---> view2 with AT < branch dev> (view2 only exists in dev2)
+          ---> view2 with AT < branch dev2> (view2 only exists in dev2)
                    ---> view1 (only exists in dev1)
                            ---> table1 (only exists in dev0)
      - Test query with view3 with branch set to main
-     - Lookup of view2 should resolve to dev
-     - Lookup of view1 and table1 should resolve with dev.
+     - Lookup of view2 should resolve to dev2
+     - Lookup of view1 and table1 should resolve with dev1.
     */
     // Arrange
-    final String view1 = generateUniqueTableName();
-    final String view2 = generateUniqueTableName();
-    final String view3 = generateUniqueTableName();
+    final String view1 = generateUniqueViewName();
+    final String view2 = generateUniqueViewName();
+    final String view3 = generateUniqueViewName();
     final String tableName = generateUniqueTableName();
 
     final List<String> view1Path = tablePathWithFolders(view1);
@@ -1900,11 +1955,12 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   }
 
   @Test
-  public void selectSchemaLearn() throws Exception {
+  public void selectNoSchemaLearn() throws Exception {
     // Arrange
     final String tableName = generateUniqueTableName();
     final List<String> tablePath = tablePathWithFolders(tableName);
     runSQL(createEmptyTableQuery(tablePath));
+    runSQL(insertTableQuery(tablePath));
 
     final String parentViewName = generateUniqueViewName();
     List<String> parentViewPath = tablePathWithFolders(parentViewName);
@@ -1919,14 +1975,14 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     final String childViewName = generateUniqueViewName();
     List<String> childViewPath = tablePathWithFolders(childViewName);
     runSQL(createViewQuery(childViewPath, parentViewPath));
+    testBuilder()
+        .sqlQuery(selectStarQuery(childViewPath))
+        .unOrdered()
+        .baselineColumns("EXPR$0", "EXPR$1")
+        .baselineValues("XYZ", 3L)
+        .go();
 
     assertViewHasExpectedNumRows(childViewPath, 1);
-
-    long mtimeBefore =
-        getMtimeForTable(
-            childViewPath,
-            new TableVersionContext(TableVersionType.BRANCH, DEFAULT_BRANCH_NAME),
-            this);
 
     // Change parent view so that child view's schema is now out of date
     runSQL(
@@ -1938,13 +1994,23 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
             joinedTableKey(tablePath)));
 
     // Assert
-    assertViewHasExpectedNumRows(childViewPath, 1); // This triggers an update to the view schema
-    long mtimeAfter =
-        getMtimeForTable(
-            parentViewPath,
-            new TableVersionContext(TableVersionType.BRANCH, DEFAULT_BRANCH_NAME),
-            this);
-    assertThat(mtimeAfter).isGreaterThan(mtimeBefore);
+    testBuilder()
+        .sqlQuery(selectStarQuery(childViewPath))
+        .unOrdered()
+        .baselineColumns("EXPR$0") // Only a single columns
+        .baselineValues(3L)
+        .go();
+
+    assertViewHasExpectedNumRows(childViewPath, 1);
+
+    assertThat(
+            runSqlWithResults(
+                    String.format(
+                        "describe %s.%s", DATAPLANE_PLUGIN_NAME, joinedTableKey(childViewPath)))
+                .size())
+        .isEqualTo(
+            2); // View schema still has two columns indicating the view was not updated because
+    // query type is JDBC
   }
 
   /**
@@ -2034,9 +2100,12 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
   }
 
   @Test
-  public void testViewVersionUtilV0View() throws Exception {
+  public void testViewVersionUtilV0ViewForCreate() throws Exception {
     // Arrange
-    final String viewName = generateUniqueTableName();
+    // Enable V0 + disable V1 support key for creating views
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    final String viewName = generateUniqueViewName();
     final String tableName = generateUniqueTableName();
     final List<String> viewPath = tablePathWithFolders(viewName);
     final List<String> tablePath = tablePathWithFolders(tableName);
@@ -2053,8 +2122,382 @@ public class ITDataplanePluginView extends ITDataplanePluginTestSetup {
     assertThat(viewSpecVersion).isEqualTo(IcebergViewMetadata.SupportedIcebergViewSpecVersion.V0);
   }
 
-  // TODO: Need to add test for V1 view after V1 support is in
-  @Disabled
   @Test
-  public void testViewVersionUtilV1View() throws Exception {}
+  public void testViewVersionUtilV0ViewForReplaceOrUpdate() throws Exception {
+    // Arrange
+    // Enable V0 + disable V1 support key for creating views
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+    String tableName2 = generateUniqueTableName();
+    final List<String> tablePath2 = tablePathWithFolders(tableName2);
+
+    // Create table1 with 10 rows
+    runSQL(createTableAsQuery(tablePath1, 10));
+    final String viewName = generateUniqueViewName();
+    List<String> viewKey = tablePathWithFolders(viewName);
+    runSQL(createViewQuery(viewKey, tablePath1));
+
+    String viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+
+    assertViewHasExpectedNumRows(viewKey, 10);
+    ViewVersionMetadata origViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+    assertThat(origViewMetadata.currentVersion().versionId()).isEqualTo(1);
+
+    // Create table2 with 20 rows.
+    runSQL(createTableAsQuery(tablePath2, 20));
+
+    // Act
+    runSQL(createReplaceViewQuery(viewKey, tablePath2));
+
+    // Assert
+    assertViewHasExpectedNumRows(viewKey, 20);
+    viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+    ViewVersionMetadata newViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+    assertThat(newViewMetadata.currentVersion().versionId()).isEqualTo(2);
+  }
+
+  @Test
+  public void testViewVersionUtilV1ViewForCreate() throws Exception {
+    // Arrange
+    final String viewName = generateUniqueViewName();
+    final String tableName = generateUniqueTableName();
+    final List<String> viewPath = tablePathWithFolders(viewName);
+    final List<String> tablePath = tablePathWithFolders(tableName);
+
+    runSQL(createTableAsQuery(tablePath, 5));
+    runSQL(insertSelectQuery(tablePath, 5));
+    runSQL(createViewQuery(viewPath, tablePath));
+    String viewMetadataLocation = getMetadataLocationForViewKey(viewPath);
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    // Act
+    InputFile inputFile = fileIO.newInputFile(viewMetadataLocation);
+
+    ViewMetadata viewMetadata = ViewMetadataParser.read(inputFile);
+
+    IcebergViewMetadata.SupportedIcebergViewSpecVersion viewSpecVersion =
+        IcebergUtils.findIcebergViewVersion(viewMetadataLocation, fileIO);
+
+    // Assert
+    assertThat(viewMetadata.uuid()).isNotNull();
+    assertThat(viewSpecVersion).isEqualTo(IcebergViewMetadata.SupportedIcebergViewSpecVersion.V1);
+  }
+
+  @Test
+  public void testViewVersionUtilV1ViewForReplaceOrUpdate() throws Exception {
+    // Arrange
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+    String tableName2 = generateUniqueTableName();
+    final List<String> tablePath2 = tablePathWithFolders(tableName2);
+
+    // Create table1 with 10 rows
+    runSQL(createTableAsQuery(tablePath1, 10));
+    final String viewName = generateUniqueViewName();
+    List<String> viewKey = tablePathWithFolders(viewName);
+    runSQL(createViewQuery(viewKey, tablePath1));
+
+    String viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+
+    assertViewHasExpectedNumRows(viewKey, 10);
+    ViewMetadata origViewMetadata =
+        ViewMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+    assertThat(origViewMetadata.uuid()).isNotNull();
+
+    // Create table2 with 20 rows.
+    runSQL(createTableAsQuery(tablePath2, 20));
+
+    // Act
+    runSQL(createReplaceViewQuery(viewKey, tablePath2));
+
+    // Assert
+    assertViewHasExpectedNumRows(viewKey, 20);
+    viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+    ViewMetadata newViewMetadata =
+        ViewMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+    assertThat(newViewMetadata.uuid()).isNotNull();
+  }
+
+  @Test
+  public void testViewVersionUtilV1ViewForAlter() throws Exception {
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    final String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+
+    // Create a table with 10 rows.
+    runSQL(createTableAsQuery(tablePath1, 10));
+
+    final String viewName = generateUniqueViewName();
+    final List<String> viewKey = tablePathWithFolders(viewName);
+
+    // Create a view.
+    runSQL(createViewQuery(viewKey, tablePath1));
+    String viewMetadataLocationBeforeAlter = getMetadataLocationForViewKey(viewKey);
+    ViewMetadata origViewMetadata =
+        ViewMetadataParser.read(fileIO.newInputFile(viewMetadataLocationBeforeAlter));
+    assertThat(origViewMetadata.properties()).isNullOrEmpty();
+
+    final String attribute = "enable_default_reflection";
+    final String value = "true";
+
+    runSQL(alterViewPropertyQuery(viewKey, attribute, value));
+    String viewMetadataLocationAfterAlter = getMetadataLocationForViewKey(viewKey);
+    ViewMetadata newViewMetadata =
+        ViewMetadataParser.read(fileIO.newInputFile(viewMetadataLocationAfterAlter));
+    assertThat(newViewMetadata.properties()).isNotNull();
+  }
+
+  @Test
+  public void testTranslateV0ToV1AndUpdateOrReplaceV1View() throws Exception {
+    // Arrange
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+    String tableName2 = generateUniqueTableName();
+    final List<String> tablePath2 = tablePathWithFolders(tableName2);
+
+    // Create table1 with 10 rows
+    runSQL(createTableAsQuery(tablePath1, 10));
+    final String viewName = generateUniqueViewName();
+    List<String> viewKey = tablePathWithFolders(viewName);
+    runSQL(createViewQuery(viewKey, tablePath1));
+
+    String viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+
+    assertViewHasExpectedNumRows(viewKey, 10);
+    ViewVersionMetadata origViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+    assertThat(origViewMetadata).isNotNull();
+
+    // Create table2 with 20 rows.
+    runSQL(createTableAsQuery(tablePath2, 20));
+
+    // Switch over to v1 format when updating
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+
+    // Act
+    runSQL(createReplaceViewQuery(viewKey, tablePath2));
+
+    // Assert
+    assertViewHasExpectedNumRows(viewKey, 20);
+    viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+    ViewMetadata newViewMetadata =
+        ViewMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+    assertThat(newViewMetadata.uuid()).isNotNull();
+  }
+
+  @Test
+  public void testTranslateV1ToV0AndUpdateOrReplaceV0View() throws Exception {
+    // Arrange
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+    String tableName2 = generateUniqueTableName();
+    final List<String> tablePath2 = tablePathWithFolders(tableName2);
+
+    // Create table1 with 10 rows
+    runSQL(createTableAsQuery(tablePath1, 10));
+    final String viewName = generateUniqueViewName();
+    List<String> viewKey = tablePathWithFolders(viewName);
+    runSQL(createViewQuery(viewKey, tablePath1));
+
+    String viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+
+    assertViewHasExpectedNumRows(viewKey, 10);
+    ViewMetadata origViewMetadata =
+        ViewMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+    assertThat(origViewMetadata.uuid()).isNotNull();
+
+    // Create table2 with 20 rows.
+    runSQL(createTableAsQuery(tablePath2, 20));
+
+    // Switch over to v0 format when updating
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+
+    // Act
+    runSQL(createReplaceViewQuery(viewKey, tablePath2));
+
+    // Assert
+    assertViewHasExpectedNumRows(viewKey, 20);
+    viewMetadataLocation = getMetadataLocationForViewKey(viewKey);
+    ViewVersionMetadata newViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocation));
+    assertThat(newViewMetadata).isNotNull();
+  }
+
+  @Test
+  public void testTranslateV0ToV1AndAlterV1View() throws Exception {
+    // Enable V0 + disable V1 support key for creating views
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    final String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+
+    // Create a table with 10 rows.
+    runSQL(createTableAsQuery(tablePath1, 10));
+
+    final String viewName = generateUniqueViewName();
+    final List<String> viewKey = tablePathWithFolders(viewName);
+
+    // Create a view.
+    runSQL(createViewQuery(viewKey, tablePath1));
+    String viewMetadataLocationBeforeAlter = getMetadataLocationForViewKey(viewKey);
+    ViewVersionMetadata origViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocationBeforeAlter));
+    assertThat(origViewMetadata.properties()).isNullOrEmpty();
+
+    // Switch over to v1 format when updating
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+
+    final String attribute = "enable_default_reflection";
+    final String value = "true";
+    runSQL(alterViewPropertyQuery(viewKey, attribute, value));
+    String viewMetadataLocationAfterAlter = getMetadataLocationForViewKey(viewKey);
+    ViewMetadata newViewMetadata =
+        ViewMetadataParser.read(fileIO.newInputFile(viewMetadataLocationAfterAlter));
+    assertThat(newViewMetadata.properties()).isNotNull();
+    assertThat(
+            runSqlWithResults(
+                selectStarQueryWithSpecifier(viewKey, "BRANCH " + DEFAULT_BRANCH_NAME)))
+        .hasSize(10);
+  }
+
+  @Test
+  public void testTranslateV1ToV0AndAlterV0View() throws Exception {
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    final String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+
+    // Create a table with 10 rows.
+    runSQL(createTableAsQuery(tablePath1, 10));
+
+    final String viewName = generateUniqueViewName();
+    final List<String> viewKey = tablePathWithFolders(viewName);
+
+    // Create a view.
+    runSQL(createViewQuery(viewKey, tablePath1));
+    String viewMetadataLocationBeforeAlter = getMetadataLocationForViewKey(viewKey);
+    ViewMetadata origViewMetadata =
+        ViewMetadataParser.read(fileIO.newInputFile(viewMetadataLocationBeforeAlter));
+    assertThat(origViewMetadata.properties()).isNullOrEmpty();
+
+    // Switch over to v0 format when updating previous view
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+
+    final String attribute = "enable_default_reflection";
+    final String value = "true";
+    runSQL(alterViewPropertyQuery(viewKey, attribute, value));
+    String viewMetadataLocationAfterAlter = getMetadataLocationForViewKey(viewKey);
+    ViewVersionMetadata newViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocationAfterAlter));
+    assertThat(newViewMetadata.properties()).isNotNull();
+  }
+
+  @Test
+  public void testCreateAndSelectV0ViewAndThenSelectWithV1SupportKeyOn() throws Exception {
+    // Switch on v1 support key
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    final String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+
+    // Create a table with 10 rows.
+    runSQL(createTableAsQuery(tablePath1, 10));
+
+    final String viewName = generateUniqueViewName();
+    final List<String> viewKey = tablePathWithFolders(viewName);
+
+    // Create a view and select from it with V0 support key enabled
+    runSQL(createViewQuery(viewKey, tablePath1));
+    String viewMetadataLocationAfterAlter = getMetadataLocationForViewKey(viewKey);
+    ViewVersionMetadata origViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocationAfterAlter));
+    assertThat(origViewMetadata.properties()).isNullOrEmpty();
+    // Perform select so view cache gets populated
+    assertThat(
+            runSqlWithResults(
+                selectStarQueryWithSpecifier(viewKey, "BRANCH " + DEFAULT_BRANCH_NAME)))
+        .hasSize(10);
+
+    // Switch on v1 support key
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+    // Select from view key with v1 support key enabled
+    assertThat(
+            runSqlWithResults(
+                selectStarQueryWithSpecifier(viewKey, "BRANCH " + DEFAULT_BRANCH_NAME)))
+        .hasSize(10);
+  }
+
+  @Test
+  public void testCreateV0ViewAndThenSelectWithV1SupportKeyOn() throws Exception {
+    // Switch on v0 support key
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "true");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "false");
+    FileIO fileIO = getFileIO(getDataplanePlugin());
+    final String tableName1 = generateUniqueTableName();
+    final List<String> tablePath1 = tablePathWithFolders(tableName1);
+
+    // Create a table with 10 rows.
+    runSQL(createTableAsQuery(tablePath1, 10));
+
+    final String viewName = generateUniqueViewName();
+    final List<String> viewKey = tablePathWithFolders(viewName);
+
+    // Create a view and select from it with V0 support key enabled
+    runSQL(createViewQuery(viewKey, tablePath1));
+    String viewMetadataLocationAfterAlter = getMetadataLocationForViewKey(viewKey);
+    ViewVersionMetadata origViewMetadata =
+        ViewVersionMetadataParser.read(fileIO.newInputFile(viewMetadataLocationAfterAlter));
+    assertThat(origViewMetadata.properties()).isNullOrEmpty();
+
+    // Switch on v1 support key
+    setSystemOption(V0_ICEBERG_VIEW_WRITES, "false");
+    setSystemOption(SUPPORT_V1_ICEBERG_VIEWS, "true");
+    // Select from view key with v1 support key enabled
+    assertThat(
+            runSqlWithResults(
+                selectStarQueryWithSpecifier(viewKey, "BRANCH " + DEFAULT_BRANCH_NAME)))
+        .hasSize(10);
+  }
+
+  @Test
+  public void testCreateViewErrorExistingFolder() throws Exception {
+    // Arrange
+    final String name = generateUniqueFolderName();
+    final List<String> path = Collections.singletonList(name);
+    runSQL(createFolderQuery(DATAPLANE_PLUGIN_NAME, path));
+
+    // Arrange
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = tablePathWithFolders(tableName);
+    runSQL(createEmptyTableQuery(tablePath));
+
+    // Act and Assert
+    assertQueryThrowsExpectedError(
+        createViewQuery(path, tablePath),
+        String.format(
+            "An Entity of type FOLDER with given name [%s] already exists", joinedTableKey(path)));
+  }
+
+  private static AutoCloseable enableVersionedSourceUdf() {
+    setSystemOption(CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(), "true");
+    return () ->
+        setSystemOption(
+            CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getOptionName(),
+            CatalogOptions.VERSIONED_SOURCE_UDF_ENABLED.getDefault().getBoolVal().toString());
+  }
 }

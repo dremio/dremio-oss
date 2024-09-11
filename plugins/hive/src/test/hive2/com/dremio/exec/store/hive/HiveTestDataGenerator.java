@@ -23,7 +23,6 @@ import static com.dremio.exec.hive.HiveTestUtilities.pingHive;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.hive.HiveTestBase;
@@ -84,16 +83,28 @@ public final class HiveTestDataGenerator {
   }
 
   public static synchronized HiveTestDataGenerator newInstanceWithoutTestData(
+      String warehouseLocation, String metastoreLocation, Map<String, String> cfg)
+      throws Exception {
+    return new HiveTestDataGenerator(warehouseLocation, metastoreLocation, cfg);
+  }
+
+  public static synchronized HiveTestDataGenerator newInstanceWithoutTestData(
       Map<String, String> cfg) throws Exception {
     return new HiveTestDataGenerator(cfg);
   }
 
   private HiveTestDataGenerator(Map<String, String> cfg) throws Exception {
-    this.whDir = getTempDir("warehouse");
+    // Configure metastore persistence db location on local filesystem
+    this(getTempDir("warehouse"), HiveTestBase.createDerbyDB(getTempDir("metastore_db")), cfg);
+  }
+
+  private HiveTestDataGenerator(
+      String warehouseLocation, String metastoreLocation, Map<String, String> cfg)
+      throws Exception {
+    this.whDir = warehouseLocation;
 
     final HiveConf conf = new HiveConf();
-    // Configure metastore persistence db location on local filesystem
-    this.dbDir = HiveTestBase.createDerbyDB("metastore_db");
+    this.dbDir = metastoreLocation;
     final String dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", this.dbDir);
     HiveConf.setBoolVar(conf, HiveConf.ConfVars.METASTORE_SCHEMA_VERIFICATION, false);
     HiveConf.setBoolVar(conf, HiveConf.ConfVars.METASTORE_AUTO_CREATE_ALL, true);
@@ -130,12 +141,20 @@ public final class HiveTestDataGenerator {
     return whDir;
   }
 
+  public Map<String, String> getConfig() {
+    return config;
+  }
+
+  public int getPort() {
+    return port;
+  }
+
   /**
    * Add Hive test storage plugin to the given plugin registry.
    *
    * @throws Exception
    */
-  public void addHiveTestPlugin(final String pluginName, final CatalogService pluginRegistry)
+  public void addHiveTestPlugin(final String pluginName, final CatalogService catalogService)
       throws Exception {
     SourceConfig sc = new SourceConfig();
     sc.setName(pluginName);
@@ -145,7 +164,7 @@ public final class HiveTestDataGenerator {
     sc.setType(conf.getType());
     sc.setConfig(conf.toBytesString());
     sc.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_PREFETCH_QUERIED);
-    ((CatalogServiceImpl) pluginRegistry).getSystemUserCatalog().createSource(sc);
+    catalogService.getSystemUserCatalog().createSource(sc);
   }
 
   /**
@@ -156,15 +175,14 @@ public final class HiveTestDataGenerator {
    *     registry.
    */
   public void updatePluginConfig(
-      final CatalogService pluginRegistry, Map<String, String> configOverride) throws Exception {
-    StoragePlugin storagePlugin = pluginRegistry.getSource(HIVE_TEST_PLUGIN_NAME);
+      final CatalogService catalogService, Map<String, String> configOverride) throws Exception {
+    StoragePlugin storagePlugin = catalogService.getSource(HIVE_TEST_PLUGIN_NAME);
     if (storagePlugin == null) {
       throw new Exception(
           "Hive test storage plugin doesn't exist. Add a plugin using addHiveTestPlugin()");
     }
 
-    ManagedStoragePlugin msp =
-        ((CatalogServiceImpl) pluginRegistry).getManagedSource(HIVE_TEST_PLUGIN_NAME);
+    ManagedStoragePlugin msp = catalogService.getManagedSource(HIVE_TEST_PLUGIN_NAME);
     SourceConfig newSC = msp.getId().getClonedConfig();
     Hive2StoragePluginConfig conf =
         (Hive2StoragePluginConfig)
@@ -191,18 +209,17 @@ public final class HiveTestDataGenerator {
     conf.propertyList = updated;
     conf.secretPropertyList = updatedSecretProperties;
     newSC.setConfig(conf.toBytesString());
-    ((CatalogServiceImpl) pluginRegistry).getSystemUserCatalog().updateSource(newSC);
+    catalogService.getSystemUserCatalog().updateSource(newSC);
   }
 
   /** Delete the Hive test plugin from registry. */
-  public void deleteHiveTestPlugin(final String pluginName, final CatalogService pluginRegistry) {
-    CatalogServiceImpl impl = (CatalogServiceImpl) pluginRegistry;
-    ManagedStoragePlugin msp = impl.getManagedSource(pluginName);
+  public void deleteHiveTestPlugin(final String pluginName, final CatalogService catalogService) {
+    ManagedStoragePlugin msp = catalogService.getManagedSource(pluginName);
     if (msp == null) {
       // test setup couldn't add a hive plugin successfully - we have nothing to delete
       return;
     }
-    impl.getSystemUserCatalog().deleteSource(msp.getId().getConfig());
+    catalogService.getSystemUserCatalog().deleteSource(msp.getId().getConfig());
   }
 
   public void executeDDL(String query) throws IOException {

@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic.execution;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.easy.json.reader.BaseJsonProcessor;
 import com.dremio.exec.vector.complex.fn.FieldSelection;
@@ -105,7 +106,8 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     SchemaPath sp = columns.get(0);
     PathSegment fieldPath = sp.getRootSegment();
     BaseWriter.StructWriter fieldWriter = writer.rootAsStruct();
-    while (fieldPath.getChild() != null && !fieldPath.getChild().isArray()) {
+    while (fieldPath.getChild() != null
+        && !fieldPath.getChild().getType().equals(PathSegmentType.ARRAY_INDEX)) {
       fieldWriter = fieldWriter.struct(fieldPath.getNameSegment().getPath());
       fieldPath = fieldPath.getChild();
     }

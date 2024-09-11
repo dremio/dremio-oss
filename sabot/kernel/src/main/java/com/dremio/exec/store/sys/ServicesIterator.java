@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.store.sys;
 
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.sys.ServicesIterator.ServiceSetInfo;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
+import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
 import java.util.Iterator;
@@ -58,19 +62,35 @@ public class ServicesIterator implements Iterator<ServiceSetInfo> {
   }
 
   public ServicesIterator(final SabotContext dbContext) {
+    ClusterCoordinator clusterCoordinator = dbContext.getClusterCoordinator();
+    DremioConfig dremioConfig = dbContext.getDremioConfig();
     Iterator<ServiceSetInfo> srv;
     try {
+
       srv =
-          StreamSupport.stream(
-                  dbContext.getClusterCoordinator().getServiceNames().spliterator(), false)
+          StreamSupport.stream(clusterCoordinator.getServiceNames().spliterator(), false)
               .filter((p) -> !SERVICE_BLACKLIST.contains(p))
-              .map(s -> new ServiceSetInfo(s, dbContext.getServiceLeader(s)))
+              .map(
+                  s -> new ServiceSetInfo(s, getServiceLeader(dremioConfig, clusterCoordinator, s)))
               .iterator();
     } catch (Exception e) {
       srv = Collections.emptyIterator();
     }
 
     this.serviceNames = srv;
+  }
+
+  /** To return task leader nodeEndpoint if masterless mode is on otherwise return master */
+  private static Optional<NodeEndpoint> getServiceLeader(
+      DremioConfig dremioConfig, ClusterCoordinator clusterCoordinator, String serviceName) {
+    ServiceSet serviceSet;
+    if (dremioConfig.isMasterlessEnabled()) {
+      serviceSet = clusterCoordinator.getOrCreateServiceSet(serviceName);
+    } else {
+      serviceSet = clusterCoordinator.getServiceSet(Role.MASTER);
+    }
+    return Optional.ofNullable(serviceSet.getAvailableEndpoints())
+        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
   }
 
   @Override

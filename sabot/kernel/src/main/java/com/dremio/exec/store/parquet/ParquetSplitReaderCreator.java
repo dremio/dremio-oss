@@ -33,6 +33,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.namespace.DatasetHelper;
@@ -81,6 +82,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
   protected final BatchSchema fullSchema;
   private final FileConfig formatSettings;
   private List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields;
+  private List<DefaultNameMapping> icebergDefaultNameMapping;
   private final Map<String, Set<Integer>> pathToRowGroupsMap;
   protected final ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator;
   private final boolean ignoreSchemaLearning;
@@ -127,6 +129,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
       BatchSchema fullSchema,
       FileConfig formatSettings,
       List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields,
+      List<DefaultNameMapping> icebergDefaultNameMapping,
       Map<String, Set<Integer>> pathToRowGroupsMap,
       ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator,
       ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr,
@@ -166,6 +169,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
     this.fullSchema = fullSchema;
     this.formatSettings = formatSettings;
     this.icebergSchemaFields = icebergSchemaFields;
+    this.icebergDefaultNameMapping = icebergDefaultNameMapping;
     this.ignoreSchemaLearning = ignoreSchemaLearning;
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
     this.userDefinedSchemaSettings = userDefinedSchemaSettings;
@@ -293,6 +297,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                 ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(
                     realFields,
                     icebergSchemaFields,
+                    icebergDefaultNameMapping,
                     isConvertedIcebergDataset,
                     context,
                     fullSchema);

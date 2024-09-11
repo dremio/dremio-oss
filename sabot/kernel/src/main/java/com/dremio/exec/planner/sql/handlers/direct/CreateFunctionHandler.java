@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.TypeProtos;
@@ -35,11 +36,11 @@ import com.dremio.exec.planner.sql.parser.SqlComplexDataTypeSpec;
 import com.dremio.exec.planner.sql.parser.SqlComplexDataTypeSpecWithDefault;
 import com.dremio.exec.planner.sql.parser.SqlCreateFunction;
 import com.dremio.exec.planner.sql.parser.SqlFunctionReturnType;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlReturnField;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.sys.udf.FunctionOperatorTable;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
-import com.dremio.exec.store.sys.udf.UserDefinedFunctionPlanSerde;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
@@ -87,51 +88,61 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlCreateFunction createFunction = SqlNodeUtil.unwrap(sqlNode, SqlCreateFunction.class);
-    SimpleCommandResult result = toResultImplementation(sql, createFunction);
-    if (!result.ok) {
-      throw UserException.validationError().message(result.summary).build();
-    }
-
-    return Collections.singletonList(result);
-  }
-
-  private SimpleCommandResult toResultImplementation(String sql, SqlCreateFunction createFunction)
-      throws Exception {
-    if (createFunction.isIfNotExists() && createFunction.shouldReplace()) {
-      return SimpleCommandResult.fail(
-          "Cannot create a user-defined function with both IF NOT EXISTS and OR REPLACE");
-    }
 
     Catalog catalog = context.getCatalog();
     NamespaceKey functionKey = catalog.resolveSingle(createFunction.getPath());
-    boolean exists = doesFunctionExist(userDefinedFunctionCatalog, functionKey);
+    CatalogEntityKey catalogEntityKey =
+        CatalogEntityKeyUtil.buildCatalogEntityKey(
+            functionKey,
+            createFunction.getSqlTableVersionSpec(),
+            context.getSession().getSessionVersionForSource(functionKey.getRoot()));
+    boolean exists = doesFunctionExist(userDefinedFunctionCatalog, catalogEntityKey);
     if (exists && !createFunction.shouldReplace()) {
-      return createFunction.isIfNotExists()
-          ? SimpleCommandResult.successful(
-              String.format("Function, %s, is not created as it already exists", functionKey))
-          : SimpleCommandResult.fail("The function with a key, %s, already exists", functionKey);
+      if (createFunction.isIfNotExists()) {
+        return Collections.singletonList(
+            SimpleCommandResult.successful(
+                String.format(
+                    "Function [%s] was not created as it already exists.",
+                    catalogEntityKey.toSql())));
+      } else {
+        throw UserException.validationError()
+            .message(
+                "Function [%s] was not created as a function with the same name already exists.",
+                catalogEntityKey.toSql())
+            .buildSilently();
+      }
     }
 
-    UserDefinedFunction newUdf = extractUdf(context, createFunction, sql, functionKey);
+    catalog.validatePrivilege(functionKey, SqlGrant.Privilege.ALTER);
+    return createFunction(catalogEntityKey, sql, createFunction, exists);
+  }
 
-    String action;
+  private List<SimpleCommandResult> createFunction(
+      CatalogEntityKey catalogEntityKey,
+      String sql,
+      SqlCreateFunction createFunction,
+      boolean exists) {
+    UserDefinedFunction newUdf =
+        extractUdf(context, createFunction, sql, catalogEntityKey.toNamespaceKey());
+
     if (exists) {
-      action = "updated";
-      userDefinedFunctionCatalog.updateFunction(functionKey, newUdf);
+      userDefinedFunctionCatalog.updateFunction(catalogEntityKey, newUdf);
     } else {
-      action = "created";
-      userDefinedFunctionCatalog.createFunction(functionKey, newUdf);
+      userDefinedFunctionCatalog.createFunction(catalogEntityKey, newUdf);
     }
 
-    return SimpleCommandResult.successful(
-        String.format("Function, %s, is %s.", functionKey, action));
+    return Collections.singletonList(
+        SimpleCommandResult.successful(
+            String.format(
+                "Function [%s] has been %s.",
+                catalogEntityKey.toSql(), exists ? "updated" : "created")));
   }
 
   private static boolean doesFunctionExist(
-      UserDefinedFunctionCatalog userDefinedFunctionCatalog, NamespaceKey functionKey) {
+      UserDefinedFunctionCatalog udfCatalog, CatalogEntityKey functionKey) {
     boolean exists;
     try {
-      exists = userDefinedFunctionCatalog.getFunction(functionKey) != null;
+      exists = udfCatalog.getFunction(functionKey) != null;
     } catch (Exception ignored) {
       exists = false;
     }
@@ -230,58 +241,6 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
 
     CompleteType completeReturnType = CompleteType.fromField(expectedReturnRowTypeAndField.right);
 
-    UserDefinedFunction uncatalogedUserDefinedFunction =
-        new UserDefinedFunction(
-            functionKey.toString(),
-            normalizedQuery,
-            completeReturnType,
-            arguments,
-            functionKey.getPathComponents(),
-            null,
-            null,
-            null);
-
-    // The Serialization of the UDF plan is only used in an optimization at this point,
-    // so it's optional whether this plan needs to be serializable or not.
-    // For reflection matching and plan cache we use the "normalized" query plan that runs
-    // "UDF Expansion" as a substep, which ensures there are no UDFs in the normalized plan.
-    byte[] serializedFunctionPlan;
-    try {
-      serializedFunctionPlan =
-          UserDefinedFunctionPlanSerde.serialize(
-              functionPlan, context, uncatalogedUserDefinedFunction);
-    } catch (Exception ex) {
-      if (!context.getPlannerSettings().isUnserializableUdfAllowed()) {
-        throw new UnsupportedOperationException(
-            "Failed to serialize the UDF trying to be created: "
-                + sql
-                + "\n"
-                + "This means that the UDF can not be used in contexts that require serialization."
-                + "If this is not a concern for you, then set the config 'udf.enable_unserializable_functions' to true.",
-            ex);
-      } else {
-        serializedFunctionPlan = new byte[] {};
-      }
-    }
-
-    try {
-      UserDefinedFunctionPlanSerde.deserialize(
-          serializedFunctionPlan,
-          functionPlan.getCluster(),
-          context,
-          uncatalogedUserDefinedFunction);
-    } catch (Exception ex) {
-      if (!context.getPlannerSettings().isUnserializableUdfAllowed()) {
-        throw new UnsupportedOperationException(
-            "Failed to deserialize the UDF trying to be created: "
-                + sql
-                + "\n"
-                + "This means that the UDF can not be used in contexts that require serialization."
-                + "If this is not a concern for you, then set the config 'udf.enable_unserializable_functions' to true.",
-            ex);
-      }
-    }
-
     UserDefinedFunction udf =
         new UserDefinedFunction(
             functionKey.toString(),
@@ -289,7 +248,7 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
             completeReturnType,
             arguments,
             functionKey.getPathComponents(),
-            serializedFunctionPlan,
+            new byte[] {},
             null,
             null);
     return udf;

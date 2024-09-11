@@ -18,12 +18,16 @@ package com.dremio.dac.api;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +47,8 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.PathSegment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Catalog API resource. */
 @APIResource
@@ -52,6 +58,11 @@ import javax.ws.rs.core.PathSegment;
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
 public class CatalogResource {
+  private static final Logger logger = LoggerFactory.getLogger(CatalogResource.class);
+
+  private static final int MAX_ENTITIES_TO_GET_IN_BULK = 50;
+  private static final int MAX_CHILDREN_TO_GET_IN_BULK = 20;
+
   private final CatalogServiceHelper catalogServiceHelper;
 
   @Inject
@@ -69,13 +80,21 @@ public class CatalogResource {
   @Path("/{id}")
   public CatalogEntity getCatalogItem(
       @PathParam("id") String id,
-      @QueryParam("include") final List<String> include,
-      @QueryParam("exclude") final List<String> exclude)
+      @QueryParam("include") List<String> include,
+      @QueryParam("exclude") List<String> exclude,
+      @QueryParam("pageToken") String pageToken,
+      @QueryParam("maxChildren") Integer maxChildren)
       throws NamespaceException {
-    Optional<CatalogEntity> entity =
-        catalogServiceHelper.getCatalogEntityById(id, include, exclude);
+    CatalogPageToken catalogPageToken = null;
+    if (!Strings.isNullOrEmpty(pageToken)) {
+      catalogPageToken = CatalogPageToken.fromApiToken(pageToken);
+    }
 
-    if (!entity.isPresent()) {
+    Optional<CatalogEntity> entity =
+        catalogServiceHelper.getCatalogEntityById(
+            id, include, exclude, catalogPageToken, maxChildren);
+
+    if (entity.isEmpty()) {
       throw new NotFoundException(String.format("Could not find entity with id [%s]", id));
     }
 
@@ -149,13 +168,19 @@ public class CatalogResource {
   @Path("/by-path/{segment:.*}")
   public CatalogEntity getCatalogItemByPath(
       @PathParam("segment") List<PathSegment> segments,
-      @QueryParam("include") final List<String> include,
-      @QueryParam("exclude") final List<String> exclude,
-      @QueryParam("versionType") final String versionType,
-      @QueryParam("versionValue") final String versionValue)
+      @QueryParam("include") List<String> include,
+      @QueryParam("exclude") List<String> exclude,
+      @QueryParam("versionType") String versionType,
+      @QueryParam("versionValue") String versionValue,
+      @QueryParam("pageToken") String pageToken,
+      @QueryParam("maxChildren") Integer maxChildren)
       throws NamespaceException, BadRequestException {
-    List<String> pathList = new ArrayList<>();
+    CatalogPageToken catalogPageToken = null;
+    if (!Strings.isNullOrEmpty(pageToken)) {
+      catalogPageToken = CatalogPageToken.fromApiToken(pageToken);
+    }
 
+    List<String> pathList = new ArrayList<>();
     for (PathSegment segment : segments) {
       // with query parameters we may get an empty final segment
       if (!segment.getPath().isEmpty()) {
@@ -165,9 +190,9 @@ public class CatalogResource {
 
     final Optional<CatalogEntity> entity =
         catalogServiceHelper.getCatalogEntityByPath(
-            pathList, include, exclude, versionType, versionValue);
+            pathList, include, exclude, versionType, versionValue, catalogPageToken, maxChildren);
 
-    if (!entity.isPresent()) {
+    if (entity.isEmpty()) {
       throw new NotFoundException(String.format("Could not find entity with path [%s]", pathList));
     }
 
@@ -179,6 +204,113 @@ public class CatalogResource {
   public ResponseList<CatalogItem> search(@QueryParam("query") String query)
       throws NamespaceException {
     return new ResponseList<>(catalogServiceHelper.search(query));
+  }
+
+  @POST
+  @Path("/by-ids")
+  public ResponseList<CatalogEntity> getListByIds(
+      List<String> ids, @QueryParam("maxChildren") Integer maxChildren) {
+    if (ids.isEmpty()) {
+      return new ResponseList<>();
+    }
+
+    // Limit number of entities to return.
+    if (ids.size() > MAX_ENTITIES_TO_GET_IN_BULK) {
+      throw UserException.validationError()
+          .message(
+              String.format(
+                  "Too many ids %d vs maximum %d", ids.size(), MAX_ENTITIES_TO_GET_IN_BULK))
+          .buildSilently();
+    }
+
+    // Limit number of children.
+    if (maxChildren == null || maxChildren == 0 || maxChildren > MAX_CHILDREN_TO_GET_IN_BULK) {
+      throw UserException.validationError()
+          .message(
+              String.format(
+                  "maxChildren query parameter must be set to [1,%d]", MAX_CHILDREN_TO_GET_IN_BULK))
+          .buildSilently();
+    }
+
+    ResponseList<CatalogEntity> responseList = new ResponseList<>();
+    ids.forEach(
+        id -> {
+          try {
+            Optional<CatalogEntity> optionalEntity =
+                catalogServiceHelper.getCatalogEntityById(
+                    id, ImmutableList.of(), ImmutableList.of(), null, maxChildren);
+            if (optionalEntity.isPresent()) {
+              responseList.add(optionalEntity.get());
+            } else {
+              responseList.addError(
+                  new GenericErrorMessage(String.format("'%s' was not found", id)));
+            }
+          } catch (Exception e) {
+            logger.warn("Exception while bulk getting entities", e);
+            responseList.addError(
+                new GenericErrorMessage(
+                    String.format("'%s' failed with '%s'", id, e.getMessage())));
+          }
+        });
+    return responseList;
+  }
+
+  @POST
+  @Path("/by-paths")
+  public ResponseList<CatalogEntity> getListByPaths(
+      List<List<String>> paths,
+      @QueryParam("versionType") String versionType,
+      @QueryParam("versionValue") String versionValue,
+      @QueryParam("maxChildren") Integer maxChildren) {
+    if (paths.isEmpty()) {
+      return new ResponseList<>();
+    }
+
+    // Limit number of entities to return.
+    if (paths.size() > MAX_ENTITIES_TO_GET_IN_BULK) {
+      throw UserException.validationError()
+          .message(
+              String.format(
+                  "Too many paths %d vs maximum %d", paths.size(), MAX_ENTITIES_TO_GET_IN_BULK))
+          .buildSilently();
+    }
+
+    // Limit number of children.
+    if (maxChildren == null || maxChildren == 0 || maxChildren > MAX_CHILDREN_TO_GET_IN_BULK) {
+      throw UserException.validationError()
+          .message(
+              String.format(
+                  "maxChildren query parameter must be set to [1,%d]", MAX_CHILDREN_TO_GET_IN_BULK))
+          .buildSilently();
+    }
+
+    ResponseList<CatalogEntity> responseList = new ResponseList<>();
+    paths.forEach(
+        path -> {
+          try {
+            Optional<CatalogEntity> optionalEntity =
+                catalogServiceHelper.getCatalogEntityByPath(
+                    path,
+                    ImmutableList.of(),
+                    ImmutableList.of(),
+                    versionType,
+                    versionValue,
+                    null,
+                    maxChildren);
+            if (optionalEntity.isPresent()) {
+              responseList.add(optionalEntity.get());
+            } else {
+              responseList.addError(
+                  new GenericErrorMessage(String.format("'%s' was not found", path)));
+            }
+          } catch (Exception e) {
+            logger.warn("Exception while bulk getting entities", e);
+            responseList.addError(
+                new GenericErrorMessage(
+                    String.format("'%s' failed with '%s'", path, e.getMessage())));
+          }
+        });
+    return responseList;
   }
 
   /** MetadataRefreshResponse class */

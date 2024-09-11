@@ -34,8 +34,7 @@ public class TestMultiInputAdd extends BaseTestQuery {
         client.runQuery(
             com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
             readResourceAsString("/functions/multi_input_add_test.json"));
-    try (RecordBatchLoader batchLoader =
-        new RecordBatchLoader(nodes[0].getContext().getAllocator())) {
+    try (RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator())) {
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));
 

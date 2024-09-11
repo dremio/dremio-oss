@@ -352,7 +352,8 @@ public class RefreshDoneHandler {
       // likely an empty incremental refresh
       dependencyManager.setDependencies(entry.getId(), dependencies);
     }
-    dependencyManager.updateDontGiveUp(entry, dependencyResolutionContext);
+    dependencyManager.updateRefreshPolicyType(entry, dependencyResolutionContext);
+    dependencyManager.updateStaleMaterialization(entry.getId());
   }
 
   private void createAndSaveRefresh(

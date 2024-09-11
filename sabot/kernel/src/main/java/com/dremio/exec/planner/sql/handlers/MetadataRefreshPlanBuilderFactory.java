@@ -54,11 +54,13 @@ public class MetadataRefreshPlanBuilderFactory {
     NamespaceKey nsKey =
         catalog.resolveSingle(new NamespaceKey(sqlRefreshDataset.getTable().names));
 
+    DatasetHandle hiveDatasetHandle = null;
     if (isHiveDataset) {
       Optional<DatasetHandle> datasetHandle =
           ((SourceMetadata) plugin).getDatasetHandle(MetadataObjectsUtils.toEntityPath(nsKey));
       if (datasetHandle.isPresent()) {
-        nsKey = MetadataObjectsUtils.toNamespaceKey(datasetHandle.get().getDatasetPath());
+        hiveDatasetHandle = datasetHandle.get();
+        nsKey = MetadataObjectsUtils.toNamespaceKey(hiveDatasetHandle.getDatasetPath());
       }
     }
 
@@ -77,13 +79,15 @@ public class MetadataRefreshPlanBuilderFactory {
 
     DatasetRetrievalOptions retrievalOptions =
         retrievalOptionsForPartitions(config, sqlRefreshDataset.getPartition());
-    PartitionChunkListing chunks = planBuilder.listPartitionChunks(retrievalOptions);
+    PartitionChunkListing chunks =
+        planBuilder.listPartitionChunks(hiveDatasetHandle, retrievalOptions);
     planBuilder.setupMetadataForPlanning(chunks, retrievalOptions);
     if (planBuilder.updateDatasetConfigWithIcebergMetadataIfNecessary()) {
       // here if datasetConfig is not in sync with iceberg metadata and new datasetConfig is saved
       // in catalog
       metadataProvider.resetMetadata();
-      PartitionChunkListing newChunksListing = planBuilder.listPartitionChunks(retrievalOptions);
+      PartitionChunkListing newChunksListing =
+          planBuilder.listPartitionChunks(hiveDatasetHandle, retrievalOptions);
       planBuilder.setupMetadataForPlanning(
           newChunksListing, retrievalOptions); // do this again since datasetConfig got modified
     }

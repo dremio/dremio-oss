@@ -23,6 +23,7 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableModify;
+import org.apache.iceberg.RowLevelOperationMode;
 
 /** A base physical plan generator for a TableModifyRel */
 public abstract class TableModifyPruleBase extends Prule {
@@ -45,8 +46,10 @@ public abstract class TableModifyPruleBase extends Prule {
     final RelNode input = call.rel(1);
     PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
 
-    if (settings.options.getOption(
-        ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_WRITER_WITH_POSITIONAL_DELETE)) {
+    // DML plan is decided by the iceberg table properties.
+    if (settings.options.getOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER)
+        && tableModify.getDmlWriteMode() == RowLevelOperationMode.MERGE_ON_READ) {
+
       // Merge On Read Dml Case
       DmlPositionalMergeOnReadPlanGenerator planGenerator =
           new DmlPositionalMergeOnReadPlanGenerator(
@@ -66,8 +69,8 @@ public abstract class TableModifyPruleBase extends Prule {
       call.transformTo(planGenerator.getPlan());
     } else {
       // Copy On Write Dml Case
-      DmlPlanGenerator planGenerator =
-          new DmlPlanGenerator(
+      DmlCopyOnWritePlanGenerator planGenerator =
+          new DmlCopyOnWritePlanGenerator(
               tableModify.getTable(),
               tableModify.getCluster(),
               tableModify.getTraitSet().plus(Prel.PHYSICAL),

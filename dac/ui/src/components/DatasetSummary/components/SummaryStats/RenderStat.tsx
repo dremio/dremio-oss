@@ -60,8 +60,8 @@ const RenderStat = ({
       <div className={classes["summary-stats"]}>
         <dt>{formatMessage({ id: title })}</dt>
         {showTooltip ? (
-          <Tooltip content={data}>
-            <dd className={wrapContent && classes["data-container"]}>
+          <Tooltip content={data} interactive>
+            <dd className={wrapContent ? classes["data-container"] : ""}>
               {data || data === 0 ? (
                 <RenderData data={data} showAvatar={showAvatar} />
               ) : (
@@ -71,7 +71,7 @@ const RenderStat = ({
           </Tooltip>
         ) : (
           <dd
-            className={wrapContent && classes["data-container"]}
+            className={wrapContent ? classes["data-container"] : ""}
             ref={(elem: any) => {
               if (elem?.offsetWidth < elem?.scrollWidth) {
                 setShowTooltip(true);

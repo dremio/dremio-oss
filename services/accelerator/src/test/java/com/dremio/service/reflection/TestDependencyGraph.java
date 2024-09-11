@@ -39,6 +39,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import com.google.common.collect.Sets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -60,12 +61,16 @@ public class TestDependencyGraph {
       ImmutableMap.<String, DependencyEntry>builder()
           .put("pds1", DependencyEntry.of("pds1", Lists.newArrayList("f", "pds1"), 0L, null))
           .put("pds2", DependencyEntry.of("pds2", Lists.newArrayList("f", "pds2"), 0L, null))
+          .put("pds3", DependencyEntry.of("pds3", Lists.newArrayList("f", "pds3"), 0L, null))
           .put("raw1", DependencyEntry.of(rId("raw1"), 0L))
           .put("raw2", DependencyEntry.of(rId("raw2"), 0L))
+          .put("raw3", DependencyEntry.of(rId("raw3"), 0L))
           .put("agg1", DependencyEntry.of(rId("agg1"), 0L))
           .put("agg2", DependencyEntry.of(rId("agg2"), 0L))
           .put("agg3", DependencyEntry.of(rId("agg3"), 0L))
           .put("vds-raw", DependencyEntry.of(rId("vds-raw"), 0L))
+          .put("vds-raw2", DependencyEntry.of(rId("vds-raw2"), 0L))
+          .put("vds-raw3", DependencyEntry.of(rId("vds-raw3"), 0L))
           .put("vds-agg1", DependencyEntry.of(rId("vds-agg1"), 0L))
           .put("vds-agg2", DependencyEntry.of(rId("vds-agg2"), 0L))
           .put(
@@ -431,5 +436,157 @@ public class TestDependencyGraph {
     raw1Dep = raw1Deps.get(0);
     assertTrue(raw1Dep.getType().equals(DependencyType.DATASET));
     assertEquals(pds1NewSnapshotId, ((DependencyEntry.DatasetDependency) raw1Dep).getSnapshotId());
+  }
+
+  @Test
+  public void testReflectionLineage() {
+    DependenciesStore dependenciesStore = Mockito.mock(DependenciesStore.class);
+    DependencyGraph graph = new DependencyGraph(dependenciesStore);
+
+    // let's add some dependencies to the store
+    // Map<Dependant, List<Parent>>
+    Multimap<String, String> dependencyMap = MultimapBuilder.hashKeys().arrayListValues().build();
+    // pds1 > raw1 > agg1
+    dependencyMap.put("raw1", "pds1");
+    dependencyMap.put("raw1", "tablefunction1");
+    dependencyMap.put("agg1", "raw1");
+    // pds2 > raw2 > agg2
+    dependencyMap.put("raw2", "pds2");
+    dependencyMap.put("raw2", "tablefunction2");
+    dependencyMap.put("agg2", "raw2");
+    // raw2 > agg3
+    dependencyMap.put("agg3", "raw2");
+    // raw1, raw2 > vds-raw > vds-agg1
+    dependencyMap.putAll("vds-raw", Lists.newArrayList("raw1", "raw2"));
+    dependencyMap.put("vds-agg1", "vds-raw");
+    // agg1, agg2 > vds-agg2 > vds-raw3
+    dependencyMap.putAll("vds-agg2", Lists.newArrayList("agg1", "agg2"));
+    dependencyMap.put("vds-raw3", "vds-agg2");
+
+    // pds3 > raw3
+    // raw3, agg3 > vds-raw2
+    dependencyMap.put("raw3", "pds3");
+    dependencyMap.putAll("vds-raw2", Lists.newArrayList("raw3", "agg3"));
+
+    Mockito.when(dependenciesStore.getAll())
+        .thenReturn(storeDependencies(dependencyMap).entrySet());
+    graph.loadFromStore();
+
+    Map<ReflectionId, Integer> reflectionLineage = graph.computeReflectionLineage(rId("raw1"));
+    Map<ReflectionId, Integer> exp = new HashMap<>();
+    exp.put(rId("raw1"), 0);
+    exp.put(rId("agg1"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("raw2"));
+    exp = new HashMap<>();
+    exp.put(rId("raw2"), 0);
+    exp.put(rId("agg2"), 1);
+    exp.put(rId("agg3"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("agg1"));
+    exp = new HashMap<>();
+    exp.put(rId("raw1"), 0);
+    exp.put(rId("agg1"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("agg2"));
+    exp = new HashMap<>();
+    exp.put(rId("raw2"), 0);
+    exp.put(rId("agg2"), 1);
+    exp.put(rId("agg3"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("agg3"));
+    exp = new HashMap<>();
+    exp.put(rId("raw2"), 0);
+    exp.put(rId("agg2"), 1);
+    exp.put(rId("agg3"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("vds-raw"));
+    exp = new HashMap<>();
+    exp.put(rId("raw1"), 0);
+    exp.put(rId("raw2"), 0);
+    exp.put(rId("agg1"), 1);
+    exp.put(rId("agg2"), 1);
+    exp.put(rId("agg3"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("vds-agg1"));
+    exp = new HashMap<>();
+    exp.put(rId("raw1"), 0);
+    exp.put(rId("raw2"), 0);
+    exp.put(rId("agg1"), 1);
+    exp.put(rId("agg2"), 1);
+    exp.put(rId("agg3"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("vds-agg2"));
+    exp = new HashMap<>();
+    exp.put(rId("raw1"), 0);
+    exp.put(rId("raw2"), 0);
+    exp.put(rId("agg1"), 1);
+    exp.put(rId("agg2"), 1);
+    exp.put(rId("agg3"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("raw3"));
+    exp = new HashMap<>();
+    exp.put(rId("raw3"), 0);
+    exp.put(rId("vds-raw2"), 1);
+    assertEquals(exp, reflectionLineage);
+
+    reflectionLineage = graph.computeReflectionLineage(rId("vds-raw2"));
+    exp = new HashMap<>();
+    exp.put(rId("raw2"), 0);
+    exp.put(rId("raw3"), 0);
+    exp.put(rId("agg2"), 1);
+    exp.put(rId("agg3"), 1);
+    exp.put(rId("vds-raw"), 1);
+    exp.put(rId("vds-agg1"), 2);
+    exp.put(rId("vds-agg2"), 2);
+    exp.put(rId("vds-raw2"), 2);
+    exp.put(rId("vds-raw3"), 3);
+    assertEquals(exp, reflectionLineage);
   }
 }

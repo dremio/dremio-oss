@@ -73,7 +73,7 @@ public class TestServerJobs extends BaseTestServer {
   public void testRunningJob() throws Exception {
     TestSpacesStoragePlugin.setup();
     final JobsService jobsService = l(JobsService.class);
-    final DatasetVersionMutator datasetService = newDatasetVersionMutator();
+    final DatasetVersionMutator datasetService = getDatasetVersionMutator();
     final DatasetPath datasetPath = new DatasetPath("testA.dsA1");
     final VirtualDatasetUI ds1 = datasetService.get(datasetPath);
     final JobId jobId =
@@ -223,7 +223,7 @@ public class TestServerJobs extends BaseTestServer {
   public void testJobVirtualDatasetParent() throws Exception {
     populateInitialData();
     final DatasetPath datasetPath = new DatasetPath("DG.dsg10");
-    final VirtualDatasetUI dsg1 = newDatasetVersionMutator().get(datasetPath);
+    final VirtualDatasetUI dsg1 = getDatasetVersionMutator().get(datasetPath);
     final JobsService jobsService = l(JobsService.class);
     final JobId jobId =
         submitJobAndWaitUntilCompletion(
@@ -671,7 +671,7 @@ public class TestServerJobs extends BaseTestServer {
             JobsUI.class);
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
 
-    TestSpacesStoragePlugin.cleanup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.cleanup();
   }
 
   private DatasetUI setupIteratorTests(String datasetName) throws Exception {

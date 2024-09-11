@@ -21,7 +21,7 @@ export default {
     marginTop: 0,
     lineHeight: "20px",
     background: "#white",
-    color: "#202124",
+    color: "var(--text--primary)",
     fontFamily: "var(--dremio--font-family--monospace)",
     fontSize: "14px",
     fontWeight: "400",
@@ -29,7 +29,7 @@ export default {
   },
   "hljs-attr": {
     fontWeight: "400",
-    color: "#202124",
+    color: "var(--text--primary)",
     fontFamily: "var(--dremio--font-family--monospace)",
   },
   "hljs-code": {

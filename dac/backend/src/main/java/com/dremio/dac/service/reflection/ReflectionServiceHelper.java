@@ -18,17 +18,23 @@ package com.dremio.dac.service.reflection;
 import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_SCHEDULE_POLICY_ENABLED;
 
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.dac.api.Reflection;
 import com.dremio.dac.service.errors.ReflectionNotFound;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.namespace.physicaldataset.proto.AccelerationSettingsDescriptor;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.IncrementalUpdateServiceUtils;
 import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionStatus;
 import com.dremio.service.reflection.ReflectionStatusService;
+import com.dremio.service.reflection.analysis.ReflectionSuggester.ReflectionSuggestionType;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionGoal;
@@ -104,8 +110,8 @@ public class ReflectionServiceHelper {
     return getReflectionAdministrationService().getGoal(goal.getId()).get();
   }
 
-  public List<ReflectionGoal> getRecommendedReflections(String id) {
-    return getReflectionAdministrationService().getRecommendedReflections(id);
+  public List<ReflectionGoal> getRecommendedReflections(String id, ReflectionSuggestionType type) {
+    return getReflectionAdministrationService().getRecommendedReflections(id, type);
   }
 
   public void removeReflection(String id) {
@@ -212,5 +218,49 @@ public class ReflectionServiceHelper {
 
   public boolean isRefreshSchedulePolicyEnabled() {
     return optionManager.getOption(REFLECTION_SCHEDULE_POLICY_ENABLED);
+  }
+
+  public OptionManager getOptionManager() {
+    return optionManager;
+  }
+
+  public AccelerationSettings fromAccelerationSettingsDescriptor(
+      AccelerationSettingsDescriptor descriptor,
+      AccelerationSettings oldSettings,
+      DatasetConfig config) {
+    AccelerationSettings settings =
+        new AccelerationSettings()
+            .setGracePeriod(descriptor.getAccelerationGracePeriod())
+            .setMethod(descriptor.getMethod())
+            .setRefreshField(descriptor.getRefreshField())
+            .setNeverExpire(descriptor.getAccelerationNeverExpire())
+            .setNeverRefresh(descriptor.getAccelerationNeverRefresh());
+    if (descriptor.getAccelerationActivePolicyType() == RefreshPolicyType.PERIOD
+        || descriptor.getAccelerationActivePolicyType() == RefreshPolicyType.SCHEDULE
+        || descriptor.getAccelerationActivePolicyType() == RefreshPolicyType.NEVER) {
+      settings.setRefreshPolicyType(descriptor.getAccelerationActivePolicyType());
+    } else {
+      settings.setRefreshPolicyType(RefreshPolicyType.PERIOD);
+    }
+    return settings;
+  }
+
+  public AccelerationSettings fromSourceConfig(SourceConfig sourceConfig) {
+    AccelerationSettings settings =
+        new AccelerationSettings()
+            .setMethod(RefreshMethod.FULL)
+            .setRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod())
+            .setRefreshSchedule(sourceConfig.getAccelerationRefreshSchedule())
+            .setGracePeriod(sourceConfig.getAccelerationGracePeriod())
+            .setNeverExpire(sourceConfig.getAccelerationNeverExpire())
+            .setNeverRefresh(sourceConfig.getAccelerationNeverRefresh());
+    if (sourceConfig.getAccelerationActivePolicyType() == RefreshPolicyType.PERIOD
+        || sourceConfig.getAccelerationActivePolicyType() == RefreshPolicyType.SCHEDULE
+        || sourceConfig.getAccelerationActivePolicyType() == RefreshPolicyType.NEVER) {
+      settings.setRefreshPolicyType(sourceConfig.getAccelerationActivePolicyType());
+    } else {
+      settings.setRefreshPolicyType(RefreshPolicyType.PERIOD);
+    }
+    return settings;
   }
 }

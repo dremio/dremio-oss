@@ -400,6 +400,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       assertFalse(cancellable1.isCancelled());
 
       assertTrue(regularRuns.get() > runsCount);
+
+      schedulerService.close();
     }
   }
 
@@ -496,6 +498,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       assertEquals(runsCount, regularRuns.get());
       assertFalse(checkRelinquish.get());
       assertTrue(checkGainedLeadership.get());
+
+      schedulerService.close();
     }
   }
 
@@ -563,6 +567,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
           .isEmpty()) {
         Thread.sleep(50);
       }
+
       schedulerService.close();
     }
   }
@@ -738,6 +743,9 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       } else {
         assertTrue(task2.isDone());
       }
+
+      schedulerService1.close();
+      schedulerService2.close();
     }
   }
 
@@ -789,6 +797,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       // After cancellation, corresponding taskLeaderElection object should be closed and removed
       // from taskLeaderElectionServiceMap
       assertNull(schedulerService.getTaskLeaderElection(cancellable));
+
       schedulerService.close();
     }
   }
@@ -836,6 +845,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       assertEquals(1, wasCleaned.getCount());
       taskLeaderElection.onCancelledLeadership();
       wasCleaned.await();
+
+      schedulerService.close();
     }
   }
 
@@ -902,6 +913,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       boolean taskScheduledAgain = restartLatch.await(5, TimeUnit.SECONDS);
       Assert.assertTrue("Task did not get scheduled.", taskScheduledAgain);
       Assert.assertTrue(counter.get() > 0);
+
+      schedulerService.close();
     }
   }
 
@@ -969,6 +982,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       // after finish the run, the task should be re-scheduled again
       Thread.sleep(3000);
       Assert.assertTrue(counter.get() > 1);
+
+      schedulerService.close();
     }
   }
 
@@ -1031,6 +1046,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       Thread.sleep(3000);
       // task should have cancelled itself
       Assert.assertEquals(0, counter.get());
+
+      schedulerService.close();
     }
   }
 
@@ -1093,6 +1110,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       boolean done = restartLatch.await(5, TimeUnit.SECONDS);
       Assert.assertTrue("Task did not get scheduled.", done);
       Assert.assertTrue(counter.get() > 0);
+
+      schedulerService.close();
     }
   }
 
@@ -1152,6 +1171,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
 
       assertEquals(
           3000, electionServices.stream().findFirst().get().getLeaseExpirationTime().longValue());
+
+      schedulerService.close();
     }
   }
 

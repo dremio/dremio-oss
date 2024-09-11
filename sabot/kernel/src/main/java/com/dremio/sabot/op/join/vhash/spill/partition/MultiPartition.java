@@ -53,8 +53,8 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
   private final JoinSetupParams setupParams;
   private final CopierFactory copierFactory;
   private final Hasher hasher;
-  private final ArrowBuf fullHashValues8B;
-  private final ArrowBuf tableHashValues4B;
+  private ArrowBuf fullHashValues8B;
+  private ArrowBuf tableHashValues4B;
   private final PartitionWrapper[] childWrappers;
 
   private int probePivotShift;
@@ -159,13 +159,33 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
   }
 
   private void computeHashAndSplitToChildPartitions(int startIdx, int records) {
+    if (fullHashValues8B.capacity() < records * FULL_HASH_SIZE) {
+      try (RollbackCloseable rc = new RollbackCloseable(true)) {
+        BufferAllocator allocator = setupParams.getOpAllocator();
+        fullHashValues8B.close();
+        fullHashValues8B = null;
+        fullHashValues8B = rc.add(allocator.buffer(records * FULL_HASH_SIZE));
+        tableHashValues4B.close();
+        tableHashValues4B = null;
+        tableHashValues4B = rc.add(allocator.buffer(records * TABLE_HASH_SIZE));
+        for (int partitionIdx = 0; partitionIdx < numPartitions; ++partitionIdx) {
+          childWrappers[partitionIdx].createNewSv2(records);
+          childWrappers[partitionIdx].updateTableHashBuffer(tableHashValues4B);
+        }
+        rc.commit();
+      } catch (RuntimeException ex) {
+        throw ex;
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
+      }
+    }
+
     hasher.hashPivoted(records, fullHashValues8B);
 
     // split batch ordinals into per-partition buffers based on the highest 3-bits in the hash.
     resetAllPartitionInputs();
-    fullHashValues8B.checkBytes(startIdx * FULL_HASH_SIZE, (startIdx + records) * FULL_HASH_SIZE);
-    tableHashValues4B.checkBytes(
-        startIdx * TABLE_HASH_SIZE, (startIdx + records) * TABLE_HASH_SIZE);
+    fullHashValues8B.checkBytes(0, records * FULL_HASH_SIZE);
+    tableHashValues4B.checkBytes(0, records * TABLE_HASH_SIZE);
     childWrappers[0].sv2.checkBytes(0, records * SelectionVector2.RECORD_SIZE);
     final long fullHashStartAddr8B = fullHashValues8B.memoryAddress();
     final long tableHashStartAddr4B = tableHashValues4B.memoryAddress();
@@ -577,7 +597,7 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
    */
   private final class PartitionWrapper implements AutoCloseable {
     private final int partitionIndex;
-    private final ArrowBuf sv2;
+    private ArrowBuf sv2;
     private final long sv2Addr;
     private final int maxRecords;
 
@@ -597,6 +617,21 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
         throw ex;
       } catch (Exception ex) {
         throw new RuntimeException(ex);
+      }
+    }
+
+    public void createNewSv2(int numRecords) {
+      if (this.sv2 != null) {
+        this.sv2.close();
+        this.sv2 = null;
+      }
+      this.sv2 = setupParams.getOpAllocator().buffer(numRecords * SelectionVector2.RECORD_SIZE);
+      partition.updateSv2(sv2);
+    }
+
+    public void updateTableHashBuffer(ArrowBuf newBuffer) {
+      if (partition instanceof CanSwitchToSpilling) {
+        ((CanSwitchToSpilling) partition).updateTableHashBuffer(newBuffer);
       }
     }
 
@@ -621,9 +656,6 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
     }
 
     void addToSV2(int ordinal) {
-      assert ordinal >= 0 && ordinal < maxRecords;
-      assert numRecords < maxRecords;
-
       SV2UnsignedUtil.writeAtIndexUnsafe(sv2Addr, numRecords, ordinal);
       ++numRecords;
     }

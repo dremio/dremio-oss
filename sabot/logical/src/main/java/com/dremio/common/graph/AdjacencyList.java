@@ -28,11 +28,11 @@ import java.util.List;
 import java.util.Set;
 
 class AdjacencyList<V extends GraphValue<V>> {
-  private Set<Node> allNodes = new HashSet<Node>();
+  private Set<Node> allNodes = new HashSet<>();
   private ListMultimap<Node, Edge<Node>> adjacencies = ArrayListMultimap.create();
 
   void addEdge(Node source, Node target, int weight) {
-    adjacencies.put(source, new Edge<Node>(source, target, weight));
+    adjacencies.put(source, new Edge<>(source, target, weight));
     allNodes.add(source);
     allNodes.add(target);
   }
@@ -50,12 +50,6 @@ class AdjacencyList<V extends GraphValue<V>> {
 
   public List<Edge<Node>> getAdjacent(AdjacencyList<V>.Node source) {
     return adjacencies.get(source);
-  }
-
-  public void printEdges() {
-    for (Edge<Node> e : adjacencies.values()) {
-      System.out.println(e.from.index + " -> " + e.to.index);
-    }
   }
 
   public AdjacencyList<V> getReversedList() {

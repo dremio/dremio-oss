@@ -470,24 +470,30 @@ public final class RexToExpr {
             }
 
             RexNode indexer = call.getOperands().get(1);
-            if (!(indexer instanceof RexLiteral)) {
+            if (indexer instanceof RexLiteral) {
+              final RexLiteral literal = (RexLiteral) indexer;
+              switch (literal.getType().getSqlTypeName()) {
+                case DECIMAL:
+                case INTEGER:
+                case BIGINT:
+                  return path.getChild(((BigDecimal) literal.getValue()).intValue());
+                case CHAR:
+                case VARCHAR:
+                  return path.getChild(literal.getValue2().toString());
+                default:
+                  throw UserException.validationError()
+                      .message("Unknown index kind: " + literal.getType().getSqlTypeName())
+                      .buildSilently();
+              }
+            } else if (indexer instanceof RexInputRef
+                && (rexNode.getType().getSqlTypeName() == SqlTypeName.ARRAY
+                    || rexNode.getType().getSqlTypeName() == SqlTypeName.MAP)) {
+              FieldReference ref = (FieldReference) call.getOperands().get(1).accept(this);
+              return path.getChild(ref.getRootSegment().getPath(), true);
+            } else {
               throw UserException.validationError()
-                  .message("Indexing Into an Array, Map, Struct must be a literal value")
+                  .message("Indexing Into an Struct must be a literal or reference value")
                   .buildSilently();
-            }
-
-            final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
-            switch (literal.getType().getSqlTypeName()) {
-              case DECIMAL:
-              case INTEGER:
-                return path.getChild(((BigDecimal) literal.getValue()).intValue());
-              case CHAR:
-              case VARCHAR:
-                return path.getChild(literal.getValue2().toString());
-              default:
-                throw UserException.validationError()
-                    .message("Unknown index kind: " + literal.getType().getSqlTypeName())
-                    .buildSilently();
             }
           }
 

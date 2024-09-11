@@ -52,7 +52,10 @@ import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -149,7 +152,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
 
   protected List<SimpleCommandResult> createEmptyTable(
       CatalogEntityKey key, String sql, SqlCreateEmptyTable sqlCreateEmptyTable) throws Exception {
-
+    validateInSource(key, catalog);
     validateCreateTableOptions(
         sqlCreateEmptyTable, sql, key, getResolvedVersionContextIfVersioned(key, catalog));
     if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null
@@ -176,8 +179,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       throw new ColumnCountTooLargeException((int) maxColumnCount);
     }
 
-    BatchSchema batchSchema =
-        SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
+    BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(columnDeclarations, sql);
     PartitionSpec partitionSpec =
         IcebergUtils.getIcebergPartitionSpecFromTransforms(
             batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
@@ -214,7 +216,8 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
             Long.MAX_VALUE,
             tableFormatOptions,
             null,
-            tableProperties);
+            tableProperties,
+            WriterOptions.DEFAULT.isMergeOnReadRowSplitterMode());
 
     DremioTable table = catalog.getTableNoResolve(key);
     if (table != null) {
@@ -239,6 +242,23 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     return Collections.singletonList(SimpleCommandResult.successful("Table created"));
   }
 
+  private static void validateInSource(CatalogEntityKey catalogEntityKey, Catalog catalog)
+      throws NamespaceException {
+    final String name = catalogEntityKey.getRootEntity();
+    try {
+      final NameSpaceContainer entity = catalog.getEntityByPath(new NamespaceKey(name));
+      if (entity != null && entity.getType().equals(NameSpaceContainer.Type.SPACE)) {
+        throw UserException.validationError()
+            .message("You cannot create a table in a space (name: %s).", name)
+            .build(logger);
+      }
+    } catch (NamespaceNotFoundException ex) {
+      throw UserException.validationError(ex)
+          .message("Tried to access non-existent source [%s].", name)
+          .build(logger);
+    }
+  }
+
   @VisibleForTesting
   public void validateCreateTableOptions(
       SqlCreateEmptyTable sqlCreateEmptyTable,
@@ -246,14 +266,6 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       CatalogEntityKey catalogEntityKey,
       ResolvedVersionContext resolvedVersionContext) {
     SqlValidatorImpl.checkForFeatureSpecificSyntax(sqlCreateEmptyTable, optionManager);
-
-    if (!IcebergUtils.isIcebergDMLFeatureEnabled(
-        catalog, catalogEntityKey.toNamespaceKey(), optionManager, null)) {
-      throw UserException.unsupportedError()
-          .message(
-              "Please contact customer support for steps to enable the iceberg tables feature.")
-          .buildSilently();
-    }
 
     // path is not valid
     if (!DataAdditionCmdHandler.validatePath(this.catalog, catalogEntityKey.toNamespaceKey())) {

@@ -35,9 +35,14 @@ public final class ExpansionNodeSerde implements RelNodeSerde<ExpansionNode, PEx
             .addAllPath(path)
             .setContextSensitive(false)
             .setIsDefault(expansionNode.isDefault());
+
     if (expansionNode.getVersionContext() != null) {
       builder.setVersionContext(expansionNode.getVersionContext().serialize());
     }
+
+    // We don't need to serialize ViewTable, since it's only used ephemerally from view expansion to
+    // drr matching.
+
     return builder.build();
   }
 
@@ -53,6 +58,7 @@ public final class ExpansionNodeSerde implements RelNodeSerde<ExpansionNode, PEx
             node.getIsDefault(),
             node.getVersionContext() == null
                 ? null
-                : TableVersionContext.deserialize(node.getVersionContext()));
+                : TableVersionContext.deserialize(node.getVersionContext()),
+            null /*We don't need to deserialize ViewTable, since it's only used ephemerally from view expansion to drr matching.*/);
   }
 }

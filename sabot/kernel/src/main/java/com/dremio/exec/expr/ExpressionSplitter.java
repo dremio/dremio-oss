@@ -40,10 +40,10 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.op.llvm.GandivaSecondaryCacheWithStats;
 import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieve;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,6 +52,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.vector.ValueVector;
@@ -399,27 +400,19 @@ public class ExpressionSplitter implements AutoCloseable {
 
   // setup the pipeline for project operations
   private void projectorSetup(
-      VectorContainer outgoing,
-      Stopwatch javaCodeGenWatch,
-      Stopwatch gandivaCodeGenWatch,
-      GandivaSecondaryCacheWithStats secondaryCache)
+      VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch)
       throws GandivaException {
     for (SplitStageExecutor splitStageExecutor : execPipeline) {
-      splitStageExecutor.setupProjector(
-          outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
+      splitStageExecutor.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, options);
     }
   }
 
   // setup the pipeline for filter operations
   private void filterSetup(
-      VectorContainer outgoing,
-      Stopwatch javaCodeGenWatch,
-      Stopwatch gandivaCodeGenWatch,
-      GandivaSecondaryCacheWithStats secondaryCache)
+      VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch)
       throws GandivaException, Exception {
     for (SplitStageExecutor splitStageExecutor : execPipeline) {
-      splitStageExecutor.setupFilter(
-          outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
+      splitStageExecutor.setupFilter(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, options);
     }
   }
 
@@ -676,18 +669,9 @@ public class ExpressionSplitter implements AutoCloseable {
   public VectorContainer setupProjector(
       VectorContainer outgoing, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch)
       throws Exception {
-    return setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, null);
-  }
-
-  public VectorContainer setupProjector(
-      VectorContainer outgoing,
-      Stopwatch javaCodeGenWatch,
-      Stopwatch gandivaCodeGenWatch,
-      GandivaSecondaryCacheWithStats secondaryCache)
-      throws Exception {
     verifySplitsInGandiva();
     createPipeline();
-    projectorSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
+    projectorSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
     return vectorContainer;
   }
 
@@ -698,20 +682,10 @@ public class ExpressionSplitter implements AutoCloseable {
       Stopwatch javaCodeGenWatch,
       Stopwatch gandivaCodeGenWatch)
       throws Exception {
-    setupFilter(outgoing, namedExpression, javaCodeGenWatch, gandivaCodeGenWatch, null);
-  }
-
-  public void setupFilter(
-      VectorContainer outgoing,
-      NamedExpression namedExpression,
-      Stopwatch javaCodeGenWatch,
-      Stopwatch gandivaCodeGenWatch,
-      GandivaSecondaryCacheWithStats secondaryCache)
-      throws Exception {
     addToSplitter(incoming, namedExpression);
     verifySplitsInGandiva();
     createPipeline();
-    filterSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch, secondaryCache);
+    filterSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
   }
 
   // This is invoked in case of an exception to release all buffers that have been allocated
@@ -726,9 +700,11 @@ public class ExpressionSplitter implements AutoCloseable {
       int recordsToConsume, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch)
       throws Exception {
     try {
+      Function<String, Closeable> debugInfoFunction = getDebugInfoFunction();
       for (int i = 0; i < execPipeline.size(); i++) {
         SplitStageExecutor executor = execPipeline.get(i);
-        executor.evaluateProjector(recordsToConsume, javaCodeGenWatch, gandivaCodeGenWatch);
+        executor.evaluateProjector(
+            recordsToConsume, javaCodeGenWatch, gandivaCodeGenWatch, debugInfoFunction);
       }
     } catch (Exception e) {
       releaseAllBuffers();
@@ -736,19 +712,42 @@ public class ExpressionSplitter implements AutoCloseable {
     }
   }
 
+  private Function<String, Closeable> getDebugInfoFunction() {
+    if (context.getOptions().getOption(ExecConstants.GANDIVA_THREAD_NAME_ENABLED)) {
+      // add function names to thread name for better profiling
+      final Thread currentThread = Thread.currentThread();
+      final String originalName = currentThread.getName();
+      final int threadNameLengthThreshold =
+          (int) context.getOptions().getOption(ExecConstants.GANDIVA_THREAD_NAME_LENGTH_THRESHOLD);
+      return (suffix) -> {
+        String newThreadName = new StringBuilder(originalName).append(suffix).toString();
+        if (newThreadName.length() < threadNameLengthThreshold) {
+          currentThread.setName(newThreadName);
+          return () -> currentThread.setName(originalName);
+        } else {
+          logger.info("Thread name for gandiva functions evaluation: {} ", suffix);
+          return () -> {};
+        }
+      };
+    }
+    return (name) -> () -> {};
+  }
+
   // filter data
   public int filterData(int records, Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch)
       throws Exception {
     try {
+      Function<String, Closeable> debugInfoFunction = getDebugInfoFunction();
       for (int i = 0; i < execPipeline.size() - 1; i++) {
         SplitStageExecutor executor = execPipeline.get(i);
-        executor.evaluateProjector(records, javaCodeGenWatch, gandivaCodeGenWatch);
+        executor.evaluateProjector(
+            records, javaCodeGenWatch, gandivaCodeGenWatch, debugInfoFunction);
       }
 
       // The last stage is the filter operation
       return execPipeline
           .get(execPipeline.size() - 1)
-          .evaluateFilter(records, javaCodeGenWatch, gandivaCodeGenWatch);
+          .evaluateFilter(records, javaCodeGenWatch, gandivaCodeGenWatch, debugInfoFunction);
     } catch (Exception e) {
       releaseAllBuffers();
       throw e;
@@ -994,14 +993,28 @@ public class ExpressionSplitter implements AutoCloseable {
   public List<ExpressionSplitInfo> getSplitInfos() {
     return this.getSplits().stream()
         .map(
-            x ->
-                ExpressionSplitInfo.newBuilder()
-                    .setNamedExpression(x.getNamedExpression().toString())
-                    .setInGandiva(x.getExecutionEngine().equals(Engine.GANDIVA))
-                    .setOutputName(x.getOutputName())
-                    .addAllDependsOn(x.getDependencies())
-                    .setOptimize(x.getOptimize())
-                    .build())
+            x -> {
+              ExpressionSplitInfo.Builder builder =
+                  ExpressionSplitInfo.newBuilder()
+                      .setInGandiva(x.getExecutionEngine().equals(Engine.GANDIVA))
+                      .setOutputName(x.getOutputName())
+                      .addAllDependsOn(x.getDependencies())
+                      .setOptimize(x.getOptimize());
+              // If named expression is too long, omit it
+              String namedExpression = x.getNamedExpression().getExpr().toString();
+              int namedExpressionLengthThreshold =
+                  (int)
+                      context
+                          .getOptions()
+                          .getOption(ExecConstants.NAMED_EXPRESSION_LENGTH_THRESHOLD);
+              if (namedExpression.length() <= namedExpressionLengthThreshold) {
+                builder.setNamedExpression(namedExpression);
+              } else {
+                builder.setNamedExpression("OMIT");
+                logger.info(String.format("Named expression: %s", namedExpression));
+              }
+              return builder.build();
+            })
         .collect(Collectors.toList());
   }
 

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-
 :global {
   .new-branch-dialog {
     width: 600px;
@@ -26,7 +24,7 @@
     }
 
     &-header {
-      border-bottom: 1px solid @SECONDARY_200;
+      border-bottom: 1px solid var(--border--neutral);
       padding: 0 !important;
       display: flex;
       height: 55px;
@@ -46,7 +44,7 @@
       margin-bottom: 4px;
       font-size: 14px;
       font-weight: 400;
-      color: @BLACK;
+      color: var(--text--primary);
 
       .MuiFormControl-fullWidth {
         margin-top: 4px;
@@ -54,9 +52,12 @@
         .MuiOutlinedInput-root {
           height: 32px;
           font-size: 14px;
+          fieldset {
+            border-color: var(--border--neutral--solid);
+          }
           &:hover {
             fieldset {
-              border-color: var(--color--neutral--200);
+              border-color: var(--border--hover);
             }
           }
 
@@ -89,7 +90,7 @@
         }
         &-name {
           dremio-icon {
-            color: var(--color--neutral--600);
+            color: var(--icon--primary);
             margin-right: 2px;
           }
         }
@@ -97,7 +98,7 @@
     }
 
     &-actions {
-      border-top: 1px solid @SECONDARY_200;
+      border-top: 1px solid var(--border--neutral);
     }
   }
 }

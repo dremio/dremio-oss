@@ -1,0 +1,9 @@
+<svg id="interface/undo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <g fill="none" fill-rule="evenodd">
+    <path d="M0 0h24v24H0z"/>
+    <g stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7.5 15.5h5.826C15.356 15.5 17 13.933 17 12s-1.645-3.5-3.674-3.5H5"/>
+      <path d="m8 5.5-3 3 3 3"/>
+    </g>
+  </g>
+</svg>

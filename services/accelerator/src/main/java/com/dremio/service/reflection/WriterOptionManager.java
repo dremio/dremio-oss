@@ -103,7 +103,8 @@ public class WriterOptionManager {
         false,
         Long.MAX_VALUE,
         tableFormatOptionsBuilder.build(),
-        extendedByteString);
+        extendedByteString,
+        false);
   }
 
   /**

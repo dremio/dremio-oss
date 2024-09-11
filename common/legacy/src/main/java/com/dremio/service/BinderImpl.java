@@ -28,6 +28,8 @@ import com.google.common.collect.Maps;
 import com.google.inject.ConfigurationException;
 import com.google.inject.Injector;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -90,16 +92,16 @@ public class BinderImpl implements Binder {
   }
 
   @Override
-  public <T> Provider<T> provider(final Class<T> iface) {
+  public <T> Provider<T> provider(final Class<? extends T> iface) {
     return new DeferredProvider<>(iface);
   }
 
   @VisibleForTesting
   class DeferredProvider<T> implements Provider<T> {
 
-    private final Class<T> iface;
+    private final Class<? extends T> iface;
 
-    public DeferredProvider(Class<T> iface) {
+    public DeferredProvider(Class<? extends T> iface) {
       this.iface = iface;
     }
 
@@ -411,7 +413,7 @@ public class BinderImpl implements Binder {
   private final class BindingProviderImpl implements BindingProvider {
 
     @Override
-    public <T> Provider<T> provider(Class<T> iface) {
+    public <T> Provider<T> provider(Class<? extends T> iface) {
       return BinderImpl.this.provider(iface);
     }
 
@@ -489,14 +491,27 @@ public class BinderImpl implements Binder {
 
   @VisibleForTesting
   static class FinalResolver {
-    private final Class<?> iface;
+    private final Type type;
 
-    public FinalResolver(Class<?> iface) {
-      this.iface = iface;
+    public FinalResolver(Type type) {
+      this.type = type;
     }
 
     public Object getImplementation(BindingProvider provider) {
-      return provider.lookup(iface);
+      if (type instanceof ParameterizedType) {
+        ParameterizedType parameterizedType = (ParameterizedType) type;
+        Type rawType = parameterizedType.getRawType();
+        if (rawType instanceof Class<?>) {
+          Class<?> rawClass = (Class<?>) rawType;
+          if (rawClass.isAssignableFrom(javax.inject.Provider.class)) {
+            return provider.provider((Class<?>) parameterizedType.getActualTypeArguments()[0]);
+          }
+        }
+      }
+      if (type instanceof Class<?>) {
+        return provider.lookup((Class<?>) type);
+      }
+      throw new RuntimeException("Unable to inject constructor parameter with type: " + type);
     }
 
     @Override
@@ -508,12 +523,12 @@ public class BinderImpl implements Binder {
         return false;
       }
       FinalResolver that = (FinalResolver) o;
-      return Objects.equals(iface, that.iface);
+      return Objects.equals(type, that.type);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(iface);
+      return Objects.hash(type);
     }
   }
 
@@ -563,7 +578,7 @@ public class BinderImpl implements Binder {
 
       this.constructor = annotated.iterator().next();
       this.providers =
-          Arrays.stream(constructor.getParameterTypes())
+          Arrays.stream(constructor.getGenericParameterTypes())
               .map(FinalResolver::new)
               .collect(ImmutableList.toImmutableList());
     }

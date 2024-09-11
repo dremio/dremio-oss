@@ -31,11 +31,13 @@ import com.dremio.exec.resolver.TypeCastRules;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import javax.inject.Inject;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.UnionHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -127,6 +129,37 @@ public class UnionFunctions {
         return 5;
       default:
         return 6 + type.ordinal();
+    }
+  }
+
+  @FunctionTemplate(
+      names = {"typeOf"},
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL)
+  public static class GetType implements SimpleFunction {
+
+    @Param FieldReader input;
+    @Output NullableVarCharHolder out;
+    @Inject ArrowBuf buf;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      out.isSet = 1;
+
+      byte[] type;
+      if (input.isSet()) {
+        type = input.getMinorType().name().getBytes();
+      } else {
+        type = org.apache.arrow.vector.types.Types.MinorType.NULL.name().getBytes();
+      }
+      buf = buf.reallocIfNeeded(type.length);
+      buf.setBytes(0, type);
+      out.buffer = buf;
+      out.start = 0;
+      out.end = type.length;
     }
   }
 

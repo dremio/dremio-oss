@@ -44,10 +44,10 @@ export const Default = () => {
         {sizes.map((size) => (
           <div
             key={size}
-            className={`bg-neutral-50 rounded flex-col m-1 p-2`}
+            className={`bg-neutral-25 rounded flex-col m-1 p-2`}
             style={{ display: "inline-flex" }}
           >
-            <div className={`bg-brand-300 rounded w-${size}`}>&nbsp;</div>
+            <div className={`bg-brand-200 rounded w-${size}`}>&nbsp;</div>
             <div className="mt-1">
               <code>.w-{size}</code>
             </div>

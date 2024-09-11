@@ -50,7 +50,7 @@ public class TestNewAggregateFunctions extends PopUnitTestBase {
               QueryType.PHYSICAL,
               readResourceAsString(physicalPlan).replace("#{TEST_FILE}", inputDataFile));
 
-      try (RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator())) {
+      try (RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator())) {
 
         QueryDataBatch batch = results.get(1);
         assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));

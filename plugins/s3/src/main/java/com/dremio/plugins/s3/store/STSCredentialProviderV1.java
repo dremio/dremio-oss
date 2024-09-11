@@ -18,6 +18,7 @@ package com.dremio.plugins.s3.store;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.GLUE_ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactory.GLUE_DREMIO_ASSUME_ROLE_PROVIDER;
 
 import com.amazonaws.ClientConfiguration;
@@ -28,6 +29,7 @@ import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
+import com.dremio.plugins.util.awsauth.GlueAWSCredentialsProvider;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1;
 import java.io.Closeable;
 import java.io.IOException;
@@ -37,7 +39,6 @@ import java.util.UUID;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.S3AUtils;
-import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +56,8 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
     logger.debug("assumed_role_credentials_provider: {}", assumeRoleProvider);
     switch (assumeRoleProvider) {
       case ACCESS_KEY_PROVIDER:
-        awsCredentialsProvider = new SimpleAWSCredentialsProvider(uri, conf);
+      case GLUE_ACCESS_KEY_PROVIDER:
+        awsCredentialsProvider = new GlueAWSCredentialsProvider(null, conf);
         break;
       case EC2_METADATA_PROVIDER:
         awsCredentialsProvider = InstanceProfileCredentialsProvider.getInstance();

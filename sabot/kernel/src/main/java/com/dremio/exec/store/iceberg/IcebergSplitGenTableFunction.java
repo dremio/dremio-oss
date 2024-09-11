@@ -22,6 +22,7 @@ import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.BasePath;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.physical.config.SplitProducerTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.VectorAccessible;
@@ -36,13 +37,11 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BigIntVector;
@@ -54,11 +53,6 @@ import org.apache.arrow.vector.util.TransferPair;
 
 /** Table function implementation which generates splits for input data files. */
 public class IcebergSplitGenTableFunction extends AbstractTableFunction {
-
-  private static final Set<String> SPLIT_GEN_COLUMNS =
-      ImmutableSet.of(
-          SystemSchemas.DATAFILE_PATH, SystemSchemas.FILE_SIZE, SystemSchemas.PARTITION_INFO);
-
   private final BlockBasedSplitGenerator splitGenerator;
 
   private VarCharVector inputDataFilePath;
@@ -89,9 +83,19 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
     SupportsInternalIcebergTable plugin =
         IcebergUtils.getSupportsInternalIcebergTablePlugin(
             fragmentExecutionContext, functionContext.getPluginId());
+
+    boolean isOneSplitPerFile =
+        functionConfig
+            .getFunctionContext(SplitProducerTableFunctionContext.class)
+            .isOneSplitPerFile();
+
     splitGenerator =
         new BlockBasedSplitGenerator(
-            context, plugin, extendedProperty, functionContext.isConvertedIcebergDataset());
+            context,
+            plugin,
+            extendedProperty,
+            functionContext.isConvertedIcebergDataset(),
+            isOneSplitPerFile);
   }
 
   /**
@@ -134,11 +138,10 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
         Streams.stream(incoming)
             .filter(
                 vw ->
-                    !SPLIT_GEN_COLUMNS.contains(vw.getValueVector().getName())
-                        && outgoing
-                                .getSchema()
-                                .getFieldId(BasePath.getSimple(vw.getValueVector().getName()))
-                            != null)
+                    outgoing
+                            .getSchema()
+                            .getFieldId(BasePath.getSimple(vw.getValueVector().getName()))
+                        != null)
             .map(
                 vw ->
                     vw.getValueVector()

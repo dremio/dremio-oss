@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.work.protector;
 
+import static com.dremio.sabot.exec.HeapMonitorThread.FAIL_CONTEXT;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
-import com.dremio.sabot.exec.AbstractHeapClawBackStrategy;
 import com.google.common.base.Preconditions;
 
 /**
@@ -94,8 +95,7 @@ public class UserResult {
     }
 
     String errMessage = exception.getMessage();
-    if ((errMessage != null)
-        && (errMessage.indexOf(AbstractHeapClawBackStrategy.FAIL_CONTEXT) >= 0)) {
+    if ((errMessage != null) && (errMessage.contains(FAIL_CONTEXT))) {
       return UserException.AttemptCompletionState.HEAP_MONITOR_E;
     }
 

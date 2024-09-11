@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FontIcon from "@app/components/Icon/FontIcon";
 import { FormattedMessage } from "react-intl";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -23,6 +22,7 @@ import {
   ListRowProps,
 } from "react-virtualized";
 import "./InfiniteScroller.less";
+import { Spinner } from "dremio-ui-lib/components";
 
 const LIST_ITEM_HEIGHT = 32;
 
@@ -59,7 +59,7 @@ function InfiniteScroller<T>({
         if (listRef.current) listRef.current.forceUpdate();
       }
     },
-    [loadData]
+    [loadData],
   );
 
   const isRowLoaded = useCallback(
@@ -67,7 +67,7 @@ function InfiniteScroller<T>({
       if (data.length === 0) return false;
       return index < data.length;
     },
-    [data]
+    [data],
   );
 
   function rowRenderer(row: ListRowProps) {
@@ -89,9 +89,12 @@ function InfiniteScroller<T>({
             }}
           >
             <FormattedMessage id="Common.Retry" />
-            <FontIcon
-              type="WarningSolid"
-              theme={{ Icon: { width: "24px", height: "24px" } }}
+            <dremio-icon
+              name="interface/warning"
+              class="mr-05"
+              style={{
+                color: "var(--fill--warning--solid)",
+              }}
             />
           </a>
         </div>
@@ -99,10 +102,7 @@ function InfiniteScroller<T>({
     } else {
       return (
         <div key={key} style={style} className="infiniteScroller__loading">
-          <FontIcon
-            type="Loader spinner"
-            theme={{ Icon: { width: "24px", height: "24px" } }}
-          />
+          <Spinner />
         </div>
       );
     }

@@ -15,8 +15,6 @@
  */
 package com.dremio.services.credentials;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.google.inject.Inject;
 import java.net.URI;
 
@@ -30,23 +28,12 @@ public class DataCredentialsProvider extends AbstractSimpleCredentialsProvider
   }
 
   @Override
-  protected String doLookup(URI uri) throws IllegalArgumentException {
+  public boolean isSupported(URI uri) {
+    return CredentialsServiceUtils.isDataCredentials(uri);
+  }
 
-    final String dataUrl = uri.getSchemeSpecificPart();
-    String[] parts = dataUrl.split(",", 2);
-    if (parts.length == 1) {
-      // ',' not found
-      throw new IllegalArgumentException("Illegal Data URL.");
-    }
-    final String data = parts[1];
-    final int baseIndex = parts[0].indexOf(';');
-    if (baseIndex < 0) {
-      // no ";" encoding, use data as-is
-      return data;
-    }
-    if (!parts[0].substring(baseIndex + 1).equals("base64")) {
-      throw new IllegalArgumentException("Decode data URI secret encounters error.");
-    }
-    return new String(java.util.Base64.getUrlDecoder().decode(data), UTF_8);
+  @Override
+  protected String doLookup(URI uri) throws IllegalArgumentException {
+    return CredentialsServiceUtils.decodeDataURI(uri);
   }
 }

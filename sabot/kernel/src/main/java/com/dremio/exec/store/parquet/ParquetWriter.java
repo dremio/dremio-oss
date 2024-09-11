@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.CombineSmallFileOptions;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -76,14 +77,8 @@ public class ParquetWriter extends FileSystemWriter {
 
   @Override
   public int getOperatorType() {
-    Long combinedSmallFileTargetFileSize =
-        options.getCombineSmallFileOptions() == null
-            ? null
-            : options.getCombineSmallFileOptions().getTargetFileSize();
-    // small-file-combining phase is set as different type of writer so that the rows during this
-    // phase will not
-    // be double counted
-    if (combinedSmallFileTargetFileSize != null) {
+    CombineSmallFileOptions combineSmallFileOptions = options.getCombineSmallFileOptions();
+    if (combineSmallFileOptions != null && combineSmallFileOptions.getIsSmallFileWriter()) {
       return CoreOperatorType.SMALL_FILE_COMBINATION_WRITER_VALUE;
     }
     return CoreOperatorType.PARQUET_WRITER_VALUE;

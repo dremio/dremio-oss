@@ -15,17 +15,17 @@
  */
 package com.dremio.service.reflection;
 
-import static com.dremio.exec.catalog.VersionedDatasetId.isVersionedDatasetId;
 import static com.dremio.service.reflection.DependencyUtils.filterDatasetDependencies;
 import static com.dremio.service.reflection.DependencyUtils.filterReflectionDependencies;
 import static com.dremio.service.reflection.DependencyUtils.filterTableFunctionDependencies;
 import static com.dremio.service.reflection.ReflectionUtils.getId;
 import static com.google.common.base.Predicates.not;
 import static com.google.common.base.Predicates.notNull;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
@@ -41,20 +41,21 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.proto.RefreshRequest;
-import com.dremio.service.reflection.store.DependenciesStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -65,6 +66,7 @@ import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 /** Reflection dependencies manager. This is a singleton. Only one per coordinator. */
@@ -113,12 +115,12 @@ public class DependencyManager {
   DependencyManager(
       MaterializationStore materializationStore,
       ReflectionEntriesStore entriesStore,
-      DependenciesStore dependenciesStore,
-      OptionManager optionManager) {
+      OptionManager optionManager,
+      DependencyGraph dependencyGraph) {
     this.materializationStore =
         Preconditions.checkNotNull(materializationStore, "materialization store required");
     this.entriesStore = Preconditions.checkNotNull(entriesStore, "reflection entry store required");
-    this.graph = new DependencyGraph(dependenciesStore);
+    this.graph = dependencyGraph;
     this.materializationInfoCache = new HashMap<>();
     this.optionManager = optionManager;
   }
@@ -139,15 +141,15 @@ public class DependencyManager {
   }
 
   /**
-   * dontGiveUp is used to identify a PDS or VDS reflection whose PDS dependencies all have a "never
-   * refresh" policy. These reflections will never enter the FAILED state and be removed from the
-   * dependency graph. This is so that users can always manually refresh this reflection from a PDS.
-   * When manual reflections fail to refresh, they are never automatically retried by the reflection
-   * manager by design.
+   * RefreshPolicyType such as RefreshPolicyType.NEVER is used to identify a PDS or VDS reflection
+   * whose PDS dependencies all have a "never refresh" policy. These reflections will never enter
+   * the FAILED state and be removed from the dependency graph. This is so that users can always
+   * manually refresh this reflection from a PDS. When manual reflections fail to refresh, they are
+   * never automatically retried by the reflection manager by design.
    *
-   * <p>dontGiveUp should be kept up-to-date on a reflection entry because the UI depends on this
-   * flag to let the user know whether his reflection is scheduled to refresh or configured to never
-   * refresh.
+   * <p>refreshPolicyType should be kept up-to-date on a reflection entry because the UI depends on
+   * this flag to let the user know whether his reflection is scheduled to refresh or configured to
+   * never refresh.
    *
    * <p>A reflection may not have any dependencies such as when the initial refresh fails before
    * planning or the reflection selects from values. In this case, we can't figure out the refresh
@@ -156,44 +158,72 @@ public class DependencyManager {
    * @param entry
    * @param dependencyResolutionContext
    */
-  public void updateDontGiveUp(
+  public void updateRefreshPolicyType(
       final ReflectionEntry entry, final DependencyResolutionContext dependencyResolutionContext) {
-    boolean dontGiveUp = dontGiveUpHelper(entry.getId(), dependencyResolutionContext);
-    if (entry.getDontGiveUp() != dontGiveUp) {
-      entry.setDontGiveUp(dontGiveUp);
+    Set<RefreshPolicyType> refreshPolicyTypes =
+        updateRefreshPolicyHelper(
+            entry.getId(),
+            dependency -> {
+              final AccelerationSettings settings =
+                  getSettingsForDependency(dependencyResolutionContext, dependency);
+              return settings.getNeverRefresh()
+                  ? RefreshPolicyType.NEVER
+                  : settings.getRefreshPolicyType();
+            });
+    List<RefreshPolicyType> refreshPolicyTypesList =
+        refreshPolicyTypes.stream().sorted().collect(Collectors.toList());
+    if (!refreshPolicyTypesList.equals(entry.getRefreshPolicyTypeList())) {
+      entry.setRefreshPolicyTypeList(refreshPolicyTypesList);
       entriesStore.save(entry);
       updateMaterializationInfo(entry);
-      logger.debug("Updated dontGiveUp to {} for {}", dontGiveUp, getId(entry));
+      logger.debug("Updated refreshPolicyType to {} for {}", refreshPolicyTypes, getId(entry));
     }
   }
 
-  private boolean dontGiveUpHelper(
+  private Set<RefreshPolicyType> updateRefreshPolicyHelper(
       final ReflectionId reflectionId,
-      final DependencyResolutionContext dependencyResolutionContext) {
+      Function<DependencyEntry, RefreshPolicyType> checkDependencyFunc) {
     final Iterable<DependencyEntry> dependencies = graph.getPredecessors(reflectionId);
     if (Iterables.isEmpty(dependencies)) {
-      return false;
+      return Collections.emptySet();
     }
-    return filterReflectionDependencies(dependencies)
-            .allMatch(
-                dependency -> {
-                  return dontGiveUpHelper(
-                      dependency.getReflectionId(), dependencyResolutionContext);
-                })
-        && filterDatasetDependencies(dependencies)
-            .allMatch(
-                dependency -> {
-                  final AccelerationSettings settings =
-                      getSettingsForDependency(dependencyResolutionContext, dependency);
-                  return Boolean.TRUE.equals(settings.getNeverRefresh());
-                })
-        && filterTableFunctionDependencies(dependencies)
-            .allMatch(
-                dependency -> {
-                  final AccelerationSettings settings =
-                      getSettingsForDependency(dependencyResolutionContext, dependency);
-                  return Boolean.TRUE.equals(settings.getNeverRefresh());
-                });
+    return Stream.concat(
+            filterReflectionDependencies(dependencies).stream()
+                .flatMap(
+                    dependency -> {
+                      return updateRefreshPolicyHelper(
+                          dependency.getReflectionId(), checkDependencyFunc)
+                          .stream();
+                    }),
+            Stream.concat(
+                filterDatasetDependencies(dependencies).stream().map(checkDependencyFunc),
+                filterTableFunctionDependencies(dependencies).stream().map(checkDependencyFunc)))
+        .collect(Collectors.toSet());
+  }
+
+  /** Updates the staleness info of given materialization. */
+  public void updateStaleMaterialization(Materialization materialization) {
+    try {
+      final boolean isStale = isReflectionStale(materialization.getReflectionId());
+      if (materialization.getIsStale() != isStale) {
+        materializationStore.save((materialization.setIsStale(isStale)));
+        logger.debug("Updated isStale to {} for {}", isStale, getId(materialization));
+      }
+    } catch (RuntimeException e) {
+      logger.warn("Couldn't updateStaleMaterialization for {}", getId(materialization));
+    }
+  }
+
+  /** Updates the staleness info of last DONE materialization of given reflection. */
+  public void updateStaleMaterialization(ReflectionId reflectionId) {
+    final Materialization lastDone = materializationStore.getLastMaterializationDone(reflectionId);
+    if (lastDone != null) {
+      updateStaleMaterialization(lastDone);
+    }
+  }
+
+  boolean isReflectionStale(final ReflectionId reflectionId) {
+    return false;
   }
 
   /**
@@ -331,6 +361,18 @@ public class DependencyManager {
     curPath.removeFirst();
   }
 
+  /**
+   * Computes all reflections that will be refreshed if a refresh request is placed for given
+   * reflectionId. Also calculates the batch number for each output reflection, representing the
+   * depth from reflection's upstream base tables in the Dependency Graph.
+   *
+   * @param reflectionId
+   * @return Map of reflectionId and its batch number
+   */
+  public ImmutableMap<ReflectionId, Integer> computeReflectionLineage(ReflectionId reflectionId) {
+    return graph.computeReflectionLineage(reflectionId);
+  }
+
   boolean shouldRefresh(
       final ReflectionEntry entry,
       final long noDependencyRefreshPeriodMs,
@@ -349,10 +391,17 @@ public class DependencyManager {
       final DependencyResolutionContext dependencyResolutionContext) {
     final long currentTime = currentTimeSupplier.get();
     final MaterializationInfo materializationInfo = getMaterializationInfo(reflectionId);
+    final int numFailures = Optional.ofNullable(materializationInfo.getNumFailures()).orElse(0);
     final long lastSubmitted = materializationInfo.getLastSubmittedRefresh();
     final String reflectionName = materializationInfo.getReflectionName();
 
     final StringBuilder traceMsg = new StringBuilder();
+
+    // all the entries with failures will enter this block and terminate here
+    if (optionManager.getOption(ReflectionOptions.BACKOFF_RETRY_POLICY) && numFailures > 0) {
+      return shouldRetryAfterFailure(
+          reflectionId, numFailures, lastSubmitted, currentTime, dependencyResolutionContext);
+    }
 
     final List<DependencyEntry> dependencies = graph.getPredecessors(reflectionId);
     if (dependencies.isEmpty()) {
@@ -418,6 +467,7 @@ public class DependencyManager {
                     AccelerationSettings settings =
                         getSettingsForDependency(dependencyResolutionContext, dependency);
                     return (settings.getRefreshPolicyType().equals(RefreshPolicyType.SCHEDULE)
+                        && materializationInfo.getLastSuccessfulRefresh() != null
                         && isRefreshFromScheduleDue(
                             settings.getRefreshSchedule(),
                             materializationInfo.getLastSuccessfulRefresh(),
@@ -579,21 +629,11 @@ public class DependencyManager {
    * <p>For a dataset dependency, the dataset may be versioned in which case we extract the version
    * context from the datasetId. For an external table dependency, only the root/source name will be
    * passed in and datasetId can be ignored.
-   *
-   * @param path
-   * @param datasetId
-   * @return catalogEntityKey
    */
-  private CatalogEntityKey createCatalogEntityKey(List<String> path, String datasetId) {
+  CatalogEntityKey createCatalogEntityKey(List<String> path, String datasetId) {
     final CatalogEntityKey.Builder builder = CatalogEntityKey.newBuilder().keyComponents(path);
-    if (isVersionedDatasetId(datasetId)) {
-      VersionedDatasetId versionedDatasetId = null;
-      try {
-        versionedDatasetId = VersionedDatasetId.fromString(datasetId);
-      } catch (JsonProcessingException e) {
-        throw new IllegalStateException(
-            String.format("Could not parse VersionedDatasetId from string : %s", datasetId), e);
-      }
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datasetId);
+    if (versionedDatasetId != null) {
       assert (path.equals(versionedDatasetId.getTableKey()));
       builder.tableVersionContext(versionedDatasetId.getVersionContext());
     }
@@ -606,7 +646,7 @@ public class DependencyManager {
    * @param dependency
    * @return accelerationSettings
    */
-  private AccelerationSettings getSettingsForDependency(
+  AccelerationSettings getSettingsForDependency(
       DependencyResolutionContext context, DependencyEntry dependency) {
     switch (dependency.getType()) {
       case DATASET:
@@ -742,7 +782,8 @@ public class DependencyManager {
         .setReflectionName(reflectionEntry.getName())
         .setReflectionState(reflectionEntry.getState())
         .setLastSubmittedRefresh(reflectionEntry.getLastSubmittedRefresh())
-        .setLastSuccessfulRefresh(reflectionEntry.getLastSuccessfulRefresh());
+        .setLastSuccessfulRefresh(reflectionEntry.getLastSuccessfulRefresh())
+        .setNumFailures(reflectionEntry.getNumFailures());
     materializationInfoCache.put(reflectionId, builder.build());
   }
 
@@ -756,7 +797,8 @@ public class DependencyManager {
         .setReflectionName(reflectionEntry.getName())
         .setReflectionState(reflectionEntry.getState())
         .setLastSubmittedRefresh(reflectionEntry.getLastSubmittedRefresh())
-        .setLastSuccessfulRefresh(reflectionEntry.getLastSuccessfulRefresh());
+        .setLastSuccessfulRefresh(reflectionEntry.getLastSuccessfulRefresh())
+        .setNumFailures(reflectionEntry.getNumFailures());
     materializationInfoCache.put(reflectionId, builder.build());
   }
 
@@ -906,5 +948,94 @@ public class DependencyManager {
     }
     throw new IllegalArgumentException(
         String.format("Invalid value specified in days of week for refreshSchedule: %s", day));
+  }
+
+  DependencyGraph getGraph() {
+    return graph;
+  }
+
+  OptionManager getOptionManager() {
+    return optionManager;
+  }
+
+  /** Get backoff time interval in minute for refresh retry */
+  private long getBackoffMinutes(final Integer numFailures) {
+    long[] backoffs = {1, 2, 5, 15, 30, 60, 120, 240};
+    if (numFailures < backoffs.length) {
+      return backoffs[numFailures - 1];
+    } else {
+      return backoffs[backoffs.length - 1];
+    }
+  }
+
+  /**
+   * Decide whether to retry refresh or not for a reflection entry 1. check if the backoff interval
+   * is met 2. check if "Refresh Now" is requested
+   */
+  boolean shouldRetryAfterFailure(
+      final ReflectionId reflectionId,
+      final int numFailures,
+      final long lastSubmitted,
+      final long currentTime,
+      final DependencyResolutionContext dependencyResolutionContext) {
+    assert numFailures > 0;
+    final long backoffMinutes = getBackoffMinutes(numFailures);
+    // Either immediate backoff is enabled or the backoff time interval is met, we return true
+    if (!optionManager.getOption(ReflectionOptions.ENABLE_EXPONENTIAL_BACKOFF_FOR_RETRY_POLICY)
+        || lastSubmitted + MINUTES.toMillis(backoffMinutes) <= currentTime) {
+      logger.info(
+          "Retry refresh due for {}, which has failed {} times. Current time is {},"
+              + " last submitted refresh is {}, backoff is {} mins",
+          ReflectionUtils.getId(reflectionId),
+          numFailures,
+          Instant.ofEpochMilli(currentTime),
+          Instant.ofEpochMilli(lastSubmitted),
+          backoffMinutes);
+      return true;
+    }
+
+    return dependencyGraphDeepSearchHelper(
+        reflectionId,
+        dependency -> {
+          final RefreshRequest request =
+              dependencyResolutionContext.getRefreshRequest(dependency.getId());
+          if (request != null && lastSubmitted < request.getRequestedAt()) {
+            logger.info(
+                "Retry refresh for {} because of Refresh Now,"
+                    + " which has failed {} times. Current time is {},"
+                    + " last submitted refresh is {}, refresh is requested at {}",
+                ReflectionUtils.getId(reflectionId),
+                numFailures,
+                Instant.ofEpochMilli(currentTime),
+                Instant.ofEpochMilli(lastSubmitted),
+                Instant.ofEpochMilli(request.getRequestedAt()));
+            return true;
+          }
+          return false;
+        });
+  }
+
+  /**
+   * A helper function to do dfs on dependency graph. At each level we call the helper function
+   * itself again for each reflection dependency predecessor until there is no dependencies or at
+   * least one dataset dependency (leaf node) is found with true returned by checkDependencyFunc.
+   *
+   * @param reflectionId Reflection ID that specifies the starting point of dfs
+   * @param checkDependencyFunc A function defined by caller to return boolean result, which only
+   *     applies to dataset dependencies.
+   * @return return true if any of the checkDependencyFunc results is true. Otherwise, return false.
+   */
+  boolean dependencyGraphDeepSearchHelper(
+      final ReflectionId reflectionId, Function<DependencyEntry, Boolean> checkDependencyFunc) {
+    final Iterable<DependencyEntry> dependencies = getGraph().getPredecessors(reflectionId);
+    if (Iterables.isEmpty(dependencies)) {
+      return false;
+    }
+    return filterReflectionDependencies(dependencies).stream()
+            .anyMatch(
+                dependency ->
+                    dependencyGraphDeepSearchHelper(
+                        dependency.getReflectionId(), checkDependencyFunc))
+        || filterDatasetDependencies(dependencies).stream().anyMatch(checkDependencyFunc::apply);
   }
 }

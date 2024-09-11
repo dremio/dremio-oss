@@ -16,6 +16,7 @@
 package com.dremio.exec.sql;
 
 import static com.dremio.TestBuilder.listOf;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,6 +45,9 @@ import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.FileSystem;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.test.TemporarySystemProperties;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.Lists;
@@ -195,7 +199,7 @@ public class TestCTAS extends PlanTestBase {
       errorMsgTestHelper(
           ctasQuery,
           String.format(
-              "A table or view with given name [%s.%s] already exists", "dfs_test", newTblName));
+              "A table or view with given name [%s.%s] already exists", TEMP_SCHEMA, newTblName));
     } finally {
       test(String.format("DROP VIEW %s.%s", TEMP_SCHEMA, newTblName));
     }
@@ -213,6 +217,26 @@ public class TestCTAS extends PlanTestBase {
       errorTypeTestHelper(ctasQuery, ErrorType.PARSE);
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
+    }
+  }
+
+  @Test
+  public void ctasTableInSpace() throws Exception {
+    final String newTblName = "ctasTableInSpace";
+
+    NamespaceService namespaceService = getSabotContext().getNamespaceService(SYSTEM_USERNAME);
+    NamespaceKey namespaceKey = new NamespaceKey("test");
+    namespaceService.addOrUpdateSpace(namespaceKey, new SpaceConfig());
+
+    final String ctasQuery = "CREATE TABLE test AS SELECT 1";
+
+    try {
+      errorMsgTestHelper(
+          ctasQuery,
+          String.format("You cannot create a table in a space (name: %s).", namespaceKey));
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
+      namespaceService.deleteSpace(namespaceKey, null);
     }
   }
 
@@ -525,10 +549,8 @@ public class TestCTAS extends PlanTestBase {
 
   @Test
   public void ctasSimpleTransactionalTable() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      final String newTblName = "nation_ctas_tt";
-      testCtasSimpleTransactionalTable("nation_ctas_tt_v2", TEMP_SCHEMA_HADOOP);
-    }
+    final String newTblName = "nation_ctas_tt";
+    testCtasSimpleTransactionalTable("nation_ctas_tt_v2", TEMP_SCHEMA_HADOOP);
   }
 
   @Test
@@ -536,7 +558,7 @@ public class TestCTAS extends PlanTestBase {
     final String newTblName = "complex_ctas_tt";
     File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/complexJson";
       final String ctasQuery =
@@ -625,11 +647,9 @@ public class TestCTAS extends PlanTestBase {
 
   @Test
   public void ctasMultiSplitTransactionalTable() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      final String newTblName = "supplier_ctas_multisplit_tt";
-      testCtasMultiSplitTransactionalTable(
-          "supplier_ctas_multisplit_tt_new", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
-    }
+    final String newTblName = "supplier_ctas_multisplit_tt";
+    testCtasMultiSplitTransactionalTable(
+        "supplier_ctas_multisplit_tt_new", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
   }
 
   private void testInsertSimpleTransactionalTable(String newTblName, String schema)
@@ -695,17 +715,15 @@ public class TestCTAS extends PlanTestBase {
 
   @Test
   public void insertSimpleTransactionalTable() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      final String newTblName = "nation_insert_tt";
-      testInsertSimpleTransactionalTable("nation_insert_tt_new", TEMP_SCHEMA_HADOOP);
-    }
+    final String newTblName = "nation_insert_tt";
+    testInsertSimpleTransactionalTable("nation_insert_tt_new", TEMP_SCHEMA_HADOOP);
   }
 
   @Test
   public void testCaseSensitiveCTASTransactionalTable() throws Exception {
     final String newTblName = "case_sensitive_tt";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String complexJson = testWorkingPath + "/src/test/resources/iceberg/complexJson";
       final String ctasQuery =
@@ -739,7 +757,7 @@ public class TestCTAS extends PlanTestBase {
   public void insertComplexTransactionalTable() throws Exception {
     final String newTblName = "complex_insert_tt";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String complexJson = testWorkingPath + "/src/test/resources/iceberg/complexJson";
       final String ctasQuery =
@@ -881,7 +899,7 @@ public class TestCTAS extends PlanTestBase {
   public void testCTASIcebergTableFormat() throws Exception {
     final String newTblName = "IcebergTblPartitionByCtasColList";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String ctasQuery =
           String.format(
               "CREATE TABLE %s.%s (cnt, rkey) PARTITION BY (cnt) "
@@ -921,7 +939,7 @@ public class TestCTAS extends PlanTestBase {
     final String intTable1 = "int1";
     final String intTable2 = "int2";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String intQuery1 = String.format("CREATE TABLE %s.%s(id int)", TEMP_SCHEMA, intTable1);
       test(intQuery1);
 
@@ -947,7 +965,7 @@ public class TestCTAS extends PlanTestBase {
     final String intString = "int_string";
     final String intInt = "int_int";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String intStringQuery =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -968,7 +986,7 @@ public class TestCTAS extends PlanTestBase {
       ctasErrorTestHelper(
           intIntInToIntString,
           "Table schema(n_nationkey::int32, n_name::varchar) "
-              + "doesn't match with query schema(n_nationkey::int32, n_regionkey::int32)");
+              + "doesn't match with query schema(n_nationkey::int32, n_name::int32)");
 
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), intInt));
@@ -982,7 +1000,7 @@ public class TestCTAS extends PlanTestBase {
     final String decimal1 = "scale3";
     final String decimal2 = "prec1";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String decimal1Query =
           String.format("CREATE TABLE %s.%s(id int, code decimal(18, 3))", TEMP_SCHEMA, decimal1);
       test(decimal1Query);
@@ -1013,7 +1031,7 @@ public class TestCTAS extends PlanTestBase {
     final String emptyTblName = "empty_table";
     final String ctasEmptyTblName = "ctas_empty_table";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String ctasQuery =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -1079,7 +1097,7 @@ public class TestCTAS extends PlanTestBase {
   @Test
   public void testCreateTableCommandInvalidPath() throws Exception {
     final String tblName = "invalid_path_test";
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String createTableQuery = String.format("CREATE TABLE %s(id int, code int)", tblName);
       UserExceptionAssert.assertThatThrownBy(() -> test(createTableQuery))
           .hasMessageContaining(
@@ -1092,7 +1110,7 @@ public class TestCTAS extends PlanTestBase {
   @Test
   public void testCaseSensitiveDateColumn() throws Exception {
     final String caseSensitiveTest = "case_sensitive_date_test";
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       String createCommandSql =
           "create table "
               + TEMP_SCHEMA
@@ -1119,22 +1137,20 @@ public class TestCTAS extends PlanTestBase {
   @Test
   public void testIncorrectCatalog() throws Exception {
     final String newTblName = "test_incorrect_iceberg_catalog";
-    try (AutoCloseable c = enableIcebergTables()) {
-      final String ctasQuery =
-          String.format(
-              "CREATE TABLE %s.%s  "
-                  + " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
-              TEMP_SCHEMA_HADOOP, newTblName);
-      test(ctasQuery);
-      // Try with wrong catalog (TEMP_SCHEMA is configured to use Nessie catalog)
-      File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
-      IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA);
-      UserExceptionAssert.assertThatThrownBy(
-              () ->
-                  icebergModel.getIcebergTable(
-                      icebergModel.getTableIdentifier(tableFolder.getPath())))
-          .hasMessageContaining("Failed to load the Iceberg table.");
-    }
+    final String ctasQuery =
+        String.format(
+            "CREATE TABLE %s.%s  "
+                + " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
+            TEMP_SCHEMA_HADOOP, newTblName);
+    test(ctasQuery);
+    // Try with wrong catalog (TEMP_SCHEMA is configured to use Nessie catalog)
+    File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
+    IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA);
+    UserExceptionAssert.assertThatThrownBy(
+            () ->
+                icebergModel.getIcebergTable(
+                    icebergModel.getTableIdentifier(tableFolder.getPath())))
+        .hasMessageContaining("Failed to load the Iceberg table.");
   }
 
   @Test
@@ -1142,7 +1158,7 @@ public class TestCTAS extends PlanTestBase {
 
     final String icebergTable = "icebergTable";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String query =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -1179,7 +1195,7 @@ public class TestCTAS extends PlanTestBase {
 
     final String icebergTable = "icebergTableCTASStorageOption";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String query =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -1226,7 +1242,7 @@ public class TestCTAS extends PlanTestBase {
 
     final String testCtasDefaultTable = "testCtasDefault";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String query =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -1248,8 +1264,7 @@ public class TestCTAS extends PlanTestBase {
   public void testCTASCreateIcebergWithMapColumn() throws Exception {
     final String icebergTable = "icebergWithMapColumn";
 
-    try (AutoCloseable c = enableIcebergTables();
-        AutoCloseable c2 = enableMapDataType()) {
+    try (AutoCloseable c2 = enableMapDataType()) {
       final String query =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -1287,8 +1302,7 @@ public class TestCTAS extends PlanTestBase {
   public void testCTASCreateParquetWithMapColumn() throws Exception {
     final String parquetTable = "parquetWithMapColumn";
 
-    try (AutoCloseable c = enableIcebergTables();
-        AutoCloseable c2 = enableMapDataType()) {
+    try (AutoCloseable c2 = enableMapDataType()) {
       final String query =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -1394,5 +1408,44 @@ public class TestCTAS extends PlanTestBase {
     Assert.assertTrue(
         Objects.requireNonNull(tableFolder.listFiles((dir, name) -> !name.contains("crc"))).length
             > 1);
+  }
+
+  // (See DX-83067)
+  // When partitioning by a column, the column needs to match one of the projected columns in the
+  // select. Therefore, it is important that the projected row type of the select query is
+  // consistent.
+  @Test
+  public void testPartitionColumnResolution() throws Exception {
+    final String innerTable = String.format("%s.%s", TEMP_SCHEMA, "inner_table");
+    final String ctasTable = String.format("%s.%s", TEMP_SCHEMA, "ctas_table");
+
+    try {
+      String createInnerTable =
+          String.format(
+              "create table %s (_c1 varchar, _c2 varchar, _c3 varchar) as "
+                  + "select * from (values ('a1', 'a2', 'a3'), ('b1', 'b2', 'b3'))",
+              innerTable);
+      runSQL(createInnerTable);
+
+      String ctas =
+          String.format(
+              "create table %s hash partition by (\"c1\") store as (type => 'iceberg') as ("
+                  + "select T1._c1 as c1, T1._c2 as c2 from ("
+                  + "select _c1, _c2 from %s where _c3 = 'a3' limit 1) T1)",
+              ctasTable, innerTable);
+      runSQL(ctas);
+
+      String query = String.format("select * from %s", ctasTable);
+
+      testBuilder()
+          .sqlQuery(query)
+          .unOrdered()
+          .baselineColumns("c1", "c2")
+          .baselineValues("a1", "a2")
+          .go();
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), innerTable));
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), ctasTable));
+    }
   }
 }

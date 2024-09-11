@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.api;
 
-import static com.dremio.dac.server.UIOptions.ALLOW_HIVE_SOURCE;
+import static com.dremio.dac.options.UIOptions.ALLOW_HIVE_SOURCE;
 import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
 import static com.dremio.exec.store.jdbc.JdbcPluginOptions.JDBC_OPENSEARCH_ENABLED;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -29,9 +29,9 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SourceVerifier;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -40,6 +40,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -76,8 +77,10 @@ public class DeprecatedSourceResource {
         SourceConfig sourceConfig,
         AccelerationSettings settings,
         ConnectionReader reader,
-        List<CatalogItem> children) {
-      super(sourceConfig, settings, reader, children);
+        List<CatalogItem> children,
+        @Nullable String nextPageToken,
+        SourceState state) {
+      super(sourceConfig, settings, reader, children, nextPageToken, state);
     }
 
     public SourceDeprecated(Source source) {
@@ -91,6 +94,8 @@ public class DeprecatedSourceResource {
       setCreatedAt(source.getCreatedAt());
       setMetadataPolicy(source.getMetadataPolicy());
       setAccelerationRefreshPeriodMs(source.getAccelerationRefreshPeriodMs());
+      setAccelerationNeverExpire(source.isAccelerationNeverExpire());
+      setAccelerationNeverRefresh(source.isAccelerationNeverRefresh());
       setAccelerationRefreshSchedule(source.getAccelerationRefreshSchedule());
       setAccelerationActivePolicyType(source.getAccelerationActivePolicyType());
       setAccelerationGracePeriodMs(source.getAccelerationGracePeriodMs());
@@ -103,7 +108,6 @@ public class DeprecatedSourceResource {
   }
 
   private final SourceService sourceService;
-  private final SystemOptionManager systemOptionManager;
   private final OptionManager optionManager;
   private final Provider<SourceVerifier> sourceVerifierProvider;
   private final Provider<ConnectionReader> connectionReaderProvider;
@@ -111,12 +115,10 @@ public class DeprecatedSourceResource {
   @Inject
   public DeprecatedSourceResource(
       SourceService sourceService,
-      SystemOptionManager systemOptionManager,
       OptionManager optionManager,
       Provider<SourceVerifier> sourceVerifierProvider,
       Provider<ConnectionReader> connectionReaderProvider) {
     this.sourceService = sourceService;
-    this.systemOptionManager = systemOptionManager;
     this.optionManager = optionManager;
     this.sourceVerifierProvider = sourceVerifierProvider;
     this.connectionReaderProvider = connectionReaderProvider;
@@ -131,7 +133,7 @@ public class DeprecatedSourceResource {
     for (SourceConfig sourceConfig : sourceConfigs) {
       Source source = fromSourceConfig(sourceConfig);
 
-      if (sourceVerifierProvider.get().isSourceSupported(source.getType(), systemOptionManager)) {
+      if (sourceVerifierProvider.get().isSourceSupported(source.getType(), optionManager)) {
         sources.add(source);
       }
     }
@@ -143,7 +145,7 @@ public class DeprecatedSourceResource {
   @RolesAllowed({"admin"})
   public SourceDeprecated addSource(SourceDeprecated source) {
     try {
-      if (!sourceVerifierProvider.get().isSourceSupported(source.getType(), systemOptionManager)) {
+      if (!sourceVerifierProvider.get().isSourceSupported(source.getType(), optionManager)) {
         throw new IllegalArgumentException(source.getType() + " source type is not supported.");
       }
 
@@ -170,7 +172,7 @@ public class DeprecatedSourceResource {
   public SourceDeprecated updateSource(@PathParam("id") String id, SourceDeprecated source) {
     SourceConfig sourceConfig;
     try {
-      if (!sourceVerifierProvider.get().isSourceSupported(source.getType(), systemOptionManager)) {
+      if (!sourceVerifierProvider.get().isSourceSupported(source.getType(), optionManager)) {
         throw new IllegalArgumentException(source.getType() + " source type is not supported.");
       }
 
@@ -205,7 +207,7 @@ public class DeprecatedSourceResource {
       if (isListable(input)) {
         String sourceType = input.getAnnotation(SourceType.class).value();
         if (isSourceTypeVisible(sourceType)
-            && sourceVerifierProvider.get().isSourceSupported(sourceType, systemOptionManager)) {
+            && sourceVerifierProvider.get().isSourceSupported(sourceType, optionManager)) {
           types.add(SourceTypeTemplate.fromSourceClass(input, false));
         }
       }

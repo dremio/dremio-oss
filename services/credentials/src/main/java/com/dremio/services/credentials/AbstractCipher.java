@@ -20,6 +20,7 @@ import static com.dremio.config.DremioConfig.CREDENTIALS_KEYSTORE_PASSWORD;
 import com.dremio.config.DremioConfig;
 import com.dremio.security.SecurityFolder;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,6 +35,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
@@ -47,6 +49,7 @@ import javax.crypto.spec.SecretKeySpec;
 public abstract class AbstractCipher implements Cipher {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(AbstractCipher.class);
+  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
   private static final String AES = "AES";
   private static final int INITIALIZATION_VECTOR_LENGTH_IN_BYTES = 12;
   private static final int AES_KEY_SIZE = 256;
@@ -139,13 +142,14 @@ public abstract class AbstractCipher implements Cipher {
   /** new AES secret key */
   protected static SecretKey newAESKey() throws NoSuchAlgorithmException {
     KeyGenerator keyGen = KeyGenerator.getInstance(AES);
-    keyGen.init(AES_KEY_SIZE, SecureRandom.getInstanceStrong());
+    keyGen.init(AES_KEY_SIZE, SECURE_RANDOM);
     return keyGen.generateKey();
   }
 
   /** Build secret token */
   @Override
   public String encrypt(String secret) throws CredentialsException {
+    final Stopwatch stopwatch = Stopwatch.createStarted();
     try {
       SecretKey kek = lookupKeystore(KEYSTORE_KEK_ENTRY_ALIAS, true);
       SecretKey dek = newAESKey();
@@ -158,18 +162,22 @@ public abstract class AbstractCipher implements Cipher {
       String encryptedSecretString = ENCODER.encodeToString(encryptedSecretBytes);
       String encryptedDekString = ENCODER.encodeToString(encryptedDekBytes);
 
+      logger.debug("Encryption took {} milliseconds.", stopwatch.elapsed(TimeUnit.MILLISECONDS));
       return OPAQUE_ID
           + SECURE_URI_SPLITTER
           + encryptedDekString
           + SECURE_URI_SPLITTER
           + encryptedSecretString;
     } catch (GeneralSecurityException e) {
+      logger.debug(
+          "Encryption failed and took {} milliseconds.", stopwatch.elapsed(TimeUnit.MILLISECONDS));
       throw new SecretCredentialsException("Building secret token encounters exception.", e);
     }
   }
 
   @Override
   public String decrypt(String token) throws CredentialsException {
+    final Stopwatch stopwatch = Stopwatch.createStarted();
     try {
       SecretKey kek = lookupKeystore(KEYSTORE_KEK_ENTRY_ALIAS, false);
       // split the encrypted secret to encrypted opaque_id, encrypted DEK, and encrypted secret
@@ -196,8 +204,11 @@ public abstract class AbstractCipher implements Cipher {
 
       byte[] secretBytesWithIV = DECODER.decode(encryptedSecretString);
       String secret = doDecrypt(secretBytesWithIV, dek);
+      logger.debug("Decryption took {} milliseconds.", stopwatch.elapsed(TimeUnit.MILLISECONDS));
       return secret;
     } catch (NoSuchElementException e) {
+      logger.debug(
+          "Decryption failed and took {} milliseconds.", stopwatch.elapsed(TimeUnit.MILLISECONDS));
       throw new SecretCredentialsException("Cannot decode token");
     }
   }
@@ -233,7 +244,7 @@ public abstract class AbstractCipher implements Cipher {
   SecretKey lookupKeystore(String alias, boolean create) throws CredentialsException {
     boolean keystoreExists = SecurityFolder.exists(getConfig(), getKeystoreFilename());
     if (!keystoreExists && !create) {
-      throw new NoSuchElementException("No key found");
+      throw new SecretCredentialsException("Keystore not found.");
     }
 
     try {

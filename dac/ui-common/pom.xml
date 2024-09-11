@@ -34,6 +34,11 @@
       <artifactId>dremio-ui-lib</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-js</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -83,7 +88,7 @@
             <id>lint</id>
             <phase>process-sources</phase>
             <goals>
-              <goal>npm</goal>
+              <goal>pnpm</goal>
             </goals>
             <configuration>
               <arguments>run lint</arguments>
@@ -92,7 +97,7 @@
           <execution>
             <id>test</id>
             <goals>
-              <goal>npm</goal>
+              <goal>pnpm</goal>
             </goals>
             <phase>test</phase>
             <configuration>
@@ -101,14 +106,14 @@
                 <JEST_JUNIT_OUTPUT_NAME>test-results.xml</JEST_JUNIT_OUTPUT_NAME>
                 <JEST_SUITE_NAME>ui-common</JEST_SUITE_NAME>
               </environmentVariables>
-              <arguments>run test -- --ci --reporters=jest-silent-reporter --reporters=summary --reporters=jest-junit</arguments>
+              <arguments>run test --ci --reporters=jest-silent-reporter --reporters=summary --reporters=jest-junit</arguments>
               <skip>${skipTests}</skip>
             </configuration>
           </execution>
           <execution>
             <id>build</id>
             <goals>
-              <goal>npm</goal>
+              <goal>pnpm</goal>
             </goals>
             <phase>compile</phase>
             <configuration>

@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE;
+import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializeNameMappingFromJson;
 import static com.dremio.exec.store.iceberg.IcebergUtils.createFileIOForIcebergMetadata;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getValueFromByteBuffer;
 import static com.dremio.exec.store.iceberg.IcebergUtils.isNonAddOnField;
@@ -34,11 +34,16 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitIdentity;
+import com.dremio.exec.store.SystemSchemas;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetXAttr.Builder;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -50,19 +55,24 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.ManifestEvaluator;
 import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.types.Type;
 
 /** Manifest list record reader */
@@ -93,11 +103,25 @@ public class IcebergManifestListRecordReader implements RecordReader {
   private StructVector splitIdentityVector;
   private VarBinaryVector splitInfoVector;
   private VarBinaryVector colIdsVector;
+  private VarCharVector outputFilePath;
+  private VarCharVector outputFileType;
 
   protected Iterator<ManifestFile> manifestFileIterator;
   protected Schema icebergTableSchema;
   protected OutputMutator output;
   protected Consumer<Integer> setColIds;
+  private final String schemeVariate;
+  private Configuration conf;
+  private String fsScheme;
+  private final boolean appendManifestInfo;
+
+  /***
+   * defaultNameMapping contains the default name/id mapping
+   * from parquet field name to iceberg field id.
+   * In case parquet files dont have field id and the Iceberg table we could use the
+   * name/id mapping defined in table property "schema.name-mapping.default"
+   */
+  protected NameMapping defaultNameMapping;
 
   public IcebergManifestListRecordReader(
       OperatorContext context,
@@ -110,7 +134,38 @@ public class IcebergManifestListRecordReader implements RecordReader {
       List<String> partitionCols,
       IcebergExtendedProp icebergExtendedProp,
       ManifestContentType manifestContent,
-      boolean isInternalIcebergScanTableMetadata) {
+      boolean isInternalIcebergScanTableMetadata,
+      String schemeVariate) {
+    this(
+        context,
+        metadataLocation,
+        pluginForIceberg,
+        dataset,
+        dataSourcePluginId,
+        fullSchema,
+        props,
+        partitionCols,
+        icebergExtendedProp,
+        manifestContent,
+        isInternalIcebergScanTableMetadata,
+        schemeVariate,
+        false);
+  }
+
+  public IcebergManifestListRecordReader(
+      OperatorContext context,
+      String metadataLocation,
+      SupportsIcebergRootPointer pluginForIceberg,
+      List<String> dataset,
+      String dataSourcePluginId,
+      BatchSchema fullSchema,
+      OpProps props,
+      List<String> partitionCols,
+      IcebergExtendedProp icebergExtendedProp,
+      ManifestContentType manifestContent,
+      boolean isInternalIcebergScanTableMetadata,
+      String schemeVariate,
+      boolean appendManifestInfo) {
     this.metadataLocation = metadataLocation;
     this.context = context;
     this.pluginForIceberg = pluginForIceberg;
@@ -128,6 +183,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
     this.icebergExtendedProp = icebergExtendedProp;
     this.manifestContent = manifestContent;
     this.isInternalIcebergScanTableMetadata = isInternalIcebergScanTableMetadata;
+    this.schemeVariate = schemeVariate;
+    this.appendManifestInfo = appendManifestInfo;
     try {
       this.icebergFilterExpression =
           IcebergSerDe.deserializeFromByteArray(icebergExtendedProp.getIcebergExpression());
@@ -143,7 +200,7 @@ public class IcebergManifestListRecordReader implements RecordReader {
     this.output = output;
     FileIO io = createIO(metadataLocation);
     TableMetadata tableMetadata = loadTableMetadata(io, context, this.metadataLocation);
-
+    initializeFileSystemScheme(io);
     partitionSpecMap = tableMetadata.specsById();
     final long snapshotId = icebergExtendedProp.getSnapshotId();
     final Snapshot snapshot =
@@ -156,21 +213,6 @@ public class IcebergManifestListRecordReader implements RecordReader {
         icebergExtendedProp.getIcebergSchema() != null
             ? IcebergSerDe.deserializedJsonAsSchema(icebergExtendedProp.getIcebergSchema())
             : tableMetadata.schema();
-
-    // DX-41522, throw exception when DeleteFiles are present.
-    // TODO: remove this throw when we get full support for handling the deletes correctly.
-    if (tableMetadata.formatVersion() > 1) {
-      long numDeleteFiles =
-          snapshot.summary() != null
-              ? Long.parseLong(snapshot.summary().getOrDefault("total-delete-files", "0"))
-              : 0;
-      if (numDeleteFiles > 0
-          && !context.getOptions().getOption(ENABLE_ICEBERG_MERGE_ON_READ_SCAN)) {
-        throw UserException.unsupportedError()
-            .message("Iceberg V2 tables with delete files are not supported.")
-            .buildSilently();
-      }
-    }
 
     long numEqualityDeletes =
         snapshot.summary() != null
@@ -185,6 +227,12 @@ public class IcebergManifestListRecordReader implements RecordReader {
           .buildSilently();
     }
 
+    String defaultNameMappingJson =
+        tableMetadata.property(TableProperties.DEFAULT_NAME_MAPPING, null);
+    if (defaultNameMappingJson != null) {
+      defaultNameMapping = deserializeNameMappingFromJson(defaultNameMappingJson);
+    }
+
     List<ManifestFile> manifestFileList = filterManifestFiles(getManifests(snapshot, io));
     manifestFileIterator = manifestFileList.iterator();
 
@@ -197,7 +245,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
         manifestContent == ManifestContentType.DELETES
             ? IcebergUtils.getColIDMapWithReservedDeleteFields(icebergTableSchema)
             : IcebergUtils.getIcebergColumnNameToIDMap(icebergTableSchema);
-    icebergDatasetXAttr =
+
+    Builder icebergDatasetXAttrBuilder =
         IcebergProtobuf.IcebergDatasetXAttr.newBuilder()
             .addAllColumnIds(
                 colIdMap.entrySet().stream()
@@ -207,10 +256,36 @@ public class IcebergManifestListRecordReader implements RecordReader {
                                 .setSchemaPath(c.getKey())
                                 .setId(c.getValue())
                                 .build())
-                    .collect(Collectors.toList()))
-            .build()
-            .toByteArray();
+                    .collect(Collectors.toList()));
+
+    if (defaultNameMapping != null && defaultNameMapping.asMappedFields().size() > 0) {
+      List<DefaultNameMapping> defaultNameMappingList = new ArrayList<>();
+      defaultNameMapping
+          .asMappedFields()
+          .fields()
+          .forEach(
+              (field) -> {
+                field
+                    .names()
+                    .forEach(
+                        (name) -> {
+                          Integer id = field.id();
+                          if (id != null) {
+                            defaultNameMappingList.add(
+                                DefaultNameMapping.newBuilder().setName(name).setId(id).build());
+                          }
+                        });
+              });
+
+      icebergDatasetXAttrBuilder.addAllDefaultNameMapping(defaultNameMappingList);
+    }
+    icebergDatasetXAttr = icebergDatasetXAttrBuilder.build().toByteArray();
     setColIds = outIndex -> colIdsVector.setSafe(outIndex, icebergDatasetXAttr);
+  }
+
+  protected void initializeFileSystemScheme(FileIO io) {
+    conf = pluginForIceberg.getFsConfCopy();
+    fsScheme = io instanceof DremioFileIO ? ((DremioFileIO) io).getFs().getScheme() : null;
   }
 
   protected FileIO createIO(String path) {
@@ -225,6 +300,10 @@ public class IcebergManifestListRecordReader implements RecordReader {
     splitIdentityVector = (StructVector) output.getVector(RecordReader.SPLIT_IDENTITY);
     splitInfoVector = (VarBinaryVector) output.getVector(RecordReader.SPLIT_INFORMATION);
     colIdsVector = (VarBinaryVector) output.getVector(RecordReader.COL_IDS);
+    if (appendManifestInfo) {
+      outputFilePath = (VarCharVector) output.getVector(SystemSchemas.FILE_PATH);
+      outputFileType = (VarCharVector) output.getVector(SystemSchemas.FILE_TYPE);
+    }
   }
 
   private List<ManifestFile> getManifests(Snapshot snapshot, FileIO io) {
@@ -274,12 +353,23 @@ public class IcebergManifestListRecordReader implements RecordReader {
       NullableStructWriter splitIdentityWriter = splitIdentityVector.getWriter();
       while (manifestFileIterator.hasNext() && outIndex < maxOutIndex) {
         ManifestFile manifestFile = manifestFileIterator.next();
+        String manifestFilePath =
+            StringUtils.isEmpty(schemeVariate)
+                ? manifestFile.path()
+                : IcebergUtils.getIcebergPathAndValidateScheme(
+                    manifestFile.path(), conf, fsScheme, schemeVariate);
+
         SplitIdentity splitIdentity =
-            new SplitIdentity(manifestFile.path(), 0, manifestFile.length(), manifestFile.length());
+            new SplitIdentity(manifestFilePath, 0, manifestFile.length(), manifestFile.length());
 
         writeSplitIdentity(splitIdentityWriter, outIndex, splitIdentity, tmpBuf);
         splitInfoVector.setSafe(outIndex, IcebergSerDe.serializeToByteArray(manifestFile));
         setColIds.accept(outIndex);
+        if (appendManifestInfo) {
+          outputFilePath.setSafe(outIndex, manifestFilePath.getBytes(StandardCharsets.UTF_8));
+          outputFileType.setSafe(
+              outIndex, IcebergFileType.MANIFEST.name().getBytes(StandardCharsets.UTF_8));
+        }
 
         for (Field field : schema) {
           if (isNonAddOnField(field.getName())) {

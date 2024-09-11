@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
+import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_DYNAMIC_PARAM_PREPARE;
+import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.containsParameters;
+
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PlannerPhase;
@@ -26,6 +29,7 @@ import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
@@ -33,6 +37,7 @@ import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.PlannerPhaseRulesStats;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
+import com.dremio.resource.GroupResourceInformation;
 import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
@@ -65,6 +70,9 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
 
   private PhysicalPlan plan;
   private ServerPreparedStatementState state;
+  private RelDataType rowtype;
+  private RelDataType preparedRowType;
+  private final boolean isParameterEnabled;
 
   public HandlerToPreparePlanBase(
       QueryContext context,
@@ -81,42 +89,72 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     this.sql = sql;
     this.observer = observer;
     this.config = config;
+    this.isParameterEnabled =
+        context.getOptions().getOption(ENABLE_DYNAMIC_PARAM_PREPARE) && containsParameters(sqlNode);
   }
 
   @Override
   public double plan() throws Exception {
     try {
-      final RecordingObserver recording = new RecordingObserver();
-      final AttemptObservers observers = AttemptObservers.of(observer, recording);
-      observers.planStart(sql);
-      plan = handler.getPlan(config.cloneWithNewObserver(observers), sql, sqlNode);
-      PreparedPlan prepared =
-          new PreparedPlan(
-              context.getQueryId(),
-              context.getQueryUserName(),
-              context.getQueryRequiresGroupsInfo(),
-              sql,
-              plan,
-              recording);
-      final Long handle = PREPARE_ID.getAndIncrement();
-      state =
-          ServerPreparedStatementState.newBuilder()
-              .setHandle(handle)
-              .setSqlQuery(sql)
-              .setPrepareId(context.getQueryId())
-              .build();
-      planCache.put(handle, prepared);
 
-      // record a partial plan so that we can grab metadata and use it (for example during view
-      // creation of via sql).
-      observers.planCompleted(
-          new ExecutionPlan(
-              context.getQueryId(), plan, ImmutableList.of(), new PlanFragmentsIndex.Builder()),
-          null);
+      if (isParameterEnabled) {
+        SqlValidatorAndToRelContext sqlValidatorAndToRelContext =
+            config
+                .getConverter()
+                .getUserQuerySqlValidatorAndToRelContextBuilderFactory()
+                .builder()
+                .build();
+        SqlNode validatedNode = sqlValidatorAndToRelContext.validate(sqlNode);
+        rowtype = sqlValidatorAndToRelContext.getValidator().getValidatedNodeType(validatedNode);
+        preparedRowType =
+            sqlValidatorAndToRelContext.getValidator().getParameterRowType(validatedNode);
+
+        final long handle = PREPARE_ID.getAndIncrement();
+        state =
+            ServerPreparedStatementState.newBuilder()
+                .setHandle(handle)
+                .setSqlQuery(sql)
+                .setPrepareId(context.getQueryId())
+                .build();
+      } else {
+        final RecordingObserver recording = getRecordingObserver();
+        final AttemptObservers observers = AttemptObservers.of(observer, recording);
+        observers.planStart(sql);
+        plan = handler.getPlan(config.cloneWithNewObserver(observers), sql, sqlNode);
+        PreparedPlan prepared =
+            new PreparedPlan(
+                context.getQueryId(),
+                context.getQueryUserName(),
+                context.getQueryRequiresGroupsInfo(),
+                sql,
+                plan,
+                recording);
+
+        final long handle = PREPARE_ID.getAndIncrement();
+        state =
+            ServerPreparedStatementState.newBuilder()
+                .setHandle(handle)
+                .setSqlQuery(sql)
+                .setPrepareId(context.getQueryId())
+                .build();
+        planCache.put(handle, prepared);
+
+        // record a partial plan so that we can grab metadata and use it (for example during view
+        // creation of via sql).
+        observers.planCompleted(
+            new ExecutionPlan(
+                context.getQueryId(), plan, ImmutableList.of(), new PlanFragmentsIndex.Builder()),
+            null);
+      }
+
       return 1;
     } catch (Exception ex) {
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
+  }
+
+  protected RecordingObserver getRecordingObserver() {
+    return new RecordingObserver();
   }
 
   @Override
@@ -134,18 +172,23 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     return "prepare; query";
   }
 
-  private interface ObserverCall {
+  public interface ObserverCall {
     void doCall(AttemptObserver observer);
   }
 
   /** Collects planning calls to be carried to execution. So not all methods are overridden. */
   public static class RecordingObserver extends AbstractAttemptObserver {
 
-    private final List<ObserverCall> calls = new ArrayList<>();
+    protected final List<ObserverCall> calls = new ArrayList<>();
 
     @Override
     public void planStart(final String rawPlan) {
       calls.add(observer -> observer.planStart(rawPlan));
+    }
+
+    @Override
+    public void resourcesPlanned(GroupResourceInformation resourceInformation, long millisTaken) {
+      calls.add(observer -> observer.resourcesPlanned(resourceInformation, millisTaken));
     }
 
     @Override
@@ -256,13 +299,11 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     public void restoreAccelerationProfileFromCachedPlan(AccelerationProfile accelerationProfile) {
       calls.add(observer -> observer.restoreAccelerationProfileFromCachedPlan(accelerationProfile));
     }
-    ;
 
     @Override
     public void planCacheUsed(int count) {
       calls.add(observer -> observer.planCacheUsed(count));
     }
-    ;
 
     @Override
     public void updateReflectionsWithHints(
@@ -288,5 +329,17 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
 
   protected ServerPreparedStatementState getState() {
     return state;
+  }
+
+  protected RelDataType getRowType() {
+    return rowtype;
+  }
+
+  protected RelDataType getPreparedRowType() {
+    return preparedRowType;
+  }
+
+  protected boolean isParameterEnabled() {
+    return isParameterEnabled;
   }
 }

@@ -16,6 +16,7 @@
 package com.dremio.sabot.rpc;
 
 import static com.dremio.exec.rpc.RpcBus.get;
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
@@ -49,11 +50,11 @@ import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
 import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
+import com.dremio.service.jobtelemetry.instrumentation.MetricLabel;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
@@ -61,12 +62,14 @@ import io.grpc.stub.StreamObserver;
 import io.netty.buffer.ByteBuf;
 import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import org.apache.arrow.memory.BufferAllocator;
 
 /**
  * Provides support for communication between coordination and executor nodes. Run on both types of
  * nodes but only one handler may be valid.
  */
+@Singleton
 public class CoordExecService implements Service {
 
   private static final org.slf4j.Logger logger =
@@ -86,14 +89,8 @@ public class CoordExecService implements Service {
   /**
    * Create a new exec service. Note that at start time, the provider to one of the handlers may be
    * a noop implementation. This is allowed if this is a single role node.
-   *
-   * @param config
-   * @param allocator
-   * @param fabricService
-   * @param executorService
-   * @param execResults
-   * @param execStatus
    */
+  @Inject
   public CoordExecService(
       SabotConfig config,
       BufferAllocator allocator,
@@ -130,9 +127,10 @@ public class CoordExecService implements Service {
   public void start() throws Exception {
     fabricService.get().registerProtocol(new CoordExecProtocol());
     rpcOffloadPool = new CloseableThreadPool("Fabric-RPC-Offload");
-    final String prefix = "rpc";
-    Metrics.newGauge(prefix + "bit.control.current", allocator::getAllocatedMemory);
-    Metrics.newGauge(prefix + "bit.control.peak", allocator::getPeakMemoryAllocation);
+
+    newGauge("rpc.bit.control_current", allocator::getAllocatedMemory);
+    newGauge("rpc.bit.control_peak", allocator::getPeakMemoryAllocation);
+
     logger.info("CoordExecService started");
   }
 
@@ -356,8 +354,17 @@ public class CoordExecService implements Service {
                 PutExecutorProfileRequest.newBuilder().setProfile(profile).build();
             String jobId = QueryIdHelper.getQueryId(request.getProfile().getQueryId());
             try {
-              stub.putExecutorProfile(request);
+              jobTelemetryClient.get().getRetryer().call(() -> stub.putExecutorProfile(request));
             } catch (RuntimeException ex) {
+              jobTelemetryClient
+                  .get()
+                  .getSuppressedErrorCounter()
+                  .withTags(
+                      MetricLabel.JTS_METRIC_TAG_KEY_RPC,
+                      MetricLabel.JTS_METRIC_TAG_VALUE_RPC_PUT_EXECUTOR_PROFILE,
+                      MetricLabel.JTS_METRIC_TAG_KEY_ERROR_ORIGIN,
+                      MetricLabel.JTS_METRIC_TAG_VALUE_COORD_EXEC_NODE_QUERY_PROFILE)
+                  .increment();
               logger.warn(
                   "Could not send intermediate executor profile for job id "
                       + jobId

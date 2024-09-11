@@ -159,11 +159,7 @@ public class DatasetTool {
               engineName,
               sessionId);
       MetadataJobStatusListener listener = new MetadataJobStatusListener(this, newDataset, null);
-      // The saved dataset is incomplete, we want save the dataset again once the metadata is
-      // collected.
-      if (newDataset.getSqlFieldsList() == null) {
-        listener.waitToApplyMetadataAndSaveDataset();
-      }
+      listener.waitToApplyMetadataAndSaveDataset();
 
       JobData jobData =
           executor.runQueryWithListener(
@@ -173,9 +169,7 @@ public class DatasetTool {
               newDataset.getVersion(),
               listener);
       jobId = jobData.getJobId();
-      if (newDataset.getSqlFieldsList() == null) {
-        listener.setJobId(jobId);
-      }
+      listener.setJobId(jobId);
     }
     return getInitialPreviewResponse(
         newDataset, jobId, new SessionId().setId(sessionId), tipVersion, null, null);
@@ -1349,8 +1343,7 @@ public class DatasetTool {
       Optional<List<FieldOrigin>> fieldOrigins,
       Optional<List<ParentDataset>> grandParents,
       QueryMetadata metadata) {
-    final List<ViewFieldType> viewFieldTypesList =
-        JobsProtoUtil.toStuff(metadata.getFieldTypeList());
+    List<ViewFieldType> viewFieldTypesList = JobsProtoUtil.toStuff(metadata.getFieldTypeList());
     if (batchSchema.isPresent()) {
       dataset.setSqlFieldsList(ViewFieldsHelper.getBatchSchemaFields(batchSchema.get()));
       dataset.setRecordSchema(batchSchema.get().toByteString());
@@ -1368,9 +1361,12 @@ public class DatasetTool {
                 .setLevel(1));
       }
       dataset.setParentsList(otherParents);
+    } else {
+      dataset.setParentsList(Collections.emptyList());
     }
-    fieldOrigins.ifPresent(dataset::setFieldOriginsList);
-    grandParents.ifPresent(dataset::setGrandParentsList);
+
+    dataset.setFieldOriginsList(fieldOrigins.orElse(Collections.emptyList()));
+    dataset.setGrandParentsList(grandParents.orElse(Collections.emptyList()));
     updateDerivationAfterLearningOriginsAndAncestors(dataset);
   }
 

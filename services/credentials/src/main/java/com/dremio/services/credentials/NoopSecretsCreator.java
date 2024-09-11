@@ -16,6 +16,7 @@
 package com.dremio.services.credentials;
 
 import java.net.URI;
+import java.util.Optional;
 import javax.inject.Inject;
 
 /**
@@ -33,7 +34,7 @@ public class NoopSecretsCreator implements SecretsCreator {
   }
 
   @Override
-  public URI encrypt(String secret) throws CredentialsException {
+  public Optional<URI> encrypt(String secret) throws CredentialsException {
     throw new UnsupportedOperationException("encrypt not supported");
   }
 }

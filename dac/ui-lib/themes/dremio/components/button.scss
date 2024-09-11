@@ -47,7 +47,6 @@
 
   &--primary {
     @extend .bg-brand-300;
-
     &:hover,
     &:focus-visible {
       &:not([aria-busy="true"]) {
@@ -57,14 +56,14 @@
   }
 
   &--secondary {
-    background: white;
-    border-color: var(--color--neutral--100);
-    color: var(--color--neutral--600);
+    background: var(--fill--primary);
+    border-color: var(--border--neutral--solid);
+    color: var(--text--faded);
 
     &:hover,
     &:focus-visible {
       &:not([aria-busy="true"]) {
-        background: var(--color--neutral--25);
+        background: var(--fill--secondary);
       }
     }
   }
@@ -72,12 +71,12 @@
   &--tertiary {
     background: transparent;
     border-color: transparent;
-    color: var(--dremio--color--link);
+    color: var(--text--brand);
 
     &:hover,
     &:focus-visible {
       &:not([aria-busy="true"]) {
-        background: var(--color--brand--25);
+        background: var(--fill--primary--hover);
       }
     }
 
@@ -90,35 +89,35 @@
   }
 
   &--primary-danger {
-    background: var(--dremio--color--status--error--foreground);
+    background: var(--fill--danger--solid);
     border-color: transparent;
     color: white;
 
     &:hover {
-      background: var(--dremio--color--status--delete--background);
+      background: var(--fill--danger--bold);
     }
   }
 
   &--secondary-danger {
     background: transparent;
-    border-color: var(--color--neutral--100);
-    color: var(--dremio--color--status--error--foreground);
+    border-color: var(--border--neutral--solid);
+    color: var(--fill--danger--solid);
 
     &:hover {
-      background: var(--dremio--color--status--error--background);
-      border-color: var(--dremio--color--status--error--background);
+      background: var(--fill--danger);
+      border-color: var(--fill--danger);
     }
   }
 
   &--tertiary-danger {
     background: transparent;
     border-color: transparent;
-    color: var(--dremio--color--status--error--foreground);
+    color: var(--fill--danger--solid);
 
     &:hover,
     &:focus-visible {
       &:not([aria-busy="true"]) {
-        background: var(--dremio--color--status--error--background);
+        background: var(--fill--danger);
       }
     }
 
@@ -131,11 +130,27 @@
   }
 }
 
+.dremio-high-contrast-light {
+  .dremio-button {
+    &--primary {
+      background-color: var(--color--brand--300);
+      color: black;
+    }
+    &:disabled,
+    &[aria-disabled="true"] {
+      color: var(--color--neutral--500);
+    }
+  }
+}
+
 .dremio-dark .dremio-button {
   &--primary {
-    @extend .bg-brand-700;
-    &:hover {
-      @extend .bg-brand-800;
+    @extend .bg-brand-200;
+    &:hover,
+    &:focus-visible {
+      &:not([aria-busy="true"]) {
+        @extend .bg-brand-150;
+      }
     }
   }
 }

@@ -267,23 +267,19 @@ public class TestIcebergSortOrder extends BaseTestQuery {
   @BeforeClass
   public static void setup() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_DML, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML, "true");
   }
 
   @AfterClass
   public static void reset() {
     resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_DML.getOptionName());
-    resetSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML.getOptionName());
   }
 
   @Before
   public void before() throws Exception {
-    context = getNewOperatorContext(getAllocator());
+    context = getNewOperatorContext(getTestAllocator());
     testCloseables.add(context);
     fs = HadoopFileSystem.getLocal(new Configuration());
-    mutator = new SampleMutator(getAllocator());
+    mutator = new SampleMutator(getTestAllocator());
     testCloseables.add(mutator);
   }
 
@@ -1053,7 +1049,7 @@ public class TestIcebergSortOrder extends BaseTestQuery {
         allocator,
         null, // output allocator
         null, // code compiler
-        new OperatorStats(new OpProfileDef(0, 0, 0, 0), getAllocator()), // stats
+        new OperatorStats(new OpProfileDef(0, 0, 0, 0), getTestAllocator()), // stats
         null, // execution controls
         null, // fragment executor builder
         null, // executor service

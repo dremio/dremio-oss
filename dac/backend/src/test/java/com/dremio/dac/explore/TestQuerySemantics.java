@@ -31,7 +31,6 @@ import com.dremio.dac.proto.model.dataset.Order;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
@@ -56,9 +55,7 @@ public class TestQuerySemantics extends BaseTestServer {
   }
 
   private VirtualDatasetState extract(SqlQuery sql) {
-    QueryMetadata metadata =
-        QueryParser.extract(
-            sql, getCurrentDremioDaemon().getBindingProvider().lookup(SabotContext.class));
+    QueryMetadata metadata = QueryParser.extract(sql, getSabotContext());
     return QuerySemantics.extract(JobsProtoUtil.toBuf(metadata));
   }
 
@@ -292,31 +289,16 @@ public class TestQuerySemantics extends BaseTestServer {
         extract(
             getQueryFromSQL(
                 "select t.a.Tuesday as tuesday from cp.\"json/extract_map.json\" as t"));
-    if (!isComplexTypeSupport()) {
-      assertEquals(
-          new VirtualDatasetState()
-              .setFrom(new FromTable("\"cp\".\"json/extract_map.json\"").setAlias("t").wrap())
-              .setColumnsList(
-                  asList(
-                      new Column(
-                          "tuesday", new ExpCalculatedField("\"t\".\"a\"['Tuesday']").wrap())))
-              .setContextList(Collections.<String>emptyList())
-              .setReferredTablesList(Arrays.asList("json/extract_map.json")),
-          ds);
-    } else {
-      assertEquals(
-          new VirtualDatasetState()
-              .setFrom(
-                  new FromSQL(
-                          "select t.a.Tuesday as tuesday from cp.\"json/extract_map.json\" as t")
-                      .setAlias("nested_0")
-                      .wrap())
-              .setColumnsList(
-                  asList(new Column("tuesday", new ExpColumnReference("tuesday").wrap())))
-              .setContextList(Collections.<String>emptyList())
-              .setReferredTablesList(Arrays.asList("json/extract_map.json")),
-          ds);
-    }
+    assertEquals(
+        new VirtualDatasetState()
+            .setFrom(
+                new FromSQL("select t.a.Tuesday as tuesday from cp.\"json/extract_map.json\" as t")
+                    .setAlias("nested_0")
+                    .wrap())
+            .setColumnsList(asList(new Column("tuesday", new ExpColumnReference("tuesday").wrap())))
+            .setContextList(Collections.<String>emptyList())
+            .setReferredTablesList(Arrays.asList("json/extract_map.json")),
+        ds);
   }
 
   private static List<Column> cols(String... columns) {

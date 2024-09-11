@@ -36,10 +36,10 @@ dialog.dremio-modal-container {
 }
 
 .dremio-modal-container {
-  --dremio--modal-container--background: white;
+  --dremio--modal-container--background: var(--fill--primary);
   --dremio--modal-container--backdrop--background: rgba(41 56 73 / 50%);
   --dremio--modal-container--backdrop--blur: 2px;
-  --dremio--modal-container--border: 1px solid var(--color--neutral--50);
+  --dremio--modal-container--border: 1px solid var(--border--neutral);
   --dremio--modal-container--border-radius: var(--dremio--radius--1);
   --dremio--modal-container--shadow: var(--dremio--shadow--layer-1);
   --dremio--modal-container--window-margin: 30px;

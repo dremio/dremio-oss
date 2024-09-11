@@ -42,25 +42,23 @@ public class TestCommitAndCleaningFailure extends BaseTestQuery {
               .addException(AttemptManager.class, injectedFailure, exceptionClass)
               .build();
 
-      try (AutoCloseable c = enableIcebergTables()) {
-        try {
-          final String testWorkingPath = TestTools.getWorkingPath();
-          final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/orders";
-          final String ctasQuery =
-              String.format(
-                  "CREATE TABLE %s.%s PARTITION BY (o_orderdate) "
-                      + " AS SELECT * from dfs.\""
-                      + parquetFiles
-                      + "\" limit 2",
-                  testSchema,
-                  tableName);
+      try {
+        final String testWorkingPath = TestTools.getWorkingPath();
+        final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/orders";
+        final String ctasQuery =
+            String.format(
+                "CREATE TABLE %s.%s PARTITION BY (o_orderdate) "
+                    + " AS SELECT * from dfs.\""
+                    + parquetFiles
+                    + "\" limit 2",
+                testSchema,
+                tableName);
 
-          ControlsInjectionUtil.setControls(client, controls);
-          assertThatThrownBy(() -> test(ctasQuery)).hasMessageContaining(injectedFailure);
+        ControlsInjectionUtil.setControls(client, controls);
+        assertThatThrownBy(() -> test(ctasQuery)).hasMessageContaining(injectedFailure);
 
-        } finally {
-          FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
-        }
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }
     }
   }

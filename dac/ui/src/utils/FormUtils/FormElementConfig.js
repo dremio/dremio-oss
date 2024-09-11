@@ -21,7 +21,6 @@ import SelectWrapper from "components/Forms/Wrappers/SelectWrapper";
 import RadioWrapper from "components/Forms/Wrappers/RadioWrapper";
 import DurationWrapper from "components/Forms/Wrappers/DurationWrapper";
 import ByteWrapper from "components/Forms/Wrappers/ByteWrapper";
-import SqlWrapper from "components/Forms/Wrappers/SqlWrapper";
 import NullWrapper from "@app/components/Forms/Wrappers/NullWrapper";
 import ArcticCatalogSelectWrapper from "@app/components/Forms/Wrappers/SourceWrappers/ARCTIC/ArcticCatalogSelect/ArcticCatalogSelect";
 
@@ -54,8 +53,6 @@ export default class FormElementConfig {
         return DurationWrapper;
       case "byte":
         return ByteWrapper;
-      case "sql":
-        return SqlWrapper;
       default:
         return TextWrapper;
     }
@@ -118,7 +115,7 @@ export default class FormElementConfig {
       initValues,
       this._config.propName,
       this._config.value,
-      this._config.multiplier
+      this._config.multiplier,
     );
   }
 

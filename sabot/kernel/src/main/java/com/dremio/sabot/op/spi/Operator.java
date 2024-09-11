@@ -91,7 +91,7 @@ public interface Operator extends AutoCloseable {
 
     /**
      * Informs operator that no more data will arrive. After this point, operator must either expose
-     * CAN_POPULATE or DONE.
+     * CAN_PRODUCE or DONE.
      */
     void noMoreToConsume() throws Exception;
 

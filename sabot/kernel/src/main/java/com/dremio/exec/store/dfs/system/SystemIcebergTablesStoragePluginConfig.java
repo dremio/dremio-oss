@@ -21,12 +21,10 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.MayBeDistFileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
 import com.dremio.service.coordinator.proto.DataCredentials;
-import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.ImmutableList;
 import io.protostuff.Tag;
 import java.net.URI;
@@ -38,7 +36,7 @@ import javax.inject.Provider;
  * SystemIcebergTablesStoragePlugin. Clients should follow these steps to obtain a reference to the
  * SystemIcebergTablesStoragePlugin:
  *
- * <p>1. Use {@link SystemIcebergTablesStoragePluginConfig#create(URI, boolean, boolean,
+ * <p>1. Use {@link SystemIcebergTablesStoragePluginConfigFactory#create(URI, boolean, boolean,
  * DataCredentials)} to create a new SystemIcebergTablesStoragePlugin instance. This constructor
  * sets the connection parameter for the returning SourceConfig instance.
  *
@@ -228,20 +226,5 @@ public class SystemIcebergTablesStoragePluginConfig
   @Override
   public String getAccountKind() {
     return accountKind;
-  }
-
-  public static SourceConfig create(
-      URI path,
-      boolean enableAsync,
-      boolean enableS3FileStatusCheck,
-      DataCredentials dataCredentials) {
-    SourceConfig conf = new SourceConfig();
-    SystemIcebergTablesStoragePluginConfig connection =
-        new SystemIcebergTablesStoragePluginConfig(
-            path, enableAsync, enableS3FileStatusCheck, dataCredentials);
-    conf.setConnectionConf(connection);
-    conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-    conf.setName(SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
-    return conf;
   }
 }

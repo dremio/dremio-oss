@@ -16,6 +16,7 @@
 package com.dremio.exec.rpc;
 
 import com.dremio.common.exceptions.ErrorHelper;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.exec.proto.GeneralRPCProtos.CompleteRpcMessage;
@@ -112,25 +113,30 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage> {
         try {
           withoutRawMessage = ctx.alloc().buffer(fullLength + 5);
         } catch (OutOfMemoryException | OutOfMemoryError ex) {
+          msg.release();
+          String oomDetails = "Out of memory while encoding data. ";
+          UserException.Builder uexBuilder = UserException.memoryError(ex);
           if (ErrorHelper.isDirectMemoryException(ex)) {
-            msg.release();
-            UserException.Builder uexBuilder =
-                UserException.memoryError(ex).message("Out of memory while encoding data.");
-
             ByteBufAllocator byteBufAllocator = ctx.alloc();
             if (byteBufAllocator instanceof ArrowByteBufAllocator) {
               BufferAllocator bufferAllocator = ((ArrowByteBufAllocator) byteBufAllocator).unwrap();
-              uexBuilder.addContext(
-                  ex instanceof OutOfMemoryException
-                      ? MemoryDebugInfo.getDetailsOnAllocationFailure(
-                          (OutOfMemoryException) ex, bufferAllocator)
-                      : MemoryDebugInfo.getSummaryFromRoot(bufferAllocator));
+              oomDetails =
+                  oomDetails
+                      + (ex instanceof OutOfMemoryException
+                          ? MemoryDebugInfo.getDetailsOnAllocationFailure(
+                              (OutOfMemoryException) ex, bufferAllocator)
+                          : MemoryDebugInfo.getSummaryFromRoot(bufferAllocator));
             }
-            promise.setFailure(uexBuilder.buildSilently());
-            return;
+            uexBuilder.setAdditionalExceptionContext(
+                new OutOfMemoryOrResourceExceptionContext(
+                    OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY, oomDetails));
           } else {
-            throw ex;
+            uexBuilder.setAdditionalExceptionContext(
+                new OutOfMemoryOrResourceExceptionContext(
+                    OutOfMemoryOrResourceExceptionContext.MemoryType.HEAP_MEMORY, oomDetails));
           }
+          promise.setFailure(uexBuilder.buildSilently());
+          return;
         }
       } else {
         withoutRawMessage = UnpooledByteBufAllocator.DEFAULT.heapBuffer(fullLength + 5);

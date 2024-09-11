@@ -482,6 +482,11 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
         if (operand instanceof SqlNumericLiteral) {
           int value = ((SqlNumericLiteral) operand).intValue(false);
           return isPreceding ? value * -1 : value;
+        } else {
+          unsupportedOperatorCollector.setException(
+              SqlUnsupportedException.ExceptionType.FUNCTION,
+              "Offset for window frame must be a Integer literal");
+          throw new UnsupportedOperationException();
         }
       }
     }

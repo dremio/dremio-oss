@@ -44,11 +44,11 @@ import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
+import com.dremio.dac.options.UIOptions;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.InputValidation;
-import com.dremio.dac.server.UIOptions;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
@@ -205,7 +205,9 @@ public class HomeResource extends BaseResourceWithAllocator {
               .setExtendedConfig(new ExtendedConfig().setDatasetCount(dsCount));
       Home home = newHome(homePath, homeConfig);
       if (includeContents) {
-        home.setContents(newNamespaceTree(namespaceService.list(homePath.toNamespaceKey())));
+        home.setContents(
+            newNamespaceTree(
+                namespaceService.list(homePath.toNamespaceKey(), null, Integer.MAX_VALUE)));
       }
       return home;
     } catch (NamespaceNotFoundException nfe) {
@@ -299,7 +301,6 @@ public class HomeResource extends BaseResourceWithAllocator {
             securityContext.getUserPrincipal().getName(),
             new EntityId(UUID.randomUUID().toString()));
     datasetCatalog.createOrUpdateDataset(
-        namespaceService,
         new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME),
         filePath.toNamespaceKey(),
         datasetConfig);
@@ -472,7 +473,6 @@ public class HomeResource extends BaseResourceWithAllocator {
     newConfig.setOwner(oldConfig.getOwner());
     newConfig.setLocation(oldConfig.getLocation());
     datasetCatalog.createOrUpdateDataset(
-        namespaceService,
         new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME),
         filePath.toNamespaceKey(),
         toDatasetConfig(
@@ -493,10 +493,12 @@ public class HomeResource extends BaseResourceWithAllocator {
     FolderPath folderPath = FolderPath.fromURLPath(homeName, path);
     try {
       final FolderConfig folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
-      final NamespaceTree contents =
-          includeContents
-              ? newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()))
-              : null;
+      NamespaceTree contents = null;
+      if (includeContents) {
+        contents =
+            newNamespaceTree(
+                namespaceService.list(folderPath.toNamespaceKey(), null, Integer.MAX_VALUE));
+      }
       return newFolder(folderPath, folderConfig, contents);
     } catch (NamespaceNotFoundException nfe) {
       throw new FolderNotFoundException(folderPath, nfe);

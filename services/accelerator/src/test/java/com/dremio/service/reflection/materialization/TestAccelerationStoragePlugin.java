@@ -15,6 +15,8 @@
  */
 package com.dremio.service.reflection.materialization;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -160,5 +162,52 @@ public class TestAccelerationStoragePlugin {
     Path path = accelerationStoragePlugin.getPath(namespaceKey, "dremio");
     Assert.assertEquals(
         ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME + "/r_id/m_id_0", path.toString());
+  }
+
+  // Test for DX-92985
+  @Test
+  public void testSanitizePath() {
+    AccelerationStoragePluginConfig accelerationStoragePluginConfig =
+        mock(AccelerationStoragePluginConfig.class);
+    when(accelerationStoragePluginConfig.getPath())
+        .thenReturn(Path.of(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME));
+    SabotContext sabotContext = mock(SabotContext.class);
+    Provider<StoragePluginId> storagePluginIdProvider = mock(Provider.class);
+    MaterializationStore materializationStore = mock(MaterializationStore.class);
+    MaterializationPlanStore materializationPlanStore = mock(MaterializationPlanStore.class);
+    AccelerationStoragePlugin accelerationStoragePlugin =
+        spy(
+            new AccelerationStoragePlugin(
+                accelerationStoragePluginConfig,
+                sabotContext,
+                "testAccelerationStoragePlugin",
+                storagePluginIdProvider,
+                materializationStore,
+                materializationPlanStore));
+
+    // test HDFS scheme
+    String hdfsSchemaToRemove = "hdfs://localhost:8020/";
+    String hdfsLocation =
+        "dremio_storage/accelerator/bdc57dac-8adc-4beb-b9cf-77a49adc7ae5/dc45d2bc-f0f3-4f14-96c6-ae170b6dac76_0";
+    assertNotEquals(
+        "HDFS paths should be altered by sanitization",
+        hdfsLocation,
+        accelerationStoragePlugin.sanitizePath(hdfsSchemaToRemove + hdfsLocation));
+
+    // test file scheme
+    String inputFilePath =
+        "file://something/dremio_storage/accelerator/bdc57dac-8adc-4beb-b9cf-77a49adc7ae5/dc45d2bc-f0f3-4f14-96c6-ae170b6dac76_0";
+    assertEquals(
+        "Non-HDFS file paths shouldn't be changed by sanitization",
+        inputFilePath,
+        accelerationStoragePlugin.sanitizePath(inputFilePath));
+
+    // test S3
+    String s3Path =
+        "s3://somebucket/dremio_storage/accelerator/bdc57dac-8adc-4beb-b9cf-77a49adc7ae5/dc45d2bc-f0f3-4f14-96c6-ae170b6dac76_0";
+    assertEquals(
+        "Non-HDFS file paths shouldn't be changed by sanitization",
+        s3Path,
+        accelerationStoragePlugin.sanitizePath(s3Path));
   }
 }

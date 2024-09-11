@@ -24,7 +24,6 @@ import com.dremio.services.nessie.grpc.api.Content;
 import com.dremio.services.nessie.grpc.api.ContentKeyConflict;
 import com.dremio.services.nessie.grpc.api.ContentKeyConflictDetails;
 import com.dremio.services.nessie.grpc.api.ContentKeyDetails;
-import com.dremio.services.nessie.grpc.api.ContentRequest;
 import com.dremio.services.nessie.grpc.api.ContentType;
 import com.dremio.services.nessie.grpc.api.DeltaLakeTable.Builder;
 import com.dremio.services.nessie.grpc.api.DiffRequest;
@@ -122,6 +121,7 @@ import org.projectnessie.model.ImmutableReferenceHistoryState;
 import org.projectnessie.model.ImmutableReferenceMetadata;
 import org.projectnessie.model.ImmutableRepositoryConfigResponse;
 import org.projectnessie.model.ImmutableTag;
+import org.projectnessie.model.ImmutableUDF;
 import org.projectnessie.model.ImmutableUnchanged;
 import org.projectnessie.model.ImmutableUpdateRepositoryConfigResponse;
 import org.projectnessie.model.LogResponse;
@@ -143,6 +143,7 @@ import org.projectnessie.model.ReferenceHistoryState;
 import org.projectnessie.model.ReferenceMetadata;
 import org.projectnessie.model.RepositoryConfig;
 import org.projectnessie.model.Tag;
+import org.projectnessie.model.UDF;
 import org.projectnessie.model.types.ContentTypes;
 
 /** A simple utility class that translates between Protobuf classes and Nessie model classes. */
@@ -411,8 +412,13 @@ public final class ProtoUtil {
     if (obj instanceof Namespace) {
       return Content.newBuilder().setNamespace(toProto((Namespace) obj)).build();
     }
+
+    if (obj instanceof UDF) {
+      return Content.newBuilder().setUdf(toProto((UDF) obj)).build();
+    }
     throw new IllegalArgumentException(
-        String.format("'%s' must be an IcebergTable/DeltaLakeTable/IcebergView/Namespace", obj));
+        String.format(
+            "'%s' must be an IcebergTable/DeltaLakeTable/IcebergView/Namespace/UDF", obj));
   }
 
   public static org.projectnessie.model.Content fromProto(Content obj) {
@@ -429,8 +435,12 @@ public final class ProtoUtil {
     if (obj.hasNamespace()) {
       return fromProto(obj.getNamespace());
     }
+    if (obj.hasUdf()) {
+      return fromProto(obj.getUdf());
+    }
     throw new IllegalArgumentException(
-        String.format("'%s' must be an IcebergTable/DeltaLakeTable/IcebergView/Namespace", obj));
+        String.format(
+            "'%s' must be an IcebergTable/DeltaLakeTable/IcebergView/Namespace/UDF", obj));
   }
 
   private static String asId(String idFromProto) {
@@ -506,6 +516,7 @@ public final class ProtoUtil {
     return builder.build();
   }
 
+  @SuppressWarnings("deprecation")
   public static IcebergView fromProto(com.dremio.services.nessie.grpc.api.IcebergView view) {
     Preconditions.checkArgument(null != view, "IcebergView must be non-null");
     ImmutableIcebergView.Builder builder =
@@ -513,25 +524,38 @@ public final class ProtoUtil {
             .id(asId(view.getId()))
             .metadataLocation(view.getMetadataLocation())
             .versionId(view.getVersionId())
-            .schemaId(view.getSchemaId())
-            .dialect(view.getDialect())
-            .sqlText(view.getSqlText());
+            .schemaId(view.getSchemaId());
+
+    if (view.hasDialect()) {
+      builder.dialect(view.getDialect());
+    }
+
+    if (view.hasSqlText()) {
+      builder.sqlText(view.getSqlText());
+    }
 
     return builder.build();
   }
 
+  @SuppressWarnings("deprecation")
   public static com.dremio.services.nessie.grpc.api.IcebergView toProto(IcebergView view) {
     Preconditions.checkArgument(null != view, "IcebergView must be non-null");
     com.dremio.services.nessie.grpc.api.IcebergView.Builder builder =
         com.dremio.services.nessie.grpc.api.IcebergView.newBuilder()
             .setMetadataLocation(view.getMetadataLocation())
             .setVersionId(view.getVersionId())
-            .setSchemaId(view.getSchemaId())
-            .setDialect(view.getDialect())
-            .setSqlText(view.getSqlText());
+            .setSchemaId(view.getSchemaId());
     // the ID is optional when a new table is created - will be assigned on the server side
     if (null != view.getId()) {
       builder.setId(view.getId());
+    }
+
+    if (null != view.getDialect()) {
+      builder.setDialect(view.getDialect());
+    }
+
+    if (null != view.getSqlText()) {
+      builder.setSqlText(view.getSqlText());
     }
 
     return builder.build();
@@ -1081,17 +1105,14 @@ public final class ProtoUtil {
     return builder.build();
   }
 
-  public static ContentRequest toProto(ContentKey key, @Nullable String ref, String hashOnRef) {
-    ref = refNameOrDetached(ref);
-    ContentRequest.Builder builder =
-        ContentRequest.newBuilder().setContentKey(toProto(key)).setRef(ref);
-    builder = null != hashOnRef ? builder.setHashOnRef(hashOnRef) : builder;
-    return builder.build();
-  }
-
   public static MultipleContentsRequest toProto(
-      @Nullable String ref, String hashOnRef, GetMultipleContentsRequest request) {
-    final MultipleContentsRequest.Builder builder = MultipleContentsRequest.newBuilder();
+      @Nullable String ref,
+      String hashOnRef,
+      boolean forWrite,
+      GetMultipleContentsRequest request) {
+    final MultipleContentsRequest.Builder builder =
+        MultipleContentsRequest.newBuilder().setForWrite(forWrite);
+
     if (null != ref) {
       builder.setRef(ref);
     }
@@ -1413,6 +1434,33 @@ public final class ProtoUtil {
         .elements(namespace.getElementsList())
         .properties(namespace.getPropertiesMap())
         .build();
+  }
+
+  public static UDF fromProto(com.dremio.services.nessie.grpc.api.Udf udf) {
+    Preconditions.checkArgument(null != udf, "UDF must be non-null");
+    ImmutableUDF.Builder builder =
+        ImmutableUDF.builder()
+            .id(asId(udf.getId()))
+            .versionId(udf.getVersionId())
+            .signatureId(udf.getSignatureId())
+            .metadataLocation(udf.getMetadataLocation());
+
+    return builder.build();
+  }
+
+  public static com.dremio.services.nessie.grpc.api.Udf toProto(UDF udf) {
+    Preconditions.checkArgument(null != udf, "UDF must be non-null");
+    com.dremio.services.nessie.grpc.api.Udf.Builder builder =
+        com.dremio.services.nessie.grpc.api.Udf.newBuilder()
+            .setVersionId(udf.getVersionId())
+            .setSignatureId(udf.getSignatureId())
+            .setMetadataLocation(udf.getMetadataLocation());
+    // the ID is optional when a new function is created - will be assigned on the server side
+    if (null != udf.getId()) {
+      builder.setId(udf.getId());
+    }
+
+    return builder.build();
   }
 
   public static NamespaceRequest toProto(NamespaceParams params) {

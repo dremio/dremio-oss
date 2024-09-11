@@ -1344,7 +1344,7 @@ public class TestNativeFunctions extends BaseTestFunction {
       testFunctions(new Object[][] {{"castVARCHAR(c0, c1)", 12345, -1, ""}});
     } catch (RuntimeException re) {
       Assert.assertTrue(
-          re.getCause().getCause().getMessage().contains("Buffer length can not be negative"));
+          re.getCause().getCause().getMessage().contains("Buffer length cannot be negative"));
       throw re;
     }
   }

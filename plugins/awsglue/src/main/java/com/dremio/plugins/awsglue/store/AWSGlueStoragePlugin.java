@@ -16,10 +16,14 @@
 package com.dremio.plugins.awsglue.store;
 
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
+import static com.dremio.hadoop.security.alias.DremioCredentialProvider.DREMIO_SCHEME_PREFIX;
 
 import com.amazonaws.glue.catalog.util.AWSGlueConfig;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.FSConstants;
+import com.dremio.common.concurrent.bulk.BulkRequest;
+import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
@@ -30,6 +34,7 @@ import com.dremio.connector.metadata.DatasetHandleListing;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.EntityPathWithOptions;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
@@ -64,6 +69,7 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
+import com.dremio.exec.store.BulkSourceMetadata;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePlugin;
@@ -77,6 +83,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.hive.Hive3StoragePluginConfig;
+import com.dremio.exec.store.hive.HiveCommonUtilities;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
@@ -90,6 +97,7 @@ import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
 import com.dremio.exec.store.parquet.ScanTableFunction;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactoryV2;
@@ -152,10 +160,10 @@ public class AWSGlueStoragePlugin
         SupportsInternalIcebergTable,
         SupportsIcebergRootPointer,
         SupportsIcebergMutablePlugin,
-        SupportsMetadataVerify {
+        SupportsMetadataVerify,
+        BulkSourceMetadata {
 
   private static final Logger logger = LoggerFactory.getLogger(AWSGlueStoragePlugin.class);
-  private static final String AWS_GLUE_HIVE_METASTORE_PLACEHOLDER = "DremioGlueHive";
   private static final String AWS_GLUE_HIVE_CLIENT_FACTORY =
       "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory";
   private static final String GLUE_AWS_CREDENTIALS_FACTORY =
@@ -168,6 +176,8 @@ public class AWSGlueStoragePlugin
 
   // AWS Credential providers
   public static final String ACCESS_KEY_PROVIDER = SimpleAWSCredentialsProvider.NAME;
+  public static final String GLUE_ACCESS_KEY_PROVIDER =
+      "com.dremio.exec.store.hive.GlueAWSCredentialsProvider";
   public static final String EC2_METADATA_PROVIDER =
       "com.amazonaws.auth.InstanceProfileCredentialsProvider";
   public static final String AWS_PROFILE_PROVIDER =
@@ -257,7 +267,7 @@ public class AWSGlueStoragePlugin
     hiveConf.defaultCtasFormat = config.defaultCtasFormat;
 
     // set placeholders for hostname and port
-    hiveConf.hostname = AWS_GLUE_HIVE_METASTORE_PLACEHOLDER;
+    hiveConf.hostname = HiveCommonUtilities.AWS_GLUE_HIVE_METASTORE_PLACEHOLDER;
     hiveConf.port = 9083;
 
     // instantiate hive plugin
@@ -285,8 +295,11 @@ public class AWSGlueStoragePlugin
               .build(logger);
         }
         finalProperties.add(new Property(Constants.ACCESS_KEY, config.accessKey));
-        finalProperties.add(new Property(Constants.SECRET_KEY, config.accessSecret.get()));
-        return ACCESS_KEY_PROVIDER;
+        finalProperties.add(
+            new Property(
+                Constants.SECRET_KEY,
+                SecretRef.toConfiguration(config.accessSecret, DREMIO_SCHEME_PREFIX)));
+        return GLUE_ACCESS_KEY_PROVIDER;
       case AWS_PROFILE:
         if (config.awsProfile != null) {
           finalProperties.add(new Property("com.dremio.awsProfile", config.awsProfile));
@@ -1027,7 +1040,7 @@ public class AWSGlueStoragePlugin
   }
 
   @Override
-  public boolean containerExists(EntityPath containerPath) {
+  public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
     return hiveStoragePlugin.containerExists(containerPath);
   }
 
@@ -1048,6 +1061,12 @@ public class AWSGlueStoragePlugin
   public Optional<DatasetHandle> getDatasetHandle(
       EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
     return hiveStoragePlugin.getDatasetHandle(datasetPath, options);
+  }
+
+  @Override
+  public BulkResponse<EntityPathWithOptions, Optional<DatasetHandle>> bulkGetDatasetHandles(
+      BulkRequest<EntityPathWithOptions> requestedDatasets) {
+    return ((BulkSourceMetadata) hiveStoragePlugin).bulkGetDatasetHandles(requestedDatasets);
   }
 
   @Override
@@ -1077,5 +1096,25 @@ public class AWSGlueStoragePlugin
       DatasetHandle datasetHandle, MetadataVerifyRequest metadataVerifyRequest) {
     return ((SupportsMetadataVerify) hiveStoragePlugin)
         .verifyMetadata(datasetHandle, metadataVerifyRequest);
+  }
+
+  @Override
+  public boolean createFunction(
+      CatalogEntityKey key, SchemaConfig schemaConfig, UserDefinedFunction userDefinedFunction) {
+    throw new UnsupportedOperationException(
+        "AWS Glue plugin doesn't support function creation via CREATE FUNCTION.");
+  }
+
+  @Override
+  public boolean updateFunction(
+      CatalogEntityKey key, SchemaConfig schemaConfig, UserDefinedFunction userDefinedFunction) {
+    throw new UnsupportedOperationException(
+        "AWS Glue plugin doesn't support function update via CREATE OR REPLACE FUNCTION.");
+  }
+
+  @Override
+  public void dropFunction(CatalogEntityKey key, SchemaConfig schemaConfig) {
+    throw new UnsupportedOperationException(
+        "AWS Glue plugin doesn't support function drop via DROP FUNCTION.");
   }
 }

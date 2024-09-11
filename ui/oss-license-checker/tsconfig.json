@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "NodeNext",
+    "outDir": "dist",
+    "rootDir": "src",
+    "target": "ES2019"
+  },
+  "include": ["src/**/*.ts"]
+}

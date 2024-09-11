@@ -15,7 +15,9 @@
  */
 package com.dremio.sabot.exec;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
@@ -35,26 +37,29 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(FragmentStatusThread.class);
 
-  private static final int STATUS_PERIOD_SECONDS = 5;
-
   private final Iterable<FragmentExecutor> executors;
   private final QueriesClerk clerk;
   private final MaestroProxy maestroProxy;
+  private final OptionManager optionManager;
+  private volatile boolean isClosing = false;
 
   public FragmentStatusThread(
-      Iterable<FragmentExecutor> executors, QueriesClerk clerk, MaestroProxy maestroProxy) {
+      Iterable<FragmentExecutor> executors,
+      QueriesClerk clerk,
+      MaestroProxy maestroProxy,
+      OptionManager optionManager) {
     super();
     setDaemon(true);
     setName("fragment-status-reporter");
     this.executors = executors;
     this.clerk = clerk;
     this.maestroProxy = maestroProxy;
+    this.optionManager = optionManager;
   }
 
   @Override
   public void run() {
-
-    while (true) {
+    while (!isClosing) {
       final List<ListenableFuture<Empty>> futures = Lists.newArrayList();
       try {
         refreshFragmentStatuses();
@@ -71,7 +76,9 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
       }
 
       try {
-        Thread.sleep(STATUS_PERIOD_SECONDS * 1000);
+        Thread.sleep(
+            optionManager.getOption(ExecConstants.JOB_PROFILE_EXECUTOR_UPDATE_INTERVAL_SECONDS)
+                * 1000L);
       } catch (final InterruptedException e) {
         logger.debug("Status thread exiting.");
         break;
@@ -107,6 +114,7 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
 
   @Override
   public void close() {
+    isClosing = true;
     this.interrupt();
   }
 }

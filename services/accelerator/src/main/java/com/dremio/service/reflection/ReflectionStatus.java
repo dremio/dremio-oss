@@ -27,10 +27,8 @@ public class ReflectionStatus {
     CAN_ACCELERATE_WITH_FAILURES,
     REFRESHING,
     FAILED,
-    EXPIRED,
     DISABLED,
     INVALID,
-    INCOMPLETE,
     CANNOT_ACCELERATE_SCHEDULED,
     CANNOT_ACCELERATE_MANUAL,
     CANNOT_ACCELERATE_INITIALIZING
@@ -52,16 +50,16 @@ public class ReflectionStatus {
     SCHEDULED, // next reflection refresh will occur according to the refresh policy
     RUNNING, // reflection refresh currently running
     GIVEN_UP, // reflection is in failed state, no more refresh
-    PENDING // reflection is due for refresh, however the refresh is pending because it has
+    PENDING, // reflection is due for refresh, however the refresh is pending because it has
     // direct/indirect dependencies still refreshing
+    /* all base tables have REFRESH_ON_DATA_CHANGES refresh method enabled.*/
+    ON_DATA_CHANGES
   }
 
   /** Reflection availability status */
   public enum AVAILABILITY_STATUS {
     NONE, // reflection has no materialization at all
-    INCOMPLETE, // reflection has no valid materialization, and latest materialization has missing
     // pdfs data nodes
-    EXPIRED, // reflection has no valid materialization, and latest materialization expired
     AVAILABLE // reflection has a valid materialization
   }
 
@@ -176,10 +174,6 @@ public class ReflectionStatus {
 
     if (refreshStatus == REFRESH_STATUS.GIVEN_UP) {
       return COMBINED_STATUS.FAILED;
-    } else if (availabilityStatus == AVAILABILITY_STATUS.INCOMPLETE) {
-      return COMBINED_STATUS.INCOMPLETE;
-    } else if (availabilityStatus == AVAILABILITY_STATUS.EXPIRED) {
-      return COMBINED_STATUS.EXPIRED;
     } else if (refreshStatus == REFRESH_STATUS.PENDING || refreshStatus == REFRESH_STATUS.RUNNING) {
       if (availabilityStatus == AVAILABILITY_STATUS.AVAILABLE) {
         return COMBINED_STATUS.CAN_ACCELERATE;

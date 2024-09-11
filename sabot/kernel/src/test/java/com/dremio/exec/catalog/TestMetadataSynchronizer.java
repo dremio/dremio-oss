@@ -19,11 +19,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
-import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -43,6 +44,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.test.DremioTest;
 import java.util.Collections;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -54,6 +56,7 @@ public class TestMetadataSynchronizer {
   private static final String SOURCE = "test-source";
   private static final String TABLE = "test-source.public.test-table";
 
+  private static LegacyKVStoreProvider kvStoreProvider;
   private static NamespaceService namespaceService;
   private static MetadataPolicy metadataPolicy;
   private static OptionManager optionManager;
@@ -66,10 +69,12 @@ public class TestMetadataSynchronizer {
 
   @BeforeAll
   public static void setup() throws Exception {
-    LegacyKVStoreProvider kvStoreProvider =
-        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    LocalKVStoreProvider storeProvider =
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    storeProvider.start();
+    kvStoreProvider = storeProvider.asLegacy();
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
     sourceKey = new NamespaceKey(SOURCE);
     sourceConfig = NamespaceTestUtils.addSource(namespaceService, SOURCE);
     metadataPolicy =
@@ -82,6 +87,11 @@ public class TestMetadataSynchronizer {
     datasetSaver = new DatasetSaverImpl(namespaceService, (NamespaceKey key) -> {}, optionManager);
     retrievalOptions =
         DatasetRetrievalOptions.DEFAULT.toBuilder().setDeleteUnavailableDatasets(true).build();
+  }
+
+  @AfterAll
+  public static void teardownClass() throws Exception {
+    AutoCloseables.close(kvStoreProvider);
   }
 
   @BeforeEach

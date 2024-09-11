@@ -22,18 +22,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * timers.
  */
 class DefaultMetricsProvider implements MetricsProvider {
-  private final ConcurrentHashMap<String, Counter> counters = new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, Timer> timers = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, SimpleCounter> counters = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, SimpleTimer> timers = new ConcurrentHashMap<>();
 
   @Override
-  public Counter counter(String metricName) {
-    return counters.computeIfAbsent(
-        metricName, (name) -> Metrics.newCounter(name, Metrics.ResetType.NEVER));
+  public SimpleCounter counter(String metricName) {
+    return counters.computeIfAbsent(metricName, name -> SimpleCounter.of(name));
   }
 
   @Override
-  public Timer timer(String metricName) {
-    return timers.computeIfAbsent(
-        metricName, (name) -> Metrics.newTimer(name, Metrics.ResetType.NEVER));
+  public SimpleTimer timer(String metricName) {
+    return timers.computeIfAbsent(metricName, name -> SimpleTimer.of(name));
   }
 }

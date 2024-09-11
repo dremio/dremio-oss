@@ -53,7 +53,7 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage.Payload;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats.Metric;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggDebug.HashAggErrorType;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillHandler.SpilledPartitionIterator;
-import com.dremio.sabot.op.aggregate.vectorized.arrayagg.BaseArrayAggAccumulator;
+import com.dremio.sabot.op.aggregate.vectorized.arrayagg.ArrayAggAccumulator;
 import com.dremio.sabot.op.common.ht2.BoundedPivots;
 import com.dremio.sabot.op.common.ht2.FieldVectorPair;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
@@ -406,6 +406,11 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
   public static final PositiveLongValidator VECTORIZED_HASHAGG_MAX_LISTAGG_SIZE =
       new PositiveLongValidator("exec.operator.aggregate.listagg.size", 32 * 1024, 32 * 1024);
 
+  /* Initial capacity of the accumulator vectors used by ARRAY_AGG */
+  public static final PositiveLongValidator VECTORIZED_HASHAGG_ARRAYAGG_INITIAL_SIZE =
+      new PositiveLongValidator(
+          "exec.operator.aggregate.arrayagg.vectorsize", 1024 * 1024, 32 * 1024);
+
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(VectorizedHashAggOperator.class);
 
@@ -716,6 +721,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
             context
                 .getOptions()
                 .getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_LISTAGG_SIZE);
+    final int arrayAggInitialVectorSize =
+        (int) context.getOptions().getOption(VECTORIZED_HASHAGG_ARRAYAGG_INITIAL_SIZE);
     for (int i = 0; i < accumulatorTypes.length; ++i) {
       if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL.ordinal()
           || accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal()) {
@@ -731,9 +738,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
                 FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL
                     / (256 + FixedListVarcharVector.getFixedListVectorPerEntryOverhead()));
         this.memoryConsumptionCanExceed = true;
-      } else if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal()
-          || accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.PHASE1_ARRAY_AGG.ordinal()
-          || accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.PHASE2_ARRAY_AGG.ordinal()) {
+      } else if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal()) {
         this.memoryConsumptionCanExceed = true;
       }
     }
@@ -775,10 +780,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
           tempAccumulatorHolder[i] =
               FixedListVarcharVector.allocListVector(allocator, maxHashTableBatchSize);
           hasVarLenAccumAppend = true;
-        } else if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal()
-            || accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.PHASE1_ARRAY_AGG.ordinal()
-            || accumulatorTypes[i]
-                == AccumulatorBuilder.AccumulatorType.PHASE2_ARRAY_AGG.ordinal()) {
+        } else if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal()) {
           ListVector tempVector = ListVector.empty("array_agg tmp-holder", allocator);
           tempVector.setInitialCapacity(maxHashTableBatchSize);
           tempAccumulatorHolder[i] = tempVector;
@@ -837,7 +839,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
                 varLenAccumParams,
                 maxListAggSize,
                 tempAccumulatorHolder,
-                maxFieldSizeBytes);
+                maxFieldSizeBytes,
+                arrayAggInitialVectorSize);
         /* this step allocates memory for control structure in hashtable and reverts itself if
          * allocation fails so we don't have to rely on rollback closeable
          */
@@ -1418,7 +1421,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
           for (int i = 0; i < varLenAccums.size(); ++i) {
             if (varLenAccums.get(i) instanceof BaseNdvAccumulator
                 || varLenAccums.get(i) instanceof BaseNdvUnionAccumulator
-                || varLenAccums.get(i) instanceof BaseArrayAggAccumulator) {
+                || varLenAccums.get(i) instanceof ArrayAggAccumulator) {
               continue;
             }
 

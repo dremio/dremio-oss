@@ -36,6 +36,7 @@ import com.dremio.exec.store.dfs.easy.BaseTestEasyScanTableFunction;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.RecordBatchValidator;
 import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
@@ -331,6 +332,102 @@ public class TestCopyIntoScanTableFunction extends BaseTestEasyScanTableFunction
   }
 
   @Test
+  public void testCorruptedInputJsonFileScanWithContinue() throws Exception {
+    mockJsonFormatPlugin();
+    final String testFile =
+        ERROR_INPUT_BASE + JSON_ERRORS + "corruptedinput." + FileType.JSON.name().toLowerCase();
+    RecordSet input = rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, inputRow(testFile));
+    RecordSet output =
+        outputRecordSet(
+            ERROR_INPUT_BASE + JSON_ERRORS + "output_corruptedinput.csv",
+            OutputRecordType.ALL_DATA_TYPE_COLUMNS_WITH_ERROR,
+            OUTPUT_SCHEMA_ALL_TYPE_WITH_ERROR,
+            "#");
+    validate(
+        input,
+        new CopyIntoRecordBatchValidator(output),
+        ALL_TYPE_COLUMNS_WITH_ERROR,
+        OUTPUT_SCHEMA_ALL_TYPE_WITH_ERROR,
+        FileType.JSON,
+        getExProps(
+            new CopyIntoQueryProperties(OnErrorOption.CONTINUE, "@S3"),
+            new SimpleQueryContext(
+                "testUser", "6357c02f-2000-474a-9136-2121c2d7ba54", "testTable")));
+  }
+
+  @Test
+  public void testCorruptedInputCSVFileScanWithContinue() throws Exception {
+    mockJsonFormatPlugin();
+    final String testFile =
+        ERROR_INPUT_BASE + CSV_ERRORS + "corruptedinput." + FileType.CSV.name().toLowerCase();
+    RecordSet input = rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, inputRow(testFile));
+    RecordSet output =
+        outputRecordSet(
+            ERROR_INPUT_BASE + CSV_ERRORS + "output_corruptedinput.csv",
+            OutputRecordType.ALL_DATA_TYPE_COLUMNS_WITH_ERROR,
+            OUTPUT_SCHEMA_ALL_TYPE_WITH_ERROR,
+            "#");
+    validate(
+        input,
+        new CopyIntoRecordBatchValidator(output),
+        ALL_TYPE_COLUMNS_WITH_ERROR,
+        OUTPUT_SCHEMA_ALL_TYPE_WITH_ERROR,
+        FileType.CSV,
+        getExProps(
+            new CopyIntoQueryProperties(OnErrorOption.CONTINUE, "@S3"),
+            new SimpleQueryContext(
+                "testUser", "6357c02f-2000-474a-9136-2121c2d7ba54", "testTable")));
+  }
+
+  @Test
+  public void testCorruptedInputJsonFileScanWithSkipFile() throws Exception {
+    mockJsonFormatPlugin();
+    final String testFile =
+        ERROR_INPUT_BASE + JSON_ERRORS + "corruptedinput." + FileType.JSON.name().toLowerCase();
+    RecordSet input = rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, inputRow(testFile));
+    RecordSet output =
+        outputRecordSet(
+            ERROR_INPUT_BASE + JSON_ERRORS + "output_corruptedinput.csv",
+            OutputRecordType.ALL_DATA_TYPE_COLUMNS_WITH_ERROR,
+            OUTPUT_SCHEMA_ALL_TYPE_WITH_ERROR,
+            "#");
+    validate(
+        input,
+        new CopyIntoRecordBatchValidator(output),
+        ALL_TYPE_COLUMNS_WITH_ERROR,
+        OUTPUT_SCHEMA_ALL_TYPE_WITH_ERROR,
+        FileType.JSON,
+        getExProps(
+            new CopyIntoQueryProperties(OnErrorOption.SKIP_FILE, "@S3"),
+            new SimpleQueryContext(
+                "testUser", "6357c02f-2000-474a-9136-2121c2d7ba54", "testTable")));
+  }
+
+  @Test
+  public void testCorruptedInputCSVFileScanWithSkipFile() throws Exception {
+    mockJsonFormatPlugin();
+    final String testFile =
+        ERROR_INPUT_BASE + CSV_ERRORS + "corruptedinput." + FileType.CSV.name().toLowerCase();
+    RecordSet input = rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, inputRow(testFile));
+    RecordSet output =
+        outputRecordSet(
+            ERROR_INPUT_BASE + CSV_ERRORS + "output_corruptedinput.csv",
+            OutputRecordType.ALL_DATA_TYPE_COLUMNS_WITH_ERROR,
+            OUTPUT_SCHEMA_ALL_TYPE_WITH_ERROR,
+            "#");
+    validate(
+        input,
+        new CopyIntoRecordBatchValidator(output),
+        ALL_TYPE_COLUMNS_WITH_ERROR,
+        OUTPUT_SCHEMA_ALL_TYPE_WITH_ERROR,
+        FileType.CSV,
+        getExProps(
+            new CopyIntoQueryProperties(OnErrorOption.SKIP_FILE, "@S3"),
+            new SimpleQueryContext(
+                "testUser", "6357c02f-2000-474a-9136-2121c2d7ba54", "testTable")));
+  }
+
+  @Test
   public void testDuplicateColumnNameJsonDataFileScanWithContinue() throws Exception {
     mockJsonFormatPlugin();
     final String testFile =
@@ -492,14 +589,14 @@ public class TestCopyIntoScanTableFunction extends BaseTestEasyScanTableFunction
         rs(
             SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
             inputRow(ERROR_INPUT_BASE + JSON_ERRORS + testFile));
-    RecordSet.Record r1 = r("abc", st(106, "str1"), li(5, 6, 7), null);
-    RecordSet.Record r2 = r("pqr", st(108, "str2"), li(8, 9, 99), null);
-    RecordSet.Record r3 =
+    RsRecord r1 = r("abc", st(106, "str1"), li(5, 6, 7), null);
+    RsRecord r2 = r("pqr", st(108, "str2"), li(8, 9, 99), null);
+    RsRecord r3 =
         r(
             null,
             null,
             null,
-            "{\"queryId\":\"6357c02f-2000-474a-9136-2121c2d7ba54\",\"queryUser\":\"testUser\",\"tableName\":\"testTable\",\"filePath\":\"file:/dremio/oss/sabot/kernel/target/test-classes/store/text/data/jsonerrors/complexsyntaxerror.json\",\"formatOptions\":{\"TRIM_SPACE\":false,\"DATE_FORMAT\":null,\"TIME_FORMAT\":null,\"EMPTY_AS_NULL\":false,\"TIMESTAMP_FORMAT\":null,\"NULL_IF\":null,\"RECORD_DELIMITER\":null,\"FIELD_DELIMITER\":null,\"QUOTE_CHAR\":null,\"ESCAPE_CHAR\":null},\"recordsLoadedCount\":2,\"recordsRejectedCount\":1,\"fileState\":\"PARTIALLY_LOADED\"}");
+            "{\"queryId\":\"6357c02f-2000-474a-9136-2121c2d7ba54\",\"queryUser\":\"testUser\",\"tableName\":\"testTable\",\"storageLocation\":\"@S3\",\"filePath\":\"/Users/lpinter/Work/GitProjectSources/downstream/dremio/oss/sabot/kernel/target/test-classes/store/text/data/jsonerrors/complexsyntaxerror.json\",\"formatOptions\":{\"TRIM_SPACE\":false,\"DATE_FORMAT\":null,\"TIME_FORMAT\":null,\"EMPTY_AS_NULL\":false,\"TIMESTAMP_FORMAT\":null,\"NULL_IF\":null,\"RECORD_DELIMITER\":null,\"FIELD_DELIMITER\":null,\"QUOTE_CHAR\":null,\"ESCAPE_CHAR\":null},\"recordsLoadedCount\":2,\"recordsRejectedCount\":1,\"snapshotId\":0,\"fileFormat\":\"JSON\",\"fileState\":\"PARTIALLY_LOADED\",\"branch\":null,\"pipeName\":null,\"pipeId\":null,\"processingStartTime\":1709559666699,\"fileSize\":273,\"firstErrorMessage\":\"Failure while parsing JSON.  Found token of [VALUE_STRING]. Root object cannot be a scalar.\",\"fileNotificationTimestamp\":null,\"ingestionSourceType\":null,\"requestId\":null}");
     RecordSet output = rs(JSON_COMPLEX_OUTPUT_SCHEMA_WITH_ERROR, r1, r2, r3);
     validate(
         input,
@@ -521,13 +618,13 @@ public class TestCopyIntoScanTableFunction extends BaseTestEasyScanTableFunction
         rs(
             SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
             inputRow(ERROR_INPUT_BASE + JSON_ERRORS + testFile));
-    RecordSet.Record record =
+    RsRecord rec =
         r(
             null,
             null,
             null,
-            "{\"queryId\":\"6357c02f-2000-474a-9136-2121c2d7ba54\",\"queryUser\":\"testUser\",\"tableName\":\"testTable\",\"filePath\":\"file:/dremio/oss/sabot/kernel/target/test-classes/store/text/data/jsonerrors/complexsyntaxerror.json\",\"formatOptions\":{\"TRIM_SPACE\":false,\"DATE_FORMAT\":null,\"TIME_FORMAT\":null,\"EMPTY_AS_NULL\":false,\"TIMESTAMP_FORMAT\":null,\"NULL_IF\":null,\"RECORD_DELIMITER\":null,\"FIELD_DELIMITER\":null,\"QUOTE_CHAR\":null,\"ESCAPE_CHAR\":null},\"recordsLoadedCount\":0,\"recordsRejectedCount\":1,\"fileState\":\"SKIPPED\"}");
-    RecordSet output = rs(JSON_COMPLEX_OUTPUT_SCHEMA_WITH_ERROR, record);
+            "{\"queryId\":\"6357c02f-2000-474a-9136-2121c2d7ba54\",\"queryUser\":\"testUser\",\"tableName\":\"testTable\",\"storageLocation\":\"@S3\",\"filePath\":\"/Users/lpinter/Work/GitProjectSources/downstream/dremio/oss/sabot/kernel/target/test-classes/store/text/data/jsonerrors/complexsyntaxerror.json\",\"formatOptions\":{\"TRIM_SPACE\":false,\"DATE_FORMAT\":null,\"TIME_FORMAT\":null,\"EMPTY_AS_NULL\":false,\"TIMESTAMP_FORMAT\":null,\"NULL_IF\":null,\"RECORD_DELIMITER\":null,\"FIELD_DELIMITER\":null,\"QUOTE_CHAR\":null,\"ESCAPE_CHAR\":null},\"recordsLoadedCount\":0,\"recordsRejectedCount\":1,\"snapshotId\":0,\"fileFormat\":\"JSON\",\"fileState\":\"SKIPPED\",\"branch\":null,\"pipeName\":null,\"pipeId\":null,\"processingStartTime\":1709559746711,\"fileSize\":273,\"firstErrorMessage\":\"Failure while parsing JSON.  Found token of [VALUE_STRING]. Root object cannot be a scalar.\",\"fileNotificationTimestamp\":null,\"ingestionSourceType\":null,\"requestId\":null}");
+    RecordSet output = rs(JSON_COMPLEX_OUTPUT_SCHEMA_WITH_ERROR, rec);
     validate(
         input,
         new CopyIntoRecordBatchValidator(output),

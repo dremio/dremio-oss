@@ -56,7 +56,7 @@ public class GHashFunctions {
 
     @Override
     public void setup() {
-      charset = java.nio.charset.Charset.forName("UTF-8");
+      charset = java.nio.charset.StandardCharsets.UTF_8;
     }
 
     @Override

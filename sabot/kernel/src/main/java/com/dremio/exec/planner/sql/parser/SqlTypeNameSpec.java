@@ -20,6 +20,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.validate.SqlValidator;
 
 /**
  * A <code>SqlTypeNameSpec</code> is a type name that allows to customize sql node unparsing and
@@ -33,4 +34,6 @@ public abstract class SqlTypeNameSpec extends SqlIdentifier {
   }
 
   public abstract RelDataType deriveType(RelDataTypeFactory typeFactory);
+
+  public abstract RelDataType deriveType(SqlValidator sqlValidator);
 }

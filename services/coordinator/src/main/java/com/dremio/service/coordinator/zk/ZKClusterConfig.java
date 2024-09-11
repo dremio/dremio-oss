@@ -15,11 +15,17 @@
  */
 package com.dremio.service.coordinator.zk;
 
-import com.dremio.configfeature.ConfigFeatureProvider;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
+import java.util.function.Predicate;
 
 /** ZK Configuration */
+@Options
 public interface ZKClusterConfig {
+  TypeValidators.BooleanValidator COORDINATOR_ZK_SUPERVISOR =
+      new TypeValidators.BooleanValidator("coordinator_zk_supervisor", false);
+
   int getConnectionTimeoutMilliSecs();
 
   int getSessionTimeoutMilliSecs();
@@ -50,7 +56,7 @@ public interface ZKClusterConfig {
 
   String getConnection();
 
-  ConfigFeatureProvider getConfigFeatureProvider();
+  Predicate<String> getFeatureEvaluator();
 
   int getZkSupervisorIntervalMilliSec();
 

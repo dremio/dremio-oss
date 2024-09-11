@@ -27,7 +27,9 @@ import java.util.Map;
 import java.util.SortedSet;
 import java.util.stream.Collectors;
 import org.apache.calcite.rel.logical.LogicalMatch;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.ImmutableBitSet;
 
 /** Serde for Logical Match. */
 public final class LogicalMatchSerde implements RelNodeSerde<LogicalMatch, PLogicalMatch> {
@@ -53,7 +55,11 @@ public final class LogicalMatchSerde implements RelNodeSerde<LogicalMatch, PLogi
             .putAllSubsets(LogicalMatchSerde.toProto(node.getSubsets()))
             .setAllRows(node.isAllRows())
             .addAllPartitionKeys(
-                node.getPartitionKeys().stream().map(s::toProto).collect(Collectors.toList()))
+                node.getPartitionKeys().asList().stream()
+                    .map(
+                        key -> node.getCluster().getRexBuilder().makeInputRef(node.getInput(), key))
+                    .map(s::toProto)
+                    .collect(Collectors.toList()))
             .setOrderKeys(RelCollationSerde.toProto(node.getOrderKeys()));
 
     if (node.getInterval() != null) {
@@ -83,7 +89,11 @@ public final class LogicalMatchSerde implements RelNodeSerde<LogicalMatch, PLogi
         s.toRex(pLogicalMatch.getAfter()),
         LogicalMatchSerde.fromProto(pLogicalMatch.getSubsetsMap()),
         pLogicalMatch.getAllRows(),
-        pLogicalMatch.getPartitionKeysList().stream().map(s::toRex).collect(Collectors.toList()),
+        ImmutableBitSet.of(
+            pLogicalMatch.getPartitionKeysList().stream()
+                .map(s::toRex)
+                .map(rexKey -> ((RexInputRef) rexKey).getIndex())
+                .collect(Collectors.toList())),
         RelCollationSerde.fromProto(pLogicalMatch.getOrderKeys()),
         pLogicalMatch.getInterval() != null ? s.toRex(pLogicalMatch.getInterval()) : null);
   }

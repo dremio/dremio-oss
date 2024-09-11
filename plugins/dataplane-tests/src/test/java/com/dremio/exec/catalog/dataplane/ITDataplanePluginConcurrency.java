@@ -38,7 +38,7 @@ import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.ass
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasCommitForTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasView;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import java.util.ArrayList;

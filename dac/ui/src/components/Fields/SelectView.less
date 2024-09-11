@@ -14,36 +14,39 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 .select {
   composes: inline-flex-container flex-align-center from "~@app/uiTheme/less/layout.less";
   border: none;
 
   &:hover {
-    border-color: @FIGMA_NEUTRAL_300;
+    border-color: var(--border--neutral--solid);
+  }
+
+  &:focus-visible {
+    outline: -webkit-focus-ring-color auto 1px !important;
   }
 }
 
 .disabled {
   cursor: default;
-  background-color: @FIGMA_NEUTRAL_150;
-  border-color: @FIGMA_NEUTRAL_200 !important;
+  background-color: var(--border--neutral);
+  border-color: var(--border--neutral--solid) !important;
 
   span {
-    color: @FIGMA_TEXT_DISABLED !important;
+    color: var(--text--disabled) !important;
   }
 }
 
 .open {
-  border-color: @FIGMA_PRIMARY_500 !important;
+  border-color: var(--border--focused) !important;
 }
 
 .disabled-icon {
-  color: var(--color--neutral--200);
+  color: var(--icon--disabled);
 }
 
 .showHideBackgroundColor {
-  background-color: @DISABLED_DRAG_AREA;
+  background-color: var(--color--neutral--100);
   height: 54px;
   width: 100px;
   display: flex;
@@ -56,7 +59,7 @@
   font-size: 14px;
   font-weight: 600;
   padding: 6px 16px;
-  color: @FIGMA_TEXT_MAIN;
+  color: var(--text--primary);
   margin-top: 4px;
   margin-bottom: -4px;
 }

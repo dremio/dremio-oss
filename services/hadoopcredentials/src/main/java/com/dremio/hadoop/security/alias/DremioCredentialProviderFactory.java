@@ -29,31 +29,26 @@ public class DremioCredentialProviderFactory extends CredentialProviderFactory {
 
   private static Provider<CredentialsService> credentialsServiceProvider;
 
-  // lazy thread safe static load
-  private static final class CredentialsServiceSingleton {
-    private final CredentialsService credentialsService;
-
-    private CredentialsServiceSingleton() {
-      this.credentialsService = credentialsServiceProvider.get();
-    }
-
-    private static final class SingletonHelper {
-      private static final CredentialsServiceSingleton INSTANCE = new CredentialsServiceSingleton();
-    }
-
-    private static CredentialsServiceSingleton getInstance() {
-      return SingletonHelper.INSTANCE;
-    }
-  }
-
   @Override
-  public CredentialProvider createProvider(URI providerName, Configuration conf)
-      throws IOException {
+  public CredentialProvider createProvider(URI providerName, Configuration conf) {
     if (DREMIO_SCHEME.equalsIgnoreCase(providerName.getScheme())) {
-      return new DremioCredentialProvider(
-          CredentialsServiceSingleton.getInstance().credentialsService, conf);
+      return new DremioCredentialProvider(credentialsServiceProvider.get(), conf);
     }
     return null;
+  }
+
+  /**
+   * Called by DremioAWSCredentialsProvider, which runs under Hive class loader and can only use
+   * core java classes
+   *
+   * @param alias the name of a specific credential
+   * @param pattern credential pattern to resolve
+   * @return resolved secret.
+   * @throws IOException if secret resolution fails.
+   */
+  public static char[] resolveCredentialPattern(String alias, String pattern) throws IOException {
+    return new DremioCredentialProvider(credentialsServiceProvider.get(), null)
+        .resolveCredentialPattern(alias, pattern);
   }
 
   /**

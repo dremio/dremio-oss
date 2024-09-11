@@ -28,15 +28,12 @@ import com.dremio.dac.service.autocomplete.model.AutocompleteRequest;
 import com.dremio.dac.service.autocomplete.model.AutocompleteResponse;
 import com.dremio.dac.service.autocomplete.model.SuggestionEntity;
 import com.dremio.dac.service.autocomplete.model.SuggestionsType;
-import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -66,16 +63,6 @@ public class TestSQLResource extends BaseTestServer {
       new DatasetPath(ImmutableList.of(SOURCE_NAME, "ds3"));
 
   @Rule public final TemporaryFolder folder = new TemporaryFolder();
-
-  protected NamespaceService getNamespaceService() {
-    final NamespaceService service = newNamespaceService();
-    return Preconditions.checkNotNull(service, "ns service is required");
-  }
-
-  protected SourceService getSourceService() {
-    final SourceService service = newSourceService();
-    return Preconditions.checkNotNull(service, "source service is required");
-  }
 
   public void addPhysicalDataset(final DatasetPath path, final DatasetType type) throws Exception {
     NamespaceKey datasetPath = path.toNamespaceKey();
@@ -211,6 +198,7 @@ public class TestSQLResource extends BaseTestServer {
             new SuggestionEntity(Arrays.asList("mysrc"), "source"),
             new SuggestionEntity(Arrays.asList("INFORMATION_SCHEMA"), "source"),
             new SuggestionEntity(Arrays.asList("sys"), "source"),
+            new SuggestionEntity(Arrays.asList("$scratch"), "source"),
             new SuggestionEntity(Arrays.asList("testSpace", "@dremio"), "folder"),
             new SuggestionEntity(Arrays.asList("testSpace", "myFolder"), "folder"),
             new SuggestionEntity(Arrays.asList("testSpace", "supplier"), "virtual"));

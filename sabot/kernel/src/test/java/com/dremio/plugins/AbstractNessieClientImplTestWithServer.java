@@ -26,20 +26,19 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.error.NessieBadRequestException;
 import org.projectnessie.error.NessieNamespaceNotFoundException;
+import org.projectnessie.error.NessieReferenceConflictException;
 import org.projectnessie.error.NessieReferenceNotFoundException;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.Namespace;
 
 public abstract class AbstractNessieClientImplTestWithServer {
 
-  private static final NessieClientTableMetadata CLIENT_METADATA =
-      new NessieClientTableMetadata(1, 2, 3, 4);
+  protected static final NessieTableAdapter CLIENT_METADATA = new NessieTableAdapter(1, 2, 3, 4);
   private static final OptionManager optionManager = Mockito.mock(OptionManager.class);
 
   private NessieApiV2 api;
-  private NessieClientImpl client;
+  protected NessieClientImpl client;
 
   protected void init(NessieApiV2 api) {
     this.api = api;
@@ -67,11 +66,13 @@ public abstract class AbstractNessieClientImplTestWithServer {
   public void testCommitTable() {
     ContentKey key = ContentKey.of("test", "key123");
 
+    ResolvedVersionContext branchBeforeCommit = client.getDefaultBranch();
+
     client.commitTable(
         key.getElements(),
         "loc111",
         CLIENT_METADATA,
-        client.getDefaultBranch(),
+        branchBeforeCommit,
         null,
         CREATE_TABLE,
         "job2",
@@ -91,12 +92,16 @@ public abstract class AbstractNessieClientImplTestWithServer {
                     key.getElements(),
                     "loc111",
                     CLIENT_METADATA,
-                    client.getDefaultBranch(),
-                    null,
+                    // if we used the latest branch here we get different exceptions
+                    // nessie server: NessieBadRequestException
+                    // embedded nessie: still NessieReferenceConflictException
+                    branchBeforeCommit,
+                    null, // missing content ID for existing table
                     CREATE_TABLE,
                     "job4",
                     "user333"))
-        .isInstanceOf(NessieBadRequestException.class); // no content ID
+        .hasCauseInstanceOf(NessieReferenceConflictException.class)
+        .hasMessageContaining("Key '" + key + "'");
 
     client.commitTable(
         key.getElements(),

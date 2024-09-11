@@ -19,10 +19,11 @@ import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.VersionedPlugin.EntityType;
+import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.plugins.NessieClient;
-import com.dremio.plugins.NessieClientTableMetadata;
 import com.dremio.plugins.NessieContent;
+import com.dremio.plugins.NessieTableAdapter;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.google.common.base.Preconditions;
@@ -33,8 +34,10 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.iceberg.BaseMetastoreTableOperations;
 import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.FileIO;
+import org.projectnessie.error.NessieConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,7 +143,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
       nessieClient.commitTable(
           tableKey,
           newMetadataLocation,
-          new NessieClientTableMetadata(
+          new NessieTableAdapter(
               metadata.currentSnapshot().snapshotId(),
               metadata.currentSchemaId(),
               metadata.defaultSpecId(),
@@ -155,6 +158,14 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
       if (operatorStats != null) {
         operatorStats.addLongStat(
             WriterCommitterOperator.Metric.ICEBERG_CATALOG_UPDATE_TIME, totalCatalogUpdateTime);
+      }
+    } catch (ReferenceConflictException e) {
+      if (e.getCause() instanceof NessieConflictException) {
+        logger.debug(
+            String.format("Retrying commit for table %s because of conflict exception", tableKey));
+        throw new CommitFailedException(e.getCause());
+      } else {
+        throw new IllegalStateException(e);
       }
     } finally {
       if (threw) {

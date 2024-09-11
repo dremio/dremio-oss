@@ -15,7 +15,6 @@
  */
 import { findIndex } from "lodash/array";
 import { v4 as uuidv4 } from "uuid";
-import { HIGHLIGHTED_TABLE, PALE_ORANGE } from "uiTheme/radium/colors";
 
 const DISTANCE_BETWEEN_NEW_COLUMNS = 5;
 
@@ -40,12 +39,12 @@ class Transforms {
     const { oldColumnName, newColumnName } = item;
     const colIndex = findIndex(
       table.get("columns"),
-      (col) => col.get("name") === oldColumnName
+      (col) => col.get("name") === oldColumnName,
     );
     const oldColumn = table.get("columns").get(colIndex);
     return table.setIn(
       ["columns", colIndex],
-      oldColumn.set("name", newColumnName)
+      oldColumn.set("name", newColumnName),
     );
   }
 
@@ -63,17 +62,20 @@ class Transforms {
     cols,
     sourceColumnName,
     newColumnName,
-    colIndex
+    colIndex,
   ) {
     let columns = cols;
     const oldColumn = columns.get(colIndex);
-    columns = columns.set(colIndex, oldColumn.set("color", PALE_ORANGE));
+    columns = columns.set(
+      colIndex,
+      oldColumn.set("color", "var(--color--orange--50)"),
+    );
     const newColName =
       sourceColumnName === newColumnName
         ? `${newColumnName} (new)`
         : newColumnName;
     const colToInsert = oldColumn
-      .set("color", HIGHLIGHTED_TABLE)
+      .set("color", "var(--color--brand--100)")
       .set("name", newColName)
       .set("status", "HIGHLIGHTED");
     columns = columns.splice(colIndex + 1, 0, colToInsert);
@@ -94,25 +96,25 @@ class Transforms {
   defaultTransform(table, item) {
     const { sourceColumnName, newColumnName } = item;
     const addedByUiColumnIndex = this._getIndexOfPreviewColumn(
-      table.get("columns")
+      table.get("columns"),
     );
     let columns = this._getColumnsWithoutPreviewColumns(table.get("columns"));
 
     const colIndex = findIndex(
       columns,
-      (col) => col.get("name") === sourceColumnName
+      (col) => col.get("name") === sourceColumnName,
     );
     columns = this._getColumnsWithPreviewColumn(
       columns,
       sourceColumnName,
       newColumnName,
-      colIndex
+      colIndex,
     );
 
     const rows = this._getRowsForPreview(
       table.get("rows"),
       addedByUiColumnIndex,
-      colIndex
+      colIndex,
     );
     return table.set("rows", rows).set("columns", columns);
   }
@@ -120,7 +122,7 @@ class Transforms {
   addCalculatedField(table, item) {
     const { columnName } = item;
     const addedByUiColumnIndex = this._getIndexOfPreviewColumn(
-      table.get("columns")
+      table.get("columns"),
     );
     let columns = this._getColumnsWithoutPreviewColumns(table.get("columns"));
 
@@ -128,14 +130,14 @@ class Transforms {
       .get("0")
       .set("name", columnName)
       .set("status", "HIGHLIGHTED")
-      .set("color", HIGHLIGHTED_TABLE)
+      .set("color", "var(--color--brand--100)")
       .set("index", columns.size)
       .set("type", "");
     columns = columns.push(column);
     const rows = this._getRowsForPreview(
       table.get("rows"),
       addedByUiColumnIndex,
-      columns.size - 1
+      columns.size - 1,
     );
     return table.set("rows", rows).set("columns", columns);
   }

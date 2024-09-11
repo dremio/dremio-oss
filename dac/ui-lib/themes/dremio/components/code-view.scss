@@ -23,14 +23,14 @@
   @extend .rounded;
 
   &__header {
-    @extend .bg-neutral-50;
+    @extend .bg-neutral-75;
     @extend .p-105;
     @extend .text-semibold;
   }
 
   &__content {
     @extend .p-105;
-    @extend .bg-neutral-25;
+    @extend .bg-neutral-50;
   }
 }
 

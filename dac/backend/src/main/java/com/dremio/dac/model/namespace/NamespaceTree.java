@@ -74,8 +74,9 @@ public class NamespaceTree {
   private final List<PhysicalDataset> physicalDatasets;
 
   private boolean canTagsBeSkipped;
-  private Boolean isFileSystemSource = null;
-  private Boolean isImpersonationEnabled = null;
+  private Boolean isFileSystemSource;
+  private Boolean isImpersonationEnabled;
+  private String nextPageToken;
 
   public NamespaceTree() {
     folders = new ArrayList<>();
@@ -398,6 +399,14 @@ public class NamespaceTree {
 
   public Boolean getIsFileSystemSource() {
     return isFileSystemSource;
+  }
+
+  void setNextPageToken(String value) {
+    nextPageToken = value;
+  }
+
+  public String getNextPageToken() {
+    return nextPageToken;
   }
 
   public Boolean getIsImpersonationEnabled() {

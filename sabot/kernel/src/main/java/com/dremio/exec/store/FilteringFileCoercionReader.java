@@ -35,7 +35,7 @@ public abstract class FilteringFileCoercionReader extends AbstractRecordReader {
   protected final OperatorContext context;
   protected final BatchSchema originalSchema;
   private final CompositeReader compositeReader;
-  private final ExpressionEvaluationOptions projectorOptions;
+  protected final ExpressionEvaluationOptions projectorOptions;
 
   protected int recordCount;
   protected SampleMutator mutator;

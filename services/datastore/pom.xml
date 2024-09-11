@@ -178,7 +178,7 @@
             <goals>
               <goal>java</goal>
             </goals>
-            <phase>process-classes</phase>
+            <phase>${buildtimescan.phase}</phase>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <includePluginDependencies>true</includePluginDependencies>
@@ -218,47 +218,6 @@
       <plugin>
         <groupId>com.dremio.tools</groupId>
         <artifactId>dremio-protostuff-maven-plugin</artifactId>
-        <configuration>
-          <protoModules>
-            <protoModule>
-              <source>${basedir}/src/main/protobuf/kvstore.proto</source>
-              <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
-              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
-              <options>
-                <property>
-                  <name>generate_field_map</name>
-                  <value>true</value>
-                </property>
-                <property>
-                  <name>builder_pattern</name>
-                  <value>true</value>
-                </property>
-              </options>
-            </protoModule>
-            <protoModules>
-              <source>${basedir}/src/test/protostuff</source>
-              <outputDir>${project.build.directory}/generated-test-sources/protostuff</outputDir>
-              <output>java_bean</output>
-              <encoding>UTF-8</encoding>
-              <options>
-                <property>
-                  <name>generate_field_map</name>
-                </property>
-                <property>
-                  <name>com.dremio.exec.proto</name>
-                  <value>com.dremio.exec.proto.beans</value>
-                </property>
-                <property>
-                  <name>primitive_numbers_if_optional</name>
-                </property>
-                <property>
-                  <name>builder_pattern</name>
-                </property>
-                <property/>
-              </options>
-            </protoModules>
-          </protoModules>
-        </configuration>
         <executions>
           <execution>
             <id>generate-sources</id>
@@ -266,6 +225,25 @@
               <goal>compile</goal>
             </goals>
             <phase>generate-sources</phase>
+            <configuration>
+              <protoModules>
+                <protoModule>
+                  <source>src/main/protobuf/kvstore.proto</source>
+                  <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
+                  <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
+                  <options>
+                    <property>
+                      <name>generate_field_map</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>builder_pattern</name>
+                      <value>true</value>
+                    </property>
+                  </options>
+                </protoModule>
+              </protoModules>
+            </configuration>
           </execution>
           <execution>
             <id>generate-protostuff-test</id>
@@ -273,6 +251,31 @@
               <goal>compile</goal>
             </goals>
             <phase>generate-test-sources</phase>
+            <configuration>
+              <protoModules>
+                <protoModules>
+                  <source>src/test/protostuff</source>
+                  <outputDir>${project.build.directory}/generated-test-sources/protostuff</outputDir>
+                  <output>java_bean</output>
+                  <encoding>UTF-8</encoding>
+                  <options>
+                    <property>
+                      <name>generate_field_map</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>primitive_numbers_if_optional</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>builder_pattern</name>
+                      <value>true</value>
+                    </property>
+                    <property/>
+                  </options>
+                </protoModules>
+              </protoModules>
+            </configuration>
           </execution>
         </executions>
       </plugin>

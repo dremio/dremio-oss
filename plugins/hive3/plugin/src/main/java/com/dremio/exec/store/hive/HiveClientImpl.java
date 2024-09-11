@@ -277,11 +277,6 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
             });
   }
 
-  @Override
-  public boolean tableExists(final String dbName, final String tableName) throws TException {
-    return (getTableWithoutTableTypeChecking(dbName, tableName, true) != null);
-  }
-
   private Table getTableWithoutTableTypeChecking(
       final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
     return doCommand(

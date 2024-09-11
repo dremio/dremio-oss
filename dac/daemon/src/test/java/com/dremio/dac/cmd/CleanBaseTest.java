@@ -43,9 +43,9 @@ public abstract class CleanBaseTest extends BaseTestServer {
 
   @BeforeClass
   public static void init() throws Exception {
-    enableDefaultUser(false);
     Assume.assumeFalse(BaseTestServer.isMultinode());
-    try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
+    enableDefaultUser(false);
+    try (Timer.TimedBlock b = Timer.time("CleanBaseTest.init")) {
       dacConfig = dacConfig.writePath(folder1.newFolder().getAbsolutePath());
       CleanBaseTest.startDaemon();
     }
@@ -58,7 +58,6 @@ public abstract class CleanBaseTest extends BaseTestServer {
 
   protected static void startDaemon() throws Exception {
     setCurrentDremioDaemon(DACDaemon.newDremioDaemon(dacConfig, DremioTest.CLASSPATH_SCAN_RESULT));
-    setMasterDremioDaemon(null);
     getCurrentDremioDaemon().init();
     initClient();
   }

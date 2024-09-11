@@ -36,8 +36,12 @@ const SummaryItemlabelError = ({
       <div className={classes["dataset-not-found-icon-container"]}>
         {iconName ? (
           <dremio-icon
-            class={classes["dataset-not-found-icon"]}
-            name={`entities/${iconName}`}
+            class="dremio-icon-label"
+            name={
+              iconName.startsWith("entities/")
+                ? iconName
+                : `entities/${iconName}`
+            }
           />
         ) : (
           <dremio-icon name="interface/close-circle-error" />

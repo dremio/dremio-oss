@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -24,13 +23,24 @@
       &:hover {
         text-decoration: none !important;
       }
+
+      &:focus-visible {
+        .MuiMenuItem-root,
+        .MuiListItem-root {
+          background-color: var(--fill--primary--hover) !important;
+          outline: -webkit-focus-ring-color auto 1px !important;
+          .menu-item-inner {
+            background: none;
+          }
+        }
+      }
     }
 
     &__item {
-      color: var(--color--neutral--900);
+      color: var(--text--primary);
 
       &.danger {
-        color: var(--dremio--color--status--delete--background);
+        color: var(--fill--danger--bold);
       }
     }
   }

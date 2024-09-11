@@ -23,6 +23,7 @@ import com.dremio.hive.thrift.TException;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.security.PrivilegedExceptionAction;
@@ -249,16 +250,6 @@ class HiveClientImpl implements HiveClient {
     return doCommand((RetryableClientCommand<List<String>>) client -> client.getAllTables(dbName));
   }
 
-  @Override
-  public boolean tableExists(final String dbName, final String tableName) {
-    try {
-      return (getTableWithoutTableTypeChecking(dbName, tableName, true) != null);
-    } catch (TException te) {
-      logger.info("Failure while trying to read table '{}' from db '{}'", tableName, dbName, te);
-      return false;
-    }
-  }
-
   private Table getTableWithoutTableTypeChecking(
       final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
     return doCommand(
@@ -272,6 +263,7 @@ class HiveClientImpl implements HiveClient {
             });
   }
 
+  @WithSpan
   @Override
   public Table getTable(final String dbName, final String tableName, boolean ignoreAuthzErrors)
       throws TException {

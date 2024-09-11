@@ -42,18 +42,24 @@ public class NessieCommitsGroupScan extends AbstractBase implements GroupScan<Sp
   private final List<SchemaPath> columns;
   private final StoragePluginId storagePluginId;
   private final int maxParallelizationWidth;
+  private final String fsScheme;
+  private final String schemeVariate;
 
   public NessieCommitsGroupScan(
       OpProps props,
       StoragePluginId storagePluginId,
       List<SchemaPath> columns,
       SnapshotsScanOptions snapshotsScanOptions,
-      int maxParallelizationWidth) {
+      int maxParallelizationWidth,
+      String fsScheme,
+      String schemeVariate) {
     super(props);
     this.snapshotsScanOptions = snapshotsScanOptions;
     this.columns = columns;
     this.storagePluginId = storagePluginId;
     this.maxParallelizationWidth = maxParallelizationWidth;
+    this.fsScheme = fsScheme;
+    this.schemeVariate = schemeVariate;
   }
 
   @Override
@@ -103,7 +109,14 @@ public class NessieCommitsGroupScan extends AbstractBase implements GroupScan<Sp
   @Override
   public SubScan getSpecificScan(List<SplitWork> works) throws ExecutionSetupException {
     return new NessieCommitsSubScan(
-        props, props.getSchema(), storagePluginId, columns, snapshotsScanOptions, works);
+        props,
+        props.getSchema(),
+        storagePluginId,
+        columns,
+        snapshotsScanOptions,
+        works,
+        fsScheme,
+        schemeVariate);
   }
 
   @Override

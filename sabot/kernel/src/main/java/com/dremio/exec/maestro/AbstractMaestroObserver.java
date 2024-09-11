@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -61,10 +62,10 @@ public abstract class AbstractMaestroObserver implements MaestroObserver {
       String detailsText) {}
 
   @Override
-  public void recordsProcessed(long recordCount) {}
+  public void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount) {}
 
   @Override
-  public void recordsOutput(long recordCount) {}
+  public void outputLimited() {}
 
   @Override
   public void planGenerationTime(long millisTaken) {}
@@ -83,4 +84,7 @@ public abstract class AbstractMaestroObserver implements MaestroObserver {
 
   @Override
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {}
+
+  @Override
+  public void putProfileFailed() {}
 }

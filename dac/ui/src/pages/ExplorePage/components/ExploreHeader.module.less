@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../../../components/colors.less"; // contains only variables
 
 .privilegesIcon {
-  color: var(--color--neutral--600);
+  color: var(--icon--primary);
   inline-size: 24px;
   block-size: 24px;
   cursor: pointer;
@@ -25,7 +24,7 @@
     cursor: default;
     inline-size: 24px;
     block-size: 24px;
-    color: var(--color--neutral--100);
+    color: var(--color--neutral--150);
   }
 }
 
@@ -33,16 +32,16 @@
   height: 24px;
   width: 24px;
   margin-right: var(--dremio--spacing--1);
-  color: var(--color--neutral--600);
+  color: var(--icon--primary);
 }
 
 .run-icon {
   height: 20px;
   width: 20px;
-  color: white;
+  color: inherit;
 
   &--disabled {
-    color: var(--color--neutral--100);
+    color: var(--color--neutral--150);
   }
 }
 
@@ -50,10 +49,10 @@
 .discard-icon {
   height: 20px;
   width: 20px;
-  color: var(--color--neutral--600);
+  color: var(--icon--primary);
 
   &--disabled {
-    color: var(--color--neutral--100);
+    color: var(--color--neutral--150);
   }
 }
 
@@ -69,7 +68,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #43b8c9;
+  background-color: var(--color--brand--300);
   border-bottom: 1px solid #3399a8;
   border-radius: 2;
   color: #fff;

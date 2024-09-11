@@ -466,7 +466,8 @@ public class WriterPrule extends Prule {
             oldOptions.getRecordLimit(),
             tableFormatOptions,
             oldOptions.getExtendedProperty(),
-            false);
+            false,
+            oldOptions.isMergeOnReadRowSplitterMode());
     // IcebergTableProps is the only obj we need in manifestWriter
     return fileEntry.cloneWithFields(manifestWriterOption);
   }

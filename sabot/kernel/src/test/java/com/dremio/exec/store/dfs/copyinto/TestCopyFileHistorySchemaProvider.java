@@ -18,37 +18,61 @@ package com.dremio.exec.store.dfs.copyinto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTablePartitionUpdateStep;
+import com.dremio.exec.store.dfs.system.evolution.step.SystemIcebergTableSchemaUpdateStep;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.types.Types;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class TestCopyFileHistorySchemaProvider {
 
   @ParameterizedTest
-  @ValueSource(ints = {1})
+  @ValueSource(ints = {1, 2})
   public void testGetSchema(int schemaVersion) {
     Schema schema = CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion);
     if (schemaVersion == 1) {
-      // Test for schema version 1
       assertThat(schema.columns().size()).isEqualTo(6);
-      assertThat(schema.findField(1).type()).isEqualTo(Types.TimestampType.withZone());
-      assertThat(schema.findField(1).name()).isEqualTo("event_timestamp");
-      assertThat(schema.findField(2).type()).isEqualTo(new Types.StringType());
-      assertThat(schema.findField(2).name()).isEqualTo("job_id");
-      assertThat(schema.findField(3).type()).isEqualTo(new Types.StringType());
-      assertThat(schema.findField(3).name()).isEqualTo("file_path");
-      assertThat(schema.findField(4).type()).isEqualTo(new Types.StringType());
-      assertThat(schema.findField(4).name()).isEqualTo("file_state");
-      assertThat(schema.findField(5).type()).isEqualTo(new Types.LongType());
-      assertThat(schema.findField(5).name()).isEqualTo("records_loaded_count");
-      assertThat(schema.findField(6).type()).isEqualTo(new Types.LongType());
-      assertThat(schema.findField(6).name()).isEqualTo("records_rejected_count");
+    } else if (schemaVersion == 2) {
+      assertThat(schema.columns().size()).isEqualTo(12);
     }
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {2})
+  @ValueSource(ints = {1, 2})
+  public void testGetSchemaEvolutionStep(int schemaVersion) {
+    SystemIcebergTableSchemaUpdateStep schemaEvolutionStep =
+        CopyFileHistoryTableSchemaProvider.getSchemaEvolutionStep(schemaVersion);
+    if (schemaVersion == 1) {
+      assertThat(schemaEvolutionStep.getAddedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(1);
+    } else if (schemaVersion == 2) {
+      assertThat(schemaEvolutionStep.getAddedColumns().size()).isEqualTo(6);
+      assertThat(schemaEvolutionStep.getChangedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getDeletedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getRenamedColumns()).isEmpty();
+      assertThat(schemaEvolutionStep.getSchemaVersion()).isEqualTo(2);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1, 2})
+  public void testGetPartitionTransforms(int schemaVersion) {
+    SystemIcebergTablePartitionUpdateStep partitionEvolutionStep =
+        CopyFileHistoryTableSchemaProvider.getPartitionEvolutionStep(schemaVersion);
+    if (schemaVersion == 1) {
+      assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(0);
+      assertThat(partitionEvolutionStep.getSchemaVersion()).isEqualTo(1);
+    } else if (schemaVersion == 2) {
+      assertThat(partitionEvolutionStep.getPartitionTransforms().size()).isEqualTo(1);
+      assertThat(partitionEvolutionStep.getSchemaVersion()).isEqualTo(2);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {3})
   public void testGetUnsupportedVersion(int unsupportedSchemaVersion) {
     assertThrows(
         "Unsupported copy_file_history table schema version. Currently supported schema version are: 1",

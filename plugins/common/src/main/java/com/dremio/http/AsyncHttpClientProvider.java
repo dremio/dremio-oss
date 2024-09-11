@@ -20,14 +20,13 @@ import static org.asynchttpclient.Dsl.asyncHttpClient;
 import static org.asynchttpclient.Dsl.config;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.NamedThreadFactory;
 import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.util.HashedWheelTimer;
 import java.io.IOException;
 import javax.net.ssl.SSLException;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.netty.channel.DefaultChannelPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,11 +58,12 @@ public class AsyncHttpClientProvider {
 
   private static AsyncHttpClient newClient() {
     logger.info("Initializing common AsyncHttpClient.");
-    final HashedWheelTimer poolTimer = new HashedWheelTimer();
     final DefaultAsyncHttpClientConfig.Builder configBuilder =
         config()
-            .setThreadPoolName("dremio-common-asynchttpclient")
-            .setChannelPool(new DefaultChannelPool(TTL, TTL, poolTimer, DEFAULT_CLEANER_PERIOD))
+            // using a custom ThreadFactory that guarantees that threads created are daemon threads.
+            .setThreadFactory(new NamedThreadFactory("dremio-common-asynchttpclient"))
+            .setConnectionTtl(TTL)
+            .setConnectionPoolCleanerPeriod(DEFAULT_CLEANER_PERIOD)
             .setRequestTimeout(DEFAULT_REQUEST_TIMEOUT)
             .setPooledConnectionIdleTimeout(TTL)
             .setResponseBodyPartFactory(AsyncHttpClientConfig.ResponseBodyPartFactory.LAZY)
@@ -75,7 +75,6 @@ public class AsyncHttpClientProvider {
       logger.error("Error while setting ssl context in Async Client", e);
     }
 
-    poolTimer.start();
     final AsyncHttpClient client = asyncHttpClient(configBuilder.build());
 
     Runtime.getRuntime()
@@ -84,7 +83,7 @@ public class AsyncHttpClientProvider {
                 () -> {
                   try {
                     logger.info("Closing common AsyncHttpClient.");
-                    AutoCloseables.close(IOException.class, poolTimer::stop, client);
+                    AutoCloseables.close(IOException.class, client);
                   } catch (IOException e) {
                     logger.error("Error while closing AsyncHttpClient instance", e);
                   }

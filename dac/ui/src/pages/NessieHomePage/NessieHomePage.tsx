@@ -68,7 +68,7 @@ function HomePageContentUnconnected({
 }: NessieHomePageProps & ConnectedProps) {
   const contextValue = useMemo(
     () => createNessieContext(sourceInfo, nessie, statePrefix, baseUrl),
-    [baseUrl, nessie, sourceInfo, statePrefix]
+    [baseUrl, nessie, sourceInfo, statePrefix],
   );
   const initReference = useRef<Branch | undefined>(initialRef);
 
@@ -100,7 +100,7 @@ const mapDispatchToProps = {
 };
 export const HomePageContent = connect(
   mapStateToProps,
-  mapDispatchToProps
+  mapDispatchToProps,
 )(HomePageContentUnconnected);
 
 export default NessieHomePageContent;

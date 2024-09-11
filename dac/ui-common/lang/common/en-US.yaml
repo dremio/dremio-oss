@@ -36,6 +36,13 @@ Common.Actions.Append: Append
 Common.Actions.Overwrite: Overwrite
 Common.Actions.Create: Create
 Common.Actions.Continue: Continue
+Common.Actions.Restart: Restart
+Common.Actions.Back: Back
+Common.Actions.Add: Add
+Common.Actions.Confirm: Confirm
+Common.Actions.Close: Close
+Common.Actions.Discard: Discard
+Common.Actions.SaveContinue: Save and Continue
 
 # Common
 Common.Average: Average
@@ -45,6 +52,8 @@ Common.More: More
 Common.Owner: Owner
 Common.Transfer: Transfer
 Common.Or: or
+Common.Name: Name
+Common.Download: Download
 
 # Route leave warning dialog messages
 Common.RouteLeaveDialog.Title: Unsaved Changes
@@ -115,6 +124,14 @@ Create.Folder: Create folder
 Add.To: Add to...
 Folder.Name: Folder name
 
+# Catalog Data/Commit/Tag Tables
+History.Catalog.Author: "Author"
+History.Catalog.TagName: "Tag Name"
+History.Catalog.CommitID: "Commit ID"
+History.Catalog.CommitMessage: "Commit Message"
+History.Catalog.CommitTime: "Commit Time"
+History.Catalog.GoToData: "Go to data"
+
 # Delete Rule Dialog
 Admin.Rules.DeleteRule: Delete Rule
 Admin.Rules.DeleteRuleWarning: Are you sure you want to delete {name}?
@@ -148,3 +165,15 @@ Common.Range.Last24Hours: Last 24 hours
 Common.Range.Last3Days: Last 3 days
 Common.Range.Last7Days: Last 7 days
 Common.Range.Last30Days: Last 30 days
+
+#Sources
+Sources.Settings.SecretStore.ProviderLabel.DREMIO: Dremio
+Sources.Settings.SecretStore.ProviderLabel.NONE: Select a provider
+Sources.Settings.SecretStore.Placeholder: Insert your private key
+
+AccountSettings.AppearancePicker.Title: Appearance
+AccountSettings.AppearancePicker.Description: Choose if Dremio’s appearance should be light, dark, or follow your device’s settings. Some themes are in preview and may have inconsistencies.
+AccountSettings.AppearancePicker.ThemeTitle.LIGHT: Light
+AccountSettings.AppearancePicker.ThemeTitle.DARK: Dark
+AccountSettings.AppearancePicker.ThemeTitle.HIGH_CONTRAST_LIGHT: High contrast
+AccountSettings.AppearancePicker.ThemeTitle.AUTO_SYSTEM: System

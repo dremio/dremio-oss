@@ -23,21 +23,19 @@ import com.dremio.services.credentials.CredentialsException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
-import com.microsoft.azure.storage.StorageCredentials;
 import com.microsoft.azure.storage.StorageCredentialsAccountAndKey;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
@@ -49,52 +47,38 @@ import org.asynchttpclient.Request;
  */
 public class AzureSharedKeyCredentials implements AzureStorageCredentials, Configurable {
 
-  // TODO: Make configurable (need new configuration option in conf)
-  @VisibleForTesting
-  static final long SECRET_TTL = TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
-
-  private static final LookupResult INVALID_SECRET = new LookupResult();
   private Supplier<String> accountKeySupplier;
   private String accountName;
   private volatile Configuration conf;
-  private volatile LookupResult secret;
 
   /**
    * Constructor for {@link org.apache.hadoop.util.ReflectionUtils#newInstance}. Used by
    * hadoop-azure to provide a custom request signer.
    */
-  public AzureSharedKeyCredentials() {
-    this.secret = INVALID_SECRET; // set as placeholder
-  }
+  public AzureSharedKeyCredentials() {}
 
   @VisibleForTesting
   AzureSharedKeyCredentials(final String accountName, Supplier<String> accountKeySupplier) {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(accountName), "Invalid account name");
+    Preconditions.checkNotNull(accountKeySupplier, "Invalid account key supplier");
     this.accountName = accountName;
-    this.accountKeySupplier =
-        Preconditions.checkNotNull(accountKeySupplier, "Invalid account key supplier");
+    this.accountKeySupplier = memorizeAccountKeySupplier(accountKeySupplier);
     this.conf = null;
-    this.secret = INVALID_SECRET;
   }
 
-  private boolean isExpired() {
-    // This is used to check if a refresh is needed in the first place, so do not trigger a refresh
-    return secret.getCreatedOn().getTime() + SECRET_TTL < System.currentTimeMillis();
+  private Supplier<String> memorizeAccountKeySupplier(Supplier<String> accountKeySupplier) {
+    return Suppliers.memoizeWithExpiration(accountKeySupplier, 5, TimeUnit.MINUTES);
   }
 
   @Override
   public boolean checkAndUpdateToken() {
-    if (isExpired()) {
-      secret = new LookupResult(getAccountName(), getAccountKeySupplier().get());
-      return true;
-    }
     return false;
   }
 
   @Override
   public String getAuthzHeaderValue(final Request req) {
-    final StorageSharedKeyCredential storageSharedKeyCredential =
-        getSecret().getStorageSharedKeyCredential();
+    StorageSharedKeyCredential storageSharedKeyCredential =
+        new StorageSharedKeyCredential(accountName, accountKeySupplier.get());
     try {
       final URL url = new URL(req.getUrl());
       final Map<String, String> headersMap = new HashMap<>();
@@ -109,7 +93,8 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
   @Override
   public void signRequest(final HttpURLConnection connection, final long contentLength)
       throws UnsupportedEncodingException {
-    getSecret().getSharedKeyCredentials().signRequest(connection, contentLength);
+    new SharedKeyCredentials(accountName, accountKeySupplier.get())
+        .signRequest(connection, contentLength);
   }
 
   @Override
@@ -119,21 +104,9 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
 
     synchronized (this) {
       this.conf = conf;
-      this.accountKeySupplier = () -> getSharedAccessKey(conf);
+      this.accountKeySupplier = memorizeAccountKeySupplier(() -> getSharedAccessKey(conf));
       this.accountName = Objects.requireNonNull(conf.get(ACCOUNT));
     }
-  }
-
-  /** Get Secret, updating if necessary */
-  @VisibleForTesting
-  protected LookupResult getSecret() {
-    checkAndUpdateToken();
-    return secret;
-  }
-
-  @VisibleForTesting
-  protected void setSecret(LookupResult secret) {
-    this.secret = secret;
   }
 
   @Override
@@ -141,17 +114,9 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
     return conf;
   }
 
-  private Supplier<String> getAccountKeySupplier() {
-    return this.accountKeySupplier;
-  }
-
-  private String getAccountName() {
-    return this.accountName;
-  }
-
   @Override
-  public StorageCredentials exportToStorageCredentials() {
-    return getSecret().getStorageCredentials();
+  public StorageCredentialsAccountAndKey exportToStorageCredentials() {
+    return new StorageCredentialsAccountAndKey(accountName, accountKeySupplier.get());
   }
 
   /**
@@ -178,63 +143,6 @@ public class AzureSharedKeyCredentials implements AzureStorageCredentials, Confi
       throw UserException.permissionError(e)
           .message("Failed to resolve credentials.")
           .buildSilently();
-    }
-  }
-
-  @VisibleForTesting
-  protected static class LookupResult {
-    private final String accountName;
-    private final String secret;
-    private final Date createdOn;
-
-    private final Supplier<SharedKeyCredentials> sharedKeyCredentials =
-        Suppliers.memoize(() -> new SharedKeyCredentials(getAccountName(), getSecret()));
-    private final Supplier<StorageCredentials> storageCredentials =
-        Suppliers.memoize(() -> new StorageCredentialsAccountAndKey(getAccountName(), getSecret()));
-    private final Supplier<StorageSharedKeyCredential> storageSharedKeyCredential =
-        Suppliers.memoize(() -> new StorageSharedKeyCredential(getAccountName(), getSecret()));
-
-    public LookupResult(String accountName, String secret) {
-      this.accountName = accountName;
-      this.secret = secret;
-      this.createdOn = new Date();
-    }
-
-    private LookupResult() {
-      this.accountName = "";
-      this.secret = "";
-      this.createdOn = new Date(0);
-    }
-
-    @VisibleForTesting
-    LookupResult(String accountName, String secret, long createdOn) {
-      this.accountName = accountName;
-      this.secret = secret;
-      this.createdOn = new Date(createdOn);
-    }
-
-    public String getAccountName() {
-      return accountName;
-    }
-
-    public String getSecret() {
-      return secret;
-    }
-
-    public Date getCreatedOn() {
-      return createdOn;
-    }
-
-    public SharedKeyCredentials getSharedKeyCredentials() {
-      return sharedKeyCredentials.get();
-    }
-
-    public StorageCredentials getStorageCredentials() {
-      return storageCredentials.get();
-    }
-
-    public StorageSharedKeyCredential getStorageSharedKeyCredential() {
-      return storageSharedKeyCredential.get();
     }
   }
 }

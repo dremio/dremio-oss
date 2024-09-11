@@ -34,7 +34,9 @@ public class VacuumCatalogDrel extends VacuumCatalogRelBase implements Rel {
       String user,
       String sourceName,
       IcebergCostEstimates icebergCostEstimates,
-      VacuumOptions vacuumOptions) {
+      VacuumOptions vacuumOptions,
+      String fsScheme,
+      String schemeVariate) {
     super(
         LOGICAL,
         cluster,
@@ -43,7 +45,9 @@ public class VacuumCatalogDrel extends VacuumCatalogRelBase implements Rel {
         user,
         sourceName,
         icebergCostEstimates,
-        vacuumOptions);
+        vacuumOptions,
+        fsScheme,
+        schemeVariate);
   }
 
   @Override
@@ -55,6 +59,8 @@ public class VacuumCatalogDrel extends VacuumCatalogRelBase implements Rel {
         getUser(),
         getSourceName(),
         getCostEstimates(),
-        getVacuumOptions());
+        getVacuumOptions(),
+        getFsScheme(),
+        getSchemeVariate());
   }
 }

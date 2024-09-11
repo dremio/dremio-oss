@@ -39,13 +39,6 @@ service InformationSchemaService {
   rpc ListViews (ListViewsRequest) returns (stream View);
 
   rpc ListTableSchemata (ListTableSchemataRequest) returns (stream TableSchema);
-
-  rpc ListSysCatalogs (ListSysCatalogsRequest) returns (stream exec.user.CatalogMetadata);
-
-  rpc ListSysSchemas (ListSysSchemasRequest) returns (stream exec.user.SchemaMetadata);
-
-  rpc ListSysColumns (ListSysColumnsRequest) returns (stream exec.user.ColumnMetadata);
-
 }
 
 // catalog search query message
@@ -91,6 +84,7 @@ message SearchQuery {
 message ListCatalogsRequest {
   SearchQuery query = 1;
   string username = 2;
+  string requester_id = 3;
 }
 
 // single row in the "information_schema.catalogs" table
@@ -104,6 +98,7 @@ message Catalog {
 message ListSchemataRequest {
   SearchQuery query = 1;
   string username = 2;
+  string requester_id = 3;
 }
 
 // Schema type
@@ -125,6 +120,7 @@ message Schema {
 message ListTablesRequest {
   SearchQuery query = 1;
   string username = 2;
+  string requester_id = 3;
 }
 
 // Table type
@@ -147,6 +143,7 @@ message Table {
 message ListViewsRequest {
   SearchQuery query = 1;
   string username = 2;
+  string requester_id = 3;
 }
 
 // single row in the "information_schema.views" table
@@ -161,6 +158,7 @@ message View {
 message ListTableSchemataRequest {
   SearchQuery query = 1;
   string username = 2;
+  string requester_id = 3;
 }
 
 // table schema message
@@ -169,22 +167,4 @@ message TableSchema {
   string schema_name = 2;
   string table_name = 3;
   bytes batch_schema = 4; // a flat map of batch_schema yields rows in the "information_schema.columns" table
-}
-
-// request message to list catalogs in system table
-message ListSysCatalogsRequest {
-  exec.search.SearchQuery query = 1;
-  string username = 2;
-}
-
-// request message to list columns in system table
-message ListSysColumnsRequest {
-  exec.search.SearchQuery query = 1;
-  string username = 2;
-}
-
-// request message to list schemas in system table
-message ListSysSchemasRequest {
-  exec.search.SearchQuery query = 1;
-  string username = 2;
 }

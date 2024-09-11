@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
+import { getClusterInfo } from "@app/utils/infoUtils";
+import { getSupport } from "@app/utils/supportUtils";
+import { setClusterType } from "actions/jobs/jobs";
 export const getFormatMessageIdForQueryType = (jobDetails) => {
   const requestType = jobDetails.get("requestType");
   const isPrepareCreate = requestType === "CREATE_PREPARE";
@@ -79,3 +82,22 @@ export const getQueueInfo = (jobDetails) => {
 };
 
 export const GetIsSocketForSingleJob = () => true;
+
+export const shouldDisableDownload = (jobDetails) => {
+  return !!jobDetails?.get("isProfileIncomplete");
+};
+
+export const handleCluster = async (dispatch) => {
+  const isAdmin = getPrivilegeContext().isAdmin();
+  const { clusterType } = await getClusterInfo();
+  dispatch(
+    setClusterType(
+      clusterType
+        ? {
+            clusterType,
+            isSupport: getSupport(isAdmin) ?? false,
+          }
+        : "NP",
+    ),
+  );
+};

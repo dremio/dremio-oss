@@ -56,7 +56,7 @@ public class TestParquetPhysicalPlan extends ExecTest {
           client.runQuery(
               com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
               readResourceAsString(fileName));
-      RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
+      RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
       int count = 0;
       for (QueryDataBatch b : results) {
         System.out.println(String.format("Got %d results", b.getHeader().getRowCount()));

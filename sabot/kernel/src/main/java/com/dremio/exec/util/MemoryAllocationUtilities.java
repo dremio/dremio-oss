@@ -15,8 +15,7 @@
  */
 package com.dremio.exec.util;
 
-import static com.dremio.common.exceptions.UserException.MEMORY_ERROR_MSG;
-
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.util.PrettyPrintUtils;
@@ -179,20 +178,22 @@ public final class MemoryAllocationUtilities {
       if (memoryForHeavyOperations < 1) {
         logger.info(getOpMemoryDetailsString(ep, consideredOps.get(ep), nonConsideredOps.get(ep)));
         throw UserException.memoryError()
-            .message(
-                MEMORY_ERROR_MSG
-                    + "Expected at least %s bytes, but only had %s available.%s"
-                    + "Size requirement for memory intensive ops is %s bytes.%s"
-                    + "Missing memory = %s bytes, Number of Memory intensive ops = %d, Other ops = %d, Endpoint = %s",
-                PrettyPrintUtils.bytePrint(outsideReserve, true),
-                PrettyPrintUtils.bytePrint(maxMemoryPerNodePerQuery, true),
-                System.lineSeparator(),
-                PrettyPrintUtils.bytePrint(consideredOpsReserve, true),
-                System.lineSeparator(),
-                PrettyPrintUtils.bytePrint(Math.abs(memoryForHeavyOperations), true),
-                consideredOps.size(),
-                nonConsideredOps.size(),
-                ep.getAddress())
+            .setAdditionalExceptionContext(
+                new OutOfMemoryOrResourceExceptionContext(
+                    OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY,
+                    String.format(
+                        " Expected at least %s bytes, but only had %s available.%s"
+                            + "Size requirement for memory intensive ops is %s bytes.%s"
+                            + "Missing memory = %s bytes, Number of Memory intensive ops = %d, Other ops = %d, Endpoint = %s",
+                        PrettyPrintUtils.bytePrint(outsideReserve, true),
+                        PrettyPrintUtils.bytePrint(maxMemoryPerNodePerQuery, true),
+                        System.lineSeparator(),
+                        PrettyPrintUtils.bytePrint(consideredOpsReserve, true),
+                        System.lineSeparator(),
+                        PrettyPrintUtils.bytePrint(Math.abs(memoryForHeavyOperations), true),
+                        consideredOps.size(),
+                        nonConsideredOps.size(),
+                        ep.getAddress())))
             .build(logger);
       }
       final double baseWeight = memoryForHeavyOperations / totalWeights;

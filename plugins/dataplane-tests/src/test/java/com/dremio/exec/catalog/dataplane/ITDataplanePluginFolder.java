@@ -20,17 +20,25 @@ import static com.dremio.exec.catalog.dataplane.test.ContainerEntity.tableBSecon
 import static com.dremio.exec.catalog.dataplane.test.ContainerEntity.viewCThird;
 import static com.dremio.exec.catalog.dataplane.test.ContainerEntity.viewDFourth;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQuery;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createViewQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.folderA;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.folderB;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueFolderName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueRawRefName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTagName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tableA;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.dataplane.test.ContainerEntity;
 import com.dremio.exec.catalog.dataplane.test.ITDataplanePluginTestSetup;
 import com.dremio.plugins.ExternalNamespaceEntry;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.Streams;
 import java.util.Arrays;
 import java.util.Collections;
@@ -529,6 +537,42 @@ public class ITDataplanePluginFolder extends ITDataplanePluginTestSetup {
     assertThat(getDataplanePlugin().listEntries(incorrectFullPath, MAIN))
         .map(ExternalNamespaceEntry::getNameElements)
         .isEmpty();
+  }
+
+  @Test
+  public void creatFolderWithTagContext() throws Exception {
+    final String rootFolder = generateUniqueFolderName();
+    final String someTag = generateUniqueTagName();
+    // Setup
+    final List<String> folderPath = Arrays.asList(DATAPLANE_PLUGIN_NAME, rootFolder);
+    final NamespaceKey namespaceKey = new NamespaceKey(folderPath);
+    runSQL(createTagQuery(someTag, DEFAULT_BRANCH_NAME));
+
+    // Act + Assert
+    assertThatThrownBy(
+            () -> getDataplanePlugin().createNamespace(namespaceKey, VersionContext.ofTag(someTag)))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(
+            "Create folder is only supported for branches - not on tags or commits");
+  }
+
+  @Test
+  public void createFolderWithCommitContext() throws Exception {
+    final String rootFolder = generateUniqueFolderName();
+    final String someCommitHash = generateUniqueRawRefName();
+    // Setup
+    final List<String> folderPath = Arrays.asList(DATAPLANE_PLUGIN_NAME, rootFolder);
+    final NamespaceKey namespaceKey = new NamespaceKey(folderPath);
+    runSQL(createTagQuery(someCommitHash, DEFAULT_BRANCH_NAME));
+
+    // Act + Assert
+    assertThatThrownBy(
+            () ->
+                getDataplanePlugin()
+                    .createNamespace(namespaceKey, VersionContext.ofTag(someCommitHash)))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(
+            "Create folder is only supported for branches - not on tags or commits");
   }
 
   public Stream<List<String>> getFullPath(ContainerEntity parent) {

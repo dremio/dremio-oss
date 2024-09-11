@@ -80,7 +80,7 @@ public class DatasetRetrievalOptions {
   private final Optional<Boolean> deleteUnavailableDatasets;
   private final Optional<Boolean> autoPromote;
   private final Optional<Boolean> forceUpdate;
-  private final Optional<Boolean> refreshDataset;
+  private final boolean refreshDataset;
   private final Optional<Integer> maxMetadataLeafColumns;
   private final Optional<Integer> maxNestedLevel;
   private final Optional<MetadataRefreshQuery> refreshQuery;
@@ -96,7 +96,7 @@ public class DatasetRetrievalOptions {
     this.deleteUnavailableDatasets = Optional.ofNullable(builder.deleteUnavailableDatasets);
     this.autoPromote = Optional.ofNullable(builder.autoPromote);
     this.forceUpdate = Optional.ofNullable(builder.forceUpdate);
-    this.refreshDataset = Optional.ofNullable(builder.refreshDataset);
+    this.refreshDataset = builder.refreshDataset;
     this.maxMetadataLeafColumns = Optional.ofNullable(builder.maxMetadataLeafColumns);
     this.maxNestedLevel = Optional.ofNullable(builder.maxNestedLevel);
     this.refreshQuery = Optional.ofNullable(builder.refreshQuery);
@@ -122,7 +122,7 @@ public class DatasetRetrievalOptions {
   }
 
   public boolean refreshDataset() {
-    return refreshDataset.orElseGet(() -> fallback.refreshDataset());
+    return refreshDataset;
   }
 
   public int maxMetadataLeafColumns() {
@@ -156,7 +156,7 @@ public class DatasetRetrievalOptions {
         .setDeleteUnavailableDatasets(deleteUnavailableDatasets.orElse(null))
         .setAutoPromote(autoPromote.orElse(null))
         .setForceUpdate(forceUpdate.orElse(null))
-        .setRefreshDataset(refreshDataset.orElse(null))
+        .setRefreshDataset(refreshDataset)
         .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
         .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL))
         .setRefreshQuery(refreshQuery.orElse(null))
@@ -168,7 +168,7 @@ public class DatasetRetrievalOptions {
     return refreshQuery;
   }
 
-  public static class Builder {
+  public static final class Builder {
 
     private Boolean ignoreAuthzErrors;
     private Boolean deleteUnavailableDatasets;
@@ -206,7 +206,7 @@ public class DatasetRetrievalOptions {
       return this;
     }
 
-    public Builder setRefreshDataset(Boolean refreshDataset) {
+    public Builder setRefreshDataset(boolean refreshDataset) {
       this.refreshDataset = refreshDataset;
       return this;
     }

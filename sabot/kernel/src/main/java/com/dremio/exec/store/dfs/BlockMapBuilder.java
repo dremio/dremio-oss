@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newTimerResourceSampleSupplier;
+import static com.dremio.telemetry.api.metrics.TimerUtils.timedExceptionThrowingOperation;
+
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.easy.FileWork;
@@ -25,10 +28,6 @@ import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileBlockLocation;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.dremio.telemetry.api.metrics.Metrics.ResetType;
-import com.dremio.telemetry.api.metrics.Timer;
-import com.dremio.telemetry.api.metrics.Timer.TimerContext;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
@@ -37,19 +36,22 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.net.HostAndPort;
+import io.micrometer.core.instrument.Timer;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class BlockMapBuilder {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(BlockMapBuilder.class);
-  private static final Timer BLOCK_MAP_BUILD_TIMER =
-      Metrics.newTimer(
-          Metrics.join(BlockMapBuilder.class.getName(), "blockMapBuilderTimer"), ResetType.NEVER);
+  private static final Supplier<Timer.ResourceSample> BLOCK_MAP_BUILD_TIMER =
+      newTimerResourceSampleSupplier(
+          "block_map_builder",
+          "Time taken to build a mapping of block locations to file byte range");
 
   private final Map<Path, ImmutableRangeMap<Long, FileBlockLocation>> blockMapMap =
       Maps.newConcurrentMap();
@@ -189,22 +191,24 @@ public class BlockMapBuilder {
   /** Builds a mapping of block locations to file byte range */
   private ImmutableRangeMap<Long, FileBlockLocation> buildBlockMap(FileAttributes attributes)
       throws IOException {
-    try (final TimerContext context = BLOCK_MAP_BUILD_TIMER.start()) {
-      Iterable<FileBlockLocation> blocks;
-      ImmutableRangeMap<Long, FileBlockLocation> blockMap;
-      blocks = fs.getFileBlockLocations(attributes, 0, attributes.size());
-      ImmutableRangeMap.Builder<Long, FileBlockLocation> blockMapBuilder =
-          new ImmutableRangeMap.Builder<>();
-      for (FileBlockLocation block : blocks) {
-        long start = block.getOffset();
-        long end = start + block.getSize();
-        Range<Long> range = Range.closedOpen(start, end);
-        blockMapBuilder = blockMapBuilder.put(range, block);
-      }
-      blockMap = blockMapBuilder.build();
-      blockMapMap.put(attributes.getPath(), blockMap);
-      return blockMap;
-    }
+    return timedExceptionThrowingOperation(
+        BLOCK_MAP_BUILD_TIMER.get(),
+        () -> {
+          Iterable<FileBlockLocation> blocks;
+          ImmutableRangeMap<Long, FileBlockLocation> blockMap;
+          blocks = fs.getFileBlockLocations(attributes, 0, attributes.size());
+          ImmutableRangeMap.Builder<Long, FileBlockLocation> blockMapBuilder =
+              new ImmutableRangeMap.Builder<>();
+          for (FileBlockLocation block : blocks) {
+            long start = block.getOffset();
+            long end = start + block.getSize();
+            Range<Long> range = Range.closedOpen(start, end);
+            blockMapBuilder = blockMapBuilder.put(range, block);
+          }
+          blockMap = blockMapBuilder.build();
+          blockMapMap.put(attributes.getPath(), blockMap);
+          return blockMap;
+        });
   }
 
   private ImmutableRangeMap<Long, FileBlockLocation> getBlockMap(FileAttributes attributes)

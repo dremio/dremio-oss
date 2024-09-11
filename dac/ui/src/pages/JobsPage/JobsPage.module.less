@@ -62,10 +62,11 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: var(--dremio--color--link);
+        color: var(--text--link);
+        font-weight: 500;
       }
 
-      .leantable__body-cell {
+      .leantable__body-row {
         .copy-button {
           opacity: 0;
           cursor: auto;
@@ -75,6 +76,10 @@
             opacity: 1;
             cursor: pointer;
           }
+        }
+        .copy-button:focus {
+          opacity: 1;
+          cursor: pointer;
         }
       }
     }

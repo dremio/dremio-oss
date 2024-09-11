@@ -109,7 +109,7 @@ public class WindowFrameOperator implements SingleInputOperator {
   public void noMoreToConsume() throws Exception {
     state.is(State.CAN_CONSUME);
     noMoreToConsume = true;
-    if (batches.size() != currentBatchIndex) {
+    if (!batches.isEmpty()) {
       state = State.CAN_PRODUCE;
     } else {
       state = State.DONE;
@@ -121,7 +121,7 @@ public class WindowFrameOperator implements SingleInputOperator {
     state.is(State.CAN_PRODUCE);
     doWork();
 
-    if (batches.size() == currentBatchIndex) {
+    if (batches.isEmpty()) {
       state = State.DONE;
     } else if (!noMoreToConsume && !canDoWork()) {
       state = State.CAN_CONSUME;
@@ -178,6 +178,8 @@ public class WindowFrameOperator implements SingleInputOperator {
       // close it
       if (isPartitionEndReachedInPrevBatch(current, recordCount)) {
         closeUnneededBatches();
+      } else {
+        currentBatchIndex++;
       }
       // if frame is RANGE and upper bound is FOLLOWING it's possible that partition could be
       // located in several batches.
@@ -185,40 +187,48 @@ public class WindowFrameOperator implements SingleInputOperator {
       // check if we need to close previous batches
       if (isFrameEndReachedInPrevBatch(current, recordCount)) {
         closeUnneededBatches();
+      } else {
+        currentBatchIndex++;
       }
     } else {
       current.close();
+      batches.remove(currentBatchIndex);
+      currentBatchIndex = 0;
     }
 
-    // close all batches if needed
-    if (currentBatchIndex == batches.size() - 1) {
-      for (VectorContainer container : batches) {
-        if (container.isNewSchema()) {
-          break;
-        }
-        container.close();
-      }
-    }
-    currentBatchIndex++;
     logger.trace("doWork() END");
     return recordCount;
   }
 
   private void closeUnneededBatches() {
-    for (int i = currentBatchIndex - 1; i >= 0; i--) {
-      // break if batch already closed
-      if (batches.get(i).isNewSchema()) {
-        break;
-      }
+    boolean isLastBatch = isLastBatch();
+    // if current batch is the last one - close all batches, otherwise close all batches before
+    // current
+    for (int i = isLastBatch ? currentBatchIndex : currentBatchIndex - 1; i >= 0; i--) {
       batches.get(i).close();
+      batches.remove(i);
+      currentBatchIndex--;
     }
+    if (!isLastBatch) {
+      // if current batch is not the last one, we need to increment currentBatchIndex to point to
+      // the next batch
+      currentBatchIndex++;
+    }
+  }
+
+  private boolean isLastBatch() {
+    return currentBatchIndex == batches.size() - 1;
   }
 
   private boolean isPartitionEndReachedInPrevBatch(
       VectorAccessible current, int currentRecordCount) {
     // if it's the first batch, we can't compare it with the previous one
     if (currentBatchIndex == 0) {
-      return false;
+      return isLastBatch();
+    }
+    // if it's the last batch, we can close all batches
+    if (noMoreToConsume && isLastBatch()) {
+      return true;
     }
     final VectorAccessible previous = batches.get(currentBatchIndex - 1);
     final int prevRecordCount = previous.getRecordCount();
@@ -229,7 +239,11 @@ public class WindowFrameOperator implements SingleInputOperator {
   private boolean isFrameEndReachedInPrevBatch(VectorAccessible current, int currentRecordCount) {
     // if it's the first batch, we can't compare it with the previous one
     if (currentBatchIndex == 0) {
-      return false;
+      return isLastBatch();
+    }
+    // if it's the last batch, we can close all batches
+    if (noMoreToConsume && isLastBatch()) {
+      return true;
     }
     final VectorAccessible previous = batches.get(currentBatchIndex - 1);
     final int prevRecordCount = previous.getRecordCount();
@@ -244,7 +258,7 @@ public class WindowFrameOperator implements SingleInputOperator {
    *     batch currently held in memory)
    */
   private boolean canDoWork() {
-    if (batches.size() - currentBatchIndex < 2) {
+    if (batches.size() < 2) {
       // we need at least 2 batches even when window functions only need one batch, so we can detect
       // the end of the
       // current partition

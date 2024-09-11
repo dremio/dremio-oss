@@ -19,14 +19,13 @@ package com.dremio.sabot.op.aggregate.vectorized.arrayagg;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DateMilliVector;
 
-public final class DateArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<Long, DateMilliVector> {
+public final class DateArrayAggAccumulatorHolder extends ArrayAggAccumulatorHolder<Long> {
   private final DateMilliVector vector;
 
-  public DateArrayAggAccumulatorHolder(int maxValuesPerBatch, final BufferAllocator allocator) {
-    super(maxValuesPerBatch, allocator);
+  public DateArrayAggAccumulatorHolder(final BufferAllocator allocator, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector = new DateMilliVector("array_agg DateArrayAggAccumulatorHolder", allocator);
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -50,5 +49,18 @@ public final class DateArrayAggAccumulatorHolder
   @Override
   public Long getItem(int index) {
     return vector.get(index);
+  }
+
+  @Override
+  public double getSizeOfElement(Long element) {
+    return DateMilliVector.TYPE_WIDTH;
+  }
+
+  @Override
+  public void reAllocIfNeeded(Long data) {
+    super.reAllocIfNeeded(data);
+    if (numItems + 1 >= vector.getValueCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

@@ -37,6 +37,7 @@ import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -149,6 +150,7 @@ class FragmentTracker implements AutoCloseable {
     checkAndUpdateFirstError(UserRemoteException.create(firstError.getError()));
   }
 
+  @WithSpan
   public void nodeCompleted(NodeQueryCompletion completion) {
     if (completion.hasFirstError()) {
       logger.debug(
@@ -238,6 +240,7 @@ class FragmentTracker implements AutoCloseable {
     return desc.toString();
   }
 
+  @WithSpan
   private void markNodeDone(NodeEndpoint endpoint) {
     if (pendingNodes.remove(endpoint)) {
       logger.debug(
@@ -318,6 +321,7 @@ class FragmentTracker implements AutoCloseable {
   }
 
   // Save and propagate the first reported by any executor.
+  @WithSpan
   void checkAndUpdateFirstError(Exception e) {
     // if another thread set the firstError, wait till it finishes the failed() callback too.
     synchronized (firstError) {

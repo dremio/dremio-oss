@@ -365,7 +365,8 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
       path = Path.getContainerSpecificRelativePath(Path.of(path));
     }
     final JSONRecordReader jsonRecordReader =
-        new JSONRecordReader(opCtx, path, getCodecFactory(), fs, innerFields);
+        new JSONRecordReader(
+            opCtx, path, easyXAttr.getLength(), getCodecFactory(), fs, innerFields);
     jsonRecordReader.resetSpecialSchemaOptions();
 
     if (addWithPartitionCols) {

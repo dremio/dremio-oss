@@ -28,10 +28,12 @@ import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFil
 import com.dremio.exec.physical.config.copyinto.CopyIntoHistoryExtendedProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties.OnErrorOption;
+import com.dremio.exec.physical.config.copyinto.IngestionProperties;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.dfs.FileLoadInfo.Util;
+import com.dremio.exec.store.dfs.copyinto.CopyIntoExceptionUtils;
 import com.dremio.exec.store.dfs.easy.ExtendedEasyReaderProperties;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
 import com.dremio.exec.store.easy.json.reader.CountingJsonReader;
@@ -84,6 +86,7 @@ public class JSONRecordReader extends AbstractRecordReader {
   private ExtendedFormatOptions extendedFormatOptions;
   private CopyIntoQueryProperties copyIntoQueryProperties;
   private SimpleQueryContext queryContext;
+  private IngestionProperties ingestionProperties;
 
   // Data we're consuming
   private final Path fsPath;
@@ -112,6 +115,8 @@ public class JSONRecordReader extends AbstractRecordReader {
   private String setupError = null;
   private boolean isSetupErrorWritten = false;
   private boolean onErrorHandlingRequired = false;
+  private long processingStartTime;
+  private final long fileSize;
 
   /**
    * Create a JSON Record Reader that uses a file based input stream.
@@ -126,11 +131,12 @@ public class JSONRecordReader extends AbstractRecordReader {
   public JSONRecordReader(
       final OperatorContext context,
       final String inputPath,
+      final long fileSize,
       final CompressionCodecFactory codecFactory,
       final FileSystem fileSystem,
       final List<SchemaPath> columns)
       throws OutOfMemoryException {
-    this(context, inputPath, null, codecFactory, fileSystem, columns);
+    this(context, inputPath, fileSize, null, codecFactory, fileSystem, columns);
   }
 
   @Override
@@ -155,12 +161,13 @@ public class JSONRecordReader extends AbstractRecordReader {
       final FileSystem fileSystem,
       final List<SchemaPath> columns)
       throws OutOfMemoryException {
-    this(context, null, embeddedContent, codecFactory, fileSystem, columns);
+    this(context, null, 0L, embeddedContent, codecFactory, fileSystem, columns);
   }
 
   private JSONRecordReader(
       final OperatorContext operatorContext,
       final String inputPath,
+      final long fileSize,
       final JsonNode embeddedContent,
       final CompressionCodecFactory codecFactory,
       final FileSystem fileSystem,
@@ -179,6 +186,8 @@ public class JSONRecordReader extends AbstractRecordReader {
       this.embeddedContent = embeddedContent;
       this.fsPath = null;
     }
+
+    this.fileSize = fileSize;
 
     this.codecFactory = codecFactory;
     this.fileSystem = fileSystem;
@@ -200,12 +209,13 @@ public class JSONRecordReader extends AbstractRecordReader {
   public JSONRecordReader(
       final OperatorContext operatorContext,
       final String inputPath,
+      final long fileSize,
       final CompressionCodecFactory codecFactory,
       final FileSystem fileSystem,
       final List<SchemaPath> columns,
       final ExtendedEasyReaderProperties properties,
       final ByteString extendedProperties) {
-    this(operatorContext, inputPath, null, codecFactory, fileSystem, columns);
+    this(operatorContext, inputPath, fileSize, null, codecFactory, fileSystem, columns);
     if (properties != null) {
       this.schemaImposedMode = properties.isSchemaImposed();
       this.extendedFormatOptions = properties.getExtendedFormatOptions();
@@ -230,6 +240,10 @@ public class JSONRecordReader extends AbstractRecordReader {
             copyIntoExtendedProperties.getProperty(
                 CopyIntoExtendedProperties.PropertyKey.COPY_INTO_HISTORY_PROPERTIES,
                 CopyIntoHistoryExtendedProperties.class);
+        this.ingestionProperties =
+            copyIntoExtendedProperties.getProperty(
+                CopyIntoExtendedProperties.PropertyKey.INGESTION_PROPERTIES,
+                IngestionProperties.class);
 
         if (copyIntoHistoryExtendedProperties != null) {
           this.isValidationMode = true;
@@ -260,6 +274,7 @@ public class JSONRecordReader extends AbstractRecordReader {
   @Override
   public void setup(final OutputMutator output) throws ExecutionSetupException {
     try {
+      this.processingStartTime = System.currentTimeMillis();
       this.writer = new VectorContainerWriter(output);
       this.writer.setInitialCapacity(context.getTargetBatchSize());
       if (fsPath != null) {
@@ -297,16 +312,19 @@ public class JSONRecordReader extends AbstractRecordReader {
                   readNumbersAsDouble,
                   schemaImposedMode,
                   extendedFormatOptions,
-                  null,
+                  copyIntoQueryProperties,
                   queryContext,
+                  ingestionProperties,
                   context,
                   batchSchema,
                   context
                       .getOptions()
                       .getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED),
                   filePathForError,
+                  fileSize,
                   isValidationMode,
-                  validationErrorRowWriter);
+                  validationErrorRowWriter,
+                  processingStartTime);
           this.preValidatorJsonReader =
               new JsonReader(
                   context.getManagedBuffer(),
@@ -320,14 +338,17 @@ public class JSONRecordReader extends AbstractRecordReader {
                   extendedFormatOptions,
                   copyIntoQueryProperties,
                   queryContext,
+                  ingestionProperties,
                   context,
                   batchSchema,
                   context
                       .getOptions()
                       .getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED),
                   filePathForError,
+                  fileSize,
                   true,
-                  validationErrorRowWriter);
+                  validationErrorRowWriter,
+                  processingStartTime);
           setupParser(preValidatorJsonReader);
           recordBatchReadingStatus = RecordBatchReadingStatus.PRE_VALIDATION;
         } else {
@@ -344,20 +365,23 @@ public class JSONRecordReader extends AbstractRecordReader {
                   extendedFormatOptions,
                   copyIntoQueryProperties,
                   queryContext,
+                  ingestionProperties,
                   context,
                   batchSchema,
                   context
                       .getOptions()
                       .getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED),
                   filePathForError,
+                  fileSize,
                   isValidationMode,
-                  validationErrorRowWriter);
+                  validationErrorRowWriter,
+                  processingStartTime);
           setupParser(jsonReader);
         }
       }
     } catch (final Exception e) {
       if (onErrorHandlingRequired) {
-        setupError = e.getMessage();
+        setupError = CopyIntoExceptionUtils.redactException(e).getMessage();
         logger.debug(
             String.format(
                 "Encountered error while setting up JsonRecordReader. JsonRecordReader is running in '%s' mode.",
@@ -455,7 +479,9 @@ public class JSONRecordReader extends AbstractRecordReader {
         // for JSON we bail out at the first validation error
         recordCount = 1;
         break;
-      } else if (!isFileLoadEventRecorded && readState == ReadState.END_OF_STREAM) {
+      } else if (!isFileLoadEventRecorded
+          && readState == ReadState.END_OF_STREAM
+          && trackRecordCount) {
         recordCount += jsonProcessor.writeSuccessfulParseEvent(writer);
         isFileLoadEventRecorded = true;
         break;
@@ -495,21 +521,34 @@ public class JSONRecordReader extends AbstractRecordReader {
     // Access the root struct writer for setting up the error information.
     StructWriter structWriter = writer.rootAsStruct();
 
+    Builder builder =
+        new Builder(
+                queryContext.getQueryId(),
+                queryContext.getUserName(),
+                queryContext.getTableNamespace(),
+                copyIntoQueryProperties.getStorageLocation(),
+                filePathForError,
+                extendedFormatOptions,
+                FileType.JSON.name(),
+                CopyIntoFileState.SKIPPED)
+            .setRecordsLoadedCount(0)
+            .setRecordsRejectedCount(0L)
+            .setBranch(copyIntoQueryProperties.getBranch())
+            .setProcessingStartTime(processingStartTime)
+            .setFileSize(fileSize)
+            .setFirstErrorMessage(setupError);
+
+    if (ingestionProperties != null) {
+      builder
+          .setPipeId(ingestionProperties.getPipeId())
+          .setPipeName(ingestionProperties.getPipeName())
+          .setFileNotificationTimestamp(ingestionProperties.getNotificationTimestamp())
+          .setIngestionSourceType(ingestionProperties.getIngestionSourceType())
+          .setRequestId(ingestionProperties.getRequestId());
+    }
+
     // Create a JSON representation of the setup error information.
-    String infoJson =
-        Util.getJson(
-            new Builder(
-                    queryContext.getQueryId(),
-                    queryContext.getUserName(),
-                    queryContext.getTableNamespace(),
-                    copyIntoQueryProperties.getStorageLocation(),
-                    filePathForError,
-                    extendedFormatOptions,
-                    FileType.JSON.name(),
-                    CopyIntoFileState.SKIPPED)
-                .setRecordsLoadedCount(0)
-                .setRecordsRejectedCount(0L)
-                .build());
+    String infoJson = Util.getJson(builder.build());
 
     // Prepare a VarChar holder in the working buffer for the JSON data.
     WorkingBuffer workingBuffer = new WorkingBuffer(context.getManagedBuffer());

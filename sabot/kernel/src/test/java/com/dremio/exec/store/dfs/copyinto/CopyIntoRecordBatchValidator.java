@@ -22,12 +22,18 @@ import com.dremio.exec.store.dfs.FileLoadInfo;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.RecordSet.RsRecord;
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
 import java.util.List;
+import java.util.Objects;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CopyIntoRecordBatchValidator extends RecordBatchValidatorDefaultImpl {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(CopyIntoRecordBatchValidator.class);
 
   public CopyIntoRecordBatchValidator(RecordSet recordSet) {
     super(recordSet);
@@ -35,7 +41,7 @@ public class CopyIntoRecordBatchValidator extends RecordBatchValidatorDefaultImp
 
   @Override
   protected boolean compareRecord(
-      RecordSet.Record expected, List<ValueVector> actual, int actualIndex, V2_AsciiTable output) {
+      RsRecord expected, List<ValueVector> actual, int actualIndex, V2_AsciiTable output) {
     assertThat(actual.size()).isEqualTo(expected.getValues().length);
     boolean matches = true;
     Object[] outputValues = new Object[actual.size()];
@@ -80,26 +86,94 @@ public class CopyIntoRecordBatchValidator extends RecordBatchValidatorDefaultImp
     CopyIntoFileLoadInfo actualInfo =
         FileLoadInfo.Util.getInfo(actualValue, CopyIntoFileLoadInfo.class);
     if (actualInfo.getRecordsRejectedCount() != expectedInfo.getRecordsRejectedCount()) {
+      logValueMismatchError(
+          "Rejected record count",
+          actualInfo.getRecordsRejectedCount(),
+          expectedInfo.getRecordsRejectedCount());
       return false;
     }
     if (actualInfo.getRecordsLoadedCount() != expectedInfo.getRecordsLoadedCount()) {
+      logValueMismatchError(
+          "Record loaded count",
+          actualInfo.getRecordsLoadedCount(),
+          expectedInfo.getRecordsLoadedCount());
+
       return false;
     }
     if (!actualInfo.getTableName().equals(expectedInfo.getTableName())) {
+      logValueMismatchError("Table name", actualInfo.getTableName(), expectedInfo.getTableName());
       return false;
     }
     if (actualInfo.getFilePath() == null || actualInfo.getFilePath().isEmpty()) {
+      logValueMismatchError("File path", actualInfo.getFilePath(), expectedInfo.getFilePath());
       return false;
     }
     if (!actualInfo.getQueryUser().equals(expectedInfo.getQueryUser())) {
+      logValueMismatchError("Query user", actualInfo.getQueryUser(), expectedInfo.getQueryUser());
       return false;
     }
     if (!actualInfo.getQueryId().equals(expectedInfo.getQueryId())) {
+      logValueMismatchError("Query Id", actualInfo.getQueryId(), expectedInfo.getQueryId());
       return false;
     }
     if (!actualInfo.getFileState().equals(expectedInfo.getFileState())) {
+      logValueMismatchError("File state", actualInfo.getFileState(), expectedInfo.getFileState());
       return false;
     }
-    return actualInfo.getFormatOptions().equals(expectedInfo.getFormatOptions());
+    if (!Objects.equals(actualInfo.getBranch(), expectedInfo.getBranch())) {
+      logValueMismatchError("Branch", actualInfo.getBranch(), expectedInfo.getBranch());
+      return false;
+    }
+    if (!Objects.equals(actualInfo.getPipeId(), expectedInfo.getPipeId())) {
+      logValueMismatchError("Pipe Id", actualInfo.getPipeId(), expectedInfo.getPipeId());
+      return false;
+    }
+    if (!Objects.equals(actualInfo.getPipeName(), expectedInfo.getPipeName())) {
+      logValueMismatchError("Pipe name", actualInfo.getPipeName(), expectedInfo.getPipeName());
+      return false;
+    }
+    if (!Objects.equals(
+        actualInfo.getIngestionSourceType(), expectedInfo.getIngestionSourceType())) {
+      logValueMismatchError(
+          "Ingestion source type",
+          actualInfo.getIngestionSourceType(),
+          expectedInfo.getIngestionSourceType());
+      return false;
+    }
+    if (!Objects.equals(actualInfo.getRequestId(), expectedInfo.getRequestId())) {
+      logValueMismatchError("Request Id", actualInfo.getRequestId(), expectedInfo.getRequestId());
+      return false;
+    }
+    if (actualInfo.getFileSize() != expectedInfo.getFileSize()) {
+      logValueMismatchError("File size", actualInfo.getFileSize(), expectedInfo.getFileSize());
+      return false;
+    }
+    if (!Objects.equals(
+        actualInfo.getFileNotificationTimestamp(), expectedInfo.getFileNotificationTimestamp())) {
+      logValueMismatchError(
+          "File notification timestamp",
+          actualInfo.getFileNotificationTimestamp(),
+          expectedInfo.getFileNotificationTimestamp());
+      return false;
+    }
+    if (actualInfo.getFirstErrorMessage() != null
+        && !actualInfo.getFirstErrorMessage().startsWith(expectedInfo.getFirstErrorMessage())) {
+      logValueMismatchError(
+          "First error message",
+          actualInfo.getFirstErrorMessage(),
+          expectedInfo.getFirstErrorMessage());
+      return false;
+    }
+
+    if (!Objects.equals(actualInfo.getFormatOptions(), expectedInfo.getFormatOptions())) {
+      logValueMismatchError(
+          "Format options", actualInfo.getFormatOptions(), expectedInfo.getFormatOptions());
+      return false;
+    }
+    return true;
+  }
+
+  private void logValueMismatchError(String key, Object actual, Object expected) {
+    LOGGER.error("{} does not match.\nActual: {}\nExpected: {}", key, actual, expected);
   }
 }

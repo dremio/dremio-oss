@@ -21,15 +21,14 @@ import java.util.List;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import org.apache.calcite.plan.RelOptPredicateList;
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.logical.LogicalAggregate;
-import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -40,7 +39,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
@@ -64,36 +62,13 @@ import org.apache.calcite.util.Pair;
  * the constants are placed in a projection above the reduced aggregate. If those constants are not
  * used, another rule will remove them from the project.
  */
-public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
-  // ~ Static fields/initializers ---------------------------------------------
-
-  /** More general instance that matches any relational expression. Removes all constant keys. */
-  public static final DremioAggregateProjectPullUpConstantsRule INSTANCE2_REMOVE_ALL =
-      new DremioAggregateProjectPullUpConstantsRule(
-          LogicalAggregate.class,
-          RelNode.class,
-          RelFactories.LOGICAL_BUILDER,
-          "DremioAggregatePullUpAllConstantsRule");
+public class DremioAggregateProjectPullUpConstantsRule
+    extends RelRule<DremioAggregateProjectPullUpConstantsRule.Config> {
 
   // ~ Constructors -----------------------------------------------------------
 
-  /**
-   * Creates an AggregateProjectPullUpConstantsRule that removes all constant keys.
-   *
-   * @param aggregateClass Aggregate class
-   * @param inputClass Input class, such as {@link LogicalProject}
-   * @param relBuilderFactory Builder for relational expressions
-   * @param description Description, or null to guess description
-   */
-  public DremioAggregateProjectPullUpConstantsRule(
-      Class<? extends Aggregate> aggregateClass,
-      Class<? extends RelNode> inputClass,
-      RelBuilderFactory relBuilderFactory,
-      String description) {
-    super(
-        operand(aggregateClass, null, Aggregate.IS_SIMPLE, operand(inputClass, any())),
-        relBuilderFactory,
-        description);
+  protected DremioAggregateProjectPullUpConstantsRule(Config config) {
+    super(config);
   }
 
   // ~ Methods ----------------------------------------------------------------
@@ -101,7 +76,7 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final Aggregate aggregate = call.rel(0);
-    final RelNode input = call.rel(1);
+    final RelNode input = aggregate.getInput();
 
     final RexBuilder rexBuilder = aggregate.getCluster().getRexBuilder();
     final RelMetadataQuery mq = call.getMetadataQuery();
@@ -202,6 +177,21 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
     }
     relBuilder.project(Pair.left(projects), Pair.right(projects)); // inverse
     call.transformTo(relBuilder.build());
+  }
+
+  public interface Config extends RelRule.Config {
+    Config DEFAULT =
+        RelRule.Config.EMPTY
+            .withDescription("DremioAggregatePullUpAllConstantsRule")
+            .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
+            .withOperandSupplier(
+                b0 -> b0.operand(LogicalAggregate.class).predicate(Aggregate::isSimple).anyInputs())
+            .as(Config.class);
+
+    @Override
+    default DremioAggregateProjectPullUpConstantsRule toRule() {
+      return new DremioAggregateProjectPullUpConstantsRule(this);
+    }
   }
 }
 

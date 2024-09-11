@@ -22,6 +22,7 @@ import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.map.CaseInsensitiveImmutableBiMap;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.OperationType;
@@ -65,6 +66,7 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -115,12 +117,24 @@ public class ManifestWritesHelper {
   protected IcebergManifestWriterPOP writer;
   protected long currentNumDataFileAdded = 0;
   protected DataFile currentDataFile;
+  protected DeleteFile currentPositionalDeleteFile;
   protected FileSystem fs;
   protected FileIO fileIO;
   protected VarBinaryVector inputDatafiles;
   protected IntVector operationTypes;
+
+  // data files referenced by positional delete rows (V2 Iceberg Table Operations)
+  protected VarBinaryVector referencedDataFiles;
+
   protected Map<DataFile, byte[]> deletedDataFiles =
       new LinkedHashMap<>(); // required that removed file is cleared with each row.
+
+  // Merge On Read DML data-files
+  protected Map<DataFile, byte[]> mergeOnReadDataFiles = new LinkedHashMap<>();
+
+  // Merge On Read DML Positional Delete Files
+  protected Map<DeleteFile, DeleteFileMetaInfo> positionalDeleteFiles = new LinkedHashMap<>();
+
   protected Optional<Integer> partitionSpecId = Optional.empty();
   private final Set<IcebergPartitionData> partitionDataInCurrentManifest = new HashSet<>();
   private final byte[] schema;
@@ -177,6 +191,11 @@ public class ManifestWritesHelper {
         (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordWriter.ICEBERG_METADATA_COLUMN);
     operationTypes =
         (IntVector) getVectorFromSchemaPath(incoming, RecordWriter.OPERATION_TYPE_COLUMN);
+    if (DmlUtils.isMergeOnReadDmlOperation(writer.getOptions())) {
+      referencedDataFiles =
+          (VarBinaryVector)
+              getVectorFromSchemaPath(incoming, RecordWriter.REFERENCED_DATA_FILES_COLUMN);
+    }
   }
 
   public void startNewWriter() {
@@ -213,17 +232,46 @@ public class ManifestWritesHelper {
       if (operationType == OperationType.COPY_HISTORY_EVENT) {
         return;
       }
+
       final IcebergMetadataInformation icebergMetadataInformation =
           IcebergSerDe.deserializeFromByteArray(metaInfoBytes);
-      currentDataFile =
-          IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
-      if (currentDataFile == null) {
+
+      if (operationType == OperationType.ADD_DELETEFILE) {
+        currentPositionalDeleteFile =
+            IcebergSerDe.deserializeDeleteFile(
+                icebergMetadataInformation.getIcebergMetadataFileByte());
+      } else {
+        currentDataFile =
+            IcebergSerDe.deserializeDataFile(
+                icebergMetadataInformation.getIcebergMetadataFileByte());
+      }
+      if (currentDataFile == null && currentPositionalDeleteFile == null) {
         throw new IOException("Iceberg data file cannot be empty or null.");
       }
       switch (operationType) {
         case ADD_DATAFILE:
-          addDataFile(currentDataFile);
-          currentNumDataFileAdded++;
+          if (DmlUtils.isMergeOnReadDmlOperation(writer.getOptions())) {
+            // Merge On Read DML data-files
+            logger.debug(
+                String.format(
+                    "Processing data-file '%s' in manifest writer", currentDataFile.path()));
+            mergeOnReadDataFiles.put(currentDataFile, metaInfoBytes);
+          } else {
+            addDataFile(currentDataFile);
+            currentNumDataFileAdded++;
+          }
+          break;
+        case ADD_DELETEFILE:
+          // Merge On Read DML Positional Delete Files
+          logger.debug(
+              String.format(
+                  "Processing positional delete-file '%s' in manifest writer",
+                  currentPositionalDeleteFile.path()));
+
+          positionalDeleteFiles.put(
+              currentPositionalDeleteFile,
+              new DeleteFileMetaInfo(metaInfoBytes, referencedDataFiles.get(recordIndex)));
+
           break;
         case DELETE_DATAFILE:
           deletedDataFiles.put(currentDataFile, metaInfoBytes);
@@ -262,6 +310,27 @@ public class ManifestWritesHelper {
   public void processOrphanFiles(Consumer<DataFile> processLogic) {
     orphanFiles.forEach(processLogic);
     orphanFiles.clear();
+  }
+
+  /**
+   * Process the Merge-On-Read positional delete files to build the manifest file
+   *
+   * @param processLogic - logic to process the positional delete files
+   */
+  public void processPositionalDeleteFiles(
+      BiConsumer<DeleteFile, DeleteFileMetaInfo> processLogic) {
+    positionalDeleteFiles.forEach(processLogic);
+    positionalDeleteFiles.clear();
+  }
+
+  /**
+   * Process the Merge On Read DML data-files to build the manifest file
+   *
+   * @param processLogic - logic to process the data-files
+   */
+  public void processMergeOnReadDataFiles(BiConsumer<DataFile, byte[]> processLogic) {
+    mergeOnReadDataFiles.forEach(processLogic);
+    mergeOnReadDataFiles.clear();
   }
 
   public long length() {
@@ -450,6 +519,30 @@ public class ManifestWritesHelper {
     } catch (Exception e) {
       logger.warn("Error while deleting crc file for {}", manifestFilePath, e);
       return false;
+    }
+  }
+
+  /** Positional Delete File Meta-Info. Each instance contains essential iceberg commit phase. */
+  public static class DeleteFileMetaInfo {
+
+    // Summarized metrics on the positional delete file which will be readable in the metadata.json
+    private final byte[] metaInfoBytes;
+
+    // Set of distinct data-files referenced by the positional delete file.
+    // Essential for concurrency validation
+    private final byte[] referencedDataFiles;
+
+    public DeleteFileMetaInfo(byte[] metaInfoBytes, byte[] referencedDataFiles) {
+      this.metaInfoBytes = metaInfoBytes;
+      this.referencedDataFiles = referencedDataFiles;
+    }
+
+    public byte[] getMetaInfoBytes() {
+      return metaInfoBytes;
+    }
+
+    public byte[] getReferencedDataFiles() {
+      return referencedDataFiles;
     }
   }
 }

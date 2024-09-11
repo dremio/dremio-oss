@@ -20,6 +20,7 @@ import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.credentials.CredentialsServiceUtils;
 import com.google.common.base.Strings;
+import java.net.URI;
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
@@ -119,6 +120,11 @@ public class CheckAzureConfValidator
     @Override
     public String lookup(String pattern) {
       return pattern;
+    }
+
+    @Override
+    public boolean isSupported(URI uri) {
+      return true;
     }
 
     @Override

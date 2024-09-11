@@ -55,4 +55,7 @@ public interface WriterCommitterRecord {
 
   @Nullable
   Integer operationType();
+
+  @Nullable
+  VarBinaryHolder referencedDataFiles();
 }

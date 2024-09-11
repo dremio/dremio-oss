@@ -18,10 +18,10 @@ package com.dremio.sabot.exec.context;
 import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 
 import com.dremio.exec.expr.fn.FunctionErrorContext;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.EndPointListProvider;
 import com.dremio.exec.store.PartitionExplorer;
+import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.options.OptionResolver;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
@@ -141,5 +141,5 @@ public interface FunctionContext {
       String value, MinorType type, Function<ArrowBuf, ValueHolder> holderInitializer);
 
   PartitionStatsValue getSurvivingRowCountWithPruneFilter(
-      ScanRelBase scan, PruneFilterCondition pruneCondition) throws Exception;
+      FilterableScan scan, PruneFilterCondition pruneCondition) throws Exception;
 }

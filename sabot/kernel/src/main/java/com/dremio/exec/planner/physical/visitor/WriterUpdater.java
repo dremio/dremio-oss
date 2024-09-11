@@ -18,7 +18,7 @@ package com.dremio.exec.planner.physical.visitor;
 import static com.dremio.exec.ExecConstants.ADAPTIVE_HASH;
 import static com.dremio.exec.ExecConstants.DATA_SCAN_PARALLELISM;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_PARTITIONED_TABLE_WRITES;
-import static com.dremio.exec.ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR;
+import static com.dremio.exec.ExecConstants.FORCE_USE_MOR_VECTOR_SORTER_FOR_PARTITION_TABLES_WITH_UNDEFINED_SORT_ORDER;
 import static com.dremio.exec.store.RecordWriter.OPERATION_TYPE_COLUMN;
 import static com.dremio.exec.store.RecordWriter.RECORDS_COLUMN;
 import static com.dremio.exec.store.iceberg.IcebergUtils.hasNonIdentityPartitionColumns;
@@ -60,6 +60,7 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.Checker;
 import com.dremio.exec.planner.sql.DynamicReturnType;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordReader;
@@ -82,6 +83,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -239,6 +241,14 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     } else if (options.hasSort()) {
       // no partitions or distributions.
       // insert a sort on sort fields.
+
+      // For Merge-On-Read DML DELETE operations, data-rows do not exist.
+      // Thus, no need to adhere to iceberg sortOrder.
+      // Positional Deletes will be sorted by 'file_path' and 'pos' in other parts of the plan.
+      if (DmlUtils.isMergeOnReadDeleteOperation(options)) {
+        return prel;
+      }
+
       final RelCollation collation =
           getCollation(
               prel.getTraitSet(), getFieldIndices(options.getSortColumns(), input.getRowType()));
@@ -284,9 +294,63 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       }
     }
 
+    addSystemColumnsToSortForMergeOnReadDmlIfNeeded(prel, options, inputRowType, sortKeys);
+
     final RelCollation collation = getCollation(prel.getTraitSet(), sortKeys);
     return SortPrel.create(
         input.getCluster(), input.getTraitSet().plus(collation), input, collation);
+  }
+
+  /**
+   * Add System Columns to Sort-Order if required by operation. (Merge-On-Read DML Only).
+   *
+   * <p>Partitioned iceberg tables (with no iceberg sort-order) undergoing a Merge-On-Read DML will
+   * add 'file_path' and 'pos' columns to the sort list (EXCEPT FOR Operation: Merge_InsertOnly
+   * operation)
+   *
+   * <p>Sorting by System Columns (file_path, pos) is an iceberg-spec requirement. Handling the sort
+   * here allows us to skip the VectorSorter requirement during the writer phase.
+   *
+   * <p>Note: Only Applies to Merge-On-Read DML Operations on Partitioned Iceberg Tables with no
+   * defined Iceberg-Sort-Order
+   *
+   * @param options writer options
+   * @param inputRowType input table schema
+   * @param sortKeys columns to sort
+   */
+  private void addSystemColumnsToSortForMergeOnReadDmlIfNeeded(
+      Prel prel, WriterOptions options, RelDataType inputRowType, List<Integer> sortKeys) {
+
+    // Check 0: ensure flag for
+    // 'Use VectorSorter on Partitioned Tables with undefined Sort Order' is OFF
+    PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(prel.getCluster());
+    if (plannerSettings
+        .getOptions()
+        .getOption(FORCE_USE_MOR_VECTOR_SORTER_FOR_PARTITION_TABLES_WITH_UNDEFINED_SORT_ORDER)) {
+      return;
+    }
+
+    // Check 1: Operation is Merge-On-Read DML. Return otherwise.
+    // Check 2: Table is Partitioned. Return otherwise.
+    // Check 3: table should not have a defined sort-order. Return if one exists.
+    if (!DmlUtils.isMergeOnReadDmlOperation(options)
+        || !options.hasPartitions()
+        || options.hasSort()) {
+      return;
+    }
+
+    // Final Check: system columns must exist.
+    // This ensures INSERT_ONLY merge operations are excluded.
+    // INSERT_ONLY merge Dml will not have system columns in the input schema.
+    Set<String> fieldNames = new HashSet<>(inputRowType.getFieldNames());
+    // Check if system columns exist (ensuring INSERT_ONLY merge operations are excluded).
+    if (!fieldNames.contains(ColumnUtils.FILE_PATH_COLUMN_NAME)
+        || !fieldNames.contains(ColumnUtils.ROW_INDEX_COLUMN_NAME)) {
+      return;
+    }
+
+    sortKeys.add(inputRowType.getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false).getIndex());
+    sortKeys.add(inputRowType.getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false).getIndex());
   }
 
   private Prel updateWriterWithPartition(
@@ -302,7 +366,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     PartitionSpec partitionSpec =
         Optional.ofNullable(
                 options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps())
-            .map(props -> props.getDeserializedPartitionSpec())
+            .map(IcebergTableProps::getDeserializedPartitionSpec)
             .orElse(null);
     if (options.getTableFormatOptions().isTableFormatWriter()
         && partitionSpec != null
@@ -767,7 +831,8 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       Prel prel,
       String fileSizeBucketFieldName,
       RelDataTypeField filePathField,
-      RelDataTypeField fileSizeField) {
+      RelDataTypeField fileSizeField,
+      Long targetFileSize) {
     // add Windowing to get running total of file sizes
     Window.RexWinAggCall countOnPartitionColumnCall =
         new Window.RexWinAggCall(
@@ -808,11 +873,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
             null);
 
     // convert file size running total into bucket number
-    // bucket_number = currentFileSizeRunningTotal / bucketSize
-    long fileSizeBucketSize =
-        PrelUtil.getPlannerSettings(prel.getCluster())
-            .getOptions()
-            .getOption(PARQUET_BLOCK_SIZE_VALIDATOR);
+    // bucket_number = currentFileSizeRunningTotal / targetFileSize
     List<RexNode> fileSizeBucketProjectExprs =
         prel.getRowType().getFieldList().stream()
             .map(field -> rexBuilder.makeInputRef(field.getType(), field.getIndex()))
@@ -839,7 +900,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
             division,
             rexBuilder.makeInputRef(
                 fileSizeRunningTotalField.getType(), fileSizeRunningTotalField.getIndex()),
-            rexBuilder.makeLiteral(Long.toString(fileSizeBucketSize)));
+            rexBuilder.makeLiteral(Long.toString(targetFileSize)));
     fileSizeBucketProjectExprs.add(fileSizeBucketFieldExpr);
 
     RelDataType fileSizeBucketFieldRowType =
@@ -874,39 +935,55 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       RelDataTypeField partitionValuesField,
       CreateTableEntry tableEntry,
       RelDataType expectedWriterInboundRowType) {
+
+    CombineSmallFileOptions combineSmallFileOptions =
+        tableEntry.getOptions().getCombineSmallFileOptions();
+    Long targetFileSize = combineSmallFileOptions.getTargetFileSize();
+    if (targetFileSize == null) {
+      targetFileSize =
+          PrelUtil.getPlannerSettings(prel.getCluster())
+              .getOptions()
+              .getOption(ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR);
+    }
+
     // add filters to keep non-single small files only
     Prel smallFilesSidePrel =
         addSmallFilesFilterPrel(
             rexBuilder, typeFactory, prel, partitionFileCountField, partitionValuesField);
 
-    // assign file size bucket number to files in unpartitioned table.
-    // thus, files with same bucket number will be hash distributed to the same writer
-    final String fileSizeBucketFieldName = "p0$fileSizeBucketFieldName";
-    if (!tableEntry.getOptions().hasPartitions()) {
-      smallFilesSidePrel =
-          assignFileSizeBucketToUnpartitionedTable(
-              rexBuilder,
-              typeFactory,
-              smallFilesSidePrel,
-              fileSizeBucketFieldName,
-              filePathField,
-              fileSizeField);
-    }
+    // Add hash exchange to distribute the load if applicable
+    if (!combineSmallFileOptions.getIsSingleWriter()) {
+      // assign file size bucket number to files in unpartitioned table.
+      // thus, files with same bucket number will be hash distributed to the same writer
+      final String fileSizeBucketFieldName = "p0$fileSizeBucketFieldName";
+      if (!tableEntry.getOptions().hasPartitions()) {
+        smallFilesSidePrel =
+            assignFileSizeBucketToUnpartitionedTable(
+                rexBuilder,
+                typeFactory,
+                smallFilesSidePrel,
+                fileSizeBucketFieldName,
+                filePathField,
+                fileSizeField,
+                targetFileSize);
+      }
 
-    // hash distribute files on
-    //   * partition value column for partitioned tables
-    //            Since the files are already ordered, hash distribution from the single sender(by
-    // the MergeExchange before bridge)
-    //            would guarantee files belonging to the same partition values pack together on the
-    // receiver side
-    //            thus, we dont need Sort in the second-round read/write rows
-    //   * file size bucket column for non-partitioned tables
-    List<String> hashDistributionFields =
-        ImmutableList.of(
-            tableEntry.getOptions().hasPartitions()
-                ? partitionValuesField.getName()
-                : fileSizeBucketFieldName);
-    smallFilesSidePrel = getHashToRandomExchangePrel(smallFilesSidePrel, hashDistributionFields);
+      // hash distribute files on
+      //   * partition value column for partitioned tables
+      //            Since the files are already ordered, hash distribution from the single sender(by
+      // the MergeExchange before bridge)
+      //            would guarantee files belonging to the same partition values pack together on
+      // the
+      // receiver side
+      //            thus, we dont need Sort in the second-round read/write rows
+      //   * file size bucket column for non-partitioned tables
+      List<String> hashDistributionFields =
+          ImmutableList.of(
+              tableEntry.getOptions().hasPartitions()
+                  ? partitionValuesField.getName()
+                  : fileSizeBucketFieldName);
+      smallFilesSidePrel = getHashToRandomExchangePrel(smallFilesSidePrel, hashDistributionFields);
+    }
 
     // read rows from small files
     Function<RelMetadataQuery, Double> estimateRowCountFn =
@@ -922,7 +999,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
             estimateRowCountFn);
 
     // add second-round Writer
-    CreateTableEntry tableEntryWithTargetFileSize =
+    CreateTableEntry tableEntryWithSmallFileCombinationWriter =
         tableEntry.cloneWithFields(
             tableEntry
                 .getOptions()
@@ -930,19 +1007,15 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
                     CombineSmallFileOptions.builder()
                         .setSmallFileSize(
                             tableEntry.getOptions().getCombineSmallFileOptions().getSmallFileSize())
-                        .setTargetFileSize(
-                            PrelUtil.getPlannerSettings(smallFilesSidePrel.getCluster())
-                                .getOptions()
-                                .getOption(
-                                    ExecConstants
-                                        .TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR))
+                        .setTargetFileSize(targetFileSize)
+                        .setIsSmallFileWriter(true)
                         .build()));
 
     Prel updatedWriter =
         updateWriter(
             prel,
             smallFilesSidePrel,
-            tableEntryWithTargetFileSize,
+            tableEntryWithSmallFileCombinationWriter,
             false,
             expectedWriterInboundRowType);
     if (updatedWriter == prel) {
@@ -950,7 +1023,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
           prel.getCluster(),
           prel.getTraitSet(),
           smallFilesSidePrel,
-          tableEntryWithTargetFileSize,
+          tableEntryWithSmallFileCombinationWriter,
           expectedWriterInboundRowType);
     }
     return updatedWriter;
@@ -1059,7 +1132,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
         projectWriterColumnsRowType);
   }
 
-  private static RelCollation getCollation(RelTraitSet set, List<Integer> keys) {
+  public static RelCollation getCollation(RelTraitSet set, List<Integer> keys) {
     return set.canonize(
         RelCollations.of(
             FluentIterable.from(keys)
@@ -1205,9 +1278,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     for (Field field : newSchema) {
       builder.add(
           field.getName(),
-          CalciteArrowHelper.wrap(CompleteType.fromField(field))
-              .toCalciteType(
-                  factory, PrelUtil.getPlannerSettings(relOptCluster).isFullNestedSchemaSupport()));
+          CalciteArrowHelper.wrap(CompleteType.fromField(field)).toCalciteType(factory, true));
     }
     return builder.build();
   }

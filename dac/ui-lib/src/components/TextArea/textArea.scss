@@ -51,7 +51,7 @@ $gutter-quadruple: map-get(
 
     textarea {
       display: inline-flex;
-      border: solid 1px $border-color;
+      border: solid 1px var(--border--neutral--solid);
       border-radius: 4px;
       font-size: inherit;
       font-family: inherit;
@@ -62,22 +62,22 @@ $gutter-quadruple: map-get(
       width: 100%;
 
       &:hover {
-        border: 1px solid $FIGMA_NEUTRAL_300;
+        border: 1px solid var(--border--hover);
       }
 
       &:focus {
-        border: 1px solid $FIGMA_PRIMARY_500;
+        border: 1px solid var(--border--focused);
         outline: none;
       }
 
       &[disabled] {
-        background-color: $FIGMA_NEUTRAL_150;
-        color: $FIGMA_TEXT_DISABLED;
-        border: 1px solid $FIGMA_NEUTRAL_200;
+        background-color: var(--fill--disabled);
+        color: var(--text--disabled);
+        border: 1px solid var(--border--neutral--solid);
       }
 
       &.--error {
-        border-color: $error-color !important;
+        border-color: var(--fill--danger--solid) !important;
       }
 
       &.--noResize {
@@ -114,7 +114,7 @@ $gutter-quadruple: map-get(
       &:hover {
         svg {
           path {
-            fill: $pelorous;
+            fill: var(--color--brand--400);
           }
         }
       }

@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.sql;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumnSetOption;
 import com.google.common.collect.Sets;
 import java.util.Optional;
@@ -29,11 +28,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class TestSQLAlterTableChangeColumnSetOption {
-  private final ParserConfig parserConfig =
-      new ParserConfig(
-          ParserConfig.QUOTING,
-          100,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
 
   public static Stream<Arguments> testChangeColumnOption() {
     return Stream.of(

@@ -13,16 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { withRouter } from "react-router";
+import { isEqual } from "lodash";
 import { useIntl } from "react-intl";
-import { CopyToClipboard } from "dremio-ui-lib";
 import BranchPicker from "@app/pages/HomePage/components/BranchPicker/BranchPicker";
 import { useNessieContext } from "../../utils/context";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 import {
-  constructArcticUrl,
-  useArcticCatalogContext,
-} from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
-import ArcticBreadcrumb from "@app/exports/pages/ArcticCatalog/components/ArcticBreadcrumb/ArcticBreadcrumb";
+  constructVersionedEntityUrl,
+  useVersionedPageContext,
+} from "@app/exports/pages/VersionedHomePage/versioned-page-utils";
+import VersionedPageBreadcrumb from "@app/exports/pages/VersionedHomePage/components/VersionedPageBreadcrumb/VersionedPageBreadcrumb";
+import { CopyButton } from "dremio-ui-lib/components";
 
 import "./PageBreadcrumbHeader.less";
 
@@ -31,33 +33,48 @@ function PageBreadcrumbHeader({
   rightContent,
   hasBranchPicker = true,
   className = "",
+  router,
 }: {
   path?: string[];
   rightContent?: any;
   hasBranchPicker?: boolean;
   className?: string;
+  router?: any;
 }) {
   const intl = useIntl();
   const { source, state, baseUrl } = useNessieContext();
-  const arcticCtx = useArcticCatalogContext();
-  const redirectUrl = constructArcticUrl({
-    type: arcticCtx.isCatalog ? "catalog" : "source",
+  const versionCtx = useVersionedPageContext();
+  const redirectUrl = constructVersionedEntityUrl({
+    type: versionCtx.isCatalog ? "catalog" : "source",
     baseUrl: baseUrl,
-    tab: arcticCtx?.activeTab,
+    tab: versionCtx?.activeTab,
     namespace: "",
   });
+
+  const handleApply = (_: string, newState: any) => {
+    if (
+      !isEqual(newState, {
+        hash: state.hash,
+        date: state.date,
+        reference: state.reference,
+      })
+    ) {
+      router.push(redirectUrl);
+    }
+  };
 
   return (
     <div className={`pageBreadcrumbHeader ${className}`}>
       <span className="pageBreadcrumbHeader-crumbContainer">
-        <ArcticBreadcrumb path={path} />
+        <VersionedPageBreadcrumb path={path} />
         {hasBranchPicker && !isDefaultReferenceLoading(state) && (
-          <BranchPicker redirectUrl={redirectUrl} />
+          <BranchPicker onApply={handleApply} />
         )}
         <span className="pageBreadcrumbHeader-copyButton">
-          <CopyToClipboard
-            tooltipText={intl.formatMessage({ id: "Common.PathCopied" })}
-            value={[source.name, ...(path || [])].join(".")}
+          <CopyButton
+            contents={[source.name, ...(path || [])].join(".")}
+            size="L"
+            copyTooltipLabel={intl.formatMessage({ id: "Common.CopyPath" })}
           />
         </span>
       </span>
@@ -65,4 +82,4 @@ function PageBreadcrumbHeader({
     </div>
   );
 }
-export default PageBreadcrumbHeader;
+export default withRouter(PageBreadcrumbHeader);

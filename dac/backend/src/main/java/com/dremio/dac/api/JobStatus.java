@@ -22,6 +22,7 @@ import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobCancellationInfo;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.job.proto.JobStats;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -152,10 +153,17 @@ public class JobStatus {
     final String queueId = rsi == null ? null : rsi.getQueueId();
     final Long resourceSchedulingStartedAt = rsi == null ? null : rsi.getResourceSchedulingStart();
     final Long resourceSchedulingEndedAt = rsi == null ? null : rsi.getResourceSchedulingEnd();
+    final JobStats jobStats = lastAttempt.getStats();
+    final long outputRecords =
+        jobStats == null
+            ? 0
+            : (lastAttempt.getStats().getOutputRecords() == null
+                ? 0
+                : lastAttempt.getStats().getOutputRecords());
 
     return new JobStatus(
         lastAttempt.getState(),
-        lastAttempt.getDetails().getOutputRecords(),
+        outputRecords,
         errorMessage,
         lastAttempt.getInfo().getStartTime(),
         lastAttempt.getInfo().getFinishTime(),

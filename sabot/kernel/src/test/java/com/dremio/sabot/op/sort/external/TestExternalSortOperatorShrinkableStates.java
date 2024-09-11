@@ -31,6 +31,7 @@ import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.CustomGenerator;
 import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.Generator;
+import com.dremio.sabot.op.sort.external.VectorSorter.SortState;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
 import io.airlift.tpch.GenerationDefinition;
@@ -80,23 +81,19 @@ public class TestExternalSortOperatorShrinkableStates extends BaseTestOperator {
         // Consume a batch
         sortOperator.consumeData(count);
 
-        sortOperator.setStates(
-            SingleInputOperator.State.CAN_PRODUCE,
-            ExternalSortOperator.SortState.SPILL_IN_PROGRESS);
+        sortOperator.setStates(SingleInputOperator.State.CAN_PRODUCE, SortState.SPILL_IN_PROGRESS);
         long shrinkableMemory = sortOperator.shrinkableMemory();
         // Shrinkable memory is returned > 0 as operator is allowed to shrink in SPILL_IN_PROGRESS
         // state
         assertTrue(shrinkableMemory > 0L);
 
-        sortOperator.setStates(
-            SingleInputOperator.State.CAN_PRODUCE, ExternalSortOperator.SortState.COPY_FROM_DISK);
+        sortOperator.setStates(SingleInputOperator.State.CAN_PRODUCE, SortState.COPY_FROM_DISK);
         shrinkableMemory = sortOperator.shrinkableMemory();
         // Shrinkable memory is returned as 0 as operator is not allowed to shrink in COPY_FROM_DISK
         // state
         assertEquals(0L, shrinkableMemory);
 
-        sortOperator.setStates(
-            SingleInputOperator.State.CAN_PRODUCE, ExternalSortOperator.SortState.COPY_FROM_MEMORY);
+        sortOperator.setStates(SingleInputOperator.State.CAN_PRODUCE, SortState.COPY_FROM_MEMORY);
         shrinkableMemory = sortOperator.shrinkableMemory();
         // Shrinkable memory is returned > 0 as operator is allowed to shrink in COPY_FROM_MEMORY
         // state
@@ -106,8 +103,7 @@ public class TestExternalSortOperatorShrinkableStates extends BaseTestOperator {
         sortOperator.setStateToCanConsume();
         sortOperator.shrinkMemory(count);
 
-        sortOperator.setStates(
-            SingleInputOperator.State.CAN_PRODUCE, ExternalSortOperator.SortState.CONSOLIDATE);
+        sortOperator.setStates(SingleInputOperator.State.CAN_PRODUCE, SortState.CONSOLIDATE);
         shrinkableMemory = sortOperator.shrinkableMemory();
         // Consolidate states is not shrinkable
         assertEquals(0L, shrinkableMemory);
@@ -134,8 +130,7 @@ public class TestExternalSortOperatorShrinkableStates extends BaseTestOperator {
         count = generator.next(1096);
         o.consumeData(count);
 
-        o.setStates(
-            SingleInputOperator.State.CAN_PRODUCE, ExternalSortOperator.SortState.COPY_FROM_DISK);
+        o.setStates(SingleInputOperator.State.CAN_PRODUCE, SortState.COPY_FROM_DISK);
         assertEquals(0L, o.shrinkableMemory());
         // Cannot shrink in COPY_FROM_DISK state but function still returns 0 as shrinkable memory
         // is returned 0 in previous state
@@ -265,19 +260,19 @@ public class TestExternalSortOperatorShrinkableStates extends BaseTestOperator {
     // scenarios.
     // 2000 / 1000 = 2 batches, 3000 / 1000 = 3 batches, etc.
     // choose odd and even number of batches
-    for (int record : new int[] {2000, 3000, 10000, 11000, 20000, 21000}) {
+    for (int expectedRecordCount : new int[] {2000, 3000, 10000, 11000, 20000, 21000}) {
       boolean[] pos = new boolean[5];
 
       // inject 'shrink memory' request at one specific place
       for (int i = 0; i < 5; i++) {
         Arrays.fill(pos, false);
         pos[i] = true;
-        sorterShrinkMemory(record, pos);
+        sorterShrinkMemory(expectedRecordCount, pos);
       }
 
       // inject 'shrink memory' at all 5 places.
       Arrays.fill(pos, true);
-      sorterShrinkMemory(record, pos);
+      sorterShrinkMemory(expectedRecordCount, pos);
     }
   }
 

@@ -152,12 +152,9 @@ public class TestFlatten extends PlanTestBase {
     TestBuilder builder =
         testBuilder().sqlQuery(query).unOrdered().baselineColumns("uid", "lst1", "lst0", "lst");
     for (int i = 0; i < numCopies; i++) {
-      for (JsonStringHashMap<String, Object> record : result) {
+      for (JsonStringHashMap<String, Object> rec : result) {
         builder.baselineValues(
-            record.get("uid"),
-            record.get("lst_lst_1"),
-            record.get("lst_lst_0"),
-            record.get("lst_lst"));
+            rec.get("uid"), rec.get("lst_lst_1"), rec.get("lst_lst_0"), rec.get("lst_lst"));
       }
     }
     builder.go();
@@ -190,8 +187,8 @@ public class TestFlatten extends PlanTestBase {
             mapOf("nested_list_col", 1000, "list_col", 9, "a", 1, "b", 2),
             mapOf("nested_list_col", 999, "list_col", 9, "a", 1, "b", 2));
     int i = 0;
-    for (JsonStringHashMap<String, Object> record : result) {
-      assertEquals(record, expectedResult.get(i));
+    for (JsonStringHashMap<String, Object> rec : result) {
+      assertEquals(rec, expectedResult.get(i));
       i++;
     }
   }
@@ -253,8 +250,8 @@ public class TestFlatten extends PlanTestBase {
     TestBuilder builder = testBuilder().sqlQuery(query).unOrdered().baselineColumns("int_list");
 
     for (int i = 0; i < numRecords; i++) {
-      for (JsonStringHashMap<String, Object> record : result) {
-        builder.baselineValues(record.get("int_list"));
+      for (JsonStringHashMap<String, Object> rec : result) {
+        builder.baselineValues(rec.get("int_list"));
       }
     }
     builder.go();
@@ -655,7 +652,7 @@ public class TestFlatten extends PlanTestBase {
     String query =
         "select flatten(s1.rms.rptd) rptds from "
             + "(select d.uid uid, flatten(d.map.rm) rms from cp.\"jsoninput/flatten_post_sort.json\" d order by d.uid) s1";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `map`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`map`]"}, null);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -730,7 +727,7 @@ public class TestFlatten extends PlanTestBase {
     String query =
         "select sub.myinteger, sub.zflat.orange from (select flatten(t.z) as zflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input2.json\" t) sub where sub.zflat.orange is not null";
     testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`]"}, null);
-    String col = isComplexTypeSupport() ? "orange" : "EXPR$1";
+    String col = "orange";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -745,8 +742,8 @@ public class TestFlatten extends PlanTestBase {
     String query =
         "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input6.json\" t) sub where sub.zflat.orange is not null";
     testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`, `l`]"}, null);
-    String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
-    String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
+    String col2 = "orange";
+    String col3 = "pink";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -783,8 +780,8 @@ public class TestFlatten extends PlanTestBase {
     String query =
         "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input6.json\" t) sub";
     testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`, `l`]"}, null);
-    String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
-    String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
+    String col2 = "orange";
+    String col3 = "pink";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -896,8 +893,8 @@ public class TestFlatten extends PlanTestBase {
     String query =
         "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from dfs_test.parquetTable t) sub";
     testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`, `l`]"}, null);
-    String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
-    String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
+    String col2 = "orange";
+    String col3 = "pink";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()

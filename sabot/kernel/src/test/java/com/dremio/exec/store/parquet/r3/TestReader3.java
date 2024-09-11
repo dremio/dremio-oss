@@ -75,12 +75,12 @@ public class TestReader3 extends BaseTestQuery {
   }
 
   @Test
-  public void var() throws Exception {
+  public void testVar() throws Exception {
     test("select count(*) from dfs_root.tmp.bah limit 10");
   }
 
   @Test
-  public void var2() throws Exception {
+  public void testVar2() throws Exception {
     test("select count(*) from dfs_root.tmp.bah where L_COMMENT like '%bold%'");
   }
 
@@ -310,8 +310,7 @@ public class TestReader3 extends BaseTestQuery {
               + "group by\n"
               + "  o.o_orderpriority\n"
               + "order by\n"
-              + "  o.o_orderpriority\n"
-              + "");
+              + "  o.o_orderpriority\n");
     }
   }
 

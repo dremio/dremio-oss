@@ -39,6 +39,7 @@ message PRexNode {
     PRexDynamicParam rex_dynamic_param = 10;
     PRexRangeRef rex_range_ref = 11;
     PRexPatternFieldRef rex_pattern_field_ref = 12;
+    PRexWinAggCall rex_window_agg_call = 13;
   }
 }
 
@@ -202,4 +203,60 @@ message PFunctionParameter {
   int32 ordinal = 1;
   string name = 2;
   PRelDataType type = 3;
+}
+
+message PRexWinAggCall {
+  PRexCall rex_call = 1;
+  PSqlAggFunction sql_agg_function= 2;
+  int32 ordinal = 3;
+  bool distinct = 4;
+  bool ignore_nulls = 5;
+}
+
+message PSqlAggFunction {
+  PSqlFunction sql_function = 1;
+  bool requires_over = 2;
+  bool requires_order = 3;
+  POptionality requires_group_order = 4;
+}
+
+message PSqlFunction {
+  PSqlOperator sql_operator = 1;
+  PSqlIdentifier sql_identifier = 2;
+  PSqlFunctionCategory function_catagory = 3;
+  repeated PRelDataType paramTypes = 4;
+}
+
+message PSqlIdentifier {
+  PSqlCollation collation = 1;
+  repeated PSqlParserPos component_positions = 2;
+  repeated string names = 3;
+}
+
+message PSqlParserPos {
+  int32 line_number = 1;
+  int32 column_number = 2;
+  int32 end_line_number = 3;
+  int32 end_column_number = 4;
+}
+
+enum POptionality {
+  MANDATORY = 0;
+  OPTIONAL = 1;
+  IGNORED = 2;
+  FORBIDDEN = 3;
+}
+
+enum PSqlFunctionCategory {
+    STRING = 0;
+    NUMERIC = 1;
+    TIMEDATE = 2;
+    SYSTEM = 3;
+    USER_DEFINED_FUNCTION = 4;
+    USER_DEFINED_PROCEDURE = 5;
+    USER_DEFINED_CONSTRUCTOR = 6;
+    USER_DEFINED_SPECIFIC_FUNCTION = 7;
+    USER_DEFINED_TABLE_FUNCTION = 8;
+    USER_DEFINED_TABLE_SPECIFIC_FUNCTION = 9;
+    MATCH_RECOGNIZE = 10;
 }

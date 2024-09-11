@@ -17,7 +17,9 @@
 // @ts-ignore
 import { Link } from "react-router";
 // @ts-ignore
-import { Tooltip } from "dremio-ui-lib";
+import { Tooltip } from "dremio-ui-lib/components";
+import React from "react";
+import { intl } from "@app/utils/intl";
 
 type TopActionProps = {
   active?: string;
@@ -48,6 +50,7 @@ export const TopAction = (props: TopActionProps) => {
     iconClassName = "",
   } = props;
 
+  const id = React.useId();
   const shouldHover = logo ? "" : "item__hover";
   const isSocketOpen = socketIsOpen ? "" : "socket__notOpen";
   const renderIcon = () => {
@@ -63,19 +66,32 @@ export const TopAction = (props: TopActionProps) => {
     );
   };
 
+  const renderLink = () => {
+    return (
+      <Link
+        className="sideNav-item-a"
+        to={url}
+        data-qa={dataqa}
+        aria-labelledby={id}
+      >
+        <div className={`sideNav-item__link ${active}`}>{renderIcon()}</div>
+      </Link>
+    );
+  };
+
   return (
     <div className={`${isSocketOpen} sideNav-item ${shouldHover} ${className}`}>
-      <Link to={url} data-qa={dataqa}>
-        <div className={`sideNav-item__link ${active}`}>
-          {tooltip ? (
-            <Tooltip title={alt} {...tooltipProps}>
-              {renderIcon()}
-            </Tooltip>
-          ) : (
-            renderIcon()
-          )}
-        </div>
-      </Link>
+      {tooltip ? (
+        <Tooltip
+          {...tooltipProps}
+          content={intl.formatMessage({ id: alt })}
+          id={id}
+        >
+          <div>{renderLink()}</div>
+        </Tooltip>
+      ) : (
+        renderLink()
+      )}
     </div>
   );
 };

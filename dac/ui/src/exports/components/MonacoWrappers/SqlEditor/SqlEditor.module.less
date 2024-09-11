@@ -1,0 +1,265 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.sql-editor {
+  :global {
+    .monaco-editor {
+      outline: none;
+
+      .overflow-guard {
+        .margin {
+          margin: 0 !important;
+
+          .dremio-error-line:before {
+            content: "";
+            display: block;
+            width: 2px;
+            height: 100%;
+            background: var(--color--red--500);
+          }
+        }
+
+        .view-lines {
+          font-variant-ligatures: none;
+        }
+      }
+
+      .overflowingContentWidgets .monaco-hover {
+        height: auto !important;
+        width: auto !important;
+
+        .monaco-hover-content {
+          height: auto !important;
+          width: auto !important;
+        }
+      }
+
+      .suggest-widget {
+        height: auto !important;
+        border: none;
+        border-radius: var(--dremio--radius--1);
+        padding: var(--dremio--spacing--1);
+        box-shadow: var(--dremio--shadow--layer-1);
+        z-index: 101;
+
+        .monaco-sash.orthogonal-edge-south {
+          margin-top: var(--dremio--spacing--2);
+        }
+
+        .monaco-list-rows {
+          top: 0 !important;
+        }
+
+        .monaco-list-row {
+          position: relative;
+          height: auto !important;
+          top: 0 !important;
+          border-radius: var(--dremio--radius--1);
+          padding: 6px var(--dremio--spacing--1);
+
+          &.focused:hover .details-label {
+            width: auto !important;
+          }
+
+          .main {
+            display: grid !important;
+            grid-template-columns: 28px 1fr;
+            grid-template-rows: 24px 1fr;
+            justify-content: start !important;
+            line-height: 24px !important;
+            font-family: var(--dremio--font-family) !important;
+            font-feature-settings:
+              "calt" on,
+              "cv08" on !important;
+
+            .suggest-icon,
+            .suggest-icon::before {
+              height: 24px;
+              width: 24px;
+            }
+
+            .suggest-icon.codicon-symbol {
+              &-color::before {
+                content: url("dremio-ui-lib/icons/dremio/entities/home.svg");
+              }
+
+              &-module::before {
+                content: url("dremio-ui-lib/icons/dremio/entities/space.svg");
+              }
+
+              &-folder::before {
+                content: url("dremio-ui-lib/icons/dremio/entities/blue-folder.svg");
+              }
+
+              &-function::before {
+                content: url("dremio-ui-lib/icons/dremio/sql-editor/function.svg");
+              }
+
+              &-constructor::before {
+                content: url("dremio-ui-lib/icons/dremio/entities/dataset-view.svg");
+              }
+
+              &-snippet::before {
+                content: url("dremio-ui-lib/icons/dremio/entities/dataset-table.svg");
+              }
+
+              &-keyword::before {
+                content: url("dremio-ui-lib/icons/dremio/sql-editor/keyword.svg");
+                height: 16px;
+              }
+
+              &-property::before {
+                content: url("dremio-ui-lib/icons/dremio/entities/datalake-source.svg");
+              }
+
+              &-enum::before {
+                content: url("dremio-ui-lib/icons/dremio/column-types/boolean.svg");
+              }
+
+              &-method::before {
+                content: url("dremio-ui-lib/icons/dremio/column-types/varbinary.svg");
+              }
+
+              &-class::before {
+                content: url("dremio-ui-lib/icons/dremio/column-types/date.svg");
+              }
+
+              &-interface::before {
+                content: url("dremio-ui-lib/icons/dremio/column-types/struct.svg");
+              }
+
+              &-struct::before {
+                content: url("dremio-ui-lib/icons/dremio/column-types/varchar.svg");
+              }
+
+              &-reference::before {
+                content: url("dremio-ui-lib/icons/dremio/column-types/double.svg");
+              }
+
+              &-unit::before {
+                content: url("dremio-ui-lib/icons/dremio/column-types/num.svg");
+              }
+
+              &-variable::before {
+                content: url("dremio-ui-lib/icons/dremio/data-types/TypeList.svg");
+              }
+
+              &-field::before {
+                content: url("dremio-ui-lib/icons/dremio/data-types/TypeMap.svg");
+              }
+
+              &-value::before {
+                content: url("dremio-ui-lib/icons/dremio/data-types/TypeOther.svg");
+              }
+            }
+
+            .left .label-name {
+              text-decoration: none;
+            }
+
+            .right {
+              max-width: none !important;
+              grid-column: 2;
+
+              .details-label {
+                white-space: pre-wrap !important;
+                margin: 0 !important;
+              }
+
+              .readMore {
+                display: none !important;
+              }
+            }
+          }
+        }
+      }
+
+      // can't use dremio-light/dark variables since the editor is independent
+
+      // light mode
+      &.vs .suggest-widget {
+        background-color: white;
+
+        .monaco-list-row {
+          &.focused,
+          &:hover {
+            background-color: var(--color--brand--25) !important;
+          }
+
+          &.focused:hover {
+            background-color: var(--color--brand--50) !important;
+          }
+
+          .main {
+            .left {
+              color: var(--text--primary) !important;
+
+              .label-name {
+                .highlight {
+                  color: var(--text--primary) !important;
+                }
+              }
+            }
+
+            .right {
+              color: var(--text--primary);
+            }
+          }
+        }
+      }
+
+      // dark mode
+      &.vs-dark .suggest-widget {
+        background-color: var(--color--neutral--800);
+
+        .monaco-list-row {
+          &.focused,
+          &:hover {
+            background-color: #2a2d2e !important;
+
+            .left .label-name {
+              color: white;
+            }
+          }
+
+          &.focused:hover {
+            background-color: #04395e !important;
+          }
+
+          .main {
+            .suggest-icon.codicon-symbol {
+              &-color::before,
+              &-function::before,
+              &-keyword::before,
+              &-enum::before,
+              &-method::before,
+              &-class::before,
+              &-interface::before,
+              &-struct::before,
+              &-reference::before,
+              &-unit::before,
+              &-variable::before,
+              &-field::before,
+              &-value::before {
+                filter: invert(1) brightness(0.6);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

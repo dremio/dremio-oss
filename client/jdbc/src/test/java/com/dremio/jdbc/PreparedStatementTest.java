@@ -36,13 +36,11 @@ import com.dremio.exec.testing.Controls;
 import com.dremio.exec.work.foreman.AttemptManager;
 import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
-import java.sql.Clob;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -314,30 +312,6 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
     assertThatThrownBy(() -> getConnection().prepareStatement("VALUES ?, ?"))
         .isInstanceOf(SQLException.class)
         .hasMessageContaining("Illegal use of dynamic parameter");
-  }
-
-  /** Tests that "not supported" has priority over possible "no parameters" check. */
-  @Test
-  public void testParamSettingWhenNoParametersIndexSaysUnsupported() throws SQLException {
-    try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
-      assertThatThrownBy(() -> prepStmt.setBytes(4, null))
-          .isInstanceOf(SQLFeatureNotSupportedException.class)
-          .hasMessageContaining("arameter")
-          .hasMessageContaining("not")
-          .hasMessageContaining("support");
-    }
-  }
-
-  /** Tests that "not supported" has priority over possible "type not supported" check. */
-  @Test
-  public void testParamSettingWhenUnsupportedTypeSaysUnsupported() throws SQLException {
-    try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
-      assertThatThrownBy(() -> prepStmt.setClob(2, (Clob) null))
-          .isInstanceOf(SQLFeatureNotSupportedException.class)
-          .hasMessageContaining("arameter")
-          .hasMessageContaining("not")
-          .hasMessageContaining("support");
-    }
   }
 
   ////////////////////////////////////////

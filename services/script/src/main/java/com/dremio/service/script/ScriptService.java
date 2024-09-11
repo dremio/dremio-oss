@@ -19,6 +19,7 @@ package com.dremio.service.script;
 import com.dremio.service.Service;
 import com.dremio.service.script.proto.ScriptProto.Script;
 import com.dremio.service.script.proto.ScriptProto.ScriptRequest;
+import com.dremio.service.users.UserNotFoundException;
 import java.util.List;
 
 /** Service to interact with Script */
@@ -46,7 +47,7 @@ public interface ScriptService extends Service {
    * @throws MaxScriptsLimitReachedException
    */
   Script createScript(ScriptRequest scriptRequest)
-      throws DuplicateScriptNameException, MaxScriptsLimitReachedException;
+      throws DuplicateScriptNameException, MaxScriptsLimitReachedException, UserNotFoundException;
 
   /**
    * update script
@@ -59,7 +60,11 @@ public interface ScriptService extends Service {
    * @throws ScriptNotAccessible
    */
   Script updateScript(String scriptId, ScriptRequest scriptRequest)
-      throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible;
+      throws ScriptNotFoundException,
+          DuplicateScriptNameException,
+          ScriptNotAccessible,
+          UserNotFoundException,
+          MaxScriptsLimitReachedException;
 
   /**
    * update script context and version references from job session
@@ -93,7 +98,7 @@ public interface ScriptService extends Service {
   void deleteScriptById(String scriptId) throws ScriptNotFoundException, ScriptNotAccessible;
 
   /**
-   * get count of all scripts created by current user based on search and filter
+   * get count of all scripts created by user {@code createdBy} based on search and filter
    *
    * @param search
    * @param filter

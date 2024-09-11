@@ -97,6 +97,7 @@ export default function AnalyzeMenuItem({
           />
         </SubMenu>,
       ]}
+      menuItemsPlacement="left-start"
     >
       <FormattedMessage id="Dataset.AnalyzeWith" />
     </MenuItem>

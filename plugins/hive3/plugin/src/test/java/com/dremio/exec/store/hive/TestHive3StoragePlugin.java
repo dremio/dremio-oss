@@ -17,13 +17,17 @@ package com.dremio.exec.store.hive;
 
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_SERVER2_ENABLE_DOAS;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -32,22 +36,37 @@ import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.options.OptionManager;
 import com.dremio.service.users.SystemUser;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Streams;
 import com.google.common.math.LongMath;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hive.common.util.Ref;
+import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -94,6 +113,119 @@ public class TestHive3StoragePlugin {
     testValidateMetadataTimeout(100L, 32L);
   }
 
+  @Test
+  public void testClientPoolOff() throws Exception {
+    // tests the legacy setting, poolsize = 0
+    // 5: {1 processUserMetastoreClient used by the 5 threads in a serial way: 5}
+    // after a retry on failure, + 1 processUserMetastoreClient: 1
+    testClientPool(0, ImmutableList.of(5), ImmutableList.of(1));
+  }
+
+  @Test
+  public void testClientPoolOn() throws Exception {
+    // 2, 2, 1, 0 = { 3 clients in the pool used by the 5 threads: 2, 2, 1 times,
+    // 1 processUserMetastoreClient unused: 0 }
+    // after a retry on failure, + 1 processUserMetastoreClient, + 1 client from a cleaned pool
+    testClientPool(3, ImmutableList.of(2, 2, 1, 0), ImmutableList.of(1, 1));
+  }
+
+  private void testClientPool(
+      int clientPoolSize,
+      Collection<Integer> expectedCalls,
+      Collection<Integer> expectedCallsAfterError)
+      throws Exception {
+    int threadCount = 5;
+    // mocking client operation time
+    long waitTime = 500;
+    Ref<Boolean> shouldFailOnetime = new Ref<>(false);
+
+    Hive3StoragePlugin storagePlugin = testPlugin(clientPoolSize);
+
+    Map<HiveClient, AtomicInteger> hiveClients = new ConcurrentHashMap<>();
+    Mockito.doAnswer(
+            invocationOnStoragePlugin -> {
+              HiveClient client = mock(HiveClient.class);
+              Mockito.doAnswer(
+                      invocationOnClient -> {
+                        if (shouldFailOnetime.value) {
+                          shouldFailOnetime.value = false;
+                          throw new IOException();
+                        } else {
+                          hiveClients.get(invocationOnClient.getMock()).incrementAndGet();
+                          Thread.sleep(waitTime);
+                          return null;
+                        }
+                      })
+                  .when(client)
+                  .checkState(anyBoolean());
+              hiveClients.put(client, new AtomicInteger(0));
+              return client;
+            })
+        .when(storagePlugin)
+        .createConnectedClient();
+
+    storagePlugin.start();
+
+    // run checkClientState() with more multiple threads than objects available in the pool
+    Callable<Void> c =
+        () -> {
+          storagePlugin.checkClientState();
+          return null;
+        };
+
+    Future<Void>[] futures = new Future[threadCount];
+    ExecutorService executor = null;
+    try {
+      executor = Executors.newFixedThreadPool(threadCount);
+      for (int i = 0; i < threadCount; ++i) {
+        futures[i] = executor.submit(c);
+      }
+
+      // wait for all calls to finish
+      for (int i = 0; i < threadCount; ++i) {
+        futures[i].get();
+      }
+    } finally {
+      executor.shutdown();
+    }
+
+    Assert.assertEquals(expectedCalls.size(), hiveClients.size());
+    Assert.assertEquals(
+        0,
+        CollectionUtils.subtract(
+                hiveClients.values().stream().map(i -> i.get()).collect(Collectors.toList()),
+                expectedCalls)
+            .size());
+
+    // upon failure, should discard all objects from pool, then create and add a new one
+    shouldFailOnetime.value = true;
+    storagePlugin.checkClientState();
+
+    Assert.assertEquals(expectedCalls.size() + expectedCallsAfterError.size(), hiveClients.size());
+    Assert.assertEquals(
+        0,
+        CollectionUtils.subtract(
+                hiveClients.values().stream().map(i -> i.get()).collect(Collectors.toList()),
+                Streams.concat(expectedCalls.stream(), expectedCallsAfterError.stream())
+                    .collect(Collectors.toList()))
+            .size());
+  }
+
+  @Test
+  public void testValidateDatabaseExists() throws Exception {
+    final HiveConf hiveConf = new HiveConf();
+    final SabotContext context = mock(SabotContext.class);
+    final Hive3StoragePlugin plugin = createHiveStoragePlugin(hiveConf, context);
+    final HiveClient hiveClient = mock(HiveClient.class);
+    when(hiveClient.databaseExists("existing")).thenReturn(true);
+    when(hiveClient.databaseExists("not_existing")).thenReturn(false);
+    assertDoesNotThrow(() -> plugin.validateDatabaseExists(hiveClient, "existing"));
+    UserException ex =
+        assertThrows(
+            UserException.class, () -> plugin.validateDatabaseExists(hiveClient, "not_existing"));
+    assertEquals("Database does not exist: [not_existing]", ex.getOriginalMessage());
+  }
+
   private void testValidateMetadataTimeout(Long timePerCheck, Long parallelism) throws Exception {
     // File and partition specifics are encoded in the metadata and the signature. Listing here for
     // explanation.
@@ -127,11 +259,27 @@ public class TestHive3StoragePlugin {
   }
 
   public Hive3StoragePlugin testPlugin(long parallelism, long timeoutMS) throws Exception {
+    return testPlugin(parallelism, timeoutMS, 0);
+  }
+
+  public Hive3StoragePlugin testPlugin(long clientPoolSize) throws Exception {
+    return testPlugin(0, 0, clientPoolSize);
+  }
+
+  private Hive3StoragePlugin testPlugin(long parallelism, long timeoutMS, long clientPoolSize)
+      throws Exception {
     SabotContext ctx = mock(SabotContext.class);
     when(ctx.isCoordinator()).thenReturn(true);
     SabotConfig sabotConfig = mock(SabotConfig.class);
     when(ctx.getConfig()).thenReturn(sabotConfig);
     OptionManager optionManager = mock(OptionManager.class);
+    Mockito.doReturn(clientPoolSize)
+        .when(optionManager)
+        .getOption(Hive3PluginOptions.HIVE_CLIENT_POOL_SIZE);
+    Mockito.doReturn(true)
+        .when(optionManager)
+        .getOption(CatalogOptions.RETRY_CONNECTION_ON_FAILURE);
+
     when(ctx.getOptionManager()).thenReturn(optionManager);
     DremioConfig dremioConfig = mock(DremioConfig.class);
     when(ctx.getDremioConfig()).thenReturn(dremioConfig);

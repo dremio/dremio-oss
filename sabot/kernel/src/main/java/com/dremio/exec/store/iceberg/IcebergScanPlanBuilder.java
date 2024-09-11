@@ -15,15 +15,21 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.ExecConstants.ENABLE_READING_POSITIONAL_DELETE_WITH_ANTI_JOIN;
 import static com.dremio.exec.ops.SnapshotDiffContext.FilterApplyOptions.FILTER_DATA_FILES;
 import static com.dremio.exec.ops.SnapshotDiffContext.FilterApplyOptions.FILTER_PARTITIONS;
 import static com.dremio.exec.ops.SnapshotDiffContext.NO_SNAPSHOT_DIFF;
+import static com.dremio.exec.planner.physical.DmlPlanGeneratorBase.getHashDistributionTraitForFields;
 import static com.dremio.exec.store.SystemSchemas.DATAFILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.DELETE_FILE_PATH;
-import static com.dremio.exec.store.SystemSchemas.ICEBERG_POS_DELETE_FILE_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.IMPLICIT_SEQUENCE_NUMBER;
+import static com.dremio.exec.store.SystemSchemas.POS;
 import static com.dremio.exec.store.SystemSchemas.SEQUENCE_NUMBER;
+import static com.dremio.exec.store.iceberg.IcebergUtils.READ_POSITIONAL_DELETE_JOIN_MODE_PROPERTY;
+import static com.dremio.exec.store.iceberg.IcebergUtils.convertListTablePropertiesToMap;
+import static com.dremio.exec.store.iceberg.IcebergUtils.hasEqualityDeletes;
+import static com.dremio.exec.util.ColumnUtils.FILE_PATH_COLUMN_NAME;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
 
 import com.dremio.common.expression.SchemaPath;
@@ -34,21 +40,35 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
+import com.dremio.exec.planner.physical.DistributionTrait;
+import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
+import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DelegatingTableMetadata;
+import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FilterableScan;
+import com.dremio.exec.store.dfs.FilterableScan.PartitionStatsStatus;
+import com.dremio.exec.store.iceberg.IcebergUtils.ReadPositionalDeleteJoinMode;
 import com.dremio.exec.store.iceberg.model.ImmutableManifestScanOptions;
 import com.dremio.exec.store.iceberg.model.ManifestScanOptions;
 import com.dremio.exec.util.ColumnUtils;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -95,7 +115,8 @@ public class IcebergScanPlanBuilder {
             null,
             false,
             manifestScanFilters,
-            NO_SNAPSHOT_DIFF);
+            NO_SNAPSHOT_DIFF,
+            PartitionStatsStatus.NONE);
   }
 
   public IcebergScanPlanBuilder(IcebergScanPrel icebergScanPrel) {
@@ -152,7 +173,8 @@ public class IcebergScanPlanBuilder {
             canUsePartitionStats,
             ManifestScanFilters.empty(),
             drel.getSnapshotDiffContext(),
-            partitionValuesEnabled);
+            partitionValuesEnabled,
+            filterableScan.getPartitionStatsStatus());
     return new IcebergScanPlanBuilder(prel);
   }
 
@@ -170,8 +192,18 @@ public class IcebergScanPlanBuilder {
   public RelNode buildSingleSnapshotPlan() {
     RelNode output;
     if (hasDeleteFiles()) {
-      output = buildManifestScanPlanWithDeletes(false);
-      output = buildDataScanWithSplitGen(output);
+      if (!hasEqualityDeletes(icebergScanPrel.getTableMetadata())
+          && icebergScanPrel
+              .getContext()
+              .getPlannerSettings()
+              .getOptions()
+              .getOption(ENABLE_READING_POSITIONAL_DELETE_WITH_ANTI_JOIN)) {
+        // anti-join plan for positional deletes reading
+        output = buildDataScanWithDeleteAntiJoin(icebergScanPrel.getContext());
+      } else {
+        output = buildManifestScanPlanWithDeletes(false);
+        output = buildDataScanWithSplitGen(output);
+      }
     } else {
       // no delete files, just return IcebergScanPrel which will get expanded in FinalizeRel stage
       output = icebergScanPrel;
@@ -371,9 +403,205 @@ public class IcebergScanPlanBuilder {
         icebergScanPrel.isConvertedIcebergDataset());
   }
 
+  private RelNode buildSingleSplitGenWithFilePathOutput(RelNode input) {
+    BatchSchema splitGenOutputSchema =
+        BatchSchema.newBuilder()
+            .addFields(RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA.getFields())
+            .addField(
+                Field.nullable(SystemSchemas.DATAFILE_PATH, Types.MinorType.VARCHAR.getType()))
+            .build();
+
+    // perform split generation
+    return new IcebergSplitGenPrel(
+        input.getCluster(),
+        input.getTraitSet(),
+        icebergScanPrel.getTable(),
+        input,
+        icebergScanPrel.getTableMetadata(),
+        splitGenOutputSchema,
+        icebergScanPrel.isConvertedIcebergDataset(),
+        true);
+  }
+
   public RelNode buildDataScanWithSplitGen(RelNode input) {
     RelNode output = buildSplitGen(input);
-    return icebergScanPrel.buildDataFileScan(output);
+    return icebergScanPrel.buildDataFileScan(output, false);
+  }
+
+  public static ReadPositionalDeleteJoinMode getReadPositionalDeleteJoinMode(
+      final TableMetadata tableMetadata) {
+    return Optional.ofNullable(tableMetadata)
+        .map(TableMetadata::getDatasetConfig)
+        .map(DatasetConfig::getPhysicalDataset)
+        .map(PhysicalDataset::getIcebergMetadata)
+        .map(IcebergMetadata::getTablePropertiesList)
+        .map(props -> convertListTablePropertiesToMap(props))
+        .map(props -> props.get(READ_POSITIONAL_DELETE_JOIN_MODE_PROPERTY))
+        .map(
+            value ->
+                value.equalsIgnoreCase(ReadPositionalDeleteJoinMode.BROADCAST.value())
+                    ? ReadPositionalDeleteJoinMode.BROADCAST
+                    : ReadPositionalDeleteJoinMode.DEFAULT)
+        .orElse(ReadPositionalDeleteJoinMode.DEFAULT);
+  }
+
+  private RelNode buildHashExchangeOnFilePathField(RelNode input, String filePathFieldName) {
+    DistributionTrait dataDistributionTrait =
+        getHashDistributionTraitForFields(input.getRowType(), ImmutableList.of(filePathFieldName));
+    RelTraitSet dataTraitSet =
+        input
+            .getCluster()
+            .getPlanner()
+            .emptyTraitSet()
+            .plus(Prel.PHYSICAL)
+            .plus(dataDistributionTrait);
+    return new HashToRandomExchangePrel(
+        input.getCluster(), dataTraitSet, input, dataDistributionTrait.getFields());
+  }
+
+  /***
+   * Anti-join based approach to read table with delete files. There are two variants:
+   * 1. Disable splitting data file scans on data file side,
+   *    Thus, we can also eliminate any exchange after the data file scan
+   *    and just have the positional deletes routed to the data file nodes - using the split hash based on the data file path
+   * 2. When user specifies a table property "positional_delete.force.broadcast.delete_data",
+   *    delete file rows will be broadcasted to all data file scan threads to perform the join
+   *    Data file scan side would allow file split
+   */
+  public RelNode buildDataScanWithDeleteAntiJoin(OptimizerRulesContext context) {
+    // data file scan side
+    RelNode dataManifestScan =
+        icebergScanPrel.buildManifestScan(
+            getDataManifestRecordCount(),
+            new ImmutableManifestScanOptions.Builder()
+                .setManifestContentType(ManifestContentType.DATA)
+                .setIncludesIcebergPartitionInfo(false)
+                .build());
+    RelNode data;
+    ReadPositionalDeleteJoinMode readPositionalDeleteJoinMode =
+        getReadPositionalDeleteJoinMode(icebergScanPrel.getTableMetadata());
+    if (readPositionalDeleteJoinMode == ReadPositionalDeleteJoinMode.BROADCAST) {
+      // When user specifies "broadcast" mode in table property
+      // "dremio.read.positional_delete_join_mode",
+      // delete file rows will be broadcasted to all data file scan threads to perform the join
+      // Data file scan side would allow file split
+      RelNode splitGen = buildSplitGen(dataManifestScan);
+      data = icebergScanPrel.buildDataFileScan(splitGen, true);
+    } else {
+      // Disable splitting data file scans on data file side
+      data = buildSingleSplitGenWithFilePathOutput(dataManifestScan);
+      // hash distribute data file based on the data file path
+      RelNode dataSideHashExchange =
+          buildHashExchangeOnFilePathField(data, SystemSchemas.DATAFILE_PATH);
+      data =
+          icebergScanPrel.buildDataFileScanTableFunction(
+              dataSideHashExchange, Collections.EMPTY_LIST, true);
+    }
+
+    // delete file scan side
+    BatchSchema posDeleteFileSchema =
+        BatchSchema.newBuilder()
+            .addField(Field.nullable(DELETE_FILE_PATH, Types.MinorType.VARCHAR.getType()))
+            .addField(Field.nullable(POS, Types.MinorType.BIGINT.getType()))
+            .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+            .build();
+    Prel deletes = buildDeleteFileScan(context, posDeleteFileSchema);
+
+    RelNode deleteExchange;
+    if (readPositionalDeleteJoinMode == ReadPositionalDeleteJoinMode.BROADCAST) {
+      // broadcast delete rows to all data file scan threads
+      deleteExchange =
+          new BroadcastExchangePrel(deletes.getCluster(), deletes.getTraitSet(), deletes);
+    } else {
+      // have the positional deletes routed to the data file nodes - using the split hash based on
+      // the data file path
+      deleteExchange = buildHashExchangeOnFilePathField(deletes, DELETE_FILE_PATH);
+    }
+
+    // build anti-join between data file scan and delete file scan on file path
+    return antiJoinDataAndDeleteScan(data, deleteExchange);
+  }
+
+  private Prel antiJoinDataAndDeleteScan(RelNode data, RelNode deletes) {
+    // hash join on __FilePath == __FilePath AND __RowIndex == __RowIndex
+    RelDataTypeField leftFilePathField =
+        data.getRowType().getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
+    RelDataTypeField leftRowIndexField =
+        data.getRowType().getField(ColumnUtils.ROW_INDEX_COLUMN_NAME, false, false);
+    RelDataTypeField rightFilePathField =
+        deletes.getRowType().getField(DELETE_FILE_PATH, false, false);
+    RelDataTypeField rightRowIndexField = deletes.getRowType().getField(POS, false, false);
+
+    int leftFieldCount = data.getRowType().getFieldCount();
+    RexBuilder rexBuilder = data.getCluster().getRexBuilder();
+    RexNode joinCondition =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.AND,
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                rexBuilder.makeInputRef(leftFilePathField.getType(), leftFilePathField.getIndex()),
+                rexBuilder.makeInputRef(
+                    rightFilePathField.getType(), leftFieldCount + rightFilePathField.getIndex())),
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.EQUALS,
+                rexBuilder.makeInputRef(leftRowIndexField.getType(), leftRowIndexField.getIndex()),
+                rexBuilder.makeInputRef(
+                    rightRowIndexField.getType(), leftFieldCount + rightRowIndexField.getIndex())));
+
+    Prel leftJoin =
+        HashJoinPrel.create(
+            data.getCluster(),
+            data.getTraitSet(),
+            data,
+            deletes,
+            joinCondition,
+            null,
+            JoinRelType.LEFT,
+            true);
+
+    // anti join by filtering out matched rows from the left join
+    RelDataTypeField filePathFieldInDeleteFile =
+        leftJoin.getRowType().getField(DELETE_FILE_PATH, false, false);
+
+    RexNode filterCondition =
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.IS_NULL,
+            rexBuilder.makeInputRef(
+                filePathFieldInDeleteFile.getType(), filePathFieldInDeleteFile.getIndex()));
+
+    Prel antiJoin =
+        FilterPrel.create(leftJoin.getCluster(), leftJoin.getTraitSet(), leftJoin, filterCondition);
+
+    // filepath and rowIndex columns from data branch side has two possible sources:
+    // 1. they are added in IcebergScanPrel for tables with delete files
+    //    we need to remove them from IcebergScan plan output since they are only available inside
+    // IcebergScan sub-plan
+    // 2. they could be already extended during SqlNode phase for DML target tables
+    //    we need to keep them from IcebergScan plan output since they are required by DML plans
+    int numSystemColumnsToRemove =
+        ((TableFunctionPrel) data).getTableMetadata().getSchema().getFieldCount()
+            - data.getTable().getRowType().getFieldCount();
+
+    List<RelDataTypeField> projectFields =
+        antiJoin
+            .getRowType()
+            .getFieldList()
+            .subList(0, data.getRowType().getFieldCount() - numSystemColumnsToRemove);
+
+    List<String> projectNames =
+        projectFields.stream().map(RelDataTypeField::getName).collect(Collectors.toList());
+
+    List<RexNode> projectExprs =
+        projectFields.stream()
+            .map(f -> rexBuilder.makeInputRef(f.getType(), f.getIndex()))
+            .collect(Collectors.toList());
+
+    RelDataType projectRowType =
+        RexUtil.createStructType(
+            antiJoin.getCluster().getTypeFactory(), projectExprs, projectNames, null);
+
+    return ProjectPrel.create(
+        antiJoin.getCluster(), antiJoin.getTraitSet(), antiJoin, projectExprs, projectRowType);
   }
 
   public RelNode buildDataAndDeleteFileJoinAndAggregate(RelNode data, RelNode deletes) {
@@ -481,10 +709,10 @@ public class IcebergScanPlanBuilder {
     // rename __FilePath column coming from dataFileFilterList
     // the auto-rename logic isn't working in the join below and we end up with dupe column name
     // assertions
-    String filePathForCompare = ColumnUtils.FILE_PATH_COLUMN_NAME + "__ForCompare";
+    String filePathForCompare = FILE_PATH_COLUMN_NAME + "__ForCompare";
     RexBuilder rexBuilder = inputDataFiles.getCluster().getRexBuilder();
     RelDataTypeField projectField =
-        dataFileFilterList.getRowType().getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
+        dataFileFilterList.getRowType().getField(FILE_PATH_COLUMN_NAME, false, false);
     List<String> projectNames = ImmutableList.of(filePathForCompare);
     List<RexNode> projectExprs =
         ImmutableList.of(rexBuilder.makeInputRef(projectField.getType(), projectField.getIndex()));
@@ -542,12 +770,12 @@ public class IcebergScanPlanBuilder {
    * <p>DataFileScan | | exchange on split identity | | SplitGen | | ManifestScan(DELETE) | |
    * Exchange on split identity | | ManifestListScan(DELETE)
    */
-  public Prel buildDeleteFileScan(OptimizerRulesContext context) {
+  public Prel buildDeleteFileScan(OptimizerRulesContext context, BatchSchema posDeleteFileSchema) {
     DelegatingTableMetadata deleteFileTableMetadata =
         new DelegatingTableMetadata(icebergScanPrel.getTableMetadata()) {
           @Override
           public BatchSchema getSchema() {
-            return ICEBERG_POS_DELETE_FILE_SCHEMA;
+            return posDeleteFileSchema;
           }
         };
     IcebergScanPrel deleteFileScanPrel =
@@ -557,7 +785,7 @@ public class IcebergScanPlanBuilder {
             icebergScanPrel.getTable(),
             deleteFileTableMetadata.getStoragePluginId(),
             deleteFileTableMetadata,
-            ICEBERG_POS_DELETE_FILE_SCHEMA.getFields().stream()
+            posDeleteFileSchema.getFields().stream()
                 .map(i -> SchemaPath.getSimplePath(i.getName()))
                 .collect(Collectors.toList()),
             1.0,
@@ -572,7 +800,8 @@ public class IcebergScanPlanBuilder {
             null,
             false,
             ImmutableManifestScanFilters.empty(),
-            NO_SNAPSHOT_DIFF);
+            NO_SNAPSHOT_DIFF,
+            icebergScanPrel.getPartitionStatsStatus());
 
     ManifestScanOptions deleteManifestScanOptions =
         new ImmutableManifestScanOptions.Builder()
@@ -593,7 +822,7 @@ public class IcebergScanPlanBuilder {
             SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
             icebergScanPrel.isConvertedIcebergDataset());
     return deleteFileScanPrel.buildDataFileScanWithImplicitPartitionCols(
-        manifestDeleteScan, ImmutableList.of(IMPLICIT_SEQUENCE_NUMBER));
+        manifestDeleteScan, ImmutableList.of(IMPLICIT_SEQUENCE_NUMBER), false);
   }
 
   protected static RelDataTypeField getField(RelNode rel, String fieldName) {

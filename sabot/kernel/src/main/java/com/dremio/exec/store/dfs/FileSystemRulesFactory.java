@@ -447,7 +447,8 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
               drel.canUsePartitionStats(),
               ManifestScanFilters.empty(),
               drel.getSnapshotDiffContext(),
-              drel.isPartitionValuesEnabled());
+              drel.isPartitionValuesEnabled(),
+              drel.getPartitionStatsStatus());
       // generate query plans for cases when we are querying the data changes between snapshots
       // for example Incremental Refresh by Snapshot (Append only or By Partition)
       if (drel.getSnapshotDiffContext().isEnabled()) {

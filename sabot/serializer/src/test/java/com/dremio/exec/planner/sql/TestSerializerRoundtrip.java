@@ -15,22 +15,37 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.exec.planner.rules.DremioCoreRules.GROUPSET_TO_CROSS_JOIN_RULE;
+import static com.dremio.exec.planner.rules.DremioCoreRules.GROUP_SET_TO_CROSS_JOIN_RULE_ROLLUP;
+import static com.dremio.exec.planner.rules.DremioCoreRules.REDUCE_FUNCTIONS_FOR_GROUP_SETS;
+import static com.dremio.exec.planner.rules.DremioCoreRules.REWRITE_PROJECT_TO_FLATTEN_RULE;
 import static com.dremio.exec.planner.sql.MockSchemas.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.DelegatingPlannerCatalog;
 import com.dremio.exec.ops.DremioCatalogReader;
+import com.dremio.exec.planner.DremioHepPlanner;
+import com.dremio.exec.planner.MatchCountListener;
+import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.serializer.ProtoRelSerializerFactory;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.test.DremioTest;
 import com.dremio.test.GoldenFileTestBuilder;
 import com.dremio.test.GoldenFileTestBuilder.Base64String;
 import com.dremio.test.GoldenFileTestBuilder.MultiLineString;
+import com.dremio.test.shams.ShamOptionResolver;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
 import java.io.IOException;
 import java.net.URI;
@@ -49,8 +64,14 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.hep.HepMatchOrder;
+import org.apache.calcite.plan.hep.HepPlanner;
+import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.calcite.tools.RuleSet;
+import org.apache.calcite.tools.RuleSets;
 import org.apache.poi.util.HexDump;
 import org.junit.Assert;
 import org.junit.Test;
@@ -95,6 +116,105 @@ public class TestSerializerRoundtrip {
       DremioCompositeSqlOperatorTable.create(FUNCTIONS);
 
   private static final ConcurrentMap<String, Object> fileSystemLocks = new ConcurrentHashMap<>();
+
+  @Test
+  public void testWindowSerde() {
+    GoldenFileTestBuilder.<String, Output>create(
+            TestSerializerRoundtrip::executeTestWithOpeartorExpansion)
+        .add(
+            "WINDOW function",
+            "select sum(a) over(partition by b) as col1, count(*) over(partition by c) as col2 from t1")
+        .add(
+            "Calculate the Rank of Employees Based on Salary",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    DEPTNO, \n"
+                + "    SAL, \n"
+                + "    RANK() OVER (PARTITION BY DEPTNO ORDER BY SAL DESC) AS SALARY_RANK\n"
+                + "FROM \n"
+                + "    EMP\n")
+        .add(
+            "Calculate the Running Total of Salaries by Department",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    DEPTNO, \n"
+                + "    SAL, \n"
+                + "    SUM(SAL) OVER (PARTITION BY DEPTNO ORDER BY HIREDATE) AS RUNNING_TOTAL_SAL\n"
+                + "FROM \n"
+                + "    EMP\n")
+        .add(
+            "Find the Highest Salary in Each Department",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    DEPTNO, \n"
+                + "    SAL, \n"
+                + "    MAX(SAL) OVER (PARTITION BY DEPTNO) AS MAX_SALARY_IN_DEPT\n"
+                + "FROM \n"
+                + "    EMP\n")
+        .add(
+            "Calculate the Difference Between an Employee's Salary and the Average Salary of Their Department",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    DEPTNO, \n"
+                + "    SAL, \n"
+                + "    AVG(SAL) OVER (PARTITION BY DEPTNO) AS AVG_DEPT_SAL,\n"
+                + "    SAL - AVG(SAL) OVER (PARTITION BY DEPTNO) AS SALARY_DIFF_FROM_AVG\n"
+                + "FROM \n"
+                + "    EMP\n")
+        .add(
+            "Find the Previous and Next Employee's Salary",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    SAL, \n"
+                + "    LAG(SAL) OVER (ORDER BY HIREDATE) AS PREV_SALARY,\n"
+                + "    LEAD(SAL) OVER (ORDER BY HIREDATE) AS NEXT_SALARY\n"
+                + "FROM \n"
+                + "    EMP\n")
+        .add(
+            "Calculate the Percent Rank of Each Employee's Salary Within the Company",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    SAL, \n"
+                + "    PERCENT_RANK() OVER (ORDER BY SAL DESC) AS SALARY_PERCENT_RANK\n"
+                + "FROM \n"
+                + "    EMP\n")
+        .add(
+            "Cumulative Distribution of Employees' Salaries",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    SAL, \n"
+                + "    CUME_DIST() OVER (ORDER BY SAL DESC) AS SALARY_CUME_DIST\n"
+                + "FROM \n"
+                + "    EMP\n")
+        .add(
+            "Moving Average of Salaries Over the Last 3 Employees by Hire Date",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    SAL, \n"
+                + "    AVG(SAL) OVER (ORDER BY HIREDATE ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS MOVING_AVG_SAL\n"
+                + "FROM \n"
+                + "    EMP\n")
+        .add(
+            "Cumulative Salary by Department Ordered by Hire Date",
+            "SELECT \n"
+                + "    EMPNO, \n"
+                + "    ENAME, \n"
+                + "    DEPTNO, \n"
+                + "    SAL, \n"
+                + "    HIREDATE,\n"
+                + "    SUM(SAL) OVER (PARTITION BY DEPTNO ORDER BY HIREDATE ASC) AS CUMULATIVE_SALARY\n"
+                + "FROM \n"
+                + "    EMP")
+        .runTests();
+  }
 
   @Test
   public void testQueries() {
@@ -695,6 +815,21 @@ public class TestSerializerRoundtrip {
             "Window Agg In Sub Query Join",
             "select T.x, T.y, T.z, emp.empno from (select min(deptno) as x,    rank() over (order by empno) as y,    max(empno) over (partition by deptno) as z    from emp group by deptno, empno) as T  inner join emp on T.x = emp.deptno  and T.y = emp.empno ")
         .add(
+            "Window over preceding and current row",
+            "select T.x, T.y, T.z, emp.empno from (select min(deptno) as x,    sum(empno) over (order by empno rows between 11 preceding and current row) as y,    max(empno) over (partition by deptno) as z    from emp group by deptno, empno) as T  inner join emp on T.x = emp.deptno  and T.y = emp.empno ")
+        .add(
+            "Window over current row and following",
+            "select T.x, T.y, T.z, emp.empno from (select min(deptno) as x,    sum(empno) over (order by empno ROWS BETWEEN CURRENT ROW and 3 following) as y,    max(empno) over (partition by deptno) as z    from emp group by deptno, empno) as T  inner join emp on T.x = emp.deptno  and T.y = emp.empno ")
+        .add(
+            "Window over preceding and following",
+            "select T.x, T.y, T.z, emp.empno from (select min(deptno) as x,    sum(empno) over (order by empno ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) as y,    max(empno) over (partition by deptno) as z    from emp group by deptno, empno) as T  inner join emp on T.x = emp.deptno  and T.y = emp.empno ")
+        .add(
+            "Window over unbounded preceding and current row",
+            "select T.x, T.y, T.z, emp.empno from (select min(deptno) as x,    sum(empno) over (order by empno ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as y,    max(empno) over (partition by deptno) as z    from emp group by deptno, empno) as T  inner join emp on T.x = emp.deptno  and T.y = emp.empno ")
+        .add(
+            "Window over unbounded preceding and following",
+            "select T.x, T.y, T.z, emp.empno from (select min(deptno) as x,    sum(empno) over (order by empno ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) as y,    max(empno) over (partition by deptno) as z    from emp group by deptno, empno) as T  inner join emp on T.x = emp.deptno  and T.y = emp.empno ")
+        .add(
             "Order By Over",
             "select deptno, rank() over(partition by empno order by deptno) from emp order by row_number() over(partition by empno order by deptno)")
         .add(
@@ -1021,6 +1156,65 @@ public class TestSerializerRoundtrip {
 
   private static Output executeTest(MultiLineString multiLineQueryText) {
     return executeTest(multiLineQueryText.toString());
+  }
+
+  private static Output executeTestWithOpeartorExpansion(String queryText) {
+    MockDremioQueryParser tool = new MockDremioQueryParser(OPERATOR_TABLE, CATALOG, "user1");
+    RelNode root = tool.toRel(queryText);
+
+    RuleSet rules =
+        RuleSets.ofList(
+            CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
+            REDUCE_FUNCTIONS_FOR_GROUP_SETS,
+            GROUP_SET_TO_CROSS_JOIN_RULE_ROLLUP,
+            GROUPSET_TO_CROSS_JOIN_RULE,
+            REWRITE_PROJECT_TO_FLATTEN_RULE);
+    HepPlanner hepPlanner = buildPlannerWithRules(rules);
+    hepPlanner.setRoot(root);
+
+    root = hepPlanner.findBestExp();
+
+    String queryPlanText = RelOptUtil.toString(root);
+    byte[] queryPlanBinary =
+        FACTORY.getSerializer(root.getCluster(), OPERATOR_TABLE).serializeToBytes(root);
+
+    MockDremioQueryParser tool2 = new MockDremioQueryParser(OPERATOR_TABLE, CATALOG, "user1");
+    RelNode newRoot =
+        FACTORY
+            .getDeserializer(tool2.getCluster(), CATALOG_READER, OPERATOR_TABLE, null)
+            .deserialize(queryPlanBinary);
+
+    Assert.assertEquals(
+        "Query did not roundtrip: " + queryText, queryPlanText, RelOptUtil.toString(newRoot));
+
+    return Output.create(queryPlanText, queryPlanBinary);
+  }
+
+  private static HepPlanner buildPlannerWithRules(RuleSet rules) {
+    final HepProgramBuilder hepPgmBldr = new HepProgramBuilder();
+
+    int matchLimit = PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getDefault().getNumVal().intValue();
+    hepPgmBldr.addMatchLimit(matchLimit);
+
+    MatchCountListener matchCountListener =
+        new MatchCountListener(
+            0, Iterables.size(rules), matchLimit, Thread.currentThread().getName());
+
+    hepPgmBldr.addMatchOrder(HepMatchOrder.ARBITRARY);
+    hepPgmBldr.addRuleCollection(Lists.newArrayList(rules));
+
+    ClusterResourceInformation clusterResourceInformation = mock(ClusterResourceInformation.class);
+    when(clusterResourceInformation.getExecutorNodeCount()).thenReturn(1);
+
+    return new DremioHepPlanner(
+        hepPgmBldr.build(),
+        new PlannerSettings(
+            DremioTest.DEFAULT_SABOT_CONFIG,
+            ShamOptionResolver.DEFAULT_VALUES,
+            () -> clusterResourceInformation),
+        new DremioCost.Factory(),
+        null,
+        matchCountListener);
   }
 
   private static Output executeTest(String queryText) {

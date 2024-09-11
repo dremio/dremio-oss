@@ -17,6 +17,7 @@ package com.dremio.dac.service.exec;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.ProcessExit;
+import com.dremio.exec.proto.beans.DremioExitCodes;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ElectionListener;
@@ -78,6 +79,6 @@ public class MasterElectionService implements Service {
   }
 
   protected void abort() {
-    ProcessExit.exit("Node lost its master status.", 3);
+    ProcessExit.exit("Node lost its master status.", DremioExitCodes.LOST_MASTER_STATUS);
   }
 }

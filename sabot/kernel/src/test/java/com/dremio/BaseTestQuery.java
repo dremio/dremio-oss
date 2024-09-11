@@ -29,6 +29,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
@@ -80,13 +81,10 @@ import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.BindingCreator;
-import com.dremio.service.BindingProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.services.credentials.CredentialsServiceImpl;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
@@ -95,7 +93,6 @@ import com.google.common.io.Resources;
 import com.google.inject.AbstractModule;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import com.google.inject.util.Modules;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -108,16 +105,19 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
+import javax.inject.Provider;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.commons.io.IOUtils;
@@ -147,7 +147,6 @@ public class BaseTestQuery extends ExecTest {
   protected static FileSystem localFs;
 
   protected static Properties defaultProperties = null;
-  private static CatalogService catalogService;
 
   protected static String setTableOptionQuery(String table, String optionName, String optionValue) {
     return String.format("ALTER TABLE %s SET %s = %s", table, optionName, optionValue);
@@ -175,47 +174,58 @@ public class BaseTestQuery extends ExecTest {
   }
 
   public static final class SabotNodeRule extends ExternalResource {
-    private static final Function<SabotProviderConfig, SabotNode> DEFAULT_PROVIDER =
-        new Function<SabotProviderConfig, SabotNode>() {
-          @Override
-          public SabotNode apply(SabotProviderConfig input) {
-            try {
-              List<Module> modules = Collections.singletonList(SABOT_NODE_RULE.getModules());
-              return new SabotNode(
-                  config, clusterCoordinator, CLASSPATH_SCAN_RESULT, input.allRoles(), modules);
-            } catch (Exception e) {
-              throw Throwables.propagate(e);
-            }
+    private static final BiFunction<SabotProviderConfig, List<Module>, SabotNode> DEFAULT_PROVIDER =
+        (sabotProviderConfig, overrideModules) -> {
+          try {
+            return new SabotNode(
+                config,
+                clusterCoordinator,
+                CLASSPATH_SCAN_RESULT,
+                sabotProviderConfig.allRoles(),
+                overrideModules);
+          } catch (Exception e) {
+            throw Throwables.propagate(e);
           }
         };
 
-    private Function<SabotProviderConfig, SabotNode> provider = DEFAULT_PROVIDER;
+    private BiFunction<SabotProviderConfig, List<Module>, SabotNode> provider = DEFAULT_PROVIDER;
+    private List<Module> overrideModules = new ArrayList<>();
 
-    private Module module = null;
+    private void resetFields() {
+      // we have tests calling BaseTestQuery.setupDefaultTestCluster without being a subclass of
+      // BaseTestQuery, thus the rule is not properly executed. by calling this method in both
+      // before() and after() we make sure at least our proper tests start with and leave behind
+      // a clean state without leaking test-specific configurations through the static rule field
+      provider = DEFAULT_PROVIDER;
+      overrideModules = new ArrayList<>();
+    }
 
     @Override
     protected void before() throws Throwable {
-      provider = DEFAULT_PROVIDER;
-      module = null;
+      resetFields();
     }
 
-    SabotNode newSabotNode(SabotProviderConfig config) {
-      return provider.apply(config);
+    @Override
+    protected void after() {
+      resetFields();
     }
 
-    public Function<SabotProviderConfig, SabotNode> setSabotNodeProvider(
-        Function<SabotProviderConfig, SabotNode> provider) {
-      final Function<SabotProviderConfig, SabotNode> previous = this.provider;
+    public SabotNode newSabotNode(SabotProviderConfig config) {
+      return provider.apply(config, overrideModules);
+    }
+
+    public void setSabotNodeProvider(
+        BiFunction<SabotProviderConfig, List<Module>, SabotNode> provider) {
       this.provider = Preconditions.checkNotNull(provider);
-      return previous;
     }
 
+    /***
+     * Registers a new guice module to potentially override the default injections from SabotNode.
+     * Note when registering multiple modules their bindings are not allowed to overlap, so make
+     * sure to use fine-grained modules to have each override specific sub-systems for testing.
+     */
     public void register(Module module) {
-      this.module = module;
-    }
-
-    public Module getModules() {
-      return module;
+      overrideModules.add(Preconditions.checkNotNull(module));
     }
   }
 
@@ -238,7 +248,7 @@ public class BaseTestQuery extends ExecTest {
 
   private int[] columnWidths = new int[] {8};
 
-  private static SimpleJobRunner INTERNAL_REFRESH_QUERY_RUNNER =
+  private static final SimpleJobRunner INTERNAL_REFRESH_QUERY_RUNNER =
       new SimpleJobRunner() {
         @Override
         public void runQueryAsJob(
@@ -269,7 +279,7 @@ public class BaseTestQuery extends ExecTest {
         }
       };
 
-  private static AbstractModule getDefaultModule() {
+  private static AbstractModule newDefaultModule() {
     return new AbstractModule() {
       @Override
       protected void configure() {
@@ -282,12 +292,7 @@ public class BaseTestQuery extends ExecTest {
   public static void setupDefaultTestCluster() throws Exception {
     config = SabotConfig.create(TEST_CONFIGURATIONS);
 
-    Module module =
-        Optional.ofNullable(SABOT_NODE_RULE.module)
-            .map(m -> Modules.combine(m, getDefaultModule()))
-            .orElse(getDefaultModule());
-
-    SABOT_NODE_RULE.register(module);
+    SABOT_NODE_RULE.register(newDefaultModule());
 
     DremioCredentialProviderFactory.configure(
         () -> CredentialsServiceImpl.newInstance(DEFAULT_DREMIO_CONFIG, CLASSPATH_SCAN_RESULT));
@@ -327,26 +332,50 @@ public class BaseTestQuery extends ExecTest {
    *
    * @return SabotContext of first SabotNode in the cluster.
    */
-  public static SabotContext getSabotContext() {
-    Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
-    return nodes[0].getContext();
+  protected static SabotContext getSabotContext() {
+    return getSabotContext(0);
   }
 
-  protected static BindingCreator getBindingCreator() {
-    return nodes[0].getBindingCreator();
+  protected static SabotContext getSabotContext(int idx) {
+    return getInstance(SabotContext.class, idx);
   }
 
-  protected static BindingProvider getBindingProvider() {
-    return nodes[0].getBindingProvider();
+  private static Injector getInjector() {
+    return getInjector(0);
   }
 
-  protected static Injector getInjector() {
-    return nodes[0].getInjector();
+  private static Injector getInjector(int idx) {
+    Preconditions.checkState(
+        idx < nodeCount && nodes != null && nodes[idx] != null, "Nodes are not setup.");
+    return nodes[idx].getInjector();
+  }
+
+  protected static <T> T getInstance(Class<T> type) {
+    return getInstance(type, 0);
+  }
+
+  protected static <T> T getInstance(Class<T> type, int idx) {
+    return getInjector(idx).getInstance(type);
+  }
+
+  protected static <T> Provider<T> getProvider(Class<T> type) {
+    return getInjector().getProvider(type);
+  }
+
+  protected static CatalogService getCatalogService() {
+    return getInstance(CatalogService.class);
   }
 
   protected static LocalQueryExecutor getLocalQueryExecutor() {
-    Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
-    return nodes[0].getLocalQueryExecutor();
+    return getInstance(LocalQueryExecutor.class);
+  }
+
+  protected static DremioRootAllocator getDremioRootAllocator() {
+    BufferAllocator allocator = getSabotContext().getAllocator();
+    if (allocator instanceof DremioRootAllocator) {
+      return (DremioRootAllocator) allocator;
+    }
+    throw new IllegalStateException("Not a DremioRootAllocator: " + allocator.getClass().getName());
   }
 
   protected static Properties cloneDefaultTestConfigProperties() {
@@ -363,6 +392,17 @@ public class BaseTestQuery extends ExecTest {
   }
 
   protected static void openClient() throws Exception {
+
+    /*
+    TODO: enable preconditions and fix all failing tests
+    Preconditions.checkState(
+        clusterCoordinator == null, "Old cluster not stopped properly (by previous Test?)");
+    Preconditions.checkState(
+        nodes == null, "Old cluster not stopped properly (by previous Test?)");
+    Preconditions.checkState(
+        client == null, "Old cluster not stopped properly (by previous Test?)");
+    */
+
     clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
 
     dfsTestTmpSchemaLocation = TestUtilities.createTempDir();
@@ -372,11 +412,9 @@ public class BaseTestQuery extends ExecTest {
       // first node has all roles, and all others are only executors
       nodes[i] = SABOT_NODE_RULE.newSabotNode(new SabotProviderConfig(i == 0));
       nodes[i].run();
-      if (i == 0) {
-        catalogService = nodes[i].getContext().getCatalogService();
-        TestUtilities.addDefaultTestPlugins(catalogService, dfsTestTmpSchemaLocation, true);
-      }
     }
+
+    TestUtilities.addDefaultTestPlugins(getCatalogService(), dfsTestTmpSchemaLocation, true);
 
     client =
         QueryTestUtil.createClient(
@@ -398,7 +436,7 @@ public class BaseTestQuery extends ExecTest {
   }
 
   protected void createSource(SourceConfig sourceConfig) throws RpcException {
-    catalogService.createSourceIfMissingWithThrow(sourceConfig);
+    getCatalogService().createSourceIfMissingWithThrow(sourceConfig);
   }
 
   protected static void disablePlanCache() throws Exception {
@@ -409,10 +447,7 @@ public class BaseTestQuery extends ExecTest {
   protected MockPartitionStatsStoreProvider getPartitionStatsStoreProvider(
       int coordinatorNodeIndex) {
     return (MockPartitionStatsStoreProvider)
-        nodes[coordinatorNodeIndex]
-            .getBindingProvider()
-            .provider(PartitionStatsCacheStoreProvider.class)
-            .get();
+        nodes[coordinatorNodeIndex].getInstance(PartitionStatsCacheStoreProvider.class);
   }
 
   private static void closeCurrentClient() {
@@ -464,19 +499,25 @@ public class BaseTestQuery extends ExecTest {
    */
   public static String getJDBCURL() {
     Collection<CoordinationProtos.NodeEndpoint> endpoints =
-        clusterCoordinator
-            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-            .getAvailableEndpoints();
+        clusterCoordinator.getCoordinatorEndpoints();
     if (endpoints.isEmpty()) {
       return null;
     }
-
     CoordinationProtos.NodeEndpoint endpoint = endpoints.iterator().next();
     return format("jdbc:dremio:direct=%s:%d", endpoint.getAddress(), endpoint.getUserPort());
   }
 
+  public static int getPort() {
+    Collection<CoordinationProtos.NodeEndpoint> endpoints =
+        clusterCoordinator
+            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+            .getAvailableEndpoints();
+    CoordinationProtos.NodeEndpoint endpoint = endpoints.iterator().next();
+    return endpoint.getUserPort();
+  }
+
   public TestBuilder testBuilder() {
-    return new TestBuilder(allocator);
+    return new TestBuilder(getTestAllocator());
   }
 
   @AfterClass
@@ -543,7 +584,7 @@ public class BaseTestQuery extends ExecTest {
 
   public static List<QueryDataBatch> testPreparedStatement(PreparedStatementHandle handle)
       throws Exception {
-    return client.executePreparedStatement(handle);
+    return client.executePreparedStatement(handle, List.of());
   }
 
   public static int testRunAndPrint(final QueryType type, final String query) throws Exception {
@@ -927,23 +968,6 @@ public class BaseTestQuery extends ExecTest {
             ExecConstants.ENABLE_HIVE_ASYNC.getDefault().getBoolVal().toString());
   }
 
-  public static AutoCloseable enableIcebergTables() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML, "true");
-    return () -> {
-      setSystemOption(
-          ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS,
-          ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS.getDefault().getBoolVal().toString());
-      setSystemOption(
-          ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL,
-          ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL.getDefault().getBoolVal().toString());
-      setSystemOption(
-          ExecConstants.ENABLE_ICEBERG_ADVANCED_DML,
-          ExecConstants.ENABLE_ICEBERG_ADVANCED_DML.getDefault().getBoolVal().toString());
-    };
-  }
-
   protected static AutoCloseable enableUseSyntax() {
     setSystemOption(ExecConstants.ENABLE_USE_VERSION_SYNTAX, "true");
     return () -> {
@@ -977,16 +1001,6 @@ public class BaseTestQuery extends ExecTest {
       setSystemOption(
           ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES,
           ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES.getDefault().getBoolVal().toString());
-    };
-  }
-
-  protected static AutoCloseable enableIcebergDmlSupportFlag() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_DML, "true");
-
-    return () -> {
-      setSystemOption(
-          ExecConstants.ENABLE_ICEBERG_DML,
-          ExecConstants.ENABLE_ICEBERG_DML.getDefault().getBoolVal().toString());
     };
   }
 
@@ -1165,7 +1179,7 @@ public class BaseTestQuery extends ExecTest {
 
   protected int printResult(List<QueryDataBatch> results) throws SchemaChangeException {
     int rowCount = 0;
-    final RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    final RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
     for (final QueryDataBatch result : results) {
       rowCount += result.getHeader().getRowCount();
       loader.load(result.getHeader().getDef(), result.getData());
@@ -1188,7 +1202,7 @@ public class BaseTestQuery extends ExecTest {
       List<QueryDataBatch> results, String delimiter, boolean includeHeader)
       throws SchemaChangeException {
     final StringBuilder formattedResults = new StringBuilder();
-    final RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    final RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
     for (final QueryDataBatch result : results) {
       loader.load(result.getHeader().getDef(), result.getData());
       if (loader.getRecordCount() <= 0) {
@@ -1220,7 +1234,7 @@ public class BaseTestQuery extends ExecTest {
 
   protected static String getValueInFirstRecord(String sql, String columnName) throws Exception {
     final List<QueryDataBatch> results = testSqlWithResults(sql);
-    final RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+    final RecordBatchLoader loader = new RecordBatchLoader(getDremioRootAllocator());
     final StringBuilder builder = new StringBuilder();
     final boolean silent =
         config != null && config.getBoolean(QueryTestUtil.TEST_QUERY_PRINTING_SILENT);
@@ -1267,7 +1281,7 @@ public class BaseTestQuery extends ExecTest {
   }
 
   protected static IcebergModel getIcebergModel(String pluginName) {
-    StoragePlugin plugin = getSabotContext().getCatalogService().getSource(pluginName);
+    StoragePlugin plugin = getCatalogService().getSource(pluginName);
     if (plugin instanceof SupportsIcebergMutablePlugin) {
       SupportsIcebergMutablePlugin icebergMutablePlugin = (SupportsIcebergMutablePlugin) plugin;
       return icebergMutablePlugin.getIcebergModel(
@@ -1297,7 +1311,7 @@ public class BaseTestQuery extends ExecTest {
   }
 
   protected static String getDfsTestTmpDefaultCtasFormat(String pluginName) {
-    final FileSystemPlugin plugin = getSabotContext().getCatalogService().getSource(pluginName);
+    final FileSystemPlugin plugin = getCatalogService().getSource(pluginName);
     return plugin.getDefaultCtasFormat();
   }
 

@@ -22,6 +22,7 @@ import { Tooltip, type TooltipPlacement } from "./Tooltip/Tooltip";
 
 type IconButtonProps = React.HTMLAttributes<HTMLButtonElement> & {
   as?: any;
+  to?: string;
   className?: string;
   type?: "button" | "submit";
   tooltip?: JSX.Element | string;
@@ -47,53 +48,57 @@ function validateProps(props: IconButtonProps) {
   );
 }
 
-export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
-  (props, ref) => {
-    const {
-      as = "button",
-      className,
-      tooltip,
-      tooltipPlacement,
-      tooltipPortal,
-      tooltipDelay,
-      tooltipInteractive,
-      "aria-label": ariaLabel,
-      onTooltipOpen,
-      onTooltipClose,
-      ...rest
-    } = props;
+export const IconButton: any = React.forwardRef<
+  HTMLButtonElement,
+  IconButtonProps
+>((props, ref) => {
+  const id = React.useId();
+  const {
+    as = "button",
+    className,
+    tooltip,
+    tooltipPlacement,
+    tooltipPortal,
+    tooltipDelay,
+    tooltipInteractive,
+    "aria-label": ariaLabel,
+    onTooltipOpen,
+    onTooltipClose,
+    ...rest
+  } = props;
 
-    validateProps(props);
+  validateProps(props);
 
-    const defaultTypeProp =
-      as === "button" && !props.type ? { type: "button" } : {};
+  const defaultTypeProp =
+    as === "button" && !props.type ? { type: "button" } : {};
 
-    const ButtonElement = React.createElement(as, {
-      ...defaultTypeProp,
-      ...rest,
-      className: clsx(className, "dremio-icon-button"),
-      tabIndex: 0,
-      "aria-label": ariaLabel,
-      ref,
-    });
+  const ButtonElement = React.createElement(as, {
+    ...defaultTypeProp,
+    ...rest,
+    className: clsx(className, "dremio-icon-button"),
+    tabIndex: 0,
+    "aria-label": ariaLabel,
+    "aria-labelledby": id,
+    ref,
+  });
 
-    if (tooltip) {
-      return (
-        <Tooltip
-          content={tooltip}
-          placement={tooltipPlacement}
-          onOpen={onTooltipOpen}
-          onClose={onTooltipClose}
-          portal={tooltipPortal}
-          delay={tooltipDelay}
-          interactive={tooltipInteractive}
-          shouldWrapChildren
-        >
-          {ButtonElement}
-        </Tooltip>
-      );
-    } else {
-      return ButtonElement;
-    }
-  },
-);
+  if (tooltip) {
+    return (
+      <Tooltip
+        content={tooltip}
+        placement={tooltipPlacement}
+        onOpen={onTooltipOpen}
+        onClose={onTooltipClose}
+        portal={tooltipPortal}
+        delay={tooltipDelay}
+        interactive={tooltipInteractive}
+        shouldWrapChildren
+        id={id}
+      >
+        {ButtonElement}
+      </Tooltip>
+    );
+  } else {
+    return ButtonElement;
+  }
+});

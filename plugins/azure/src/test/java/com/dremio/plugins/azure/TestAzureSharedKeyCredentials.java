@@ -18,18 +18,15 @@ package com.dremio.plugins.azure;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import com.azure.core.util.CoreUtils;
 import com.azure.core.util.UserAgentUtil;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Ticker;
 import com.microsoft.azure.storage.core.Base64;
 import java.util.Map;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.util.HttpConstants;
-import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -37,15 +34,8 @@ import org.junit.Test;
  * a HMAC from all of these to prepare the token.
  */
 public class TestAzureSharedKeyCredentials {
-  private final String mockAccount = "mock-account";
-  private final String mockKey = Base64.encode("mock-key".getBytes());
-  private AzureSharedKeyCredentials credentials;
-
-  @Before
-  public void before() {
-    credentials = new AzureSharedKeyCredentials(mockAccount, () -> mockKey);
-    credentials.setSecret(new AzureSharedKeyCredentials.LookupResult(mockAccount, mockKey, 0));
-  }
+  private final AzureSharedKeyCredentials credentials =
+      new AzureSharedKeyCredentials("mock-account", () -> Base64.encode("mock-key".getBytes()));
 
   @Test
   public void testGetAuthzHeaderValue() {
@@ -56,55 +46,9 @@ public class TestAzureSharedKeyCredentials {
 
   @Test
   public void testCheckAndUpdate() {
-    // Test credentials are initialized with invalid secret
-    assertTrue("credentials were not updated", credentials.checkAndUpdateToken());
-  }
-
-  @Test
-  public void testNotExpired() {
-    Ticker ticker =
-        new Ticker() {
-          private final long millis =
-              System.currentTimeMillis() - AzureSharedKeyCredentials.SECRET_TTL + 100;
-
-          @Override
-          public long read() {
-            return millis;
-          }
-        };
-
-    credentials.setSecret(
-        new AzureSharedKeyCredentials.LookupResult(mockAccount, mockKey, ticker.read()));
-
-    assertFalse(credentials.checkAndUpdateToken());
-  }
-
-  @Test
-  public void testExpired() {
-    Ticker ticker =
-        new Ticker() {
-          private final long millis =
-              System.currentTimeMillis() - AzureSharedKeyCredentials.SECRET_TTL - 100;
-
-          @Override
-          public long read() {
-            return millis;
-          }
-        };
-
-    credentials.setSecret(
-        new AzureSharedKeyCredentials.LookupResult(mockAccount, mockKey, ticker.read()));
-
-    assertTrue(credentials.checkAndUpdateToken());
-  }
-
-  @Test
-  public void testCredentialsUpdate() {
-    // Test credentials are updated and correct
-    assertEquals(
-        "credentials were not updated or do not match",
-        mockKey,
-        credentials.getSecret().getSecret());
+    assertFalse(
+        "Shared key token is static. There shouldn't ever be an update required",
+        credentials.checkAndUpdateToken());
   }
 
   private Request prepareTestRequest() {

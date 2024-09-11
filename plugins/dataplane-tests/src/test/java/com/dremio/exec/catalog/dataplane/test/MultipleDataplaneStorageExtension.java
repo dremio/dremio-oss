@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.catalog.dataplane.test;
 
-import static org.junit.platform.commons.support.AnnotationSupport.findAnnotation;
+import static org.junit.platform.commons.support.AnnotationSupport.findRepeatableAnnotations;
 import static org.projectnessie.tools.compatibility.internal.NessieTestApiBridge.populateAnnotatedFields;
 
 import com.dremio.exec.catalog.dataplane.test.DataplaneStorage.StorageType;
@@ -63,14 +63,14 @@ public class MultipleDataplaneStorageExtension
 
   @Override
   public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext extensionContext) {
-    Optional<SkipForStorageType> skipAnnotation =
-        findAnnotation(extensionContext.getTestClass(), SkipForStorageType.class);
-    if (skipAnnotation.isPresent()) {
-      StorageType storageTypeToSkip = skipAnnotation.get().value();
-      if (storageTypeToSkip == storageTypeFromContext(extensionContext)) {
-        return ConditionEvaluationResult.disabled(
-            String.format("Skipped due to @SkipForStorageType = %s.", storageTypeToSkip));
-      }
+    if (findRepeatableAnnotations(extensionContext.getTestClass(), SkipForStorageType.class)
+        .stream()
+        .anyMatch(
+            skipAnnotation -> storageTypeFromContext(extensionContext) == skipAnnotation.value())) {
+      return ConditionEvaluationResult.disabled(
+          String.format(
+              "Skipped due to @SkipForStorageType = %s.",
+              storageTypeFromContext(extensionContext)));
     }
 
     return ConditionEvaluationResult.enabled(null);
@@ -115,6 +115,8 @@ public class MultipleDataplaneStorageExtension
         return new S3MockDataplaneStorage();
       case AZURE:
         return new AzureDataplaneStorage();
+      case GCS_MOCK:
+        return new GcsMockDataplaneStorage();
       default:
         throw new IllegalStateException("Unexpected value: " + storageType);
     }

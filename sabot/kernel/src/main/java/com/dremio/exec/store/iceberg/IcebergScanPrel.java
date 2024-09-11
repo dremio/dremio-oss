@@ -21,6 +21,8 @@ import static com.dremio.exec.store.RecordReader.COL_IDS;
 import static com.dremio.exec.store.RecordReader.SPLIT_IDENTITY;
 import static com.dremio.exec.store.RecordReader.SPLIT_INFORMATION;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getUsedIndices;
+import static com.dremio.exec.util.ColumnUtils.FILE_PATH_COLUMN_NAME;
+import static com.dremio.exec.util.ColumnUtils.ROW_INDEX_COLUMN_NAME;
 
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.SchemaPath;
@@ -32,7 +34,6 @@ import com.dremio.exec.physical.config.ImmutableManifestScanFilters;
 import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.FilterPrel;
@@ -45,6 +46,8 @@ import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.planner.sql.handlers.PrelFinalizable;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.exec.store.DelegatingTableMetadata;
 import com.dremio.exec.store.ExpressionInputRewriter;
 import com.dremio.exec.store.MinMaxRewriter;
 import com.dremio.exec.store.RecordReader;
@@ -72,6 +75,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -89,7 +93,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.iceberg.expressions.Expression;
 
 /** Iceberg dataset prel */
-public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizable, FilterableScan {
+public class IcebergScanPrel extends FilterableScan implements Prel, PrelFinalizable {
   private final ScanFilter filter;
   private final ParquetScanRowGroupFilter rowGroupFilter;
   private final boolean arrowCachingEnabled;
@@ -122,7 +126,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       Long survivingFileCount,
       boolean canUsePartitionStats,
       ManifestScanFilters manifestScanFilters,
-      SnapshotDiffContext snapshotDiffContext) {
+      SnapshotDiffContext snapshotDiffContext,
+      PartitionStatsStatus partitionStats) {
     super(
         cluster,
         traitSet,
@@ -132,7 +137,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         projectedColumns,
         observedRowcountAdjustment,
         hints,
-        snapshotDiffContext);
+        snapshotDiffContext,
+        partitionStats);
     this.filter = filter;
     this.rowGroupFilter = rowGroupFilter;
     this.arrowCachingEnabled = arrowCachingEnabled;
@@ -175,7 +181,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       boolean canUsePartitionStats,
       ManifestScanFilters manifestScanFilters,
       SnapshotDiffContext snapshotDiffContext,
-      boolean partitionValuesEnabled) {
+      boolean partitionValuesEnabled,
+      PartitionStatsStatus partitionStats) {
     super(
         cluster,
         traitSet,
@@ -185,7 +192,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         projectedColumns,
         observedRowcountAdjustment,
         hints,
-        snapshotDiffContext);
+        snapshotDiffContext,
+        partitionStats);
     this.filter = filter;
     this.rowGroupFilter = rowGroupFilter;
     this.arrowCachingEnabled = arrowCachingEnabled;
@@ -229,7 +237,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         survivingFileCount,
         canUsePartitionStats,
         manifestScanFilters,
-        snapshotDiffContext);
+        snapshotDiffContext,
+        getPartitionStatsStatus());
   }
 
   @Override
@@ -267,7 +276,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         survivingFileCount,
         canUsePartitionStats,
         manifestScanFilters,
-        snapshotDiffContext);
+        snapshotDiffContext,
+        getPartitionStatsStatus());
   }
 
   @Override
@@ -317,7 +327,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         survivingFileCount,
         canUsePartitionStats,
         manifestScanFilters,
-        snapshotDiffContext);
+        snapshotDiffContext,
+        getPartitionStatsStatus());
   }
 
   @Override
@@ -341,7 +352,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         survivingFileCount,
         canUsePartitionStats,
         manifestScanFilters,
-        snapshotDiffContext);
+        snapshotDiffContext,
+        getPartitionStatsStatus());
   }
 
   @Override
@@ -366,7 +378,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         survivingFileCount,
         canUsePartitionStats,
         manifestScanFilters,
-        snapshotDiffContext);
+        snapshotDiffContext,
+        getPartitionStatsStatus());
   }
 
   @Override
@@ -507,7 +520,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     ManifestScanOptions manifestScanOptions =
         new ImmutableManifestScanOptions.Builder().setIncludesSplitGen(true).build();
     RelNode output = buildManifestScan(survivingFileCount, manifestScanOptions);
-    return buildDataFileScan(output);
+    return buildDataFileScan(output, false);
   }
 
   public Prel buildManifestScan(
@@ -692,12 +705,13 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     return input2;
   }
 
-  public Prel buildDataFileScan(RelNode input2) {
-    return buildDataFileScanWithImplicitPartitionCols(input2, Collections.EMPTY_LIST);
+  public Prel buildDataFileScan(RelNode input2, boolean withFilePathRowIndexFields) {
+    return buildDataFileScanWithImplicitPartitionCols(
+        input2, Collections.EMPTY_LIST, withFilePathRowIndexFields);
   }
 
   public Prel buildDataFileScanWithImplicitPartitionCols(
-      RelNode input2, List<String> implicitPartitionCols) {
+      RelNode input2, List<String> implicitPartitionCols, boolean withFilePathRowIndexFields) {
     DistributionTrait.DistributionField distributionField =
         new DistributionTrait.DistributionField(0);
     DistributionTrait distributionTrait =
@@ -716,16 +730,36 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
             distributionTrait.getFields(),
             TableFunctionUtil.getHashExchangeTableFunctionCreator(tableMetadata, false));
 
+    return buildDataFileScanTableFunction(
+        parquetSplitsExchange, implicitPartitionCols, withFilePathRowIndexFields);
+  }
+
+  public Prel buildDataFileScanTableFunction(
+      RelNode input, List<String> implicitPartitionCols, boolean withFilePathRowIndexFields) {
     boolean limitDataScanParallelism =
         context.getPlannerSettings().getOptions().getOption(DATA_SCAN_PARALLELISM);
+
+    TableMetadata dataScanTableMetadata = tableMetadata;
+    List<SchemaPath> dataScanProjectedColumns = getProjectedColumns();
+    RelDataType dataScanRowType = getRowType();
+    // add file_path and row_index system columns to the table scan
+    if (withFilePathRowIndexFields && shouldAddFilePathRowIndexFields(tableMetadata)) {
+      dataScanTableMetadata = getFilePathRowIndexExtendedTableMetadata(tableMetadata);
+      dataScanProjectedColumns = new ArrayList<>(getProjectedColumns());
+      dataScanProjectedColumns.add(new SchemaPath(FILE_PATH_COLUMN_NAME));
+      dataScanProjectedColumns.add(new SchemaPath(ROW_INDEX_COLUMN_NAME));
+      dataScanRowType =
+          getRowTypeFromProjectedColumns(
+              dataScanProjectedColumns, dataScanTableMetadata.getSchema(), getCluster());
+    }
 
     // table scan phase
     TableFunctionConfig tableFunctionConfig =
         TableFunctionUtil.getDataFileScanTableFunctionConfig(
-            tableMetadata,
+            dataScanTableMetadata,
             filter,
             rowGroupFilter,
-            getProjectedColumns(),
+            dataScanProjectedColumns,
             arrowCachingEnabled,
             isConvertedIcebergDataset,
             limitDataScanParallelism,
@@ -736,11 +770,44 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         getCluster(),
         getTraitSet().plus(DistributionTrait.ANY),
         getTable(),
-        parquetSplitsExchange,
-        tableMetadata,
+        input,
+        dataScanTableMetadata,
         tableFunctionConfig,
-        getRowType(),
+        dataScanRowType,
         getSurvivingRowCount());
+  }
+
+  private boolean shouldAddFilePathRowIndexFields(TableMetadata tableMetadata) {
+    BatchSchema schema = tableMetadata.getSchema();
+    long existingColumns =
+        schema.getFields().stream()
+            .filter(
+                f ->
+                    f.getName().equalsIgnoreCase(FILE_PATH_COLUMN_NAME)
+                        || f.getName().equalsIgnoreCase(ROW_INDEX_COLUMN_NAME))
+            .count();
+
+    if (existingColumns > 0) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private static TableMetadata getFilePathRowIndexExtendedTableMetadata(TableMetadata dataset) {
+    return new DelegatingTableMetadata(dataset) {
+      @Override
+      public BatchSchema getSchema() {
+        final SchemaBuilder schemaWithSystemColumns = BatchSchema.newBuilder();
+        schemaWithSystemColumns.addFields(dataset.getSchema().getFields());
+        schemaWithSystemColumns.addField(
+            Field.nullablePrimitive(FILE_PATH_COLUMN_NAME, ArrowType.PrimitiveType.Utf8.INSTANCE));
+        schemaWithSystemColumns.addField(
+            Field.nullablePrimitive(
+                ROW_INDEX_COLUMN_NAME, new ArrowType.PrimitiveType.Int(64, true)));
+        return schemaWithSystemColumns.build();
+      }
+    };
   }
 
   @Override

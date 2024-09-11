@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.planner.sql;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.sql.DmlQueryTestUtils.DmlRowwiseOperationWriteMode;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -28,6 +32,21 @@ public class ITDelete extends ITDmlQueryBase {
   // variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
+  @BeforeClass
+  public static void setUp() throws Exception {
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER, "true");
+  }
+
+  @AfterClass
+  public static void close() throws Exception {
+    setSystemOption(
+        ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER,
+        ExecConstants.ENABLE_ICEBERG_POSITIONAL_DELETE_WRITER.getDefault().getBoolVal().toString());
+  }
+
+  private static final DmlRowwiseOperationWriteMode dmlWriteMode =
+      DmlRowwiseOperationWriteMode.COPY_ON_WRITE;
+
   @Test
   public void testMalformedDeleteQueries() throws Exception {
     DeleteTests.testMalformedDeleteQueries(SOURCE);
@@ -40,166 +59,169 @@ public class ITDelete extends ITDmlQueryBase {
 
   @Test
   public void testDeleteAll() throws Exception {
-    DeleteTests.testDeleteAll(allocator, SOURCE);
+    DeleteTests.testDeleteAll(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteById() throws Exception {
-    DeleteTests.testDeleteById(allocator, SOURCE);
+    DeleteTests.testDeleteById(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteByIdWithEqualNull() throws Exception {
-    DeleteTests.testDeleteByIdWithEqualNull(allocator, SOURCE);
+    DeleteTests.testDeleteByIdWithEqualNull(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteTargetTableWithAndWithoutAlias() throws Exception {
-    DeleteTests.testDeleteTargetTableWithAndWithoutAlias(allocator, SOURCE);
+    DeleteTests.testDeleteTargetTableWithAndWithoutAlias(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteByIdInEquality() throws Exception {
-    DeleteTests.testDeleteByIdInEquality(allocator, SOURCE);
+    DeleteTests.testDeleteByIdInEquality(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteByEvenIds() throws Exception {
-    DeleteTests.testDeleteByEvenIds(allocator, SOURCE);
+    DeleteTests.testDeleteByEvenIds(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteByIdAndColumn0() throws Exception {
-    DeleteTests.testDeleteByIdAndColumn0(allocator, SOURCE);
+    DeleteTests.testDeleteByIdAndColumn0(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteByIdOrColumn0() throws Exception {
-    DeleteTests.testDeleteByIdOrColumn0(allocator, SOURCE);
+    DeleteTests.testDeleteByIdOrColumn0(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithOneSourceTable() throws Exception {
-    DeleteTests.testDeleteWithOneSourceTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithOneSourceTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithOneSourceTableWithoutFullPath() throws Exception {
-    DeleteTests.testDeleteWithOneSourceTableWithoutFullPath(allocator, SOURCE);
+    DeleteTests.testDeleteWithOneSourceTableWithoutFullPath(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithViewUsedAsSourceTable() throws Exception {
-    DeleteTests.testDeleteWithViewUsedAsSourceTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithViewUsedAsSourceTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithOneSourceTableQueryUsingSource() throws Exception {
-    DeleteTests.testDeleteWithOneSourceTableQueryUsingSource(allocator, SOURCE);
+    DeleteTests.testDeleteWithOneSourceTableQueryUsingSource(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithSourceTableAsQueryUsingTarget() throws Exception {
-    DeleteTests.testDeleteWithSourceTableAsQueryUsingTarget(allocator, SOURCE);
+    DeleteTests.testDeleteWithSourceTableAsQueryUsingTarget(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithOneUnusedSourceTable() throws Exception {
-    DeleteTests.testDeleteWithOneUnusedSourceTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithOneUnusedSourceTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithUnrelatedConditionToSourceTable() throws Exception {
-    DeleteTests.testDeleteWithUnrelatedConditionToSourceTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithUnrelatedConditionToSourceTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithPartialUnrelatedConditionToSourceTable() throws Exception {
-    DeleteTests.testDeleteWithPartialUnrelatedConditionToSourceTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithPartialUnrelatedConditionToSourceTable(
+        allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithTwoSourceTables() throws Exception {
-    DeleteTests.testDeleteWithTwoSourceTables(allocator, SOURCE);
+    DeleteTests.testDeleteWithTwoSourceTables(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithTwoSourceTableOneSourceQuery() throws Exception {
-    DeleteTests.testDeleteWithTwoSourceTableOneSourceQuery(allocator, SOURCE);
+    DeleteTests.testDeleteWithTwoSourceTableOneSourceQuery(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithTwoSourceTableTwoSourceQuery() throws Exception {
-    DeleteTests.testDeleteWithTwoSourceTableTwoSourceQuery(allocator, SOURCE);
+    DeleteTests.testDeleteWithTwoSourceTableTwoSourceQuery(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithSourceTableMultipleConditions() throws Exception {
-    DeleteTests.testDeleteWithSourceTableMultipleConditions(allocator, SOURCE);
+    DeleteTests.testDeleteWithSourceTableMultipleConditions(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithSourceTableWithSubquery() throws Exception {
-    DeleteTests.testDeleteWithSourceTableWithSubquery(allocator, SOURCE);
+    DeleteTests.testDeleteWithSourceTableWithSubquery(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithWrongContextWithFqn() throws Exception {
-    DeleteTests.testDeleteWithWrongContextWithFqn(allocator, SOURCE);
+    DeleteTests.testDeleteWithWrongContextWithFqn(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithWrongContextWithPathTable() throws Exception {
-    DeleteTests.testDeleteWithWrongContextWithPathTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithWrongContextWithPathTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithWrongContextWithTable() throws Exception {
-    DeleteTests.testDeleteWithWrongContextWithTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithWrongContextWithTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithContextWithFqn() throws Exception {
-    DeleteTests.testDeleteWithContextWithFqn(allocator, SOURCE);
+    DeleteTests.testDeleteWithContextWithFqn(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithContextWithPathTable() throws Exception {
-    DeleteTests.testDeleteWithContextWithPathTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithContextWithPathTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithContextWithTable() throws Exception {
-    DeleteTests.testDeleteWithContextWithTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithContextWithTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithContextPathWithFqn() throws Exception {
-    DeleteTests.testDeleteWithContextPathWithFqn(allocator, SOURCE);
+    DeleteTests.testDeleteWithContextPathWithFqn(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithContextPathWithPathTable() throws Exception {
-    DeleteTests.testDeleteWithContextPathWithPathTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithContextPathWithPathTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithContextPathWithTable() throws Exception {
-    DeleteTests.testDeleteWithContextPathWithTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithContextPathWithTable(allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithSourceAsPathTableWithWrongContextWithPathTable() throws Exception {
-    DeleteTests.testDeleteWithSourceAsPathTableWithWrongContextWithPathTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithSourceAsPathTableWithWrongContextWithPathTable(
+        allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithSourceAsPathTableWithContextWithPathTable() throws Exception {
-    DeleteTests.testDeleteWithSourceAsPathTableWithContextWithPathTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithSourceAsPathTableWithContextWithPathTable(
+        allocator, SOURCE, dmlWriteMode);
   }
 
   @Test
   public void testDeleteWithStockIcebergTable() throws Exception {
-    DeleteTests.testDeleteWithStockIcebergTable(allocator, SOURCE);
+    DeleteTests.testDeleteWithStockIcebergTable(allocator, SOURCE, dmlWriteMode);
   }
 }

@@ -23,13 +23,13 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-public final class IndexingOnMapConvertlet implements FunctionConvertlet {
+public final class IndexingOnMapConvertlet extends RexCallConvertlet {
   public static final IndexingOnMapConvertlet INSTANCE = new IndexingOnMapConvertlet();
 
   private IndexingOnMapConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     if (call.getOperator() != ITEM) {
       return false;
     }

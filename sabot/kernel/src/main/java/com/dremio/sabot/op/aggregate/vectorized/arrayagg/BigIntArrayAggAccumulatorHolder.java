@@ -20,14 +20,13 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 
 /** Holder of accumulated items for ARRAY_AGG BIGINT accumulator */
-public final class BigIntArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<Long, BigIntVector> {
+public final class BigIntArrayAggAccumulatorHolder extends ArrayAggAccumulatorHolder<Long> {
   private final BigIntVector vector;
 
-  public BigIntArrayAggAccumulatorHolder(int maxValuesPerBatch, BufferAllocator allocator) {
-    super(maxValuesPerBatch, allocator);
+  public BigIntArrayAggAccumulatorHolder(BufferAllocator allocator, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector = new BigIntVector("array_agg BigIntAccumulatorHolder", allocator);
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -51,5 +50,18 @@ public final class BigIntArrayAggAccumulatorHolder
   @Override
   public Long getItem(int index) {
     return vector.get(index);
+  }
+
+  @Override
+  public double getSizeOfElement(Long element) {
+    return BigIntVector.TYPE_WIDTH;
+  }
+
+  @Override
+  public void reAllocIfNeeded(Long data) {
+    super.reAllocIfNeeded(data);
+    if (numItems + 1 >= vector.getValueCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.exec.catalog.CatalogOptions.SOURCE_SECRETS_ENCRYPTION_ENABLED;
 import static com.dremio.exec.catalog.conf.ConnectionConf.USE_EXISTING_SECRET_VALUE;
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.junit.Assert.assertEquals;
@@ -36,7 +35,6 @@ import static org.mockito.Mockito.when;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.concurrent.Runnables;
 import com.dremio.concurrent.SafeRunnable;
@@ -55,6 +53,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
@@ -70,6 +69,7 @@ import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.SupportsDecoratingSecrets;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
@@ -95,6 +95,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -104,6 +105,8 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -112,7 +115,6 @@ import org.mockito.stubbing.Answer;
 public class TestPluginsManager {
   private static final String ENCRYPTED_SECRET = "system:encryptedSecret";
   private DremioConfig dremioConfig;
-  private SabotConfig sabotConfig;
   private SystemOptionManager som;
   private LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore;
   private DatasetListingService mockDatasetListingServiceInUnitTest;
@@ -139,7 +141,6 @@ public class TestPluginsManager {
 
     final DatasetListingService mockDatasetListingService = mock(DatasetListingService.class);
     dremioConfig = DremioConfig.create();
-    sabotConfig = SabotConfig.create();
     sabotContext = mock(SabotContext.class);
 
     // used in c'tor
@@ -152,7 +153,7 @@ public class TestPluginsManager {
 
     final OptionValidatorListing optionValidatorListing =
         new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    som = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    som = new SystemOptionManagerImpl(optionValidatorListing, lpp, () -> storeProvider, true);
     final OptionManager optionManager =
         OptionManagerWrapper.Builder.newBuilder()
             .withOptionManager(new DefaultOptionManager(optionValidatorListing))
@@ -173,7 +174,7 @@ public class TestPluginsManager {
     when(sabotContext.isMaster()).thenReturn(true);
 
     secretsCreator = mock(SecretsCreator.class);
-    when(secretsCreator.encrypt(any())).thenReturn(new URI(ENCRYPTED_SECRET));
+    when(secretsCreator.encrypt(any())).thenReturn(Optional.of(new URI(ENCRYPTED_SECRET)));
     when(secretsCreator.encrypt(contains("encryptedSecret")))
         .thenThrow(new RuntimeException("Double encryption should not occur."));
     when(secretsCreator.isEncrypted(anyString())).thenReturn(false);
@@ -215,7 +216,7 @@ public class TestPluginsManager {
             dremioConfig,
             sourceDataStore,
             schedulerService,
-            ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+            ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class),
             CatalogServiceMonitor.DEFAULT,
             () -> broadcaster,
             null,
@@ -226,15 +227,7 @@ public class TestPluginsManager {
 
   @After
   public void shutdown() throws Exception {
-    if (plugins != null) {
-      plugins.close();
-    }
-
-    if (storeProvider != null) {
-      storeProvider.close();
-    }
-
-    AutoCloseables.close(modifiableSchedulerService);
+    AutoCloseables.close(plugins, modifiableSchedulerService, storeProvider);
   }
 
   private void mockScheduleInvocation() {
@@ -265,6 +258,7 @@ public class TestPluginsManager {
   }
 
   private static final String INSPECTOR = "inspector";
+  private static final String INSPECTOR_WITH_MIGRATION = "inspector_with_migration";
 
   private static final EntityPath DELETED_PATH =
       new EntityPath(ImmutableList.of(INSPECTOR, "deleted"));
@@ -336,10 +330,31 @@ public class TestPluginsManager {
     }
   }
 
+  @SourceType(value = INSPECTOR_WITH_MIGRATION, configurable = false)
+  public static class InspectorWithLegacyMigration extends Inspector {
+    public String oldField;
+    public String newField;
+
+    public InspectorWithLegacyMigration setOldField(String oldField) {
+      this.oldField = oldField;
+      return this;
+    }
+
+    @Override
+    public boolean migrateLegacyFormat() {
+      if (oldField != null) {
+        // Move oldField value to newField.  Null out oldField.
+        newField = oldField;
+        oldField = null;
+        return true;
+      }
+
+      return false;
+    }
+  }
+
   private PluginsManager newPluginsManager(
-      boolean sourceEncryptedEnabled,
-      List<SourceConfig> aListOfSourceConfigsToTestMigration,
-      LegacyKVStoreProvider storeProvider)
+      List<SourceConfig> aListOfSourceConfigsToTestMigration, LegacyKVStoreProvider storeProvider)
       throws Exception {
     // Set up option
     final OptionManager optionManagerInUnitTest =
@@ -348,11 +363,6 @@ public class TestPluginsManager {
                 new DefaultOptionManager(new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT)))
             .withOptionManager(som)
             .build();
-    optionManagerInUnitTest.setOption(
-        OptionValue.createBoolean(
-            OptionValue.OptionType.SYSTEM,
-            SOURCE_SECRETS_ENCRYPTION_ENABLED.getOptionName(),
-            sourceEncryptedEnabled));
 
     // Set up an existing list of source configs to test against migration task.
     mockDatasetListingServiceInUnitTest = mock(DatasetListingService.class);
@@ -370,7 +380,7 @@ public class TestPluginsManager {
         dremioConfig,
         sourceDataStore,
         schedulerService,
-        ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+        ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class),
         CatalogServiceMonitor.DEFAULT,
         () -> broadcaster,
         null,
@@ -387,20 +397,23 @@ public class TestPluginsManager {
           ConnectionConf connectionConf = plugin.getConfig().getConnectionConf(plugins.reader);
           for (Field field : FieldUtils.getAllFields(connectionConf.getClass())) {
             if (SecretRef.class.isAssignableFrom(field.getType())) {
-              final SecretRefImpl secretRef;
+              final SecretRef secretRef;
               try {
-                secretRef = (SecretRefImpl) field.get(connectionConf);
+                secretRef = (SecretRef) field.get(connectionConf);
               } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
               }
-              if (secretRef != null) {
-                secretRef.decorateSecrets(revealSecretService);
-                assert !blackList.contains(secretRef.get())
-                    : String.format(
-                        "'%s' contains one of the plain-text passwords %s",
-                        secretRef.get(), blackList);
-                whiteListCopy.remove(secretRef.get());
+              if (secretRef == null) {
+                continue;
               }
+              if (secretRef instanceof SupportsDecoratingSecrets) {
+                ((SupportsDecoratingSecrets) secretRef).decorateSecrets(revealSecretService);
+              }
+              assert !blackList.contains(secretRef.get())
+                  : String.format(
+                      "'%s' contains one of the plain-text passwords %s",
+                      secretRef.get(), blackList);
+              whiteListCopy.remove(secretRef.get());
             }
           }
         });
@@ -416,9 +429,6 @@ public class TestPluginsManager {
             .setName(INSPECTOR)
             .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
             .setConfig(new Inspector(true).toBytesString());
-
-    final LegacyKVStore<NamespaceKey, SourceInternalData> kvStore =
-        storeProvider.getStore(CatalogSourceDataCreator.class);
 
     // create one; lock required
     final ManagedStoragePlugin plugin;
@@ -598,7 +608,7 @@ public class TestPluginsManager {
             LegacyKVStoreProviderAdapter.inMemory(
                 CLASSPATH_SCAN_RESULT); // This is to create a clean Configuration KVStore
         PluginsManager testPluginsManager =
-            newPluginsManager(true, aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
+            newPluginsManager(aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
 
       // Record numbers of invocation and compare with the numbers after running #start.
       verify(sabotContext, times(1)).getSecretsCreator();
@@ -611,7 +621,7 @@ public class TestPluginsManager {
       // Verify how many times Migration task needed to encrypt a secret
       // and how many times a KVStore-update-request is called
       verify(sabotContext, times(2)).getSecretsCreator();
-      verify(mockDatasetListingServiceInUnitTest, times(2)).getSources(any());
+      verify(mockDatasetListingServiceInUnitTest, times(3)).getSources(any());
       verify(secretsCreator, times(2)).encrypt(any());
       verify(mockNamespaceService, times(2)).addOrUpdateSource(any(), any());
 
@@ -641,7 +651,7 @@ public class TestPluginsManager {
     try (LegacyKVStoreProvider kvStoreProvider =
             LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
         PluginsManager testPluginsManager =
-            newPluginsManager(true, aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
+            newPluginsManager(aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
 
       // Record numbers of invocation and compare with the numbers after running #start.
       verify(sabotContext, times(1)).getSecretsCreator();
@@ -654,7 +664,7 @@ public class TestPluginsManager {
       // Verify how many times Migration task needed to encrypt a secret
       // and how many times a KVStore-update-request is called
       verify(sabotContext, times(2)).getSecretsCreator();
-      verify(mockDatasetListingServiceInUnitTest, times(2)).getSources(any());
+      verify(mockDatasetListingServiceInUnitTest, times(3)).getSources(any());
       verify(secretsCreator, times(2)).encrypt(any());
       verify(mockNamespaceService, times(1)).addOrUpdateSource(any(), any());
 
@@ -692,7 +702,7 @@ public class TestPluginsManager {
     try (LegacyKVStoreProvider kvStoreProvider =
             LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
         PluginsManager testPluginsManager =
-            newPluginsManager(true, aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
+            newPluginsManager(aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
 
       // Record numbers of invocation and compare with the numbers after running #start.
       verify(sabotContext, times(1)).getSecretsCreator();
@@ -705,7 +715,7 @@ public class TestPluginsManager {
       // Verify how many times Migration task needed to encrypt a secret
       // and how many times a KVStore-update-request is called
       verify(sabotContext, times(2)).getSecretsCreator();
-      verify(mockDatasetListingServiceInUnitTest, times(2)).getSources(any());
+      verify(mockDatasetListingServiceInUnitTest, times(3)).getSources(any());
       verify(secretsCreator, times(4)).encrypt(any());
       verify(mockNamespaceService, times(2)).addOrUpdateSource(any(), any());
 
@@ -739,7 +749,7 @@ public class TestPluginsManager {
     try (LegacyKVStoreProvider kvStoreProvider =
             LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
         PluginsManager testPluginsManager =
-            newPluginsManager(true, aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
+            newPluginsManager(aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
 
       // Record numbers of invocation and compare with the numbers after running #start.
       verify(sabotContext, times(1)).getSecretsCreator();
@@ -752,7 +762,7 @@ public class TestPluginsManager {
       // Verify how many times Migration task needed to encrypt a secret
       // and how many times a KVStore-update-request is called
       verify(sabotContext, times(2)).getSecretsCreator();
-      verify(mockDatasetListingServiceInUnitTest, times(2)).getSources(any());
+      verify(mockDatasetListingServiceInUnitTest, times(3)).getSources(any());
       verify(secretsCreator, times(1))
           .encrypt(any()); // This verifies double encryption did not happen to config1
       verify(mockNamespaceService, times(1)).addOrUpdateSource(any(), any());
@@ -766,43 +776,7 @@ public class TestPluginsManager {
   }
 
   @Test
-  public void testPluginsManagerStartupWithEncryptionDisabled() throws Exception {
-    // Set up source configs
-    List<SourceConfig> aListOfSourceConfigsToTestMigration = new ArrayList<>();
-    final SourceConfig config1 =
-        new SourceConfig()
-            .setType(INSPECTOR)
-            .setName("TEST_MIGRATION")
-            .setConfig(new Inspector(false).setSecret1("password").toBytesString());
-    aListOfSourceConfigsToTestMigration.add(config1);
-
-    // Test PluginsManager#start
-    try (LegacyKVStoreProvider kvStoreProvider =
-            LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
-        PluginsManager testPluginsManager =
-            newPluginsManager(false, aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
-
-      // Record numbers of invocation and compare with the numbers after running #start.
-      verify(sabotContext, times(1)).getSecretsCreator();
-      verify(mockDatasetListingServiceInUnitTest, times(0)).getSources(any());
-      verify(secretsCreator, times(0)).encrypt(any());
-      verify(mockNamespaceService, times(0)).addOrUpdateSource(any(), any());
-
-      testPluginsManager.start();
-
-      // Verify how many times Migration task needed to encrypt a secret
-      // and how many times a KVStore-update-request is called
-      verify(sabotContext, times(1)).getSecretsCreator();
-      // If migration is not run, DatasetListingService#getSources will still be called once for
-      // starting all plugins' connection.
-      verify(mockDatasetListingServiceInUnitTest, times(1)).getSources(any());
-      verify(secretsCreator, times(0)).encrypt(any());
-      verify(mockNamespaceService, times(0)).addOrUpdateSource(any(), any());
-    }
-  }
-
-  @Test
-  public void testPluginsManagerStartupWithMigrationAlreadyRan() throws Exception {
+  public void testPluginsManagerStartupWithSecretMigrationAlreadyRan() throws Exception {
     // Set up source configs
     List<SourceConfig> aListOfSourceConfigsToTestMigration = new ArrayList<>();
     final SourceConfig config1 =
@@ -820,13 +794,13 @@ public class TestPluginsManager {
     try (LegacyKVStoreProvider kvStoreProvider =
             LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
         PluginsManager testPluginsManager =
-            newPluginsManager(true, aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
+            newPluginsManager(aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
       // Migration runs for the first time:
       testPluginsManager.start();
 
       // Record numbers of invocation and compare with the numbers after running #start again.
       verify(sabotContext, times(2)).getSecretsCreator();
-      verify(mockDatasetListingServiceInUnitTest, times(2)).getSources(any());
+      verify(mockDatasetListingServiceInUnitTest, times(3)).getSources(any());
       verify(secretsCreator, times(2)).encrypt(any());
       verify(mockNamespaceService, times(1)).addOrUpdateSource(any(), any());
 
@@ -835,9 +809,9 @@ public class TestPluginsManager {
       testPluginsManager.start();
 
       verify(sabotContext, times(3)).getSecretsCreator();
-      // If migration is not run, DatasetListingService#getSources will still be called once for
-      // starting all plugins' connection.
-      verify(mockDatasetListingServiceInUnitTest, times(3)).getSources(any());
+      // If migration is not run, DatasetListingService#getSources will still be called twice more
+      // for starting all plugins' connection and applying legacy migrations.
+      verify(mockDatasetListingServiceInUnitTest, times(5)).getSources(any());
       // No increment
       verify(secretsCreator, times(2)).encrypt(any());
       // No increment
@@ -865,7 +839,7 @@ public class TestPluginsManager {
     try (LegacyKVStoreProvider kvStoreProvider =
             LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
         PluginsManager testPluginsManager =
-            newPluginsManager(true, aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
+            newPluginsManager(aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
 
       // Record numbers of invocation and compare with the numbers after running #start.
       verify(sabotContext, times(1)).getSecretsCreator();
@@ -878,9 +852,78 @@ public class TestPluginsManager {
       // Verify how many times a KVStore-update-request is called
       // Record numbers of invocation and compare with the numbers after running #start.
       verify(sabotContext, times(2)).getSecretsCreator();
-      verify(mockDatasetListingServiceInUnitTest, times(1)).getSources(any());
+      verify(mockDatasetListingServiceInUnitTest, times(2)).getSources(any());
       verify(secretsCreator, times(0)).encrypt(any());
       verify(mockNamespaceService, times(0)).addOrUpdateSource(any(), any());
+    }
+  }
+
+  @Test
+  public void testPluginsManagerStartup_runsLegacyMigration_happyPath() throws Exception {
+    // Set up a source config that has a deprecated/old field.
+    List<SourceConfig> aListOfSourceConfigsToTestMigration = new ArrayList<>();
+    final SourceConfig config1 =
+        new SourceConfig()
+            .setType(INSPECTOR_WITH_MIGRATION)
+            .setName("TEST_MIGRATE_LEGACY_SOURCE")
+            .setConfig(new InspectorWithLegacyMigration().setOldField("oldField").toBytesString());
+    aListOfSourceConfigsToTestMigration.add(config1);
+
+    // Test PluginsManager#start
+    try (LegacyKVStoreProvider kvStoreProvider =
+            LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
+        PluginsManager testPluginsManager =
+            newPluginsManager(aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
+
+      // Verify KVStore-update-request is not yet called.
+      verify(mockNamespaceService, times(0)).addOrUpdateSource(any(), any());
+
+      testPluginsManager.start();
+
+      // Verify KVStore-update-request is called once.
+      ArgumentCaptor<SourceConfig> captor = ArgumentCaptor.forClass(SourceConfig.class);
+      verify(mockNamespaceService, times(1)).addOrUpdateSource(any(), captor.capture());
+
+      // Verify associated InspectorWithLegacyMigration oldField was migrated to newField.
+      InspectorWithLegacyMigration capturedInspectorSource =
+          captor.getValue().getConnectionConf(testPluginsManager.getReader());
+      Assertions.assertNull(capturedInspectorSource.oldField);
+      Assertions.assertEquals("oldField", capturedInspectorSource.newField);
+
+      // Verify KVStore-update-request is not called again on second start() call.
+      testPluginsManager.start();
+      verify(mockNamespaceService, times(1)).addOrUpdateSource(any(), any());
+    }
+  }
+
+  @Test
+  public void testPluginsManagerStartup_runsLegacyMigration_failsToSave() throws Exception {
+    // Set up a source config that has a deprecated/old field.
+    List<SourceConfig> aListOfSourceConfigsToTestMigration = new ArrayList<>();
+    final SourceConfig configToMigrateFormat =
+        new SourceConfig()
+            .setType(INSPECTOR_WITH_MIGRATION)
+            .setName("TEST_MIGRATE_LEGACY_SOURCE")
+            .setConfig(new InspectorWithLegacyMigration().setOldField("oldField").toBytesString());
+    aListOfSourceConfigsToTestMigration.add(configToMigrateFormat);
+
+    // Test PluginsManager#start
+    try (LegacyKVStoreProvider kvStoreProvider =
+            LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
+        PluginsManager testPluginsManager =
+            newPluginsManager(aListOfSourceConfigsToTestMigration, kvStoreProvider)) {
+
+      // Verify KVStore-update-request is not yet called.
+      verify(mockNamespaceService, times(0)).addOrUpdateSource(any(), any());
+
+      // Simulate failure by having addOrUpdateSource always throw.
+      doThrow(ConcurrentModificationException.class)
+          .when(mockNamespaceService)
+          .addOrUpdateSource(any(), any());
+      testPluginsManager.start();
+
+      // Verify the retry logic in place i.e. attempted to update source twice.
+      verify(mockNamespaceService, times(2)).addOrUpdateSource(any(), eq(configToMigrateFormat));
     }
   }
 
@@ -919,8 +962,11 @@ public class TestPluginsManager {
             .setConfig(new Inspector(true).toBytesString());
 
     final DatasetConfig incompleteDatasetConfig = new DatasetConfig();
-    final LegacyKVStore<NamespaceKey, SourceInternalData> kvStore =
-        storeProvider.getStore(CatalogSourceDataCreator.class);
+    NamespaceKeyWithConfig incompleteDataset =
+        new ImmutableNamespaceKeyWithConfig.Builder()
+            .setKey(new NamespaceKey(ImmutableList.of("a", "b")))
+            .setDatasetConfig(incompleteDatasetConfig)
+            .build();
 
     // create one; lock required
     final ManagedStoragePlugin pluginWithValidityCheck;
@@ -939,8 +985,7 @@ public class TestPluginsManager {
             .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from("dremio")).build())
             .setCheckValidity(false)
             .build();
-    assertFalse(
-        pluginWithValidityCheck.checkValidity(incompleteDatasetConfig, metadataRequestOptions));
+    assertFalse(pluginWithValidityCheck.checkValidity(incompleteDataset, metadataRequestOptions));
 
     final SourceConfig sourceConfigDisableValidity =
         new SourceConfig()
@@ -959,7 +1004,7 @@ public class TestPluginsManager {
     // disable validity is set
     assertFalse(
         pluginWithDisableValidity.checkValidity(
-            incompleteDatasetConfig,
+            incompleteDataset,
             ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions)
                 .withCheckValidity(true)));
 
@@ -973,22 +1018,25 @@ public class TestPluginsManager {
     completeDatasetConfig.setRecordSchema((new BatchSchema(Collections.EMPTY_LIST)).toByteString());
     completeDatasetConfig.setReadDefinition(readDefinition);
     completeDatasetConfig.setTotalNumSplits(0);
+    NamespaceKeyWithConfig completeDataset =
+        new ImmutableNamespaceKeyWithConfig.Builder()
+            .setKey(new NamespaceKey(ImmutableList.of("test", "file", "foobar")))
+            .setDatasetConfig(completeDatasetConfig)
+            .build();
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option
     // is set.
-    assertTrue(
-        pluginWithValidityCheck.checkValidity(completeDatasetConfig, metadataRequestOptions));
+    assertTrue(pluginWithValidityCheck.checkValidity(completeDataset, metadataRequestOptions));
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option
     // is not set but source config option is set to disable.
-    assertTrue(
-        pluginWithDisableValidity.checkValidity(completeDatasetConfig, metadataRequestOptions));
+    assertTrue(pluginWithDisableValidity.checkValidity(completeDataset, metadataRequestOptions));
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option
     // is set to true but source config option is set to disable.
     assertTrue(
         pluginWithDisableValidity.checkValidity(
-            completeDatasetConfig,
+            completeDataset,
             ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions)
                 .withCheckValidity(true)));
 
@@ -996,8 +1044,37 @@ public class TestPluginsManager {
     // request option is set to false and source config option is not set to disable .
     assertFalse(
         pluginWithValidityCheck.checkValidity(
-            completeDatasetConfig,
+            completeDataset,
             ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions)
                 .withCheckValidity(true)));
+  }
+
+  @Test
+  public void testCreateSourceAsync() throws Exception {
+    sabotContext
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM, "source.creation.async.enable", true));
+    SourceConfig inspectorConfig =
+        new SourceConfig()
+            .setType(INSPECTOR)
+            .setName(INSPECTOR)
+            .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+            .setConfig(new Inspector(true).toBytesString())
+            .setCtime(0L)
+            .setConfigOrdinal(0L)
+            .setTag("fcf85527-1f76-4276-8b93-6d76f82d3f4b");
+
+    // create one; lock required
+    final ManagedStoragePlugin plugin;
+    plugin = plugins.create(inspectorConfig, SystemUser.SYSTEM_USERNAME);
+    SourceState state = plugin.startAsync().get();
+    assertEquals(state.getStatus(), SourceState.SourceStatus.good);
+    sabotContext
+        .getOptionManager()
+        .setOption(
+            OptionValue.createBoolean(
+                OptionValue.OptionType.SYSTEM, "source.creation.async.enable", false));
   }
 }

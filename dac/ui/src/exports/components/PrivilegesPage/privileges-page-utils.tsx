@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import { Controller } from "react-hook-form";
 import { Checkbox } from "@mantine/core";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
-// @ts-ignore
 import { renderPrivilegesColumns } from "dremio-ui-common/components/PrivilegesTable/privilegesTableColumns.js";
-import { Controller } from "react-hook-form";
 import { Avatar } from "dremio-ui-lib/components";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
@@ -43,7 +44,7 @@ export const getPrivilegesColumns = (
   openDialog: (type: any, dialogState: any) => void,
   nameColumnLabel: string,
   privilegeTooltipIds: any,
-  owner?: string
+  owner?: string,
 ) => {
   const { t } = getIntlContext();
   return renderPrivilegesColumns({
@@ -107,7 +108,7 @@ const GranteeActionMenu = (menuProps: any) => {
 const nameCell = (
   item: any,
   openDialog: (type: any, dialogState: any) => void,
-  owner?: string
+  owner?: string,
 ) => {
   const isOwner = item.granteeId === owner;
   const { t } = getIntlContext();
@@ -123,6 +124,7 @@ const nameCell = (
           <dremio-icon
             name="interface/member-role"
             class={classes["privileges__nameCell__leftIcon"]}
+            alt="member-icon"
           />
         )}
         <Tooltip title={item.name}>
@@ -163,4 +165,21 @@ export const getCustomChipIcon = (item: { type: string; name: string }) => {
       />
     );
   } else return;
+};
+
+export const useCanSearchRolesAndUsers: () => boolean[] = () => {
+  const orgPrivileges = useSelector(
+    (state: Record<string, any>) => state.privileges?.organization,
+  );
+  // const userPermissions = localStorageUtils?.getUserPermissions();
+  const {
+    canSearchUser,
+    canSearchRole,
+  }: { canSearchUser: boolean; canSearchRole: boolean } = useMemo(() => {
+    return {
+      canSearchUser: orgPrivileges?.users?.canView, // || userPermissions?.canCreateUser
+      canSearchRole: orgPrivileges?.roles?.canView, // || userPermissions?.canCreateRole,
+    };
+  }, [orgPrivileges]);
+  return [canSearchUser, canSearchRole];
 };

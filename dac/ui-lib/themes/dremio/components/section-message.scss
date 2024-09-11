@@ -18,7 +18,7 @@
 @use "../../utilities";
 
 .dremio-section-message {
-  --dremio-section-message--color: var(--dremio--color--text--main);
+  --dremio-section-message--color: var(--text--primary);
   --dremio-section-mesage--header--font-size: 12px;
   --dremio-section-message--padding: var(--dremio--spacing--1);
 
@@ -35,38 +35,30 @@
   }
 
   &--danger {
-    --dremio-section-message--background: var(
-      --dremio--color--status--error--background
-    );
+    --dremio-section-message--background: var(--fill--danger);
   }
 
   &--warning {
-    --dremio-section-message--background: var(
-      --dremio--color--status--warning--background
-    );
+    --dremio-section-message--background: var(--fill--warning);
 
     dremio-icon {
-      color: var(--dremio--color--status--warning--foreground);
+      color: var(--fill--warning--solid);
     }
   }
 
   &--information {
-    --dremio-section-message--background: var(
-      --dremio--color--status--information--background
-    );
+    --dremio-section-message--background: var(--fill--info);
 
     dremio-icon {
-      color: var(--dremio--color--status--information--foreground);
+      color: var(--fill--info--solid);
     }
   }
 
   &--success {
-    --dremio-section-message--background: var(
-      --dremio--color--status--success--background
-    );
+    --dremio-section-message--background: var(--fill--success);
 
     dremio-icon {
-      color: var(--dremio--color--status--success--foreground);
+      color: var(--fill--success--solid);
     }
   }
 

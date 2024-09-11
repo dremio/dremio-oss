@@ -27,13 +27,13 @@ import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.iceberg.NessieCommitsSubScan;
 import com.dremio.exec.store.iceberg.SnapshotEntry;
 import com.dremio.io.file.FileSystem;
+import com.dremio.plugins.util.ContainerNotFoundException;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableMetadataParser;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.FileIO;
@@ -87,11 +88,12 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
   @Override
   protected void populateOutputVectors(AtomicInteger idx, SnapshotEntry snapshot) {
     final int idxVal = idx.getAndIncrement();
-    metadataFilePathOutVector.setSafe(
-        idxVal, snapshot.getMetadataJsonPath().getBytes(StandardCharsets.UTF_8));
+    byte[] metadataPath = toSchemeAwarePath(snapshot.getMetadataJsonPath());
+    byte[] manifestListPath = toSchemeAwarePath(snapshot.getManifestListPath());
+
+    metadataFilePathOutVector.setSafe(idxVal, metadataPath);
     snapshotIdOutVector.setSafe(idxVal, snapshot.getSnapshotId());
-    manifestListPathOutVector.setSafe(
-        idxVal, snapshot.getManifestListPath().getBytes(StandardCharsets.UTF_8));
+    manifestListPathOutVector.setSafe(idxVal, manifestListPath);
   }
 
   @Override
@@ -113,8 +115,8 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
             contentReference.commitId());
     Stopwatch loadTime = Stopwatch.createStarted();
     try {
-      return Optional.of(
-          loadSnapshot(contentReference.metadataLocation(), contentReference.snapshotId()));
+      return loadSnapshot(
+          contentReference.metadataLocation(), contentReference.snapshotId(), tableId);
     } catch (NotFoundException nfe) {
       LOGGER.warn(
           String.format(
@@ -155,8 +157,10 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
   }
 
   @VisibleForTesting
-  Snapshot loadSnapshot(String metadataJsonPath, long snapshotId) throws IOException {
-    return TableMetadataParser.read(io(metadataJsonPath), metadataJsonPath).snapshot(snapshotId);
+  Optional<Snapshot> loadSnapshot(String metadataJsonPath, long snapshotId, String tableId)
+      throws IOException {
+    return readTableMetadata(io(metadataJsonPath), metadataJsonPath, tableId, getContext())
+        .map(metadata -> metadata.snapshot(snapshotId));
   }
 
   private FileIO io(String metadataLocation) throws IOException {
@@ -171,5 +175,38 @@ public class NessieCommitsRecordReader extends AbstractNessieCommitRecordsReader
                   fs, getContext(), null, getConfig().getPluginId().getName(), null);
     }
     return io;
+  }
+
+  static Optional<TableMetadata> readTableMetadata(
+      final FileIO io,
+      final String metadataLocation,
+      final String tableId,
+      final OperatorContext context) {
+    try {
+      return Optional.of(TableMetadataParser.read(io, metadataLocation));
+    } catch (UserException ue) {
+      /* TableMetadataParser.read calls FileIO.newInputFile.
+       * One implementation of the latter, DremioFileIO.newInputFile, catches ContainerNotFoundException
+       * and wraps it in a UserException.  Per DX-93461, the current design intent for VACUUM CATALOG is to
+       * make ContainerNotFoundException get logged and ignored, though this behavior is up for discussion
+       * longer-term.
+       *
+       * The newInputFile interface method has many callsites.  Rather than change the exception semantics of
+       * newInputFile (potentially involving all implementations and callsites), we catch a UserException that
+       * specifically wraps ContainerNotFoundException (but nothing else).  This catch is scoped around a single
+       * statement,rather than with the other catches I found at the bottom, because we currently believe this
+       * is the only statement that would throw a CNFE that should be handled this way.
+       */
+      if (null == ue.getCause()
+          || !(ue.getCause() instanceof ContainerNotFoundException)
+          || !UserBitShared.DremioPBError.ErrorType.IO_EXCEPTION.equals(ue.getErrorType())) {
+        throw ue; // Not the exception we're looking for, or not allowed to catch, rethrow it as-is
+      }
+      // Found CNFE inside UE; log and return empty
+      LOGGER.warn("Skipping table {} since its storage container was not found", tableId, ue);
+      context.getStats().addLongStat(NUM_PARTIAL_FAILURES, 1L);
+      context.getStats().addLongStat(NUM_NOT_FOUND, 1L);
+      return Optional.empty();
+    }
   }
 }

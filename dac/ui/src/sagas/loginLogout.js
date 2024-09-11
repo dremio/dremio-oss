@@ -28,6 +28,7 @@ import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { isAuthorized } from "@inject/sagas/utils/isAuthorized";
 import { default as handleAppInitHelper } from "@inject/sagas/utils/handleAppInit";
 import { appInitComplete } from "@app/actions/app";
+import { removeLastSession, setLastSession } from "@app/utils/lastSession";
 
 //#region Route constants. Unfortunately should store these constants here (not in routes.js) to
 // avoid module circular references
@@ -63,7 +64,7 @@ export function* afterAppStop() {
 export function* handleLogin({ payload }) {
   log("Add user data to local storage", payload);
   yield call([localStorageUtils, localStorageUtils.setUserData], payload);
-
+  setLastSession({ username: payload.userName });
   yield call(handleAppInit);
 }
 
@@ -111,6 +112,7 @@ export function* handleLogout() {
   yield call(handleAppStop);
   log("clear user data and token");
   yield call([localStorageUtils, localStorageUtils.clearUserData]);
+  removeLastSession();
   log("go to login page");
   window.location.assign(getLoginUrl());
 }

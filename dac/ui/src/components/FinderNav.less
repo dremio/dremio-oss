@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "colors.less";
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
@@ -33,13 +32,13 @@
       height: 24px;
       margin-right: 4px;
       .finder-nav__collapse-control {
-        color: var(--dremio--color--icon--main);
+        color: var(--icon--primary);
         block-size: 24px;
         inline-size: 24px;
         cursor: pointer;
       }
       .finder-nav__collapse-control:hover {
-        color: var(--dremio--color--link);
+        color: var(--icon--hover);
       }
     }
 
@@ -74,6 +73,8 @@
     }
 
     .finder-nav-title {
+      position: relative;
+
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -91,8 +92,9 @@
         padding-left: var(--dremio--spacing--1) !important;
       }
 
-      &:hover {
-        background-color: var(--color--brand--25);
+      &:hover,
+      :focus-within {
+        background-color: var(--fill--primary--hover);
       }
 
       a:not(.add-button) {
@@ -100,16 +102,11 @@
         width: 100%;
         display: flex;
         align-items: center;
-        color: var(--dremio--color--text--faded);
-        &:hover,
-        &:focus,
-        &.active {
-          text-decoration: none !important;
-        }
+        color: var(--text--faded);
 
         &.active {
           font-weight: 600;
-          background-color: var(--color--brand--50);
+          background-color: var(--fill--primary--selected);
         }
       }
 
@@ -127,12 +124,12 @@
         .add-space-icon {
           width: 24px;
           height: 24px;
-          color: var(--color--neutral--600);
+          color: var(--icon--primary);
         }
 
         &:hover {
           .add-space-icon {
-            color: var(--dremio--color--link);
+            color: var(--icon--hover);
           }
         }
       }
@@ -152,7 +149,7 @@
       overflow: auto;
 
       .show-more-btn {
-        color: @blue;
+        color: var(--color--brand--300);
         margin: 7px 0 0;
         cursor: pointer;
         display: inline-block;
@@ -173,26 +170,6 @@
       text-align: center;
       .fa {
         vertical-align: middle;
-      }
-    }
-
-    .new-item-button {
-      text-align: center;
-      padding: 25px 5px;
-      border: 2px dashed @active-icon-dark;
-      margin: 10px 0 30px;
-      button {
-        background: @blue;
-        color: @white;
-        border: 1px solid @blue;
-        border-radius: 5px;
-        font-size: 13px;
-        font-weight: 500;
-        width: 140px;
-        height: 35px;
-        &:hover {
-          background: darken(@blue, 5%);
-        }
       }
     }
   }

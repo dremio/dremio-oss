@@ -27,7 +27,6 @@ import org.pf4j.PluginWrapper;
 
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
-import com.dremio.exec.util.GuavaPatcher;
 
 /**
  * PF4J plugin entry point class for Hive.
@@ -37,13 +36,6 @@ public class HivePf4jPlugin extends Plugin {
 
   static {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-      // Patching Guava for HBase 1.x compatibility
-      try {
-        GuavaPatcher.patchClassLoader(Thread.currentThread().getContextClassLoader());
-      } catch (Exception ignored) {
-        LOGGER.warn("Could not patch Guava for backward compatibility", ignored);
-      }
-
       // Try to access UserGroupInformation in the context of the plugin classloader
       try {
         UserGroupInformation.getLoginUser();

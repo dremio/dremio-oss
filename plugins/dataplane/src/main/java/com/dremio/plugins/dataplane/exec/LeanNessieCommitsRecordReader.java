@@ -22,7 +22,6 @@ import com.dremio.exec.store.iceberg.SnapshotEntry;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,8 +57,8 @@ public class LeanNessieCommitsRecordReader extends AbstractNessieCommitRecordsRe
 
   @Override
   protected void populateOutputVectors(AtomicInteger idx, SnapshotEntry snapshot) {
-    metadataFilePathOutVector.setSafe(
-        idx.getAndIncrement(), snapshot.getMetadataJsonPath().getBytes(StandardCharsets.UTF_8));
+    byte[] metadataJsonPath = toSchemeAwarePath(snapshot.getMetadataJsonPath());
+    metadataFilePathOutVector.setSafe(idx.getAndIncrement(), metadataJsonPath);
   }
 
   @Override

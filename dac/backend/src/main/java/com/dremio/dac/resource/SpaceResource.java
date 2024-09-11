@@ -93,21 +93,21 @@ public class SpaceResource {
       @QueryParam("includeContents") @DefaultValue("true") boolean includeContents)
       throws Exception {
     try {
-      final SpaceConfig config = namespaceService.getSpace(spacePath.toNamespaceKey());
-      final int datasetCount =
+      SpaceConfig config = namespaceService.getSpace(spacePath.toNamespaceKey());
+      int datasetCount =
           namespaceService
               .getDatasetCount(
                   spacePath.toNamespaceKey(),
                   BoundedDatasetCount.SEARCH_TIME_LIMIT_MS,
                   BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH)
               .getCount();
-      NamespaceTree contents =
-          includeContents
-              ? newNamespaceTree(namespaceService.list(spacePath.toNamespaceKey()))
-              : null;
-      final Space space = newSpace(config, contents, datasetCount);
-
-      return space;
+      NamespaceTree contents = null;
+      if (includeContents) {
+        contents =
+            newNamespaceTree(
+                namespaceService.list(spacePath.toNamespaceKey(), null, Integer.MAX_VALUE));
+      }
+      return newSpace(config, contents, datasetCount);
     } catch (AccessControlException e) {
       throw UserException.validationError(e)
           .message("Access denied to view space contents.")

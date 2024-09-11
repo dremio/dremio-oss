@@ -34,7 +34,9 @@ public class CopyIntoExtendedProperties {
   public enum PropertyKey {
     COPY_INTO_QUERY_PROPERTIES,
     QUERY_CONTEXT,
-    COPY_INTO_HISTORY_PROPERTIES
+    COPY_INTO_HISTORY_PROPERTIES,
+    INGESTION_PROPERTIES,
+    COPY_INTO_TRANSFORMATION_PROPERTIES
   }
 
   private Map<String, String> extendedProperties = new HashMap<>();

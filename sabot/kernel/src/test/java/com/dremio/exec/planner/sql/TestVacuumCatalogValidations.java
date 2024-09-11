@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.planner.sql;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;

@@ -20,6 +20,7 @@ import static com.dremio.exec.store.iceberg.model.IcebergConstants.DELETED_DATA_
 import static com.dremio.sabot.op.writer.WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS;
 import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.COMMITTED;
 
+import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus;
@@ -28,6 +29,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.ManifestFile;
@@ -87,6 +89,22 @@ public interface IcebergOpCommitter {
       throws UnsupportedOperationException;
 
   /**
+   * Consume the positional Delete file and its distinct data-file references.
+   *
+   * <p>Converts the referenced byte array to a CharSequenceSet in preparation for Iceberg Commit
+   * Validation.
+   *
+   * @param positionalDeleteFile the positional delete file to be consumed
+   * @param referencedDataFiles the set of data files referenced by positional delete file
+   * @throws UnsupportedOperationException
+   */
+  default void consumePositionalDeleteFile(
+      DeleteFile positionalDeleteFile, Set<ByteArrayWrapper> referencedDataFiles)
+      throws UnsupportedOperationException {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
    * Stores the manifest file instance to include during commit operation
    *
    * @param manifestFile ManifestFile instance to include in table
@@ -101,6 +119,11 @@ public interface IcebergOpCommitter {
    * @throws UnsupportedOperationException
    */
   default void consumeAddDataFile(DataFile addDataFile) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException();
+  }
+
+  default void consumeMergeOnReadAddDataFile(DataFile addDataFile)
+      throws UnsupportedOperationException {
     throw new UnsupportedOperationException();
   }
 

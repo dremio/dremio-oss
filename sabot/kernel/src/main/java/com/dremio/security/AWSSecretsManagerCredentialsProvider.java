@@ -18,13 +18,21 @@ package com.dremio.security;
 import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.services.credentials.CredentialsException;
 import com.dremio.services.credentials.CredentialsProvider;
+import com.dremio.telemetry.api.metrics.MeterProviders;
+import com.dremio.telemetry.api.metrics.TimerUtils;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
+import io.micrometer.core.instrument.Timer.ResourceSample;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -38,6 +46,11 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRespon
 public class AWSSecretsManagerCredentialsProvider implements CredentialsProvider {
   private static final Logger logger =
       LoggerFactory.getLogger(AWSSecretsManagerCredentialsProvider.class);
+
+  private static final Supplier<ResourceSample> LOOKUP_TIMER =
+      MeterProviders.newTimerResourceSampleSupplier(
+          "credentials_service.credentials_provider.aws_secrets_manager.lookup",
+          "Time taken to look up credential values from AWS Secrets Manager");
 
   private enum Arn {
     arn,
@@ -75,41 +88,70 @@ public class AWSSecretsManagerCredentialsProvider implements CredentialsProvider
     final String[] arnTokens = secretArn.split(COLON_DELIMITER);
     Preconditions.checkState(isValidARN(arnTokens), "Invalid secret ARN passed");
 
-    final String secret = getSecret(arnTokens);
-    return extractCredentials(secret);
+    final String secret =
+        TimerUtils.timedExceptionThrowingOperation(
+            LOOKUP_TIMER.get(), () -> getSecret(secretArn, arnTokens[Arn.region.ordinal()]));
+    final String credentialValue = extractCredentials(secret);
+    if (Strings.isNullOrEmpty(credentialValue)) {
+      throw new CredentialsException(
+          String.format(
+              "Retrieved secret value for secret reference '%s' is not valid. Expected a non-empty "
+                  + "string value mapped to the 'password' (case-sensitive) JSON key, or for the "
+                  + "secret value to be the plaintext credential string",
+              secretURI));
+    }
+
+    return credentialValue;
   }
 
-  private static String getSecret(String[] arnTokens) throws CredentialsException {
-    String region = arnTokens[Arn.region.ordinal()];
-    String secretName = getSecretName(arnTokens[Arn.secretName.ordinal()]);
+  private String getSecret(final String secretArn, final String region)
+      throws CredentialsException {
+    final Stopwatch stopwatch = Stopwatch.createUnstarted();
+    if (logger.isDebugEnabled()) {
+      stopwatch.start();
+    }
 
+    GetSecretValueRequest secretValueRequest =
+        GetSecretValueRequest.builder().secretId(secretArn).versionStage(AWS_CURRENT).build();
+
+    try (final SecretsManagerClient secretsManagerClient = buildSecretsManagerClient(region)) {
+      final GetSecretValueResponse secretValueResponse =
+          secretsManagerClient.getSecretValue(secretValueRequest);
+
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "Retrieve AWS Secrets Manager secret {} took {} ms",
+            secretArn,
+            stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      }
+
+      return (secretValueResponse.secretString() != null)
+          ? secretValueResponse.secretString()
+          : secretValueResponse.secretBinary().toString();
+    } catch (SdkException e) {
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "Failed to retrieve AWS Secrets Manager secret {} after {} ms. Reason: {}",
+            secretArn,
+            stopwatch.elapsed(TimeUnit.MILLISECONDS),
+            e.getMessage());
+      }
+
+      throw new CredentialsException(e.getMessage(), e);
+    }
+  }
+
+  @VisibleForTesting
+  SecretsManagerClient buildSecretsManagerClient(final String region) {
     /*
      * Currently, dremio would support access of the secrets manager with base role assigned
      * to EC2 machine. This will be further enhanced, once we have more requirements on it.
      */
     AwsCredentialsProvider awsCredentialsProvider = new SharedInstanceProfileCredentialsProvider();
-    GetSecretValueRequest secretValueRequest =
-        GetSecretValueRequest.builder().secretId(secretName).versionStage(AWS_CURRENT).build();
-
-    try (final SecretsManagerClient secretsManagerClient =
-        SecretsManagerClient.builder()
-            .region(Region.of(region))
-            .credentialsProvider(awsCredentialsProvider)
-            .build()) {
-      final GetSecretValueResponse secretValueResponse =
-          secretsManagerClient.getSecretValue(secretValueRequest);
-      return (secretValueResponse.secretString() != null)
-          ? secretValueResponse.secretString()
-          : secretValueResponse.secretBinary().toString();
-    } catch (SdkException e) {
-      logger.debug("Unable to retrieve secret for secret {} as {}", secretName, e.getMessage());
-      throw new CredentialsException(e.getMessage(), e);
-    }
-  }
-
-  private static String getSecretName(String secret) {
-    int hyphenIndex = secret.lastIndexOf("-");
-    return (hyphenIndex != -1) ? secret.substring(0, hyphenIndex) : secret;
+    return SecretsManagerClient.builder()
+        .region(Region.of(region))
+        .credentialsProvider(awsCredentialsProvider)
+        .build();
   }
 
   /*

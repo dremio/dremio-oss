@@ -126,13 +126,6 @@ public abstract class BaseIcebergExecutionDatasetAccessor
     long numDeleteFiles = Long.parseLong(summary.getOrDefault("total-delete-files", "0"));
     long lastModTime = snapshot != null ? snapshot.timestampMillis() : 0L;
 
-    if (numDeleteFiles > 0
-        && !optionResolver.getOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN)) {
-      throw UserException.unsupportedError()
-          .message("Iceberg V2 tables with delete files are not supported.")
-          .buildSilently();
-    }
-
     if (numEqualityDeletes > 0
         && !optionResolver.getOption(
             ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE)) {

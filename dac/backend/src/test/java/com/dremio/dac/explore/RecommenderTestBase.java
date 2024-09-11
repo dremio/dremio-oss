@@ -25,7 +25,6 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.proto.model.dataset.CardExamplePosition;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.DACSecurityContext;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.HybridJobsService;
@@ -60,11 +59,7 @@ public class RecommenderTestBase extends BaseTestServer {
   @Before
   public void setupTest() throws Exception {
     HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
-    allocator =
-        l(ContextService.class)
-            .get()
-            .getAllocator()
-            .newChildAllocator("RecommenderTestBase", 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator("RecommenderTestBase", 0, Long.MAX_VALUE);
     executor = new QueryExecutor(jobsService, l(CatalogService.class), DACSecurityContext.system());
     version = DatasetVersion.newVersion();
   }

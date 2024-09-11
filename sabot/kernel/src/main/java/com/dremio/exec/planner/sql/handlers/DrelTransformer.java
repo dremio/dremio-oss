@@ -19,18 +19,21 @@ import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.PlannerType;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.MaterializationList;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.JdbcRelImpl;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.DremioRelDecorrelator;
 import com.dremio.exec.planner.logical.DremioRelFactories;
+import com.dremio.exec.planner.logical.EnhancedFilterJoinRule;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
+import com.dremio.exec.planner.logical.rule.LogicalAggregateGroupKeyFixRule;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
@@ -97,20 +100,8 @@ public final class DrelTransformer {
     final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
     Rel convertedRelNode = convertToDrel(config, relNode);
 
-    RelBuilder relBuilder =
-        DremioRelFactories.LOGICAL_BUILDER.create(convertedRelNode.getCluster(), null);
     // We might have to trim again after decorrelation ...
-    DremioFieldTrimmer trimmer =
-        new DremioFieldTrimmer(
-            relBuilder,
-            DremioFieldTrimmerParameters.builder()
-                .shouldLog(true)
-                .isRelPlanning(false)
-                .trimProjectedColumn(true)
-                .trimJoinBranch(plannerSettings.trimJoinBranch())
-                .build());
-    // Trimming twice, since some columns weren't being trimmed
-    Rel trimmedRelNode = (Rel) trimmer.trim(trimmer.trim(convertedRelNode));
+    Rel trimmedRelNode = (Rel) trimLogical(config, convertedRelNode);
 
     // Put a non-trivial topProject to ensure the final output field name is preserved, when
     // necessary.
@@ -132,82 +123,32 @@ public final class DrelTransformer {
   public static Rel convertToDrel(SqlHandlerConfig config, final RelNode relNode)
       throws SqlUnsupportedException {
     try {
-      final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
-
       final RelNode trimmed = trim(config, relNode);
       final RelNode flattenCaseExprs = flattenCaseExpression(config, trimmed);
-      final RelNode rangeConditionRewrite =
-          flattenCaseExprs.accept(new RangeConditionRewriteVisitor(plannerSettings));
-      final RelNode projPush =
-          PlannerUtil.transform(
-              config,
-              PlannerType.HEP_AC,
-              PlannerPhase.PROJECT_PUSHDOWN,
-              rangeConditionRewrite,
-              rangeConditionRewrite.getTraitSet(),
-              true);
+      final RelNode rangeConditionRewrite = rewriteRangeConditions(config, flattenCaseExprs);
+
+      final RelNode projPush = pushDownProjects(config, rangeConditionRewrite);
       final RelNode projPull = projectPullUp(config, projPush);
-      final RelNode filterConstantPushdown =
-          PlannerUtil.transform(
-              config,
-              PlannerType.HEP_AC,
-              PlannerPhase.FILTER_CONSTANT_RESOLUTION_PUSHDOWN,
-              projPull,
-              projPull.getTraitSet(),
-              true);
-      final RelNode transitiveFilterPushdown =
-          transitiveFilterPushdown(config, filterConstantPushdown);
-      final RelNode conditionCanonicalization =
-          equalityConditionCastCanonicalize(transitiveFilterPushdown);
-      final RelNode preLog =
-          PlannerUtil.transform(
-              config,
-              PlannerType.HEP_AC,
-              PlannerPhase.PRE_LOGICAL,
-              conditionCanonicalization,
-              conditionCanonicalization.getTraitSet(),
-              true);
-      final RelNode logical =
-          PlannerUtil.transform(
-              config,
-              PlannerType.VOLCANO,
-              PlannerPhase.LOGICAL,
-              preLog,
-              preLog.getTraitSet().plus(Rel.LOGICAL),
-              true);
-      final RelNode sampledPlan =
-          logical.accept(new InjectSample(plannerSettings.isLeafLimitsEnabled()));
+      final RelNode filterConstantPushdown = pushDownFilterConstant(config, projPull);
+      final RelNode tfRel = pushDownTransitiveFilter(config, filterConstantPushdown);
+      final RelNode conditionCanonicalization = equalityConditionCastCanonicalize(tfRel);
+      final RelNode preLog = planPreLogical(config, conditionCanonicalization);
+      final RelNode logical = planLogical(config, preLog);
+      final RelNode sampledPlan = addSampling(config, logical);
       final RelNode rowCountAdjusted = adjustRowCount(config, sampledPlan);
       final RelNode trimmedGroupKeys = rewriteConstantGroupKey(rowCountAdjusted);
       final RelNode decorrelatedRel = decorrelate(trimmedGroupKeys);
       final RelNode jdbcPushDownRel = pushDownJdbcQuery(config, decorrelatedRel);
       final RelNode nestedProjectPushdown = nestedProjectPushdown(config, jdbcPushDownRel);
+      final RelNode aggJoinPushed = pushDownAggregates(config, nestedProjectPushdown);
+      final RelNode fixedGroupKeys = fixGroupKeys(aggJoinPushed);
+      final RelNode trimmedAggJoinPushed = trimLogical(config, fixedGroupKeys);
       // Do Join Planning.
-      final RelNode preConvertedRelNode =
-          PlannerUtil.transform(
-              config,
-              PlannerType.HEP_BOTTOM_UP,
-              PlannerPhase.JOIN_PLANNING_MULTI_JOIN,
-              nestedProjectPushdown,
-              nestedProjectPushdown.getTraitSet(),
-              true);
-      final RelNode convertedRelNode =
-          PlannerUtil.transform(
-              config,
-              PlannerType.HEP_BOTTOM_UP,
-              PlannerPhase.JOIN_PLANNING_OPTIMIZATION,
-              preConvertedRelNode,
-              preConvertedRelNode.getTraitSet(),
-              true);
-      final RelNode postJoinOptimizationRelNode =
-          PlannerUtil.transform(
-              config,
-              PlannerType.HEP_AC,
-              PlannerPhase.POST_JOIN_OPTIMIZATION,
-              convertedRelNode,
-              convertedRelNode.getTraitSet(),
-              true);
-      final RelNode flattendPushed = getFlattenedPushed(config, postJoinOptimizationRelNode);
+      final RelNode preConvertedRelNode = planMultiJoin(config, trimmedAggJoinPushed);
+      final RelNode convertedRelNode = optimizeJoins(config, preConvertedRelNode);
+      final RelNode postJoinOptimizationRelNode = postJoinOptimize(config, convertedRelNode);
+
+      final RelNode flattendPushed = pushFlatten(config, postJoinOptimizationRelNode);
       final Rel drel = (Rel) flattendPushed;
 
       observeMaterialization(config, drel);
@@ -223,6 +164,97 @@ public final class DrelTransformer {
         throw ex;
       }
     }
+  }
+
+  private static RelNode pushDownAggregates(SqlHandlerConfig config, RelNode relNode) {
+    return PlannerUtil.transform(
+        config,
+        PlannerType.HEP_AC,
+        PlannerPhase.AGG_JOIN_PUSHDOWN,
+        relNode,
+        relNode.getTraitSet(),
+        true);
+  }
+
+  private static RelNode rewriteRangeConditions(SqlHandlerConfig config, RelNode relNode) {
+    final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
+    return relNode.accept(new RangeConditionRewriteVisitor(plannerSettings));
+  }
+
+  private static RelNode postJoinOptimize(SqlHandlerConfig config, RelNode relNode) {
+    return PlannerUtil.transform(
+        config,
+        PlannerType.HEP_AC,
+        PlannerPhase.POST_JOIN_OPTIMIZATION,
+        relNode,
+        relNode.getTraitSet(),
+        true);
+  }
+
+  private static RelNode optimizeJoins(SqlHandlerConfig config, RelNode relNode) {
+    final RelNode preConvertedRelNode = planMultiJoin(config, relNode);
+    return PlannerUtil.transform(
+        config,
+        PlannerType.HEP_BOTTOM_UP,
+        PlannerPhase.JOIN_PLANNING_OPTIMIZATION,
+        preConvertedRelNode,
+        preConvertedRelNode.getTraitSet(),
+        true);
+  }
+
+  private static RelNode planMultiJoin(SqlHandlerConfig config, RelNode relNode) {
+    return PlannerUtil.transform(
+        config,
+        PlannerType.HEP_BOTTOM_UP,
+        PlannerPhase.JOIN_PLANNING_MULTI_JOIN,
+        relNode,
+        relNode.getTraitSet(),
+        true);
+  }
+
+  private static RelNode addSampling(SqlHandlerConfig config, RelNode relNode) {
+    final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
+    return relNode.accept(new InjectSample(plannerSettings.isLeafLimitsEnabled()));
+  }
+
+  private static RelNode planLogical(SqlHandlerConfig config, RelNode relNode) {
+    return PlannerUtil.transform(
+        config,
+        PlannerType.VOLCANO,
+        PlannerPhase.LOGICAL,
+        relNode,
+        relNode.getTraitSet().plus(Rel.LOGICAL),
+        true);
+  }
+
+  private static RelNode planPreLogical(SqlHandlerConfig config, RelNode relNode) {
+    return PlannerUtil.transform(
+        config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, relNode, relNode.getTraitSet(), true);
+  }
+
+  private static RelNode pushDownFilterConstant(SqlHandlerConfig config, RelNode relNode) {
+    RelNode filterPushdown =
+        PlannerUtil.transform(
+            config,
+            PlannerType.HEP_AC,
+            PlannerPhase.FILTER_CONSTANT_RESOLUTION_PUSHDOWN,
+            relNode,
+            relNode.getTraitSet(),
+            true);
+
+    return config.getContext().getPlannerSettings().useEnhancedFilterJoinGuardRail()
+        ? EnhancedFilterJoinRule.removeArtifacts(filterPushdown)
+        : filterPushdown;
+  }
+
+  private static RelNode pushDownProjects(SqlHandlerConfig config, RelNode relNode) {
+    return PlannerUtil.transform(
+        config,
+        PlannerType.HEP_AC,
+        PlannerPhase.PROJECT_PUSHDOWN,
+        relNode,
+        relNode.getTraitSet(),
+        true);
   }
 
   private static RelNode equalityConditionCastCanonicalize(RelNode transitiveFilterPushdown) {
@@ -254,6 +286,24 @@ public final class DrelTransformer {
     return dremioFieldTrimmer.trim(relNode);
   }
 
+  private static RelNode trimLogical(SqlHandlerConfig config, RelNode rel) {
+    PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
+    RelBuilder relBuilder = DremioRelFactories.LOGICAL_BUILDER.create(rel.getCluster(), null);
+    // We might have to trim again after decorrelation ...
+    DremioFieldTrimmer trimmer =
+        new DremioFieldTrimmer(
+            relBuilder,
+            DremioFieldTrimmerParameters.builder()
+                .shouldLog(true)
+                .isRelPlanning(false)
+                .trimProjectedColumn(true)
+                .trimJoinBranch(plannerSettings.trimJoinBranch())
+                .build());
+    // Trimming twice, since some columns weren't being trimmed
+    Rel trimmedRelNode = (Rel) trimmer.trim(trimmer.trim(rel));
+    return trimmedRelNode;
+  }
+
   private static RelNode flattenCaseExpression(SqlHandlerConfig config, RelNode relNode) {
     final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
 
@@ -279,20 +329,24 @@ public final class DrelTransformer {
   }
 
   @WithSpan("PrelTransformer.transitiveFilterPushdown")
-  private static RelNode transitiveFilterPushdown(SqlHandlerConfig config, RelNode filterPushdown) {
-    final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
-
-    if (plannerSettings.isTransitiveFilterPushdownEnabled()) {
-      final RelNode joinPullFilters = filterPushdown.accept(new JoinPullTransitiveFiltersVisitor());
-      return PlannerUtil.transform(
-          config,
-          PlannerType.HEP_AC,
-          PlannerPhase.FILTER_CONSTANT_RESOLUTION_PUSHDOWN,
-          joinPullFilters,
-          joinPullFilters.getTraitSet(),
-          true);
+  private static RelNode pushDownTransitiveFilter(SqlHandlerConfig config, RelNode relNode) {
+    PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
+    if (!plannerSettings.isTransitiveFilterPushdownEnabled()) {
+      return relNode;
     }
-    return filterPushdown;
+
+    RelNode joinPullFilters = relNode.accept(new JoinPullTransitiveFiltersVisitor());
+    RelNode filterPushedDown =
+        PlannerUtil.transform(
+            config,
+            PlannerType.HEP_AC,
+            PlannerPhase.FILTER_CONSTANT_RESOLUTION_PUSHDOWN,
+            joinPullFilters,
+            joinPullFilters.getTraitSet(),
+            true);
+    return config.getContext().getPlannerSettings().useEnhancedFilterJoinGuardRail()
+        ? EnhancedFilterJoinRule.removeArtifacts(filterPushedDown)
+        : filterPushedDown;
   }
 
   private static RelNode rewriteConstantGroupKey(RelNode relNode) {
@@ -394,7 +448,7 @@ public final class DrelTransformer {
     return projectPushedDown;
   }
 
-  private static RelNode getFlattenedPushed(SqlHandlerConfig config, RelNode convertedRelNode) {
+  private static RelNode pushFlatten(SqlHandlerConfig config, RelNode convertedRelNode) {
     FlattenRelFinder flattenFinder = new FlattenRelFinder();
     if (flattenFinder.run(convertedRelNode)) {
       final RelNode wrapped = RexFieldAccessUtils.wrap(convertedRelNode);
@@ -439,7 +493,7 @@ public final class DrelTransformer {
     return topProj;
   }
 
-  private static Rel addRenamedProjectForMaterialization(
+  public static Rel addRenamedProjectForMaterialization(
       SqlHandlerConfig config, Rel rel, RelDataType validatedRowType) {
 
     ProjectRel topProj = createRenameProjectRel(rel, validatedRowType);
@@ -452,12 +506,12 @@ public final class DrelTransformer {
     return topProj;
   }
 
-  private static ProjectRel createRenameProjectRel(Rel rel, RelDataType validatedRowType) {
+  private static ProjectRel createRenameProjectRel(RelNode rel, RelDataType validatedRowType) {
     RelDataType t = rel.getRowType();
 
     RexBuilder b = rel.getCluster().getRexBuilder();
     List<RexNode> projections = Lists.newArrayList();
-    int projectCount = t.getFieldList().size();
+    int projectCount = validatedRowType.getFieldList().size();
 
     for (int i = 0; i < projectCount; i++) {
       projections.add(b.makeInputRef(rel, i));
@@ -495,6 +549,22 @@ public final class DrelTransformer {
     } else {
       return logical;
     }
+  }
+
+  private static RelNode fixGroupKeys(RelNode relNode) {
+    return relNode.accept(
+        new RelShuttleImpl() {
+          @Override
+          public RelNode visit(RelNode rel) {
+            rel = super.visit(rel);
+            if (rel instanceof AggregateRel) {
+              RelBuilder relBuilder =
+                  DremioRelFactories.LOGICAL_BUILDER.create(rel.getCluster(), null);
+              return LogicalAggregateGroupKeyFixRule.fix((AggregateRel) rel, relBuilder);
+            }
+            return rel;
+          }
+        });
   }
 
   /**

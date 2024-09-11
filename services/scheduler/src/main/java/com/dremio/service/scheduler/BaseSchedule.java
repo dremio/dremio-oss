@@ -27,6 +27,7 @@ import java.time.temporal.TemporalAmount;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 
 class BaseSchedule implements Schedule {
   private final TemporalAmount amount;
@@ -42,10 +43,24 @@ class BaseSchedule implements Schedule {
   private final boolean inLockStep;
   private final boolean sticky;
   private final boolean largePeriodicity;
+  private final IntSupplier weightProvider;
 
   // constructor for multi shot local schedules
   BaseSchedule(Instant at, TemporalAmount period, TemporalAdjuster adjuster, ZoneId zoneId) {
-    this(null, at, period, adjuster, zoneId, null, null, () -> {}, (x) -> null, null, false, true);
+    this(
+        null,
+        at,
+        period,
+        adjuster,
+        zoneId,
+        null,
+        null,
+        () -> {},
+        (x) -> null,
+        null,
+        false,
+        true,
+        null);
   }
 
   // constructor for single shot local schedules
@@ -62,7 +77,8 @@ class BaseSchedule implements Schedule {
         (x) -> null,
         null,
         false,
-        true);
+        true,
+        null);
   }
 
   // constructor for multi shot distributed schedule
@@ -76,7 +92,8 @@ class BaseSchedule implements Schedule {
       CleanupListener cleanupListener,
       Function<Schedule, Schedule> scheduleModifier,
       String taskGroupName,
-      boolean sticky) {
+      boolean sticky,
+      IntSupplier weightProvider) {
     this(
         null,
         at,
@@ -89,7 +106,8 @@ class BaseSchedule implements Schedule {
         scheduleModifier,
         taskGroupName,
         false,
-        sticky);
+        sticky,
+        weightProvider);
   }
 
   // constructor for single shot distributed schedules
@@ -111,7 +129,8 @@ class BaseSchedule implements Schedule {
         (x) -> null,
         null,
         inLockStep,
-        true);
+        true,
+        null);
   }
 
   private BaseSchedule(
@@ -126,7 +145,8 @@ class BaseSchedule implements Schedule {
       Function<Schedule, Schedule> scheduleModifier,
       String taskGroupName,
       boolean inLockStep,
-      boolean sticky) {
+      boolean sticky,
+      IntSupplier weightProvider) {
     this.singleShotType = singleShotType;
     this.amount = period;
     this.adjuster = adjuster;
@@ -139,6 +159,7 @@ class BaseSchedule implements Schedule {
     this.taskGroupName = taskGroupName;
     this.inLockStep = inLockStep;
     this.sticky = sticky;
+    this.weightProvider = weightProvider;
     this.largePeriodicity =
         (singleShotType == null
             && ((amount == null && at.isAfter(Instant.now().plus(Duration.ofSeconds(61))))
@@ -165,6 +186,11 @@ class BaseSchedule implements Schedule {
   @Override
   public boolean isSticky() {
     return sticky;
+  }
+
+  @Override
+  public IntSupplier getWeightProvider() {
+    return weightProvider;
   }
 
   @Override

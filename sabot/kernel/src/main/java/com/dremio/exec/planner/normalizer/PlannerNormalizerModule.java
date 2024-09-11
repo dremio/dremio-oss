@@ -17,7 +17,10 @@ package com.dremio.exec.planner.normalizer;
 
 import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.ops.UserDefinedFunctionExpander;
+import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.HepPlannerRunner;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
+import com.dremio.exec.planner.events.PlannerEventBus;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -27,10 +30,19 @@ public class PlannerNormalizerModule {
   public RelNormalizerTransformer buildRelNormalizerTransformer(
       HepPlannerRunner hepPlannerRunner,
       NormalizerRuleSets normalizerRuleSets,
+      SubstitutionProvider substitutionProvider,
+      ViewExpansionContext viewExpansionContext,
       PlannerSettings plannerSettings,
-      PlannerCatalog plannerCatalog) {
+      PlannerCatalog plannerCatalog,
+      PlannerEventBus plannerEventBus) {
     return new RelNormalizerTransformerImpl(
-        hepPlannerRunner, normalizerRuleSets, plannerSettings, plannerCatalog);
+        hepPlannerRunner,
+        normalizerRuleSets,
+        substitutionProvider,
+        viewExpansionContext,
+        plannerSettings,
+        plannerCatalog,
+        plannerEventBus);
   }
 
   public NormalizerRuleSets buildNormalizeRuleSets(

@@ -17,7 +17,7 @@ package com.dremio.jdbc;
 
 import static org.junit.Assert.fail;
 
-import com.dremio.exec.ExecTest;
+import com.dremio.BaseTestQuery;
 import com.dremio.jdbc.test.JdbcAssert;
 import com.google.common.base.Strings;
 import java.sql.Connection;
@@ -39,7 +39,7 @@ import org.junit.runner.Description;
 // TODO:  Document this, especially what writers of unit tests need to know
 //   (e.g., the reusing of connections, the automatic interception of test
 //   failures and resetting of connections, etc.).
-public class JdbcTestBase extends ExecTest {
+public class JdbcTestBase extends BaseTestQuery {
   @SuppressWarnings("unused")
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(JdbcTestBase.class);

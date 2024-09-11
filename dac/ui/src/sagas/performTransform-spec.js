@@ -210,6 +210,7 @@ describe("performTransform saga", () => {
           undefined,
           undefined,
           undefined,
+          undefined,
         ),
       );
     });
@@ -398,6 +399,77 @@ describe("performTransform saga", () => {
     it("should return undefined if dataset isNewQuery and no transformData supplied", () => {
       expect(getTransformData(dataset.set("isNewQuery", true), sql, context)).to
         .be.undefined;
+    });
+
+    it("should return undefined if sql has not changed regardless if a view is being saved", () => {
+      expect(
+        getTransformData(
+          dataset,
+          sql,
+          dataset.get("context"),
+          undefined,
+          undefined,
+          false,
+        ),
+      ).to.be.undefined;
+
+      expect(
+        getTransformData(
+          dataset,
+          sql,
+          dataset.get("context"),
+          undefined,
+          undefined,
+          true,
+        ),
+      ).to.be.undefined;
+    });
+
+    it("should return undefined if saving a view with a query ending in a semicolon", () => {
+      expect(
+        getTransformData(
+          dataset,
+          sql + ";", // queries aren't parsed when saving, so semicolons might be passed in
+          dataset.get("context"),
+          undefined,
+          undefined,
+          true,
+        ),
+      ).to.be.undefined;
+    });
+
+    it("should return updateSQL if sql has changed regardless if a view is being saved", () => {
+      expect(
+        getTransformData(
+          dataset,
+          "select 1",
+          dataset.get("context"),
+          undefined,
+          undefined,
+          false,
+        ),
+      ).to.be.eql({
+        type: "updateSQL",
+        sql: "select 1",
+        sqlContextList: dataset.get("context").toJS(),
+        referencesList: [],
+      });
+
+      expect(
+        getTransformData(
+          dataset,
+          "select 1;",
+          dataset.get("context"),
+          undefined,
+          undefined,
+          false,
+        ),
+      ).to.be.eql({
+        type: "updateSQL",
+        sql: "select 1;",
+        sqlContextList: dataset.get("context").toJS(),
+        referencesList: [],
+      });
     });
 
     it("should return updateSQL only if dataset is not new, no transformData supplied, and sql has changed", () => {

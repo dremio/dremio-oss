@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import { useState, useMemo, useCallback, useEffect, forwardRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { loadGrant } from "@inject/actions/resources/grant";
 import { debounce } from "lodash";
-
 import { intl } from "@app/utils/intl";
-// @ts-ignore
 import { MultiSelect, Label } from "dremio-ui-lib";
 import { Button } from "dremio-ui-lib/components";
 import { searchRoles } from "@inject/actions/roles";
 import { searchUsers } from "@inject/actions/user";
 import { getFilteredRolesAndUsers } from "@inject/selectors/roles";
-import { getCustomChipIcon } from "../../privileges-page-utils";
+import {
+  getCustomChipIcon,
+  useCanSearchRolesAndUsers,
+} from "../../privileges-page-utils";
 import { GrantObject } from "../../PrivilegesPage";
 import { GranteeType as CatalogGranteeType } from "@app/exports/endpoints/ArcticCatalogGrants/ArcticCatalogGrants.types";
 import { GranteeType as OrgGranteeType } from "@app/exports/endpoints/Grants/Grants.types";
-
 import * as classes from "./AddToPrivileges.module.less";
 
 export type UserOrRole = {
@@ -55,9 +55,7 @@ const AddToPrivilegesComponent = ({
   disabled,
 }: AddToPrivilegesProps) => {
   const dispatch = useDispatch();
-  const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [displayValues, setDisplayValues] = useState<UserOrRole[]>([]);
-
   const {
     searchedOptions,
     orgPrivileges,
@@ -65,62 +63,71 @@ const AddToPrivilegesComponent = ({
     (state: any) => ({
       searchedOptions: getFilteredRolesAndUsers(
         state,
-        true
+        true,
+        true,
       ) as unknown as UserOrRole[],
-      orgPrivileges: state.privileges.organization,
-    })
+      orgPrivileges: state?.privileges?.organization,
+    }),
   );
 
+  const [canSearchUser, canSearchRole] = useCanSearchRolesAndUsers();
+
   useEffect(() => {
-    const { roles, users } = orgPrivileges;
-    if (roles?.canView) dispatch(searchRoles("") as any);
-    if (users?.canView) dispatch(searchUsers("") as any);
+    if (canSearchRole) dispatch(searchRoles("") as any);
+    if (canSearchUser) dispatch(searchUsers("") as any);
   }, [dispatch, orgPrivileges]);
 
-  const filteredSearchOptions = useMemo(() => {
-    return searchedOptions.filter(
-      (member: UserOrRole) =>
-        !tableItems.find((grant: GrantObject) => grant.granteeId === member.id)
-    );
-  }, [tableItems, searchedOptions]);
+  const filteredSearchOptions = useMemo(
+    () =>
+      searchedOptions.filter(
+        (member: UserOrRole) =>
+          !tableItems.find(
+            (grant: GrantObject) =>
+              grant?.granteeId === member.id || grant?.id?.value === member.id,
+          ),
+      ),
+    [tableItems, searchedOptions],
+  );
 
   const handleValuesChange = useCallback(
-    (value: string[]) => {
-      const newSelectedValues: any[] = [];
-      value.forEach((val: string) => {
+    (value: UserOrRole[]) => {
+      const newValues: any[] = [];
+      value.forEach((val: UserOrRole) => {
         const element = filteredSearchOptions.find(
-          ({ label }: UserOrRole) => label === val
+          ({ id }: UserOrRole) => id === val.id,
         );
         if (element) {
-          newSelectedValues.push(element);
+          newValues.push(element);
         } else {
-          const isElementFound = displayValues.find(
-            ({ label }) => label === val
-          );
+          const isElementFound = displayValues.find(({ id }) => id === val.id);
           if (isElementFound) {
-            newSelectedValues.push(isElementFound);
+            newValues.push(isElementFound);
           }
         }
       });
-      setSelectedValues(value);
-      setDisplayValues(newSelectedValues);
+      setDisplayValues(newValues);
     },
-    [filteredSearchOptions, displayValues]
+    [filteredSearchOptions, displayValues],
   );
 
   const handleAddSelectedMembers = () => {
-    const { roles, users } = orgPrivileges;
     handleAddTableItems(displayValues);
-    setSelectedValues([]);
     setDisplayValues([]);
-    if (roles?.canView) dispatch(searchRoles("") as any);
-    if (users?.canView) dispatch(searchUsers("") as any);
+    if (canSearchRole) dispatch(searchRoles("") as any);
+    if (canSearchUser) dispatch(searchUsers("") as any);
   };
 
   const handleSearchKeyChange = debounce((value) => {
-    const { roles, users } = orgPrivileges;
-    if (roles?.canView) dispatch(searchRoles(value) as any);
-    if (users?.canView) dispatch(searchUsers(value) as any);
+    if (canSearchRole) {
+      dispatch(searchRoles(value) as any);
+    } else {
+      value && dispatch(loadGrant({ name: value, type: "ROLE" }) as any);
+    }
+    if (canSearchUser) {
+      dispatch(searchUsers(value) as any);
+    } else {
+      value && dispatch(loadGrant({ userName: value, type: "USER" }) as any);
+    }
   }, 300);
 
   return (
@@ -135,7 +142,8 @@ const AddToPrivilegesComponent = ({
         <div className={classes["addPrivileges__addActions"]}>
           <MultiSelect
             ref={innerRef}
-            value={selectedValues}
+            referToId
+            value={displayValues}
             options={filteredSearchOptions}
             onChange={handleSearchKeyChange}
             displayValues={displayValues}
@@ -148,13 +156,13 @@ const AddToPrivilegesComponent = ({
             getCustomChipIcon={getCustomChipIcon}
           />
           <Button
-            variant={selectedValues.length === 0 ? "secondary" : "primary"}
-            disabled={selectedValues.length === 0 || disabled}
+            variant={displayValues.length === 0 ? "secondary" : "primary"}
+            disabled={displayValues.length === 0 || disabled}
             className={classes["addPrivileges__addButton"]}
             onClick={handleAddSelectedMembers}
           >
             <>
-              <dremio-icon name="interface/add" />
+              <dremio-icon name="interface/add" alt="add" />
               {intl.formatMessage({
                 id: "Admin.Privileges.Add",
               })}

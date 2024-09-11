@@ -18,7 +18,6 @@ package com.dremio.plugins.elastic;
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
 
-import com.dremio.TestBuilder;
 import com.dremio.exec.proto.UserBitShared;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -111,7 +110,7 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
     // For now this is avoiding running the second phase of the test with project pushdown
     // disabled. To re-enable, just use the testBuilder() helper method rather than calling this
     // constructor directly
-    new TestBuilder(allocator)
+    testBuilder()
         .sqlQuery(sql)
         .baselineColumns("city", "state", "phones")
         .unOrdered()
@@ -215,7 +214,7 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
     // For now this is avoiding running the second phase of the test with project pushdown
     // disabled. To re-enable, just use the testBuilder() helper method rather than calling this
     // constructor directly
-    new TestBuilder(allocator)
+    testBuilder()
         .sqlQuery(sql)
         .baselineColumns("id", "username", "city_0", "city_1", "phones_0", "phones_1_office")
         .unOrdered()

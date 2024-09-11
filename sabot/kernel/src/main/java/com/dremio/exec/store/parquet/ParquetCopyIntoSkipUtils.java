@@ -20,9 +20,11 @@ import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.physical.config.SimpleQueryContext;
-import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.Builder;
+import com.dremio.exec.physical.config.copyinto.CopyIntoFileLoadInfo.CopyIntoFileState;
 import com.dremio.exec.physical.config.copyinto.CopyIntoHistoryExtendedProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
+import com.dremio.exec.physical.config.copyinto.IngestionProperties;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileLoadInfo;
@@ -49,26 +51,43 @@ public class ParquetCopyIntoSkipUtils {
       OutputMutator outgoingMutator,
       SimpleQueryContext copyIntoSkipQueryContext,
       CopyIntoQueryProperties copyIntoQueryProperties,
+      IngestionProperties ingestionProperties,
       String filePath,
-      String errorMessage) {
+      long fileSize,
+      long rejectedRecordCount,
+      String errorMessage,
+      long processingStartTime) {
 
     logger.info("COPY INTO operation is skipping {} due to: {}", filePath, errorMessage);
 
     // TODO: populate ExtendedFormatOptions for Parquet if implemented
-    String infoJson =
-        FileLoadInfo.Util.getJson(
-            new CopyIntoFileLoadInfo.Builder(
-                    copyIntoSkipQueryContext.getQueryId(),
-                    copyIntoSkipQueryContext.getUserName(),
-                    copyIntoSkipQueryContext.getTableNamespace(),
-                    copyIntoQueryProperties.getStorageLocation(),
-                    filePath,
-                    new ExtendedFormatOptions(),
-                    FileType.PARQUET.name(),
-                    CopyIntoFileLoadInfo.CopyIntoFileState.SKIPPED)
-                .setRecordsLoadedCount(0)
-                .setRecordsRejectedCount(1)
-                .build());
+    Builder builder =
+        new Builder(
+                copyIntoSkipQueryContext.getQueryId(),
+                copyIntoSkipQueryContext.getUserName(),
+                copyIntoSkipQueryContext.getTableNamespace(),
+                copyIntoQueryProperties.getStorageLocation(),
+                filePath,
+                new ExtendedFormatOptions(),
+                FileType.PARQUET.name(),
+                CopyIntoFileState.SKIPPED)
+            .setRecordsLoadedCount(0)
+            .setRecordsRejectedCount(rejectedRecordCount)
+            .setBranch(copyIntoQueryProperties.getBranch())
+            .setProcessingStartTime(processingStartTime)
+            .setFileSize(fileSize)
+            .setFirstErrorMessage(errorMessage);
+
+    if (ingestionProperties != null) {
+      builder
+          .setPipeId(ingestionProperties.getPipeId())
+          .setPipeName(ingestionProperties.getPipeName())
+          .setFileNotificationTimestamp(ingestionProperties.getNotificationTimestamp())
+          .setIngestionSourceType(ingestionProperties.getIngestionSourceType())
+          .setRequestId(ingestionProperties.getRequestId());
+    }
+
+    String infoJson = FileLoadInfo.Util.getJson(builder.build());
 
     // write error info to first position about why this file is being SKIPPED
     ValueVector errorVector = outgoingMutator.getVector(ColumnUtils.COPY_HISTORY_COLUMN_NAME);
@@ -106,24 +125,36 @@ public class ParquetCopyIntoSkipUtils {
     private final SimpleQueryContext copyIntoSkipQueryContext;
     private final CopyIntoQueryProperties copyIntoQueryProperties;
     private final String filePath;
+    private final long fileSize;
+    private final long rejectedRecordCount;
     private final String errorMessage;
     private final boolean isValidationMode;
     private ValidationErrorRowWriter validationErrorWriter;
-    private CopyIntoHistoryExtendedProperties copyIntoHistoryExtendedProperties;
+    private final CopyIntoHistoryExtendedProperties copyIntoHistoryExtendedProperties;
+    private final IngestionProperties ingestionProperties;
+    private final long processingStartTime;
 
     CopyIntoSkipErrorRecordReaderCreator(
         SimpleQueryContext copyIntoSkipQueryContext,
         CopyIntoQueryProperties copyIntoQueryProperties,
+        IngestionProperties ingestionProperties,
         String filePath,
+        long fileSize,
+        long rejectedRecordCount,
         String errorMessage,
         CopyIntoHistoryExtendedProperties copyIntoHistoryExtendedProperties,
-        boolean isValidationMode) {
+        boolean isValidationMode,
+        long processingStartTime) {
       this.copyIntoQueryProperties = copyIntoQueryProperties;
       this.copyIntoSkipQueryContext = copyIntoSkipQueryContext;
       this.copyIntoHistoryExtendedProperties = copyIntoHistoryExtendedProperties;
       this.filePath = filePath;
+      this.fileSize = fileSize;
+      this.rejectedRecordCount = rejectedRecordCount;
       this.errorMessage = errorMessage;
       this.isValidationMode = isValidationMode;
+      this.ingestionProperties = ingestionProperties;
+      this.processingStartTime = processingStartTime;
     }
 
     @Override
@@ -158,8 +189,12 @@ public class ParquetCopyIntoSkipUtils {
                   outputMutator,
                   copyIntoSkipQueryContext,
                   copyIntoQueryProperties,
+                  ingestionProperties,
                   filePath,
-                  errorMessage);
+                  fileSize,
+                  rejectedRecordCount,
+                  errorMessage,
+                  processingStartTime);
             }
             return 1;
           }

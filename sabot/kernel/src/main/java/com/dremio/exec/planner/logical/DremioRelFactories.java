@@ -16,6 +16,7 @@
 
 package com.dremio.exec.planner.logical;
 
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -32,8 +33,11 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.core.Values;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
@@ -68,7 +72,8 @@ public class DremioRelFactories {
   public static final RelFactories.SortFactory LOGICAL_SORT_FACTORY = new SortFactoryImpl();
   public static final RelFactories.CorrelateFactory LOGICAL_CORRELATE_FACTORY =
       new CorrelateFactoryImpl();
-  public static final RelFactories.SetOpFactory LOGICAL_UNION_FACTORY = new SetOpFactoryImpl();
+  public static final RelFactories.SetOpFactory LOGICAL_SET_OP_FACTORY = new SetOpFactoryImpl();
+  public static final RelFactories.ValuesFactory LOGICAL_VALUES_FACTORY = new ValuesFactoryImpl();
 
   public static final RelBuilderFactory LOGICAL_BUILDER =
       RelBuilder.proto(
@@ -79,7 +84,8 @@ public class DremioRelFactories {
               LOGICAL_PROJECT_FACTORY,
               LOGICAL_SORT_FACTORY,
               LOGICAL_CORRELATE_FACTORY,
-              LOGICAL_UNION_FACTORY));
+              LOGICAL_SET_OP_FACTORY,
+              LOGICAL_VALUES_FACTORY));
 
   public static final RelFactories.ProjectFactory LOGICAL_PROJECT_PROPAGATE_FACTORY =
       new ProjectPropagateFactoryImpl();
@@ -309,6 +315,26 @@ public class DremioRelFactories {
           RelOptRule.convert(right, right.getTraitSet().plus(Rel.LOGICAL).simplify()),
           condition,
           joinType);
+    }
+  }
+
+  /**
+   * Implementation of {@link RelFactories.ValuesFactory} that returns a vanilla {@link ValuesRel}.
+   */
+  private static class ValuesFactoryImpl implements RelFactories.ValuesFactory {
+
+    @Override
+    public RelNode createValues(
+        RelOptCluster cluster, RelDataType rowType, List<ImmutableList<RexLiteral>> tuples) {
+      LogicalValues values = LogicalValues.create(cluster, rowType, ImmutableList.copyOf(tuples));
+      if (Values.isEmpty(values)) {
+        return new EmptyRel(
+            values.getCluster(),
+            values.getTraitSet().plus(Rel.LOGICAL),
+            values.getRowType(),
+            CalciteArrowHelper.fromCalciteRowType(values.getRowType()));
+      }
+      return ValuesRel.from(values);
     }
   }
 }

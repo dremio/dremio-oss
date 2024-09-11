@@ -47,8 +47,8 @@ public class TestDatasetService extends BaseTestServer {
 
   @Test
   public void testDS() throws Exception {
-    NamespaceService namespaceService = newNamespaceService();
-    DatasetVersionMutator service = newDatasetVersionMutator();
+    NamespaceService namespaceService = getNamespaceService();
+    DatasetVersionMutator service = getDatasetVersionMutator();
 
     SpaceConfig config = new SpaceConfig();
     config.setName("a");

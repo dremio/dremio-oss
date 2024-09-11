@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.parser;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDelete;
@@ -59,8 +60,10 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
 
   private final SqlTableVersionSpec sqlTableVersionSpec;
 
-  // Default Dml Write.Delete.Mode TableProperty in Dremio for now.
+  /** The DML mode for write operations. Default in dremio (for now) is COPY_ON_WRITE */
   private RowLevelOperationMode dmlWriteMode = RowLevelOperationMode.COPY_ON_WRITE;
+
+  private List<String> parititonColumns = new ArrayList<>();
 
   public SqlDeleteFromTable(
       SqlParserPos pos,
@@ -73,11 +76,6 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
     this.source = source;
     this.sourceOperand = source;
     this.sqlTableVersionSpec = sqlTableVersionSpec;
-  }
-
-  @Override
-  public SqlNode getTargetTableWithoutExtendedCols() {
-    return super.getTargetTable();
   }
 
   @Override
@@ -134,5 +132,15 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
   @Override
   public RowLevelOperationMode getDmlWriteMode() {
     return dmlWriteMode;
+  }
+
+  public void setPartitionColumns(List<String> partitionColumns) {
+    if (partitionColumns != null) {
+      parititonColumns.addAll(partitionColumns);
+    }
+  }
+
+  public List<String> getPartitionColumns() {
+    return parititonColumns;
   }
 }

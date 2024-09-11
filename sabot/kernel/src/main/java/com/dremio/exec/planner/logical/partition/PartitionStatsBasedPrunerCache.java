@@ -31,6 +31,8 @@ import com.dremio.exec.planner.common.PartitionStatsHelper;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.FilterableScan;
+import com.dremio.exec.store.dfs.FilterableScan.PartitionStatsStatus;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.partitionstats.cache.PartitionStatsCache;
@@ -52,6 +54,7 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionStatsEntry;
 import org.apache.iceberg.PartitionStatsReader;
 import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.InputFile;
@@ -64,7 +67,7 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache {
   public static final Logger logger = LoggerFactory.getLogger(PartitionStatsBasedPrunerCache.class);
   private final PartitionStatsCache partitionStatsPredicateCache;
   private final OptimizerRulesContext context;
-  private final ScanRelBase scan;
+  private final FilterableScan scan;
   private final List<SchemaPath> projectedColumns;
   private final TableMetadata tableMetadata;
   private final boolean specEvolTransEnabled;
@@ -79,7 +82,7 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache {
 
   public PartitionStatsBasedPrunerCache(
       OptimizerRulesContext context,
-      ScanRelBase scan,
+      FilterableScan scan,
       PruneFilterCondition pruneCondition,
       PartitionStatsCache partitionStatsPredicateCache) {
     this.scan = scan;
@@ -198,7 +201,8 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache {
       InputFile inputFile = createInputFile(operatorContext);
 
       PartitionStatsReader partitionStatsReader = new PartitionStatsReader(inputFile, spec);
-      try (CloseableIterator closeableIterator = partitionStatsReader.iterator()) {
+      try (CloseableIterator<PartitionStatsEntry> closeableIterator =
+          partitionStatsReader.iterator()) {
         if (!closeableIterator.hasNext()) {
           // handle the case where the stats are empty or not successfully generated
           logger.warn(
@@ -215,21 +219,22 @@ public class PartitionStatsBasedPrunerCache implements RecordPrunerCache {
               inputFile.location(), partitionStatsReader, context, spec, scan)) {
 
         Map<String, Integer> partitionColToIdMap = createColNameToIdMap(partitionColumns);
+        PartitionStatsValue pruneResult =
+            pruner.prune(
+                createColIdToNameMap(partitionColToIdMap),
+                partitionColToIdMap,
+                getUsedIndices,
+                projectedColumns,
+                tableMetadata,
+                finalPruneCondition,
+                batchSchema,
+                rowType,
+                scan.getCluster());
 
-        survivingRecords =
-            Optional.of(
-                pruner.prune(
-                    createColIdToNameMap(partitionColToIdMap),
-                    partitionColToIdMap,
-                    getUsedIndices,
-                    projectedColumns,
-                    tableMetadata,
-                    finalPruneCondition,
-                    batchSchema,
-                    rowType,
-                    scan.getCluster()));
+        survivingRecords = pruneResult != null ? Optional.of(pruneResult) : Optional.empty();
       }
     } catch (RuntimeException | IOException e) {
+      scan.setPartitionStatsStatus(PartitionStatsStatus.ERROR);
       logger.error("Encountered exception during row count estimation: ", e);
     }
     return survivingRecords;

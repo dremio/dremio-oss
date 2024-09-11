@@ -32,22 +32,20 @@ import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
-import com.google.inject.Provider;
 import org.junit.Test;
 
 /** Tests {@link ForemenWorkManager} */
 public class TestForemenWorkManager {
 
   @Test
-  public void testSubmitWork() {
+  public void testSubmitWork() throws Exception {
     // Arrange - setup
     DremioConfig config = mock(DremioConfig.class);
     doReturn(false).when(config).getBoolean(any());
-    Provider<CommandPool> commandPoolProvider =
-        () -> CommandPoolFactory.INSTANCE.newPool(config, null);
+
+    CommandPool commandPool = CommandPoolFactory.INSTANCE.newPool(config, null);
     ForemenWorkManager foremenWorkManager =
-        new ForemenWorkManager(
-            null, null, commandPoolProvider, null, null, null, null, null, null, null);
+        new ForemenWorkManager(null, null, () -> commandPool, null, null, null, null, null, null);
 
     foremenWorkManager = spy(foremenWorkManager);
     UserException userException =
@@ -79,5 +77,8 @@ public class TestForemenWorkManager {
     assertEquals(
         UserException.QUERY_REJECTED_MSG + ". Root cause: " + UserException.QUERY_REJECTED_MSG,
         userResult[0].getException().getMessage());
+
+    commandPool.close();
+    foremenWorkManager.close();
   }
 }

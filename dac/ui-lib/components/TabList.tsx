@@ -112,6 +112,8 @@ type TabListTabProps = {
   onClose?: (() => void) | null;
   onSelected: () => void;
   getMenuItems?: () => TabMenuItem[];
+  isUnsaved?: boolean;
+  unsavedLabel?: string | JSX.Element;
 };
 
 const renderMenuItems = (
@@ -158,6 +160,18 @@ export const TabListTab = (props: TabListTabProps) => {
 
     elRef.current.scrollIntoView({ smooth: "true" });
   }, [selected]);
+
+  const unsavedBubble = (
+    <div
+      style={{
+        width: "6px",
+        height: "6px",
+        borderRadius: "9999px",
+        background: "var(--fill--brand--bold)",
+        flexShrink: 0,
+      }}
+    />
+  );
   return (
     <button
       {...rest}
@@ -170,6 +184,14 @@ export const TabListTab = (props: TabListTabProps) => {
         onSelected();
       }}
     >
+      {props.isUnsaved &&
+        (props.unsavedLabel ? (
+          <Tooltip content={props.unsavedLabel} portal>
+            {unsavedBubble}
+          </Tooltip>
+        ) : (
+          unsavedBubble
+        ))}
       <Tooltip content={<span>{props.children}</span>} delay={750} portal>
         <span className="tab-list-tab__label">{props.children}</span>
       </Tooltip>

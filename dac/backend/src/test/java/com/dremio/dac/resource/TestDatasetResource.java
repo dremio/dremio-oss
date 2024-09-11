@@ -20,25 +20,32 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.dremio.dac.api.ResponseList;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.ValidationErrorMessage;
-import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.physicaldataset.proto.AccelerationSettingsDescriptor;
-import com.google.common.base.Preconditions;
+import com.dremio.service.reflection.analysis.ReflectionSuggester.ReflectionSuggestionType;
+import com.dremio.service.reflection.proto.DimensionGranularity;
+import com.dremio.service.reflection.proto.MeasureType;
+import com.dremio.service.reflection.proto.ReflectionDimensionField;
+import com.dremio.service.reflection.proto.ReflectionField;
+import com.dremio.service.reflection.proto.ReflectionMeasureField;
+import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.PrintWriter;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
@@ -62,20 +69,10 @@ public class TestDatasetResource extends BaseTestServer {
 
   @Rule public final TemporaryFolder folder = new TemporaryFolder();
 
-  protected NamespaceService getNamespaceService() {
-    final NamespaceService service = newNamespaceService();
-    return Preconditions.checkNotNull(service, "ns service is required");
-  }
-
-  protected SourceService getSourceService() {
-    final SourceService service = newSourceService();
-    return Preconditions.checkNotNull(service, "source service is required");
-  }
-
   private void createNewFile(String datasetName) throws Exception {
     final File file2 = folder.newFile(datasetName);
     try (PrintWriter writer = new PrintWriter(file2)) {
-      writer.print("{ \"key\" : \"A\", \"value\" : 0 }");
+      writer.print("{ \"key\" : \"A\", \"value\" : 0 , \"loc\" : [1, 2]}");
     }
   }
 
@@ -389,6 +386,163 @@ public class TestDatasetResource extends BaseTestServer {
                       .path(String.format("/dataset/%s/rename/", DATASET_PATH.toPathString()))
                       .queryParam("renameTo", DATASET_PATH_2.getLeaf().toString()))
               .build("POST"));
+    }
+  }
+
+  @Test
+  public void testReflectionTypePathParameterValidation() throws Exception {
+    String uuid = getNamespaceService().getDataset(DATASET_PATH_2.toNamespaceKey()).getId().getId();
+    // test invalid reflection type path parameter
+    expectStatus(
+        Response.Status.BAD_REQUEST,
+        getBuilder(
+                getAPIv3()
+                    .path(
+                        String.format(
+                            "/dataset/%s/reflection/recommendation/%s", uuid, "invalidType")))
+            .buildPost(null),
+        ResponseList.class);
+  }
+
+  @Test
+  public void testReflectionRawRecommendation() throws Exception {
+    String uuid = getNamespaceService().getDataset(DATASET_PATH_2.toNamespaceKey()).getId().getId();
+    ResponseList responseRecommendedReflections =
+        expectSuccess(
+            getBuilder(
+                    getAPIv3()
+                        .path(
+                            String.format(
+                                "/dataset/%s/reflection/recommendation/%s",
+                                uuid, ReflectionSuggestionType.RAW)))
+                .buildPost(null),
+            ResponseList.class);
+
+    assertNotNull(responseRecommendedReflections);
+    List<Map<String, Object>> recommendedReflections = responseRecommendedReflections.getData();
+    assertEquals(1, recommendedReflections.size());
+
+    verifyRawReflection(
+        recommendedReflections.get(0),
+        true,
+        false,
+        ImmutableList.of(
+            new ReflectionField("key"), new ReflectionField("value"), new ReflectionField("loc")));
+  }
+
+  @Test
+  public void testReflectionAggRecommendation() throws Exception {
+    String uuid = getNamespaceService().getDataset(DATASET_PATH_2.toNamespaceKey()).getId().getId();
+    ResponseList responseRecommendedReflectionsLowercase =
+        expectSuccess(
+            getBuilder(
+                    getAPIv3()
+                        .path(
+                            String.format("/dataset/%s/reflection/recommendation/%s", uuid, "agg")))
+                .buildPost(null),
+            ResponseList.class);
+
+    assertNotNull(responseRecommendedReflectionsLowercase);
+    List<Map<String, Object>> recommendedReflectionsLowercase =
+        responseRecommendedReflectionsLowercase.getData();
+    assertEquals(1, recommendedReflectionsLowercase.size());
+
+    verifyAggReflection(
+        recommendedReflectionsLowercase.get(0),
+        true,
+        false,
+        ImmutableList.of(
+            new ReflectionDimensionField("key").setGranularity(DimensionGranularity.DATE)),
+        ImmutableList.of(
+            new ReflectionMeasureField("value")
+                .setMeasureTypeList(ImmutableList.of(MeasureType.COUNT, MeasureType.SUM))));
+  }
+
+  @Test
+  public void testReflectionAllRecommendation() throws Exception {
+    String uuid = getNamespaceService().getDataset(DATASET_PATH_2.toNamespaceKey()).getId().getId();
+    ResponseList responseRecommendedReflections =
+        expectSuccess(
+            getBuilder(
+                    getAPIv3()
+                        .path(
+                            String.format(
+                                "/dataset/%s/reflection/recommendation/%s",
+                                uuid, ReflectionSuggestionType.ALL)))
+                .buildPost(null),
+            ResponseList.class);
+
+    assertNotNull(responseRecommendedReflections);
+    List<Map<String, Object>> recommendedReflections = responseRecommendedReflections.getData();
+    assertEquals(2, recommendedReflections.size());
+
+    verifyRawReflection(
+        recommendedReflections.get(0),
+        true,
+        false,
+        ImmutableList.of(
+            new ReflectionField("key"), new ReflectionField("value"), new ReflectionField("loc")));
+
+    verifyAggReflection(
+        recommendedReflections.get(1),
+        true,
+        false,
+        ImmutableList.of(
+            new ReflectionDimensionField("key").setGranularity(DimensionGranularity.DATE)),
+        ImmutableList.of(
+            new ReflectionMeasureField("value")
+                .setMeasureTypeList(ImmutableList.of(MeasureType.COUNT, MeasureType.SUM))));
+  }
+
+  private void verifyRawReflection(
+      Map<String, Object> reflectionToVerify,
+      boolean enabled,
+      boolean arrowCachingEnabled,
+      List<ReflectionField> displayFields) {
+    assertEquals(ReflectionType.RAW.toString(), reflectionToVerify.get("type"));
+    assertEquals(enabled, reflectionToVerify.get("enabled"));
+    assertEquals(arrowCachingEnabled, reflectionToVerify.get("arrowCachingEnabled"));
+
+    List<Map<String, String>> displayFieldsMap =
+        (List<Map<String, String>>) reflectionToVerify.get("displayFields");
+    assertEquals(displayFields.size(), displayFieldsMap.size());
+    for (int i = 0; i < displayFields.size(); i++) {
+      assertEquals(displayFields.get(i).getName(), displayFieldsMap.get(i).get("name"));
+    }
+  }
+
+  private void verifyAggReflection(
+      Map<String, Object> reflectionToVerify,
+      boolean enabled,
+      boolean arrowCachingEnabled,
+      List<ReflectionDimensionField> dimensionFields,
+      List<ReflectionMeasureField> measureFields) {
+    assertEquals(ReflectionType.AGGREGATION.toString(), reflectionToVerify.get("type"));
+    assertEquals(enabled, reflectionToVerify.get("enabled"));
+    assertEquals(arrowCachingEnabled, reflectionToVerify.get("arrowCachingEnabled"));
+
+    List<Map<String, String>> dimensionFieldsMap =
+        (List<Map<String, String>>) reflectionToVerify.get("dimensionFields");
+    assertEquals(dimensionFields.size(), dimensionFieldsMap.size());
+    for (int i = 0; i < dimensionFields.size(); i++) {
+      assertEquals(dimensionFields.get(i).getName(), dimensionFieldsMap.get(i).get("name"));
+      assertEquals(
+          dimensionFields.get(i).getGranularity().toString(),
+          dimensionFieldsMap.get(i).get("granularity"));
+    }
+
+    List<Map<String, Object>> measureFieldsMap =
+        (List<Map<String, Object>>) reflectionToVerify.get("measureFields");
+    assertEquals(measureFields.size(), measureFieldsMap.size());
+    for (int i = 0; i < measureFields.size(); i++) {
+      assertEquals(measureFields.get(i).getName(), measureFieldsMap.get(i).get("name"));
+
+      List<MeasureType> expectedMeasureTypeList = measureFields.get(i).getMeasureTypeList();
+      List<String> measureTypeList = (List<String>) measureFieldsMap.get(i).get("measureTypeList");
+      assertEquals(expectedMeasureTypeList.size(), measureTypeList.size());
+      for (int j = 0; j < measureFields.size(); j++) {
+        assertEquals(expectedMeasureTypeList.get(i).toString(), measureTypeList.get(i));
+      }
     }
   }
 }

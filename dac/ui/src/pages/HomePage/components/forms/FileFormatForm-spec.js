@@ -19,7 +19,7 @@ import { injectIntl } from "react-intl";
 import Immutable from "immutable";
 import { minimalFormProps } from "testUtil";
 import { FileFormatForm } from "./FileFormatForm";
-import { ExcelFormatForm, TextFormatForm, XLSFormatForm } from "./FormatForms";
+import { ExcelFormatForm, TextFormatForm, XLSFormatForm, ParquetFormatForm } from "./FormatForms";
 
 const FileFormatFormIntl = injectIntl(FileFormatForm);
 describe("FileFormatForm", () => {
@@ -109,6 +109,7 @@ describe("FileFormatForm", () => {
       expect(wrapper.find(TextFormatForm)).to.have.length(1);
       expect(wrapper.find(ExcelFormatForm)).to.have.length(0);
       expect(wrapper.find(XLSFormatForm)).to.have.length(0);
+      expect(wrapper.find(ParquetFormatForm)).to.have.length(0);
     });
 
     it("should render ExcelFormatForm if current type of format is Excel", () => {
@@ -125,6 +126,7 @@ describe("FileFormatForm", () => {
       expect(wrapper.find(TextFormatForm)).to.have.length(0);
       expect(wrapper.find(ExcelFormatForm)).to.have.length(1);
       expect(wrapper.find(XLSFormatForm)).to.have.length(0);
+      expect(wrapper.find(ParquetFormatForm)).to.have.length(0);
     });
 
     it("should render XLSFormatForm if current type of format is XLS", () => {
@@ -141,6 +143,49 @@ describe("FileFormatForm", () => {
       expect(wrapper.find(TextFormatForm)).to.have.length(0);
       expect(wrapper.find(ExcelFormatForm)).to.have.length(0);
       expect(wrapper.find(XLSFormatForm)).to.have.length(1);
+      expect(wrapper.find(ParquetFormatForm)).to.have.length(0);
+    });
+
+    it("should render ParquetFormatForm if current type of format is Parquet and the path is a folder", () => {
+      wrapper.setProps({
+        fields: {
+          type: {
+            value: "Parquet",
+          },
+          isFolder: {
+            value: true,
+          },
+        },
+        values: {
+          type: "Parquet",
+          isFolder: true
+        },
+      });
+      expect(wrapper.find(TextFormatForm)).to.have.length(0);
+      expect(wrapper.find(ExcelFormatForm)).to.have.length(0);
+      expect(wrapper.find(XLSFormatForm)).to.have.length(0);
+      expect(wrapper.find(ParquetFormatForm)).to.have.length(1);
+    });
+
+    it("should not render ParquetFormatForm if current type of format is Parquet but the path is not a folder", () => {
+      wrapper.setProps({
+        fields: {
+          type: {
+            value: "Parquet",
+          },
+          isFolder: {
+            value: false,
+          },
+        },
+        values: {
+          type: "Parquet",
+          isFolder: false
+        },
+      });
+      expect(wrapper.find(TextFormatForm)).to.have.length(0);
+      expect(wrapper.find(ExcelFormatForm)).to.have.length(0);
+      expect(wrapper.find(XLSFormatForm)).to.have.length(0);
+      expect(wrapper.find(ParquetFormatForm)).to.have.length(0);
     });
   });
 });

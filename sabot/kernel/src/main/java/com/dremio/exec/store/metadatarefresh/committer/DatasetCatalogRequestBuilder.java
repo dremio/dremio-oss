@@ -129,13 +129,18 @@ public final class DatasetCatalogRequestBuilder {
     if (fileConfig != null) {
       final FileProtobuf.FileType fileType =
           FileProtobuf.FileType.valueOf(fileConfig.getType().name());
-      request
-          .getDatasetConfigBuilder()
-          .getFileFormatBuilder()
-          .setType(fileType)
-          .setCtime(0L)
-          .setExtendedConfig(ByteString.EMPTY)
-          .setLocation(tableLocation);
+      FileProtobuf.FileConfig.Builder builder =
+          request
+              .getDatasetConfigBuilder()
+              .getFileFormatBuilder()
+              .setType(fileType)
+              .setCtime(0L)
+              .setExtendedConfig(ByteString.EMPTY)
+              .setLocation(tableLocation);
+      String fileNameRegex = fileConfig.getFileNameRegex();
+      if (fileNameRegex != null) {
+        builder.setFileNameRegex(fileNameRegex);
+      }
     }
 
     request.getDatasetConfigBuilder().setIcebergMetadataEnabled(true);

@@ -22,9 +22,7 @@ import org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 
 /**
  * Factory to provide the appropriate AWSCredentialsProvider based on a Configuration.
@@ -36,6 +34,8 @@ public final class DremioAWSCredentialsProviderFactoryV2 {
 
   // AWS Credential providers
   public static final String ACCESS_KEY_PROVIDER = SimpleAWSCredentialsProvider.NAME;
+  public static final String GLUE_ACCESS_KEY_PROVIDER =
+      "com.dremio.exec.store.hive.GlueAWSCredentialsProvider";
   public static final String EC2_METADATA_PROVIDER =
       "com.amazonaws.auth.InstanceProfileCredentialsProvider";
   public static final String NONE_PROVIDER = AnonymousAWSCredentialsProvider.NAME;
@@ -60,9 +60,8 @@ public final class DremioAWSCredentialsProviderFactoryV2 {
 
     switch (config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
-        return StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(
-                config.get(Constants.ACCESS_KEY), config.get(Constants.SECRET_KEY)));
+      case GLUE_ACCESS_KEY_PROVIDER:
+        return new GlueAwsCredentialsProviderV2(null, config);
       case EC2_METADATA_PROVIDER:
         return new SharedInstanceProfileCredentialsProvider();
       case NONE_PROVIDER:

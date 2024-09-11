@@ -18,6 +18,8 @@ package com.dremio.common.exceptions;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wraps a DremioPBError object so we don't need to rebuilt it multiple times when sending it to the
@@ -25,10 +27,12 @@ import java.util.List;
  */
 public final class UserRemoteException extends UserException {
 
+  private static final Logger logger = LoggerFactory.getLogger(UserRemoteException.class);
   private final DremioPBError error;
 
   private UserRemoteException(DremioPBError error) {
     super(error.getErrorType(), "Dremio Remote Exception", null, error.getTypeSpecificContext());
+    super.addErrorOrigin(error.getErrorOrigin());
     this.error = error;
   }
 
@@ -56,6 +60,26 @@ public final class UserRemoteException extends UserException {
       sb.append("\n\n");
       for (String context : error.getContextList()) {
         sb.append(context).append("\n");
+      }
+    }
+    if (error.getErrorOrigin() != null) {
+      sb.append("\nErrorOrigin: ");
+      sb.append(error.getErrorOrigin());
+      sb.append("\n");
+    }
+    if (error.hasTypeSpecificContext()) {
+      if (error.getErrorType() == DremioPBError.ErrorType.OUT_OF_MEMORY) {
+        try {
+          OutOfMemoryOrResourceExceptionContext oomExceptionContext =
+              OutOfMemoryOrResourceExceptionContext.fromUserException(this);
+          sb.append("OOM Type: ");
+          sb.append(oomExceptionContext.getMemoryType());
+          sb.append("\n");
+          sb.append("OOM Details: ");
+          sb.append(oomExceptionContext.getAdditionalInfo());
+        } catch (Exception e) {
+          logger.error("Exception during parsing OutOfMemoryExceptionContext, but ignored ", e);
+        }
       }
     }
 

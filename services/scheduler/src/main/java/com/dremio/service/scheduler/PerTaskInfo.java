@@ -21,6 +21,8 @@ package com.dremio.service.scheduler;
  * <p>Used internally only
  */
 interface PerTaskInfo extends PerTaskSchedule {
+  long INVALID_SESSION_ID = 0L;
+
   // fully qualified booking path for the task
   String getBookFqPathLocal();
 
@@ -30,6 +32,10 @@ interface PerTaskInfo extends PerTaskSchedule {
   // is this instance the current booking owner?
   boolean isBookingOwner();
 
+  long getBookingOwnerSessionId();
+
   // is this task done already?
   boolean isDone();
+
+  boolean notInRunSet();
 }

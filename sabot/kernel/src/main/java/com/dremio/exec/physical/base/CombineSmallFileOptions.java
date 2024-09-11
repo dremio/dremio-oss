@@ -35,6 +35,19 @@ public interface CombineSmallFileOptions {
   @Nullable
   Long getTargetFileSize();
 
+  /**
+   * If we use a single writer to combine small files. True: worse performance, can only generate at
+   * most one small file False: better performance, could generate multiple small files
+   */
+  boolean getIsSingleWriter();
+
+  /**
+   * Small file combination has two phases of writing: 1. Regular data writing phase from
+   * DML/Optimize queries 2. Small file combination writing phase True: current writing is small
+   * file combination writing phase False: current writing is regular data file writing phase
+   */
+  boolean getIsSmallFileWriter();
+
   static ImmutableCombineSmallFileOptions.Builder builder() {
     return new ImmutableCombineSmallFileOptions.Builder();
   }

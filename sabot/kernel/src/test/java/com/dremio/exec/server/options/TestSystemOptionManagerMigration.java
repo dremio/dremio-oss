@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
@@ -32,6 +33,7 @@ import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import java.util.Arrays;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,7 +43,7 @@ public class TestSystemOptionManagerMigration extends DremioTest {
   private LegacyKVStoreProvider kvStoreProvider;
   private LogicalPlanPersistence lpp;
   private OptionValidatorListingImpl optionValidatorListing;
-  private SystemOptionManager som;
+  private SystemOptionManagerImpl som;
 
   @Before
   public void before() throws Exception {
@@ -50,7 +52,7 @@ public class TestSystemOptionManagerMigration extends DremioTest {
     lpp = new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT);
     optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
     som =
-        new SystemOptionManager(
+        new SystemOptionManagerImpl(
             optionValidatorListing,
             lpp,
             () -> kvStoreProvider,
@@ -59,13 +61,18 @@ public class TestSystemOptionManagerMigration extends DremioTest {
             false);
   }
 
+  @After
+  public void after() throws Exception {
+    AutoCloseables.close(som, kvStoreProvider);
+  }
+
   @Test
   public void testMigrationFromJson() throws Exception {
     // Legacy Store to directly add legacy options
     final OptionValueStore legacyStore =
         new OptionValueStore(
             () -> kvStoreProvider,
-            SystemOptionManager.LegacyJacksonOptionStoreCreator.class,
+            SystemOptionManagerImpl.LegacyJacksonOptionStoreCreator.class,
             new JacksonSerializer<>(lpp.getMapper(), OptionValue.class));
     legacyStore.start();
 
@@ -97,7 +104,7 @@ public class TestSystemOptionManagerMigration extends DremioTest {
   public void testMigrationFromProto() throws Exception {
     // Legacy Store to directly add legacy options
     final LegacyKVStore<String, OptionValueProto> legacyStore =
-        kvStoreProvider.getStore(SystemOptionManager.LegacyProtoOptionStoreCreator.class);
+        kvStoreProvider.getStore(SystemOptionManagerImpl.LegacyProtoOptionStoreCreator.class);
 
     // put some options with old protobuf format
     final OptionValue option1 =
@@ -130,7 +137,7 @@ public class TestSystemOptionManagerMigration extends DremioTest {
   @Test
   public void testIgnoreInvalidOption() throws Exception {
     final LegacyKVStore<String, OptionValueProto> legacyStore =
-        kvStoreProvider.getStore(SystemOptionManager.LegacyProtoOptionStoreCreator.class);
+        kvStoreProvider.getStore(SystemOptionManagerImpl.LegacyProtoOptionStoreCreator.class);
 
     final OptionValue option1 =
         OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "invalid", true);
@@ -150,7 +157,7 @@ public class TestSystemOptionManagerMigration extends DremioTest {
   @Test
   public void testIgnoreInvalidOptionOutsideOfMigration() throws Exception {
     final LegacyKVStore<String, OptionValueProtoList> store =
-        kvStoreProvider.getStore(SystemOptionManager.OptionStoreCreator.class);
+        kvStoreProvider.getStore(SystemOptionManagerImpl.OptionStoreCreator.class);
 
     // A Valid option
     final OptionValue validOption =
@@ -161,7 +168,7 @@ public class TestSystemOptionManagerMigration extends DremioTest {
         OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "invalid", true);
 
     store.put(
-        SystemOptionManager.OPTIONS_KEY,
+        SystemOptionManagerImpl.OPTIONS_KEY,
         OptionValueProtoUtils.toOptionValueProtoList(
             Arrays.asList(
                 OptionValueProtoUtils.toOptionValueProto(validOption),

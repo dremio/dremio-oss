@@ -59,11 +59,9 @@ public class TestSysFlightProducer extends BaseTestQuery {
   @BeforeClass
   public static void setup() throws Exception {
     allocator =
-        getSabotContext()
-            .getAllocator()
-            .newChildAllocator("sys-flight-allocator", 0, Long.MAX_VALUE);
+        getDremioRootAllocator().newChildAllocator("sys-flight-allocator", 0, Long.MAX_VALUE);
     SystemTableManager tableManager =
-        new SystemTableManagerImpl(allocator, SYS_FLIGHT_RESOURCE::getTablesProvider);
+        new SystemTableManagerImpl(allocator, SYS_FLIGHT_RESOURCE::getTablesProvider, null);
     producer = new SysFlightProducer(() -> tableManager);
 
     Location location = null;

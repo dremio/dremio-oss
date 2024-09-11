@@ -18,6 +18,7 @@ package com.dremio.dac.api;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /** Home space */
 public class Home implements CatalogEntity {
@@ -25,17 +26,24 @@ public class Home implements CatalogEntity {
   private final String name;
   private final String tag;
   private final List<CatalogItem> children;
+  private final String nextPageToken;
+
+  public Home(String id, String name, String tag, List<CatalogItem> children) {
+    this(id, name, tag, children, null);
+  }
 
   @JsonCreator
   public Home(
       @JsonProperty("id") String id,
       @JsonProperty("name") String name,
       @JsonProperty("tag") String tag,
-      @JsonProperty("children") List<CatalogItem> children) {
+      @JsonProperty("children") List<CatalogItem> children,
+      @JsonProperty("nextPageToken") @Nullable String nextPageToken) {
     this.id = id;
     this.name = name;
     this.tag = tag;
     this.children = children;
+    this.nextPageToken = nextPageToken;
   }
 
   @Override
@@ -53,5 +61,11 @@ public class Home implements CatalogEntity {
 
   public String getTag() {
     return tag;
+  }
+
+  @Nullable
+  @Override
+  public String getNextPageToken() {
+    return nextPageToken;
   }
 }

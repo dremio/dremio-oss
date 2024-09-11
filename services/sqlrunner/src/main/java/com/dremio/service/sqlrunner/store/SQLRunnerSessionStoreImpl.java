@@ -134,10 +134,10 @@ public class SQLRunnerSessionStoreImpl implements SQLRunnerSessionStore {
     private final Integer version = 0;
 
     @Override
-    public void convert(DocumentWriter writer, String key, SQLRunnerSession record) {
-      writer.write(USER_ID, record.getUserId());
-      writer.writeTTLExpireAt(EXPIRE_AT, record.getTtlExpireAt());
-      writer.write(EXPIRE_AT_LONG, record.getTtlExpireAt());
+    public void convert(DocumentWriter writer, String key, SQLRunnerSession document) {
+      writer.write(USER_ID, document.getUserId());
+      writer.writeTTLExpireAt(EXPIRE_AT, document.getTtlExpireAt());
+      writer.write(EXPIRE_AT_LONG, document.getTtlExpireAt());
     }
 
     @Override

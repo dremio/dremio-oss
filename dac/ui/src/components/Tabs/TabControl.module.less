@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-
 .tabRoot {
   display: flex;
   flex-direction: column;
@@ -29,19 +27,19 @@
 }
 .tabBase {
   display: inline-block;
-  color: var(--color--neutral--900);
+  color: var(--text--primary);
   padding: 5px 10px;
   cursor: pointer;
   text-align: center;
   border-radius: 2px;
   font-size: 13px;
-  color: var(--dremio--color--text--main);
+  color: var(--text--primary);
   &:hover {
     text-decoration: underline;
   }
 }
 .tabSelected {
-  background-color: @LEGACY_SECONDARY_BORDER;
+  background-color: var(--fill--tertiary);
   cursor: default;
   &:hover {
     text-decoration: none;

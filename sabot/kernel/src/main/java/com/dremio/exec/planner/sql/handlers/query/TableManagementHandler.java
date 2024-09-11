@@ -17,14 +17,11 @@ package com.dremio.exec.planner.sql.handlers.query;
 
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME;
 
-import com.dremio.catalog.model.CatalogEntityKey;
-import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.calcite.logical.TableOptimizeCrel;
 import com.dremio.exec.calcite.logical.VacuumTableCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
-import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
@@ -40,7 +37,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
@@ -88,10 +84,6 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
   /** */
   protected abstract SqlOperator getSqlOperator();
 
-  /** Privileges that are needed to run the query. */
-  protected abstract void validatePrivileges(
-      Catalog catalog, CatalogEntityKey path, SqlNode sqlNode) throws Exception;
-
   protected abstract Rel convertToDrel(
       SqlHandlerConfig config,
       SqlNode sqlNode,
@@ -105,15 +97,10 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
     throw new UnsupportedOperationException();
   }
 
-  protected static RelNode rewriteCrel(RelNode relNode, CreateTableEntry createTableEntry) {
-    return ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(
-        CrelInputRewriter.castIfRequired(
-            CrelCreateTableEntryApplier.apply(relNode, createTableEntry)));
-  }
-
-  protected static RelNode rewriteCrel(RelNode relNode) {
-    return ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(
-        CrelInputRewriter.castIfRequired(CrelEntryApplier.apply(relNode)));
+  protected static RelNode createTableEntryShuttle(
+      RelNode relNode, CreateTableEntry createTableEntry) {
+    return CrelInputRewriter.castIfRequired(
+        CrelCreateTableEntryApplier.apply(relNode, createTableEntry));
   }
 
   private static class CrelCreateTableEntryApplier extends StatelessRelShuttleImpl {
@@ -144,66 +131,6 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
       }
 
       return super.visit(other);
-    }
-  }
-
-  private static class CrelEntryApplier extends StatelessRelShuttleImpl {
-
-    public static RelNode apply(RelNode relNode) {
-      CrelEntryApplier applier = new CrelEntryApplier();
-      return applier.visit(relNode);
-    }
-
-    @Override
-    public RelNode visit(RelNode other) {
-      return super.visit(other);
-    }
-  }
-
-  public static class ScanCrelSubstitutionRewriter extends StatelessRelShuttleImpl {
-    private NamespaceKey targetTableName = null;
-
-    public static RelNode disableScanCrelSubstitution(RelNode root) {
-      ScanCrelSubstitutionRewriter rewriter = new ScanCrelSubstitutionRewriter();
-      return rewriter.visit(root);
-    }
-
-    @Override
-    public RelNode visit(RelNode other) {
-      if (other instanceof TableModifyCrel) {
-        targetTableName = ((DremioPrepareTable) other.getTable()).getTable().getPath();
-      }
-
-      RelNode ret = super.visit(other);
-      if (other instanceof TableModifyCrel) {
-        targetTableName = null;
-      }
-      return ret;
-    }
-
-    @Override
-    public RelNode visit(TableScan scan) {
-      if (!(scan instanceof ScanCrel)
-          || targetTableName == null // we only care the ScanCrels inside TableModifyCrel
-          || !((ScanCrel) scan).getTableMetadata().getName().equals(targetTableName)) {
-        return super.visit(scan);
-      }
-
-      ScanCrel oldScan = ((ScanCrel) scan);
-      // disable reflection by set ScanCrel's 'isSubstitutable' false
-      ScanCrel newScan =
-          new ScanCrel(
-              oldScan.getCluster(),
-              oldScan.getTraitSet(),
-              oldScan.getPluginId(),
-              oldScan.getTableMetadata(),
-              oldScan.getProjectedColumns(),
-              oldScan.getObservedRowcountAdjustment(),
-              oldScan.getHints(),
-              oldScan.isDirectNamespaceDescendent(),
-              false,
-              oldScan.getSnapshotDiffContext());
-      return super.visit(newScan);
     }
   }
 

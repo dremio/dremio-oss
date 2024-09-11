@@ -54,8 +54,7 @@ public class ITTestClient extends ElasticBaseTestQuery {
   @Before
   public void before() throws Exception {
     super.before();
-    ElasticsearchStoragePlugin plugin =
-        getSabotContext().getCatalogService().getSource("elasticsearch");
+    ElasticsearchStoragePlugin plugin = getCatalogService().getSource("elasticsearch");
     connection = plugin.getRandomConnection();
   }
 

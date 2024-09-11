@@ -197,14 +197,6 @@ public class TestDatasetProfiles extends BaseTestServer {
         Collections.singletonList(inner));
   }
 
-  private static JobsService getJobsService() {
-    return p(JobsService.class).get();
-  }
-
-  private static NamespaceService getNamespaceService() {
-    return p(NamespaceService.class).get();
-  }
-
   private static QueryProfile getQueryProfile(final String query) throws Exception {
     final JobRequest request =
         JobRequest.newBuilder()
@@ -221,8 +213,8 @@ public class TestDatasetProfiles extends BaseTestServer {
     final String dataFile = file.getAbsolutePath();
     // TODO write each record in a separate file, so we can cause a union type for example
     try (PrintWriter writer = new PrintWriter(file)) {
-      for (String record : jsonData) {
-        writer.println(record);
+      for (String rec : jsonData) {
+        writer.println(rec);
       }
     }
     final DatasetPath path = new DatasetPath(ImmutableList.of("dfs", dataFile));

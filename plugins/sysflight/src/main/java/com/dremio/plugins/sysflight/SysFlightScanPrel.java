@@ -158,7 +158,8 @@ public class SysFlightScanPrel extends ScanPrelBase {
         query,
         pluginId,
         isDistributed,
-        executorCount);
+        executorCount,
+        null);
   }
 
   @Override

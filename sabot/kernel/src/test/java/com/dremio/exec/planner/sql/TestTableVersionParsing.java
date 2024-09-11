@@ -24,9 +24,7 @@ import static org.mockito.Mockito.when;
 
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacro;
@@ -439,15 +437,6 @@ public class TestTableVersionParsing {
   }
 
   @Test
-  public void testTableWithSnapshotVersionFailsWithFeatureDisabled() {
-    assertThatThrownBy(
-            () ->
-                parseAndValidate(
-                    "SELECT * FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(), false))
-        .isInstanceOf(UserException.class);
-  }
-
-  @Test
   public void testQuotedTableName() throws Exception {
     TableMacroInvocation expected =
         new TableMacroInvocation(
@@ -469,7 +458,7 @@ public class TestTableVersionParsing {
             new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
     parseAndValidate(
-        "SELECT table1.id FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true, true);
+        "SELECT table1.id FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true);
   }
 
   @Test
@@ -641,23 +630,14 @@ public class TestTableVersionParsing {
     Assert.assertEquals(sqlString, expectedUnparsedString);
   }
 
-  public void parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations)
-      throws Exception {
-    parseAndValidate(sql, expectedTableMacroInvocations, true, false);
+  public SqlNode parseAndValidate(
+      String sql, List<TableMacroInvocation> expectedTableMacroInvocations) throws Exception {
+    return parseAndValidate(sql, expectedTableMacroInvocations, false);
   }
 
   public SqlNode parseAndValidate(
       String sql,
       List<TableMacroInvocation> expectedTableMacroInvocations,
-      boolean enableTimeTravel)
-      throws Exception {
-    return parseAndValidate(sql, expectedTableMacroInvocations, enableTimeTravel, false);
-  }
-
-  public SqlNode parseAndValidate(
-      String sql,
-      List<TableMacroInvocation> expectedTableMacroInvocations,
-      boolean enableTimeTravel,
       boolean validateWithDeepCopy)
       throws Exception {
     // Mocks required for validator and expression resolver
@@ -671,10 +651,7 @@ public class TestTableVersionParsing {
     when(cluster.getRexBuilder()).thenReturn(rexBuilder);
     final ContextInformation contextInformation = mock(ContextInformation.class);
     final ConvertletTable convertletTable = new ConvertletTable(false);
-    final OptionResolver optionResolver =
-        OptionResolverSpecBuilder.build(
-            new OptionResolverSpec()
-                .addOption(ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL, enableTimeTravel));
+    final OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
 
     // Setup a mock per table macro so that we can associate expecteds to a specific macro
     // invocation

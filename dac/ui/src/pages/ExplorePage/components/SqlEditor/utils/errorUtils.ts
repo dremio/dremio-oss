@@ -48,7 +48,7 @@ export const DEFAULT_ERROR_MESSAGE = "Error";
  * NOTE: if this behavior changes on the server, this is the place to update.
  */
 const getSqlError = (
-  errorResponse: ErrorResponse | undefined
+  errorResponse: ErrorResponse | undefined,
 ): RawErrorInfo | undefined => {
   return errorResponse?.details?.errors?.[0];
 };
@@ -59,7 +59,7 @@ const getSqlError = (
  */
 const getErrorRange = (
   statementRange: QueryRange,
-  relativeErrorRange: QueryRangeResponse | undefined
+  relativeErrorRange: QueryRangeResponse | undefined,
 ): QueryRange => {
   if (relativeErrorRange === undefined) {
     return statementRange;
@@ -93,7 +93,7 @@ const getErrorRange = (
  */
 export const extractSqlErrorFromResponse = (
   errorResponse: ErrorResponse | undefined,
-  queryRange: QueryRange
+  queryRange: QueryRange,
 ): SqlError => {
   const sqlError = getSqlError(errorResponse);
   if (!sqlError) {

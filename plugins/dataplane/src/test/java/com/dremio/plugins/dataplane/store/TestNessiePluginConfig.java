@@ -15,8 +15,6 @@
  */
 package com.dremio.plugins.dataplane.store;
 
-import static com.dremio.exec.ExecConstants.VERSIONED_SOURCE_CAPABILITIES_USE_NATIVE_PRIVILEGES_ENABLED;
-import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_AZURE_STORAGE_ENABLED;
 import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
 import static com.dremio.nessiemetadata.cache.NessieMetadataCacheOptions.BYPASS_DATAPLANE_CACHE;
 import static com.dremio.nessiemetadata.cache.NessieMetadataCacheOptions.DATAPLANE_ICEBERG_METADATA_CACHE_EXPIRE_AFTER_ACCESS_MINUTES;
@@ -29,584 +27,599 @@ import static com.dremio.plugins.dataplane.CredentialsProviderConstants.ASSUME_R
 import static com.dremio.plugins.dataplane.CredentialsProviderConstants.AWS_PROFILE_PROVIDER;
 import static com.dremio.plugins.dataplane.CredentialsProviderConstants.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.dataplane.CredentialsProviderConstants.NONE_PROVIDER;
-import static com.dremio.plugins.dataplane.NessiePluginConfigConstants.MINIMUM_NESSIE_SPECIFICATION_VERSION;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
-import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.InvalidNessieApiVersionException;
-import com.dremio.exec.store.InvalidSpecificationVersionException;
-import com.dremio.exec.store.InvalidURLException;
-import com.dremio.exec.store.SemanticVersionParserException;
-import com.dremio.exec.store.UnAuthenticatedException;
 import com.dremio.options.OptionManager;
-import com.dremio.plugins.NessieClient;
 import com.dremio.plugins.UsernameAwareNessieClientImpl;
 import com.dremio.plugins.azure.AzureAuthenticationType;
-import com.dremio.service.namespace.SourceState;
+import com.dremio.plugins.dataplane.store.AbstractDataplanePluginConfig.StorageProviderType;
+import com.dremio.plugins.gcs.GCSConf.AuthMode;
 import com.dremio.service.users.UserService;
 import com.google.common.collect.ImmutableList;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 import org.apache.hadoop.fs.s3a.Constants;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.projectnessie.client.api.NessieApiV2;
-import org.projectnessie.client.http.NessieApiCompatibilityException;
-import org.projectnessie.model.NessieConfiguration;
 
+@MockitoSettings(strictness = Strictness.STRICT_STUBS)
 public class TestNessiePluginConfig {
 
-  @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
+  private static final String SOURCE_NAME = "testNessieSource";
+  public static final String NESSIE_URL = "http://localhost:19120/";
+  public static final String IGNORED = "ignored";
 
   @Mock private SabotContext sabotContext;
-
   @Mock private UserService userService;
-
   @Mock private OptionManager optionManager;
-
   @Mock private NessieApiV2 nessieApiV2;
 
-  @Mock private NessieConfiguration nessieConfiguration;
+  @Nested
+  class NessieConfig {
+    @Test
+    public void testGetNessieClient() {
+      NessiePluginConfig nessiePluginConfig = basicNessieConnectionConfig();
+      setUpNessieCacheSettings();
+      setUpUserService();
 
-  @Mock private NessieClient nessieClient;
+      // Currently NessiePlugin is using the wrapper UsernameAwareNessieClientImpl (on top of
+      // NessieClient). This is basically to test the correct NessieClient instance used from
+      // NessiePlugin. If there are multiple wrappers used for each service (like one for
+      // coordinator and another for executor), then this might break.
+      assertThat(nessiePluginConfig.getNessieClient(SOURCE_NAME, sabotContext))
+          .isInstanceOf(UsernameAwareNessieClientImpl.class);
+    }
 
-  private static final String SOURCE_NAME = "testNessieSource";
+    @Test
+    public void testGetNessieClientThrowsError() {
+      NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
+      nessiePluginConfig.nessieEndpoint = "invalid://test-nessie";
 
-  @Test
-  public void testAWSCredentialsProviderWithAccessKey() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.awsAccessKey = "test-access-key";
-    nessiePluginConfig.awsAccessSecret = () -> "test-access-key";
-    nessiePluginConfig.credentialType = AWSAuthenticationType.ACCESS_KEY;
-    List<Property> awsProviderProperties = new ArrayList<>();
-
-    assertThat(
-            nessiePluginConfig
-                .getAWSCredentialsProvider()
-                .configureCredentials(awsProviderProperties))
-        .isEqualTo(ACCESS_KEY_PROVIDER);
+      assertThatThrownBy(() -> nessiePluginConfig.getNessieClient(SOURCE_NAME, sabotContext))
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("must be a valid http or https address");
+    }
   }
 
-  @Test
-  public void testAWSCredentialsProviderWithAwsProfile() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    List<Property> awsProviderProperties = new ArrayList<>();
-    nessiePluginConfig.credentialType = AWSAuthenticationType.AWS_PROFILE;
-    nessiePluginConfig.awsProfile = "test-awsProfile";
+  @Nested
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS) // For MethodSource
+  class AwsStorageConfig {
+    @Test
+    public void testAwsIsStorageTypeIfUnset() {
+      NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
 
-    assertThat(
-            nessiePluginConfig
-                .getAWSCredentialsProvider()
-                .configureCredentials(awsProviderProperties))
-        .isEqualTo(AWS_PROFILE_PROVIDER);
-    Property expectedProperty =
-        new Property("com.dremio.awsProfile", nessiePluginConfig.awsProfile);
-    assertThat(awsProviderProperties.get(0).name).isEqualTo(expectedProperty.name);
-    assertThat(awsProviderProperties.get(0).value).isEqualTo(expectedProperty.value);
+      assertThat(nessiePluginConfig.getStorageProvider()).isEqualTo(StorageProviderType.AWS);
+    }
+
+    @Test
+    public void testAwsAccessKeyConfig() {
+      String awsAccessKey = "SomeAccessKey";
+      String awsAccessSecret = "SomeAccessSecret";
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+
+      nessiePluginConfig.credentialType = AWSAuthenticationType.ACCESS_KEY;
+      nessiePluginConfig.awsAccessKey = awsAccessKey;
+      nessiePluginConfig.awsAccessSecret = () -> awsAccessSecret;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(
+              Arrays.asList(
+                  new Property("fs.s3a.aws.credentials.provider", ACCESS_KEY_PROVIDER),
+                  new Property("fs.s3a.access.key", awsAccessKey),
+                  new Property("fs.s3a.secret.key", awsAccessSecret)));
+    }
+
+    @Test
+    public void testAwsEc2Metadata() {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+
+      nessiePluginConfig.credentialType = AWSAuthenticationType.EC2_METADATA;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .contains(new Property("fs.s3a.aws.credentials.provider", EC2_METADATA_PROVIDER));
+    }
+
+    @Test
+    public void testAwsEc2MetadataAndIamRole() {
+      String assumedRoleARN = "SomeAssumedRoleArn";
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+
+      nessiePluginConfig.assumedRoleARN = assumedRoleARN;
+      nessiePluginConfig.credentialType = AWSAuthenticationType.EC2_METADATA;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(
+              Arrays.asList(
+                  new Property("fs.s3a.aws.credentials.provider", ASSUME_ROLE_PROVIDER),
+                  new Property("fs.s3a.assumed.role.credentials.provider", EC2_METADATA_PROVIDER),
+                  new Property("fs.s3a.assumed.role.arn", assumedRoleARN)));
+    }
+
+    @Test
+    public void testAwsProfileConfig() {
+      String awsProfile = "SomeAwsProfile";
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+
+      nessiePluginConfig.credentialType = AWSAuthenticationType.AWS_PROFILE;
+      nessiePluginConfig.awsProfile = awsProfile;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(
+              Arrays.asList(
+                  new Property("fs.s3a.aws.credentials.provider", AWS_PROFILE_PROVIDER),
+                  new Property("com.dremio.awsProfile", awsProfile)));
+    }
+
+    @Test
+    public void testAwsNoneAuthConfig() {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+
+      nessiePluginConfig.credentialType = AWSAuthenticationType.NONE;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .contains(new Property("fs.s3a.aws.credentials.provider", NONE_PROVIDER));
+    }
+
+    @Test
+    public void testEncryptConnectionWithSecureAsFalse() {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+      nessiePluginConfig.credentialType = AWSAuthenticationType.NONE; // Unused, but required
+
+      nessiePluginConfig.secure = false;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .contains(new Property(SECURE_CONNECTIONS, "false"));
+    }
+
+    @Test
+    public void testEncryptConnectionWithSecureAsTrue() {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+      nessiePluginConfig.credentialType = AWSAuthenticationType.NONE; // Unused, but required
+
+      nessiePluginConfig.secure = true;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .contains(new Property(SECURE_CONNECTIONS, "true"));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = "invalid..bucketName")
+    public void testAwsInvalidRootPath(String awsRootPath) {
+      NessiePluginConfig nessiePluginConfig = setUpForStart();
+      nessiePluginConfig.awsRootPath = awsRootPath;
+
+      DataplanePlugin nessieSource = nessiePluginConfig.newPlugin(sabotContext, SOURCE_NAME, null);
+
+      assertThatThrownBy(nessieSource::start)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Invalid AWS S3 root path.");
+    }
+
+    @Test
+    public void testAwsMissingAuthType() {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+
+      nessiePluginConfig.credentialType = null;
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating an S3 connection.")
+          .hasMessageContaining("credentialType");
+    }
+
+    @Test
+    public void testAwsMissingAuthTypeWithKeySecret() {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+
+      nessiePluginConfig.credentialType = null;
+      nessiePluginConfig.awsAccessKey = IGNORED;
+      nessiePluginConfig.awsAccessSecret = SecretRef.of(IGNORED);
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating an S3 connection.")
+          .hasMessageContaining("credentialType");
+    }
+
+    private Stream<Arguments> missingAccessKeySecretConfigArguments() {
+      return Stream.of(
+          Arguments.of(null, null),
+          Arguments.of(IGNORED, null),
+          Arguments.of(null, IGNORED),
+          Arguments.of("", ""),
+          Arguments.of(IGNORED, ""),
+          Arguments.of("", IGNORED));
+    }
+
+    @ParameterizedTest
+    @MethodSource("missingAccessKeySecretConfigArguments")
+    public void testAwsMissingAccessKeySecret(String awsAccessKey, String awsAccessSecret) {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+      nessiePluginConfig.credentialType = AWSAuthenticationType.ACCESS_KEY;
+
+      nessiePluginConfig.awsAccessKey = awsAccessKey;
+      nessiePluginConfig.awsAccessSecret = SecretRef.of(awsAccessSecret);
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating an S3 connection.")
+          .hasMessageContaining("awsAccessKey")
+          .hasMessageContaining("awsAccessSecret");
+    }
+
+    @Test
+    public void testNessiePluginConfigIncludesS3APerfOptimizations() {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+      nessiePluginConfig.credentialType = AWSAuthenticationType.NONE; // Unused, but required
+
+      List<Property> expected =
+          ImmutableList.of(
+              new Property(Constants.CREATE_FILE_STATUS_CHECK, "false"),
+              new Property(
+                  Constants.DIRECTORY_MARKER_POLICY, Constants.DIRECTORY_MARKER_POLICY_KEEP));
+      assertThat(nessiePluginConfig.getProperties()).containsAll(expected);
+    }
+
+    @Test
+    public void testNessiePluginConfigCanOverrideS3APerfOptimizations() {
+      NessiePluginConfig nessiePluginConfig = basicAwsConfig();
+      nessiePluginConfig.credentialType = AWSAuthenticationType.NONE; // Unused, but required
+      List<Property> overrides =
+          ImmutableList.of(
+              new Property(Constants.CREATE_FILE_STATUS_CHECK, "true"),
+              new Property(
+                  Constants.DIRECTORY_MARKER_POLICY, Constants.DIRECTORY_MARKER_POLICY_DELETE));
+
+      nessiePluginConfig.propertyList = overrides;
+
+      List<Property> notExpected =
+          ImmutableList.of(
+              new Property(Constants.CREATE_FILE_STATUS_CHECK, "false"),
+              new Property(
+                  Constants.DIRECTORY_MARKER_POLICY, Constants.DIRECTORY_MARKER_POLICY_KEEP));
+      List<Property> properties = nessiePluginConfig.getProperties();
+      assertThat(properties).containsAll(overrides);
+      assertThat(properties).doesNotContainAnyElementsOf(notExpected);
+    }
   }
 
-  @Test
-  public void testAWSCredentialsProviderWithNoneAuthentication() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    List<Property> awsProviderProperties = new ArrayList<>();
-    nessiePluginConfig.credentialType = AWSAuthenticationType.NONE;
-    assertThat(
-            nessiePluginConfig
-                .getAWSCredentialsProvider()
-                .configureCredentials(awsProviderProperties))
-        .isEqualTo(NONE_PROVIDER);
+  @Nested
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS) // For MethodSource
+  class AzureStorageConfig {
+    @Test
+    public void testAzureFilesystemConfig() {
+      NessiePluginConfig nessiePluginConfig = basicAzureConfig();
+      nessiePluginConfig.azureAuthenticationType =
+          AzureAuthenticationType.ACCESS_KEY; // Unused, but required
+      nessiePluginConfig.azureAccessKey = () -> IGNORED;
+      final String azureStorageAccount = "SomeStorageAccount";
+      final String azureRootPath = "SomeRootPath";
+
+      nessiePluginConfig.azureStorageAccount = azureStorageAccount;
+      nessiePluginConfig.azureRootPath = azureRootPath;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(
+              Arrays.asList(
+                  new Property("dremio.azure.mode", "STORAGE_V2"),
+                  new Property("dremio.azure.account", azureStorageAccount),
+                  new Property("dremio.azure.rootPath", azureRootPath)));
+    }
+
+    @Test
+    public void testAzureAccessKeyConfig() {
+      NessiePluginConfig nessiePluginConfig = basicAzureConfig();
+      nessiePluginConfig.azureStorageAccount = IGNORED;
+      final String azureAccessKey = "SomeAccessKey";
+
+      nessiePluginConfig.azureAuthenticationType = AzureAuthenticationType.ACCESS_KEY;
+      nessiePluginConfig.azureAccessKey = () -> azureAccessKey;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(
+              Arrays.asList(
+                  new Property("dremio.azure.credentialsType", "ACCESS_KEY"),
+                  new Property("dremio.azure.key", azureAccessKey),
+                  new Property(
+                      "fs.azure.sharedkey.signer.type",
+                      "org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials")));
+    }
+
+    @Test
+    public void testAzureAadConfig() {
+      NessiePluginConfig nessiePluginConfig = basicAzureConfig();
+      nessiePluginConfig.azureStorageAccount = IGNORED;
+      final String azureApplicationId = "SomeApplicationId";
+      final String azureClientSecret = "SomeClientSecret";
+      final String azureOAuthTokenEndpoint = "SomeOAuthTokenEndpoint";
+
+      nessiePluginConfig.azureAuthenticationType = AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY;
+      nessiePluginConfig.azureApplicationId = azureApplicationId;
+      nessiePluginConfig.azureClientSecret = () -> azureClientSecret;
+      nessiePluginConfig.azureOAuthTokenEndpoint = azureOAuthTokenEndpoint;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(
+              Arrays.asList(
+                  new Property("dremio.azure.credentialsType", "AZURE_ACTIVE_DIRECTORY"),
+                  new Property("dremio.azure.clientId", azureApplicationId),
+                  new Property("dremio.azure.clientSecret", azureClientSecret),
+                  new Property("dremio.azure.tokenEndpoint", azureOAuthTokenEndpoint)));
+    }
+
+    @Test
+    public void testAzureMissingStorageAccount() {
+      NessiePluginConfig nessiePluginConfig = basicAzureConfig();
+
+      nessiePluginConfig.azureStorageAccount = null;
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating an Azure connection.")
+          .hasMessageContaining("azureStorageAccount");
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = "invalid..bucketName")
+    public void testAzureInvalidRootPath(String azureRootPath) {
+      NessiePluginConfig nessiePluginConfig = setUpForStart();
+      nessiePluginConfig.storageProvider = StorageProviderType.AZURE;
+      nessiePluginConfig.azureRootPath = azureRootPath;
+
+      DataplanePlugin nessieSource = nessiePluginConfig.newPlugin(sabotContext, SOURCE_NAME, null);
+
+      assertThatThrownBy(nessieSource::start)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Invalid Azure root path.");
+    }
+
+    @Test
+    public void testAzureMissingAuthType() {
+      NessiePluginConfig nessiePluginConfig = basicAzureConfig();
+      nessiePluginConfig.azureStorageAccount = IGNORED;
+
+      nessiePluginConfig.azureAuthenticationType = null;
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating an Azure connection.")
+          .hasMessageContaining("azureAuthenticationType");
+    }
+
+    @Test
+    public void testAzureMissingAccessKey() {
+      NessiePluginConfig nessiePluginConfig = basicAzureConfig();
+      nessiePluginConfig.azureStorageAccount = IGNORED;
+      nessiePluginConfig.azureAuthenticationType = AzureAuthenticationType.ACCESS_KEY;
+
+      nessiePluginConfig.azureAccessKey = null;
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating an Azure connection.")
+          .hasMessageContaining("azureAccessKey");
+    }
+
+    private Stream<Arguments> missingAadConfigArguments() {
+      return Stream.of(
+          Arguments.of(null, null, null),
+          Arguments.of(IGNORED, null, null),
+          Arguments.of(null, IGNORED, null),
+          Arguments.of(null, null, IGNORED),
+          Arguments.of(null, IGNORED, IGNORED),
+          Arguments.of(IGNORED, null, IGNORED),
+          Arguments.of(IGNORED, IGNORED, null));
+    }
+
+    @ParameterizedTest
+    @MethodSource("missingAadConfigArguments")
+    public void testAzureMissingAadConfig(
+        String azureApplicationId, String azureClientSecret, String azureOAuthTokenEndpoint) {
+      NessiePluginConfig nessiePluginConfig = basicAzureConfig();
+      nessiePluginConfig.azureStorageAccount = IGNORED;
+      nessiePluginConfig.azureAuthenticationType = AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY;
+
+      nessiePluginConfig.azureApplicationId = azureApplicationId;
+      nessiePluginConfig.azureClientSecret = SecretRef.of(azureClientSecret);
+      nessiePluginConfig.azureOAuthTokenEndpoint = azureOAuthTokenEndpoint;
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating an Azure connection.")
+          .hasMessageContaining("azureApplicationId")
+          .hasMessageContaining("azureClientSecret")
+          .hasMessageContaining("azureOAuthTokenEndpoint");
+    }
   }
 
-  @Test
-  public void testEmptyAWSAccessKey() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.awsAccessKey = "";
-    nessiePluginConfig.awsAccessSecret = () -> "test-secret-key";
-    nessiePluginConfig.credentialType = AWSAuthenticationType.ACCESS_KEY;
-    List<Property> awsProviderProperties = new ArrayList<>();
+  @Nested
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS) // For MethodSource
+  class GoogleStorageConfig {
+    @Test
+    public void testGoogleFilesystemConfig() {
+      NessiePluginConfig nessiePluginConfig = basicGoogleConfig();
+      nessiePluginConfig.googleAuthenticationType = AuthMode.AUTO;
+      final String googleProjectId = "SomeProjectId";
 
-    assertThatThrownBy(
-            () ->
-                nessiePluginConfig
-                    .getAWSCredentialsProvider()
-                    .configureCredentials(awsProviderProperties))
-        .hasMessageContaining(
-            "Failure creating S3 connection. You must provide AWS Access Key and AWS Access Secret.");
+      nessiePluginConfig.googleProjectId = googleProjectId;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(List.of(new Property("dremio.gcs.projectId", googleProjectId)));
+    }
+
+    @Test
+    public void testGoogleAutoConfig() {
+      NessiePluginConfig nessiePluginConfig = basicGoogleConfig();
+      nessiePluginConfig.googleProjectId = IGNORED;
+
+      nessiePluginConfig.googleAuthenticationType = AuthMode.AUTO;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(List.of(new Property("dremio.gcs.use_keyfile", "false")));
+    }
+
+    @Test
+    public void testGoogleServiceAccountKeysConfig() {
+      NessiePluginConfig nessiePluginConfig = basicGoogleConfig();
+      nessiePluginConfig.googleProjectId = IGNORED;
+      final String googleClientId = "SomeClientId";
+      final String googleClientEmail = "SomeClientEmail";
+      final String googlePrivateKeyId = "SomePrivateKeyId";
+      final String googlePrivateKey = "SomePrivateKey";
+
+      nessiePluginConfig.googleAuthenticationType = AuthMode.SERVICE_ACCOUNT_KEYS;
+      nessiePluginConfig.googleClientId = googleClientId;
+      nessiePluginConfig.googleClientEmail = googleClientEmail;
+      nessiePluginConfig.googlePrivateKeyId = googlePrivateKeyId;
+      nessiePluginConfig.googlePrivateKey = () -> googlePrivateKey;
+
+      assertThat(nessiePluginConfig.getProperties())
+          .containsAll(
+              Arrays.asList(
+                  new Property("dremio.gcs.use_keyfile", "true"),
+                  new Property("dremio.gcs.clientId", googleClientId),
+                  new Property("dremio.gcs.clientEmail", googleClientEmail),
+                  new Property("dremio.gcs.privateKeyId", googlePrivateKeyId),
+                  new Property("dremio.gcs.privateKey", googlePrivateKey)));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = "invalid..bucketName")
+    public void testGoogleInvalidRootPath(String googleRootPath) {
+      NessiePluginConfig nessiePluginConfig = setUpForStart();
+      nessiePluginConfig.storageProvider = StorageProviderType.GOOGLE;
+      nessiePluginConfig.googleRootPath = googleRootPath;
+
+      DataplanePlugin nessieSource = nessiePluginConfig.newPlugin(sabotContext, SOURCE_NAME, null);
+
+      assertThatThrownBy(nessieSource::start)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Invalid GCS root path.");
+    }
+
+    @Test
+    public void testGoogleMissingStorageAccount() {
+      NessiePluginConfig nessiePluginConfig = basicGoogleConfig();
+      nessiePluginConfig.googleProjectId = null;
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating a GCS connection.")
+          .hasMessageContaining("googleProjectId");
+    }
+
+    @Test
+    public void testGoogleMissingAuthType() {
+      NessiePluginConfig nessiePluginConfig = basicGoogleConfig();
+      nessiePluginConfig.googleProjectId = IGNORED;
+
+      nessiePluginConfig.googleAuthenticationType = null;
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating a GCS connection.")
+          .hasMessageContaining("googleAuthenticationType");
+    }
+
+    private Stream<Arguments> missingServiceAccountKeysConfigArguments() {
+      return Stream.of(
+          Arguments.of(null, null, null, null),
+          Arguments.of(IGNORED, null, null, null),
+          Arguments.of(null, IGNORED, null, null),
+          Arguments.of(null, null, IGNORED, null),
+          Arguments.of(null, null, null, IGNORED),
+          Arguments.of(null, IGNORED, IGNORED, IGNORED),
+          Arguments.of(IGNORED, null, IGNORED, IGNORED),
+          Arguments.of(IGNORED, IGNORED, null, IGNORED),
+          Arguments.of(IGNORED, IGNORED, IGNORED, null));
+    }
+
+    @ParameterizedTest
+    @MethodSource("missingServiceAccountKeysConfigArguments")
+    public void testGoogleMissingServiceAccountKeysConfig(
+        String googleClientId,
+        String googleClientEmail,
+        String googlePrivateKeyId,
+        String googlePrivateKey) {
+      NessiePluginConfig nessiePluginConfig = basicGoogleConfig();
+      nessiePluginConfig.googleProjectId = IGNORED;
+      nessiePluginConfig.googleAuthenticationType = AuthMode.SERVICE_ACCOUNT_KEYS;
+
+      nessiePluginConfig.googleClientId = googleClientId;
+      nessiePluginConfig.googleClientEmail = googleClientEmail;
+      nessiePluginConfig.googlePrivateKeyId = googlePrivateKeyId;
+      nessiePluginConfig.googlePrivateKey = SecretRef.of(googlePrivateKey);
+
+      assertThatThrownBy(nessiePluginConfig::getProperties)
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Failure creating a GCS connection.")
+          .hasMessageContaining("googleClientId")
+          .hasMessageContaining("googleClientEmail")
+          .hasMessageContaining("googlePrivateKey")
+          .hasMessageContaining("googlePrivateKey");
+    }
   }
 
-  @Test
-  public void testAWSCredentialsProviderWithEC2Metadata() {
+  private static NessiePluginConfig basicNessieConnectionConfig() {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    List<Property> awsProviderProperties = new ArrayList<>();
-    nessiePluginConfig.credentialType = AWSAuthenticationType.EC2_METADATA;
-    assertThat(
-            nessiePluginConfig
-                .getAWSCredentialsProvider()
-                .configureCredentials(awsProviderProperties))
-        .isEqualTo(EC2_METADATA_PROVIDER);
+    nessiePluginConfig.nessieEndpoint = NESSIE_URL;
+    nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
+    return nessiePluginConfig;
   }
 
-  @Test
-  public void testAWSCredentialsProviderWithEC2MetadataAndIAMRole() {
+  private static NessiePluginConfig basicAwsConfig() {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    List<Property> awsProviderProperties = new ArrayList<>();
-    nessiePluginConfig.assumedRoleARN = "test-assume-role-arn";
-    nessiePluginConfig.credentialType = AWSAuthenticationType.EC2_METADATA;
-    assertThat(
-            nessiePluginConfig
-                .getAWSCredentialsProvider()
-                .configureCredentials(awsProviderProperties))
-        .isEqualTo(ASSUME_ROLE_PROVIDER);
-    Property expectedProperty =
-        new Property("fs.s3a.assumed.role.arn", nessiePluginConfig.assumedRoleARN);
-    assertThat(awsProviderProperties.get(0).name).isEqualTo(expectedProperty.name);
-    assertThat(awsProviderProperties.get(0).value).isEqualTo(expectedProperty.value);
+    nessiePluginConfig.storageProvider = StorageProviderType.AWS;
+    return nessiePluginConfig;
   }
 
-  @Test
-  public void testMissingBearerToken() {
+  private static NessiePluginConfig basicAzureConfig() {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "http://localhost:19120/";
-    nessiePluginConfig.awsAccessKey = "test-access-key";
-    nessiePluginConfig.awsAccessSecret = () -> "test-secret-key";
-    nessiePluginConfig.credentialType = AWSAuthenticationType.ACCESS_KEY;
-    nessiePluginConfig.secure = false;
-    nessiePluginConfig.nessieAuthType = NessieAuthType.BEARER;
-
-    assertThatThrownBy(() -> nessiePluginConfig.validateNessieAuthSettings("test_nessie_source"))
-        .hasMessageContaining("bearer token provided is empty");
+    nessiePluginConfig.storageProvider = StorageProviderType.AZURE;
+    return nessiePluginConfig;
   }
 
-  @Test
-  public void testEmptyBearerToken() {
+  private static NessiePluginConfig basicGoogleConfig() {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieAccessToken = SecretRef.empty();
-    nessiePluginConfig.nessieEndpoint = "http://localhost:19120/";
-    nessiePluginConfig.awsAccessKey = "test-access-key";
-    nessiePluginConfig.awsAccessSecret = () -> "test-secret-key";
-    nessiePluginConfig.credentialType = AWSAuthenticationType.ACCESS_KEY;
-    nessiePluginConfig.secure = false;
-    nessiePluginConfig.nessieAuthType = NessieAuthType.BEARER;
-
-    assertThatThrownBy(() -> nessiePluginConfig.validateNessieAuthSettings("test_nessie_source"))
-        .hasMessageContaining("bearer token provided is empty");
+    nessiePluginConfig.storageProvider = StorageProviderType.GOOGLE;
+    return nessiePluginConfig;
   }
 
-  @Test
-  public void testInvalidNessieAuthType() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "http://localhost:19120/";
-    nessiePluginConfig.awsAccessKey = "test-access-key";
-    nessiePluginConfig.awsAccessSecret = () -> "test-secret-key";
-    nessiePluginConfig.credentialType = AWSAuthenticationType.ACCESS_KEY;
-    nessiePluginConfig.secure = false;
-    nessiePluginConfig.nessieAuthType = null;
-
-    assertThatThrownBy(() -> nessiePluginConfig.validateNessieAuthSettings("test_nessie_source"))
-        .hasMessageContaining("Invalid Nessie Auth type");
-  }
-
-  @Test
-  public void testEncryptConnectionWithSecureAsFalse() {
-    // Arrange
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.secure = false;
-    nessiePluginConfig.credentialType = AWSAuthenticationType.NONE; // To bypass unrelated checks
-
-    Property expectedProperty = new Property(SECURE_CONNECTIONS, "false");
-
-    // Act
-    List<Property> properties = nessiePluginConfig.getProperties();
-
-    // Assert
-    assertThat(properties).contains(expectedProperty);
-  }
-
-  @Test
-  public void testEncryptConnectionWithSecureAsTrue() {
-    // Arrange
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.secure = true;
-    nessiePluginConfig.credentialType = AWSAuthenticationType.NONE; // To bypass unrelated checks
-
-    Property expectedProperty = new Property(SECURE_CONNECTIONS, "true");
-
-    // Act
-    List<Property> properties = nessiePluginConfig.getProperties();
-
-    assertThat(properties).contains(expectedProperty);
-  }
-
-  @Test
-  public void testValidatePluginEnabled() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    when(sabotContext.getOptionManager()).thenReturn(optionManager);
-    when(optionManager.getOption(NESSIE_PLUGIN_ENABLED)).thenReturn(false);
-
-    assertThatThrownBy(() -> nessiePluginConfig.validatePluginEnabled(sabotContext))
-        .hasMessageContaining("Nessie Source is not supported");
-  }
-
-  @Test
-  public void testGetNessieClient() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "http://test-nessie";
-
-    setUpNessieCacheSettings();
-    when(sabotContext.getUserService()).thenReturn(userService);
-
-    // Currently NessiePlugin is using the wrapper UsernameAwareNessieClientImpl (on top of
-    // NessieClient).
-    // This is basically to test the correct NessieClient instance used from NessiePlugin.
-    // If there are multiple wrappers used for each service (like one for coordinator and another
-    // for executor), then
-    // this might break
-    assertThat(nessiePluginConfig.getNessieClient("NESSIE_SOURCE", sabotContext))
-        .isInstanceOf(UsernameAwareNessieClientImpl.class);
-  }
-
-  @Test
-  public void testGetNessieClientThrowsError() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "invalid://test-nessie";
-
-    assertThatThrownBy(() -> nessiePluginConfig.getNessieClient("NESSIE_SOURCE", sabotContext))
-        .hasMessageContaining("must be a valid http or https address");
-  }
-
-  @Test
-  public void testInvalidNessieSpecificationVersion() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-
-    assertThatThrownBy(() -> nessiePluginConfig.validateNessieSpecificationVersionHelper("x.y.z"))
-        .isInstanceOf(SemanticVersionParserException.class)
-        .hasMessageContaining("Cannot parse Nessie specification version");
-  }
-
-  @Test
-  public void testInvalidNessieEndpointURL() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "http://invalid/v0";
-    when(nessieApiV2.getConfig()).thenThrow(IllegalArgumentException.class);
-
-    assertThatThrownBy(() -> nessiePluginConfig.getNessieConfig(nessieApiV2))
-        .isInstanceOf(InvalidURLException.class)
-        .hasMessageContaining("Make sure that Nessie endpoint URL [http://invalid/v0] is valid");
-  }
-
-  @Test
-  public void testIncompatibleNessieApiInEndpointURL() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "http://invalid/v0";
-    when(nessieApiV2.getConfig()).thenThrow(NessieApiCompatibilityException.class);
-
-    assertThatThrownBy(() -> nessiePluginConfig.getNessieConfig(nessieApiV2))
-        .isInstanceOf(InvalidNessieApiVersionException.class)
-        .hasMessageContaining("Invalid API version.");
-  }
-
-  @Test
-  public void testInvalidLowerNessieSpecificationVersion() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-
-    assertThatThrownBy(() -> nessiePluginConfig.validateNessieSpecificationVersionHelper("1.0.0"))
-        .isInstanceOf(InvalidSpecificationVersionException.class)
-        .hasMessageContaining("Nessie Server should comply with Nessie specification version");
-  }
-
-  @Test
-  public void testValidEquivalentNessieSpecificationVersion() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-
-    assertThatCode(() -> nessiePluginConfig.validateNessieSpecificationVersionHelper("2.0.0"))
-        .doesNotThrowAnyException();
-  }
-
-  @Test
-  public void testValidGreaterNessieSpecificationVersion() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-
-    assertThatCode(() -> nessiePluginConfig.validateNessieSpecificationVersionHelper("2.0.1"))
-        .doesNotThrowAnyException();
-  }
-
-  @Test
-  public void testInvalidLowerNessieSpecificationVersionFor0_58() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-
-    assertThatCode(
-            () -> nessiePluginConfig.validateNessieSpecificationVersionHelper("2.0.0-beta.1"))
-        .isInstanceOf(InvalidSpecificationVersionException.class)
-        .hasMessageContaining("Nessie Server should comply with Nessie specification version");
-  }
-
-  @Test
-  public void testInvalidNullNessieSpecificationVersion() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-
-    assertThatThrownBy(() -> nessiePluginConfig.validateNessieSpecificationVersionHelper(null))
-        .isInstanceOf(InvalidSpecificationVersionException.class)
-        .hasMessageContaining("Nessie Server should comply with Nessie specification version")
-        .hasMessageContaining("Also make sure that Nessie endpoint URL is valid.");
-  }
-
-  @Test
-  public void testInValidRootPathDuringStart() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "http://localhost:19120/"; // Unused, but necessary
-    nessiePluginConfig.nessieAccessToken = () -> "sometoken"; // Unused, but necessary
-    nessiePluginConfig.awsRootPath = "invalid..bucketName";
-
+  private NessiePluginConfig setUpForStart() {
     setUpNessieCacheSettings();
     setUpDataplaneCacheSettings();
+    setUpUserService();
     doReturn(true).when(optionManager).getOption(NESSIE_PLUGIN_ENABLED);
+
+    return basicNessieConnectionConfig();
+  }
+
+  private void setUpUserService() {
     when(sabotContext.getUserService()).thenReturn(userService);
-
-    DataplanePlugin nessieSource =
-        nessiePluginConfig.newPlugin(sabotContext, "NESSIE_SOURCE", null);
-
-    assertThatThrownBy(nessieSource::start)
-        .isInstanceOf(UserException.class)
-        .hasMessageContaining("Invalid AWS S3 root path.");
-  }
-
-  @Test
-  public void testEmptyRootPathDuringStart() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "http://localhost:19120/"; // Unused, but necessary
-    nessiePluginConfig.nessieAccessToken = () -> "sometoken"; // Unused, but necessary
-    nessiePluginConfig.awsRootPath = "";
-
-    setUpNessieCacheSettings();
-    setUpDataplaneCacheSettings();
-    doReturn(true).when(optionManager).getOption(NESSIE_PLUGIN_ENABLED);
-    when(sabotContext.getUserService()).thenReturn(userService);
-
-    DataplanePlugin nessieSource =
-        nessiePluginConfig.newPlugin(sabotContext, "NESSIE_SOURCE", null);
-
-    assertThatThrownBy(nessieSource::start)
-        .isInstanceOf(UserException.class)
-        .hasMessageContaining("Invalid AWS S3 root path.");
-  }
-
-  @Test
-  public void testHealthyGetStateCall() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    when(nessieClient.getDefaultBranch())
-        .thenReturn(
-            ResolvedVersionContext.ofBranch(
-                "testBranch", "2b3a38be1df114556a019986dcfbfedda593925f"));
-    when(nessieClient.getNessieApi()).thenReturn(nessieApiV2);
-    when(nessieApiV2.getConfig()).thenReturn(nessieConfiguration);
-    when(nessieConfiguration.getSpecVersion()).thenReturn(MINIMUM_NESSIE_SPECIFICATION_VERSION);
-
-    assertThat(nessiePluginConfig.getState(nessieClient, SOURCE_NAME, sabotContext))
-        .isEqualTo(SourceState.GOOD);
-  }
-
-  @Test
-  public void testUnHealthyGetStateCall() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    when(nessieClient.getDefaultBranch()).thenThrow(new UnAuthenticatedException());
-
-    SourceState sourceState = nessiePluginConfig.getState(nessieClient, SOURCE_NAME, sabotContext);
-    assertThat(sourceState.getStatus()).isEqualTo(SourceState.SourceStatus.bad);
-    assertThat(sourceState.getMessages())
-        .contains(
-            new SourceState.Message(
-                SourceState.MessageLevel.ERROR,
-                (String.format(
-                    "Could not connect to [%s]. Unable to authenticate to the Nessie server.",
-                    SOURCE_NAME))));
-    assertThat(sourceState.getSuggestedUserAction())
-        .contains("Make sure that the token is valid and not expired");
-  }
-
-  @Test
-  public void testUnHealthyGetStateCallForNessieApiInCompatibility() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    when(nessieClient.getNessieApi()).thenReturn(nessieApiV2);
-    when(nessieApiV2.getConfig()).thenThrow(NessieApiCompatibilityException.class);
-
-    SourceState sourceState = nessiePluginConfig.getState(nessieClient, SOURCE_NAME, sabotContext);
-    assertThat(sourceState.getStatus()).isEqualTo(SourceState.SourceStatus.bad);
-    assertThat(sourceState.getMessages())
-        .contains(
-            new SourceState.Message(
-                SourceState.MessageLevel.ERROR,
-                (String.format("Could not connect to [%s].", SOURCE_NAME))));
-    assertThat(sourceState.getSuggestedUserAction()).contains("Invalid API version.");
-  }
-
-  @Test
-  public void testNessiePluginConfigUseNativePrivilegesWhenVersionedRbacEntityDisabled() {
-    // Intentionally disabling UnnecessaryStubbing since we want to make sure even when
-    // VERSIONED_RBAC_ENTITY_ENABLED
-    // is enabled, it does not impact NessiePluginConfig.
-    Mockito.lenient()
-        .when(optionManager.getOption(VERSIONED_SOURCE_CAPABILITIES_USE_NATIVE_PRIVILEGES_ENABLED))
-        .thenReturn(false);
-
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    assertThat(nessiePluginConfig.useNativePrivileges(optionManager)).isFalse();
-  }
-
-  @Test
-  public void testNessiePluginConfigUseNativePrivilegesWhenVersionedRbacEntityEnabled() {
-    // Intentionally disabling UnnecessaryStubbing since we want to make sure even when
-    // VERSIONED_RBAC_ENTITY_ENABLED
-    // is enabled, it does not impact NessiePluginConfig.
-    Mockito.lenient()
-        .when(optionManager.getOption(VERSIONED_SOURCE_CAPABILITIES_USE_NATIVE_PRIVILEGES_ENABLED))
-        .thenReturn(true);
-
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    assertThat(nessiePluginConfig.useNativePrivileges(optionManager)).isFalse();
-  }
-
-  @Test
-  public void testAzureStorageProviderKeyDisabled() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.storageProvider = AbstractDataplanePluginConfig.StorageProviderType.AZURE;
-    when(optionManager.getOption(DATAPLANE_AZURE_STORAGE_ENABLED)).thenReturn(false);
-
-    assertThatThrownBy(() -> nessiePluginConfig.validateAzureStorageProviderEnabled(optionManager))
-        .hasMessageContaining("Azure storage provider type is not supported");
-  }
-
-  @Test
-  public void testAzureStorageProviderKeyDisabledButAws() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.storageProvider = AbstractDataplanePluginConfig.StorageProviderType.AWS;
-    // Currently the code short circuits this call, leaving this in as lenient in case the order of
-    // operations changes
-    Mockito.lenient()
-        .when(optionManager.getOption(DATAPLANE_AZURE_STORAGE_ENABLED))
-        .thenReturn(false);
-
-    assertThatCode(() -> nessiePluginConfig.validateAzureStorageProviderEnabled(optionManager))
-        .doesNotThrowAnyException();
-  }
-
-  @Test
-  public void testAzureStorageProviderKeyEnabled() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.storageProvider = AbstractDataplanePluginConfig.StorageProviderType.AZURE;
-    when(optionManager.getOption(DATAPLANE_AZURE_STORAGE_ENABLED)).thenReturn(true);
-
-    assertThatCode(() -> nessiePluginConfig.validateAzureStorageProviderEnabled(optionManager))
-        .doesNotThrowAnyException();
-  }
-
-  @Test
-  public void testAzureFilesystemConfig() {
-    final String azureStorageAccount = "SomeStorageAccount";
-    final String azureRootPath = "SomeRootPath";
-
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.storageProvider = AbstractDataplanePluginConfig.StorageProviderType.AZURE;
-    nessiePluginConfig.azureStorageAccount = azureStorageAccount;
-    nessiePluginConfig.azureRootPath = azureRootPath;
-
-    assertThat(nessiePluginConfig.getProperties())
-        .containsAll(
-            Arrays.asList(
-                new Property("dremio.azure.mode", "STORAGE_V2"),
-                new Property("dremio.azure.account", azureStorageAccount),
-                new Property("dremio.azure.rootPath", azureRootPath)));
-  }
-
-  @Test
-  public void testAzureAccessKeyConfig() {
-    final String azureAccessKey = "SomeAccessKey";
-
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.storageProvider = AbstractDataplanePluginConfig.StorageProviderType.AZURE;
-    nessiePluginConfig.azureAuthenticationType = AzureAuthenticationType.ACCESS_KEY;
-    nessiePluginConfig.azureAccessKey = () -> azureAccessKey;
-
-    assertThat(nessiePluginConfig.getProperties())
-        .containsAll(
-            Arrays.asList(
-                new Property("dremio.azure.credentialsType", "ACCESS_KEY"),
-                new Property("dremio.azure.key", "dremio+" + azureAccessKey),
-                new Property(
-                    "fs.azure.sharedkey.signer.type",
-                    "org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials")));
-  }
-
-  @Test
-  public void testAzureAadConfig() {
-    final String azureApplicationId = "SomeApplicationId";
-    final String azureClientSecret = "SomeClientSecret";
-    final String azureOAuthTokenEndpoint = "SomeOAuthTokenEndpoint";
-
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.storageProvider = AbstractDataplanePluginConfig.StorageProviderType.AZURE;
-    nessiePluginConfig.azureAuthenticationType = AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY;
-    nessiePluginConfig.azureApplicationId = azureApplicationId;
-    nessiePluginConfig.azureClientSecret = () -> azureClientSecret;
-    nessiePluginConfig.azureOAuthTokenEndpoint = azureOAuthTokenEndpoint;
-
-    assertThat(nessiePluginConfig.getProperties())
-        .containsAll(
-            Arrays.asList(
-                new Property("dremio.azure.credentialsType", "AZURE_ACTIVE_DIRECTORY"),
-                new Property("dremio.azure.clientId", azureApplicationId),
-                new Property("dremio.azure.clientSecret", "dremio+" + azureClientSecret),
-                new Property("dremio.azure.tokenEndpoint", azureOAuthTokenEndpoint)));
-  }
-
-  @Test
-  public void testNessiePluginConfigIncludesS3APerfOptimizations() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.credentialType = AWSAuthenticationType.NONE;
-
-    List<Property> expected =
-        ImmutableList.of(
-            new Property(Constants.CREATE_FILE_STATUS_CHECK, "false"),
-            new Property(
-                Constants.DIRECTORY_MARKER_POLICY, Constants.DIRECTORY_MARKER_POLICY_KEEP));
-    assertThat(nessiePluginConfig.getProperties()).containsAll(expected);
-  }
-
-  @Test
-  public void testNessiePluginConfigCanOverrideS3APerfOptimizations() {
-    List<Property> overrides =
-        ImmutableList.of(
-            new Property(Constants.CREATE_FILE_STATUS_CHECK, "true"),
-            new Property(
-                Constants.DIRECTORY_MARKER_POLICY, Constants.DIRECTORY_MARKER_POLICY_DELETE));
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.credentialType = AWSAuthenticationType.NONE;
-    nessiePluginConfig.propertyList = overrides;
-
-    List<Property> notExpected =
-        ImmutableList.of(
-            new Property(Constants.CREATE_FILE_STATUS_CHECK, "false"),
-            new Property(
-                Constants.DIRECTORY_MARKER_POLICY, Constants.DIRECTORY_MARKER_POLICY_KEEP));
-    List<Property> properties = nessiePluginConfig.getProperties();
-    assertThat(properties).containsAll(overrides);
-    assertThat(properties).doesNotContainAnyElementsOf(notExpected);
   }
 
   private void setUpNessieCacheSettings() {

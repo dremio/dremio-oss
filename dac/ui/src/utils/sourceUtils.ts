@@ -21,7 +21,7 @@ export function sourceTypesIncludeS3(sourceTypes: { sourceType: string }[]) {
 }
 
 export function sourceTypesIncludeSampleSource(
-  sourceTypes: { sourceType: string }[]
+  sourceTypes: { sourceType: string }[],
 ) {
   return (
     sourceTypes &&
@@ -46,3 +46,17 @@ export function isArcticSource(type?: string) {
 export function isNessieSource(type?: string) {
   return type === NESSIE;
 }
+
+export const isIcebergSource = (sourceType: string) => {
+  return (
+    "NAS" === sourceType ||
+    "HDFS" === sourceType ||
+    "NESSIE" === sourceType ||
+    "HIVE" === sourceType ||
+    "HIVE3" === sourceType ||
+    "GCS" === sourceType ||
+    "AZURE_STORAGE" === sourceType ||
+    "S3" === sourceType ||
+    "AWSGLUE" === sourceType
+  );
+};

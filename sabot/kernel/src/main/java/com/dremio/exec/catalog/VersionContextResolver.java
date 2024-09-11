@@ -17,13 +17,24 @@ package com.dremio.exec.catalog;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
-import com.dremio.exec.store.NoDefaultBranchException;
-import com.dremio.exec.store.ReferenceConflictException;
-import com.dremio.exec.store.ReferenceNotFoundException;
+import com.dremio.exec.store.ReferenceTypeConflictException;
 
 public interface VersionContextResolver {
 
-  /** Resolves a version context with the underlying versioned catalog server. */
-  ResolvedVersionContext resolveVersionContext(String sourceName, VersionContext versionContext)
-      throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+  /**
+   * Resolves a version context with the underlying versioned catalog server.
+   *
+   * @param sourceName
+   * @param versionContext
+   * @return ResolvedVersionedContext
+   * @throws VersionNotFoundInNessieException - The version is not found in the underlying server
+   * @throws ReferenceTypeConflictException - The version type requested does not match the type on
+   *     the server even though the name of the Reference name is found
+   * @throws org.projectnessie.error.NessieRuntimeException - Runtime exceptions thrown specifically
+   *     by Nessie
+   * @throws RuntimeException -For other Unchecked Exceptions from the server.
+   * @throws IllegalStateException Any other unexpected exceptions (other than
+   *     UncheckedExecutionException)
+   */
+  ResolvedVersionContext resolveVersionContext(String sourceName, VersionContext versionContext);
 }

@@ -19,6 +19,7 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.ComplexTypeCopiers.ComplexTypeCopier;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
@@ -77,6 +78,7 @@ public class ComplexTypeReader implements AutoCloseable {
             context,
             inComplexVectors,
             outComplexVectors,
+            outputMutator.getVector(ColumnUtils.COPY_HISTORY_COLUMN_NAME),
             typeCoercion,
             javaCodeGenWatch,
             gandivaCodeGenWatch);

@@ -41,9 +41,19 @@ public class PlannerEventBusImpl implements PlannerEventBus {
     return () -> plannerEventHandlerList.remove(plannerEventHandler);
   }
 
+  @SafeVarargs
+  @Override
+  public final Closeable register(PlannerEventHandler<? extends PlannerEvent>... handlers) {
+    List<Closeable> closeables = new ArrayList<>();
+    for (PlannerEventHandler<? extends PlannerEvent> handler : handlers) {
+      closeables.add(register(handler));
+    }
+
+    return () -> closeables.forEach(Closeable::close);
+  }
+
   @Override
   public void dispatch(PlannerEvent event) {
-
     for (PlannerEventHandler<? extends PlannerEvent> plannerEventHandler :
         eventTypeToHandlers.getOrDefault(event.getClass(), List.of())) {
       doHandle(plannerEventHandler, event);

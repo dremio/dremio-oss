@@ -157,7 +157,7 @@ public final class JobsServiceUtil {
    * @param jobId job id
    * @return external id
    */
-  static ExternalId getJobIdAsExternalId(JobId jobId) {
+  public static ExternalId getJobIdAsExternalId(JobId jobId) {
     UUID id = UUID.fromString(jobId.getId());
     return ExternalId.newBuilder()
         .setPart1(id.getMostSignificantBits())
@@ -557,9 +557,8 @@ public final class JobsServiceUtil {
       jobSummaryBuilder.setOutputLimited(lastJobAttempt.getStats().getIsOutputLimited());
     }
 
-    if (lastJobAttempt.getDetails() != null
-        && lastJobAttempt.getDetails().getOutputRecords() != null) {
-      jobSummaryBuilder.setOutputRecords(lastJobAttempt.getDetails().getOutputRecords());
+    if (lastJobAttempt.getStats() != null && lastJobAttempt.getStats().getOutputRecords() != null) {
+      jobSummaryBuilder.setOutputRecords(lastJobAttempt.getStats().getOutputRecords());
     }
 
     if (lastJobAttemptInfo.getFailureInfo() != null) {
@@ -709,6 +708,16 @@ public final class JobsServiceUtil {
         builder.setEngine(lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName());
       }
     }
+    builder.setIsProfileIncomplete(lastJobAttempt.getIsProfileIncomplete());
+
+    if (lastJobAttempt.getDetails() != null
+        && lastJobAttempt.getDetails().getTotalMemory() != null) {
+      builder.setExecutionAllocatedBytes(lastJobAttempt.getDetails().getTotalMemory());
+    }
+
+    if (lastJobAttempt.getDetails() != null && lastJobAttempt.getDetails().getCpuUsed() != null) {
+      builder.setExecutionCpuTimeMillis(lastJobAttempt.getDetails().getCpuUsed());
+    }
 
     return builder.build();
   }
@@ -824,6 +833,16 @@ public final class JobsServiceUtil {
 
     if (lastJobAttemptInfo.getFailureInfo() != null) {
       builder.setErrorMsg(lastJobAttemptInfo.getFailureInfo());
+    }
+    builder.setIsProfileIncomplete(lastJobAttempt.getIsProfileIncomplete());
+
+    if (lastJobAttempt.getDetails() != null
+        && lastJobAttempt.getDetails().getTotalMemory() != null) {
+      builder.setExecutionAllocatedBytes(lastJobAttempt.getDetails().getTotalMemory());
+    }
+
+    if (lastJobAttempt.getDetails() != null && lastJobAttempt.getDetails().getCpuUsed() != null) {
+      builder.setExecutionCpuTimeMillis(lastJobAttempt.getDetails().getCpuUsed());
     }
 
     return builder.build();
@@ -1025,7 +1044,9 @@ public final class JobsServiceUtil {
       jobInfo.setDownloadInfo(
           new DownloadInfo()
               .setDownloadId(jobRequest.getDownloadSettings().getDownloadId())
-              .setFileName(jobRequest.getDownloadSettings().getFilename()));
+              .setFileName(jobRequest.getDownloadSettings().getFilename())
+              .setExtension(jobRequest.getDownloadSettings().getExtension())
+              .setTriggeringJobId(jobRequest.getDownloadSettings().getTriggeringJobId()));
     } else if (jobRequest.hasMaterializationSettings()) {
       jobInfo.setMaterializationFor(
           JobsProtoUtil.toStuff(
@@ -1256,5 +1277,14 @@ public final class JobsServiceUtil {
     }
 
     queriedDatasets.add(dataset);
+  }
+
+  public static boolean ensureJobIsRunningOrFinishedWith(
+      JobState expectedFinalState, JobState state) {
+    if (expectedFinalState.equals(state)) {
+      return true;
+    }
+
+    return !finalJobStates.contains(state);
   }
 }

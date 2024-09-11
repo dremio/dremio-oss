@@ -207,14 +207,17 @@ SqlNode SqlDescribeTable() :
     }
 }
 
+/**
+ * Sets SQL context so that unqualified identifiers can be used in SQL
+ */
 SqlNode SqlUseSchema():
 {
-    SqlIdentifier schema;
-    SqlParserPos pos;
+    SqlIdentifier schema = null;
+    SqlParserPos pos = SqlParserPos.ZERO;
 }
 {
-    <USE> { pos = getPos(); }
-    schema = CompoundIdentifier()
+    <USE> [ { pos = getPos(); }
+    schema = CompoundIdentifier() ]
     {
         return new SqlUseSchema(pos, schema);
     }
@@ -331,6 +334,7 @@ SqlNode SqlCreateOrReplace() :
     SqlFunctionReturnType returnType;
     ReferenceType refType = null;
     SqlIdentifier refValue = null;
+    SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED;
 }
 {
     <CREATE> { pos = getPos(); }
@@ -344,6 +348,7 @@ SqlNode SqlCreateOrReplace() :
         }
         name = CompoundIdentifier()
         fieldList = ParseFunctionFieldList()
+        [ sqlTableVersionSpec = WriteableAtVersionSpec() ]
       <RETURNS>
         (
           <TABLE> {
@@ -366,7 +371,8 @@ SqlNode SqlCreateOrReplace() :
           fieldList,
           expression,
           SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO),
-          returnType);
+          returnType,
+          sqlTableVersionSpec);
       }
       |
       (<VIEW>|<VDS>)
@@ -405,14 +411,16 @@ SqlNode SqlDropFunction() :
   SqlParserPos pos;
   SqlLiteral ifExists = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
   SqlIdentifier name;
+  SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED;
 }
 {
   <DROP> { pos = getPos(); }
   <FUNCTION>
   [ <IF> <EXISTS> { ifExists = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); } ]
+  name = CompoundIdentifier()
+  [ sqlTableVersionSpec = WriteableAtVersionSpec() ]
   {
-    name = CompoundIdentifier();
-    return new SqlDropFunction(pos, ifExists, name);
+    return new SqlDropFunction(pos, ifExists, name, sqlTableVersionSpec);
   }
 }
 
@@ -423,13 +431,15 @@ SqlNode SqlDescribeFunction() :
 {
   SqlParserPos pos;
   SqlIdentifier function;
+  SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED;
 }
 {
   (<DESCRIBE> | <DESC>) { pos = getPos(); }
   <FUNCTION>
+  function = CompoundIdentifier()
+  [ sqlTableVersionSpec = ATVersionSpec() ]
   {
-    function = CompoundIdentifier();
-    return new SqlDescribeFunction(pos, function);
+    return new SqlDescribeFunction(pos, function, sqlTableVersionSpec);
   }
 }
 
@@ -1469,6 +1479,8 @@ SqlNode SqlRefreshDataset() :
     SqlLiteral partitionRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
     SqlNodeList filesList = SqlNodeList.EMPTY;
     SqlNodeList partitionList = SqlNodeList.EMPTY;
+    SqlNode fileNameRegex = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral errorOnConcurrentRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
 }
 {
     <REFRESH> { pos = getPos(); }
@@ -1491,6 +1503,10 @@ SqlNode SqlRefreshDataset() :
         partitionRefresh = SqlLiteral.createBoolean(true, pos);
         partitionList = ParseRequiredPartitionList();
       }
+    |
+      <FOR> <REGEX> {
+        fileNameRegex = StringLiteral();
+      }
     )?
     (
       <AUTO> <PROMOTION> { promotion = SqlLiteral.createBoolean(true, pos); }
@@ -1507,8 +1523,12 @@ SqlNode SqlRefreshDataset() :
     |
       <MAINTAIN> <WHEN> <MISSING> { deleteUnavail = SqlLiteral.createBoolean(false, pos); }
     )?
+    (
+      <ERROR> <ON> <CONCURRENT> <REFRESH> { errorOnConcurrentRefresh = SqlLiteral.createBoolean(true, pos); }
+    )?
     { return new SqlRefreshDataset(pos, tblName, deleteUnavail, forceUp, promotion, allFilesRefresh,
-        allPartitionsRefresh, fileRefresh, partitionRefresh, filesList, partitionList); }
+        allPartitionsRefresh, fileRefresh, partitionRefresh, filesList, partitionList,
+        fileNameRegex, errorOnConcurrentRefresh); }
 }
 
 /**
@@ -1533,7 +1553,7 @@ SqlNode SqlOptimize() :
 {
     <OPTIMIZE> { pos = getPos(); }
     <TABLE> { table = CompoundIdentifier(); }
-    [
+    (
       <REWRITE> <MANIFESTS>
       {
         rewriteManifests = SqlLiteral.createBoolean(true, pos);
@@ -1564,8 +1584,7 @@ SqlNode SqlOptimize() :
          )*
          <RPAREN>
       ]
-      <EOF>
-    ]
+    )
     { return new SqlOptimize(pos, table, rewriteManifests, rewriteDataFiles, compactionType, condition, optionsList, optionsValueList); }
 }
 
@@ -1663,6 +1682,32 @@ SqlNode SqlOptimize() :
       (<RPAREN> | <GT>)
       {
           return new SqlArrayTypeSpec(getPos(), new SqlComplexDataTypeSpec(fType.withNullable(nullable)));
+      }
+  }
+
+ /**
+  * Parse Map type with format: MAP(data_type, data_type).
+  * Parse Map type with format: MAP<data_type, data_type>.
+  * Key and value type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
+  */
+  SqlIdentifier MapTypeName() :
+  {
+      SqlDataTypeSpec fTypeKey;
+      SqlDataTypeSpec fTypeValue;
+      boolean nullable;
+  }
+  {
+      (<MAP>)
+      (<LPAREN> | <LT>)
+       fTypeKey = DataType()
+      <COMMA>
+       fTypeValue = DataType()
+       nullable = NullableOptDefaultTrue()
+      (<RPAREN> | <GT>)
+      {
+          return new SqlMapTypeSpec(getPos(),
+            new SqlComplexDataTypeSpec(fTypeKey),
+            new SqlComplexDataTypeSpec(fTypeValue.withNullable(nullable)));
       }
   }
 
@@ -1818,4 +1863,29 @@ SqlNode SqlShowCreate() :
     }
 }
 
+/**
+ * ALTER ENGINE <engine_name>
+ * [MIN_REPLICAS = <no of replicas>]
+ * [MAX_REPLICAS = <no of replicas>]
+**/
+SqlNode SqlAlterEngine():
+{
+    SqlParserPos pos;
+    SqlIdentifier engineName = null;
+    SqlNumericLiteral minReplicas = null;
+    SqlNumericLiteral maxReplicas = null;
+}
+{
+    <ALTER> { pos = getPos(); }
+    <ENGINE>
+    engineName = SimpleIdentifier()
+    [
+        <MIN_REPLICAS> minReplicas = UnsignedNumericLiteral()
+    ]
+    [
+        <MAX_REPLICAS> maxReplicas = UnsignedNumericLiteral()
+    ]
+
+    { return new SqlAlterEngine(pos, engineName, minReplicas, maxReplicas); }
+}
 

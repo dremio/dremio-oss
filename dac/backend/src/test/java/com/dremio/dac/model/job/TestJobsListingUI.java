@@ -18,7 +18,9 @@ package com.dremio.dac.model.job;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static com.dremio.dac.server.test.SampleDataPopulator.TEST_USER_NAME;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -135,9 +137,9 @@ public class TestJobsListingUI extends BaseTestServer {
     assertEquals(TEST_USER_NAME, jobsListingUI.getJobs().get(1).getUser());
 
     assertEquals(sql, jobsListingUI.getJobs().get(0).getQueryText());
-    assertEquals(true, jobsListingUI.getJobs().get(0).isComplete());
+    assertTrue(jobsListingUI.getJobs().get(0).isComplete());
     assertNotNull(jobsListingUI.getJobs().get(0).getEnqueuedTime());
-    assertEquals(false, jobsListingUI.getJobs().get(0).isAccelerated());
+    assertFalse(jobsListingUI.getJobs().get(0).isAccelerated());
     assertNotNull(jobsListingUI.getJobs().get(0).getPlannerEstimatedCost().toString());
     assertEquals("", jobsListingUI.getJobs().get(0).getEngine());
     assertEquals("", jobsListingUI.getJobs().get(0).getSubEngine());
@@ -146,7 +148,7 @@ public class TestJobsListingUI extends BaseTestServer {
     assertEquals(JobState.COMPLETED, jobsListingUI.getJobs().get(0).getState());
     assertEquals(JobState.COMPLETED, jobsListingUI.getJobs().get(1).getState());
 
-    assertEquals(true, jobsListingUI.getJobs().get(0).isComplete());
+    assertTrue(jobsListingUI.getJobs().get(0).isComplete());
     // Duration Details
     assertNotNull(jobsListingUI.getJobs().get(0).getDurationDetails());
     assertNotNull(jobsListingUI.getJobs().get(1).getDurationDetails());
@@ -156,8 +158,8 @@ public class TestJobsListingUI extends BaseTestServer {
     assertEquals("1000", jobsListingUI.getJobs().get(0).getOutputRecords().toString());
     assertEquals("15 KB / 1000 Records", jobsListingUI.getJobs().get(0).getInput());
     assertEquals("15 KB / 1000 Records", jobsListingUI.getJobs().get(0).getOutput());
-    assertNotNull(jobsListingUI.getJobs().get(0).getWaitInClient());
-    assertEquals(false, jobsListingUI.getJobs().get(0).isAccelerated());
+    assertTrue(jobsListingUI.getJobs().get(0).getWaitInClient() >= 0);
+    assertFalse(jobsListingUI.getJobs().get(0).isAccelerated());
     // Queried Datasets
     assertEquals(1, jobsListingUI.getJobs().get(0).getQueriedDatasets().size());
     assertEquals(
@@ -290,16 +292,15 @@ public class TestJobsListingUI extends BaseTestServer {
   }
 
   private void createUsers(List<String> asList) {
-    UserService userService = l(UserService.class);
-    Arrays.asList("A", "B", "C", "D", "E")
-        .forEach(
-            userName -> {
-              try {
-                userService.createUser(
-                    SimpleUser.newBuilder().setUserName(userName).build(), DEFAULT_PASSWORD);
-              } catch (Exception e) {
-              }
-            });
+    UserService userService = getUserService();
+    asList.forEach(
+        userName -> {
+          try {
+            userService.createUser(
+                SimpleUser.newBuilder().setUserName(userName).build(), DEFAULT_PASSWORD);
+          } catch (Exception e) {
+          }
+        });
   }
 
   @Test

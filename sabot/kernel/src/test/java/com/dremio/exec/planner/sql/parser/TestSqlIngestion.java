@@ -52,6 +52,24 @@ public class TestSqlIngestion {
   }
 
   @Test
+  public void testAlterPipeStatus() throws SqlParseException {
+    SqlNode parsed = parse("ALTER PIPE p1 SET PIPE_EXECUTION_RUNNING = FALSE");
+    assertTrue(parsed instanceof SqlAlterPipeStatus);
+    SqlAlterPipeStatus sqlAlterPipeStatus = (SqlAlterPipeStatus) parsed;
+
+    parsed.unparse(writer, 0, 0);
+    String actualString = writer.toString();
+    String expectedUnparsedString = "ALTER PIPE \"p1\" SET PIPE_EXECUTION_RUNNING = FALSE";
+    assertEquals(expectedUnparsedString, actualString);
+
+    assertEquals("Pipe name does not match.", "p1", sqlAlterPipeStatus.getPipeName().toString());
+    assertEquals(
+        "PIPE_EXECUTION_RUNNING value does not match.",
+        false,
+        sqlAlterPipeStatus.getPipeExecutionStatus());
+  }
+
+  @Test
   public void testAlterPipeWithDedupPeriod() throws SqlParseException {
     SqlNode parsed =
         parse("ALTER PIPE p1 DEDUPE_LOOKBACK_PERIOD 4 AS COPY INTO tb1 FROM 'anywhere'");

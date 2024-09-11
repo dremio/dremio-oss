@@ -18,6 +18,7 @@ package com.dremio.exec.physical.impl;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.Filter;
 import com.dremio.exec.physical.config.Project;
+import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -29,6 +30,7 @@ import com.dremio.sabot.op.project.ProjectorStats;
 import com.google.common.collect.Lists;
 import io.airlift.tpch.GenerationDefinition;
 import java.util.Arrays;
+import java.util.List;
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Assert;
@@ -108,8 +110,12 @@ public class TestExcessiveSplits extends BaseTestOperator {
               10);
       long gandivaExpr = stats.getLongStat(ProjectorStats.Metric.GANDIVA_EXPRESSIONS);
       long javaExpr = stats.getLongStat(ProjectorStats.Metric.JAVA_EXPRESSIONS);
+      List<ExpressionSplitInfo> splitInfoList =
+          stats.getProfile(true).getDetails().getSplitInfosList();
       Assert.assertEquals(0, gandivaExpr);
       Assert.assertEquals(1, javaExpr);
+      Assert.assertEquals(1, splitInfoList.size());
+      Assert.assertEquals("OMIT", splitInfoList.get(0).getNamedExpression());
     } finally {
       gandivaPushdownSieveHelper.removeFunctionToHide(equalFn);
     }
@@ -137,8 +143,11 @@ public class TestExcessiveSplits extends BaseTestOperator {
               10);
       long gandivaExpr = stats.getLongStat(ProjectorStats.Metric.GANDIVA_EXPRESSIONS);
       long javaExpr = stats.getLongStat(ProjectorStats.Metric.JAVA_EXPRESSIONS);
+      List<ExpressionSplitInfo> splitInfoList =
+          stats.getProfile(true).getDetails().getSplitInfosList();
       Assert.assertEquals(1, gandivaExpr);
       Assert.assertEquals(1, javaExpr);
+      Assert.assertEquals(2, splitInfoList.size());
     } finally {
       gandivaPushdownSieveHelper.removeFunctionToHide(equalFn);
     }
@@ -155,8 +164,12 @@ public class TestExcessiveSplits extends BaseTestOperator {
               filter, FilterOperator.class, GenerationDefinition.TpchTable.CUSTOMER_LIMITED, 6, 10);
       long gandivaExpr = stats.getLongStat(FilterStats.Metric.GANDIVA_EXPRESSIONS);
       long javaExpr = stats.getLongStat(FilterStats.Metric.JAVA_EXPRESSIONS);
+      List<ExpressionSplitInfo> splitInfoList =
+          stats.getProfile(true).getDetails().getSplitInfosList();
       Assert.assertEquals(0, gandivaExpr);
       Assert.assertEquals(1, javaExpr);
+      Assert.assertEquals(1, splitInfoList.size());
+      Assert.assertEquals("OMIT", splitInfoList.get(0).getNamedExpression());
     } finally {
       gandivaPushdownSieveHelper.removeFunctionToHide(equalFn);
     }
@@ -182,9 +195,17 @@ public class TestExcessiveSplits extends BaseTestOperator {
               10);
       long gandivaExpr = stats.getLongStat(ProjectorStats.Metric.GANDIVA_EXPRESSIONS);
       long javaExpr = stats.getLongStat(ProjectorStats.Metric.JAVA_EXPRESSIONS);
+      List<ExpressionSplitInfo> splitInfoList =
+          stats.getProfile(true).getDetails().getSplitInfosList();
       Assert.assertEquals(0, gandivaExpr);
       Assert.assertEquals(0, javaExpr);
       Assert.assertEquals(1, stats.getLongStat(ProjectorStats.Metric.MIXED_EXPRESSIONS));
+      int namedExpressionLengthThreshold =
+          (int) testContext.getOptions().getOption(ExecConstants.NAMED_EXPRESSION_LENGTH_THRESHOLD);
+      for (ExpressionSplitInfo splitInfo : splitInfoList) {
+        Assert.assertTrue(
+            splitInfo.getNamedExpression().length() <= namedExpressionLengthThreshold);
+      }
     } finally {
       gandivaPushdownSieveHelper.removeFunctionToHide(isnullFn);
     }
@@ -225,8 +246,14 @@ public class TestExcessiveSplits extends BaseTestOperator {
               10);
       long gandivaExpr = stats.getLongStat(ProjectorStats.Metric.GANDIVA_EXPRESSIONS);
       long javaExpr = stats.getLongStat(ProjectorStats.Metric.JAVA_EXPRESSIONS);
+      List<ExpressionSplitInfo> splitInfoList =
+          stats.getProfile(true).getDetails().getSplitInfosList();
       Assert.assertEquals(0, gandivaExpr);
       Assert.assertEquals(1, javaExpr);
+      Assert.assertEquals(1, splitInfoList.size());
+      Assert.assertEquals(
+          " ( if (equal(ValueVectorReadExpression [fieldId=TypedFieldId [fieldIds=[1], remainder=null]], '1+')  ) then (castDECIMAL(1l, 2l, 0l)  )  else (castDECIMAL('1', 2l, 0l)  )  end  ) ",
+          splitInfoList.get(0).getNamedExpression());
     } finally {
       gandivaPushdownSieveHelper.removeFunctionToHide(castDecimalFn);
       gandivaPushdownSieveHelper.removeFunctionToHide(equalFn);

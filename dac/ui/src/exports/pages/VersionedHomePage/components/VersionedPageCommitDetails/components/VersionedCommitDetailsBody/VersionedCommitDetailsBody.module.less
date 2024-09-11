@@ -1,0 +1,89 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.commit-details-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dremio--spacing--2);
+  margin: var(--dremio--spacing--1) var(--dremio--spacing--2);
+  padding: var(--dremio--spacing--2) var(--dremio--spacing--4);
+  border: 1px solid var(--border--neutral);
+  border-radius: var(--dremio--radius--2);
+}
+
+.commit-details-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  &__section {
+    font-size: 14px;
+    font-weight: 600;
+
+    &--subtext {
+      display: flex;
+      align-items: center;
+      margin-top: var(--dremio--spacing--05);
+      font-weight: 400;
+
+      .user-avatar {
+        margin-right: var(--dremio--spacing--1);
+      }
+    }
+  }
+
+  .tags-section {
+    max-width: 50%;
+  }
+
+  .icon-wrapper {
+    flex-wrap: wrap;
+    gap: var(--dremio--spacing--1);
+    color: var(--icon--primary);
+  }
+
+  .no-tag-placeholder {
+    font-style: italic;
+  }
+
+  .tag-name {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    gap: var(--dremio--spacing--05);
+    padding: 2px var(--dremio--spacing--05);
+    border-radius: var(--dremio--radius--1);
+    background-color: var(--fill--tertiary);
+
+    &:hover {
+      background-color: var(--color--neutral--150);
+    }
+
+    &__icon {
+      padding: 0;
+      height: 20px;
+      min-width: 20px;
+    }
+
+    &__name {
+      color: var(--text--primary);
+    }
+  }
+
+  .icon-button {
+    padding: 0;
+  }
+}

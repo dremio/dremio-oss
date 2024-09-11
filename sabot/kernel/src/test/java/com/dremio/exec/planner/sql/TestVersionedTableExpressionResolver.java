@@ -20,7 +20,6 @@ import static org.mockito.Mockito.when;
 
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -80,9 +79,7 @@ public class TestVersionedTableExpressionResolver {
     when(cluster.getRexBuilder()).thenReturn(rexBuilder);
     final ContextInformation contextInformation = mock(ContextInformation.class);
     final ConvertletTable convertletTable = new ConvertletTable(false);
-    final OptionResolver optionResolver =
-        OptionResolverSpecBuilder.build(
-            new OptionResolverSpec().addOption(ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL, true));
+    final OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
     final SqlValidator.Config conf =
         SqlValidator.Config.DEFAULT
             .withSqlConformance(DremioSqlConformance.INSTANCE)

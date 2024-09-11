@@ -27,6 +27,7 @@ import com.dremio.exec.tablefunctions.copyerrors.ValidationErrorRowWriter;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.op.scan.OutputMutator;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.OptionalInt;
@@ -45,11 +46,15 @@ class SchemaImposedOutput extends FieldTypeOutput {
   static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(SchemaImposedOutput.class);
 
+  private static final int INITIAL_FIELD_BYTES_SIZE = 8192;
   private final ExtendedFormatOptions extendedFormatOptions;
   private final BatchSchema validatedTableSchema;
   private final ValidationErrorRowWriter validationErrorWriter;
   private final OptionalInt fileHistoryColIndex;
   private boolean isHistoryEvent = false;
+
+  // holds chars for a field
+  protected byte[] fieldBytes;
 
   /**
    * We initialize and add the varchar vector for each incoming field in this constructor.
@@ -75,6 +80,7 @@ class SchemaImposedOutput extends FieldTypeOutput {
     super(sizeLimit, fieldNames.length);
     int totalFields = fieldNames.length;
     maxField = totalFields - 1;
+    this.fieldBytes = new byte[INITIAL_FIELD_BYTES_SIZE];
 
     this.isValidationMode = isValidationMode;
     this.validatedTableSchema = validatedTableSchema;
@@ -136,6 +142,7 @@ class SchemaImposedOutput extends FieldTypeOutput {
     this.validatedTableSchema = validatedTableSchema;
     this.validationErrorWriter = validationErrorWriter;
     this.extendedFormatOptions = extendedFormatOptions;
+    this.fieldBytes = new byte[INITIAL_FIELD_BYTES_SIZE];
 
     BatchSchema batchSchema =
         isValidationMode ? validatedTableSchema : outputMutator.getContainer().getSchema();
@@ -149,9 +156,24 @@ class SchemaImposedOutput extends FieldTypeOutput {
     this.fileHistoryColIndex = calculateFileHistoryColIndex();
   }
 
+  private void expandTmpBufIfNecessary(int currentIndex) {
+    if (currentIndex < fieldBytes.length) {
+      return;
+    }
+
+    int newSize = Math.min(fieldBytes.length * 2, maxCellLimit + 1);
+    byte[] tmpBuf = Arrays.copyOf(this.fieldBytes, newSize);
+    this.fieldBytes = tmpBuf;
+  }
+
   @Override
-  protected void writeValueInCurrentVector(
-      int index, byte[] fieldBytes, int startIndex, int endIndex) {
+  protected void appendByte(int currentIndex, byte b) {
+    expandTmpBufIfNecessary(currentIndex);
+    this.fieldBytes[currentIndex] = b;
+  }
+
+  @Override
+  protected void writeValueInCurrentVector(int index, int endIndex) {
 
     if (getFileHistoryColIndex().orElse(Integer.MIN_VALUE) == currentFieldIndex
         && !isHistoryEvent) {
@@ -167,19 +189,19 @@ class SchemaImposedOutput extends FieldTypeOutput {
       // If we do not need to apply any string transformations and if our target field type is
       // VARCHAR,
       // then we can skip converting to String type and directly write to currentValueVector
-      if (currentDataPointer == 0 && extendedFormatOptions.getEmptyAsNull()) {
+      if (endIndex == 0 && extendedFormatOptions.getEmptyAsNull()) {
         // We will enter this block when the input string is empty AND we are required to treat
         // empty strings as null.
         // Hence, write NULL to currentVector at position 'recordCount'
-        ((VarCharVector) currentVector).setNull(recordCount);
+        ((VarCharVector) currentVector).setNull(index);
       } else {
-        ((VarCharVector) currentVector).setSafe(recordCount, fieldBytes, 0, currentDataPointer);
+        ((VarCharVector) currentVector).setSafe(index, fieldBytes, 0, endIndex);
       }
     } else {
-      String s = new String(fieldBytes, 0, currentDataPointer, StandardCharsets.UTF_8);
+      String s = new String(fieldBytes, 0, endIndex, StandardCharsets.UTF_8);
       if (!isValidationMode) {
         Object v = getValue(currentVector.getField(), s, extendedFormatOptions);
-        writeToVector(currentVector, recordCount, v);
+        writeToVector(currentVector, index, v);
       } else {
         // no actual write, just type coercion
         getValue(validatedTableSchema.getFields().get(currentFieldIndex), s, extendedFormatOptions);

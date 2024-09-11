@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .action-btn {
   width: 42px;
@@ -21,13 +20,13 @@
   border: 0;
   border-radius: 2px;
   box-shadow: rgb(194, 194, 194) 0px 1px 1px;
-  background: @action-btn-bg !important;
+  background: var(--fill--tertiary) !important;
   overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   &:hover {
-    background: @action-btn-hover !important;
+    background: white !important;
   }
 }
 

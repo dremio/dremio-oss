@@ -50,8 +50,6 @@ public interface HiveClient extends AutoCloseable {
 
   List<String> getTableNames(String dbName, boolean ignoreAuthzErrors) throws TException;
 
-  boolean tableExists(final String dbName, final String tableName) throws TException ;
-
   Table getTable(String dbName, String tableName, boolean ignoreAuthzErrors) throws TException;
 
   void dropTable(String dbName, String tableName, boolean ignoreAuthzErrors) throws TException;

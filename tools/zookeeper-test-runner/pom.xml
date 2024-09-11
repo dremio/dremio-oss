@@ -42,7 +42,6 @@
     <dependency>
       <groupId>org.apache.curator</groupId>
       <artifactId>curator-test</artifactId>
-      <version>${curator-test.version}</version>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>

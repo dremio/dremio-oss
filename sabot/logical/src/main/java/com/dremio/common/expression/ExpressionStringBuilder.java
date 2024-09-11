@@ -16,6 +16,7 @@
 package com.dremio.common.expression;
 
 import com.dremio.common.expression.IfExpression.IfCondition;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
 import com.dremio.common.expression.ValueExpressions.DateExpression;
 import com.dremio.common.expression.ValueExpressions.DecimalExpression;
@@ -132,7 +133,7 @@ public class ExpressionStringBuilder
   @Override
   public Void visitSchemaPath(SchemaPath path, StringBuilder sb) throws RuntimeException {
     PathSegment seg = path.getRootSegment();
-    if (seg.isArray()) {
+    if (seg.getType().equals(PathSegmentType.ARRAY_INDEX)) {
       throw new IllegalStateException("Dremio doesn't currently support top level arrays");
     }
     sb.append('`');
@@ -140,11 +141,15 @@ public class ExpressionStringBuilder
     sb.append('`');
 
     while ((seg = seg.getChild()) != null) {
-      if (seg.isNamed()) {
+      if (seg.getType().equals(PathSegmentType.NAME)) {
         sb.append('.');
         sb.append('`');
         sb.append(escapeBackTick(seg.getNameSegment().getPath()));
         sb.append('`');
+      } else if (seg.getType().equals(PathSegmentType.ARRAY_INDEX_REF)) {
+        sb.append('[');
+        sb.append(seg.getArrayInputRef().getPath());
+        sb.append(']');
       } else {
         sb.append('[');
         sb.append(seg.getArraySegment().getOptionalIndex());

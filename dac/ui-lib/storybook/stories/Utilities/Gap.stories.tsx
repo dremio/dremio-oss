@@ -42,9 +42,9 @@ export const Default = () => {
     <div className="dremio-layout-stack max-w-max" style={{ "--space": "1em" }}>
       {sizes.map((size) => (
         <div key={size}>
-          <div className={`bg-neutral-50 flex gap-${size} p-1 rounded`}>
+          <div className={`bg-neutral-25 flex gap-${size} p-1 rounded`}>
             {Array(4).fill(
-              <div className="bg-brand-300 w-2 h-2 rounded-sm"></div>
+              <div className="bg-brand-200 w-2 h-2 rounded-sm"></div>,
             )}
           </div>
           <code>.gap-{size}</code>

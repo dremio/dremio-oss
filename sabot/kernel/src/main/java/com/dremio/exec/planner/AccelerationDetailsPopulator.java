@@ -19,7 +19,6 @@ import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
-import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import java.util.Collections;
 import java.util.List;
@@ -60,8 +59,6 @@ public interface AccelerationDetailsPopulator {
   void addReflectionHints(
       ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance);
 
-  void attemptCompleted(QueryProfile profile);
-
   byte[] computeAcceleration();
 
   List<String> getConsideredReflectionIds();
@@ -93,9 +90,6 @@ public interface AccelerationDetailsPopulator {
         @Override
         public void addReflectionHints(
             ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {}
-
-        @Override
-        public void attemptCompleted(QueryProfile profile) {}
 
         @Override
         public byte[] computeAcceleration() {

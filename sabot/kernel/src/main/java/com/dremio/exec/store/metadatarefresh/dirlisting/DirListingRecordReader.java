@@ -25,6 +25,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.DirList;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -44,12 +45,14 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 
 /**
  * RecordReader which given a path for a root dir will produce a list of files in the directory with
@@ -122,6 +125,8 @@ public class DirListingRecordReader implements RecordReader {
 
   private PartitionParser partitionParser;
 
+  private final Function<String, String> pathExpansion;
+
   public DirListingRecordReader(
       OperatorContext context,
       FileSystem fs,
@@ -130,7 +135,8 @@ public class DirListingRecordReader implements RecordReader {
       BatchSchema tableSchema,
       List<PartitionProtobuf.PartitionValue> partitionValues,
       boolean discoverPartitions,
-      boolean inferPartitions) {
+      boolean inferPartitions,
+      Iterable<Map.Entry<String, String>> fsConfMap) {
     this.fs = fs;
     this.startTime = context.getFunctionContext().getContextInformation().getQueryStartTime();
     this.rootPath = Path.of(dirListInputSplit.getRootPath());
@@ -157,6 +163,16 @@ public class DirListingRecordReader implements RecordReader {
     partitionParser = PartitionParser.getInstance(rootPath, inferPartitions);
     this.excludeFutureModTimes =
         context.getOptions().getOption(ExecConstants.DIR_LISTING_EXCLUDE_FUTURE_MOD_TIMES);
+    String schemeVariate = dirListInputSplit.getSchemeVariate();
+    if (fsConfMap == null || StringUtils.isEmpty(schemeVariate)) {
+      this.pathExpansion = Function.identity();
+    } else {
+      Configuration fsConf = buildFsConf(fsConfMap);
+      this.pathExpansion =
+          path ->
+              IcebergUtils.getIcebergPathAndValidateScheme(
+                  path, fsConf, fs.getScheme(), schemeVariate);
+    }
     logger.debug(String.format("Initialized DirListRecordReader with configs %s", this));
   }
 
@@ -167,6 +183,15 @@ public class DirListingRecordReader implements RecordReader {
    */
   public void initIncrementalBatchSize() {
     initIncrementalBatchSize(INITIAL_BATCH_SIZE);
+    logger.debug(String.format("Initialized DirListRecordReader with configs %s", this));
+  }
+
+  private Configuration buildFsConf(Iterable<Map.Entry<String, String>> fsConfMap) {
+    Configuration conf = new Configuration();
+    for (Map.Entry<String, String> property : fsConfMap) {
+      conf.set(property.getKey(), property.getValue());
+    }
+    return conf;
   }
 
   @Override
@@ -390,6 +415,7 @@ public class DirListingRecordReader implements RecordReader {
     if (hasVersion) {
       path += String.format("?%s=%d", FILE_VERSION, fileStatus.lastModifiedTime().toMillis());
     }
+    path = this.pathExpansion.apply(path);
     pathVector.setSafe(index, path.getBytes(StandardCharsets.UTF_8));
   }
 

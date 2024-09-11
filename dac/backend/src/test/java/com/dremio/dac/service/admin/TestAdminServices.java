@@ -18,12 +18,12 @@ package com.dremio.dac.service.admin;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+import com.dremio.dac.options.PowerBIResourceOptions;
+import com.dremio.dac.options.TableauResourceOptions;
 import com.dremio.dac.resource.ExportProfilesParams;
 import com.dremio.dac.resource.ExportProfilesParams.ExportFormatType;
 import com.dremio.dac.resource.ExportProfilesParams.WriteFileMode;
 import com.dremio.dac.resource.ExportProfilesStats;
-import com.dremio.dac.resource.PowerBIResource;
-import com.dremio.dac.resource.TableauResource;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.admin.Setting.TextSetting;
 import com.dremio.dac.service.admin.SettingsResource.SettingsWrapperObject;
@@ -103,8 +103,8 @@ public class TestAdminServices extends BaseTestServer {
         getSettings(
             new HashSet<>(
                 Arrays.asList(
-                    TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
-                    PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName())),
+                    TableauResourceOptions.CLIENT_TOOLS_TABLEAU.getOptionName(),
+                    PowerBIResourceOptions.CLIENT_TOOLS_POWERBI.getOptionName())),
             true);
 
     assertFalse(settings.getSettings().isEmpty());
@@ -113,13 +113,13 @@ public class TestAdminServices extends BaseTestServer {
   @Test
   public void testTableauSettingNonDeletable() {
     deleteSetting(
-        TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(), Response.Status.BAD_REQUEST);
+        TableauResourceOptions.CLIENT_TOOLS_TABLEAU.getOptionName(), Response.Status.BAD_REQUEST);
   }
 
   @Test
   public void testPowerBiSettingNonDeletable() {
     deleteSetting(
-        PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName(), Response.Status.BAD_REQUEST);
+        PowerBIResourceOptions.CLIENT_TOOLS_POWERBI.getOptionName(), Response.Status.BAD_REQUEST);
   }
 
   private SettingsWrapperObject getSettings(

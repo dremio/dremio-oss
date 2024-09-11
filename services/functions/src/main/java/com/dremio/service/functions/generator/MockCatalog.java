@@ -110,7 +110,7 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
-  public Collection<Function> getFunctions(NamespaceKey path, FunctionType functionType) {
+  public Collection<Function> getFunctions(CatalogEntityKey path, FunctionType functionType) {
     return ImmutableList.of();
   }
 

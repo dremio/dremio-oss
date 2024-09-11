@@ -97,6 +97,7 @@ public class TestHiveOrcFooterReader extends BaseTestQuery {
 
   private OperatorContext getOpCtx() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10, sabotContext.getExpressionSplitCache());
+    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(),
+        getTestAllocator(), sabotContext.getOptionManager(), 10, sabotContext.getExpressionSplitCache());
   }
 }

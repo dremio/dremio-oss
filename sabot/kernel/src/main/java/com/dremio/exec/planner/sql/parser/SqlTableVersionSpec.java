@@ -19,6 +19,7 @@ import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.google.common.collect.Lists;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -48,7 +49,7 @@ public class SqlTableVersionSpec extends SqlCall {
       SqlParserPos pos,
       TableVersionType tableVersionType,
       SqlNode versionSpecifier,
-      SqlNode timestamp) {
+      @Nullable SqlNode timestamp) {
     super(pos);
     this.tableVersionSpec = new TableVersionSpec(tableVersionType, versionSpecifier, timestamp);
   }
@@ -59,6 +60,10 @@ public class SqlTableVersionSpec extends SqlCall {
 
   public TableVersionContext getResolvedTableVersionContext() {
     return tableVersionSpec.getResolvedTableVersionContext();
+  }
+
+  public TableVersionContext getTableVersionContext() {
+    return tableVersionSpec.getTableVersionContext();
   }
 
   @Override
@@ -79,8 +84,10 @@ public class SqlTableVersionSpec extends SqlCall {
 
   @Override
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-    writer.keyword("AT");
-    getTableVersionSpec().unparseVersionSpec(writer, leftPrec, rightPrec);
+    if (getTableVersionSpec().getTableVersionType() != TableVersionType.NOT_SPECIFIED) {
+      writer.keyword("AT");
+      getTableVersionSpec().unparseVersionSpec(writer, leftPrec, rightPrec);
+    }
   }
 
   @Override

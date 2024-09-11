@@ -1,0 +1,20 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg id="vcs/commit" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M15.4194 12.75C15.0761 14.3226 13.6756 15.5 12 15.5C10.3244 15.5 8.92387 14.3226 8.58054 12.75H2.83333C2.41911 12.75 2.08333 12.4142 2.08333 12C2.08333 11.5858 2.41911 11.25 2.83333 11.25H8.58054C8.92387 9.67741 10.3244 8.5 12 8.5C13.6756 8.5 15.0761 9.67741 15.4194 11.25H21.1667C21.5809 11.25 21.9167 11.5858 21.9167 12C21.9167 12.4142 21.5809 12.75 21.1667 12.75H15.4194ZM12 14C13.1046 14 14 13.1046 14 12C14 10.8954 13.1046 10 12 10C10.8954 10 9.99999 10.8954 9.99999 12C9.99999 13.1046 10.8954 14 12 14Z" fill="currentColor"/>
+</svg>

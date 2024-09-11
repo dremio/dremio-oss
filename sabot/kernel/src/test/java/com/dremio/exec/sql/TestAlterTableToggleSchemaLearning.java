@@ -17,7 +17,6 @@ package com.dremio.exec.sql;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.TemporarySystemProperties;
@@ -40,11 +39,7 @@ public class TestAlterTableToggleSchemaLearning extends BaseTestQuery {
   }
 
   private SqlNode parse(String toParse) throws SqlParseException {
-    ParserConfig config =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            255,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255);
     SqlParser parser = SqlParser.create(toParse, config);
     return parser.parseStmt();
   }

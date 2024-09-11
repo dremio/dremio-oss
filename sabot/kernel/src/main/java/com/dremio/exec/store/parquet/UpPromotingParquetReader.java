@@ -26,6 +26,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
+import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -120,12 +121,17 @@ public class UpPromotingParquetReader implements RecordReader {
     AdditionalColumnResolver additionalColumnResolver =
         new AdditionalColumnResolver(tableSchema, columnResolver);
 
-    logger.debug(
-        "F[setupMutator] Footer size is {} for file {}, current row group index is {}",
-        (footer.getBlocks() == null) ? -1 : footer.getBlocks().size(),
-        filePath,
-        readEntry.getRowGroupIndex());
     BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
+    if (block == null) {
+      String errMsg =
+          String.format(
+              "UpPromotingParquetReader.setupMutator: BlockMetaData for the requested row group index %s is not found. "
+                  + "The number of row groups in the file footer for file %s is %d ",
+              readEntry.getRowGroupIndex(),
+              filePath,
+              (footer.getBlocks() == null) ? -1 : footer.getBlocks().size());
+      Preconditions.checkArgument(block != null, errMsg);
+    }
     Collection<SchemaPath> resolvedColumns =
         additionalColumnResolver.resolveColumns(block.getColumns());
     mutatorSetupManager.setupMutator(

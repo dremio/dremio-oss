@@ -41,7 +41,7 @@ describe("SearchField", () => {
     expect(wrapperMinProps).to.have.length(1);
   });
   it("should render 1 FontIcon components, input", () => {
-    expect(wrapper.find("FontIcon")).to.have.length(1);
+    expect(wrapper.find("dremio-icon")).to.have.length(1);
     expect(wrapper.find("input")).to.have.length(1);
   });
 });

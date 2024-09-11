@@ -119,4 +119,12 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> 
 
     return validityBuilder.build();
   }
+
+  /**
+   * Calls the {@code protected} method {@link ListVector#reallocValidityAndOffsetBuffers()} on
+   * {@code listVector}.
+   */
+  public static void reallocValidityAndOffsetBuffers(ListVector listVector) {
+    listVector.reallocValidityAndOffsetBuffers();
+  }
 }

@@ -20,6 +20,7 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.FieldIdBroker.UnboundedFieldIdBroker;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Objects;
@@ -224,6 +225,19 @@ public final class SchemaConverter {
     return fields.stream()
         .map(field -> toIcebergColumn(field, fieldIdBroker))
         .collect(Collectors.toList());
+  }
+
+  public List<NestedField> toIcebergNestedFields(List<UserDefinedFunction.FunctionArg> args) {
+    UnboundedFieldIdBroker fieldIdBroker = new UnboundedFieldIdBroker();
+    int id = 1;
+    List<NestedField> nestedFields = Lists.newArrayList();
+    for (UserDefinedFunction.FunctionArg arg : args) {
+      NestedField field =
+          NestedField.required(
+              id++, arg.getName(), toIcebergType(arg.getDataType(), null, fieldIdBroker));
+      nestedFields.add(field);
+    }
+    return nestedFields;
   }
 
   public Schema toIcebergSchema(BatchSchema schema) {

@@ -76,6 +76,11 @@ public class NoOpScriptStoreImpl implements ScriptStore {
   }
 
   @Override
+  public boolean contains(String scriptId) {
+    throw new UnsupportedOperationException("contains not implemented in NoOpScriptStoreImpl");
+  }
+
+  @Override
   public void close() throws Exception {
     logger.info("Stopped NoOp Script Store.");
   }

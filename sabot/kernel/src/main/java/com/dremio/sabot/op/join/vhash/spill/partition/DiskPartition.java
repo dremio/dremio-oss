@@ -51,7 +51,7 @@ public class DiskPartition implements Partition {
   private VariableBlockVector pivotedVariableBlockVector;
   private PartitionColFilters partitionColFilters;
   private NonPartitionColFilters nonPartitionColFilters;
-  private final ArrowBuf sv2;
+  private ArrowBuf sv2;
   private boolean filtersPreparedWithException = false;
 
   DiskPartition(JoinSetupParams setupParams, int partitionIdx, ArrowBuf sv2) {
@@ -102,6 +102,13 @@ public class DiskPartition implements Partition {
             null /*all columns are pivoted*/,
             pivotedFixedBlockVector,
             pivotedVariableBlockVector);
+  }
+
+  @Override
+  public void updateSv2(ArrowBuf newSv2) {
+    this.sv2 = newSv2;
+    buildWriter.setSv2(newSv2);
+    probeWriter.setSv2(newSv2);
   }
 
   private String getBuildFileName() {

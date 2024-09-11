@@ -29,6 +29,10 @@ import { useScript } from "../../scripts/providers/useScript";
 import { getIntlContext } from "../../../contexts/IntlContext";
 import { useScriptsCount } from "../../scripts/providers/useScriptsCount";
 import { throttle } from "lodash";
+import {
+  isTemporaryScript,
+  stripTemporaryPrefix,
+} from "../utilities/temporaryTabs";
 
 type SqlRunnerTabsProps = {
   canClose?: () => boolean;
@@ -47,6 +51,7 @@ const SqlRunnerTab = (props: {
 }) => {
   const { t } = getIntlContext();
   const script = useScript(props.tabId);
+  const isUnsaved = !!script?.name && isTemporaryScript(script);
   return (
     <TabListTab
       aria-controls=""
@@ -56,8 +61,20 @@ const SqlRunnerTab = (props: {
       onSelected={props.onTabSelected}
       getMenuItems={props.getMenuItems as any}
       disabledCloseTooltip={t("Script.CloseTab.Disabled.Tooltip")}
+      isUnsaved={isUnsaved}
+      unsavedLabel={
+        isUnsaved ? (
+          <div style={{ maxInlineSize: "24ch" }}>
+            This tab has not been saved to a script
+          </div>
+        ) : undefined
+      }
     >
-      {script?.name || <Skeleton width="22ch" />}
+      {script?.name ? (
+        stripTemporaryPrefix(script.name)
+      ) : (
+        <Skeleton width="22ch" />
+      )}
     </TabListTab>
   );
 };
@@ -99,54 +116,56 @@ export const SqlRunnerTabs = (props: SqlRunnerTabsProps) => {
   const scriptsCount = useScriptsCount();
 
   return (
-    <div
-      className="flex flex-row overflow-hidden"
-      style={{ borderBottom: "1px solid #e9edf0" }}
-    >
-      <TabListWrapper
-        aria-label="Scripts"
-        tabControls={
-          <IconButton
-            tooltip={
-              <div className="dremio-prose" style={{ maxWidth: "300px" }}>
-                {scriptsCount === MAXIMUM_SCRIPTS
-                  ? t("Sonar.Scripts.LimitReached")
-                  : "New tab"}
-              </div>
-            }
-            onClick={handleNewTabButton}
-          >
-            {/* @ts-ignore */}
-            <dremio-icon name="interface/plus" alt=""></dremio-icon>
-          </IconButton>
-        }
+    <>
+      <div
+        className="flex flex-row overflow-hidden"
+        style={{ borderBottom: "1px solid var(--border--neutral)" }}
       >
-        {sqlRunnerSession?.scriptIds?.map((tabId) => {
-          const selected = tabId === sqlRunnerSession.currentScriptId;
-          return (
-            <SqlRunnerTab
-              tabId={tabId}
-              selected={selected}
-              key={tabId}
-              onTabSelected={() => {
-                if (!selected) {
-                  props.onTabSelected?.(tabId);
+        <TabListWrapper
+          aria-label="Scripts"
+          tabControls={
+            <IconButton
+              tooltip={
+                <div className="dremio-prose" style={{ maxWidth: "300px" }}>
+                  {scriptsCount === MAXIMUM_SCRIPTS
+                    ? t("Sonar.Scripts.LimitReached")
+                    : "New tab"}
+                </div>
+              }
+              onClick={handleNewTabButton}
+            >
+              {/* @ts-ignore */}
+              <dremio-icon name="interface/plus" alt=""></dremio-icon>
+            </IconButton>
+          }
+        >
+          {sqlRunnerSession?.scriptIds?.map((tabId) => {
+            const selected = tabId === sqlRunnerSession.currentScriptId;
+            return (
+              <SqlRunnerTab
+                tabId={tabId}
+                selected={selected}
+                key={tabId}
+                onTabSelected={() => {
+                  if (!selected) {
+                    props.onTabSelected?.(tabId);
+                  }
+                }}
+                getMenuItems={
+                  selected && ((() => props.tabActions(tabId)) as any)
                 }
-              }}
-              getMenuItems={
-                selected && ((() => props.tabActions(tabId)) as any)
-              }
-              onTabClosed={
-                canCloseTabs
-                  ? () => {
-                      props.onTabClosed?.(tabId);
-                    }
-                  : undefined
-              }
-            />
-          );
-        })}
-      </TabListWrapper>
-    </div>
+                onTabClosed={
+                  canCloseTabs
+                    ? () => {
+                        props.onTabClosed?.(tabId);
+                      }
+                    : undefined
+                }
+              />
+            );
+          })}
+        </TabListWrapper>
+      </div>
+    </>
   );
 };

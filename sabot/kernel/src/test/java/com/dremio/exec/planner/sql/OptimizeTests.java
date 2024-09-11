@@ -347,7 +347,7 @@ public class OptimizeTests extends ITDmlQueryBase {
               String.format(
                   "SELECT OPERATION, SUMMARY FROM TABLE(TABLE_SNAPSHOT('%s')) ORDER BY COMMITTED_AT DESC LIMIT 2",
                   table.fqn));
-      RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+      RecordBatchLoader loader = new RecordBatchLoader(allocator);
       QueryDataBatch data = results.get(0);
       loader.load(data.getHeader().getDef(), data.getData());
 
@@ -427,27 +427,27 @@ public class OptimizeTests extends ITDmlQueryBase {
       throws Exception {
     try (DmlQueryTestUtils.Table table = createTestTable(source, 6)) {
 
-      long snapshot1 = latestSnapshotId(table);
-      Set<String> snapshot1DataFiles = dataFilePaths(table);
-      Set<String> snapshot1Manifests = manifestFilePaths(table);
+      long snapshot1 = latestSnapshotId(table, allocator);
+      Set<String> snapshot1DataFiles = dataFilePaths(table, allocator);
+      Set<String> snapshot1Manifests = manifestFilePaths(table, allocator);
 
       runSQL(String.format("OPTIMIZE TABLE %s REWRITE MANIFESTS", table.fqn));
 
-      long snapshot2 = latestSnapshotId(table);
-      Set<String> snapshot2DataFiles = dataFilePaths(table);
-      Set<String> snapshot2ManifestFiles = manifestFilePaths(table);
+      long snapshot2 = latestSnapshotId(table, allocator);
+      Set<String> snapshot2DataFiles = dataFilePaths(table, allocator);
+      Set<String> snapshot2ManifestFiles = manifestFilePaths(table, allocator);
 
       assertThat(snapshot1).isNotEqualTo(snapshot2);
       assertThat(snapshot1DataFiles).isEqualTo(snapshot2DataFiles);
       assertThat(snapshot1Manifests).isNotEqualTo(snapshot2ManifestFiles);
 
       insertCommits(table, 6);
-      long snapshot3 = latestSnapshotId(table);
-      Set<String> snapshot3DataFiles = dataFilePaths(table);
+      long snapshot3 = latestSnapshotId(table, allocator);
+      Set<String> snapshot3DataFiles = dataFilePaths(table, allocator);
       runSQL(String.format("OPTIMIZE TABLE %s REWRITE DATA", table.fqn));
 
-      long snapshot4 = latestSnapshotId(table);
-      Set<String> snapshot4DataFiles = dataFilePaths(table);
+      long snapshot4 = latestSnapshotId(table, allocator);
+      Set<String> snapshot4DataFiles = dataFilePaths(table, allocator);
 
       assertThat(snapshot3).isNotEqualTo(snapshot4);
       assertThat(snapshot3DataFiles).isNotEqualTo(snapshot4DataFiles);
@@ -586,10 +586,10 @@ public class OptimizeTests extends ITDmlQueryBase {
               "ALTER TABLE %s ADD PARTITION FIELD identity(%s)", table.fqn, table.columns[2]));
       insertCommits(table, 2);
 
-      long snapshot1 = latestSnapshotId(table);
+      long snapshot1 = latestSnapshotId(table, allocator);
       runSQL(String.format("OPTIMIZE TABLE %s REWRITE MANIFESTS", table.fqn));
 
-      long replaceSnapshot = latestSnapshotId(table);
+      long replaceSnapshot = latestSnapshotId(table, allocator);
 
       assertThat(snapshot1).isNotEqualTo(replaceSnapshot);
 
@@ -693,7 +693,8 @@ public class OptimizeTests extends ITDmlQueryBase {
 
   private static DmlQueryTestUtils.Table createPartitionedTestTable(
       String source, int noOfInsertCommitsPerPartition) throws Exception {
-    DmlQueryTestUtils.Table table = createBasicTable(source, 0, 2, 0, ImmutableSet.of(1));
+    DmlQueryTestUtils.Table table =
+        DmlQueryTestUtils.createBasicTableWithPartitions(source, 0, 2, 0, ImmutableSet.of(1));
     insertCommits(table, noOfInsertCommitsPerPartition);
     return table;
   }
@@ -724,13 +725,14 @@ public class OptimizeTests extends ITDmlQueryBase {
     return result;
   }
 
-  private static long latestSnapshotId(DmlQueryTestUtils.Table table) throws Exception {
+  private static long latestSnapshotId(DmlQueryTestUtils.Table table, BufferAllocator allocator)
+      throws Exception {
     List<QueryDataBatch> results =
         testSqlWithResults(
             String.format(
                 "SELECT SNAPSHOT_ID FROM TABLE(TABLE_SNAPSHOT('%s')) ORDER BY COMMITTED_AT DESC LIMIT 1",
                 table.fqn));
-    RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(allocator);
     QueryDataBatch data = results.get(0);
     loader.load(data.getHeader().getDef(), data.getData());
 
@@ -744,11 +746,12 @@ public class OptimizeTests extends ITDmlQueryBase {
     return snapshotIdVector.get(0);
   }
 
-  private static Set<String> dataFilePaths(DmlQueryTestUtils.Table table) throws Exception {
+  private static Set<String> dataFilePaths(DmlQueryTestUtils.Table table, BufferAllocator allocator)
+      throws Exception {
     List<QueryDataBatch> results =
         testSqlWithResults(
             String.format("SELECT FILE_PATH FROM TABLE(TABLE_FILES('%s'))", table.fqn));
-    RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(allocator);
     QueryDataBatch data = results.get(0);
     loader.load(data.getHeader().getDef(), data.getData());
 
@@ -766,11 +769,12 @@ public class OptimizeTests extends ITDmlQueryBase {
     return filePaths;
   }
 
-  private static Set<String> manifestFilePaths(DmlQueryTestUtils.Table table) throws Exception {
+  private static Set<String> manifestFilePaths(
+      DmlQueryTestUtils.Table table, BufferAllocator allocator) throws Exception {
     List<QueryDataBatch> results =
         testSqlWithResults(
             String.format("SELECT PATH FROM TABLE(TABLE_MANIFESTS('%s'))", table.fqn));
-    RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(allocator);
     QueryDataBatch data = results.get(0);
     loader.load(data.getHeader().getDef(), data.getData());
 

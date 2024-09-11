@@ -114,30 +114,28 @@ public class FlattenPrel extends SinglePrel implements Prel {
 
   @Override
   protected RelDataType deriveRowType() {
-    if (PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport()) {
-      if (toFlatten instanceof RexInputRef) {
-        RelDataType rowType = input.getRowType();
-        List<RelDataTypeField> inputFields = rowType.getFieldList();
-        List<RelDataTypeField> outputFields = new ArrayList<>();
-        for (int i = 0; i < inputFields.size(); i++) {
-          RelDataTypeField field = inputFields.get(i);
-          if (((RexInputRef) toFlatten).getIndex() == i) {
-            RelDataType newType = field.getType().getComponentType();
-            if (newType == null) {
-              outputFields.add(field);
-            } else {
-              outputFields.add(new RelDataTypeFieldImpl(field.getName(), i, newType));
-            }
-          } else {
+    if (toFlatten instanceof RexInputRef) {
+      RelDataType rowType = input.getRowType();
+      List<RelDataTypeField> inputFields = rowType.getFieldList();
+      List<RelDataTypeField> outputFields = new ArrayList<>();
+      for (int i = 0; i < inputFields.size(); i++) {
+        RelDataTypeField field = inputFields.get(i);
+        if (((RexInputRef) toFlatten).getIndex() == i) {
+          RelDataType newType = field.getType().getComponentType();
+          if (newType == null) {
             outputFields.add(field);
+          } else {
+            outputFields.add(new RelDataTypeFieldImpl(field.getName(), i, newType));
           }
+        } else {
+          outputFields.add(field);
         }
-        final RelDataTypeFactory.Builder builder = getCluster().getTypeFactory().builder();
-        for (RelDataTypeField field : outputFields) {
-          builder.add(field);
-        }
-        return builder.build();
       }
+      final RelDataTypeFactory.Builder builder = getCluster().getTypeFactory().builder();
+      for (RelDataTypeField field : outputFields) {
+        builder.add(field);
+      }
+      return builder.build();
     }
     return super.deriveRowType();
   }

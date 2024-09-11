@@ -49,9 +49,9 @@ public class ExtraJobInfoStoreCreator
     private Integer version = 1;
 
     @Override
-    public void convert(DocumentWriter writer, JobId key, ExtraJobInfo record) {
-      if (record.getTtlExpireAt() != null) {
-        writer.writeTTLExpireAt(EXTRA_JOB_INFO_TTL_EXPIRY, record.getTtlExpireAt());
+    public void convert(DocumentWriter writer, JobId key, ExtraJobInfo document) {
+      if (document.getTtlExpireAt() != null) {
+        writer.writeTTLExpireAt(EXTRA_JOB_INFO_TTL_EXPIRY, document.getTtlExpireAt());
       }
     }
 

@@ -35,7 +35,7 @@ import com.dremio.sabot.Generator;
 import com.dremio.sabot.RecordBatchValidator;
 import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
-import com.dremio.sabot.RecordSet.Record;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.spi.SingleInputOperator;
@@ -327,15 +327,15 @@ public class TestParquetScanTableFunctionWithPositionalDeletes
     validateWithRuntimeFilter(input, new RecordBatchValidatorDefaultImpl(output), msg, 1);
   }
 
-  private Record inputRow(String relativePath) throws Exception {
+  private RsRecord inputRow(String relativePath) throws Exception {
     return inputRow(relativePath, 0, -1, ImmutableList.of());
   }
 
-  private Record inputRow(String relativePath, List<String> deleteFiles) throws Exception {
+  private RsRecord inputRow(String relativePath, List<String> deleteFiles) throws Exception {
     return inputRow(relativePath, 0, -1, deleteFiles);
   }
 
-  private Record inputRow(String relativePath, long offset, long length, List<String> deleteFiles)
+  private RsRecord inputRow(String relativePath, long offset, long length, List<String> deleteFiles)
       throws Exception {
     String fullPath = table.getLocation() + "/data/" + relativePath;
     PartitionProtobuf.NormalizedPartitionInfo partitionInfo =
@@ -352,13 +352,13 @@ public class TestParquetScanTableFunctionWithPositionalDeletes
   }
 
   private RecordSet outputRecordSet(Iterator<Integer> expectedOrderIds) {
-    List<Record> rows = new ArrayList<>();
+    List<RsRecord> rows = new ArrayList<>();
     while (expectedOrderIds.hasNext()) {
       int orderId = expectedOrderIds.next();
       int orderYear = orderId < 3000 ? 2019 : orderId < 6000 ? 2020 : 2021;
       rows.add(r(orderId, orderYear));
     }
-    return rs(OUTPUT_SCHEMA, rows.toArray(new Record[0]));
+    return rs(OUTPUT_SCHEMA, rows.toArray(new RsRecord[0]));
   }
 
   private void validate(RecordSet input, RecordSet output) throws Exception {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import jobsUtils from "@app/utils/jobsUtils.js";
+import jobsUtils from "@app/utils/jobsUtils";
 import jobUtils from "utils/jobsUtils";
 
 // export this for calculate min width of table tr in JobTable.js

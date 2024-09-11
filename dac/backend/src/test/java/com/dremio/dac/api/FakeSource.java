@@ -160,7 +160,7 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
     }
 
     @Override
-    public boolean containerExists(EntityPath containerPath) {
+    public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
       return false;
     }
   }

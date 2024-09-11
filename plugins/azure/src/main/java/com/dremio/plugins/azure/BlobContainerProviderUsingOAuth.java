@@ -15,12 +15,9 @@
  */
 package com.dremio.plugins.azure;
 
-import com.google.common.base.Suppliers;
 import com.microsoft.azure.storage.StorageCredentialsToken;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
 import java.net.URI;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +31,7 @@ public class BlobContainerProviderUsingOAuth extends BaseBlobContainerProvider {
 
   private final ClientCredentialsBasedTokenProvider tokenProvider;
 
-  private volatile Supplier<CloudBlobClient> cloudBlobClient;
+  private volatile CloudBlobClient cloudBlobClient;
 
   public BlobContainerProviderUsingOAuth(
       AzureStorageFileSystem parent,
@@ -48,21 +45,14 @@ public class BlobContainerProviderUsingOAuth extends BaseBlobContainerProvider {
 
   @Override
   protected CloudBlobClient getCloudBlobClient() {
-    if (tokenProvider
-        .checkAndUpdateToken()) { // TODO (DX-68245): make resilient from multiple consumers using
-      // these credentials
+    if (tokenProvider.checkAndUpdateToken()) {
       logger.debug("Storage V1 - Token is expired or is about to expire, client has been updated");
       cloudBlobClient =
-          Suppliers.memoizeWithExpiration(
-              () ->
-                  new CloudBlobClient(
-                      getConnection(),
-                      new StorageCredentialsToken(
-                          getAccount(), tokenProvider.getAccessTokenUnchecked())),
-              30,
-              TimeUnit.MINUTES);
+          new CloudBlobClient(
+              getConnection(),
+              new StorageCredentialsToken(getAccount(), tokenProvider.getAccessTokenUnchecked()));
     }
 
-    return cloudBlobClient.get();
+    return cloudBlobClient;
   }
 }

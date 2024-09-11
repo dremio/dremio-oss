@@ -39,6 +39,7 @@ public class CarryForwardAwareTableFunctionContext extends TableFunctionContext 
   private final Map<SchemaPath, SchemaPath> inputColMap;
   private final String constValCol;
   private final String constVal;
+  private final String schemeVariate;
 
   @JsonCreator
   public CarryForwardAwareTableFunctionContext(
@@ -61,7 +62,8 @@ public class CarryForwardAwareTableFunctionContext extends TableFunctionContext 
       @JsonProperty("inputColMap") @JsonDeserialize(using = SchemaPathMapDeserializer.class)
           Map<SchemaPath, SchemaPath> inputColMap,
       @JsonProperty("constValueCol") String constValCol,
-      @JsonProperty("constValue") String constVal) {
+      @JsonProperty("constValue") String constVal,
+      @JsonProperty("schemeVariate") String schemeVariate) {
     super(
         formatSettings,
         fullSchema,
@@ -83,6 +85,7 @@ public class CarryForwardAwareTableFunctionContext extends TableFunctionContext 
     this.inputColMap = inputColMap;
     this.constValCol = constValCol;
     this.constVal = constVal;
+    this.schemeVariate = schemeVariate;
   }
 
   public CarryForwardAwareTableFunctionContext(
@@ -91,7 +94,8 @@ public class CarryForwardAwareTableFunctionContext extends TableFunctionContext 
       boolean isCarryForwardEnabled,
       Map<SchemaPath, SchemaPath> inputColMap,
       String constValCol,
-      String constVal) {
+      String constVal,
+      String schemeVariate) {
     this(
         null,
         outputSchema,
@@ -112,7 +116,8 @@ public class CarryForwardAwareTableFunctionContext extends TableFunctionContext 
         isCarryForwardEnabled,
         inputColMap,
         constValCol,
-        constVal);
+        constVal,
+        schemeVariate);
   }
 
   public boolean isCarryForwardEnabled() {
@@ -129,5 +134,9 @@ public class CarryForwardAwareTableFunctionContext extends TableFunctionContext 
 
   public String getConstVal() {
     return constVal;
+  }
+
+  public String getSchemeVariate() {
+    return schemeVariate;
   }
 }

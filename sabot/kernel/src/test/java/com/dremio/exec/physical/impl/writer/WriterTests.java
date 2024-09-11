@@ -52,7 +52,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.calcite.plan.RelOptTable;
@@ -75,9 +74,6 @@ public class WriterTests extends BaseTestQuery {
   private static final int INITIAL_DOP = 1;
 
   private static final int DEFAULT_TOP_N_PARTITIONS = 5;
-
-  private BufferAllocator rootAllocator;
-  private BufferAllocator allocator;
 
   @BeforeClass
   public static void setUp() throws Exception {
@@ -104,12 +100,7 @@ public class WriterTests extends BaseTestQuery {
   }
 
   @Before
-  @Override
-  public void initAllocators() {
-    rootAllocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
-    allocator =
-        rootAllocator.newChildAllocator(testName.getMethodName(), 0, rootAllocator.getLimit());
-
+  public void setUpTest() {
     // for first-round writing. Many small files will ge generated with following settings
     setSessionOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR.getOptionName(), "100");
   }
@@ -159,12 +150,12 @@ public class WriterTests extends BaseTestQuery {
       Object[][] expectedData,
       long expectedParquetFileCount,
       long expectedDataFileCount,
-      long avgExpectedGeneratedDataFileSizeLowerBound)
+      Long avgExpectedGeneratedDataFileSizeLowerBound)
       throws Exception {
     Thread.sleep(1001);
 
     // test written data are correct
-    DmlQueryTestUtils.testSelectQuery(allocator, table, expectedData);
+    DmlQueryTestUtils.testSelectQuery(getTestAllocator(), table, expectedData);
 
     Set<String> dataFiles = getDataFilePaths(table);
     Path dataFileFolder = Path.of(dataFiles.iterator().next()).getParent();
@@ -176,8 +167,10 @@ public class WriterTests extends BaseTestQuery {
     assertEquals(expectedDataFileCount, dataFiles.size());
 
     // check data file size
-    long avgFileSize = getAvgFileSize(table.fqn, allocator);
-    assertTrue(avgFileSize > avgExpectedGeneratedDataFileSizeLowerBound);
+    if (avgExpectedGeneratedDataFileSizeLowerBound != null) {
+      long avgFileSize = getAvgFileSize(table.fqn, getTestAllocator());
+      assertTrue(avgFileSize > avgExpectedGeneratedDataFileSizeLowerBound);
+    }
   }
 
   private void testCombiningSmallFiles(
@@ -222,7 +215,7 @@ public class WriterTests extends BaseTestQuery {
         }
         expectedData = updatedData;
         testDmlQuery(
-            allocator,
+            getTestAllocator(),
             "UPDATE %s SET id = mod(id, %s) ",
             new Object[] {table.fqn, partitionCount},
             table,
@@ -235,7 +228,7 @@ public class WriterTests extends BaseTestQuery {
 
       // Update all rows, verify Update writing results
       testDmlQuery(
-          allocator,
+          getTestAllocator(),
           "UPDATE %s SET id = id",
           new Object[] {table.fqn},
           table,
@@ -360,11 +353,70 @@ public class WriterTests extends BaseTestQuery {
     }
   }
 
+  private void testOptimizeCommand(
+      Long smallFileThreshold,
+      Long smallFileTargetFileSize,
+      Long optimizeTargetFileSizeInMb,
+      int columnCount,
+      int rowCount,
+      long expectedSmallFilesToOptimize,
+      long expectedParquetFileCount,
+      long expectedDataFileCount,
+      long avgExpectedGeneratedDataFileSizeLowerBound)
+      throws Exception {
+    setSessionOption(
+        ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR.getOptionName(),
+        smallFileTargetFileSize.toString());
+    setSessionOption(
+        ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO.getOptionName(),
+        String.valueOf(smallFileThreshold / (double) smallFileTargetFileSize));
+    // set target small file size the same as PARQUET_BLOCK_SIZE. thus, no small file combination
+    // happened
+    setSessionOption(
+        ExecConstants.TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR.getOptionName(),
+        smallFileTargetFileSize.toString());
+    try (DmlQueryTestUtils.Table table = createBasicTable(SOURCE, columnCount, rowCount)) {
+      Object[][] expectedData = table.originalData;
+
+      // verify Insert writing results
+      verifyIcebergTable(
+          table, expectedData, expectedSmallFilesToOptimize, expectedSmallFilesToOptimize, null);
+
+      runSQL(
+          String.format(
+              "OPTIMIZE TABLE %s REWRITE DATA (TARGET_FILE_SIZE_MB = %s, MIN_FILE_SIZE_MB = 1)",
+              table.fqn, optimizeTargetFileSizeInMb));
+
+      verifyIcebergTable(
+          table,
+          expectedData,
+          expectedParquetFileCount,
+          expectedDataFileCount,
+          avgExpectedGeneratedDataFileSizeLowerBound);
+    }
+  }
+
+  @Test
+  public void testOptimizeCommandOnUnpartitionedTable() throws Exception {
+    /*
+    1. generate 10 small files via insert command
+        // first round writing target size = 2000 bytes
+        // real parquet file size from first round ~ 2372 bytes
+        // small file threshold = 3000, which is bigger than real parquet file size from first round.
+        // Second-round writing is triggered
+        // files generated from first-round writing: 10
+     2. Run Optimize to combine 10 data files into a single data file
+        Since the small file threshold and small file combination target file size are overidden
+        by Optimize's MIN_FILE_SIZE_MB and TARGET_FILE_SIZE_MB. Small file combination does not happen
+     */
+    testOptimizeCommand(3000L, 2000L, 1L, 3, 1000, 10, 1, 1L, 10000);
+  }
+
   private static Set<String> getDataFilePaths(DmlQueryTestUtils.Table table) throws Exception {
     List<QueryDataBatch> results =
         testSqlWithResults(
             String.format("SELECT FILE_PATH FROM TABLE(TABLE_FILES('%s'))", table.fqn));
-    RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+    RecordBatchLoader loader = new RecordBatchLoader(getDremioRootAllocator());
     QueryDataBatch data = results.get(0);
     loader.load(data.getHeader().getDef(), data.getData());
 

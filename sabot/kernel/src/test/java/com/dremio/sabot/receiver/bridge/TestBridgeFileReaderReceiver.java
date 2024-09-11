@@ -96,7 +96,7 @@ public class TestBridgeFileReaderReceiver extends BaseTestOperator {
       GenerationDefinition.TpchTable table, double scale, int batchSize, boolean interleaved)
       throws Exception {
     Fixtures.Table expected =
-        TpchGenerator.singleGenerator(table, scale, getAllocator()).toTable(batchSize);
+        TpchGenerator.singleGenerator(table, scale, getTestAllocator()).toTable(batchSize);
     try (Generator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator())) {
       check(expected, batchSize, generator, interleaved);
     }

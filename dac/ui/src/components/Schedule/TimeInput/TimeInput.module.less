@@ -16,16 +16,22 @@
 
 .time-input {
   width: 160px;
+  :global {
+    .mantine-TimeInput-controls {
+      height: 30px;
+    }
+  }
   &-container {
     margin-top: var(--dremio--spacing--1);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     .label {
       margin-right: var(--dremio--spacing--1);
+      height: 32px;
     }
     .icon {
       block-size: 24px;
-      color: var(--dremio--color--icon--main);
+      color: var(--icon--primary);
     }
   }
 }

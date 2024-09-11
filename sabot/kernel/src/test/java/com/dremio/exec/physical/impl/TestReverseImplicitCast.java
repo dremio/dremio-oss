@@ -55,7 +55,7 @@ public class TestReverseImplicitCast extends PopUnitTestBase {
               com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
               readResourceAsString("/functions/cast/two_way_implicit_cast.json"));
 
-      RecordBatchLoader batchLoader = new RecordBatchLoader(bit.getContext().getAllocator());
+      RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
 
       QueryDataBatch batch = results.get(0);
       assertTrue(batchLoader.load(batch.getHeader().getDef(), batch.getData()));

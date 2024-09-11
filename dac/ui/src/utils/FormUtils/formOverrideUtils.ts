@@ -14,13 +14,25 @@
  * limitations under the License.
  */
 
+import FormElementConfig from "@app/utils/FormUtils/FormElementConfig";
 import FormUtils from "./FormUtils";
+import { TextField } from "@app/components/Fields";
 
 export const getJSONElementOverrides = (
   elements: Record<string, any>,
-  sourceType: string
+  sourceType: string,
 ) =>
   elements.map((el: any) => ({
     ...el,
     propertyName: FormUtils.addFormPrefixToPropName(el.propertyName),
   }));
+
+export const getFormElementConfig = (elementJson: Record<string, any>) => {
+  return new FormElementConfig(elementJson);
+};
+
+export const getSecureFieldRenderer = () => {
+  return TextField;
+};
+
+export const isValidSecret = () => true;

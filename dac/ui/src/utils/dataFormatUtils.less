@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .special-char {
     display: inline-block;
-    color: @ORANGE;
+    color: var(--color--orange--200);
     border-radius: 0.25em;
     width: 1em; // can't have width:1em in ::before *and* change the font-size - so it's out here
     position: relative;

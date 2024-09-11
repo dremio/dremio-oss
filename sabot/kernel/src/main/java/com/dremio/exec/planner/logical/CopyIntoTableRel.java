@@ -31,13 +31,22 @@ public class CopyIntoTableRel extends CopyIntoTableRelBase implements Rel {
       RelOptCluster cluster,
       RelTraitSet traitSet,
       RelOptTable table,
+      RelNode relNode,
       RelDataType rowType,
+      RelDataType transformationsRowType,
       CopyIntoTableContext config) {
-    super(LOGICAL, cluster, traitSet, table, rowType, config);
+    super(LOGICAL, cluster, traitSet, table, relNode, rowType, transformationsRowType, config);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new CopyIntoTableRel(getCluster(), traitSet, getTable(), getRowType(), getContext());
+    return new CopyIntoTableRel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        getRelNode(),
+        getRowType(),
+        getTransformationsRowType(),
+        getContext());
   }
 }

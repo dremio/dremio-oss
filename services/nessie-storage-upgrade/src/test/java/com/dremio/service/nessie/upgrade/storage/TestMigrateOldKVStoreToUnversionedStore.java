@@ -108,7 +108,7 @@ class TestMigrateOldKVStoreToUnversionedStore {
           }
         });
 
-    Map<ContentKey, ContentResult> tables = store.getValues(BranchName.of("main"), keys);
+    Map<ContentKey, ContentResult> tables = store.getValues(BranchName.of("main"), keys, false);
 
     assertThat(
             tables.entrySet().stream()

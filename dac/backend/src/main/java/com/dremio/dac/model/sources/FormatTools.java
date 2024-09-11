@@ -29,7 +29,6 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.EmptyRecordReader;
@@ -58,6 +57,7 @@ import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
+import com.google.common.base.Predicate;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
@@ -72,6 +72,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
 import org.apache.arrow.memory.BufferAllocator;
@@ -107,13 +108,13 @@ public class FormatTools {
       SourceService sourceService,
       CatalogService catalogService,
       SecurityContext securityContext,
-      ContextService context) {
+      SabotContext sabotContext) {
     super();
     this.sourceService = sourceService;
     this.catalogService = catalogService;
     this.securityContext = securityContext;
-    this.allocator = context.get().getAllocator();
-    this.context = context.get();
+    this.allocator = sabotContext.getAllocator();
+    this.context = sabotContext;
   }
 
   /**
@@ -223,7 +224,7 @@ public class FormatTools {
     }
 
     // was something other than file.
-    int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context);
+    int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context.getOptionManager());
     try (DirectoryStream<FileAttributes> files =
         FileSystemUtils.listFilterDirectoryRecursive(fs, path, maxFilesLimit, NO_HIDDEN_FILES)) {
       for (FileAttributes child : files) {
@@ -323,10 +324,18 @@ public class FormatTools {
         return getData(formatPlugin, fs, Collections.singleton(attributes).iterator());
       }
 
+      Predicate<FileAttributes> iteratorFilter;
+      if (format.isIgnoreOtherFileFormats()) {
+        Pattern regex = Pattern.compile(FileFormat.getFileNameRegex(format.getFileType()));
+        iteratorFilter =
+            attr -> attr.isRegularFile() && regex.matcher(attr.getPath().getName()).matches();
+      } else {
+        iteratorFilter = FileAttributes::isRegularFile;
+      }
       try (DirectoryStream<FileAttributes> files =
           formatPlugin.getFilesForSamples(fs, plugin, path)) {
         Iterator<FileAttributes> iter = files.iterator();
-        return getData(formatPlugin, fs, Iterators.filter(iter, FileAttributes::isRegularFile));
+        return getData(formatPlugin, fs, Iterators.filter(iter, iteratorFilter));
       }
     } catch (DirectoryIteratorException ex) {
       throw new RuntimeException(ex.getCause());

@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PRIMARY_600, linen } from "@app/uiTheme/less/color-schema.less";
-import { PALE_NAVY, NAVY } from "uiTheme/radium/colors";
 import { bodyWhite } from "uiTheme/radium/typography";
 
 export const arrowWidth = "5px";
 
 const typeToColor = {
-  error: linen,
-  info: PALE_NAVY,
-  status: NAVY,
-  custom: PRIMARY_600,
+  error: "var(--fill--danger)",
+  info: "var(--dremio--color--pale--navy)",
+  status: "var(--color--navy--700)",
+  custom: "var(--color--brand--300)",
 };
 
 const baseToolTipStyle = {

@@ -15,6 +15,8 @@
  */
 package com.dremio.service.reflection.analysis;
 
+import static com.dremio.service.reflection.analysis.ReflectionAnalyzer.isEligibleForAggReflection;
+
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.accelerator.AccelerationUtils;
@@ -101,54 +103,63 @@ public class ReflectionSuggester {
   private static final long CARTESIAN_CARDINALITY_UPPER_LIMIT = 2L << 30;
 
   private final DatasetConfig datasetConfig;
-  private final List<ColumnStats> columnStats;
-  private final Long count;
 
-  public ReflectionSuggester(DatasetConfig datasetConfig, TableStats tableStats) {
+  public ReflectionSuggester(DatasetConfig datasetConfig) {
     this.datasetConfig = datasetConfig;
-    this.columnStats = tableStats.getColumns();
-    this.count = tableStats.getCount();
   }
 
-  public List<ReflectionGoal> getReflectionGoals() {
-    List<ReflectionGoal> rawGoals =
-        Lists.transform(
-            Ord.zip(getRawReflections()),
-            new Function<Ord<ReflectionDetails>, ReflectionGoal>() {
-              @Override
-              public ReflectionGoal apply(Ord<ReflectionDetails> reflectionDetails) {
-                return new ReflectionGoal()
-                    .setName(
-                        String.format(
-                            "AUTO_%s_RAW_%d",
-                            SqlUtils.quotedCompound(datasetConfig.getFullPathList()),
-                            reflectionDetails.i))
-                    .setDetails(reflectionDetails.e)
-                    .setType(ReflectionType.RAW);
-              }
-            });
-    List<ReflectionGoal> aggGoals =
-        Lists.transform(
-            Ord.zip(getAggReflections()),
-            new Function<Ord<ReflectionDetails>, ReflectionGoal>() {
-              @Override
-              public ReflectionGoal apply(Ord<ReflectionDetails> reflectionDetails) {
-                return new ReflectionGoal()
-                    .setName(
-                        String.format(
-                            "AUTO_%s_AGG_%d",
-                            SqlUtils.quotedCompound(datasetConfig.getFullPathList()),
-                            reflectionDetails.i))
-                    .setDetails(reflectionDetails.e)
-                    .setType(ReflectionType.AGGREGATION);
-              }
-            });
+  public List<ReflectionGoal> getReflectionGoals(
+      TableStats tableStats, ReflectionSuggestionType type) {
+    List<ReflectionGoal> rawGoals = Collections.emptyList();
+    List<ReflectionGoal> aggGoals = Collections.emptyList();
+
+    if (type == ReflectionSuggestionType.RAW || type == ReflectionSuggestionType.ALL) {
+      rawGoals =
+          Lists.transform(
+              Ord.zip(getRawReflections(tableStats)),
+              new Function<Ord<ReflectionDetails>, ReflectionGoal>() {
+                @Override
+                public ReflectionGoal apply(Ord<ReflectionDetails> reflectionDetails) {
+                  return new ReflectionGoal()
+                      .setName(
+                          String.format(
+                              "AUTO_%s_RAW_%d",
+                              SqlUtils.quotedCompound(datasetConfig.getFullPathList()),
+                              reflectionDetails.i))
+                      .setDetails(reflectionDetails.e)
+                      .setType(ReflectionType.RAW);
+                }
+              });
+    }
+
+    if (type == ReflectionSuggestionType.AGG || type == ReflectionSuggestionType.ALL) {
+      aggGoals =
+          Lists.transform(
+              Ord.zip(getAggReflections(tableStats)),
+              new Function<Ord<ReflectionDetails>, ReflectionGoal>() {
+                @Override
+                public ReflectionGoal apply(Ord<ReflectionDetails> reflectionDetails) {
+                  return new ReflectionGoal()
+                      .setName(
+                          String.format(
+                              "AUTO_%s_AGG_%d",
+                              SqlUtils.quotedCompound(datasetConfig.getFullPathList()),
+                              reflectionDetails.i))
+                      .setDetails(reflectionDetails.e)
+                      .setType(ReflectionType.AGGREGATION);
+                }
+              });
+    }
 
     return FluentIterable.from(rawGoals).append(aggGoals).toList();
   }
 
-  private List<ReflectionDetails> getAggReflections() {
-    List<ColumnStats> columns = columnStats;
+  private List<ReflectionDetails> getAggReflections(TableStats tableStats) {
+    // get the columns eligible for agg reflection
+    List<ColumnStats> columns =
+        FluentIterable.from(tableStats.getColumns())
+            .filter(col -> isEligibleForAggReflection(col.getField()))
+            .toList();
     if (columns.isEmpty()) {
       return Collections.emptyList();
     }
@@ -157,7 +168,7 @@ public class ReflectionSuggester {
     final int measureLimit =
         Math.min(MAX_MEASURE_FIELDS, Math.max(1, (int) (columnCount * MEASURE_FIELDS_RATIO)));
 
-    AnalysisSummary analysisSummary = AnalysisSummary.of(columns, count);
+    AnalysisSummary analysisSummary = AnalysisSummary.of(columns, tableStats.getCount());
 
     final Map<String, ViewFieldType> schema =
         FluentIterable.from(
@@ -264,12 +275,12 @@ public class ReflectionSuggester {
    *
    * <p>Current implementation is simply a pass through.
    */
-  private List<ReflectionDetails> getRawReflections() {
+  private List<ReflectionDetails> getRawReflections(TableStats tableStats) {
     return ImmutableList.of(
         new ReflectionDetails()
             .setDisplayFieldList(
                 Lists.transform(
-                    columnStats,
+                    tableStats.getColumns(),
                     new Function<ColumnStats, ReflectionField>() {
                       @Override
                       public ReflectionField apply(ColumnStats column) {
@@ -399,5 +410,12 @@ public class ReflectionSuggester {
 
       return new AnalysisSummary(columnList, count);
     }
+  }
+
+  /** Reflection type used by reflection suggestion API endpoint(s) */
+  public enum ReflectionSuggestionType {
+    RAW,
+    AGG,
+    ALL
   }
 }

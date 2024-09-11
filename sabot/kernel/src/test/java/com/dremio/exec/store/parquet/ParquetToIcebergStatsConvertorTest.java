@@ -29,7 +29,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.options.OptionManager;
@@ -67,7 +66,6 @@ public class ParquetToIcebergStatsConvertorTest {
   public static void beforeClass() throws Exception {
     context = mock(OperatorContext.class);
     OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(ExecConstants.ENABLE_ICEBERG_MIN_MAX)).thenReturn(true);
     when(context.getOptions()).thenReturn(optionManager);
   }
 

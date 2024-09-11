@@ -42,8 +42,9 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.dfs.MetadataIOPool;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -77,7 +78,6 @@ import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.OrphanageImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
-import com.dremio.service.users.SystemUser;
 import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.credentials.SecretsCreator;
 import com.dremio.services.fabric.FabricServiceImpl;
@@ -172,13 +172,17 @@ public class TestDatasetCatalogServiceImpl {
 
       final SabotContext sabotContext = mock(SabotContext.class);
 
+      MetadataIOPool metadataIOPool = mock(MetadataIOPool.class);
+      when(sabotContext.getMetadataIOPoolProvider()).thenReturn(() -> metadataIOPool);
+
       storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
       storeProvider.start();
-      namespaceService = new NamespaceServiceImpl(storeProvider, mock(CatalogStatusEvents.class));
 
       kvStoreProvider =
           new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
       kvStoreProvider.start();
+
+      namespaceService = new NamespaceServiceImpl(kvStoreProvider, mock(CatalogStatusEvents.class));
       orphanage = new OrphanageImpl(kvStoreProvider);
 
       final Orphanage.Factory orphanageFactory =
@@ -231,7 +235,7 @@ public class TestDatasetCatalogServiceImpl {
       final OptionValidatorListing optionValidatorListing =
           new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
       final SystemOptionManager som =
-          new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+          new SystemOptionManagerImpl(optionValidatorListing, lpp, () -> storeProvider, true);
       OptionManager optionManager =
           OptionManagerWrapper.Builder.newBuilder()
               .withOptionManager(new DefaultOptionManager(optionValidatorListing))
@@ -250,16 +254,6 @@ public class TestDatasetCatalogServiceImpl {
 
       clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
       when(sabotContext.getClusterCoordinator()).thenReturn(clusterCoordinator);
-      when(sabotContext.getExecutors())
-          .thenReturn(
-              clusterCoordinator
-                  .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
-                  .getAvailableEndpoints());
-      when(sabotContext.getCoordinators())
-          .thenReturn(
-              clusterCoordinator
-                  .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-                  .getAvailableEndpoints());
 
       when(sabotContext.getRoles())
           .thenReturn(
@@ -294,7 +288,8 @@ public class TestDatasetCatalogServiceImpl {
               () -> new SystemTablePluginConfigProvider(),
               null,
               () -> fabricService,
-              () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+              () ->
+                  ConnectionReader.of(sabotContext.getClasspathScan(), ConnectionReaderImpl.class),
               () -> allocator,
               () -> storeProvider,
               () -> datasetListingService,
@@ -335,6 +330,7 @@ public class TestDatasetCatalogServiceImpl {
           pool,
           clusterCoordinator,
           allocator,
+          kvStoreProvider,
           storeProvider);
     }
 
@@ -347,10 +343,7 @@ public class TestDatasetCatalogServiceImpl {
       DatasetConfig dataset = namespaceService.getDataset(MOCKUP_NEWDATASET);
       assertNotNull(dataset.getName());
 
-      Catalog catalog =
-          catalogService.getCatalog(
-              MetadataRequestOptions.of(
-                  SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
+      Catalog catalog = catalogService.getSystemUserCatalog();
       assertNotNull(catalog.getTable(MOCKUP_NEWDATASET));
     }
 

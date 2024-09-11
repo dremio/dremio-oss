@@ -28,7 +28,6 @@ import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
@@ -54,8 +53,6 @@ public class SampleDataPopulatorService implements Service {
   private final Provider<OptionManager> optionManager;
   private final Provider<SearchService> searchService;
 
-  private final Provider<ContextService> contextService;
-
   private SampleDataPopulator sample;
 
   private final boolean prepopulate;
@@ -70,7 +67,6 @@ public class SampleDataPopulatorService implements Service {
       Provider<ConnectionReader> connectionReader,
       Provider<SearchService> searchService,
       Provider<OptionManager> optionManager,
-      final Provider<ContextService> contextService,
       boolean prepopulate,
       boolean addDefaultUser) {
     this.sabotContextProvider = sabotContextProvider;
@@ -81,7 +77,6 @@ public class SampleDataPopulatorService implements Service {
     this.connectionReader = connectionReader;
     this.searchService = searchService;
     this.optionManager = optionManager;
-    this.contextService = contextService;
     this.prepopulate = prepopulate;
     this.addDefaultUser = addDefaultUser;
   }
@@ -107,14 +102,14 @@ public class SampleDataPopulatorService implements Service {
               jobsService.get(),
               catalogService.get(),
               optionManager.get(),
-              contextService.get());
+              sabotContextProvider.get());
       SecurityContext securityContext =
           new DACSecurityContext(
               new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
       final SourceService ss =
           new SourceService(
               Clock.systemUTC(),
-              sabotContextProvider.get(),
+              optionManager.get(),
               systemUserNamespaceService,
               data,
               catalogService.get(),
@@ -122,13 +117,13 @@ public class SampleDataPopulatorService implements Service {
               null,
               connectionReader.get(),
               securityContext);
-      final UserService userService = sabotContextProvider.get().getUserService();
+      final UserService userService = userServiceProvider.get();
       sample =
           new SampleDataPopulator(
               sabotContextProvider.get(),
               ss,
               data,
-              userServiceProvider.get(),
+              userService,
               sabotContextProvider.get().getNamespaceService(SampleDataPopulator.DEFAULT_USER_NAME),
               SampleDataPopulator.DEFAULT_USER_NAME,
               new CollaborationHelper(
@@ -177,7 +172,8 @@ public class SampleDataPopulatorService implements Service {
 
     @Override
     public ReflectionSettings getReflectionSettings() {
-      return new ReflectionSettingsImpl(() -> namespace, catalogService, storeProvider);
+      return new ReflectionSettingsImpl(
+          () -> namespace, catalogService, storeProvider, this::getOptionManager);
     }
   }
 }

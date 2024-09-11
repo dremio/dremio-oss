@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
@@ -33,16 +34,19 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * CREATE [ OR REPLACE] COLUMN POLICY <policy_name> AS ( <field_name> <data_type> [, ... ] ) RETURN
- * <data_type> <policy_sql_expression>
+ * CREATE [ OR REPLACE ] FUNCTION [ IF NOT EXISTS ] function_name ( [ function_parameter [, ...] ] )
+ * [ AT BRANCH r ] RETURNS { data_type } RETURN { query }
  */
 public class SqlCreateFunction extends SqlCall {
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
+
   private final SqlIdentifier name;
   private final SqlNodeList fieldList;
   private final SqlNode expression;
   private final SqlFunctionReturnType returnType;
   private boolean shouldReplace;
   private boolean ifNotExists;
+  private SqlTableVersionSpec sqlTableVersionSpec;
 
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("CREATE_FUNCTION", SqlKind.OTHER) {
@@ -50,7 +54,7 @@ public class SqlCreateFunction extends SqlCall {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 6, "SqlCreateFunction.createCall() has to get 6 operands!");
+              operands.length == 7, "SqlCreateFunction.createCall() has to get 7 operands!");
           return new SqlCreateFunction(
               pos,
               (SqlLiteral) operands[0],
@@ -58,7 +62,8 @@ public class SqlCreateFunction extends SqlCall {
               (SqlNodeList) operands[2],
               operands[3],
               (SqlLiteral) operands[4],
-              (SqlFunctionReturnType) operands[5]);
+              (SqlFunctionReturnType) operands[5],
+              (SqlTableVersionSpec) operands[6]);
         }
       };
 
@@ -69,7 +74,8 @@ public class SqlCreateFunction extends SqlCall {
       SqlNodeList fieldList,
       SqlNode expression,
       SqlLiteral ifNotExists,
-      SqlFunctionReturnType returnType) {
+      SqlFunctionReturnType returnType,
+      SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos);
     this.shouldReplace = shouldReplace.booleanValue();
     this.name = name;
@@ -77,6 +83,7 @@ public class SqlCreateFunction extends SqlCall {
     this.expression = expression;
     this.ifNotExists = ifNotExists.booleanValue();
     this.returnType = returnType;
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   public SqlIdentifier getName() {
@@ -118,6 +125,17 @@ public class SqlCreateFunction extends SqlCall {
     return ifNotExists;
   }
 
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
+  }
+
+  public VersionContext getVersionContext() {
+    if (sqlTableVersionSpec != null) {
+      return sqlTableVersionSpec.getTableVersionSpec().getTableVersionContext().asVersionContext();
+    }
+    return null;
+  }
+
   @Override
   public SqlOperator getOperator() {
     return OPERATOR;
@@ -131,7 +149,8 @@ public class SqlCreateFunction extends SqlCall {
         fieldList,
         expression,
         SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO),
-        returnType);
+        returnType,
+        sqlTableVersionSpec);
   }
 
   @Override
@@ -151,7 +170,7 @@ public class SqlCreateFunction extends SqlCall {
     if (fieldList.size() > 0) {
       SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, fieldList);
     }
-
+    sqlTableVersionSpec.unparse(writer, leftPrec, rightPrec);
     writer.keyword("RETURNS");
     returnType.unparse(writer, leftPrec, rightPrec);
 

@@ -29,6 +29,10 @@
   <packaging>jar</packaging>
   <name>Plugins - Dataplane - Tests</name>
 
+  <properties>
+    <tests.dataplane.enabled.storage_types>aws,azure,gcs</tests.dataplane.enabled.storage_types>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.dremio</groupId>
@@ -109,6 +113,28 @@
       <artifactId>nessie-jaxrs-tests</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-nio</artifactId>
+      <version>${google-cloud-nio.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.iceberg</groupId>
+      <artifactId>iceberg-gcp</artifactId>
+      <version>${iceberg.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-azure</artifactId>
+      <version>${hadoop.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -128,6 +154,7 @@
           <systemPropertyVariables>
             <!-- The value is provided by nessie-runner-maven-plugin -->
             <nessie.server.url>${nessie.server.url}</nessie.server.url>
+            <tests.dataplane.enabled.storage_types>${tests.dataplane.enabled.storage_types}</tests.dataplane.enabled.storage_types>
           </systemPropertyVariables>
         </configuration>
       </plugin>

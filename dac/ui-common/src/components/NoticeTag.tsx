@@ -57,7 +57,7 @@ export const NoticeTag = (props: NoticeTagProps) => {
     <div
       className={clsx(
         className,
-        "bg-neutral-25 dremio-typography-less-important px-1 py-05 rounded-md",
+        "bg-neutral-50 dremio-typography-less-important px-1 py-05 rounded-md",
       )}
       style={{ whiteSpace: "nowrap" }}
     >

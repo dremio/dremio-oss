@@ -48,7 +48,7 @@ describe("TransformCard", () => {
       examplesList: ["example"],
     });
     wrapper = shallow(
-      <TransformCard {...commonProps} card={cardWithExamples} />
+      <TransformCard {...commonProps} card={cardWithExamples} />,
     );
     expect(wrapper.state().editing).to.be.false;
   });
@@ -66,9 +66,9 @@ describe("TransformCard", () => {
   });
 
   it("should render edit button only if front exists", () => {
-    expect(wrapper.find("FontIcon")).to.have.length(1);
+    expect(wrapper.find("dremio-icon")).to.have.length(1);
     wrapper.setProps({ front: undefined });
-    expect(wrapper.find("FontIcon")).to.have.length(0);
+    expect(wrapper.find("dremio-icon")).to.have.length(0);
   });
 
   describe("#componentWillReceiveProps", () => {

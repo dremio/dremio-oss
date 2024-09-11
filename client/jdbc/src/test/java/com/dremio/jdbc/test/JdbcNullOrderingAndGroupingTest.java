@@ -40,7 +40,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3AscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -55,7 +55,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3AscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -70,7 +70,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3AscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -85,7 +85,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3DescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -100,7 +100,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3DescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -115,7 +115,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3DescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -130,7 +130,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3DefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -145,7 +145,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3DefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -160,7 +160,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDonutsTopping3DefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, tbl.topping[3].type AS topping3 \n"
                 + "FROM cp.\"donuts.json\" AS tbl \n"
@@ -178,7 +178,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -192,7 +192,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -207,7 +207,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -222,7 +222,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharDescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -237,7 +237,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharDescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -252,7 +252,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharDescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -267,7 +267,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharDefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -281,7 +281,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharDefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -296,7 +296,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderVarCharDefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_VarChar AS VARCHAR ) AS as_VARCHAR \n"
@@ -314,7 +314,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -325,7 +325,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -336,7 +336,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -347,7 +347,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntDescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -358,7 +358,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntDescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -369,7 +369,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntDescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -380,7 +380,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntDefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -391,7 +391,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntDefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -402,7 +402,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntDefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Int AS INT ) AS as_INT \n"
@@ -416,7 +416,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -427,7 +427,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -438,7 +438,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -449,7 +449,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatDescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -460,7 +460,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatDescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -471,7 +471,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatDescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -482,7 +482,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatDefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -493,7 +493,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatDefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -504,7 +504,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderFloatDefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Float AS FLOAT ) AS as_FLOAT \n"
@@ -518,7 +518,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -529,7 +529,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -540,7 +540,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -551,7 +551,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntDescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -562,7 +562,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntDescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -573,7 +573,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntDescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -584,7 +584,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntDefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -595,7 +595,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntDefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -606,7 +606,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderBigIntDefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_BigInt AS BIGINT ) AS as_BIGINT \n"
@@ -620,7 +620,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -632,7 +632,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -644,7 +644,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -656,7 +656,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateDescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -668,7 +668,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateDescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -680,7 +680,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateDescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -692,7 +692,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateDefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -704,7 +704,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateDefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -716,7 +716,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDateDefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Date AS DATE ) AS as_DATE \n"
@@ -731,7 +731,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -748,7 +748,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -766,7 +766,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -784,7 +784,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalDescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -801,7 +801,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalDescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -819,7 +819,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalDescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -836,7 +836,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalDefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -853,7 +853,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalDefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -871,7 +871,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderIntervalDefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Interval AS INTERVAL HOUR ) AS as_INTERVAL \n"
@@ -892,7 +892,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -903,7 +903,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -914,7 +914,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -925,7 +925,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalDescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -936,7 +936,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalDescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -947,7 +947,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalDescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -958,7 +958,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalDefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -969,7 +969,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalDefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -980,7 +980,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimalDefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal AS DECIMAL ) AS as_DECIMAL \n"
@@ -997,7 +997,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5AscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1009,7 +1009,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5AscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1021,7 +1021,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5AscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1033,7 +1033,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5DescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1045,7 +1045,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5DescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1057,7 +1057,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5DescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1069,7 +1069,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5DefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1081,7 +1081,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5DefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1093,7 +1093,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal5DefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal5 AS DECIMAL(5) ) AS as_DECIMAL5 \n"
@@ -1111,7 +1111,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35AscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"
@@ -1125,7 +1125,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35AscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"
@@ -1139,7 +1139,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35AscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"
@@ -1153,7 +1153,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35DescNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"
@@ -1167,7 +1167,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35DescNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"
@@ -1181,7 +1181,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35DescNullsDefaultFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"
@@ -1195,7 +1195,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35DefaultedAscNullsFirst() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"
@@ -1209,7 +1209,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35DefaultedAscNullsLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"
@@ -1223,7 +1223,7 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   @Test
   public void testOrderDecimal35DefaultedAscNullsDefaultLast() throws Exception {
-    JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
+    JdbcAssert.withNoDefaultSchema(getJDBCURL())
         .sql(
             "SELECT tbl.id, \n"
                 + "       CAST( tbl.for_Decimal35 AS DECIMAL(35) ) AS as_DECIMAL35 \n"

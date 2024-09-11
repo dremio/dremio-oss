@@ -48,10 +48,10 @@ public class TestPositionalDeleteFilter extends ExecTest {
 
   @Before
   public void setup() {
-    deltas = new SimpleIntVector("pos", getAllocator());
+    deltas = new SimpleIntVector("pos", getTestAllocator());
     closeables.add(deltas);
     deltas.allocateNew(BATCH_SIZE);
-    stats = new OperatorStats(new OpProfileDef(0, 0, 0, 0), getAllocator());
+    stats = new OperatorStats(new OpProfileDef(0, 0, 0, 0), getTestAllocator());
   }
 
   @After

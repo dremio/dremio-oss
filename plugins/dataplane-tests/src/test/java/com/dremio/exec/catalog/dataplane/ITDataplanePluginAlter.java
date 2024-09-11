@@ -53,6 +53,7 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tableP
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.truncateTableQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.catalog.model.VersionContext;
@@ -62,7 +63,6 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 
 public class ITDataplanePluginAlter extends ITDataplanePluginTestSetup {
@@ -871,16 +871,14 @@ public class ITDataplanePluginAlter extends ITDataplanePluginTestSetup {
     List<QueryDataBatch> queryDataBatches =
         testRunAndReturn(UserBitShared.QueryType.SQL, showTablePropertiesQuery(tablePath));
     String resultString = getResultString(queryDataBatches, ",", false);
-    Assert.assertNotNull(resultString);
-    Assert.assertTrue(resultString.contains("property_name"));
+    assertThat(resultString).isNotNull().contains("property_name");
 
     runSQL(alterTableUnsetTablePropertiesQuery(tablePath));
     // check table properties not exists
     queryDataBatches =
         testRunAndReturn(UserBitShared.QueryType.SQL, showTablePropertiesQuery(tablePath));
     resultString = getResultString(queryDataBatches, ",", false);
-    Assert.assertTrue(
-        resultString == null || resultString.isEmpty() || !resultString.contains("property_name"));
+    assertThat(resultString != null && resultString.contains("property_name")).isFalse();
     runSQL(dropTableQuery(tablePath));
   }
 }

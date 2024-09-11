@@ -17,6 +17,8 @@ package com.dremio.jdbc.impl;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.jdbc.Driver;
+import java.util.logging.Logger;
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.DriverVersion;
 import org.apache.calcite.avatica.Handler;
@@ -71,6 +73,13 @@ public class DriverImpl extends UnregisteredDriver {
   @Override
   protected Handler createHandler() {
     return new DremioHandler();
+  }
+
+  @Override
+  public Logger getParentLogger() {
+    // Return the logger associated with the driver package ('com.dremio.jdbc')
+    // When packaged will also apply to all shaded dependencies
+    return Logger.getLogger(Driver.class.getPackageName());
   }
 
   SabotConfig getSabotConfig() {

@@ -78,6 +78,9 @@ message VirtualDataset {
   // The fields of the dataset from a View perspective. This is generated from the view's rowType
   repeated ViewFieldType calcite_fields = 9; // DEPRECATED
   optional bool default_reflection_enabled = 10;
+  optional IcebergViewAttributes iceberg_view_attributes = 11;
+  // One of the ancestor views changed source and/or fields, this view needs update
+  optional bool schema_outdated = 12;
 }
 
 enum SortOrder {
@@ -106,6 +109,11 @@ message DatasetField {
   optional bytes field_schema = 2; // FlatBuffer encoded schema
 }
 
+message IcebergViewAttributes {
+ optional string view_spec_version = 1;
+ optional string view_dialect = 2;
+}
+
 message AccelerationSettings {
   // acceleration ttl
   optional TimePeriod accelerationTTL = 1 [deprecated = true];
@@ -126,6 +134,10 @@ message AccelerationSettings {
   // active refresh policy type
   optional RefreshPolicyType refreshPolicyType = 11 [default = PERIOD];
   optional string refreshSchedule = 12;
+  // Represents accelerationRefreshOnDataChanges option comes from source config.
+  // For Iceberg table, when inheriting source settings, refreshPolicyType will
+  // be set to REFRESH_ON_DATA_CHANGES if sourceRefreshOnDataChanges is true.
+  optional bool sourceRefreshOnDataChanges = 13 [default = false];
 }
 
 enum RefreshMethod {

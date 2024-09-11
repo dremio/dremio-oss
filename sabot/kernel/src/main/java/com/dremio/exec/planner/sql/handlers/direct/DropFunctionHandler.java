@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.udf.UserDefinedFunctionCatalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.parser.SqlDropFunction;
@@ -42,37 +46,60 @@ public class DropFunctionHandler extends SimpleDirectHandler {
     final SqlDropFunction dropFunction = SqlNodeUtil.unwrap(sqlNode, SqlDropFunction.class);
     final Catalog catalog = context.getCatalog();
     UserDefinedFunctionCatalog userDefinedFunctionCatalog = context.getUserDefinedFunctionCatalog();
-    NamespaceKey functionKey = catalog.resolveSingle(dropFunction.getPath());
 
-    boolean functionExists = checkFunctionExists(functionKey, userDefinedFunctionCatalog);
+    NamespaceKey functionKey = catalog.resolveSingle(dropFunction.getPath());
+    CatalogEntityKey catalogEntityKey =
+        CatalogEntityKeyUtil.buildCatalogEntityKey(
+            functionKey,
+            dropFunction.getSqlTableVersionSpec(),
+            context.getSession().getSessionVersionForSource(functionKey.getRoot()));
+    boolean functionExists = doesFunctionExist(userDefinedFunctionCatalog, catalogEntityKey);
     if (functionExists) {
-      userDefinedFunctionCatalog.dropFunction(functionKey);
+      userDefinedFunctionCatalog.dropFunction(catalogEntityKey);
       return SimpleCommandResult.successful(
-          String.format("Function, %s, is dropped.", functionKey));
+          String.format("Function [%s] has been dropped.", catalogEntityKey.toSql()));
     }
 
     // Try again but from the root context:
     if (functionKey.size() > 1) {
       functionKey = new NamespaceKey(functionKey.getLeaf());
-      functionExists = checkFunctionExists(functionKey, userDefinedFunctionCatalog);
+      catalogEntityKey =
+          CatalogEntityKeyUtil.buildCatalogEntityKey(
+              functionKey,
+              dropFunction.getSqlTableVersionSpec(),
+              context.getSession().getSessionVersionForSource(functionKey.getRoot()));
+      functionExists = doesFunctionExist(userDefinedFunctionCatalog, catalogEntityKey);
       if (functionExists) {
-        userDefinedFunctionCatalog.dropFunction(functionKey);
+        userDefinedFunctionCatalog.dropFunction(CatalogEntityKey.fromNamespaceKey(functionKey));
         return SimpleCommandResult.successful(
-            String.format("Function, %s, is dropped.", functionKey));
+            String.format("Function [%s] has been dropped.", catalogEntityKey.toSql()));
       }
     }
 
     if (dropFunction.isIfExists()) {
-      return SimpleCommandResult.successful("Function, %s, does not exists.", functionKey);
+      return SimpleCommandResult.successful(
+          "Function [%s] does not exists.", catalogEntityKey.toSql());
     }
 
     throw UserException.validationError()
-        .message("Function, %s, does not exists.", functionKey)
+        .message("Function [%s] does not exists.", catalogEntityKey.toSql())
         .buildSilently();
   }
 
-  private boolean checkFunctionExists(
-      NamespaceKey functionKey, UserDefinedFunctionCatalog userDefinedFunctionCatalog) {
-    return null != userDefinedFunctionCatalog.getFunction(functionKey);
+  protected ResolvedVersionContext getResolvedVersionContext(
+      String sourceName, VersionContext version) {
+    return CatalogUtil.resolveVersionContext(context.getCatalog(), sourceName, version);
+  }
+
+  private static boolean doesFunctionExist(
+      UserDefinedFunctionCatalog udfCatalog, CatalogEntityKey functionKey) {
+    boolean exists;
+    try {
+      exists = udfCatalog.getFunction(functionKey) != null;
+    } catch (Exception ignored) {
+      exists = false;
+    }
+
+    return exists;
   }
 }

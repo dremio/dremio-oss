@@ -22,7 +22,7 @@
   justify-content: space-between;
   width: 100%;
   height: 56px;
-  border-bottom: 1px solid $solitude;
+  border-bottom: 1px solid var(--border--neutral);
   padding: 0px 15px !important;
   .dialogTitle__content {
     h2 {
@@ -38,7 +38,7 @@
       &.--error {
         svg {
           path {
-            fill: $trout !important;
+            fill: var(--icon--primary) !important;
           }
         }
       }
@@ -55,14 +55,14 @@
     cursor: pointer;
     &:hover {
       svg path {
-        fill: $teal !important;
+        fill: var(--icon--hover) !important;
       }
     }
 
     // Todo: Replace with font icons
     svg {
       path:last-of-type {
-        fill: $trout;
+        fill: var(--icon--primary);
       }
     }
   }

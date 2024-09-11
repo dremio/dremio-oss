@@ -95,6 +95,16 @@ public class TestBugFixes extends BaseTestQuery {
         .hasMessageContaining("VALIDATION ERROR: Column 'employee_id' is ambiguous");
   }
 
+  @Test // DX-87539
+  public void testCheckAmbiguousColumn() throws Exception {
+    test(String.format("alter session set \"%s\" = true", "planner.allow_ambiguous_column"));
+    String ddl = "create table \"dfs_test\".qwerty(c_int int, c_bigint bigint)";
+    test(ddl);
+    String query =
+        "select is_current_ancestor from TABLE(table_history('dfs_test.qwerty')) order by made_current_at";
+    test(query); // Should succeed rather than throw VALIDATION ERROR: Table 'EXPR$0' not found
+  }
+
   @Test(expected = UserException.class)
   @Ignore
   // Should be "Failure while parsing sql. SabotNode [rel#26:Subset#6.LOGICAL.ANY([]).[]] could not

@@ -49,7 +49,9 @@ public class CopyIntoTablePrule extends RelOptRule {
     CopyIntoPlanBuilder planBuilder =
         new CopyIntoPlanBuilder(
             copyIntoTableRel.getTable(),
+            copyIntoTableRel.getRelNode(),
             copyIntoTableRel.getRowType(),
+            copyIntoTableRel.getTransformationsRowType(),
             copyIntoTableRel.getCluster(),
             copyIntoTableRel.getTraitSet().plus(Prel.PHYSICAL),
             tableMetadata,

@@ -29,7 +29,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import java.util.List;
-import java.util.Optional;
 
 /** Catalog Item */
 public class CatalogItem {
@@ -148,6 +147,10 @@ public class CatalogItem {
     return fromSpaceConfig(spaceConfig, null);
   }
 
+  public static CatalogItem fromFunctionConfig(FunctionConfig functionConfig) {
+    return fromFunctionConfig(functionConfig, null);
+  }
+
   public static CatalogItem fromDatasetConfig(DatasetConfig datasetConfig, CollaborationTag tags) {
     DatasetSubType datasetType = DatasetSubType.PROMOTED;
 
@@ -214,48 +217,48 @@ public class CatalogItem {
     return createdAt;
   }
 
-  public static Optional<CatalogItem> fromNamespaceContainer(NameSpaceContainer container) {
+  public static CatalogItem fromNamespaceContainer(NameSpaceContainer container) {
     return fromNamespaceContainer(container, null);
   }
 
-  public static Optional<CatalogItem> fromNamespaceContainer(
+  private static CatalogItem fromNamespaceContainer(
       NameSpaceContainer container, CollaborationTag tags) {
-    Optional<CatalogItem> item = Optional.empty();
+    CatalogItem item;
 
     switch (container.getType()) {
       case SOURCE:
         {
-          item = Optional.of(CatalogItem.fromSourceConfig(container.getSource(), tags));
+          item = CatalogItem.fromSourceConfig(container.getSource(), tags);
           break;
         }
 
       case SPACE:
         {
-          item = Optional.of(CatalogItem.fromSpaceConfig(container.getSpace(), tags));
+          item = CatalogItem.fromSpaceConfig(container.getSpace(), tags);
           break;
         }
 
       case DATASET:
         {
-          item = Optional.of(CatalogItem.fromDatasetConfig(container.getDataset(), tags));
+          item = CatalogItem.fromDatasetConfig(container.getDataset(), tags);
           break;
         }
 
       case HOME:
         {
-          item = Optional.of(CatalogItem.fromHomeConfig(container.getHome()));
+          item = CatalogItem.fromHomeConfig(container.getHome());
           break;
         }
 
       case FOLDER:
         {
-          item = Optional.of(CatalogItem.fromFolderConfig(container.getFolder()));
+          item = CatalogItem.fromFolderConfig(container.getFolder());
           break;
         }
 
       case FUNCTION:
         {
-          item = Optional.of(CatalogItem.fromFunctionConfig(container.getFunction(), tags));
+          item = CatalogItem.fromFunctionConfig(container.getFunction(), tags);
           break;
         }
 

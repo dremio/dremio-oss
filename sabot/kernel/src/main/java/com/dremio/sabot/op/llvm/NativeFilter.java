@@ -65,7 +65,6 @@ public class NativeFilter implements AutoCloseable {
       FunctionContext functionContext,
       boolean optimize,
       boolean targetHostCPU,
-      GandivaSecondaryCacheWithStats secondaryCache,
       double exprComplexityThreshold)
       throws GandivaException {
     Set<ReferencedField> referencedFields = new LinkedHashSet<>();
@@ -78,13 +77,7 @@ public class NativeFilter implements AutoCloseable {
             .withOptimize(optimize)
             .withTargetCPU(targetHostCPU);
     Filter filter;
-    if (secondaryCache != null
-        && expr.accept(new ExpressionWorkEstimator(), null) >= exprComplexityThreshold) {
-      // enable the secondary cache
-      filter = Filter.make(root.getSchema(), condition, configOptions, secondaryCache);
-    } else {
-      filter = Filter.make(root.getSchema(), condition, configOptions);
-    }
+    filter = Filter.make(root.getSchema(), condition, configOptions);
     return new NativeFilter(filter, root, selectionVector);
   }
 

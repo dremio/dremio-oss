@@ -49,6 +49,7 @@ const MultiSelectComponent = (props) => {
     loadNextRecords,
     nonClearableValue,
     getCustomChipIcon,
+    referToId = false,
   } = props;
 
   const [showMenu, setShowMenu] = useState(false);
@@ -103,8 +104,10 @@ const MultiSelectComponent = (props) => {
   };
 
   const removeValue = (deleteValue) => {
-    const updatedValue = value.filter(
-      (selectedVal) => selectedVal !== deleteValue,
+    const updatedValue = value.filter((selectedVal) =>
+      referToId
+        ? selectedVal.id !== deleteValue.id
+        : selectedVal !== deleteValue,
     );
     updateValue(updatedValue);
   };
@@ -116,7 +119,7 @@ const MultiSelectComponent = (props) => {
 
   const handleDelete = (event, deleteValue) => {
     let delValue = deleteValue;
-    if (displayValues.length) {
+    if (!referToId && displayValues.length) {
       delValue = deleteValue.value;
     }
     removeValue(delValue);
@@ -134,10 +137,22 @@ const MultiSelectComponent = (props) => {
   };
 
   const handleMenuItemClick = (selectedValue) => {
-    if (value.indexOf(selectedValue) === -1) {
-      addValue(selectedValue);
+    const existsInDisplayValues = () =>
+      !!displayValues.find((option) => option.id === selectedValue.id);
+    if (referToId) {
+      const exists = existsInDisplayValues();
+      if (!exists) {
+        addValue(selectedValue);
+      } else {
+        removeValue(selectedValue);
+      }
     } else {
-      removeValue(selectedValue);
+      const exists = value.indexOf(selectedValue.value) !== -1;
+      if (!exists) {
+        addValue(selectedValue.value);
+      } else {
+        removeValue(selectedValue.value);
+      }
     }
     handleTypeAhead({ currentTarget: { value: "" } });
     inputRef.current.focus();
@@ -331,13 +346,16 @@ const MultiSelectComponent = (props) => {
     }
 
     return filteredValues.map((item, idx) => {
-      const isSelected = value.indexOf(item.value) !== -1;
+      const isSelected = referToId
+        ? !!displayValues.find((val) => val.id === item.id)
+        : value.indexOf(item.value) !== -1;
+
       const chip = renderMenuItemChipIcon(item);
       return (
         <MenuItem
           key={idx}
           value={item.value}
-          onClick={() => handleMenuItemClick(item.value)}
+          onClick={() => handleMenuItemClick(item)}
           selected={isSelected}
           classes={{
             root: "multiSelect__option",
@@ -347,10 +365,9 @@ const MultiSelectComponent = (props) => {
         >
           <span
             className={clsx(
-              "gutter-right--half",
-              !item.description
-                ? "gutter-top--half"
-                : ["self-start", "gutter-top--quarter"],
+              "multiSelect__cbox",
+              "pr-05",
+              !item.description ? "" : ["self-start", "pt-05"],
             )}
           >
             <Checkbox checked={isSelected} />
@@ -448,6 +465,7 @@ MultiSelectComponent.propTypes = {
   disabled: PropTypes.bool,
   nonClearableValue: PropTypes.string,
   getCustomChipIcon: PropTypes.func,
+  referToId: PropTypes.bool,
 };
 
 MultiSelectComponent.defaultProps = {

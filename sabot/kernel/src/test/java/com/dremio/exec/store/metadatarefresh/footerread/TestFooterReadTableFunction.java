@@ -583,7 +583,7 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
         new OperatorContextImpl(
             sabotContext.getConfig(),
             sabotContext.getDremioConfig(),
-            getAllocator(),
+            getTestAllocator(),
             sabotContext.getOptionManager(),
             10,
             sabotContext.getExpressionSplitCache());

@@ -44,8 +44,8 @@ public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
   @Before
   public void setUp() throws Exception {
     clearAllDataExceptUser();
-    somMaster = getMasterDremioDaemon().getBindingProvider().lookup(SystemOptionManager.class);
-    somNonMaster = getCurrentDremioDaemon().getBindingProvider().lookup(SystemOptionManager.class);
+    somMaster = lMaster(SystemOptionManager.class);
+    somNonMaster = l(SystemOptionManager.class);
   }
 
   private void waitForOptionInNonMaster(final String optionName) throws Exception {
@@ -54,9 +54,9 @@ public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
     }
   }
 
-  private void waitForOptionValueInNonMaster(final String optionNam, final long value)
+  private void waitForOptionValueInNonMaster(final String optionName, final long value)
       throws Exception {
-    while (somNonMaster.getOption("store.plugin.max_metadata_leaf_columns").getNumVal() != value) {
+    while (somNonMaster.getOption(optionName).getNumVal() != value) {
       Thread.sleep(10);
     }
   }

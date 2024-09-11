@@ -16,7 +16,6 @@
 import { shallow } from "enzyme";
 
 import ViewStateWrapper from "components/ViewStateWrapper";
-import browserUtils from "utils/browserUtils";
 import StatefulTableViewer from "./StatefulTableViewer";
 
 describe("StatefulTableViewer", () => {
@@ -48,16 +47,6 @@ describe("StatefulTableViewer", () => {
   });
 
   describe("render", function () {
-    let getPlatformStub;
-    beforeEach(() => {
-      getPlatformStub = sinon.stub(browserUtils, "getPlatform").returns({
-        name: "Chrome",
-        version: 54,
-      });
-    });
-    afterEach(() => {
-      getPlatformStub.restore();
-    });
     it("should render VirtualizedTableViewer only if virtualized is true", () => {
       // add data item to avoid empty message
       const props = {
@@ -81,14 +70,13 @@ describe("StatefulTableViewer", () => {
       };
       const wrapper = shallow(<StatefulTableViewer {...props} />, { context });
       expect(wrapper.find(ViewStateWrapper).prop("viewState")).to.be.eql(
-        viewState
+        viewState,
       );
     });
 
     it("should not render VirtualizedTableViewer when tableData is empty for IE 11", () => {
-      getPlatformStub.returns({ name: "IE", version: 11 });
       const wrapper = shallow(
-        <StatefulTableViewer virtualized {...commonProps} />
+        <StatefulTableViewer virtualized {...commonProps} />,
       );
       expect(wrapper.find("VirtualizedTableViewer")).to.have.length(0);
     });

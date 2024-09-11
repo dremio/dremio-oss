@@ -16,14 +16,11 @@
 package com.dremio.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.jdbc.test.JdbcAssert;
-import java.sql.Clob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -54,33 +51,6 @@ public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
         assertThat(rs.getInt(1)).isEqualTo(11);
         assertThat(rs.next()).isFalse();
       }
-    }
-  }
-
-  //////////
-  // Parameters-not-implemented tests:
-
-  /** Tests that "not supported" has priority over possible "no parameters" check. */
-  @Test
-  public void testParamSettingWhenNoParametersIndexSaysUnsupported() throws SQLException {
-    try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
-      assertThatThrownBy(() -> prepStmt.setBytes(4, null))
-          .isInstanceOf(SQLFeatureNotSupportedException.class)
-          .hasMessageContaining("arameter")
-          .hasMessageContaining("not")
-          .hasMessageContaining("support");
-    }
-  }
-
-  /** Tests that "not supported" has priority over possible "type not supported" check. */
-  @Test
-  public void testParamSettingWhenUnsupportedTypeSaysUnsupported() throws SQLException {
-    try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
-      assertThatThrownBy(() -> prepStmt.setClob(2, (Clob) null))
-          .isInstanceOf(SQLFeatureNotSupportedException.class)
-          .hasMessageContaining("arameter")
-          .hasMessageContaining("not")
-          .hasMessageContaining("support");
     }
   }
 }

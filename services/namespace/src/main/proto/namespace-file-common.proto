@@ -49,4 +49,5 @@ message FileConfig {
   optional int64 version = 7 [deprecated = true];
   optional string location = 8; // path where file is uploaded
   optional string tag = 9;
+  optional string fileNameRegex = 10;
 }

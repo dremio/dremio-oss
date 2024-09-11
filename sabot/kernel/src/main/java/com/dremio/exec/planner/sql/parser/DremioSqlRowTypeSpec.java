@@ -21,10 +21,12 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Pair;
 
 /**
@@ -32,7 +34,7 @@ import org.apache.calcite.util.Pair;
  *
  * <p>We also support to add a [ NULL | NOT NULL ] suffix for every field type
  */
-public final class DremioSqlRowTypeSpec extends SqlTypeNameSpec {
+public final class DremioSqlRowTypeSpec extends SqlTypeNameSpec implements ValidatableTypeNameSpec {
 
   private final List<SqlIdentifier> fieldNames;
   private final List<SqlComplexDataTypeSpec> fieldTypes;
@@ -72,8 +74,31 @@ public final class DremioSqlRowTypeSpec extends SqlTypeNameSpec {
   @Override
   public RelDataType deriveType(RelDataTypeFactory typeFactory) {
     return typeFactory.createStructType(
-        fieldTypes.stream().map(dt -> dt.deriveType(typeFactory)).collect(Collectors.toList()),
+        fieldTypes.stream()
+            .map(dt -> dt.deriveType(new DremioSqlValidator(typeFactory)))
+            .collect(Collectors.toList()),
         fieldNames.stream().map(SqlIdentifier::toString).collect(Collectors.toList()));
+  }
+
+  @Override
+  public RelDataType deriveType(SqlValidator sqlValidator) {
+    return deriveType(sqlValidator.getTypeFactory());
+  }
+
+  /**
+   * Validate the STRUCT type, it cannot have incorrect basic types inside.
+   *
+   * @return the invalid SqlDataTypeSpec or null when the type is valid.
+   */
+  @Override
+  public SqlDataTypeSpec validateType() {
+    for (SqlComplexDataTypeSpec fieldType : fieldTypes) {
+      if (SqlTypeName.get(fieldType.getTypeName().getSimple()) == null) {
+        return fieldType;
+      }
+      return fieldType.validateType();
+    }
+    return null;
   }
 
   public List<SqlIdentifier> getFieldNames() {

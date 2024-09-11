@@ -20,6 +20,7 @@ import "job.proto";
 import "reflection-common.proto";
 import "reflection-intent.proto";
 import "dataset.proto";
+import "namespace-common.proto";
 
 option java_package = "com.dremio.service.reflection.proto";
 option optimize_for = SPEED;
@@ -58,7 +59,7 @@ message ReflectionEntry {
   optional int32 datasetHash = 17 [deprecated = true];
   optional int64 last_submitted_refresh = 18; // jobStart of last materialization job
   optional int64 last_successful_refresh = 19; // jobEnd of last successful materialization job
-  optional bool dont_give_up = 20 [default = false]; // true if the reflection manager should never mark this reflection as FAILED
+  optional bool dont_give_up = 20 [default = false, deprecated = true]; // true if the reflection manager should never mark this reflection as FAILED
   optional JobId refresh_job_id = 21;
   optional string tag = 22;
   optional string goalVersion = 23;
@@ -69,6 +70,18 @@ message ReflectionEntry {
   optional int64 refresh_pending_begin = 28; // Start of REFRESH_PENDING
   optional Failure lastFailure = 29;
   optional int32 expandedPlanDatasetHash = 30;
+  repeated RefreshPolicyType refreshPolicyType = 31;
+  optional ReflectionEstimationInfo reflectionEstimationInfo = 32;
+}
+
+message ReflectionEstimationInfo {
+  optional int64 created_at = 1;
+  optional double averageQuerySavingsFactor = 2;
+  optional double averageQueryImprovementInMs = 3;
+  optional double averageDailyRefreshCostInMs = 4;
+  optional double averageDailyJobCount = 5;
+  optional double scoreBenefits = 6;
+  optional double scoreTotalRoi = 7;
 }
 
 enum DependencyType {

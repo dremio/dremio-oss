@@ -111,13 +111,13 @@ const DatasetSummary = ({
         detailsView
           ? classes["dataset-summary-wiki-container"]
           : classes["dataset-summary-container"],
-        isPanel && classes["dataset-summary-wiki-container-panel"]
+        isPanel && classes["dataset-summary-wiki-container-panel"],
       )}
     >
       <div
         className={clsx(
           !detailsView && classes["dataset-summary-top-section"],
-          !showColumns && classes["dataset-summary-sqleditor"]
+          !showColumns && classes["dataset-summary-sqleditor"],
         )}
       >
         {!detailsView && (
@@ -143,8 +143,6 @@ const DatasetSummary = ({
           />
         ) : (
           <div className={classes["dataset-summary-dataset-path"]}>
-            {/* need to render an invisible button here since opening the drawer will auto-select the button */}
-            <button className={classes["hidden-button"]} />
             <SummarySubHeader
               subTitle={fullPath}
               versionContext={versionContext}
@@ -190,7 +188,7 @@ const DatasetSummary = ({
             <div
               className={clsx(
                 classes["dataset-summary-open-details-button"],
-                showColumns ? "margin-bottom--double" : ""
+                showColumns ? "margin-bottom--double" : "",
               )}
               onClick={() => {
                 openWikiDrawer(dataset);
@@ -212,7 +210,7 @@ const DatasetSummary = ({
                     alt="Open graph button"
                     className={clsx(
                       classes["dataset-summary-open-details-button"],
-                      showColumns ? "margin-bottom--double" : ""
+                      showColumns ? "margin-bottom--double" : "",
                     )}
                   >
                     <dremio-icon

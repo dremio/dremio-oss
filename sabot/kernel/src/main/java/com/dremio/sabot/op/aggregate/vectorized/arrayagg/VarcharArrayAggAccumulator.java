@@ -21,27 +21,27 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.MutableVarcharVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.util.Text;
 
-public final class VarcharArrayAggAccumulator extends BaseArrayAggAccumulator<Text, VarCharVector> {
+public final class VarcharArrayAggAccumulator extends ArrayAggAccumulator<Text> {
   private final int maxFieldSizeBytes;
 
   public VarcharArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
       BufferAllocator computationVectorAllocator,
-      int maxFieldSizeBytes) {
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
     super(
         input,
         transferVector,
-        maxValuesPerBatch,
         tempAccumulatorHolder,
-        computationVectorAllocator);
+        computationVectorAllocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
     this.maxFieldSizeBytes = maxFieldSizeBytes;
   }
 
@@ -61,7 +61,7 @@ public final class VarcharArrayAggAccumulator extends BaseArrayAggAccumulator<Te
     try (ArrowBuf buffer = getAllocator().buffer(item.getLength())) {
       VarCharHolder holder = new VarCharHolder();
       holder.start = 0;
-      holder.end = item.getLength();
+      holder.end = (int) item.getLength();
       buffer.setBytes(0, item.getBytes());
       holder.buffer = buffer;
       writer.write(holder);
@@ -69,9 +69,9 @@ public final class VarcharArrayAggAccumulator extends BaseArrayAggAccumulator<Te
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Text, VarCharVector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
-    return new VarcharArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<Text> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new VarcharArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

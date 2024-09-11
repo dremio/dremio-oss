@@ -44,6 +44,11 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-gcs-plugin</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-credential-provider</artifactId>
       <version>${project.version}</version>

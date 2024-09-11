@@ -261,6 +261,7 @@
       ],
       "HAVING",
       "WINDOW",
+      "QUALIFY",
       "UNION",
       "INTERSECT",
       "EXCEPT",
@@ -523,6 +524,11 @@
       "EXECUTE",
       "UPLOAD",
       "WRITE",
+      "SHOW",
+      [
+        "EXPORT",
+        "DIAGNOSTICS"
+      ],
       "ALL",
       "ROLE"
     ],
@@ -566,6 +572,11 @@
       "EXECUTE",
       "UPLOAD",
       "WRITE",
+      "SHOW",
+      [
+        "EXPORT",
+        "DIAGNOSTICS"
+      ],
       "ALL"
     ],
     "functions": false,
@@ -712,6 +723,7 @@
       ],
       "HAVING",
       "WINDOW",
+      "QUALIFY",
       "UNION",
       "INTERSECT",
       "EXCEPT",

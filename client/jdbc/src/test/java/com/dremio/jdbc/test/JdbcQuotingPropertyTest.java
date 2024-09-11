@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 import com.dremio.config.DremioConfig;
 import com.dremio.jdbc.Driver;
 import com.dremio.jdbc.JdbcTestBase;
-import com.dremio.jdbc.SabotNodeRule;
 import com.dremio.test.TemporarySystemProperties;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -29,13 +28,10 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Properties;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class JdbcQuotingPropertyTest extends JdbcTestBase {
-
-  @ClassRule public static final SabotNodeRule sabotNode = new SabotNodeRule();
 
   private static final String VIEW_NAME = JdbcQuotingPropertyTest.class.getSimpleName() + "_View";
 
@@ -53,8 +49,7 @@ public class JdbcQuotingPropertyTest extends JdbcTestBase {
     properties.put("quoting", "DOUBLE_QUOTE");
 
     Driver.load();
-    final Connection connection =
-        DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+    final Connection connection = DriverManager.getConnection(getJDBCURL(), properties);
 
     final Statement stmt = connection.createStatement();
     ResultSet util;
@@ -96,8 +91,7 @@ public class JdbcQuotingPropertyTest extends JdbcTestBase {
     properties.put("quoting", "BACK_TICK");
 
     Driver.load();
-    final Connection connection =
-        DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+    final Connection connection = DriverManager.getConnection(getJDBCURL(), properties);
 
     final Statement stmt = connection.createStatement();
     ResultSet util;
@@ -143,8 +137,7 @@ public class JdbcQuotingPropertyTest extends JdbcTestBase {
     properties.put("quoting", "BRACKET");
 
     Driver.load();
-    final Connection connection =
-        DriverManager.getConnection(sabotNode.getJDBCConnectionString(), properties);
+    final Connection connection = DriverManager.getConnection(getJDBCURL(), properties);
 
     final Statement stmt = connection.createStatement();
     ResultSet util;

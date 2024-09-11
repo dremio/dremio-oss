@@ -30,9 +30,9 @@
   --dremio--skeleton--border-radius: var(--dremio--radius--1);
   background-image: linear-gradient(
     90deg,
-    var(--color--neutral--50) 0px,
+    var(--border--neutral) 0px,
     rgba(229, 229, 229, 1) 40px,
-    var(--color--neutral--50) 80px
+    var(--border--neutral) 80px
   );
   background-size: 600px;
   animation: shine-lines 2s infinite ease-out;

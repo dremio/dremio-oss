@@ -39,6 +39,8 @@ import org.mockito.Mock;
 
 public abstract class TestShowCreateHandlerBase {
   protected static final String DEFAULT_BRANCH_NAME = "test";
+  protected static final VersionContext DEFAULT_BRANCH_VERSION_CONTEXT =
+      VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
   protected static final List<String> DEFAULT_VIEW_PATH = Arrays.asList("space", "view");
   protected static final NamespaceKey DEFAULT_VIEW_KEY = new NamespaceKey(DEFAULT_VIEW_PATH);
   protected static final List<String> DEFAULT_VERSIONED_VIEW_PATH =
@@ -56,7 +58,6 @@ public abstract class TestShowCreateHandlerBase {
       Arrays.asList("$scratch", "table");
   protected static final NamespaceKey DEFAULT_TABLE_IN_SCRATCH_KEY =
       new NamespaceKey(DEFAULT_TABLE_IN_SCRATCH_PATH);
-  protected static final VersionContext sessionVersion = VersionContext.NOT_SPECIFIED;
   protected static SqlShowCreate SHOW_CREATE_VIEW =
       new SqlShowCreate(
           SqlParserPos.ZERO,

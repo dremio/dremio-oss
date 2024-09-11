@@ -27,13 +27,15 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.LinearizableHierarchicalStore;
 import com.dremio.service.coordinator.LostConnectionObserver;
 import com.dremio.service.coordinator.exceptions.PathExistsException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,6 +55,10 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
     implements ModifiableSchedulerService {
   private static final org.slf4j.Logger LOGGER =
       org.slf4j.LoggerFactory.getLogger(ClusteredSingletonTaskScheduler.class);
+
+  // by default weight based balancing is disabled
+  private static final int DEFAULT_WEIGHT_BASED_BALANCING_PERIOD_SECS = 0;
+  private static final int DEFAULT_WEIGHT_TOLERANCE = 0;
   private static final String MAIN_POOL_NAME = "clustered_singleton";
   private static final String STICKY_POOL_NAME = "clustered_singleton_sticky";
   private static final int MAX_TIME_TO_WAIT_POST_CANCEL_SECONDS = 10;
@@ -61,6 +67,7 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
   private static final String SERVICE_NAME_PREFIX = MAIN_POOL_NAME + "-";
   private static final String DONE_PATH = "done";
   private static final String STEAL_PATH = "steal-set";
+  private static final String WEIGHT_PATH = "weight";
   // default task group used for tasks that are scheduled
   private final ScheduleTaskGroup defaultGroup;
   // root path that uniquely identifies this service. All instances of the same service must have
@@ -71,6 +78,8 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
   // Parent path for notifying that a task can be stolen as this instance does not have the
   // bandwidth to run
   private final String stealFqPath;
+  // Root path for tracking weights for weight based load balancing
+  private final String weightFqPath;
   // Name of the service (derived from the root path)
   private final String serviceName;
   // Endpoint Provider for this service instance
@@ -98,11 +107,15 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
   private final TaskStatsCollector statsCollector;
   private final TaskInfoLogger infoLogger;
   private final TaskCompositeEventCollector eventCollector;
+  private final WeightBalancer weightBalancer;
   private final AtomicInteger lockStepCounter;
   private final boolean haltOnZkLost;
   private final AtomicBoolean active;
   private final String unVersionedDoneFqPath;
   private final int maxWaitTimePostCancel;
+  private final AtomicBoolean zombie;
+  private final AtomicBoolean ignoreReconnects;
+  private final int weightBasedBalancingPeriodSecs;
   // Reference to the distributed task store (e.g. zk)
   private volatile LinearizableHierarchicalStore taskStore;
   // version of this service on the latest restart
@@ -122,7 +135,9 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
         clusterCoordinatorProvider,
         currentNode,
         false,
-        maxWaitTimePostCancel);
+        maxWaitTimePostCancel,
+        DEFAULT_WEIGHT_BASED_BALANCING_PERIOD_SECS,
+        DEFAULT_WEIGHT_TOLERANCE);
   }
 
   public ClusteredSingletonTaskScheduler(
@@ -137,16 +152,20 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
         clusterCoordinatorProvider,
         currentNode,
         haltOnZkLost,
-        MAX_TIME_TO_WAIT_POST_CANCEL_SECONDS);
+        MAX_TIME_TO_WAIT_POST_CANCEL_SECONDS,
+        DEFAULT_WEIGHT_BASED_BALANCING_PERIOD_SECS,
+        DEFAULT_WEIGHT_TOLERANCE);
   }
 
-  private ClusteredSingletonTaskScheduler(
+  public ClusteredSingletonTaskScheduler(
       ScheduleTaskGroup defaultGroup,
       String nameSpace,
       Provider<ClusterCoordinator> clusterCoordinatorProvider,
       Provider<CoordinationProtos.NodeEndpoint> currentNode,
       boolean haltOnZkLost,
-      int maxWaitTimePostCancel) {
+      int maxWaitTimePostCancel,
+      int weightBasedBalancingPeriodSecs,
+      int weightTolerance) {
     Preconditions.checkArgument(defaultGroup != null, "Must specify a default group for schedules");
     Preconditions.checkArgument(
         nameSpace != null && !nameSpace.isEmpty(), "Must specify a valid name space");
@@ -169,9 +188,12 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
     this.cancelledTasks = new HashSet<>();
     this.cancelHandlerLock = new ReentrantLock();
     this.cancelCompleteCondition = cancelHandlerLock.newCondition();
+    this.zombie = new AtomicBoolean(false);
+    this.ignoreReconnects = new AtomicBoolean(false);
     this.statsCollector = new TaskStatsCollector(this);
     this.infoLogger = new TaskInfoLogger(this);
-    this.eventCollector = new TaskCompositeEventCollector();
+    this.eventCollector =
+        new TaskCompositeEventCollector(Arrays.asList(statsCollector, infoLogger));
     this.recoveryMonitor =
         new TaskRecoveryMonitor(clusterCoordinatorProvider, this, eventCollector);
     this.doneHandler = new TaskDoneHandler(this, eventCollector);
@@ -181,6 +203,17 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
     this.haltOnZkLost = haltOnZkLost;
     this.rollingUpgradeInProgress = true;
     this.unVersionedDoneFqPath = this.doneFqPath + Path.SEPARATOR + "default";
+    this.weightBasedBalancingPeriodSecs = weightBasedBalancingPeriodSecs;
+    if (weightBasedBalancingPeriodSecs > 0) {
+      Preconditions.checkArgument(weightTolerance > 0, "Weight tolerance value must be non zero");
+      this.weightFqPath = this.rootPath + Path.SEPARATOR + WEIGHT_PATH;
+      this.weightBalancer =
+          new TaskWeightTracker(
+              this, eventCollector, weightBasedBalancingPeriodSecs, weightTolerance);
+    } else {
+      this.weightFqPath = null;
+      this.weightBalancer = new TaskWeightTracker.DummyWeightTracker();
+    }
   }
 
   @Override
@@ -190,6 +223,9 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
     createBasePathIgnoreIfExists(doneFqPath);
     createBasePathIgnoreIfExists(stealFqPath);
     createBasePathIgnoreIfExists(unVersionedDoneFqPath);
+    if (weightFqPath != null) {
+      createBasePathIgnoreIfExists(weightFqPath);
+    }
     createTaskPool(this.defaultGroup);
     serviceVersion = retrieveServiceVersion();
     versionedDoneFqPath = doneFqPath + Path.SEPARATOR + serviceVersion;
@@ -199,8 +235,7 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
     this.loadController.start();
     this.statsCollector.start();
     this.infoLogger.start();
-    this.eventCollector.registerEventSink(statsCollector);
-    this.eventCollector.registerEventSink(infoLogger);
+    this.weightBalancer.start();
     this.active.set(true);
     taskStore.registerLostConnectionObserver(new SessionLostHandler());
     LOGGER.info(
@@ -214,6 +249,11 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
     // These pre-conditions will never happen as we have trusted internal clients; but check for
     // them
     // to avoid more nasty failures later.
+    if (weightBasedBalancingPeriodSecs <= 0) {
+      Preconditions.checkArgument(
+          Objects.isNull(schedule.getWeightProvider()),
+          "Weight Based balancing schedules is not enabled for this clustered singleton");
+    }
     Preconditions.checkState(
         this.taskStore != null, "Internal Error: Clustered Singleton Scheduler not started yet");
     Preconditions.checkArgument(
@@ -257,7 +297,8 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
                     loadController,
                     eventCollector,
                     recoveryMonitor,
-                    doneHandler);
+                    doneHandler,
+                    weightBalancer);
               } else {
                 if (schedule.isInLockStep() || v.getSchedule().isInLockStep()) {
                   firstTime.set(true);
@@ -283,7 +324,7 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
                       task,
                       taskFqPath,
                       taskFqPathForBook,
-                      v.isBookingOwner(),
+                      v.getBookingOwnerSessionId(),
                       uniqueTaskName,
                       getRunningPool(schedule),
                       this,
@@ -291,7 +332,8 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
                       loadController,
                       eventCollector,
                       recoveryMonitor,
-                      doneHandler);
+                      doneHandler,
+                      weightBalancer);
                 } else {
                   v.setNewSchedule(schedule);
                 }
@@ -322,7 +364,7 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
 
   private void handleSessionLoss() {
     LOGGER.warn(
-        "{}:{}:An error has occurred in the underlying task store that has caused session loss.",
+        "{}:{}:An error has occurred in the underlying task store that has probably caused session loss.",
         ENDPOINT_AS_STRING.apply(getThisEndpoint()),
         this.serviceName);
     allTasks
@@ -331,23 +373,31 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
             (tracker) -> {
               // if the task is being cancelled no need to handle session loss
               if (!cancelledTasks.contains(tracker)) {
-                tracker.handleSessionLoss();
+                tracker.handlePotentialSessionLoss();
               }
             });
   }
 
-  private void initiateNewSession() {
+  private void recoverOrInitiateNewSession() {
     LOGGER.info(
         "{}:{}: Regaining session after session loss",
         ENDPOINT_AS_STRING.apply(getThisEndpoint()),
         this.serviceName);
+    allTasks
+        .values()
+        .forEach(
+            (tracker) -> {
+              if (!cancelledTasks.contains(tracker)) {
+                tracker.tryRecoverSession();
+              }
+            });
     recoveryMonitor.refresh();
   }
 
   @Override
   public void close() throws Exception {
     if (active.compareAndSet(true, false)) {
-      AutoCloseables.close(loadController, scheduleCommonPool, stickyPool);
+      AutoCloseables.close(loadController, scheduleCommonPool, stickyPool, weightBalancer);
       AutoCloseables.close(taskPools.values());
       AutoCloseables.close(recoveryMonitor, infoLogger);
       taskPools.clear();
@@ -459,6 +509,41 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
   @Override
   boolean isActive() {
     return active.get();
+  }
+
+  @VisibleForTesting
+  void actDead() {
+    zombie.set(true);
+  }
+
+  @VisibleForTesting
+  void bringAlive() {
+    zombie.set(false);
+  }
+
+  @VisibleForTesting
+  void ignoreReconnects() {
+    ignoreReconnects.set(true);
+  }
+
+  @VisibleForTesting
+  void allowReconnects() {
+    ignoreReconnects.set(false);
+  }
+
+  @Override
+  boolean isZombie() {
+    return zombie.get();
+  }
+
+  @Override
+  boolean shouldIgnoreReconnects() {
+    return ignoreReconnects.get();
+  }
+
+  @Override
+  String getWeightFqPath() {
+    return weightFqPath;
   }
 
   /**
@@ -577,10 +662,8 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
     this.taskPools.computeIfAbsent(
         taskGroup.getGroupName(),
         (k) ->
-            new CloseableThreadPool(
-                taskGroup.getGroupName() + "-",
-                taskGroup.getCapacity(),
-                new ThreadPoolExecutor.AbortPolicy()));
+            CloseableThreadPool.newFixedThreadPool(
+                taskGroup.getGroupName() + "-", taskGroup.getCapacity()));
   }
 
   private void createBasePathIgnoreIfExists(String path) throws Exception {
@@ -609,8 +692,8 @@ public class ClusteredSingletonTaskScheduler extends ClusteredSingletonCommon
 
     @Override
     public void notifyConnectionRegainedAfterLost() {
-      if (isActive()) {
-        initiateNewSession();
+      if (isActive() && !zombie.get()) {
+        recoverOrInitiateNewSession();
       }
     }
   }

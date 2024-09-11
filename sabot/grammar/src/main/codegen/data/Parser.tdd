@@ -22,6 +22,7 @@
   # List of import statements.
   imports: [
     "com.dremio.exec.planner.sql.parser.*",
+    "org.projectnessie.model.MergeBehavior",
     "org.apache.calcite.sql.SqlBasicCall",
     "org.apache.calcite.util.*",
     "com.dremio.catalog.model.dataset.TableVersionType",
@@ -91,6 +92,7 @@
     "HISTORY",
     "REFLECTIONS",
     "FOLDER",
+    "FOLDERS",
     "FUNCTIONS",
     "MODIFY",
     "MANAGE",
@@ -173,11 +175,22 @@
     "SNAPSHOTS_OLDER_THAN",
     "RETAIN_LAST_SNAPSHOTS",
     "PIPE",
-    "PIPES",
     "DEDUPE_LOOKBACK_PERIOD",
     "NOTIFICATION_PROVIDER",
     "NOTIFICATION_QUEUE_REFERENCE",
-    "BATCH"
+    "BATCH",
+    "PIPE_EXECUTION_RUNNING",
+    "DRY",
+    "RUN",
+    "CONFLICT",
+    "OVERWRITE"
+    "DISCARD",
+    "CANCEL",
+    "EXPORT",
+    "PERMISSION",
+    "MIN_REPLICAS",
+    "MAX_REPLICAS",
+    "CONCURRENT"
   ]
 
   nonReservedKeywords: [
@@ -216,6 +229,7 @@
     "BREADTH"
     "C"
     "CACHE"
+    "CANCEL"
     "CASCADE"
     "CATALOG"
     "CATALOG_NAME"
@@ -242,9 +256,11 @@
     "COMMAND_FUNCTION_CODE"
     "COMMIT"
     "COMMITTED"
+    "CONCURRENT"
     "CONDITION_NUMBER"
     "CONDITIONAL"
     "CONFIGURE"
+    "CONFLICT"
     "CONNECTION"
     "CONNECTION_NAME"
     "CONSOLIDATED"
@@ -276,12 +292,14 @@
     "DIAGNOSTICS"
     "DIMENSIONS"
     "DISABLE"
+    "DISCARD"
     "DISPATCH"
     "DISPLAY"
     "DISTRIBUTE"
     "DOMAIN"
     "DOW"
     "DOY"
+    "DRY"
     "DYNAMIC_FUNCTION"
     "DYNAMIC_FUNCTION_CODE"
     "ENABLE"
@@ -293,10 +311,12 @@
     "EXCLUDE"
     "EXCLUDING"
     "EXECUTE"
+    "EXPORT"
     "FIELD"
     "FINAL"
     "FIRST"
     "FOLDER"
+    "FOLDERS"
     "FOLLOWING"
     "FORCE"
     "FORGET"
@@ -368,6 +388,7 @@
     "MATERIALIZATION"
     "MAXVALUE"
     "MAX_FILE_SIZE_MB"
+    "MAX_REPLICAS"
     "MEASURES"
     "MERGE"
     "MESSAGE_LENGTH"
@@ -379,6 +400,7 @@
     "MINVALUE"
     "MIN_FILE_SIZE_MB"
     "MIN_INPUT_FILES"
+    "MIN_REPLICAS"
     "MISSING"
     "MODIFY"
     "MONITOR"
@@ -404,6 +426,7 @@
     "OTHERS"
     "OUTPUT"
     "OVERRIDING"
+    "OVERWRITE"
     "OWNERSHIP"
     "PAD"
     "PARAMETER_MODE"
@@ -420,6 +443,8 @@
     "PAST"
     "PATH"
     "PDS"
+    "PERMISSION"
+    "PIPE_EXECUTION_RUNNING"
     "PLACING"
     "PLAN"
     "PLI"
@@ -460,6 +485,7 @@
     "ROUTINE_NAME"
     "ROUTINE_SCHEMA"
     "ROW_COUNT"
+    "RUN"
     "SCALAR"
     "SCALE"
     "SCHEMA"
@@ -652,8 +678,8 @@
     "SqlCreatePipe()",
     "SqlDescribePipe()",
     "SqlDropPipe()",
-    "SqlShowPipes()",
-    "SqlTriggerPipe()"
+    "SqlTriggerPipe()",
+    "SqlAlterEngine()"
   ]
 
   # List of methods for parsing custom literals.
@@ -665,7 +691,8 @@
   # List of methods for parsing custom data types.
   dataTypeParserMethods: [
      "DremioRowTypeName()",
-     "ArrayTypeName()"
+     "ArrayTypeName()",
+     "MapTypeName()"
   ]
 
 
@@ -706,12 +733,19 @@
     "ingestion.ftl"
   ]
 
+  # Binary operators initialization.
+  # Example: "InfixCast".
+  extraBinaryExpressions: [
+  ]
+
   # List of methods for parsing builtin function calls.
   # Return type of method implementation should be "SqlNode".
   # Example: DateFunctionCall().
   builtinFunctionCallMethods: [
   ]
 
+  # Posix ~, ~*, !~, !~* are not supported
+  includePosixOperators: false,
   includeCompoundIdentifier: false,
   includeBraces: false,
   includeAdditionalDeclarations: true,

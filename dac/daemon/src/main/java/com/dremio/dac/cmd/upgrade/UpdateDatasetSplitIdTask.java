@@ -22,9 +22,10 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.datastore.api.LegacyKVStore;
-import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
-import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -34,8 +35,6 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Map.Entry;
 
 /**
  * Scan for datasets whose id may cause unsafe dataset split ids as they are using reserved
@@ -64,16 +63,16 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final LegacyKVStoreProvider storeProvider = context.getLegacyKVStoreProvider();
-    final LegacyKVStore<String, NameSpaceContainer> namespace =
+    final KVStoreProvider storeProvider = context.getKvStoreProvider();
+    final KVStore<String, NameSpaceContainer> namespace =
         storeProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
-    final LegacyKVStore<PartitionChunkId, PartitionChunk> partitionChunksStore =
+    final KVStore<PartitionChunkId, PartitionChunk> partitionChunksStore =
         storeProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
     int fixedSplitIds = 0;
     // namespace#find() returns entries ordered by depth, so sources will
     // be processed before folders, which will be processed before datasets
-    for (Map.Entry<String, NameSpaceContainer> entry : namespace.find()) {
+    for (Document<String, NameSpaceContainer> entry : namespace.find()) {
       final NameSpaceContainer container = entry.getValue();
 
       if (container.getType() != NameSpaceContainer.Type.DATASET) {
@@ -102,13 +101,12 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
   }
 
   private void fixSplits(
-      final LegacyKVStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
-      DatasetConfig config) {
+      final KVStore<PartitionChunkId, PartitionChunk> partitionChunksStore, DatasetConfig config) {
     final long version = config.getReadDefinition().getSplitVersion();
 
     // Get old splits
-    final LegacyFindByRange<PartitionChunkId> query = PartitionChunkId.unsafeGetSplitsRange(config);
-    for (Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(query)) {
+    final FindByRange<PartitionChunkId> query = PartitionChunkId.unsafeGetSplitsRange(config);
+    for (Document<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(query)) {
       final PartitionChunkId oldId = entry.getKey();
       final PartitionChunk split = entry.getValue();
 

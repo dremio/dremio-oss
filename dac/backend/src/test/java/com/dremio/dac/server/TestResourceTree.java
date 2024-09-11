@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.server;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -47,7 +48,7 @@ public class TestResourceTree extends BaseTestServer {
   }
 
   private void populateNamespace() throws Exception {
-    NamespaceService ns = newNamespaceService();
+    NamespaceService ns = getNamespaceService();
 
     getPopulator().populateTestUsers();
 
@@ -217,7 +218,7 @@ public class TestResourceTree extends BaseTestServer {
                         .queryParam("showDatasets", true))
                 .buildGet(),
             NotFoundErrorMessage.class);
-    assertContains("ds5", err.toString());
+    assertThat(err.toString()).contains("ds5");
   }
 
   @Test
@@ -432,7 +433,7 @@ public class TestResourceTree extends BaseTestServer {
             FamilyExpectation.SERVER_ERROR,
             getBuilder(getAPIv2().path("resourcetree/space4/expand")).buildGet(),
             NotFoundErrorMessage.class);
-    assertContains("space4", err.toString());
+    assertThat(err.toString()).contains("space4");
   }
 
   @Test

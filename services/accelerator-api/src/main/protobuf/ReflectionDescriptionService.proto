@@ -31,6 +31,8 @@ service ReflectionDescriptionService {
   rpc ListReflectionDependencies (ListReflectionDependenciesRequest) returns (stream ListReflectionDependenciesResponse);
 
   rpc ListMaterializations (ListMaterializationsRequest) returns (stream ListMaterializationsResponse);
+
+  rpc ListReflectionLineage (ListReflectionLineageRequest) returns (stream ListReflectionLineageResponse);
 }
 
 message ListReflectionsResponse {
@@ -125,4 +127,17 @@ message ListMaterializationsResponse {
 }
 
 message ListMaterializationsRequest {
+}
+
+message ListReflectionLineageResponse {
+  optional int32 batch_number = 1;
+  optional string reflection_id = 2;
+  optional string reflection_name = 3;
+  optional string dataset_name = 4;
+}
+
+message ListReflectionLineageRequest {
+  optional string reflection_id = 1;
+  optional string user_name = 2;
+  optional bool is_admin = 3;
 }

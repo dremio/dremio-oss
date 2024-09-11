@@ -79,24 +79,24 @@ public final class TestSerializerMigration {
               new File(path.toUri().getPath()),
               new TypeReference<List<InputAndOutput<MultiLineString, Output>>>() {})
           .stream()
-          .filter(record -> record.exceptionMessage == null)
+          .filter(rec -> rec.exceptionMessage == null)
           .forEach(
-              record -> {
+              rec -> {
                 MockDremioQueryParser parseTool =
                     new MockDremioQueryParser(OPERATOR_TABLE, CATALOG, "user1");
-                parseTool.parse(record.input.toString());
+                parseTool.parse(rec.input.toString());
                 RelNode deserializedRelNode =
                     FACTORY
                         .getDeserializer(
                             parseTool.getCluster(), CATALOG_READER, OPERATOR_TABLE, null)
-                        .deserialize(record.output.getQueryPlanBinary().getBytes());
+                        .deserialize(rec.output.getQueryPlanBinary().getBytes());
 
                 String errorMessage =
                     String.format(
-                        "Could not migrate '%s' query: '%s'.", record.description, record.input);
+                        "Could not migrate '%s' query: '%s'.", rec.description, rec.input);
                 MultiLineString actualQueryPlan =
                     MultiLineString.create(RelOptUtil.toString(deserializedRelNode));
-                MultiLineString expectedQueryPlan = record.output.getQueryPlanText();
+                MultiLineString expectedQueryPlan = rec.output.getQueryPlanText();
                 Assert.assertEquals(errorMessage, expectedQueryPlan, actualQueryPlan);
               });
     }

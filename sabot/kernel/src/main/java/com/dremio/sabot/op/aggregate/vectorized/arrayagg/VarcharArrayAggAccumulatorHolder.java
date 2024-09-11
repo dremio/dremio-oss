@@ -20,14 +20,14 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.Text;
 
-public final class VarcharArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<Text, VarCharVector> {
+public final class VarcharArrayAggAccumulatorHolder extends ArrayAggAccumulatorHolder<Text> {
   private final VarCharVector vector;
+  private double accumulatedBytes = 0;
 
-  public VarcharArrayAggAccumulatorHolder(int maxValuesPerBatch, final BufferAllocator allocator) {
-    super(maxValuesPerBatch, allocator);
+  public VarcharArrayAggAccumulatorHolder(final BufferAllocator allocator, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector = new VarCharVector("array_agg VarcharArrayAggAccumulatorHolder", allocator);
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -47,10 +47,24 @@ public final class VarcharArrayAggAccumulatorHolder
   @Override
   public void addItemToVector(Text data, int index) {
     vector.set(index, data);
+    accumulatedBytes += getSizeOfElement(data);
   }
 
   @Override
   public Text getItem(int index) {
     return vector.getObject(index);
+  }
+
+  @Override
+  public double getSizeOfElement(Text element) {
+    return element.getBytes().length;
+  }
+
+  @Override
+  public void reAllocIfNeeded(Text data) {
+    super.reAllocIfNeeded(data);
+    if (accumulatedBytes + getSizeOfElement(data) > vector.getByteCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

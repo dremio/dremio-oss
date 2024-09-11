@@ -17,13 +17,14 @@ package com.dremio.exec.planner.observer;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.plancache.CachedPlan;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
@@ -37,6 +38,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import java.util.List;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -74,6 +76,14 @@ public interface AttemptObserver {
   void planStart(String rawPlan);
 
   /**
+   * Resource information about executors collected for planning.
+   *
+   * @param resourceInformation
+   * @param millisTaken
+   */
+  void resourcesPlanned(GroupResourceInformation resourceInformation, long millisTaken);
+
+  /**
    * Parsing of query completed and validated.
    *
    * @param rowType The validated row type.
@@ -89,19 +99,12 @@ public interface AttemptObserver {
 
   /** Printing a message to indicate the plan cache is used. */
   default void planCacheUsed(int count) {}
-  ;
 
   /** Adding updated Acceleration profile into cached plan */
   default void addAccelerationProfileToCachedPlan(CachedPlan plan) {}
-  ;
 
   /** Sets the cached acceleration profile that the profile should show */
   default void restoreAccelerationProfileFromCachedPlan(AccelerationProfile accelerationProfile) {}
-  ;
-
-  /** Sets the cachedPlan key for this query */
-  default void setCacheKey(String cacheKey) {}
-  ;
 
   /**
    * Plan that is serializable, just before convertible scans are converted
@@ -293,18 +296,15 @@ public interface AttemptObserver {
       String detailsText);
 
   /**
-   * Number of records processed
-   *
-   * @param recordCount records processed
-   */
-  void recordsProcessed(long recordCount);
-
-  /**
    * Number of output records
    *
+   * @param endpoint Executor Node Endpoint
    * @param recordCount output records
    */
-  void recordsOutput(long recordCount);
+  void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount);
+
+  /** Mark output limited */
+  void outputLimited();
 
   /**
    * Time taken to generate fragments.
@@ -364,6 +364,8 @@ public interface AttemptObserver {
 
   void updateReflectionsWithHints(
       ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance);
+
+  void putProfileFailed();
 
   static AttemptEvent toEvent(AttemptEvent.State state) {
     return AttemptEvent.newBuilder()

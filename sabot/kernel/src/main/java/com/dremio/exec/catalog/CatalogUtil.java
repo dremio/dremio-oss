@@ -26,8 +26,10 @@ import com.dremio.catalog.exception.SourceDoesNotExistException;
 import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.catalog.model.dataset.TableVersionType;
+import com.dremio.common.exceptions.IcebergTableNotFoundException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -43,8 +45,7 @@ import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.NoDefaultBranchException;
-import com.dremio.exec.store.ReferenceConflictException;
-import com.dremio.exec.store.ReferenceNotFoundException;
+import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.UnAuthenticatedException;
@@ -60,6 +61,7 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.projectnessie.model.ContentKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,11 +101,24 @@ public final class CatalogUtil {
     return recordCountFromSplits;
   }
 
+  @Deprecated(
+      since = "Catalog should be the only one running this business logic",
+      forRemoval = true)
   public static boolean requestedPluginSupportsVersionedTables(
       NamespaceKey key, SourceCatalog catalog) {
     return requestedPluginSupportsVersionedTables(key.getRoot(), catalog);
   }
 
+  /**
+   * Rather than allowing anyone to call into this method, Catalog itself should be the one handling
+   * this sort of check. All calls leading into this method should eventually be updated such that
+   * it doesn't need to call this method.
+   *
+   * <p>Move this to Catalog itself, perhaps?
+   */
+  @Deprecated(
+      since = "Catalog should be the only one running this business logic",
+      forRemoval = true)
   public static boolean requestedPluginSupportsVersionedTables(
       String sourceName, SourceCatalog catalog) {
     try {
@@ -142,17 +157,11 @@ public final class CatalogUtil {
     }
     try {
       return catalog.resolveVersionContext(sourceName, version);
-    } catch (ReferenceNotFoundException e) {
+    } catch (VersionNotFoundInNessieException e) {
       throw UserException.validationError(e)
-          .message("Requested %s not found on source %s.", version, sourceName)
+          .message("Requested %s not found in source %s.", version, sourceName)
           .buildSilently();
-    } catch (NoDefaultBranchException e) {
-      throw UserException.validationError(e)
-          .message(
-              "Unable to resolve source version. Version was not specified and Source %s does not have a default branch set.",
-              sourceName)
-          .buildSilently();
-    } catch (ReferenceConflictException e) {
+    } catch (ReferenceTypeConflictException e) {
       throw UserException.validationError(e)
           .message("Requested %s in source %s is not the requested type.", version, sourceName)
           .buildSilently();
@@ -237,12 +246,8 @@ public final class CatalogUtil {
   /**
    * Utility to return TimeTravelRequest for query : select * from iceberg_table AT
    * SNAPSHOT/TIMESTAMP
-   *
-   * @param key
-   * @param context
-   * @return
    */
-  public static TimeTravelOption.TimeTravelRequest getIcebergTimeTravelRequest(
+  public static @Nullable TimeTravelOption.TimeTravelRequest getIcebergTimeTravelRequest(
       NamespaceKey key, TableVersionContext context) {
     switch (context.getType()) {
       case SNAPSHOT_ID:
@@ -348,6 +353,11 @@ public final class CatalogUtil {
     return datasetConfig;
   }
 
+  /**
+   * Gets the dataset config for a given dataset key.
+   *
+   * @return the dataset config, or null if the dataset is not found.
+   */
   public static DatasetConfig getDatasetConfig(EntityExplorer catalog, NamespaceKey key) {
     DremioTable dremioTable = catalog.getTable(key);
     DatasetConfig datasetConfig = null;
@@ -369,7 +379,7 @@ public final class CatalogUtil {
    */
   public static boolean versionedEntityExists(Catalog catalog, VersionedDatasetId id) {
     NamespaceKey tableNamespaceKey = new NamespaceKey(id.getTableKey());
-    if (VersionedDatasetId.isTimeTravelDatasetId(id)) {
+    if (id.getVersionContext().isTimeTravelType()) {
       return (catalog.getTable(tableNamespaceKey) != null);
     }
     String source = tableNamespaceKey.getRoot();
@@ -474,7 +484,7 @@ public final class CatalogUtil {
       return table.getPath();
     }
 
-    throw UserException.validationError()
+    throw UserException.validationError(new IcebergTableNotFoundException(path.toString()))
         .message("Table [%s] does not exist.", path)
         .buildSilently();
   }

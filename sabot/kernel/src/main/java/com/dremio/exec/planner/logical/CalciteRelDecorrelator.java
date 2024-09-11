@@ -2824,7 +2824,7 @@ public class CalciteRelDecorrelator implements ReflectiveVisitor {
         public Void visitFieldAccess(RexFieldAccess fieldAccess) {
           final RexNode ref = fieldAccess.getReferenceExpr();
           if (ref instanceof RexCorrelVariable) {
-            final RexCorrelVariable var = (RexCorrelVariable) ref;
+            final RexCorrelVariable rexCorrelVar = (RexCorrelVariable) ref;
             if (mapFieldAccessToCorVar.containsKey(fieldAccess)) {
               // for cases where different Rel nodes are referring to
               // same correlation var (e.g. in case of NOT IN)
@@ -2833,7 +2833,7 @@ public class CalciteRelDecorrelator implements ReflectiveVisitor {
               mapRefRelToCorRef.put(rel, mapFieldAccessToCorVar.get(fieldAccess));
             } else {
               final CorRef correlation =
-                  new CorRef(var.id, fieldAccess.getField().getIndex(), corrIdGenerator++);
+                  new CorRef(rexCorrelVar.id, fieldAccess.getField().getIndex(), corrIdGenerator++);
               mapFieldAccessToCorVar.put(fieldAccess, correlation);
               mapRefRelToCorRef.put(rel, correlation);
             }

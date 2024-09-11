@@ -68,5 +68,5 @@ export const useSupportFlag = <T = boolean>(flag: string) => {
     })();
   }, [flag]);
 
-  return [value, loading];
+  return [value, loading] as const;
 };

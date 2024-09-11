@@ -19,18 +19,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Test;
 
 public class TestSqlAlterTablePartitionColumns {
-  private final ParserConfig parserConfig =
-      new ParserConfig(
-          ParserConfig.QUOTING,
-          100,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
 
   @Test
   public void testAddPartitionColumn() {

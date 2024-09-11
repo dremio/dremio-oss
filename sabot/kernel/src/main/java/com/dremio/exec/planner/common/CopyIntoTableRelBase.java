@@ -33,19 +33,25 @@ public abstract class CopyIntoTableRelBase extends AbstractRelNode implements Re
 
   private final RelOptTable table;
   private final CopyIntoTableContext context;
+  private final RelNode relNode;
+  private final RelDataType transformationsRowType;
 
   protected CopyIntoTableRelBase(
       Convention convention,
       RelOptCluster cluster,
       RelTraitSet traitSet,
       RelOptTable table,
+      RelNode relNode,
       RelDataType rowType,
+      RelDataType transformationsRowType,
       CopyIntoTableContext config) {
     super(cluster, traitSet);
     assert getConvention() == convention;
     this.table = table;
     this.context = Preconditions.checkNotNull(config, "CopyInto context can't be null!");
     this.rowType = rowType;
+    this.relNode = relNode;
+    this.transformationsRowType = transformationsRowType;
   }
 
   @Override
@@ -55,6 +61,14 @@ public abstract class CopyIntoTableRelBase extends AbstractRelNode implements Re
 
   public CopyIntoTableContext getContext() {
     return context;
+  }
+
+  public RelNode getRelNode() {
+    return relNode;
+  }
+
+  public RelDataType getTransformationsRowType() {
+    return transformationsRowType;
   }
 
   @Override

@@ -23,12 +23,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.udf.UserDefinedFunctionCatalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.parser.SqlDropFunction;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -53,9 +55,11 @@ public class DropFunctionHandlerTest {
     List<SimpleCommandResult> result = subject.dropFunctionHandler.toResult(sql, sqlNode);
 
     // ASSERT
-    verify(subject.userDefinedFunctionCatalog, times(1)).dropFunction(eq(new NamespaceKey("foo")));
+    verify(subject.userDefinedFunctionCatalog, times(1))
+        .dropFunction(eq(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("foo"))));
     Assert.assertEquals(
-        ImmutableList.of(new SimpleCommandResult(true, "Function, foo, is dropped.")), result);
+        ImmutableList.of(new SimpleCommandResult(true, "Function [foo] has been dropped.")),
+        result);
   }
 
   @Test
@@ -70,9 +74,11 @@ public class DropFunctionHandlerTest {
     List<SimpleCommandResult> result = subject.dropFunctionHandler.toResult(sql, sqlNode);
 
     // ASSERT
-    verify(subject.userDefinedFunctionCatalog, times(1)).dropFunction(eq(new NamespaceKey("foo")));
+    verify(subject.userDefinedFunctionCatalog, times(1))
+        .dropFunction(eq(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("foo"))));
     Assert.assertEquals(
-        ImmutableList.of(new SimpleCommandResult(true, "Function, foo, is dropped.")), result);
+        ImmutableList.of(new SimpleCommandResult(true, "Function [foo] has been dropped.")),
+        result);
   }
 
   @Test
@@ -87,9 +93,10 @@ public class DropFunctionHandlerTest {
     List<SimpleCommandResult> result = subject.dropFunctionHandler.toResult(sql, sqlNode);
 
     // ASSERT
-    verify(subject.userDefinedFunctionCatalog, never()).dropFunction(eq(new NamespaceKey("foo")));
+    verify(subject.userDefinedFunctionCatalog, never())
+        .dropFunction(eq(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("foo"))));
     Assert.assertEquals(
-        ImmutableList.of(new SimpleCommandResult(true, "Function, foo, does not exists.")), result);
+        ImmutableList.of(new SimpleCommandResult(true, "Function [foo] does not exists.")), result);
   }
 
   @Test
@@ -105,23 +112,26 @@ public class DropFunctionHandlerTest {
       subject.dropFunctionHandler.toResult(sql, sqlNode);
       Assert.fail();
     } catch (UserException userException) {
-      Assert.assertEquals("Function, foo, does not exists.", userException.getMessage());
+      Assert.assertEquals("Function [foo] does not exists.", userException.getMessage());
     }
 
     // ASSERT
-    verify(subject.userDefinedFunctionCatalog, never()).dropFunction(eq(new NamespaceKey("foo")));
+    verify(subject.userDefinedFunctionCatalog, never())
+        .dropFunction(eq(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("foo"))));
   }
 
   private SqlDropFunction createDropFunction(String name, boolean ifExists) {
     return new SqlDropFunction(
         SqlParserPos.ZERO,
         SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO),
-        new SqlIdentifier(name, SqlParserPos.ZERO));
+        new SqlIdentifier(name, SqlParserPos.ZERO),
+        null);
   }
 }
 
 class Subject {
   final QueryContext context = mock(QueryContext.class);
+  final UserSession userSession = mock(UserSession.class);
   final Catalog catalog = mock(Catalog.class);
   final UserDefinedFunctionCatalog userDefinedFunctionCatalog =
       mock(UserDefinedFunctionCatalog.class);
@@ -130,11 +140,14 @@ class Subject {
   public Subject() {
     when(context.getCatalog()).thenReturn(catalog);
     when(context.getUserDefinedFunctionCatalog()).thenReturn(userDefinedFunctionCatalog);
+    when(context.getSession()).thenReturn(userSession);
+    when(userSession.getSessionVersionForSource(any())).thenReturn(null);
     when(catalog.resolveSingle(any())).thenReturn(new NamespaceKey("foo"));
   }
 
   public Subject withUserDefinedFunction(String key) throws IOException {
-    when(userDefinedFunctionCatalog.getFunction(new NamespaceKey(key)))
+    when(userDefinedFunctionCatalog.getFunction(
+            CatalogEntityKey.fromNamespaceKey(new NamespaceKey(key))))
         .thenReturn(mock(UserDefinedFunction.class));
     return this;
   }

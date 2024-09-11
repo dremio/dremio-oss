@@ -23,12 +23,19 @@ type ReflectionRecommendationsActions = {
 };
 
 export default function reflectionRecommendations(
-  state = [],
-  action: ReflectionRecommendationsActions
+  state: ReflectionRecommendations | undefined = [],
+  action: ReflectionRecommendationsActions,
 ): ReflectionRecommendations {
   switch (action.type) {
     case SET_REFLECTION_RECOMMENDATIONS:
-      return action.reflections;
+      return action?.reflections.length === 0
+        ? action.reflections
+        : [
+            ...state.filter(
+              (ref) => ref?.type !== action?.reflections?.[0]?.type,
+            ),
+            ...action.reflections,
+          ];
     default:
       return state;
   }

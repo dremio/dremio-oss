@@ -15,8 +15,17 @@
  */
 package com.dremio.exec.catalog.conf;
 
+import static com.dremio.exec.catalog.conf.ConnectionConf.USE_EXISTING_SECRET_VALUE;
+
+import com.dremio.services.credentials.CredentialsException;
+import com.dremio.services.credentials.CredentialsService;
+import com.dremio.services.credentials.CredentialsServiceUtils;
+import com.dremio.services.credentials.SecretsCreator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.annotations.VisibleForTesting;
+import java.net.URI;
 import java.util.function.Supplier;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * A container for a secret. Useful to receives custom Protostuff ser/de logic and ensure compliance
@@ -96,12 +105,92 @@ public interface SecretRef extends Supplier<String> {
   }
 
   /** Create a SecretRef out of given secret */
-  static SecretRef of(String secret) {
+  static SecretRef of(String secret, CredentialsService credentialsService) {
     if (secret == null) {
       return null;
     } else if (secret.isEmpty()) {
       return EMPTY;
+    } else if (USE_EXISTING_SECRET_VALUE.equals(secret)) {
+      return EXISTING_VALUE;
     }
-    return new SecretRefImpl(secret);
+    return new SecretRefImpl(secret).decorateSecrets(credentialsService);
+  }
+
+  /** Create a SecretRef out of given secret and decorate it with given CredentialsService */
+  @VisibleForTesting
+  static SecretRef of(String secret) {
+    return SecretRef.of(secret, null);
+  }
+
+  /**
+   * Retrieve the safe String representation of SecretRef. Returns URIs or redacted plaintext
+   * secrets. This helper should NEVER perform SecretRef resolution and should be safe to use even
+   * if the input SecretRef is not decorated with CredentialsService.
+   */
+  static String getDisplayString(SecretRef input) {
+    if (input == null) {
+      return null;
+    }
+    if (SecretRef.isEmpty(input)) {
+      return SecretRef.EMPTY.get();
+    }
+    if (SecretRef.EXISTING_VALUE.equals(input) || !(input instanceof RepresentableByURI)) {
+      return SecretRef.EXISTING_VALUE.get();
+    }
+
+    final URI uri = ((RepresentableByURI) input).getURI();
+
+    // Mask plaintext or encrypted secrets
+    if (uri == null || CredentialsServiceUtils.isEncryptedCredentials(uri)) {
+      return SecretRef.EXISTING_VALUE.get();
+    }
+
+    return uri.toString();
+  }
+
+  /**
+   * Extracts the URI form of this SecretRef iff this SecretRef can be represented by a URI.
+   * Otherwise, returns null. Encrypted secrets are considered URIs for this purpose.
+   */
+  static URI getURI(SecretRef input) {
+    if (!(input instanceof RepresentableByURI)) {
+      return null;
+    }
+    return ((RepresentableByURI) input).getURI();
+  }
+
+  /**
+   * Encrypt the secret found inside this SecretRef if supported. This mutates the SecretRef and is
+   * NOT idempotent; invoke with caution.
+   *
+   * @param secretsCreator a SecretCreator that wil always encrypt the password by the system
+   * @return true if any secret(s) have been encrypted. False if no plain-text secret to encrypt and
+   *     no error occurs.
+   */
+  static boolean encrypt(SecretRef input, SecretsCreator secretsCreator)
+      throws CredentialsException {
+    if (!(input instanceof Encryptable)) {
+      return false;
+    }
+    return ((Encryptable) input).encrypt(secretsCreator);
+  }
+
+  /**
+   * Extracts representation to use in property maps (ie hadoop configuration). Both encrypted
+   * secrets, and vault references are retrieved as URIs, otherwise resolved secret value is used.
+   * Adds configuration specific prefix.
+   */
+  static String toConfiguration(SecretRef input, String prefix) {
+    if (isNullOrEmpty(input) || SecretRef.EXISTING_VALUE.equals(input)) {
+      return "";
+    }
+
+    final URI uri = getURI(input);
+
+    if (uri != null) {
+      return StringUtils.prependIfMissingIgnoreCase(uri.toString(), prefix);
+    }
+
+    return input.get();
   }
 }

@@ -60,14 +60,14 @@ public class TestSqlBracketlessSyntax {
                 + "order by x.a.a.a.a.a");
 
     String expected =
-        "SELECT `a`[4]['c']\n"
+        "SELECT `a`[4].`c`\n"
             + "FROM `x`.`y`.`z`\n"
-            + "WHERE `a`.`c`['b'] = 5 AND `x`[2] = 7\n"
+            + "WHERE `a`.`c`.`b` = 5 AND `x`[2] = 7\n"
             + "GROUP BY `d`\n"
             + "HAVING `a`.`c` < 5\n"
-            + "ORDER BY `x`.`a`['a']['a']['a']['a']";
+            + "ORDER BY `x`.`a`.`a`.`a`.`a`.`a`";
 
-    SqlNode rewritten = node.accept(new CompoundIdentifierConverter(false));
+    SqlNode rewritten = node.accept(new CompoundIdentifierConverter());
     String rewrittenQuery = rewritten.toString();
 
     DremioAssert.assertMultiLineStringEquals(expected, rewrittenQuery);

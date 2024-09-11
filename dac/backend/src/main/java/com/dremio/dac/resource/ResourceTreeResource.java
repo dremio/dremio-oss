@@ -26,6 +26,8 @@ import com.dremio.dac.model.resourcetree.ResourceTreeEntity;
 import com.dremio.dac.model.resourcetree.ResourceTreeSourceEntity;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.HomeName;
+import com.dremio.dac.service.source.ImmutableResourceTreeListResponse;
+import com.dremio.dac.service.source.ResourceTreeListResponse;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.SabotContext;
@@ -40,6 +42,7 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.collect.Lists;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
+import javax.annotation.Nullable;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -110,7 +113,15 @@ public class ResourceTreeResource {
       throws NamespaceException, UnsupportedEncodingException {
     final FolderPath folderPath = new FolderPath(rootPath);
 
-    return new ResourceList(listPath(folderPath.toNamespaceKey(), showDatasets, refType, refValue));
+    return new ResourceList(
+        listPath(
+                folderPath.toNamespaceKey(),
+                showDatasets,
+                refType,
+                refValue,
+                null,
+                Integer.MAX_VALUE)
+            .entities());
   }
 
   @GET
@@ -196,7 +207,7 @@ public class ResourceTreeResource {
     for (int i = 0; i < expandPathList.size() - 1; ++i) {
       NamespaceKey parentPath = new NamespaceKey(expandPathList.subList(0, i + 1));
       List<ResourceTreeEntity> intermediateResources =
-          listPath(parentPath, showDatasets, null, null);
+          listPath(parentPath, showDatasets, null, null, null, Integer.MAX_VALUE).entities();
       if (!intermediateResources.isEmpty()) {
         root.expand(intermediateResources);
         // reset root
@@ -217,13 +228,26 @@ public class ResourceTreeResource {
     }
     // expand last if its not a leaf.
     if (root.isListable()) {
-      root.expand(listPath(new NamespaceKey(expandPathList), showDatasets, null, null));
+      root.expand(
+          listPath(
+                  new NamespaceKey(expandPathList),
+                  showDatasets,
+                  null,
+                  null,
+                  null,
+                  Integer.MAX_VALUE)
+              .entities());
     }
     return new ResourceList(resources);
   }
 
-  public List<ResourceTreeEntity> listPath(
-      NamespaceKey path, boolean showDatasets, String refType, String refValue)
+  public ResourceTreeListResponse listPath(
+      NamespaceKey path,
+      boolean showDatasets,
+      String refType,
+      String refValue,
+      @Nullable String pageToken,
+      int maxResults)
       throws NamespaceException, UnsupportedEncodingException {
     if (CollectionUtils.isEmpty(path.getPathComponents())) {
       throw UserException.validationError()
@@ -233,21 +257,20 @@ public class ResourceTreeResource {
     NamespaceKey root = new NamespaceKey(path.getRoot());
     if (namespaceService.get().exists(root, SOURCE)) {
       // For SOURCE type, use source service directly
-      return sourceService.listPath(path, showDatasets, refType, refValue);
+      return sourceService.listPath(path, showDatasets, refType, refValue, pageToken, maxResults);
     }
 
-    final List<ResourceTreeEntity> resources = Lists.newArrayList();
-
+    List<ResourceTreeEntity> resources = Lists.newArrayList();
     ResourceTreeEntity.ResourceType rootType = getRootType(root);
-    for (NameSpaceContainer container : namespaceService.get().list(path)) {
+    for (NameSpaceContainer container :
+        namespaceService.get().list(path, null, Integer.MAX_VALUE)) {
       if (container.getType() == Type.FOLDER) {
         resources.add(new ResourceTreeEntity(container.getFolder(), rootType));
       } else if (showDatasets && container.getType() == Type.DATASET) {
         resources.add(new ResourceTreeEntity(container.getDataset(), rootType));
       }
     }
-
-    return resources;
+    return new ImmutableResourceTreeListResponse.Builder().setEntities(resources).build();
   }
 
   private ResourceTreeEntity.ResourceType getRootType(NamespaceKey root) throws NamespaceException {

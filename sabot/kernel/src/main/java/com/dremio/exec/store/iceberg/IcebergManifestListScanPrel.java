@@ -48,12 +48,14 @@ public class IcebergManifestListScanPrel extends TableFunctionPrel {
       BatchSchema schema,
       List<SchemaPath> projectedColumns,
       Long survivingRecords,
-      String user) {
+      String user,
+      String schemeVariate) {
     this(
         cluster,
         traitSet,
         child,
-        TableFunctionUtil.getManifestListScanTableFunctionConfig(schema, storagePluginId),
+        TableFunctionUtil.getManifestListScanTableFunctionConfig(
+            schema, storagePluginId, schemeVariate),
         ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
         survivingRecords,
         user);

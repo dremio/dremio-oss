@@ -1194,7 +1194,7 @@ public final class Fixtures {
     public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if (obj != null) {
         byte[] bytes = obj.getBytes();
-        ((VarCharVector) v).setSafe(index, bytes, 0, obj.getLength());
+        ((VarCharVector) v).setSafe(index, bytes, 0, (int) obj.getLength());
       }
     }
   }

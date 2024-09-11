@@ -114,7 +114,6 @@ public class WriterPrel extends WriterRelBase implements Prel {
   public double estimateRowCount(RelMetadataQuery mq) {
     double estimateInputRowCount = super.estimateRowCount(mq); // Count estimate from input
     BatchSchema schema = CalciteArrowHelper.fromCalciteRowType(getExpectedInboundRowType());
-
     long parquetFileSize =
         PrelUtil.getPlannerSettings(getCluster().getPlanner())
             .getOptions()
@@ -130,9 +129,7 @@ public class WriterPrel extends WriterRelBase implements Prel {
                 .getOptions()
                 .getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
     int estimatedRowSize = schema.estimateRecordSize(listEstimate, variableField);
-
     double numRecords = Math.ceil(parquetFileSize / estimatedRowSize) + 1;
-
     return Math.max(10, estimateInputRowCount / numRecords)
         * PrelUtil.getPlannerSettings(getCluster().getPlanner())
             .getOptions()

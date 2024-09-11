@@ -18,7 +18,6 @@ package com.dremio.exec;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.PlanTestBase;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.InternalFileConf;
@@ -85,7 +84,6 @@ public class BaseTestMiniDFS extends PlanTestBase {
   protected static void addMiniDfsBasedStorage(boolean impersonationEnabled) throws Exception {
     // Create a HDFS based storage plugin (connection string for mini dfs is varies for each run).
 
-    final CatalogService catalogService = getSabotContext().getCatalogService();
     final Path dirPath = new Path("/");
     FileSystem.mkdirs(fs, dirPath, new FsPermission((short) 0777));
     fs.setOwner(dirPath, processUser, processUser);
@@ -100,7 +98,8 @@ public class BaseTestMiniDFS extends PlanTestBase {
     config.setName(MINIDFS_STORAGE_PLUGIN_NAME);
     config.setConnectionConf(conf);
     config.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
-    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(config);
+
+    getCatalogService().getSystemUserCatalog().createSource(config);
   }
 
   protected static void createAndAddWorkspace(

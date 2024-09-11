@@ -17,6 +17,7 @@
 package com.dremio.exec.store.dfs;
 
 import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS;
+import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS_ARM;
 import static com.dremio.exec.ExecConstants.NUM_SPLITS_TO_PREFETCH;
 import static com.dremio.exec.ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE;
 import static com.dremio.exec.ExecConstants.PREFETCH_READER;
@@ -647,6 +648,7 @@ public class TestPrefetchingIterator {
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
     when(optionManager.getOption(ExecConstants.RUNTIME_FILTER_KEY_MAX_SIZE)).thenReturn(32L);
     when(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)).thenReturn("");
+    when(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS_ARM)).thenReturn("");
     when(optionManager.getOption(QUERY_EXEC_OPTION_KEY))
         .thenReturn(
             OptionValue.createString(

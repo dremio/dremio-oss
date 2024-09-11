@@ -60,6 +60,7 @@ public class MaterializedDatasetTable implements DremioTable {
   private final TableVersionContext versionContext;
 
   private final List<RelDataTypeField> extendedFields;
+  private DatasetConfig savedDatasetconfig;
 
   public MaterializedDatasetTable(
       NamespaceKey canonicalPath,
@@ -78,6 +79,11 @@ public class MaterializedDatasetTable implements DremioTable {
     this.complexTypeSupport = complexTypeSupport;
     this.versionContext = versionContext;
     this.extendedFields = new ArrayList<>(extendedFields);
+    this.savedDatasetconfig = null;
+  }
+
+  private void setDatasetConfig(DatasetConfig datasetConfig) {
+    savedDatasetconfig = datasetConfig;
   }
 
   @Override
@@ -222,9 +228,10 @@ public class MaterializedDatasetTable implements DremioTable {
         versionContext,
         fields) {
       private BatchSchema schema;
+      private DatasetConfig extendedDatasetConfig;
 
       @Override
-      public DatasetConfig getDatasetConfig() {
+      public BatchSchema getSchema() {
         if (schema == null) {
           schema =
               BatchSchema.deserialize((datasetConfig.get().getRecordSchema()))
@@ -236,9 +243,76 @@ public class MaterializedDatasetTable implements DremioTable {
                                           field.getName(), field.getType())
                                       .get())
                           .collect(ImmutableList.toImmutableList()));
-          return datasetConfig.get().setRecordSchema(schema.toByteString());
+          return schema;
         }
-        return datasetConfig.get();
+
+        return schema;
+      }
+
+      @Override
+      public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
+
+        return new ScanCrel(
+            context.getCluster(),
+            context.getCluster().traitSetOf(Convention.NONE),
+            pluginId,
+            getDataset(),
+            null,
+            1.0d,
+            ImmutableList.of(),
+            true,
+            true);
+      }
+
+      /**
+       * The original datasetConfig should not be touched, however the extended materialized table
+       * should have the Extended DatasetConfig as tableMetaData.
+       *
+       * @return MaterializedTableMetadata with extended DatasetConfig
+       */
+      @Override
+      public TableMetadata getDataset() {
+        return new MaterializedTableMetadata(
+            pluginId, getExtendedDatasetConfig(), user, partitionChunks.get(), versionContext);
+      }
+
+      private DatasetConfig getExtendedDatasetConfig() {
+        if (extendedDatasetConfig == null) {
+          extendedDatasetConfig = new DatasetConfig();
+          extendedDatasetConfig.setVirtualDataset(datasetConfig.get().getVirtualDataset());
+          extendedDatasetConfig.setPhysicalDataset(datasetConfig.get().getPhysicalDataset());
+          extendedDatasetConfig.setTag(datasetConfig.get().getTag());
+          extendedDatasetConfig.setId(datasetConfig.get().getId());
+          extendedDatasetConfig.setDatasetFieldsList(datasetConfig.get().getDatasetFieldsList());
+          extendedDatasetConfig.setCreatedAt(datasetConfig.get().getCreatedAt());
+          extendedDatasetConfig.setEngineName(datasetConfig.get().getEngineName());
+          extendedDatasetConfig.setFullPathList(datasetConfig.get().getFullPathList());
+          extendedDatasetConfig.setLastModified(datasetConfig.get().getLastModified());
+          extendedDatasetConfig.setName(datasetConfig.get().getName());
+          extendedDatasetConfig.setOwner(datasetConfig.get().getOwner());
+          extendedDatasetConfig.setType(datasetConfig.get().getType());
+          extendedDatasetConfig.setReadDefinition(datasetConfig.get().getReadDefinition());
+          extendedDatasetConfig.setQueueId(datasetConfig.get().getQueueId());
+          extendedDatasetConfig.setSchemaVersion(datasetConfig.get().getSchemaVersion());
+          extendedDatasetConfig.setTotalNumSplits(datasetConfig.get().getTotalNumSplits());
+          extendedDatasetConfig.setRecordSchema(getSchema().toByteString());
+        }
+        return extendedDatasetConfig;
+      }
+
+      /**
+       * Return the extended columns with FILEPATH column and ROW_INDEX column
+       *
+       * @param relDataTypeFactory
+       * @return Columns with extended fields
+       */
+      @Override
+      public RelDataType getRowType(RelDataTypeFactory relDataTypeFactory) {
+        return CalciteArrowHelper.wrap(getSchema())
+            .toCalciteRecordType(
+                relDataTypeFactory,
+                (Field f) -> !NamespaceTable.SYSTEM_COLUMNS.contains(f.getName()),
+                complexTypeSupport);
       }
     };
   }

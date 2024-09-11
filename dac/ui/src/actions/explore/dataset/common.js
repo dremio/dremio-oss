@@ -83,7 +83,7 @@ export function postDatasetOperation({
           RUN_TABLE_TRANSFORM_SUCCESS, // this action doesn't do anything, but leaving here as a placeholder
           schema,
           { ...successMeta, ...metas[1] },
-          uiPropsForEntity
+          uiPropsForEntity,
         ),
         { type: RUN_TABLE_TRANSFORM_FAILURE, meta: { ...meta, ...metas[2] } },
       ],
@@ -119,7 +119,7 @@ export function navigateToNextDataset(
     renderScriptTab,
     isTransform,
     newJobId,
-  } = {}
+  } = {},
 ) {
   return (dispatch, getStore) => {
     changePathname = isSaveAs || changePathname;
@@ -171,7 +171,7 @@ export function navigateToNextDataset(
         history,
         historyItem,
         datasetUI,
-        previousTipVerison
+        previousTipVerison,
       );
 
     const isUnsavedWithDataset = !nextDataset.getIn([
@@ -202,7 +202,7 @@ export function navigateToNextDataset(
       : location.pathname;
     let pathname = changePageTypeInUrl(
       changePathname ? parsedLink.pathname : nextPath,
-      targetPageType
+      targetPageType,
     );
 
     // The URL links from the JobsListing, JobDetails, and DatasetSummary API all have the root level of /space
@@ -215,10 +215,9 @@ export function navigateToNextDataset(
       const editLink = nextDataset.getIn(["links", "edit"]);
       pathname = changePageTypeInUrl(
         `${editLink.substring(0, editLink.indexOf("?"))}`,
-        targetPageType
+        targetPageType,
       );
     }
-    const create = location.query?.create;
     const jobId = _getNextJobId(fullDataset);
     const mode = isSaveAs ? "edit" : location.query?.mode;
     const query = {
@@ -226,7 +225,6 @@ export function navigateToNextDataset(
       ...parsedLink.query,
       ...(jobId ? { jobId } : newJobId ? { jobId: newJobId } : {}),
       ...(mode ? { mode } : {}),
-      ...(isUnsavedWithDataset && create ? { create } : {}),
       version: nextVersion,
       tipVersion: preserveTip ? tipVersion || nextVersion : nextVersion,
       ...(openResults ? { openResults: "true" } : {}),

@@ -79,5 +79,5 @@ h5,
 }
 
 .blueText {
-  color: #43b8c9;
+  color: var(--color--brand--300);
 }

@@ -186,7 +186,8 @@ public class HadoopViewOperations implements ViewOperations {
       }
 
       try (BufferedReader in =
-          new BufferedReader(new InputStreamReader(fs.open(versionHintFile), "UTF-8"))) {
+          new BufferedReader(
+              new InputStreamReader(fs.open(versionHintFile), StandardCharsets.UTF_8))) {
         String versionStr = in.readLine();
         if (versionStr != null) {
           return Integer.parseInt(versionStr.replace("\n", ""));

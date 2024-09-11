@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
-import static com.dremio.sabot.RecordSet.Record;
+import static com.dremio.sabot.RecordSet.RsRecord;
 import static com.dremio.sabot.RecordSet.r;
 import static com.dremio.sabot.RecordSet.rs;
 import static com.dremio.sabot.RecordSet.st;
@@ -125,12 +125,11 @@ public abstract class BaseTestEasyScanTableFunction extends BaseTestTableFunctio
     return pluginId;
   }
 
-  protected RecordSet.Record inputRow(String relativePath) throws Exception {
+  protected RsRecord inputRow(String relativePath) throws Exception {
     return inputRow(relativePath, 0, -1);
   }
 
-  private RecordSet.Record inputRow(String relativePath, long offset, long length)
-      throws Exception {
+  private RsRecord inputRow(String relativePath, long offset, long length) throws Exception {
     Path path = Path.of(FileUtils.getResourceAsFile(relativePath).toURI().toString());
     long fileSize = fs.getFileAttributes(path).size();
     if (length == -1) {
@@ -162,7 +161,7 @@ public abstract class BaseTestEasyScanTableFunction extends BaseTestTableFunctio
       BatchSchema batchSchema,
       String valueDelimiter)
       throws Exception {
-    List<RecordSet.Record> rows = new ArrayList<>();
+    List<RsRecord> rows = new ArrayList<>();
     String path = FileUtils.getResourceAsFile(relativePath).toString();
     BufferedReader br = new BufferedReader(new FileReader(path));
     String line;
@@ -176,10 +175,10 @@ public abstract class BaseTestEasyScanTableFunction extends BaseTestTableFunctio
       String[] colValues = line.split(valueDelimiter);
       rows.add(getRecord(colValues, recordType));
     }
-    return rs(batchSchema, rows.toArray(new RecordSet.Record[0]));
+    return rs(batchSchema, rows.toArray(new RsRecord[0]));
   }
 
-  private Record getRecord(String[] colValue, OutputRecordType recordType) throws Exception {
+  private RsRecord getRecord(String[] colValue, OutputRecordType recordType) throws Exception {
     // year, make ,model ,description, price
     switch (recordType) {
       case YEAR_PRICE:

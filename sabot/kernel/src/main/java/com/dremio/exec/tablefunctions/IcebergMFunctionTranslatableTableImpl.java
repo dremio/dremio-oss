@@ -30,11 +30,8 @@ public final class IcebergMFunctionTranslatableTableImpl extends MFunctionTransl
   private final String metadataLocation;
 
   public IcebergMFunctionTranslatableTableImpl(
-      MFunctionCatalogMetadata catalogMetadata,
-      String user,
-      String metadataLocation,
-      boolean complexTypeSupport) {
-    super(catalogMetadata, user, complexTypeSupport);
+      MFunctionCatalogMetadata catalogMetadata, String user, String metadataLocation) {
+    super(catalogMetadata, user, true);
     this.metadataLocation = metadataLocation;
   }
 

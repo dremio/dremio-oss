@@ -39,7 +39,7 @@ public class TestDACViewCreatorFactory extends BaseTestServer {
   public static void before() throws Exception {
     populateInitialData();
 
-    NamespaceService namespaceService = newNamespaceService();
+    NamespaceService namespaceService = getNamespaceService();
 
     SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName("Spacefoo");
@@ -53,7 +53,7 @@ public class TestDACViewCreatorFactory extends BaseTestServer {
 
   @AfterClass
   public static void after() throws Exception {
-    NamespaceService namespaceService = newNamespaceService();
+    NamespaceService namespaceService = getNamespaceService();
     NamespaceKey namespaceKey = new NamespaceKey("Spacefoo");
     namespaceService.deleteSpace(namespaceKey, namespaceService.getSpace(namespaceKey).getTag());
   }
@@ -66,7 +66,7 @@ public class TestDACViewCreatorFactory extends BaseTestServer {
 
     vcf.get(DEFAULT_USERNAME).createView(path, "select 1", Collections.emptyList(), false);
 
-    DatasetConfig dataset = newNamespaceService().getDataset(namespaceKey);
+    DatasetConfig dataset = getNamespaceService().getDataset(namespaceKey);
     assertEquals(Arrays.asList("Spacefoo", "FolderBar", "testView"), dataset.getFullPathList());
   }
 
@@ -82,7 +82,7 @@ public class TestDACViewCreatorFactory extends BaseTestServer {
     namespaceKey = new NamespaceKey(path);
     vcf.get(DEFAULT_USERNAME).updateView(path, "select 2", Collections.emptyList());
 
-    DatasetConfig dataset = newNamespaceService().getDataset(namespaceKey);
+    DatasetConfig dataset = getNamespaceService().getDataset(namespaceKey);
     assertEquals(Arrays.asList("Spacefoo", "FolderBar", "testView1"), dataset.getFullPathList());
   }
 }

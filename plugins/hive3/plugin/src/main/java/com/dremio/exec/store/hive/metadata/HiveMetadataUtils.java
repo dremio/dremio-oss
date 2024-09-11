@@ -89,6 +89,7 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
+import com.dremio.service.namespace.dataset.proto.TableProperties;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.users.SystemUser;
@@ -535,10 +536,9 @@ public class HiveMetadataUtils {
   }
 
   public static TableMetadata getTableMetadata(
-      final HiveClient client,
+      final Table table,
       final EntityPath datasetPath,
       final InternalMetadataTableOption internalMetadataTableOption,
-      final boolean ignoreAuthzErrors,
       final int maxMetadataLeafColumns,
       final int maxNestedLevels,
       final TimeTravelOption timeTravelOption,
@@ -549,18 +549,6 @@ public class HiveMetadataUtils {
       throws ConnectorException {
 
     try {
-      final SchemaComponents schemaComponents =
-          resolveSchemaComponents(datasetPath.getComponents());
-
-      // if the dataset path is not canonized we need to get it from the source
-      final Table table =
-          client.getTable(
-              schemaComponents.getDbName(), schemaComponents.getTableName(), ignoreAuthzErrors);
-      if (table == null) {
-        // invalid. Guarded against at both entry points.
-        throw new ConnectorException(
-            String.format("Dataset path '%s', table not found.", datasetPath));
-      }
       final Properties tableProperties =
           MetaStoreUtils.getSchema(
               table.getSd(),
@@ -601,7 +589,6 @@ public class HiveMetadataUtils {
                 table,
                 tableProperties,
                 datasetPath,
-                ignoreAuthzErrors,
                 maxMetadataLeafColumns,
                 maxNestedLevels,
                 typeOptions,
@@ -717,17 +704,11 @@ public class HiveMetadataUtils {
     long numEqualityDeletes = Long.parseLong(summary.getOrDefault("total-equality-deletes", "0"));
     long numDeleteFiles = Long.parseLong(summary.getOrDefault("total-delete-files", "0"));
 
-    if (numDeleteFiles > 0
+    if (numEqualityDeletes > 0
         && !plugin
             .getSabotContext()
             .getOptionManager()
-            .getOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN)) {
-      throw UserException.unsupportedError()
-          .message("Iceberg V2 tables with delete files are not supported")
-          .buildSilently();
-    }
-
-    if (numEqualityDeletes > 0) {
+            .getOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE)) {
       throw UserException.unsupportedError()
           .message("Iceberg V2 tables with equality deletes are not supported.")
           .buildSilently();
@@ -744,6 +725,8 @@ public class HiveMetadataUtils {
     byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(specsMap);
     final long snapshotId = snapshot != null ? snapshot.snapshotId() : -1;
     String sortOrderJson = IcebergSerDe.serializeSortOrderAsJson(icebergTable.sortOrder());
+    List<TableProperties> tablePropertiesList =
+        IcebergUtils.convertMapToTablePropertiesList(icebergTable.properties());
 
     IcebergMetadata icebergMetadata =
         new IcebergMetadata()
@@ -753,6 +736,7 @@ public class HiveMetadataUtils {
             .setMetadataFileLocation(metadataLocation)
             .setSnapshotId(snapshotId)
             .setSortOrder(sortOrderJson)
+            .setTablePropertiesList(tablePropertiesList)
             .setDeleteManifestStats(
                 new ScanStats()
                     .setScanFactor(ScanCostFactor.EASY.getFactor())
@@ -828,7 +812,6 @@ public class HiveMetadataUtils {
       final Table table,
       final Properties tableProperties,
       final EntityPath datasetPath,
-      final boolean ignoreAuthzErrors,
       final int maxMetadataLeafColumns,
       final int maxNestedLevels,
       final HiveSchemaTypeOptions typeOptions,

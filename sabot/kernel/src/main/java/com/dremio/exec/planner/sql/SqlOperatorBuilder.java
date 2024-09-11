@@ -15,28 +15,43 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.exec.planner.sql.SqlOperand.Type.REGULAR;
+
 import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlBasicTypeNameSpec;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorNamespace;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
+import org.apache.calcite.sql.validate.implicit.TypeCoercion;
+import org.apache.calcite.util.Pair;
 
 /**
  * Staged Builder Pattern for building SqlOperator.
@@ -67,6 +82,7 @@ public final class SqlOperatorBuilder {
     private SqlReturnTypeInference sqlReturnTypeInference;
     private SqlOperandTypeChecker sqlOperandTypeChecker;
 
+    private ImplicitCoercionStrategy implicitCoercionStrategy;
     private boolean isDeterministic;
     private boolean isDynamic;
     private SqlSyntax sqlSyntax;
@@ -91,6 +107,12 @@ public final class SqlOperatorBuilder {
       return this;
     }
 
+    public BaseBuilder withImplicitCoercionStrategy(
+        ImplicitCoercionStrategy implicitCoercionStrategy) {
+      this.implicitCoercionStrategy = implicitCoercionStrategy;
+      return this;
+    }
+
     public BaseBuilder withDeterminisim(boolean determinisim) {
       this.isDeterministic = determinisim;
       return this;
@@ -111,6 +133,7 @@ public final class SqlOperatorBuilder {
           name.toUpperCase(),
           sqlReturnTypeInference,
           sqlOperandTypeChecker,
+          implicitCoercionStrategy,
           isDeterministic,
           isDynamic,
           sqlSyntax);
@@ -174,7 +197,10 @@ public final class SqlOperatorBuilder {
 
     public SqlOperatorBuilderFinalStage operandTypes(List<SqlOperand> sqlOperands) {
       SqlOperandTypeChecker sqlOperandTypeChecker = StaticSqlOperandTypeChecker.create(sqlOperands);
-      return operandTypes(sqlOperandTypeChecker);
+      return operandTypes(sqlOperandTypeChecker)
+          .withImplicitCoercionStrategy(
+              new StaticSqlOperandImplicitCoercionStrategy(
+                  sqlOperands)); // default implicit coercion strategy here
     }
 
     public SqlOperatorBuilderFinalStage operandTypes(SqlOperandTypeChecker sqlOperandTypeChecker) {
@@ -182,37 +208,134 @@ public final class SqlOperatorBuilder {
       return new SqlOperatorBuilderFinalStage(baseBuilder);
     }
 
-    private static final class StaticSqlOperandTypeChecker implements SqlOperandTypeChecker {
-      private static final ImmutableMap<SqlTypeName, ImmutableSet<SqlTypeName>> COERCION_MAP =
-          new ImmutableMap.Builder<SqlTypeName, ImmutableSet<SqlTypeName>>()
-              .put(
-                  SqlTypeName.ANY,
-                  new ImmutableSet.Builder<SqlTypeName>()
-                      .add(SqlTypeName.ARRAY, SqlTypeName.MAP)
-                      .addAll(SqlTypeName.ALL_TYPES)
-                      .build())
-              .put(SqlTypeName.DECIMAL, ImmutableSet.copyOf(SqlTypeName.EXACT_TYPES))
-              .put(SqlTypeName.BIGINT, ImmutableSet.copyOf(SqlTypeName.INT_TYPES))
-              .put(SqlTypeName.DOUBLE, ImmutableSet.copyOf(SqlTypeName.NUMERIC_TYPES))
-              .put(SqlTypeName.VARCHAR, ImmutableSet.of(SqlTypeName.CHAR))
-              .put(SqlTypeName.VARBINARY, ImmutableSet.of(SqlTypeName.BINARY))
-              .put(SqlTypeName.DATE, ImmutableSet.of(SqlTypeName.VARCHAR))
-              .put(SqlTypeName.TIME, ImmutableSet.of(SqlTypeName.VARCHAR))
-              .put(SqlTypeName.TIMESTAMP, ImmutableSet.of(SqlTypeName.VARCHAR))
-              .put(
-                  SqlTypeName.INTERVAL_DAY_SECOND,
-                  ImmutableSet.of(
-                      SqlTypeName.INTERVAL_DAY,
-                      SqlTypeName.INTERVAL_HOUR,
-                      SqlTypeName.INTERVAL_MINUTE,
-                      SqlTypeName.INTERVAL_SECOND))
-              .put(
-                  SqlTypeName.INTERVAL_YEAR_MONTH,
-                  ImmutableSet.of(SqlTypeName.INTERVAL_YEAR, SqlTypeName.INTERVAL_MONTH))
-              .build();
+    public static final class StaticSqlOperandImplicitCoercionStrategy
+        implements ImplicitCoercionStrategy {
+      private static final List<CoercionRule> RULES =
+          ImmutableList.of(
+              new CoercionRule() {
+                @Override
+                public boolean isValidSource(RelDataType userType) {
+                  return userType.getSqlTypeName() == SqlTypeName.DECIMAL
+                      // int64 has no fractional digits by definition of being an integer.
+                      && userType.getScale() == 0
+                      // 64 bits provides 19 digits of precision for positive numbers (excluding the
+                      // sign).
+                      && userType.getPrecision() <= 19;
+                }
 
-      private List<SqlOperand> operands;
-      private SqlOperandCountRange sqlOperandCountRange;
+                @Override
+                public SqlTypeName destinationType() {
+                  return SqlTypeName.BIGINT;
+                }
+              },
+              new CoercionRule() {
+                @Override
+                public boolean isValidSource(RelDataType userType) {
+                  return userType.getSqlTypeName() == SqlTypeName.DECIMAL
+                      // int32 has no fractional digits by definition of being an integer.
+                      && userType.getScale() == 0
+                      // 32 bits provides 10 digits of precision for positive numbers (excluding the
+                      // sign).
+                      && userType.getPrecision() <= 10;
+                }
+
+                @Override
+                public SqlTypeName destinationType() {
+                  return SqlTypeName.INTEGER;
+                }
+              },
+              new CoercionRule() {
+                @Override
+                public boolean isValidSource(RelDataType userType) {
+                  return userType.getSqlTypeName() == SqlTypeName.DECIMAL
+                      // Doubles have between 15 and 17 digits of precision shared between both
+                      // the integer and fractional part of the number.
+                      // To be conservative we just cap it to 15
+                      && userType.getPrecision() <= 15;
+                }
+
+                @Override
+                public SqlTypeName destinationType() {
+                  return SqlTypeName.DOUBLE;
+                }
+              },
+              new CoercionRule() {
+                @Override
+                public boolean isValidSource(RelDataType userType) {
+                  return userType.getSqlTypeName() == SqlTypeName.VARCHAR;
+                }
+
+                @Override
+                public SqlTypeName destinationType() {
+                  return SqlTypeName.TIMESTAMP;
+                }
+              },
+              new CoercionRule() {
+                @Override
+                public boolean isValidSource(RelDataType userType) {
+                  return userType.getSqlTypeName() == SqlTypeName.VARCHAR;
+                }
+
+                @Override
+                public SqlTypeName destinationType() {
+                  return SqlTypeName.DATE;
+                }
+              },
+              new CoercionRule() {
+                @Override
+                public boolean isValidSource(RelDataType userType) {
+                  return userType.getSqlTypeName() == SqlTypeName.VARCHAR;
+                }
+
+                @Override
+                public SqlTypeName destinationType() {
+                  return SqlTypeName.TIME;
+                }
+              });
+
+      private final List<SqlOperand> operands;
+
+      public StaticSqlOperandImplicitCoercionStrategy(List<SqlOperand> operands) {
+        this.operands = operands;
+      }
+
+      @Override
+      public Map<Integer, RelDataType> coerce(SqlCallBinding sqlCallBinding) {
+        Map<Integer, RelDataType> coercions = new HashMap<>();
+        List<RelDataType> argumentTypes = sqlCallBinding.collectOperandTypes();
+        RelDataTypeFactory relDataTypeFactory = sqlCallBinding.getTypeFactory();
+        List<Pair<SqlOperand, RelDataType>> zipping = zipOperandWithTypes(operands, argumentTypes);
+        for (int i = 0; i < zipping.size(); i++) {
+          Pair<SqlOperand, RelDataType> pair = zipping.get(i);
+          SqlOperand sqlOperand = pair.left;
+          RelDataType userSuppliedType = pair.right;
+
+          int finalI = i;
+          RULES.stream()
+              .filter(
+                  rule ->
+                      rule.isValidSource(userSuppliedType)
+                          && sqlOperand.typeRange.contains(rule.destinationType()))
+              .findFirst()
+              .ifPresent(
+                  rule ->
+                      coercions.put(
+                          finalI, relDataTypeFactory.createSqlType(rule.destinationType())));
+        }
+
+        return coercions;
+      }
+
+      private interface CoercionRule {
+        boolean isValidSource(RelDataType userType);
+
+        SqlTypeName destinationType();
+      }
+    }
+
+    public static final class StaticSqlOperandTypeChecker implements SqlOperandTypeChecker {
+      private final List<SqlOperand> operands;
+      private final SqlOperandCountRange sqlOperandCountRange;
 
       private StaticSqlOperandTypeChecker(
           List<SqlOperand> operands, SqlOperandCountRange sqlOperandCountRange) {
@@ -250,51 +373,54 @@ public final class SqlOperatorBuilder {
 
       @Override
       public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-        if (!sqlOperandCountRange.isValidCount(callBinding.getOperandCount())) {
-          if (throwOnFailure) {
-            throw UserException.validationError()
-                .message(
-                    "'"
-                        + callBinding.getOperator().getName()
-                        + "'"
-                        + " does not accept "
-                        + callBinding.getOperandCount()
-                        + " arguments.")
-                .buildSilently();
+        TypeCoercion typeCoercion = callBinding.getValidator().getTypeCoercion();
+        RelDataTypeFactory relDataTypeFactory = callBinding.getValidator().getTypeFactory();
+        List<Pair<SqlOperand, RelDataType>> zipping =
+            zipOperandWithTypes(operands, callBinding.collectOperandTypes());
+        for (Pair<SqlOperand, RelDataType> pair : zipping) {
+          SqlOperand specOperand = pair.left;
+          RelDataType userType = pair.right;
+
+          boolean anyMatch = specOperand.typeRange.contains(userType.getSqlTypeName());
+          if (!anyMatch) {
+            // Check to see if any of the types are "wider"
+            anyMatch =
+                specOperand.typeRange.stream()
+                    .anyMatch(
+                        acceptedType -> {
+                          if (acceptedType == SqlTypeName.ANY) {
+                            // getTightestCommonType doesn't work for ANY for whatever reason ...
+                            return true;
+                          }
+
+                          // For non sql types we can't call createSqlType, so we need to add manual
+                          // checks
+                          if (acceptedType == SqlTypeName.ARRAY) {
+                            return userType.getSqlTypeName() == SqlTypeName.ARRAY;
+                          }
+
+                          if (acceptedType == SqlTypeName.MAP) {
+                            return userType.getSqlTypeName() == SqlTypeName.MAP;
+                          }
+
+                          // Technically this should only support going up a bigger interval type
+                          if (SqlTypeName.INTERVAL_TYPES.contains(acceptedType)) {
+                            return SqlTypeName.INTERVAL_TYPES.contains(userType.getSqlTypeName());
+                          }
+
+                          RelDataType acceptedRelDataType =
+                              relDataTypeFactory.createSqlType(acceptedType);
+                          RelDataType commonType =
+                              typeCoercion.getTightestCommonType(acceptedRelDataType, userType);
+                          if (commonType == null) {
+                            return false;
+                          }
+
+                          return commonType.getSqlTypeName() == acceptedType;
+                        });
           }
 
-          return false;
-        }
-
-        for (int i = 0, j = 0; i < callBinding.getOperandCount(); i++) {
-          RelDataType userOperand = callBinding.getOperandType(i);
-          SqlTypeName userOperandType;
-          // TODO: See if this can be replaced with typeFactory.leastRestrictiveType
-          // This logic is needed because it is inconsistent when
-          // the type is a Decimal with low precision and zero scale or an Integer
-          if (canBeCoercedDownToInt32(userOperand)) {
-            userOperandType = SqlTypeName.INTEGER;
-          } else if (canBeCoercedDownToInt64(userOperand)) {
-            userOperandType = SqlTypeName.BIGINT;
-          } else {
-            userOperandType = userOperand.getSqlTypeName();
-          }
-
-          SqlOperand specOperand = operands.get(j);
-          if (!specOperand.typeRange.stream()
-              .anyMatch(
-                  acceptedType -> {
-                    if (acceptedType == userOperandType) {
-                      return true;
-                    }
-
-                    ImmutableSet<SqlTypeName> coercibleTypes = COERCION_MAP.get(acceptedType);
-                    if (coercibleTypes == null) {
-                      return false;
-                    }
-
-                    return coercibleTypes.contains(userOperandType);
-                  })) {
+          if (!anyMatch) {
             if (throwOnFailure) {
               throw UserException.validationError()
                   .message(
@@ -307,12 +433,7 @@ public final class SqlOperatorBuilder {
                               .collect(Collectors.joining(", ")))
                   .buildSilently();
             }
-
             return false;
-          }
-
-          if (specOperand.type != SqlOperand.Type.VARIADIC) {
-            j++;
           }
         }
 
@@ -340,38 +461,51 @@ public final class SqlOperatorBuilder {
       }
     }
 
-    private static boolean canBeCoercedDownToInt32(RelDataType type) {
-      if (type.getSqlTypeName() != SqlTypeName.DECIMAL) {
-        return false;
+    /**
+     * Zips a list of SQL operands with their corresponding relational data types into pairs.
+     *
+     * @param sqlOperands The list of SQL operands.
+     * @param relDataTypes The list of relational data types. This list may be shorter than the list
+     *     of SQL operands if variadic arguments are present.
+     * @return A list of pairs where each pair contains a SQL operand and its corresponding data
+     *     type.
+     * @throws IllegalStateException if an unknown enum type is encountered.
+     */
+    private static List<Pair<SqlOperand, RelDataType>> zipOperandWithTypes(
+        List<SqlOperand> sqlOperands, List<RelDataType> relDataTypes) {
+      // In the simple scenario we will have something like this:
+      // List<SqlOperand> sqlOperands = [A(regular), B(regular), C(regular)]
+      // List<RelDataType> relDataTypes = [X, Y, Z]
+      // And the output be one to one: [(A, X), (B, Y), (C, Z)]
+      // Why this gets tricky is that functions have optional or variadic arguments:
+      // List<SqlOperand> sqlOperands = [A(regular), B(regular), C(variadic)]
+      // List<RelDataType> relDataTypes = [X, Y, Z, T, W]
+      // So the zipping will be: [(A, X), (B, Y), (C, Z), (C, T), (C, W)]
+      // Note that optional and variadic have to be the last arguments to a function.
+      // Basically we are trying to create a mapping from sqlOperands to relDataTypes,
+      // but the mapping isn't always 1 to 1 (and we need to keep track of the ordering)
+      List<Pair<SqlOperand, RelDataType>> zipping = new ArrayList<>();
+      int operandIndex = 0;
+      for (RelDataType dataType : relDataTypes) {
+        SqlOperand sqlOperand = sqlOperands.get(operandIndex);
+        switch (sqlOperand.type) {
+          case REGULAR:
+            operandIndex++;
+            break;
+          case OPTIONAL:
+          case VARIADIC:
+            // Do nothing for optional and variadic arguments, they don't necessarily consume a data
+            // type.
+            break;
+          default:
+            throw new IllegalStateException("Unknown enum type: " + sqlOperand.type);
+        }
+
+        Pair<SqlOperand, RelDataType> pair = Pair.of(sqlOperand, dataType);
+        zipping.add(pair);
       }
 
-      if (type.getScale() != 0) {
-        return false;
-      }
-
-      // 32 bits provides 10 digits of precision for positive numbers (excluding the sign).
-      if (type.getPrecision() > 10) {
-        return false;
-      }
-
-      return true;
-    }
-
-    private static boolean canBeCoercedDownToInt64(RelDataType type) {
-      if (type.getSqlTypeName() != SqlTypeName.DECIMAL) {
-        return false;
-      }
-
-      if (type.getScale() != 0) {
-        return false;
-      }
-
-      // 64 bits provides 19 digits of precision for positive numbers (excluding the sign).
-      if (type.getPrecision() > 19) {
-        return false;
-      }
-
-      return true;
+      return zipping;
     }
   }
 
@@ -381,6 +515,12 @@ public final class SqlOperatorBuilder {
     private SqlOperatorBuilderFinalStage(BaseBuilder baseBuilder) {
       Preconditions.checkNotNull(baseBuilder);
       this.baseBuilder = baseBuilder;
+    }
+
+    public SqlOperatorBuilderFinalStage withImplicitCoercionStrategy(
+        ImplicitCoercionStrategy implicitCoercionStrategy) {
+      baseBuilder.withImplicitCoercionStrategy(implicitCoercionStrategy);
+      return this;
     }
 
     public SqlOperatorBuilderFinalStage withDeterminism(boolean determinism) {
@@ -460,7 +600,9 @@ public final class SqlOperatorBuilder {
         .build();
   }
 
-  private static final class DremioSqlFunction extends SqlFunction {
+  public static final class DremioSqlFunction extends SqlFunction {
+    private final ImplicitCoercionStrategy implicitCoercionStrategy;
+
     /** This means that the function will return the same output given the same input. */
     private final boolean isDeterministic;
 
@@ -476,6 +618,7 @@ public final class SqlOperatorBuilder {
         String name,
         SqlReturnTypeInference returnTypeInference,
         SqlOperandTypeChecker operandTypeChecker,
+        ImplicitCoercionStrategy implicitCoercionStrategy,
         boolean isDeterministic,
         boolean isDynamic,
         SqlSyntax sqlSyntax) {
@@ -486,9 +629,14 @@ public final class SqlOperatorBuilder {
           null,
           operandTypeChecker,
           SqlFunctionCategory.USER_DEFINED_FUNCTION);
+      this.implicitCoercionStrategy = implicitCoercionStrategy;
       this.isDeterministic = isDeterministic;
       this.isDynamic = isDynamic;
       this.sqlSyntax = sqlSyntax;
+    }
+
+    public ImplicitCoercionStrategy getImplicitCoercionStrategy() {
+      return implicitCoercionStrategy;
     }
 
     @Override
@@ -504,6 +652,62 @@ public final class SqlOperatorBuilder {
     @Override
     public SqlSyntax getSyntax() {
       return sqlSyntax;
+    }
+
+    @Override
+    public void preValidateCall(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+      if (implicitCoercionStrategy == null) {
+        return;
+      }
+
+      // Check the number of operands
+      checkOperandCount(validator, getOperandTypeChecker(), call);
+      SqlCallBinding opBinding = new SqlCallBinding(validator, scope, call);
+      if (checkOperandTypes(opBinding, false)) {
+        return;
+      }
+
+      Map<Integer, RelDataType> implicitCoercions = implicitCoercionStrategy.coerce(opBinding);
+      for (Map.Entry<Integer, RelDataType> entry : implicitCoercions.entrySet()) {
+        coerceOperandType(validator, call, entry.getKey(), entry.getValue());
+      }
+    }
+
+    private void coerceOperandType(
+        SqlValidator validator, SqlCall call, int index, RelDataType targetType) {
+      SqlNode operand = call.getOperandList().get(index);
+      SqlNode desired = castTo(operand, targetType);
+      call.setOperand(index, desired);
+      updateInferredType(validator, desired, targetType);
+    }
+
+    private SqlNode castTo(SqlNode node, RelDataType type) {
+      return SqlStdOperatorTable.CAST.createCall(
+          SqlParserPos.ZERO, node, new CustomSqlDataTypeSpec(type));
+    }
+
+    private final class CustomSqlDataTypeSpec extends SqlDataTypeSpec {
+      private final RelDataType castType;
+
+      public CustomSqlDataTypeSpec(RelDataType castType) {
+        super(
+            new SqlBasicTypeNameSpec(SqlTypeName.NULL, -1, -1, null, SqlParserPos.ZERO),
+            SqlParserPos.ZERO);
+        this.castType = castType;
+      }
+
+      @Override
+      public RelDataType deriveType(SqlValidator validator) {
+        return castType;
+      }
+    }
+
+    private void updateInferredType(SqlValidator validator, SqlNode node, RelDataType type) {
+      validator.setValidatedNodeType(node, type);
+      final SqlValidatorNamespace namespace = validator.getNamespace(node);
+      if (namespace != null) {
+        namespace.setType(type);
+      }
     }
   }
 }

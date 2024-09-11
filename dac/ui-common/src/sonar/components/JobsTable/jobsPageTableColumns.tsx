@@ -114,6 +114,7 @@ export const jobsPageTableColumns = (
               className="copy-button"
               placement="bottom"
               copyTooltipLabel="Copy Job ID"
+              size="L"
             />
           </>
         );

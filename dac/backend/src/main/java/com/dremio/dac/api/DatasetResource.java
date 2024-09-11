@@ -17,12 +17,14 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.reflection.analysis.ReflectionSuggester.ReflectionSuggestionType;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
@@ -36,6 +38,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import org.apache.commons.lang3.EnumUtils;
 
 /** Resource for information about reflections. */
 @APIResource
@@ -79,15 +82,40 @@ public class DatasetResource {
   @Path("/{id}/reflection/recommendation")
   public ResponseList<Reflection> getReflectionRecommendationsForDataset(
       @PathParam("id") String id) {
+    return getReflectionRecommendationsForDataset(id, Optional.of("ALL"));
+  }
+
+  @POST
+  @Path("/{id}/reflection/recommendation/{type}")
+  public ResponseList<Reflection> getReflectionRecommendationsForDataset(
+      @PathParam("id") String id, @PathParam("type") Optional<String> optionalType) {
     Optional<DatasetConfig> dataset = catalogServiceHelper.getDatasetById(id);
 
     if (!dataset.isPresent()) {
       throw new DatasetNotFoundException(id);
     }
 
+    if (!optionalType.isPresent()) {
+      throw UserException.validationError()
+          .message(
+              String.format("Path parameter of reflection recommendation type is not provided."))
+          .build();
+    }
+
+    String type = optionalType.get().toUpperCase();
+    if (!EnumUtils.isValidEnum(ReflectionSuggestionType.class, type)) {
+      throw UserException.validationError()
+          .message(
+              String.format(
+                  "Invalid path parameter of reflection recommendation type: %s",
+                  optionalType.get()))
+          .build();
+    }
+
     List<Reflection> recommendations =
         Lists.transform(
-            reflectionServiceHelper.getRecommendedReflections(id),
+            reflectionServiceHelper.getRecommendedReflections(
+                id, ReflectionSuggestionType.valueOf(type)),
             new Function<ReflectionGoal, Reflection>() {
               @Override
               public Reflection apply(ReflectionGoal goal) {

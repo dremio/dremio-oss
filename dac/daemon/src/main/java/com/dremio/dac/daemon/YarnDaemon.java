@@ -34,7 +34,6 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.LivenessService;
 import com.dremio.dac.server.liveness.ClasspathHealthMonitor;
-import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.provision.yarn.YarnContainerHealthMonitor;
 import com.dremio.provision.yarn.YarnWatchdog;
 import com.google.common.base.Throwables;
@@ -48,13 +47,6 @@ public class YarnDaemon implements Runnable, AutoCloseable {
       org.slf4j.LoggerFactory.getLogger(YarnDaemon.class);
 
   static {
-    /*
-     * HBase client uses older version of Guava's Stopwatch API,
-     * while Dremio ships with 18.x which has changes the scope of
-     * these API to 'package', this code make them accessible.
-     */
-    GuavaPatcher.patch();
-
     /*
      * Route JUL logging messages to SLF4J.
      */

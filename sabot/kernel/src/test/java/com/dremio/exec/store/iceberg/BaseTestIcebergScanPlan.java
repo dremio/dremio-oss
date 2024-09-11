@@ -19,6 +19,10 @@ import com.dremio.PlanTestBase;
 
 public class BaseTestIcebergScanPlan extends PlanTestBase {
 
+  protected static String filterWithRowCount(int rowCount) {
+    return String.format("Filter.*rowcount = %d", rowCount);
+  }
+
   protected static String dataFileScanWithRowCount(int rowCount) {
     return String.format("TableFunction.*DATA_FILE_SCAN.*rowcount = %d", rowCount);
   }

@@ -147,46 +147,44 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
         currentRow,
         outputCount);
     setupCopyNext(current, container);
-    copyPrevFromInternal();
     // copy remaining from current
     setupCopyPrev(current, container);
     int row = currentRow;
     partition.setFirstRowInPartition(currentRow);
+    boolean hasNextBatch = batches.size() - currentBatchIndex > 1;
+    if (hasNextBatch) {
+      setupCopyFromNextBatch(batches.get(currentBatchIndex + 1), container);
+    }
 
     // process all rows except the last one of the batch/partition
     while (row < outputCount && !partition.isDone()) {
       partition.setCurrentRowInPartition(row);
+      copyPrevFromInternal(row);
       copyPrev(row, row, partition);
       processRow(row);
       if (!partition.isDone()) {
         copyNext(row, row, partition);
+        if (hasNextBatch) {
+          copyFromNextBatch(row, row, partition);
+        }
       }
+      copyPrevToInternal(current, row);
       row++;
     }
-
-    // if we didn't reach the end of partition yet
-    if (!partition.isDone() && batches.size() - currentBatchIndex > 1) {
-      // copy next value onto the current one
-      partition.setCurrentRowInPartition(row);
-      setupCopyFromFirst(batches.get(currentBatchIndex + 1), container);
-      copyFromFirst(0, row, partition);
-      copyPrevToInternal(current, row);
-    }
-
     return row;
   }
 
   private void copyPrevToInternal(VectorAccessible current, int row) {
     logger.trace("copying {} into internal", row);
-    setupCopyToFirst(current, internal);
-    copyToFirst(row, 0, partition);
+    setupCopyToNextBatch(current, internal);
+    copyToNextBatch(row, row, partition);
     lagCopiedToInternal = true;
   }
 
-  private void copyPrevFromInternal() {
+  private void copyPrevFromInternal(int row) {
     if (lagCopiedToInternal) {
       setupCopyFromInternal(internal, container);
-      copyFromInternal(0, 0);
+      copyFromInternal(row, row, partition);
       lagCopiedToInternal = false;
     }
   }
@@ -219,10 +217,8 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
     // batch
     int batchIndex = 0;
     outer:
-    for (VectorAccessible batch : batches) {
-      if (batchIndex++ < currentBatchIndex) {
-        continue;
-      }
+    for (int i = currentBatchIndex; i < batches.size(); i++) {
+      final VectorAccessible batch = batches.get(i);
       final int recordCount = batch.getRecordCount();
 
       // check first container from start row, and subsequent containers from first row
@@ -268,10 +264,8 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
     // a single frame can include rows from multiple batches
     // start processing first batch and, if necessary, move to next batches
     int batchIndex = 0;
-    for (VectorAccessible batch : batches) {
-      if (batchIndex++ < currentBatchIndex) {
-        continue;
-      }
+    for (int i = currentBatchIndex; i < batches.size(); i++) {
+      final VectorAccessible batch = batches.get(i);
       final int recordCount = batch.getRecordCount();
 
       // for every remaining row in the partition, count it if it's a peer row
@@ -334,12 +328,12 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
   public abstract void setupCopyNext(
       @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
 
-  public abstract void copyFromFirst(
+  public abstract void copyFromNextBatch(
       @Named("inIndex") int inIndex,
       @Named("outIndex") int outIndex,
       @Named("partition") Partition partition);
 
-  public abstract void setupCopyFromFirst(
+  public abstract void setupCopyFromNextBatch(
       @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
 
   /**
@@ -357,16 +351,18 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
   public abstract void setupCopyPrev(
       @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
 
-  public abstract void copyToFirst(
+  public abstract void copyToNextBatch(
       @Named("inIndex") int inIndex,
       @Named("outIndex") int outIndex,
       @Named("partition") Partition partition);
 
-  public abstract void setupCopyToFirst(
+  public abstract void setupCopyToNextBatch(
       @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
 
   public abstract void copyFromInternal(
-      @Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
+      @Named("inIndex") int inIndex,
+      @Named("outIndex") int outIndex,
+      @Named("partition") Partition partition);
 
   public abstract void setupCopyFromInternal(
       @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);

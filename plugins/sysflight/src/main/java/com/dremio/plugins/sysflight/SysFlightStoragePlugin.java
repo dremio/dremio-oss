@@ -79,7 +79,6 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
           .collect(
               Collectors.toMap(
                   systemTable -> canonicalize(systemTable.getDatasetPath()), Function.identity()));
-
   private volatile Set<EntityPath> flightTableList = new HashSet<>();
 
   private final SabotContext context;
@@ -87,6 +86,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   private final boolean useConduit;
   private final BufferAllocator allocator;
   private final JobResultInfoProvider jobResultInfoProvider;
+  private final NodesHistoryViewResolver nodeHistoryViewResolver;
 
   private volatile FlightClient flightClient;
   private volatile ManagedChannel prevChannel;
@@ -118,6 +118,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
                           SystemIcebergTablesStoragePluginConfig
                               .SYSTEM_ICEBERG_TABLES_PLUGIN_NAME));
     }
+    this.nodeHistoryViewResolver = new NodesHistoryViewResolver(context::getOptionManager);
   }
 
   Map<EntityPath, SystemTable> getLegacyTableMap() {
@@ -173,6 +174,11 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
           .get()
           .getViewTable(tableSchemaPath, schemaConfig.getUserName());
     }
+
+    if (nodeHistoryViewResolver.isSupportedView(tableSchemaPath)) {
+      return nodeHistoryViewResolver.getViewTable();
+    }
+
     if (!JobResultInfoProvider.isJobResultsTable(tableSchemaPath)) {
       return null;
     }
@@ -254,7 +260,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   }
 
   @Override
-  public boolean containerExists(EntityPath containerPath) {
+  public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
     return false;
   }
 

@@ -19,6 +19,6 @@ package com.dremio.service.script;
 /** ScriptNotFoundException class */
 public class ScriptNotFoundException extends Exception {
   public ScriptNotFoundException(String scriptId) {
-    super(String.format("Script with id or name : %s not found.", scriptId));
+    super(String.format("Script with id %s not found.", scriptId));
   }
 }

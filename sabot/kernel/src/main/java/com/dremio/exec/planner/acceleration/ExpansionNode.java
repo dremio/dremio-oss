@@ -18,6 +18,7 @@ package com.dremio.exec.planner.acceleration;
 import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ import org.apache.calcite.sql2rel.RelStructuredTypeFlattener.SelfFlatteningRel;
 public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatteningRel {
   private final NamespaceKey path;
   private final TableVersionContext versionContext;
+  private final ViewTable viewTable;
 
   protected ExpansionNode(
       NamespaceKey path,
@@ -52,11 +54,13 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode input,
-      TableVersionContext versionContext) {
+      TableVersionContext versionContext,
+      ViewTable viewTable) {
     super(cluster, traits, input);
     this.path = path;
     this.rowType = rowType;
     this.versionContext = versionContext;
+    this.viewTable = viewTable;
   }
 
   public static RelNode wrap(
@@ -64,13 +68,14 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
       RelNode node,
       RelDataType rowType,
       boolean isDefault,
-      TableVersionContext versionContext) {
+      TableVersionContext versionContext,
+      ViewTable viewTable) {
     if (isDefault) {
       return new DefaultExpansionNode(
-          path, rowType, node.getCluster(), node.getTraitSet(), node, versionContext);
+          path, rowType, node.getCluster(), node.getTraitSet(), node, versionContext, viewTable);
     } else {
       return new ExpansionNode(
-          path, rowType, node.getCluster(), node.getTraitSet(), node, versionContext);
+          path, rowType, node.getCluster(), node.getTraitSet(), node, versionContext, viewTable);
     }
   }
 
@@ -82,7 +87,8 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
         copier.getCluster(),
         copier.copyOf(getTraitSet()),
         getInput().accept(copier),
-        versionContext);
+        versionContext,
+        viewTable);
   }
 
   @Override
@@ -104,7 +110,7 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new ExpansionNode(
-        path, rowType, this.getCluster(), traitSet, inputs.get(0), versionContext);
+        path, rowType, this.getCluster(), traitSet, inputs.get(0), versionContext, viewTable);
   }
 
   @Override
@@ -123,6 +129,10 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
 
   public TableVersionContext getVersionContext() {
     return versionContext;
+  }
+
+  public ViewTable getViewTable() {
+    return viewTable;
   }
 
   public static RelNode removeFromTree(RelNode tree) {

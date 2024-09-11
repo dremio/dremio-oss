@@ -96,7 +96,7 @@ export const modalBody = {
 
 export const modalFooter = {
   width: "100%",
-  borderTop: "1px solid rgba(0, 0, 0, 0.1)",
+  borderTop: "1px solid var(--border--neutral)",
   height: 56,
   padding: "0 11px 0 16px",
   textAlign: "right",

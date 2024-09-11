@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.parser;
 
 import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.IngestionOption.BATCH_ID;
+import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.IngestionOption.PIPE_ID;
 import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.IngestionOption.PIPE_NAME;
 
 import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -63,15 +65,29 @@ public class SqlTriggerPipe extends SqlCopyIntoTable {
         }
       };
 
-  public SqlTriggerPipe(SqlParserPos pos, SqlIdentifier pipeName, SqlIdentifier batchId) {
-    this(pos, pipeName, batchId, null, null, null, new SqlNodeList(pos), new SqlNodeList(pos));
+  public SqlTriggerPipe(SqlParserPos pos, SqlIdentifier pipeId, SqlIdentifier batchId) {
+    this(
+        pos,
+        pipeId,
+        null,
+        batchId,
+        null,
+        null,
+        null,
+        null,
+        null,
+        new SqlNodeList(pos),
+        new SqlNodeList(pos));
   }
 
   private SqlTriggerPipe(
       SqlParserPos pos,
       SqlIdentifier pipeName,
+      SqlNode pipeId,
       SqlIdentifier batchId,
       SqlNode targetTable,
+      SqlNodeList mapping,
+      SqlNode select,
       SqlNode storageLocation,
       SqlNode fileFormat,
       SqlNodeList optionsList,
@@ -79,6 +95,8 @@ public class SqlTriggerPipe extends SqlCopyIntoTable {
     super(
         pos,
         targetTable,
+        mapping,
+        select,
         storageLocation,
         SqlNodeList.EMPTY,
         null,
@@ -93,6 +111,8 @@ public class SqlTriggerPipe extends SqlCopyIntoTable {
     optionsValueList.add(SqlLiteral.createCharString(pipeName.getSimple(), pos));
     optionsList.add(SqlLiteral.createCharString(BATCH_ID.name(), pos));
     optionsValueList.add(SqlLiteral.createCharString(this.batchId.getSimple(), pos));
+    optionsList.add(SqlLiteral.createCharString(PIPE_ID.name(), pos));
+    optionsValueList.add(pipeId);
   }
 
   @Override
@@ -109,14 +129,14 @@ public class SqlTriggerPipe extends SqlCopyIntoTable {
   }
 
   public SqlTriggerPipe withCopyIntoOptions(
-      List<String> targetTable,
+      String pipeId,
+      Function<SqlParserPos, SqlNode> targetTableTransformer,
       String storageLocation,
       String fileFormat,
+      int dedupLookbackPeriod,
       Map<CopyIntoTableContext.CopyOption, Object> copyIntoOptions,
       Map<CopyIntoTableContext.FormatOption, Object> fileFormatOptions) {
-    CompoundIdentifier.Builder targetTableBuilder = CompoundIdentifier.newBuilder();
-    targetTable.forEach(path -> targetTableBuilder.addString(path, false, pos));
-
+    SqlNode targetTable = targetTableTransformer.apply(pos);
     SqlNodeList optionsList = new SqlNodeList(pos);
     SqlNodeList optionsValueList = new SqlNodeList(pos);
     Stream.concat(fileFormatOptions.entrySet().stream(), copyIntoOptions.entrySet().stream())
@@ -125,12 +145,20 @@ public class SqlTriggerPipe extends SqlCopyIntoTable {
               optionsList.add(SqlLiteral.createCharString(option.getKey().name(), pos));
               optionsValueList.add(SqlLiteral.createCharString(option.getValue().toString(), pos));
             });
+    optionsList.add(
+        SqlLiteral.createCharString(
+            CopyIntoTableContext.IngestionOption.DEDUP_LOOKBACK_PERIOD.name(), pos));
+    optionsValueList.add(SqlLiteral.createCharString(String.valueOf(dedupLookbackPeriod), pos));
 
     return new SqlTriggerPipe(
         pos,
         pipeName,
+        SqlLiteral.createCharString(pipeId, pos),
         batchId,
-        targetTableBuilder.build(),
+        targetTable,
+        // TODO: fix this later
+        null,
+        null,
         SqlLiteral.createCharString(storageLocation, pos),
         SqlLiteral.createCharString(fileFormat, pos),
         optionsList,
@@ -155,5 +183,13 @@ public class SqlTriggerPipe extends SqlCopyIntoTable {
       writer.keyword("BATCH");
       batchId.unparse(writer, leftPrec, rightPrec);
     }
+  }
+
+  @Override
+  public void validate(SqlValidator validator, SqlValidatorScope scope) {
+    // Skipping the validation here to avoid the validator operator from
+    // trying to resolve the table version for the current node which is `TRIGGER PIPE <>`
+    // anyway this is not needed since `TRIGGER PIPE` is just wrapper for the
+    // actual copy into plan which happens at a later stage
   }
 }

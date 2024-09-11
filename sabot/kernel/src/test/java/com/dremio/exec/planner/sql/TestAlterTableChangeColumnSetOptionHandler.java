@@ -28,7 +28,6 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsAlteringDatasetMetadata;
 import com.dremio.connector.metadata.options.AlterMetadataOption;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -128,7 +127,7 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     }
 
     @Override
-    public boolean containerExists(EntityPath containerPath) {
+    public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
       return true;
     }
 
@@ -200,9 +199,7 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     final ColumnOptionTestConf colConf1 = new ColumnOptionTestConf();
     colConf1.shouldChangeMetadata = true;
     conf1.setConnectionConf(colConf1);
-    ((CatalogServiceImpl) getSabotContext().getCatalogService())
-        .getSystemUserCatalog()
-        .createSource(conf1);
+    getCatalogService().getSystemUserCatalog().createSource(conf1);
 
     SourceConfig conf2 = new SourceConfig();
     conf2.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
@@ -210,9 +207,7 @@ public class TestAlterTableChangeColumnSetOptionHandler extends BaseTestQuery {
     final ColumnOptionTestConf colConf2 = new ColumnOptionTestConf();
     colConf2.shouldChangeMetadata = false;
     conf2.setConnectionConf(colConf2);
-    ((CatalogServiceImpl) getSabotContext().getCatalogService())
-        .getSystemUserCatalog()
-        .createSource(conf2);
+    getCatalogService().getSystemUserCatalog().createSource(conf2);
   }
 
   @Test

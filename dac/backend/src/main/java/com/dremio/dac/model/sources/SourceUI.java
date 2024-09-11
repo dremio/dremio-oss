@@ -25,6 +25,7 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.RefreshPolicyType;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -273,6 +274,13 @@ public class SourceUI implements AddressableResource, DatasetContainer {
 
   public void setAccelerationNeverRefresh(Boolean accelerationNeverRefresh) {
     this.accelerationNeverRefresh = accelerationNeverRefresh;
+  }
+
+  public void setAccelerationSettings(AccelerationSettings settings) {
+    setAccelerationRefreshPeriod(settings.getRefreshPeriod());
+    setAccelerationGracePeriod(settings.getGracePeriod());
+    setAccelerationRefreshSchedule(settings.getRefreshSchedule());
+    setAccelerationActivePolicyType(settings.getRefreshPolicyType());
   }
 
   public Boolean getAllowCrossSourceSelection() {

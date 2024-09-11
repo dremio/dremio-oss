@@ -21,7 +21,7 @@
         height: auto;
         min-width: 239px;
         width: 239px;
-        border-right: 1px solid var(--color--neutral--50);
+        border-right: 1px solid var(--border--neutral);
         padding: 0 var(--dremio--spacing--1);
 
         .field {
@@ -31,14 +31,14 @@
 
           input {
             height: 32px;
-            border: 1px solid var(--color--neutral--100);
+            border: 1px solid var(--border--neutral--solid);
 
             &:hover {
-              border-color: var(--color--neutral--200);
+              border-color: var(--border--hover);
             }
 
             &:focus {
-              border-color: var(--color--brand--300);
+              border-color: var(--border--focused);
               background-color: white;
             }
           }
@@ -61,7 +61,7 @@
           }
 
           &:hover {
-            background-color: var(--color--brand--25);
+            background-color: var(--fill--primary--hover);
             cursor: move;
           }
         }
@@ -83,12 +83,12 @@
           .inner-join-column .dragSource > div > div {
             height: 100%;
             margin: 0 !important;
-            color: var(--dremio--color--icon--main);
+            color: var(--icon--primary);
 
             .inner-join-column__body {
               background-color: transparent;
               border: none;
-              color: var(--dremio--color--text--main);
+              color: var(--text--primary);
 
               .font-icon {
                 height: 16px !important;
@@ -109,7 +109,7 @@
               }
 
               &.--disabled {
-                background-color: var(--color--neutral--50);
+                background-color: var(--color--neutral--75);
 
                 & > div {
                   cursor: not-allowed;
@@ -119,7 +119,7 @@
           }
 
           &:hover {
-            background-color: var(--color--brand--25);
+            background-color: var(--fill--primary--hover);
           }
         }
       }

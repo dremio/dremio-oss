@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.partition;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 public interface CanSwitchToSpilling {
   final class SwitchResult {
     private final boolean switchDone;
@@ -40,6 +42,8 @@ public interface CanSwitchToSpilling {
    * @return bytes that can be released.
    */
   long estimateSpillableBytes();
+
+  default void updateTableHashBuffer(ArrowBuf newBuf) {}
 
   /**
    * Switch to spilling

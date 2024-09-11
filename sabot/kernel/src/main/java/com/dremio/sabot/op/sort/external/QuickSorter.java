@@ -16,12 +16,12 @@
 package com.dremio.sabot.op.sort.external;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.CodeGenerator;
-import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
@@ -38,7 +38,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
  * Insert each batch into a QuickSorter as it arrives, they will be totally sorted only at the end.
  */
 public class QuickSorter implements Sorter {
-  private final ExternalSort sortConfig;
+  private final List<Ordering> sortOrderings;
   private final ClassProducer classProducer;
   private final Schema schema;
   private final BufferAllocator allocator;
@@ -47,11 +47,11 @@ public class QuickSorter implements Sorter {
   private SimpleIntVector quickSorterBuffer;
 
   public QuickSorter(
-      ExternalSort sortConfig,
+      List<Ordering> sortConfig,
       ClassProducer classProducer,
       Schema schema,
       BufferAllocator allocator) {
-    this.sortConfig = sortConfig;
+    this.sortOrderings = sortConfig;
     this.classProducer = classProducer;
     this.schema = schema;
     this.allocator = allocator;
@@ -80,8 +80,7 @@ public class QuickSorter implements Sorter {
         classProducer.createGenerator(QuickSorterInterface.TEMPLATE_DEFINITION);
     ClassGenerator<QuickSorterInterface> g = cg.getRoot();
     final Sv4HyperContainer container = new Sv4HyperContainer(allocator, schema);
-    ExternalSortOperator.generateComparisons(
-        g, container, sortConfig.getOrderings(), classProducer);
+    VectorSorter.generateComparisons(g, container, sortOrderings, classProducer);
     this.quickSorter = cg.getImplementationClass();
     quickSorter.init(classProducer.getFunctionContext(), container);
     quickSorter.setDataBuffer(quickSorterBuffer);

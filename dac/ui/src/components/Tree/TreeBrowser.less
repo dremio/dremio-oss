@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
@@ -41,15 +40,16 @@
       .dropdownMenu {
         &__content {
           &:hover {
-            color: var(--dremio--color--link);
+            color: var(--icon--hover);
           }
         }
       }
     }
 
     &-heading {
-      border-bottom: 1px solid @SECONDARY_200;
+      border-bottom: 1px solid var(--border--neutral);
       display: flex;
+      flex-shrink: 0;
       align-items: center;
       height: 39px;
       padding: 0 8px;
@@ -72,7 +72,6 @@
     }
 
     &-items {
-      height: calc(100vh - 270px);
       padding: 4px 12px;
       overflow-y: auto;
 
@@ -96,36 +95,25 @@
     &-tab {
       font-size: 14px;
       line-height: 20px;
-      color: @MAIN_TEXT;
+      color: var(--text--primary);
       padding: 0 12px;
       margin: 0 4px;
       height: 100%;
 
       &.--active {
-        color: var(--dremio--color--link);
+        color: var(--text--brand);
         font-weight: 600;
       }
 
       &::after {
         height: 2px;
-        background-color: var(--dremio--color--link);
+        background-color: var(--fill--brand--solid);
       }
 
       &:hover:not(.button-active)::after {
         height: 2px;
-        background-color: var(--dremio--color--link);
+        background-color: var(--fill--brand--solid);
       }
-    }
-  }
-
-  .TreeBrowser.--withTabs {
-    .TreeBrowser-items {
-      height: calc(100vh - 205px);
-    }
-  }
-  .TreeBrowser.--withTabs.--withBreadcrumbs {
-    .TreeBrowser-items {
-      height: calc(100vh - 140px);
     }
   }
 }
@@ -135,8 +123,8 @@
   height: 24px;
   width: 24px;
   cursor: pointer;
-  color: var(--dremio--color--icon--main);
+  color: var(--icon--primary);
   &:hover {
-    color: var(--dremio--color--link);
+    color: var(--icon--hover);
   }
 }

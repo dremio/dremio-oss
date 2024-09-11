@@ -20,14 +20,14 @@
   cursor: pointer;
 
   &:hover {
-    background-color: var(--color--brand--25);
+    background-color: var(--fill--primary--hover);
     .function-item__add-icon {
       display: flex !important;
     }
   }
 
   &.--isActive {
-    background-color: var(--color--brand--25);
+    background-color: var(--fill--primary--selected);
   }
 
   &__header {
@@ -44,14 +44,14 @@
 
   &__icon {
     padding: 0;
-    color: var(--color--neutral--600) !important;
+    color: var(--icon--primary) !important;
 
     &:hover {
-      color: var(--dremio--color--link) !important;
+      color: var(--icon--hover) !important;
     }
 
     &:disabled {
-      color: var(--dremio--color--icon--dremio--disabled) !important;
+      color: var(--icon--disabled) !important;
     }
   }
 
@@ -70,7 +70,7 @@
 
   &__description,
   &__samples {
-    color: var(--dremio--color--text--faded);
+    color: var(--text--faded);
     font-size: 12px;
   }
 
@@ -83,7 +83,7 @@
   }
 
   &__divider {
-    background-color: var(--color--neutral--50);
+    background-color: var(--border--neutral);
     border: none;
     width: 100%;
     height: 1px;

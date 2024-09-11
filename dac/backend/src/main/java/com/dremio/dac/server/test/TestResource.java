@@ -31,11 +31,14 @@ import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
-import com.dremio.exec.server.ContextService;
+import com.dremio.exec.serialization.InstanceSerializer;
+import com.dremio.exec.serialization.ProtoSerializer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
@@ -80,7 +83,8 @@ import org.glassfish.jersey.server.mvc.Viewable;
 @Path("/test")
 public class TestResource {
 
-  private final LegacyKVStoreProvider provider;
+  private final LegacyKVStoreProvider legacyKVStoreProvider;
+  private final KVStoreProvider kvStoreProvider;
   private final SabotContext context;
   private final UserService userService;
   private final SecurityContext security;
@@ -90,23 +94,24 @@ public class TestResource {
   private final CatalogService catalogService;
   private final ReflectionServiceHelper reflectionHelper;
   private final OptionManager optionManager;
-  private final ContextService contextService;
+  private final InstanceSerializer<QueryProfile> serializer;
   @Context private ResourceContext resourceContext;
 
   @Inject
   public TestResource(
       SabotContext context,
       UserService userService,
-      LegacyKVStoreProvider provider,
+      LegacyKVStoreProvider legacyKVStoreProvider,
+      KVStoreProvider kvStoreProvider,
       JobsService jobsService,
       CatalogService catalogService,
       ReflectionServiceHelper reflectionHelper,
       SecurityContext security,
       ConnectionReader connectionReader,
       CollaborationHelper collaborationService,
-      OptionManager optionManager,
-      final ContextService contextService) {
-    this.provider = provider;
+      OptionManager optionManager) {
+    this.legacyKVStoreProvider = legacyKVStoreProvider;
+    this.kvStoreProvider = kvStoreProvider;
     this.context = context;
     this.userService = userService;
     this.jobsService = jobsService;
@@ -116,7 +121,10 @@ public class TestResource {
     this.connectionReader = connectionReader;
     this.collaborationService = collaborationService;
     this.optionManager = optionManager;
-    this.contextService = contextService;
+    this.serializer =
+        ProtoSerializer.of(
+            QueryProfile.class,
+            (int) optionManager.getOption(ExecConstants.QUERY_PROFILE_MAX_FIELD_SIZE));
   }
 
   @Bootstrap
@@ -129,15 +137,28 @@ public class TestResource {
 
     // TODO: Clean up this mess
     SampleDataPopulator.addDefaultFirstUser(
-        userService, new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl()));
+        userService, new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl()));
     NamespaceService nsWithAuth = context.getNamespaceService(DEFAULT_USER_NAME);
-    DatasetVersionMutator ds = newDS(nsWithAuth);
+    DatasetVersionMutator ds =
+        new DatasetVersionMutator(
+            legacyKVStoreProvider, jobsService, catalogService, optionManager, context);
+    SourceService sourceService =
+        new SourceService(
+            Clock.systemUTC(),
+            optionManager,
+            nsWithAuth,
+            ds,
+            catalogService,
+            reflectionHelper,
+            collaborationService,
+            connectionReader,
+            security);
     // Closing sdp means remove the temporary directory
     @SuppressWarnings("resource")
     SampleDataPopulator sdp =
         new SampleDataPopulator(
             context,
-            newSourceService(nsWithAuth, ds),
+            sourceService,
             ds,
             userService,
             nsWithAuth,
@@ -146,27 +167,9 @@ public class TestResource {
     sdp.populateInitialData();
   }
 
-  private DatasetVersionMutator newDS(NamespaceService nsWithAuth) {
-    return new DatasetVersionMutator(
-        provider, jobsService, catalogService, optionManager, contextService);
-  }
-
-  private SourceService newSourceService(NamespaceService nsWithAuth, DatasetVersionMutator ds) {
-    return new SourceService(
-        Clock.systemUTC(),
-        context,
-        nsWithAuth,
-        ds,
-        catalogService,
-        reflectionHelper,
-        collaborationService,
-        connectionReader,
-        security);
-  }
-
   public void refreshNow(String... sources) throws NamespaceException {
     for (String source : sources) {
-      ((CatalogServiceImpl) context.getCatalogService())
+      ((CatalogServiceImpl) catalogService)
           .refreshSource(
               new NamespaceKey(source),
               CatalogService.REFRESH_EVERYTHING_NOW,
@@ -183,7 +186,7 @@ public class TestResource {
       ((SimpleUserService) userService).clearHasAnyUser();
     }
 
-    TestUtilities.clear(catalogService, provider, null, null);
+    TestUtilities.clear(catalogService, legacyKVStoreProvider, kvStoreProvider, null, null);
   }
 
   @GET
@@ -198,7 +201,7 @@ public class TestResource {
   @Produces(TEXT_HTML)
   public Viewable renderExternalProfile(@FormParam("profileJsonText") String profileJsonText)
       throws IOException {
-    QueryProfile profile = ProfileResource.SERIALIZER.deserialize(profileJsonText.getBytes());
+    QueryProfile profile = serializer.deserialize(profileJsonText);
     return ProfileResource.renderProfile(profile, true);
   }
 
@@ -216,7 +219,7 @@ public class TestResource {
       @FormParam("profileJsonFile") String profileJsonFileText) throws IOException {
     java.nio.file.Path profilePath = Paths.get(profileJsonFileText);
     byte[] data = Files.readAllBytes(profilePath);
-    QueryProfile profile = ProfileResource.SERIALIZER.deserialize(data);
+    QueryProfile profile = serializer.deserialize(data);
     return ProfileResource.renderProfile(profile, true);
   }
 

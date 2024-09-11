@@ -18,25 +18,22 @@ package com.dremio.telemetry.api.metrics;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
-import com.codahale.metrics.MetricFilter;
-import com.codahale.metrics.MetricRegistry;
-import com.dremio.telemetry.api.config.MetricsConfigurator;
-import com.dremio.telemetry.api.config.ReporterConfigurator;
-import java.util.Collections;
+import io.micrometer.core.instrument.Timer;
+import org.junit.After;
 import org.junit.Test;
 
 public class TestIntegrationMetricsInstrumenter {
-  private static final String SERVICE_NAME = "someService";
-  private static final String OPERATION_NAME = "someOperation";
+  private static final String SERVICE_NAME = "some_service";
+  private static final String OPERATION_NAME = "some_operation";
 
   private static final String TIME_METRIC_NAME =
-      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.TIME_METRIC_SUFFIX);
+      String.join(".", SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.TIME_METRIC_SUFFIX);
 
   private static final String COUNT_METRIC_NAME =
-      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.COUNT_METRIC_SUFFIX);
+      String.join(".", SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.COUNT_METRIC_SUFFIX);
 
   private static final String ERROR_METRIC_NAME =
-      Metrics.join(SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.ERROR_METRIC_SUFFIX);
+      String.join(".", SERVICE_NAME, OPERATION_NAME, MetricsInstrumenter.ERROR_METRIC_SUFFIX);
 
   private static final int EXPECTED_TOTAL_COUNT = 10;
   private static final int EXPECTED_TOTAL_ERRORS = 5;
@@ -45,6 +42,11 @@ public class TestIntegrationMetricsInstrumenter {
 
   private final DefaultMetricsProvider provider = new DefaultMetricsProvider();
   private final MetricsInstrumenter metrics = new MetricsInstrumenter(SERVICE_NAME, provider);
+
+  @After
+  public void resetMetrics() {
+    Metrics.resetMetrics();
+  }
 
   @Test
   public void successfulOperationsAreLogged() {
@@ -82,50 +84,21 @@ public class TestIntegrationMetricsInstrumenter {
   }
 
   private static class MetricsAsserter {
-    private final DummyReporterConfigurator reporter = new DummyReporterConfigurator();
-
     public MetricsAsserter() {
       Metrics.RegistryHolder.initRegistry();
-
-      Metrics.onChange(
-          Collections.singletonList(
-              new MetricsConfigurator(
-                  "", "", reporter, Collections.emptyList(), Collections.emptyList())));
     }
 
     public void assertCounterCount(String name, int expectedCount) {
-      long actualCount = reporter.registry.getCounters().get(name).getCount();
+      long actualCount = SimpleCounter.of(name).count();
       assertEquals(expectedCount, actualCount);
     }
 
     public void assertTimerCount(String name, int expectedCount) {
-      long actualCount = reporter.registry.getTimers().get(name).getCount();
+      long actualCount =
+          io.micrometer.core.instrument.Metrics.globalRegistry.get(name).timers().stream()
+              .mapToLong(Timer::count)
+              .sum();
       assertEquals(expectedCount, actualCount);
-    }
-
-    // This class is only needed to get a hold of the MetricRegistry
-    // In the eventuality we want to expose the Registry through other means
-    // we should remove this class and use that instead.
-    private static final class DummyReporterConfigurator extends ReporterConfigurator {
-      private MetricRegistry registry;
-
-      @Override
-      public void configureAndStart(String name, MetricRegistry registry, MetricFilter filter) {
-        this.registry = registry;
-      }
-
-      @Override
-      public int hashCode() {
-        return System.identityHashCode(this);
-      }
-
-      @Override
-      public boolean equals(Object other) {
-        return false;
-      }
-
-      @Override
-      public void close() {}
     }
   }
 }

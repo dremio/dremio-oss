@@ -24,6 +24,7 @@ type AvatarProps = {
   className?: string;
   initials?: string;
   image?: JSX.Element;
+  style?: any;
 };
 
 const getHashOfString = (str: string): number => {
@@ -46,7 +47,7 @@ const useHashedColorClass = (
   }, [initials]);
 
 export const Avatar = forwardRef<HTMLDivElement, AvatarProps>((props, ref) => {
-  const { initials, image, className, ...rest } = props;
+  const { initials, image, className, style, ...rest } = props;
   const colorClass = useHashedColorClass(initials);
   return (
     <span {...rest}>
@@ -61,6 +62,7 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>((props, ref) => {
           colorClass,
           className,
         )}
+        style={style}
       >
         {image || initials || null}
       </div>

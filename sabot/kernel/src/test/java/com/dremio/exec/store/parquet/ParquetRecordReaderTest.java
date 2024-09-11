@@ -146,7 +146,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
             "select sum(a) as total_sum from dfs.\"/tmp/parquet_with_nulls_should_sum_100000_nulls_first.parquet\"");
     assertEquals(
         "Only expected one batch with data, and then the empty finishing batch.", 2, result.size());
-    final RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+    final RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
 
     final QueryDataBatch b = result.get(0);
     loader.load(b.getHeader().getDef(), b.getData());
@@ -167,7 +167,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
             "select count(wr_return_quantity) as row_count from dfs.\"/tmp/web_returns\" where wr_return_quantity = 1");
     assertEquals(
         "Only expected one batch with data, and then the empty finishing batch.", 2, result.size());
-    final RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+    final RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
 
     final QueryDataBatch b = result.get(0);
     loader.load(b.getHeader().getDef(), b.getData());
@@ -364,7 +364,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
             numberRowGroups, recordsPerRowGroup, DEFAULT_BYTES_PER_PAGE, fields);
     TestFileGenerator.populateFieldInfoMap(props);
     final ParquetResultListener resultListener =
-        new ParquetResultListener(getAllocator(), props, numberOfTimesRead, testValues);
+        new ParquetResultListener(getTestAllocator(), props, numberOfTimesRead, testValues);
     final Stopwatch watch = Stopwatch.createStarted();
     testWithListener(type, planText, resultListener);
     resultListener.getResults();
@@ -420,7 +420,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
             numberRowGroups, recordsPerRowGroup, DEFAULT_BYTES_PER_PAGE, fields);
     TestFileGenerator.populateFieldInfoMap(props);
     final ParquetResultListener resultListener =
-        new ParquetResultListener(getAllocator(), props, numberOfTimesRead, true);
+        new ParquetResultListener(getTestAllocator(), props, numberOfTimesRead, true);
     testWithListener(QueryType.PHYSICAL, readResourceAsString(plan), resultListener);
     resultListener.getResults();
   }
@@ -820,7 +820,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
     }
 
     final ParquetResultListener resultListener =
-        new ParquetResultListener(getAllocator(), props, numberOfTimesRead, testValues);
+        new ParquetResultListener(getTestAllocator(), props, numberOfTimesRead, testValues);
     final long startTime = System.nanoTime();
     String planText = readResourceAsString(plan);
     // substitute in the string for the read entries, allows reuse of the plan file for several

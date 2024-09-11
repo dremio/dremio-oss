@@ -262,8 +262,6 @@ public class DeltaLakeHistoryScanPlanBuilder {
 
   private RelDataType convertFieldType(Field field) {
     return CalciteArrowHelper.wrap(CompleteType.fromField(field))
-        .toCalciteType(
-            cluster.getTypeFactory(),
-            PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport());
+        .toCalciteType(cluster.getTypeFactory(), true);
   }
 }

@@ -15,6 +15,9 @@
  */
 package com.dremio.telemetry.api.tracing.http;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
@@ -30,8 +33,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class TestServerTracingFilter extends JerseyTest {
 
@@ -83,7 +85,7 @@ public class TestServerTracingFilter extends JerseyTest {
             .header(ServerTracingFilter.REQUEST_ID_HEADER, "test")
             .get();
 
-    Assert.assertEquals(response.getHeaderString(ServerTracingFilter.REQUEST_ID_HEADER), "test");
+    assertEquals(response.getHeaderString(ServerTracingFilter.REQUEST_ID_HEADER), "test");
   }
 
   @Test
@@ -94,7 +96,7 @@ public class TestServerTracingFilter extends JerseyTest {
             .header(ServerTracingFilter.REQUEST_ID_HEADER, "override")
             .get();
 
-    Assert.assertEquals(response.getHeaderString(ServerTracingFilter.REQUEST_ID_HEADER), "sample");
+    assertEquals(response.getHeaderString(ServerTracingFilter.REQUEST_ID_HEADER), "sample");
   }
 
   @Test
@@ -102,6 +104,6 @@ public class TestServerTracingFilter extends JerseyTest {
     Response response = target("/dremio/source_code").request().get();
 
     String customRequestId = response.getHeaderString(ServerTracingFilter.REQUEST_ID_HEADER);
-    Assert.assertTrue(StringUtils.isNotBlank(customRequestId));
+    assertTrue(StringUtils.isNotBlank(customRequestId));
   }
 }

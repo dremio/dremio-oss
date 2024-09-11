@@ -44,6 +44,8 @@ public class NessieCommitsSubScan extends SubScanWithProjection {
 
   private final StoragePluginId pluginId;
   private final SnapshotsScanOptions snapshotsScanOptions;
+  private final String fsScheme;
+  private final String schemeVariate;
 
   @JsonIgnore private List<SplitAndPartitionInfo> splits;
   private static final Collection<List<String>> NO_REFERENCED_TABLES = Collections.EMPTY_LIST;
@@ -54,7 +56,9 @@ public class NessieCommitsSubScan extends SubScanWithProjection {
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("snapshotScanOptions") SnapshotsScanOptions snapshotsScanOptions,
-      @JsonProperty("splitWorks") List<SplitWork> splitWorks) {
+      @JsonProperty("splitWorks") List<SplitWork> splitWorks,
+      @JsonProperty("fsScheme") String fsScheme,
+      @JsonProperty("schemeVariate") String schemeVariate) {
     super(props, fullSchema, NO_REFERENCED_TABLES, columns);
     this.pluginId = pluginId;
     this.snapshotsScanOptions = snapshotsScanOptions;
@@ -62,6 +66,8 @@ public class NessieCommitsSubScan extends SubScanWithProjection {
       this.splits =
           splitWorks.stream().map(SplitWork::getSplitAndPartitionInfo).collect(Collectors.toList());
     }
+    this.fsScheme = fsScheme;
+    this.schemeVariate = schemeVariate;
   }
 
   public StoragePluginId getPluginId() {
@@ -70,6 +76,14 @@ public class NessieCommitsSubScan extends SubScanWithProjection {
 
   public List<SplitAndPartitionInfo> getSplits() {
     return splits;
+  }
+
+  public String getSchemeVariate() {
+    return schemeVariate;
+  }
+
+  public String getFsScheme() {
+    return fsScheme;
   }
 
   public SnapshotsScanOptions getSnapshotsScanOptions() {

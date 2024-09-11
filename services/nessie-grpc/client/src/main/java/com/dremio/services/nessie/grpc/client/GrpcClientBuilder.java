@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -59,6 +60,18 @@ public final class GrpcClientBuilder implements NessieClientBuilder {
   @Override
   public <I extends NessieClientBuilder> I asInstanceOf(Class<I> builderInterfaceType) {
     return builderInterfaceType.cast(this);
+  }
+
+  @Override
+  public NessieClientBuilder withSSLCertificateVerificationDisabled(boolean disabled) {
+    Preconditions.checkArgument(
+        !disabled, "Disabling SSL certificate verification is not supported");
+    return this;
+  }
+
+  @Override
+  public NessieClientBuilder withCancellationFuture(CompletionStage<?> cancellationFuture) {
+    return this; // Cancellation Futures are not supported (ignored) by this client
   }
 
   @Override

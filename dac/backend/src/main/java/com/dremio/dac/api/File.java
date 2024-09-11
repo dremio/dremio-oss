@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Iterables;
 import java.util.List;
+import org.jetbrains.annotations.Nullable;
 
 /** File */
 public class File implements CatalogEntity {
@@ -44,5 +45,11 @@ public class File implements CatalogEntity {
   @JsonIgnore
   public String getName() {
     return Iterables.getLast(getPath());
+  }
+
+  @Nullable
+  @Override
+  public String getNextPageToken() {
+    return null;
   }
 }

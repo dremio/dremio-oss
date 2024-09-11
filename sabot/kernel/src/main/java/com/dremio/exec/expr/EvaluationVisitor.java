@@ -32,6 +32,7 @@ import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
 import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
@@ -678,8 +679,8 @@ public class EvaluationVisitor {
         JBlock block = generator.getEvalBlock();
         HoldingContainer eval = e.getEval().accept(EvalVisitor.this, generator);
         JClass outType = CodeModelArrowHelper.getHolderType(CompleteType.BIT, model);
-        JVar var = block.decl(outType, generator.getNextVar("inListResult"), JExpr._new(outType));
-        block.assign(var.ref("isSet"), JExpr.lit(1));
+        JVar jvar = block.decl(outType, generator.getNextVar("inListResult"), JExpr._new(outType));
+        block.assign(jvar.ref("isSet"), JExpr.lit(1));
         JInvocation valueFound;
         if (e.isVarType()) {
           valueFound =
@@ -693,9 +694,9 @@ public class EvaluationVisitor {
           valueFound = valueSet.invoke("isContained").arg(eval.getIsSet()).arg(eval.getValue());
         }
 
-        block.assign(var.ref("value"), valueFound);
+        block.assign(jvar.ref("value"), valueFound);
 
-        return new HoldingContainer(CompleteType.BIT, var, var.ref("value"), var.ref("isSet"));
+        return new HoldingContainer(CompleteType.BIT, jvar, jvar.ref("value"), jvar.ref("isSet"));
       }
     }
 
@@ -743,6 +744,11 @@ public class EvaluationVisitor {
                       .staticInvoke("copy")
                       .arg(inputContainer.getHolder())
                       .arg(castedWriter));
+          JExpression inIndex = generator.getMappingSet().getValueReadIndex();
+          generator.getEvalBlock().add(inputContainer.getHolder().invoke("reset"));
+          generator
+              .getEvalBlock()
+              .add(inputContainer.getHolder().invoke("setPosition").arg(inIndex));
         } else {
           String copyMethod =
               inputContainer.isSingularRepeated() ? "copyAsValueSingle" : "copyAsValue";
@@ -802,7 +808,7 @@ public class EvaluationVisitor {
         generator.getEvalBlock().add(eval);
 
       } else {
-        JExpression vector = e.isSuperReader() ? vv1.component(componentVariable) : vv1;
+        JExpression vector = vv1;
         JExpression expr = vector.invoke("getReader");
         PathSegment seg = e.getReadPath();
 
@@ -832,7 +838,8 @@ public class EvaluationVisitor {
         int listNum = 0;
 
         while (seg != null) {
-          if (seg.isArray()) {
+          if (seg.getType().equals(PathSegmentType.ARRAY_INDEX)
+              || seg.getType().equals(PathSegmentType.ARRAY_INDEX_REF)) {
             // stop once we get to the last segment and the final type is neither complex nor
             // repeated (map, list, repeated list).
             // In case of non-complex and non-repeated type, we return Holder, in stead of
@@ -847,11 +854,27 @@ public class EvaluationVisitor {
 
             // if this is an array, set a single position for the expression to
             // allow us to read the right data lower down.
-            JVar desiredIndex =
-                eval.decl(
-                    generator.getModel().INT,
-                    "desiredIndex" + listNum,
-                    JExpr.lit(seg.getArraySegment().getOptionalIndex()));
+            JVar desiredIndex;
+            if (seg.getType().equals(PathSegmentType.ARRAY_INDEX)) {
+              desiredIndex =
+                  eval.decl(
+                      generator.getModel().INT,
+                      "desiredIndex" + listNum,
+                      JExpr.lit(seg.getArraySegment().getOptionalIndex()));
+            } else {
+              JExpression vv2 =
+                  generator.declareVectorValueSetupAndMember(
+                      generator.getMappingSet().getIncoming(), seg.getArrayInputRef().getFieldId());
+              JExpression indexVector = e.isSuperReader() ? vv2.component(componentVariable) : vv2;
+              JExpression indexExpr = indexVector.invoke("getReader");
+              eval.add(indexExpr.invoke("reset"));
+              eval.add(indexExpr.invoke("setPosition").arg(indexVariable));
+              desiredIndex =
+                  eval.decl(
+                      generator.getModel().INT,
+                      "desiredIndex" + listNum,
+                      indexExpr.invoke("readLong").invoke("intValue"));
+            }
             // check if desired index is within bounds
             JBlock ifNoVal = eval._if(desiredIndex.gte(list.invoke("size")))._then().block();
             ifNoVal.assign(out.getIsSet(), JExpr.lit(0));
@@ -921,7 +944,9 @@ public class EvaluationVisitor {
      */
     private boolean isNullReaderLikely(PathSegment seg, boolean complexOrRepeated) {
       while (seg != null) {
-        if (seg.isArray() && !seg.isLastPath()) {
+        if ((seg.getType().equals(PathSegmentType.ARRAY_INDEX)
+                || seg.getType().equals(PathSegmentType.ARRAY_INDEX_REF))
+            && !seg.isLastPath()) {
           return true;
         }
 
@@ -954,18 +979,18 @@ public class EvaluationVisitor {
       CompleteType completeType = CompleteType.VARCHAR;
       JBlock setup = generator.getBlock(BlockType.SETUP);
       JType holderType = CodeModelArrowHelper.getHolderType(completeType, generator.getModel());
-      JVar var = generator.declareClassField("string", holderType);
+      JVar jvar = generator.declareClassField("string", holderType);
       JExpression stringLiteral = JExpr.lit(e.value);
       JExpression buffer = JExpr.direct("context").invoke("getManagedBuffer");
       setup.assign(
-          var,
+          jvar,
           generator
               .getModel()
               .ref(ValueHolderHelper.class)
               .staticInvoke("getNullableVarCharHolder")
               .arg(buffer)
               .arg(stringLiteral));
-      return new HoldingContainer((completeType), var, var.ref("value"), var.ref("isSet"));
+      return new HoldingContainer((completeType), jvar, jvar.ref("value"), jvar.ref("isSet"));
     }
 
     @Override
@@ -974,18 +999,18 @@ public class EvaluationVisitor {
       CompleteType completeType = CompleteType.INTERVAL_DAY_SECONDS;
       JBlock setup = generator.getBlock(BlockType.SETUP);
       JType holderType = CodeModelArrowHelper.getHolderType(completeType, generator.getModel());
-      JVar var = generator.declareClassField("intervalday", holderType);
+      JVar jvar = generator.declareClassField("intervalday", holderType);
       JExpression dayLiteral = JExpr.lit(e.getIntervalDay());
       JExpression millisLiteral = JExpr.lit(e.getIntervalMillis());
       setup.assign(
-          var,
+          jvar,
           generator
               .getModel()
               .ref(ValueHolderHelper.class)
               .staticInvoke("getNullableIntervalDayHolder")
               .arg(dayLiteral)
               .arg(millisLiteral));
-      return new HoldingContainer(completeType, var, var.ref("value"), var.ref("isSet"));
+      return new HoldingContainer(completeType, jvar, jvar.ref("value"), jvar.ref("isSet"));
     }
 
     @Override
@@ -995,18 +1020,18 @@ public class EvaluationVisitor {
           CompleteType.fromDecimalPrecisionScale(e.getPrecision(), e.getScale());
       JBlock setup = generator.getBlock(BlockType.SETUP);
       JType holderType = CodeModelArrowHelper.getHolderType(completeType, generator.getModel());
-      JVar var = generator.declareClassField("dec38", holderType);
+      JVar jvar = generator.declareClassField("dec38", holderType);
       JExpression decimal = JExpr.lit(e.getDecimal().toString());
       JExpression buffer = JExpr.direct("context").invoke("getManagedBuffer");
       setup.assign(
-          var,
+          jvar,
           generator
               .getModel()
               .ref(ValueHolderHelper.class)
               .staticInvoke("getNullableDecimalHolder")
               .arg(buffer)
               .arg(decimal));
-      return new HoldingContainer(completeType, var, var.ref("value"), var.ref("isSet"));
+      return new HoldingContainer(completeType, jvar, jvar.ref("value"), jvar.ref("isSet"));
     }
 
     @Override

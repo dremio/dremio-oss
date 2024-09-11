@@ -15,25 +15,64 @@
  */
 package com.dremio.catalog.model;
 
-public class CatalogEntityId {
-  private final String id;
+import java.util.Optional;
 
-  public CatalogEntityId(String id) {
-    this.id = id;
+public final class CatalogEntityId {
+  private final String namespaceEntityId;
+  private final VersionedDatasetId versionedDatasetId;
+
+  private CatalogEntityId(String namespaceEntityId) {
+    this.namespaceEntityId = namespaceEntityId;
+    this.versionedDatasetId = null;
   }
 
-  public static CatalogEntityId fromString(String id) {
-    return new CatalogEntityId(id);
+  private CatalogEntityId(VersionedDatasetId versionedDatasetId) {
+    this.namespaceEntityId = null;
+    this.versionedDatasetId = versionedDatasetId;
+  }
+
+  public static CatalogEntityId fromString(String stringInput) {
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(stringInput);
+    if (versionedDatasetId != null) {
+      return new CatalogEntityId(versionedDatasetId);
+    } else {
+      return new CatalogEntityId(stringInput);
+    }
+  }
+
+  public static CatalogEntityId fromVersionedDatasetId(VersionedDatasetId versionedDatasetId) {
+    return new CatalogEntityId(versionedDatasetId);
+  }
+
+  public Optional<String> toNamespaceEntityId() {
+    return Optional.ofNullable(namespaceEntityId);
+  }
+
+  public Optional<VersionedDatasetId> toVersionedDatasetId() {
+    return Optional.ofNullable(versionedDatasetId);
   }
 
   @Override
   public String toString() {
-    return id;
+    if (namespaceEntityId != null) {
+      return namespaceEntityId;
+    }
+    if (versionedDatasetId != null) {
+      return versionedDatasetId.asString();
+    }
+    return "";
   }
 
   @Override
   public final int hashCode() {
-    return id.hashCode();
+    // TODO - Does this actually make the hashcode unique?
+    if (namespaceEntityId == null && versionedDatasetId != null) {
+      return versionedDatasetId.hashCode();
+    }
+    if (namespaceEntityId != null && versionedDatasetId == null) {
+      return namespaceEntityId.hashCode();
+    }
+    return 0;
   }
 
   @Override
@@ -45,6 +84,12 @@ public class CatalogEntityId {
       return false;
     }
     CatalogEntityId otherId = (CatalogEntityId) other;
-    return otherId.id.equals(id);
+    if (otherId.namespaceEntityId != null) {
+      return otherId.namespaceEntityId.equals(namespaceEntityId);
+    }
+    if (otherId.versionedDatasetId != null) {
+      return otherId.versionedDatasetId.equals(versionedDatasetId);
+    }
+    return false;
   }
 }

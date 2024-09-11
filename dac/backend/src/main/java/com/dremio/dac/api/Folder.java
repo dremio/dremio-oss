@@ -20,24 +20,37 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Iterables;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /** Folder */
 public class Folder implements CatalogEntity {
   private final String id;
+
+  @FolderNamePattern(
+      regexp = "^[^.\"/]+$",
+      message = "Folder name cannot contain periods, forward slashes or double quotes.")
   private final List<String> path;
+
   private final String tag;
   private final List<CatalogItem> children;
+  private final String nextPageToken;
+
+  public Folder(String id, List<String> path, String tag, List<CatalogItem> children) {
+    this(id, path, tag, children, null);
+  }
 
   @JsonCreator
   public Folder(
       @JsonProperty("id") String id,
       @JsonProperty("path") List<String> path,
       @JsonProperty("tag") String tag,
-      @JsonProperty("children") List<CatalogItem> children) {
+      @JsonProperty("children") List<CatalogItem> children,
+      @JsonProperty("nextPageToken") @Nullable String nextPageToken) {
     this.id = id;
     this.path = path;
     this.tag = tag;
     this.children = children;
+    this.nextPageToken = nextPageToken;
   }
 
   @JsonIgnore
@@ -60,5 +73,11 @@ public class Folder implements CatalogEntity {
 
   public List<CatalogItem> getChildren() {
     return children;
+  }
+
+  @Nullable
+  @Override
+  public String getNextPageToken() {
+    return nextPageToken;
   }
 }

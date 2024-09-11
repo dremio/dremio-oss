@@ -105,6 +105,29 @@ public class TestMaterializationExpander {
     Assert.assertTrue(MaterializationExpander.areRowTypesEqual(type1, type2));
   }
 
+  @Test
+  public void testAreRowTypesEqualIgnoresArrayFieldNullability() {
+    final RelDataType type1 =
+        typeFactory.createStructType(
+            asList(
+                typeFactory.createArrayType(
+                    typeFactory.createTypeWithNullability(
+                        typeFactory.createSqlType(SqlTypeName.VARCHAR), true),
+                    -1)),
+            asList("regexpsplit"));
+
+    final RelDataType type2 =
+        typeFactory.createStructType(
+            asList(
+                typeFactory.createArrayType(
+                    typeFactory.createTypeWithNullability(
+                        typeFactory.createSqlType(SqlTypeName.VARCHAR), false),
+                    -1)),
+            asList("regexpsplit"));
+
+    Assert.assertTrue(MaterializationExpander.areRowTypesEqual(type1, type2));
+  }
+
   /** row types that only differ for fields with ANY types should be equal */
   @Test
   public void testAreRowTypesEqualIgnoresAny() {
@@ -145,14 +168,12 @@ public class TestMaterializationExpander {
     Assert.assertTrue(MaterializationExpander.areRowTypesEqual(type1, type2));
   }
 
-  /** row types with TIMESTAMP fields with different precisions should not be equal */
+  /** row types with TIMESTAMP fields with different precisions should be equal */
   @Test
   public void testTimestampPrecisionMismatch() {
-    // Don't use Dremio's type factory as it enforces a precision of 3
-    final RelDataTypeFactory calciteFactory = new org.apache.calcite.jdbc.JavaTypeFactoryImpl();
     final RelDataType type1 =
-        calciteFactory.createStructType(
-            Collections.singletonList(calciteFactory.createSqlType(SqlTypeName.TIMESTAMP, 0)),
+        typeFactory.createStructType(
+            Collections.singletonList(typeFactory.createSqlType(SqlTypeName.TIMESTAMP, 0)),
             Collections.singletonList("ts0"));
 
     final RelDataType type2 =
@@ -160,7 +181,7 @@ public class TestMaterializationExpander {
             Collections.singletonList(typeFactory.createSqlType(SqlTypeName.TIMESTAMP, 3)),
             Collections.singletonList("ts3"));
 
-    Assert.assertFalse(MaterializationExpander.areRowTypesEqual(type1, type2));
+    Assert.assertTrue(MaterializationExpander.areRowTypesEqual(type1, type2));
   }
 
   /**

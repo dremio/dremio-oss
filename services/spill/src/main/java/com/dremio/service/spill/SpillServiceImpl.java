@@ -26,6 +26,7 @@ import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
@@ -83,6 +84,7 @@ public class SpillServiceImpl implements SpillService {
   private volatile ArrayList<String> healthySpillDirs;
   private Cancellable healthCheckTask;
 
+  @VisibleForTesting
   public SpillServiceImpl(
       DremioConfig config,
       SpillServiceOptions options,

@@ -20,6 +20,7 @@ import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitS
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.io.file.Path;
@@ -31,13 +32,17 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.RowLevelOperationMode;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
@@ -47,6 +52,7 @@ import org.apache.iceberg.exceptions.ValidationException;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.util.CharSequenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +64,12 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
   private static final Logger logger = LoggerFactory.getLogger(IcebergDmlOperationCommitter.class);
 
   private List<ManifestFile> manifestFileList = new ArrayList<>();
+  private final List<DeleteFile> positionalDeleteFileList = new ArrayList<>();
+  private final List<DataFile> mergeOnReadDataFileList = new ArrayList<>();
   private List<String> deletedDataFilePathList = new ArrayList<>();
+
+  // data files referenced by positional delete rows
+  private final CharSequenceSet referencedDataFiles = CharSequenceSet.empty();
 
   private final IcebergCommand icebergCommand;
   private final OperatorStats operatorStats;
@@ -66,11 +77,14 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
   private final Long startingSnapshotId;
   private final boolean isConcurrencyEnabled;
 
+  private final RowLevelOperationMode dmlWriteMode;
+
   public IcebergDmlOperationCommitter(
       OperatorContext operatorContext,
       IcebergCommand icebergCommand,
       DatasetConfig datasetConfig,
-      Long startingSnapshotId) {
+      Long startingSnapshotId,
+      RowLevelOperationMode dmlWriteMode) {
     Preconditions.checkState(icebergCommand != null, "Unexpected state");
     Preconditions.checkNotNull(
         datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
@@ -81,6 +95,7 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
     this.startingSnapshotId = startingSnapshotId;
     this.isConcurrencyEnabled =
         operatorContext.getOptions().getOption(ExecConstants.ENABLE_ICEBERG_CONCURRENCY);
+    this.dmlWriteMode = dmlWriteMode;
   }
 
   @Override
@@ -88,6 +103,12 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
     return commitImpl(false);
   }
 
+  /**
+   * Commit the DML operation
+   *
+   * @param skipBeginOperation Skip the 'begin' operation
+   * @return
+   */
   public Snapshot commitImpl(boolean skipBeginOperation /* test only */) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     SnapshotCommitStatus commitStatus = NONE;
@@ -97,7 +118,16 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
         beginDmlOperationTransaction();
       }
       Snapshot currentSnapshot = icebergCommand.getCurrentSnapshot();
-      performUpdates();
+      switch (dmlWriteMode) {
+        case COPY_ON_WRITE:
+          performCopyOnWriteTransaction();
+          break;
+        case MERGE_ON_READ:
+          performMergeOnReadTransaction();
+          break;
+        default:
+          throw new UnsupportedOperationException("Unsupported Dml Write Mode: " + dmlWriteMode);
+      }
       snapshot = endDmlOperationTransaction().currentSnapshot();
       commitStatus =
           (currentSnapshot != null && snapshot.snapshotId() == startingSnapshotId)
@@ -121,8 +151,65 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
     }
   }
 
-  private boolean hasAnythingChanged() {
+  /** Perform the merge on read transaction */
+  @VisibleForTesting
+  public void performMergeOnReadTransaction() {
+    if (mergeOnReadHasAnythingChanged()) {
+      Preconditions.checkArgument(
+          startingSnapshotId != null, "DML commit does not specify starting snapshot id");
+      if (isConcurrencyEnabled) {
+        Expression conflictDetectionFilter = Expressions.alwaysTrue();
+
+        icebergCommand.beginSerializableIsolationRowDelta(
+            referencedDataFiles, startingSnapshotId, conflictDetectionFilter);
+      } else {
+        icebergCommand.beginRowDelta(startingSnapshotId);
+      }
+
+      // Commit the delete files
+      if (!positionalDeleteFileList.isEmpty()) {
+        posDeleteFileLogging();
+        icebergCommand.consumePositionalDeleteFiles(positionalDeleteFileList);
+      }
+
+      // Commit the data files
+      if (!mergeOnReadDataFileList.isEmpty()) {
+        dataFileLogging();
+        icebergCommand.consumeMergeOnReadDataFiles(mergeOnReadDataFileList);
+      }
+      // Commit the RowDelta operation
+      icebergCommand.finishRowDelta();
+    }
+  }
+
+  private void posDeleteFileLogging() {
+    if (logger.isDebugEnabled()) {
+      logger.debug("Committing {} delete file(s).", positionalDeleteFileList.size());
+      positionalDeleteFileList.forEach(
+          l ->
+              logger.debug(
+                  "Committing delete file: {}, with {} positional delete records.",
+                  l.path(),
+                  l.recordCount()));
+    }
+  }
+
+  private void dataFileLogging() {
+    if (logger.isDebugEnabled()) {
+      logger.debug("Committing {} data file(s).", mergeOnReadDataFileList.size());
+      mergeOnReadDataFileList.forEach(
+          l ->
+              logger.debug(
+                  "Committing data file: {}, with {} records.", l.path(), l.recordCount()));
+    }
+  }
+
+  private boolean copyOnWriteHasAnythingChanged() {
     return deletedDataFilePathList.size() + manifestFileList.size() > 0;
+  }
+
+  private boolean mergeOnReadHasAnythingChanged() {
+    return mergeOnReadDataFileList.size() + positionalDeleteFileList.size() > 0;
   }
 
   @VisibleForTesting
@@ -151,8 +238,8 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
   }
 
   @VisibleForTesting
-  public void performUpdates() {
-    if (hasAnythingChanged()) {
+  public void performCopyOnWriteTransaction() {
+    if (copyOnWriteHasAnythingChanged()) {
       Preconditions.checkArgument(
           startingSnapshotId != null, "DML commit does not specify starting snapshot id");
       if (isConcurrencyEnabled) {
@@ -168,13 +255,13 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
       } else {
         icebergCommand.beginOverwrite(startingSnapshotId);
       }
-      if (deletedDataFilePathList.size() > 0) {
+      if (!deletedDataFilePathList.isEmpty()) {
         logger.debug(
             "Committing delete data files, file count: {} ", deletedDataFilePathList.size());
         icebergCommand.consumeDeleteDataFilesWithOverwriteByPaths(deletedDataFilePathList);
       }
 
-      if (manifestFileList.size() > 0) {
+      if (!manifestFileList.isEmpty()) {
         if (logger.isDebugEnabled()) {
           logger.debug("Committing {} manifest files.", manifestFileList.size());
           manifestFileList.stream()
@@ -199,6 +286,22 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
   @Override
   public void consumeManifestFile(ManifestFile icebergManifestFile) {
     manifestFileList.add(icebergManifestFile);
+  }
+
+  @Override
+  public void consumePositionalDeleteFile(
+      DeleteFile positionalDeleteFile, Set<ByteArrayWrapper> referencedDataFiles)
+      throws UnsupportedOperationException {
+    positionalDeleteFileList.add(positionalDeleteFile);
+    for (ByteArrayWrapper dataFile : referencedDataFiles) {
+      this.referencedDataFiles.add(new String(dataFile.getBytes(), StandardCharsets.UTF_8));
+    }
+  }
+
+  @Override
+  public void consumeMergeOnReadAddDataFile(DataFile mergeOnReadDataFile)
+      throws UnsupportedOperationException {
+    mergeOnReadDataFileList.add(mergeOnReadDataFile);
   }
 
   @Override

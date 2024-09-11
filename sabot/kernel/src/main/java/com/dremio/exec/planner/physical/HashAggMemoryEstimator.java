@@ -303,9 +303,7 @@ public class HashAggMemoryEstimator {
         dataSize += FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL / numPartitions;
         validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
         continue;
-      } else if (accumType == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal()
-          || accumType == AccumulatorBuilder.AccumulatorType.PHASE1_ARRAY_AGG.ordinal()
-          || accumType == AccumulatorBuilder.AccumulatorType.PHASE2_ARRAY_AGG.ordinal()) {
+      } else if (accumType == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal()) {
         dataSize +=
             (int)
                 optionManager.getOption(

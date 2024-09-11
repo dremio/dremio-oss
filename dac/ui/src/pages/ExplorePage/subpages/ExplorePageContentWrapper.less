@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-
 :global {
   .mainContent .explorePage {
     overflow: auto;
 
     &.--collpase {
       .dremioSidebar {
-        background-color: @SECONDARY_150;
+        background-color: var(--fill--secondary);
         width: 36px;
       }
 
@@ -42,6 +40,8 @@
 
         .resource-tree,
         .TreeBrowser-items {
+          flex: 1;
+
           opacity: 0;
           pointer-events: none;
           overflow: hidden;
@@ -65,8 +65,8 @@
     width: 100%;
 
     &__header {
-      border-left: 1px solid var(--color--neutral--50);
-      border-bottom: 1px solid var(--color--neutral--50);
+      border-left: 1px solid var(--border--neutral);
+      border-bottom: 1px solid var(--border--neutral);
       align-items: center;
       display: flex;
       gap: 10px;
@@ -82,7 +82,7 @@
         border: none;
 
         > input::placeholder {
-          color: @SECONDARY_600;
+          color: var(--color--neutral--300);
           font-style: italic;
         }
       }
@@ -118,19 +118,19 @@
           right: var(--dremio--spacing--1);
 
           .dremio-icon-button {
-            color: var(--dremio--color--icon--main);
+            color: var(--icon--primary);
             dremio-icon {
               block-size: 24px !important;
               inline-size: 24px !important;
             }
 
             &:disabled {
-              color: var(--color--neutral--100);
+              color: var(--color--neutral--150);
             }
 
             &:hover {
-              color: var(--dremio--color--link);
-              background-color: var(--color--gray--25);
+              color: var(--icon--hover);
+              background-color: var(--fill--primary--hover--alt);
               opacity: 1;
             }
           }
@@ -157,8 +157,8 @@
 
     // Catalog, Graph, Reflections content area
     &__content {
-      border-left: 1px solid var(--color--neutral--50);
-      border-right: 1px solid var(--color--neutral--50);
+      border-left: 1px solid var(--border--neutral);
+      border-right: 1px solid var(--border--neutral);
 
       height: 100%;
       overflow: auto;
@@ -169,7 +169,7 @@
     }
 
     &__table {
-      background: @WHITE;
+      background: var(--fill--primary);
       display: grid;
       grid-template-rows: auto 1fr;
       overflow-y: hidden;
@@ -259,7 +259,7 @@
       p {
         display: block;
         text-transform: uppercase;
-        border-bottom: 1px solid @BLACK;
+        border-bottom: 1px solid var(--text--primary);
       }
 
       .keyboard:hover {
@@ -299,7 +299,7 @@
         text-align: center;
 
         &::after {
-          background-color: @ELM;
+          background-color: var(--color--brand--500);
           bottom: 0;
           content: "";
           height: 3px;
@@ -324,7 +324,7 @@
     }
 
     .divider {
-      background-color: @SECONDARY_200;
+      background-color: var(--border--neutral);
       height: 1px;
       width: 100%;
     }
@@ -344,7 +344,7 @@
         }
 
         span {
-          background-color: @SECONDARY_200;
+          background-color: var(--color--neutral--100);
           border-radius: 8px;
           display: inline-block;
           font-size: 14px;

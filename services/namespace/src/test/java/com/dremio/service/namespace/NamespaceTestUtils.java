@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 public final class NamespaceTestUtils {
   private static final long REFRESH_PERIOD_MS = TimeUnit.HOURS.toMillis(24);
   private static final long GRACE_PERIOD_MS = TimeUnit.HOURS.toMillis(48);
+  private static final int MAX_LIST_RESULTS = 1000;
 
   private NamespaceTestUtils() {}
 
@@ -148,7 +149,7 @@ public final class NamespaceTestUtils {
       throws Exception {
     Map<String, NameSpaceContainer> children = new HashMap<>();
     for (NameSpaceContainer container :
-        ns.list(new NamespaceKey(PathUtils.parseFullPath(parent)))) {
+        ns.list(new NamespaceKey(PathUtils.parseFullPath(parent)), null, MAX_LIST_RESULTS)) {
       children.put(PathUtils.constructFullPath(container.getFullPathList()), container);
     }
     return children;
@@ -157,7 +158,7 @@ public final class NamespaceTestUtils {
   public static Map<String, NameSpaceContainer> listHome(NamespaceService ns, String parent)
       throws Exception {
     Map<String, NameSpaceContainer> children = new HashMap<>();
-    for (NameSpaceContainer container : ns.list(new NamespaceKey(parent))) {
+    for (NameSpaceContainer container : ns.list(new NamespaceKey(parent), null, MAX_LIST_RESULTS)) {
       children.put(PathUtils.constructFullPath(container.getFullPathList()), container);
     }
     return children;

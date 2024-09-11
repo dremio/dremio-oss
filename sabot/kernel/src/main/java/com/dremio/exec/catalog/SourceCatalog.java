@@ -63,4 +63,12 @@ public interface SourceCatalog {
    * @param config
    */
   void deleteSource(SourceConfig config);
+
+  /**
+   * Invalidates all cache entries across permission related caches associated with the given
+   * source. If no source name is given, invalidation happens across all sources.
+   *
+   * @param sourceName name of the source, set to null to invalidate on all
+   */
+  void clearPermissionCache(String sourceName);
 }

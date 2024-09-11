@@ -46,6 +46,7 @@ public interface RecordWriter extends AutoCloseable {
   String OPERATION_TYPE_COLUMN = "OperationType";
   String PARTITION_VALUE_COLUMN = "PartitionValue";
   String REJECTED_RECORDS_COLUMN = "RejectedRecords";
+  String REFERENCED_DATA_FILES_COLUMN = "ReferencedDataFiles";
 
   BatchSchema SCHEMA =
       BatchSchema.newBuilder()
@@ -88,6 +89,9 @@ public interface RecordWriter extends AutoCloseable {
           .addField(
               MajorTypeHelper.getFieldForNameAndMajorType(
                   REJECTED_RECORDS_COLUMN, Types.optional(MinorType.BIGINT)))
+          .addField(
+              MajorTypeHelper.getFieldForNameAndMajorType(
+                  REFERENCED_DATA_FILES_COLUMN, Types.optional(MinorType.VARBINARY)))
           .setSelectionVectorMode(SelectionVectorMode.NONE)
           .build();
 
@@ -103,6 +107,7 @@ public interface RecordWriter extends AutoCloseable {
   Field OPERATION_TYPE = SCHEMA.getColumn(9);
   Field PARTITION_VALUE = SCHEMA.getColumn(10);
   Field REJECTED_RECORDS = SCHEMA.getColumn(11);
+  Field REFERENCED_DATA_FILES = SCHEMA.getColumn(12);
 
   /**
    * @param incoming
@@ -143,6 +148,19 @@ public interface RecordWriter extends AutoCloseable {
     throw new UnsupportedOperationException("Unable to get filesystem");
   }
 
+  /**
+   * If exists and ready to produce, process output. A pending output may take multiple calls to
+   * fully process.
+   *
+   * @param completedInput has all incoming data been sent for consumption
+   * @param reachedOutputLimit has the record limit defined by the record-writer been reached
+   * @return whether the pending output has been completed, i.e. if the writer can move forward
+   */
+  default boolean processPendingOutput(boolean completedInput, boolean reachedOutputLimit)
+      throws Exception {
+    return false;
+  }
+
   default Path getLocation() {
     throw new UnsupportedOperationException("Unable to get location");
   }
@@ -163,7 +181,8 @@ public interface RecordWriter extends AutoCloseable {
         Collection<IcebergPartitionData> partition,
         Integer operationType,
         String partitionValue,
-        long rejectedRecordCount);
+        long rejectedRecordCount,
+        byte[] referencedDataFiles);
   }
 
   /** Listens to write details: number of bytes written, number of files written */

@@ -89,9 +89,8 @@ public class TableFilesMFunctionTranslatableTableImpl extends MFunctionTranslata
       Supplier<Optional<DatasetHandle>> handleSupplier,
       StoragePlugin plugin,
       DatasetRetrievalOptions options,
-      String user,
-      boolean complexTypeSupport) {
-    super(catalogMetadata, user, complexTypeSupport);
+      String user) {
+    super(catalogMetadata, user, true);
     this.underlyingTableConfig = underlyingTableConfig;
     this.handleSupplier = handleSupplier;
     this.plugin = plugin;

@@ -22,12 +22,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.dremio.common.util.TestTools;
-import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.collaboration.Tags;
 import com.dremio.dac.service.collaboration.Wiki;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -56,7 +57,7 @@ public class TestCollaborationResource extends BaseTestServer {
     NamespaceKey spacePath = new NamespaceKey("testspace");
     List<String> vdsPath = Arrays.asList(spacePath.getRoot(), "testVDS");
     createSpaceAndVDS(spacePath, vdsPath);
-    DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
+    DatasetConfig dataset = getNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
     // Test no tags
     Tags noTags =
@@ -71,7 +72,7 @@ public class TestCollaborationResource extends BaseTestServer {
             Tags.class);
     assertEquals(noTags.getTags().size(), 0);
 
-    CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+    CollaborationHelper collaborationHelper = getCollaborationHelper();
 
     List<String> tagList = Arrays.asList("tag1", "tag2");
 
@@ -92,8 +93,8 @@ public class TestCollaborationResource extends BaseTestServer {
     assertTrue(tags.getTags().containsAll(tagList));
 
     // cleanup space
-    newNamespaceService()
-        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    getNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, getNamespaceService()));
   }
 
   @Test
@@ -102,7 +103,7 @@ public class TestCollaborationResource extends BaseTestServer {
     NamespaceKey spacePath = new NamespaceKey("testspace");
     List<String> vdsPath = Arrays.asList(spacePath.getRoot(), "testVDS");
     createSpaceAndVDS(spacePath, vdsPath);
-    DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
+    DatasetConfig dataset = getNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
     List<String> tagList = Arrays.asList("tag1", "tag2");
     Tags newTags = new Tags(tagList, null);
@@ -158,12 +159,12 @@ public class TestCollaborationResource extends BaseTestServer {
     assertEquals(tags.getTags().size(), 0);
 
     // cleanup space
-    newNamespaceService()
-        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    getNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, getNamespaceService()));
   }
 
   @Test
-  public void testGetTagsErrors() throws Exception {
+  public void testGetTagsErrors() {
     // invalid id
     expectStatus(
         BAD_REQUEST,
@@ -186,7 +187,27 @@ public class TestCollaborationResource extends BaseTestServer {
     NamespaceKey spacePath = new NamespaceKey("testspace");
     List<String> vdsPath = Arrays.asList(spacePath.getRoot(), "testVDS");
     createSpaceAndVDS(spacePath, vdsPath);
-    DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
+    DatasetConfig dataset = getNamespaceService().getDataset(new NamespaceKey(vdsPath));
+
+    // set tag to invalid entity type
+    tagList = Arrays.asList("tag1", "tag2");
+    newTags = new Tags(tagList, null);
+
+    String folderName = "someFolder";
+    createFolder(Collections.singletonList(spacePath.getRoot()), folderName);
+    FolderConfig folderConfig =
+        getNamespaceService()
+            .getFolder(new NamespaceKey(Arrays.asList(spacePath.getRoot(), folderName)));
+
+    expectStatus(
+        BAD_REQUEST,
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(folderConfig.getId().getId())
+                    .path("collaboration")
+                    .path("tag"))
+            .buildPost(Entity.json(newTags)));
 
     // set invalid tags (duplicate)
     tagList = Arrays.asList("tag1", "tag2", "tag1");
@@ -238,8 +259,8 @@ public class TestCollaborationResource extends BaseTestServer {
             .buildPost(Entity.json(newTags)));
 
     // cleanup space
-    newNamespaceService()
-        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    getNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, getNamespaceService()));
   }
 
   @Test
@@ -248,7 +269,7 @@ public class TestCollaborationResource extends BaseTestServer {
     NamespaceKey spacePath = new NamespaceKey("testspace");
     List<String> vdsPath = Arrays.asList(spacePath.getRoot(), "testVDS");
     createSpaceAndVDS(spacePath, vdsPath);
-    DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
+    DatasetConfig dataset = getNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
     Wiki emptyWiki =
         expectSuccess(
@@ -262,7 +283,7 @@ public class TestCollaborationResource extends BaseTestServer {
             Wiki.class);
     assertEquals(emptyWiki.getText(), "");
 
-    CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+    CollaborationHelper collaborationHelper = getCollaborationHelper();
 
     Wiki newWiki = new Wiki("sample wiki text", null);
     collaborationHelper.setWiki(dataset.getId().getId(), newWiki);
@@ -280,8 +301,8 @@ public class TestCollaborationResource extends BaseTestServer {
     assertEquals(wiki.getText(), newWiki.getText());
 
     // cleanup space
-    newNamespaceService()
-        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    getNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, getNamespaceService()));
   }
 
   @Test
@@ -290,7 +311,7 @@ public class TestCollaborationResource extends BaseTestServer {
     NamespaceKey spacePath = new NamespaceKey("testspace");
     List<String> vdsPath = Arrays.asList(spacePath.getRoot(), "testVDS");
     createSpaceAndVDS(spacePath, vdsPath);
-    DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
+    DatasetConfig dataset = getNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
     // create wiki
     Wiki newWiki = new Wiki("sample wiki text", null);
@@ -332,12 +353,12 @@ public class TestCollaborationResource extends BaseTestServer {
     assertEquals(wiki.getVersion().longValue(), 1L);
 
     // cleanup space
-    newNamespaceService()
-        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    getNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, getNamespaceService()));
   }
 
   @Test
-  public void testGetWikiErrors() throws Exception {
+  public void testGetWikiErrors() {
     // invalid id
     expectStatus(
         BAD_REQUEST,
@@ -361,7 +382,7 @@ public class TestCollaborationResource extends BaseTestServer {
     NamespaceKey spacePath = new NamespaceKey("testspace");
     List<String> vdsPath = Arrays.asList(spacePath.getRoot(), "testVDS");
     createSpaceAndVDS(spacePath, vdsPath);
-    DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
+    DatasetConfig dataset = getNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
     // update tags with invalid version
     newWiki = new Wiki("sample wiki text", null);
@@ -391,16 +412,16 @@ public class TestCollaborationResource extends BaseTestServer {
     // getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
 
     // cleanup space
-    newNamespaceService()
-        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
+    getNamespaceService()
+        .deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, getNamespaceService()));
   }
 
   @Test
   public void testOrphanPruning() throws Exception {
     // do a quick prune to clear the wiki/tags store
-    final DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
-    CollaborationHelper.pruneOrphans(
-        daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    LegacyKVStoreProvider legacyKVStoreProvider = lMaster(LegacyKVStoreProvider.class);
+    KVStoreProvider kvStoreProvider = lMaster(KVStoreProvider.class);
+    CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider);
 
     // create a source
     final NASConf nasConf = new NASConf();
@@ -411,7 +432,7 @@ public class TestCollaborationResource extends BaseTestServer {
     sourceConfig.setName(sourceKey.getRoot());
     sourceConfig.setConfig(nasConf.toBytesString());
     sourceConfig.setType("NAS");
-    newNamespaceService().addOrUpdateSource(sourceKey, sourceConfig);
+    getNamespaceService().addOrUpdateSource(sourceKey, sourceConfig);
 
     // create space
     final NamespaceKey spacePath = new NamespaceKey("testspace");
@@ -434,23 +455,17 @@ public class TestCollaborationResource extends BaseTestServer {
     addWiki(sourceKey.getPathComponents(), "text");
 
     // nothing deleted so no pruned items
-    int pruneCount =
-        CollaborationHelper.pruneOrphans(
-            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    int pruneCount = CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider);
     assertEquals(0, pruneCount);
 
     // delete the space and children
-    newNamespaceService().deleteSpace(spacePath, spaceVersion);
-    pruneCount =
-        CollaborationHelper.pruneOrphans(
-            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    getNamespaceService().deleteSpace(spacePath, spaceVersion);
+    pruneCount = CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider);
     assertEquals(5, pruneCount);
 
     // delete the source
-    newNamespaceService().deleteSource(sourceKey, sourceConfig.getTag());
-    pruneCount =
-        CollaborationHelper.pruneOrphans(
-            daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class));
+    getNamespaceService().deleteSource(sourceKey, sourceConfig.getTag());
+    pruneCount = CollaborationHelper.pruneOrphans(legacyKVStoreProvider, kvStoreProvider);
     assertEquals(1, pruneCount);
   }
 
@@ -462,21 +477,21 @@ public class TestCollaborationResource extends BaseTestServer {
     config.setName(folderName);
     config.setFullPathList(folderPath);
 
-    newNamespaceService().addOrUpdateFolder(new NamespaceKey(folderPath), config);
+    getNamespaceService().addOrUpdateFolder(new NamespaceKey(folderPath), config);
   }
 
   private void addWiki(List<String> path, String text) throws Exception {
     final NameSpaceContainer container =
-        newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
-    final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+        getNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
+    final CollaborationHelper collaborationHelper = getCollaborationHelper();
 
     collaborationHelper.setWiki(NamespaceUtils.getIdOrNull(container), new Wiki(text, null));
   }
 
   private void addTags(List<String> path, List<String> tags) throws Exception {
     final NameSpaceContainer container =
-        newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
-    final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+        getNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
+    final CollaborationHelper collaborationHelper = getCollaborationHelper();
 
     collaborationHelper.setTags(NamespaceUtils.getIdOrNull(container), new Tags(tags, null));
   }
@@ -486,7 +501,7 @@ public class TestCollaborationResource extends BaseTestServer {
     // create space
     final SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName(spacePath.getRoot());
-    newNamespaceService().addOrUpdateSpace(spacePath, spaceConfig);
+    getNamespaceService().addOrUpdateSpace(spacePath, spaceConfig);
 
     createVDS(vdsPath);
     return spaceConfig.getTag();
@@ -503,8 +518,8 @@ public class TestCollaborationResource extends BaseTestServer {
     datasetConfig.setType(DatasetType.VIRTUAL_DATASET);
     datasetConfig.setVirtualDataset(virtualDataset);
 
-    getSabotContext()
-        .getViewCreator(SystemUser.SYSTEM_USERNAME)
+    l(ViewCreatorFactory.class)
+        .get(SystemUser.SYSTEM_USERNAME)
         .createView(vdsPath, "select * from sys.version", null, false);
   }
 }

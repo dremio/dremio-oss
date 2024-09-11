@@ -35,7 +35,7 @@ public class TestIcebergColumnCounts extends BaseTestQuery {
   @Test
   public void tableWithNulls() throws Exception {
     final String tableName = "column_counts";
-    try (AutoCloseable ac = enableIcebergTables()) {
+    try {
       final String ctasQuery =
           String.format(
               "CREATE TABLE %s.%s  " + " AS SELECT * from cp.\"parquet/null_test_data.json\"",
@@ -74,7 +74,7 @@ public class TestIcebergColumnCounts extends BaseTestQuery {
   public void testComplex() throws Exception {
     final String tableName = "complex_column_counts";
 
-    try (AutoCloseable ac = enableIcebergTables()) {
+    try {
       final String ctasQuery =
           String.format(
               "CREATE TABLE %s.%s " + " AS SELECT * from cp.\"complex_student.json\"",

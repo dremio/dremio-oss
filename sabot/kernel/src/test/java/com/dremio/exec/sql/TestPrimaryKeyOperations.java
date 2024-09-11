@@ -56,7 +56,7 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
   public void testAddAndDropPrimaryKey() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "foo";
-      try (AutoCloseable ignore = enableIcebergTables()) {
+      try {
         createTable(testSchema, tableName);
 
         final String primaryKey = "r_regionkey";
@@ -85,7 +85,7 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
   public void testAddInvalidPrimaryKey() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "foo";
-      try (AutoCloseable ignore = enableIcebergTables()) {
+      try {
         createTable(testSchema, tableName);
 
         // Try to add a non-existent primary key.
@@ -107,7 +107,7 @@ public class TestPrimaryKeyOperations extends BaseTestQuery {
   public void testDropInvalidPrimaryKey() throws Exception {
     for (String testSchema : SCHEMAS_FOR_TEST) {
       String tableName = "foo";
-      try (AutoCloseable ignore = enableIcebergTables()) {
+      try {
         createTable(testSchema, tableName);
 
         // Try to drop a primary key when there is none added.

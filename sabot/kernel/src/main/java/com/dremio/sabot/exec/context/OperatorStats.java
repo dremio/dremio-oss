@@ -33,13 +33,20 @@ import com.dremio.exec.proto.UserBitShared.ParquetDecodingDetailsInfo;
 import com.dremio.exec.proto.UserBitShared.RunTimeFilterDetailsInfoInScan;
 import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.Operator;
+import com.google.common.base.Joiner;
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
 import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
 import de.vandermeer.asciitable.v2.render.WidthAbsoluteEven;
 import de.vandermeer.asciitable.v2.themes.V2_E_TableThemes;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,7 +58,17 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.arrow.memory.BufferAllocator;
 
 public class OperatorStats {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorStats.class);
+  private static final String PREFIX = "operator_stats";
+
+  private static final Meter.MeterProvider<Counter> operatorEvalHeapAllocatedTotal =
+      Counter.builder(Joiner.on(".").join(PREFIX, "eval_heap_allocated"))
+          .description("Tracks total heap allocation during eval by an operator")
+          .withRegistry(Metrics.globalRegistry);
+
+  private static final Meter.MeterProvider<Counter> operatorSetupHeapAllocatedTotal =
+      Counter.builder(Joiner.on(".").join(PREFIX, "setup_heap_allocated"))
+          .description("Tracks total heap allocation during setup by an operator")
+          .withRegistry(Metrics.globalRegistry);
 
   protected final int operatorId;
   protected final int operatorType;
@@ -59,8 +76,8 @@ public class OperatorStats {
 
   private final BufferAllocator allocator;
 
-  private IntLongHashMap longMetrics = new IntLongHashMap();
-  private IntDoubleHashMap doubleMetrics = new IntDoubleHashMap();
+  private final IntLongHashMap longMetrics = new IntLongHashMap();
+  private final IntDoubleHashMap doubleMetrics = new IntDoubleHashMap();
 
   public long[] recordsReceivedByInput;
   public long[] batchesReceivedByInput;
@@ -88,22 +105,30 @@ public class OperatorStats {
   private State currentState = State.NONE;
   private State savedState = State.NONE;
 
-  private long[] stateNanos = new long[State.Size];
-  private long[] stateMark = new long[State.Size];
+  private final long[] stateNanos = new long[State.Size];
+  private final long[] stateMark = new long[State.Size];
 
-  private int inputCount;
+  private final int inputCount;
 
-  private long warnIOTimeThreshold;
+  private final long warnIOTimeThreshold;
 
+  private int totalFieldCount;
   // misc operator details that are saved in the profile.
   private OperatorProfileDetails profileDetails;
-  private List<RunTimeFilterDetailsInfoInScan> runtimeFilterDetailsInScan = new ArrayList<>();
-  private List<SlowIOInfo> slowIoInfos = new ArrayList<>();
-  private List<SlowIOInfo> slowMetadataIoInfos = new ArrayList<>();
+  private final List<RunTimeFilterDetailsInfoInScan> runtimeFilterDetailsInScan = new ArrayList<>();
+  private final List<SlowIOInfo> slowIoInfos = new ArrayList<>();
+  private final List<SlowIOInfo> slowMetadataIoInfos = new ArrayList<>();
   private final List<ParquetDecodingDetailsInfo> parquetDecodingDetailsInfos = new ArrayList<>();
+  private Tags operatorTags;
   // This is enum value of Operator.MasterState
   private int masterState;
   private long lastScheduleTime;
+  private long avgAllocatedHeap;
+  private long totalAllocatedHeap;
+  private long numProcessingLoop;
+  private long peakAllocatedHeap;
+  private long setupAllocatedHeap;
+  private long startHeapAllocation = -1;
 
   // Need this wrapper so that the caller don't have to handle exception from close().
   public interface WaitRecorder extends AutoCloseable {
@@ -113,8 +138,8 @@ public class OperatorStats {
 
   public class MetadataWaitRecorder implements WaitRecorder {
 
-    private String path;
-    private WaitRecorder wr;
+    private final String path;
+    private final WaitRecorder wr;
 
     public MetadataWaitRecorder(String filePath, WaitRecorder recorder) {
       path = filePath;
@@ -139,7 +164,7 @@ public class OperatorStats {
   // Note that the close for this not idempotent.
   final WaitRecorder recorder = this::stopWait;
 
-  public class IOStats {
+  public static class IOStats {
     public final AtomicLong minIOTime = new AtomicLong(Long.MAX_VALUE);
     public final AtomicLong maxIOTime = new AtomicLong(0);
     public final AtomicLong totalIOTime = new AtomicLong(0);
@@ -251,6 +276,16 @@ public class OperatorStats {
     this.warnIOTimeThreshold = warnIOTimeThreshold;
     this.operatorSubType = operatorSubType;
     this.masterState = 0;
+    this.totalFieldCount = -1;
+    this.operatorTags = Tags.of(Tag.of("operator_type", getOperatorTypeAsString()));
+  }
+
+  private String getOperatorTypeAsString() {
+    try {
+      return CoreOperatorType.values()[operatorType].name();
+    } catch (IndexOutOfBoundsException e) {
+      return "UNKNOWN";
+    }
   }
 
   public int getOperatorId() {
@@ -324,8 +359,20 @@ public class OperatorStats {
 
   public void stopSetup() {
     assert currentState == State.SETUP : assertionError("stopping setup");
+    if (startHeapAllocation >= 0) {
+      final long current = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
+      setupAllocatedHeap = current - startHeapAllocation;
+      operatorSetupHeapAllocatedTotal.withTags(operatorTags).increment(setupAllocatedHeap);
+      startHeapAllocation = current;
+    }
     stopState();
     startState(State.PROCESSING);
+  }
+
+  public void setSchema(BatchSchema initialSchema) {
+    if (initialSchema != null) {
+      totalFieldCount = initialSchema.getTotalFieldCount();
+    }
   }
 
   // Use this method to account the processing time in OperatorStats
@@ -340,6 +387,7 @@ public class OperatorStats {
     assert currentState == State.NONE : assertionError("starting processing");
     this.masterState = state.getMasterState().ordinal();
     lastScheduleTime = System.currentTimeMillis();
+    startHeapAllocation = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
     startState(State.PROCESSING);
   }
 
@@ -352,6 +400,18 @@ public class OperatorStats {
     assert currentState == State.PROCESSING : assertionError("stopping processing");
     this.masterState = state.getMasterState().ordinal();
     lastScheduleTime = System.currentTimeMillis();
+    if (startHeapAllocation >= 0) {
+      long currentHeapAllocation = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
+      final long lastAllocatedHeap = currentHeapAllocation - startHeapAllocation;
+      totalAllocatedHeap += lastAllocatedHeap;
+      operatorEvalHeapAllocatedTotal.withTags(operatorTags).increment(lastAllocatedHeap);
+      numProcessingLoop++;
+      double avg =
+          (double) avgAllocatedHeap
+              + ((double) (lastAllocatedHeap - avgAllocatedHeap) / (double) numProcessingLoop);
+      avgAllocatedHeap = Math.round(avg);
+      peakAllocatedHeap = Math.max(lastAllocatedHeap, peakAllocatedHeap);
+    }
     stopState();
   }
 
@@ -477,7 +537,7 @@ public class OperatorStats {
     this.removedFilesCount += removedFilesCount;
   }
 
-  private class LongProc implements IntLongProcedure {
+  private static class LongProc implements IntLongProcedure {
 
     private final OperatorProfile.Builder builder;
 
@@ -498,7 +558,7 @@ public class OperatorStats {
     }
   }
 
-  private class DoubleProc implements IntDoubleProcedure {
+  private static class DoubleProc implements IntDoubleProcedure {
     private final OperatorProfile.Builder builder;
 
     public DoubleProc(Builder builder) {
@@ -640,6 +700,114 @@ public class OperatorStats {
     sb.append("\n");
 
     return sb.toString();
+  }
+
+  private static final int KB = 1024;
+  private static final String COL_DELIMITER = ",";
+
+  public void fillLogBuffer(StringBuilder sb, String fragmentId, boolean dumpHeapUsage) {
+    if (isLightOperator(dumpHeapUsage)) {
+      // do not log details of light operators
+      return;
+    }
+    final String id =
+        fragmentId + ":" + operatorId + "[" + CoreOperatorType.values()[operatorType] + "]";
+    sb.append(id)
+        .append(COL_DELIMITER.repeat(3))
+        .append(numProcessingLoop)
+        .append(COL_DELIMITER.repeat(3))
+        .append(TimeUnit.NANOSECONDS.toMillis(getSetupNanos()))
+        .append(COL_DELIMITER)
+        .append(TimeUnit.NANOSECONDS.toMillis(stateNanos[State.PROCESSING.ordinal()]))
+        .append(COL_DELIMITER);
+    if (inputCount == 0) {
+      sb.append(COL_DELIMITER.repeat(6));
+    } else {
+      sb.append(recordsReceivedByInput[0]).append(COL_DELIMITER);
+      sb.append(batchesReceivedByInput[0]).append(COL_DELIMITER);
+      sb.append(sizeInBytesReceivedByInput[0]).append(COL_DELIMITER);
+      if (inputCount == 2) {
+        sb.append(recordsReceivedByInput[1]).append(COL_DELIMITER);
+        sb.append(batchesReceivedByInput[1]).append(COL_DELIMITER);
+        sb.append(sizeInBytesReceivedByInput[1]).append(COL_DELIMITER);
+      } else {
+        sb.append(COL_DELIMITER.repeat(3));
+      }
+    }
+    if (outputRecords > 0) {
+      sb.append(outputRecords).append(COL_DELIMITER);
+      sb.append(numberOfBatches).append(COL_DELIMITER);
+      sb.append(outputSizeInBytes).append(COL_DELIMITER);
+    } else {
+      sb.append(COL_DELIMITER.repeat(3));
+    }
+    if (totalFieldCount >= 0) {
+      sb.append(totalFieldCount);
+    }
+    sb.append(COL_DELIMITER);
+    if (allocator != null) {
+      final long allocated =
+          Long.max(allocator.getPeakMemoryAllocation(), allocator.getInitReservation()) / KB;
+      sb.append(allocated);
+    }
+    sb.append(COL_DELIMITER);
+    insertOtherOptionals(sb);
+    if (startHeapAllocation >= 0 && dumpHeapUsage) {
+      sb.append(COL_DELIMITER);
+      sb.append(setupAllocatedHeap / KB).append(COL_DELIMITER);
+      sb.append(avgAllocatedHeap / KB).append(COL_DELIMITER);
+      sb.append(peakAllocatedHeap / KB).append(COL_DELIMITER);
+      sb.append(totalAllocatedHeap / KB);
+    } else {
+      if (dumpHeapUsage) {
+        sb.append(COL_DELIMITER.repeat(4));
+      }
+    }
+    sb.append(System.lineSeparator());
+  }
+
+  private void insertOtherOptionals(StringBuilder sb) {
+    boolean delimit = false;
+    if (this.profileDetails != null && this.profileDetails.getSplitInfosCount() > 0) {
+      sb.append("Num Expression Splits = ").append(this.profileDetails.getSplitInfosCount());
+      delimit = true;
+    }
+    if (addedFilesCount > 0) {
+      if (delimit) {
+        sb.append("::");
+      }
+      sb.append("Added Files = ").append(addedFilesCount);
+      delimit = true;
+    }
+    if (removedFilesCount > 0) {
+      if (delimit) {
+        sb.append("::");
+      }
+      sb.append("Removed Files = ").append(removedFilesCount);
+    }
+  }
+
+  private boolean isLightOperator(boolean dumpHeapUsage) {
+    if (inputCount == 1 && batchesReceivedByInput[0] > 10) {
+      return false;
+    }
+    if (inputCount == 2 && (batchesReceivedByInput[0] > 10 || batchesReceivedByInput[1] > 10)) {
+      return false;
+    }
+    if (numberOfBatches > 10) {
+      return false;
+    }
+    if (dumpHeapUsage && startHeapAllocation >= 0) {
+      if (totalAllocatedHeap > 512 * KB
+          || peakAllocatedHeap > 64 * KB
+          || avgAllocatedHeap > 32 * KB) {
+        return false;
+      }
+      if (setupAllocatedHeap > 64 * KB) {
+        return false;
+      }
+    }
+    return totalFieldCount <= 100;
   }
 
   public static WaitRecorder getWaitRecorder(OperatorStats operatorStats) {

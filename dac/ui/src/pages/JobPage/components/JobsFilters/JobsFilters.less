@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .filters-header {
     height: 56px !important;
-    background-color: @WHITE !important;
+    background-color: var(--fill--primary) !important;
     font-size: 14px;
     font-style: normal;
     line-height: 20px;
-    color: @MAIN_TEXT;
+    color: var(--text--primary);
     & > div {
       position: relative;
       &:not(:last-child)::after {
@@ -35,7 +35,7 @@
         margin: auto;
         height: 17px;
         width: 1px;
-        background: @black-russian;
+        background: var(--fill--primary);
       }
     }
     &__showHideWrapper {
@@ -78,7 +78,7 @@
     font-style: normal;
     font-size: 14px;
     line-height: 20px;
-    color: @pale-sky;
+    color: var(--color--neutral--300);
   }
   .ellipseLabel {
     max-width: 180px;

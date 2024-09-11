@@ -87,7 +87,8 @@ public interface SourceMetadata {
    * what a container is
    *
    * @param containerPath container path
+   * @param options
    * @return true iff the given path exists and the entity at the path is a container
    */
-  boolean containerExists(EntityPath containerPath);
+  boolean containerExists(EntityPath containerPath, GetMetadataOption... options);
 }

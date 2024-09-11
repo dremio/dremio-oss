@@ -105,7 +105,7 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
   public void beforeTest() throws Exception {
     context = testContext.getNewOperatorContext(getTestAllocator(), null, DEFAULT_BATCH_SIZE, null);
     testCloseables.add(context);
-    deltas = new SimpleIntVector("pos", getAllocator());
+    deltas = new SimpleIntVector("pos", getTestAllocator());
     testCloseables.add(deltas);
     deltas.allocateNew(DEFAULT_BATCH_SIZE);
     mutator = new TestOutputMutator(getTestAllocator());
@@ -146,7 +146,7 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
         .thenAnswer(i -> createIteratorFromList(POSITIONS_3, posReader3));
 
     when(readerFactory.createEqualityDeleteFileReader(
-            any(), eq(EQ_DELETE_FILE_1), anyLong(), anyList(), anyList()))
+            any(), eq(EQ_DELETE_FILE_1), anyLong(), anyList(), anyList(), any()))
         .thenAnswer(
             i -> {
               i.getArgument(0, OperatorContext.class)
@@ -155,7 +155,7 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
               return eqReader1;
             });
     when(readerFactory.createEqualityDeleteFileReader(
-            any(), eq(EQ_DELETE_FILE_2), anyLong(), anyList(), anyList()))
+            any(), eq(EQ_DELETE_FILE_2), anyLong(), anyList(), anyList(), any()))
         .thenAnswer(
             i -> {
               i.getArgument(0, OperatorContext.class)
@@ -164,7 +164,7 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
               return eqReader2;
             });
     when(readerFactory.createEqualityDeleteFileReader(
-            any(), eq(EQ_DELETE_FILE_3), anyLong(), anyList(), anyList()))
+            any(), eq(EQ_DELETE_FILE_3), anyLong(), anyList(), anyList(), any()))
         .thenAnswer(
             i -> {
               i.getArgument(0, OperatorContext.class)
@@ -193,7 +193,7 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       assertThat(factory.createPositionalDeleteFilter(DATA_FILE_1)).isNull();
-      assertThat(factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS)).isNull();
+      assertThat(factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null)).isNull();
     }
   }
 
@@ -296,7 +296,7 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
       // first "row group"
       PositionalDeleteFilter posFilter = factory.createPositionalDeleteFilter(DATA_FILE_1);
       EqualityDeleteFilter eqFilter =
-          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
       posFilter.release();
       eqFilter.release();
 
@@ -309,13 +309,13 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
 
       // second "row group"
       posFilter = factory.createPositionalDeleteFilter(DATA_FILE_1);
-      eqFilter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      eqFilter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
       posFilter.release();
       eqFilter.release();
 
       // third "row group"
       posFilter = factory.createPositionalDeleteFilter(DATA_FILE_1);
-      eqFilter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      eqFilter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
       posFilter.release();
       eqFilter.release();
 
@@ -365,7 +365,7 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
       // delete filter
       // create filter and do the release for 1st row group
       EqualityDeleteFilter eqFilter =
-          factory.createEqualityDeleteFilter(DATA_FILE_3, ICEBERG_FIELDS);
+          factory.createEqualityDeleteFilter(DATA_FILE_3, ICEBERG_FIELDS, null);
       eqFilter.release();
       // decrement row group count to 0
       factory.adjustRowGroupCount(DATA_FILE_3, -1);
@@ -547,7 +547,7 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
       // filter is created and assigned to a prefetched reader but not advanced
       PositionalDeleteFilter posFilter = factory.createPositionalDeleteFilter(DATA_FILE_1);
       EqualityDeleteFilter eqFilter =
-          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
 
       // start a new batch
       dataFileInfo =
@@ -615,7 +615,8 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
               DATA_FILE_1,
               new DataFileInfo(DATA_FILE_1, ImmutableList.of(EQ_DELETE_FILE_INFO_1), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
-      EqualityDeleteFilter filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      EqualityDeleteFilter filter =
+          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
       filter.setup(mutator, validityBuf);
       filter.release();
 
@@ -638,7 +639,8 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
               new DataFileInfo(
                   DATA_FILE_1, ImmutableList.of(EQ_DELETE_FILE_INFO_1, EQ_DELETE_FILE_INFO_2), 1));
       factory.setDataFileInfoForBatch(dataFileInfo);
-      EqualityDeleteFilter filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      EqualityDeleteFilter filter =
+          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
       filter.setup(mutator, validityBuf);
       filter.release();
 
@@ -666,17 +668,18 @@ public class TestRowLevelDeleteFilterFactory extends BaseTestOperator {
       factory.setDataFileInfoForBatch(dataFileInfo);
 
       // first "row group"
-      EqualityDeleteFilter filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      EqualityDeleteFilter filter =
+          factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
       filter.setup(mutator, validityBuf);
       filter.release();
 
       // second "row group"
-      filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
       filter.setup(mutator, validityBuf);
       filter.release();
 
       // third "row group"
-      filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS);
+      filter = factory.createEqualityDeleteFilter(DATA_FILE_1, ICEBERG_FIELDS, null);
       filter.setup(mutator, validityBuf);
       filter.release();
 

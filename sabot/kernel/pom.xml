@@ -31,6 +31,10 @@
       <artifactId>dremio-common</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty</artifactId>
     </dependency>
@@ -501,21 +505,6 @@
     </dependency>
     <dependency>
       <groupId>org.apache.parquet</groupId>
-      <artifactId>parquet-format</artifactId>
-      <version>2.7.0-202401170624130608-f7825d1</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-client</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-common</artifactId>
       <version>${parquet.version}</version>
       <exclusions>
@@ -595,7 +584,7 @@
     </dependency>
     <dependency>
       <groupId>it.unimi.dsi</groupId>
-      <artifactId>fastutil</artifactId>
+      <artifactId>fastutil-core</artifactId>
       <version>8.5.13</version>
     </dependency>
     <dependency>
@@ -848,11 +837,6 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.curator</groupId>
-      <artifactId>curator-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>com.dremio.common</groupId>
       <artifactId>dremio-common-core</artifactId>
       <version>${project.version}</version>
@@ -915,55 +899,64 @@
       <plugin>
         <groupId>com.dremio.tools</groupId>
         <artifactId>dremio-protostuff-maven-plugin</artifactId>
-        <configuration>
-          <protoModules>
-            <protoModule>
-              <source>src/main/protobuf/attempts.proto</source>
-              <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
-              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
-              <options>
-                <property>
-                  <name>generate_field_map</name>
-                  <value>true</value>
-                </property>
-                <property>
-                  <name>builder_pattern</name>
-                  <value>true</value>
-                </property>
-              </options>
-            </protoModule>
-            <protoModule>
-              <source>src/main/protobuf/updateid.proto</source>
-              <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
-              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
-              <options>
-                <property>
-                  <name>generate_field_map</name>
-                  <value>true</value>
-                </property>
-                <property>
-                  <name>builder_pattern</name>
-                  <value>true</value>
-                </property>
-              </options>
-            </protoModule>
-            <protoModule>
-              <source>src/main/protobuf/query-reflection.proto</source>
-              <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
-              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
-              <options>
-                <property>
-                  <name>generate_field_map</name>
-                  <value>true</value>
-                </property>
-                <property>
-                  <name>builder_pattern</name>
-                  <value>true</value>
-                </property>
-              </options>
-            </protoModule>
-          </protoModules>
-        </configuration>
+        <executions>
+          <execution>
+            <id>generate-sources</id>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <protoModules>
+                <protoModule>
+                  <source>src/main/protobuf/attempts.proto</source>
+                  <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
+                  <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
+                  <options>
+                    <property>
+                      <name>generate_field_map</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>builder_pattern</name>
+                      <value>true</value>
+                    </property>
+                  </options>
+                </protoModule>
+                <protoModule>
+                  <source>src/main/protobuf/updateid.proto</source>
+                  <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
+                  <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
+                  <options>
+                    <property>
+                      <name>generate_field_map</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>builder_pattern</name>
+                      <value>true</value>
+                    </property>
+                  </options>
+                </protoModule>
+                <protoModule>
+                  <source>src/main/protobuf/query-reflection.proto</source>
+                  <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
+                  <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
+                  <options>
+                    <property>
+                      <name>generate_field_map</name>
+                      <value>true</value>
+                    </property>
+                    <property>
+                      <name>builder_pattern</name>
+                      <value>true</value>
+                    </property>
+                  </options>
+                </protoModule>
+              </protoModules>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
@@ -1231,7 +1224,7 @@
             <goals>
               <goal>java</goal>
             </goals>
-            <phase>process-classes</phase>
+            <phase>${buildtimescan.phase}</phase>
             <configuration>
               <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
               <includePluginDependencies>true</includePluginDependencies>

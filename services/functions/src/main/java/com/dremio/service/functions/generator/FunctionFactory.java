@@ -26,7 +26,9 @@ import com.dremio.exec.expr.fn.PrimaryFunctionRegistry;
 import com.dremio.exec.ops.DelegatingPlannerCatalog;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.sql.DremioSqlConformance;
+import com.dremio.exec.planner.sql.ImplicitCoercionStrategy;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
+import com.dremio.exec.planner.sql.SqlOperatorBuilder;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.service.functions.model.Function;
@@ -357,6 +359,17 @@ public final class FunctionFactory {
         } catch (Error | Exception e) {
           // For whatever reason some functions don't know how to handle MAP types
           validOperandTypes = false;
+        }
+
+        if (!validOperandTypes && sqlFunction instanceof SqlOperatorBuilder.DremioSqlFunction) {
+          // See if a coercion exists that makes the operand types valid.
+          SqlOperatorBuilder.DremioSqlFunction dremioSqlFunction =
+              (SqlOperatorBuilder.DremioSqlFunction) sqlFunction;
+          ImplicitCoercionStrategy strategy = dremioSqlFunction.getImplicitCoercionStrategy();
+          if (strategy != null) {
+            validOperandTypes =
+                !dremioSqlFunction.getImplicitCoercionStrategy().coerce(sqlCallBinding).isEmpty();
+          }
         }
 
         if (validOperandTypes) {

@@ -140,7 +140,7 @@ export const WalkthroughStep = (props: WalkthroughStepProps) => {
         </svg>
       )}
       <div
-        className="bg-brand-600 rounded p-2 leading-normal"
+        className="bg-brand-500 rounded p-2 leading-normal"
         style={{
           width: "45ch",
           fontSize: "13px",

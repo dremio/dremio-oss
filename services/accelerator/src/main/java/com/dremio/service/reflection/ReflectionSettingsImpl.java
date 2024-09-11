@@ -20,6 +20,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -31,6 +32,7 @@ import com.dremio.service.reflection.store.ReflectionSettingsStore;
 import com.google.common.base.Preconditions;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import javax.inject.Provider;
 
 /** Manages datasets/sources acceleration settings. */
@@ -43,14 +45,17 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
   private final Provider<NamespaceService> namespace;
   private final ReflectionSettingsStore store;
   private final Provider<CatalogService> catalogServiceProvider;
+  private Provider<OptionManager> optionManager;
 
   public ReflectionSettingsImpl(
       Provider<NamespaceService> namespace,
       Provider<CatalogService> catalogServiceProvider,
-      Provider<LegacyKVStoreProvider> storeProvider) {
+      Provider<LegacyKVStoreProvider> storeProvider,
+      Provider<OptionManager> optionManager) {
     this.namespace = Preconditions.checkNotNull(namespace, "namespace service required");
     this.store = new ReflectionSettingsStore(storeProvider);
     this.catalogServiceProvider = catalogServiceProvider;
+    this.optionManager = optionManager;
   }
 
   // only returns a AccelerationSettings if one is specifically defined for the specified key
@@ -70,7 +75,10 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
   }
 
   @Override
-  public AccelerationSettings getReflectionSettings(CatalogEntityKey key) {
+  public AccelerationSettings getReflectionSettings(
+      CatalogEntityKey key,
+      Function<AccelerationSettings, AccelerationSettings> convertSourceSettings) {
+
     // first check if the settings have been set at the dataset level
     AccelerationSettings settings = store.get(key);
     if (settings != null) {
@@ -86,7 +94,7 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
       try {
         namespace.get().getSource(new NamespaceKey(key.getRootEntity()));
         // root parent is a source, return its settings from the store
-        return getReflectionSettings(rootKey);
+        return convertSourceSettings.apply(getReflectionSettings(rootKey));
       } catch (NamespaceException e) {
         // root is not a source, fallback and return the default acceleration settings
       }
@@ -115,6 +123,11 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
           .setRefreshPeriod(DEFAULT_REFRESH_PERIOD)
           .setRefreshPolicyType(RefreshPolicyType.PERIOD);
     }
+  }
+
+  @Override
+  public AccelerationSettings getReflectionSettings(CatalogEntityKey key) {
+    return getReflectionSettings(key, sourceSettings -> sourceSettings);
   }
 
   @Override

@@ -98,13 +98,14 @@ public interface SubstitutionProvider {
    * @param viewExpansionContext SqlConverter
    * @return Wrapped RelNode
    */
-  default RelNode wrapDefaultExpansionNode(
+  default Optional<RelNode> wrapDefaultExpansionNode(
       final NamespaceKey path,
       final RelNode query,
       final DremioMaterialization materialization,
       final RelDataType rowType,
       final TableVersionContext versionContext,
-      final ViewExpansionContext viewExpansionContext) {
+      final ViewExpansionContext viewExpansionContext,
+      final ViewTable viewTable) {
     throw new UnsupportedOperationException();
   }
 

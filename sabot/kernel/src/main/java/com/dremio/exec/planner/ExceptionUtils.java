@@ -19,6 +19,7 @@ import com.dremio.common.exceptions.UserCancellationException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordinationProtos;
+import java.util.concurrent.CompletionException;
 import org.slf4j.Logger;
 
 public final class ExceptionUtils {
@@ -72,5 +73,18 @@ public final class ExceptionUtils {
 
     sb.deleteCharAt(sb.length() - 1);
     return sb.toString();
+  }
+
+  /**
+   * Unwrap cause.
+   *
+   * @param exception Throwable to unwrap cause.
+   * @return Cause of CompletionException.
+   */
+  public static Throwable unwrapCompletionException(Throwable exception) {
+    if (exception instanceof CompletionException) {
+      return exception.getCause();
+    }
+    return exception;
   }
 }

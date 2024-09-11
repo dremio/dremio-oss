@@ -30,8 +30,8 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterType;
@@ -97,7 +97,8 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(BasicQueryLogBundleService.class);
 
-  private final Provider<SabotContext> sabotContextProvider;
+  private final Provider<NodeEndpoint> nodeEndpointProvider;
+  private final Provider<OptionManager> optionManagerProvider;
   private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private final Provider<ProjectOptionManager> projectOptionManagerProvider;
   private final Provider<SupportService> supportServiceProvider;
@@ -107,7 +108,6 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
   private Map<ClusterType, ExecutorLogsProvider> executorLogProviders;
 
   private final Provider<ConduitProvider> conduitProviderProvider;
-  private final Provider<Collection<NodeEndpoint>> coordinatorEndpointsProvider;
 
   private static final ExecutorService executorService =
       Executors.newFixedThreadPool(1, r -> new Thread(r, "support-bundle-producer"));
@@ -115,15 +115,16 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
   public BasicQueryLogBundleService(
       DremioConfig config,
       ScanResult scanResult,
-      Provider<SabotContext> sabotContextProvider,
+      Provider<NodeEndpoint> nodeEndpointProvider,
+      Provider<OptionManager> optionManagerProvider,
       Provider<ClusterCoordinator> clusterCoordinatorProvider,
       Provider<ProjectOptionManager> projectOptionManagerProvider,
       Provider<SupportService> supportServiceProvider,
       Provider<JobsService> jobsServiceProvider,
       Provider<ProvisioningService> provisioningServiceProvider,
-      Provider<ConduitProvider> conduitProvider,
-      Provider<Collection<NodeEndpoint>> coordinatorEndpoints) {
-    this.sabotContextProvider = sabotContextProvider;
+      Provider<ConduitProvider> conduitProvider) {
+    this.nodeEndpointProvider = nodeEndpointProvider;
+    this.optionManagerProvider = optionManagerProvider;
     this.clusterCoordinatorProvider = clusterCoordinatorProvider;
     this.projectOptionManagerProvider = projectOptionManagerProvider;
     this.supportServiceProvider = supportServiceProvider;
@@ -132,9 +133,12 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
     this.containerLogProvider = () -> buildContainersLogs(config, scanResult);
 
     this.conduitProviderProvider = conduitProvider;
-    this.coordinatorEndpointsProvider = coordinatorEndpoints;
 
     dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+  }
+
+  private Path getTempSupportDir() {
+    return Paths.get(optionManagerProvider.get().getOption(TEMPORARY_SUPPORT_PATH));
   }
 
   @Override
@@ -196,8 +200,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
 
     final Path dremioLogDir =
         Paths.get(System.getProperty(DREMIO_LOG_PATH_PROPERTY, "/var/log/dremio"));
-    final Path tempSupportDir =
-        Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+    final Path tempSupportDir = getTempSupportDir();
 
     // get profile info and check if user has access to the job
     final JobProtobuf.JobId jobID = JobProtobuf.JobId.newBuilder().setId(jobId).build();
@@ -266,8 +269,9 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
 
             // get logs from the coordinator that planned the query
             final NodeEndpoint planCoordinator = profile.getForeman();
-            final Collection<NodeEndpoint> allCoordinators = coordinatorEndpointsProvider.get();
-            final NodeEndpoint currentEndpoint = sabotContextProvider.get().getEndpoint();
+            final Collection<NodeEndpoint> allCoordinators =
+                clusterCoordinatorProvider.get().getCoordinatorEndpoints();
+            final NodeEndpoint currentEndpoint = nodeEndpointProvider.get();
 
             if (!(currentEndpoint.getAddress().equals(planCoordinator.getAddress())
                 && currentEndpoint.getUserPort() == planCoordinator.getUserPort())) {
@@ -327,10 +331,8 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
   }
 
   private Cluster getCluster(final Set<String> executors) throws ProvisioningHandlingException {
-    Collection<CoordinationProtos.NodeEndpoint> executorEndpoints =
-        sabotContextProvider.get().getExecutors();
     Optional<CoordinationProtos.NodeEndpoint> matchingExecutor =
-        executorEndpoints.stream()
+        clusterCoordinatorProvider.get().getExecutorEndpoints().stream()
             .filter(nodeEndpoint -> executors.contains(nodeEndpoint.getAddress()))
             .findFirst();
     if (!matchingExecutor.isPresent()) {
@@ -365,8 +367,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
   }
 
   private File getFullQueryProfile(String jobId, String userName) {
-    final Path tempSupportPath =
-        Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+    final Path tempSupportPath = getTempSupportDir();
 
     try {
       // re-use the existing download profile function
@@ -407,8 +408,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
             QUERY_LOG_PATH);
 
     final ConduitProvider conduitProvider = conduitProviderProvider.get();
-    final Path tempSupportDir =
-        Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+    final Path tempSupportDir = getTempSupportDir();
 
     logTypes.forEach(
         logType -> {
@@ -463,9 +463,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
       String logName,
       String logFormat) {
     try {
-      final Path tempSupportDir =
-          Paths.get(
-              sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+      final Path tempSupportDir = getTempSupportDir();
       // obtain all needed gzip log in archive/
       final File[] allArchiveLogFiles =
           inputDir
@@ -535,9 +533,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
   private void getServerOut(Path inputDir, TarArchiveOutputStream taros) {
     try {
       // write the entire server out to tar
-      final Path tempSupportDir =
-          Paths.get(
-              sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+      final Path tempSupportDir = getTempSupportDir();
       final Path inputLogPath = inputDir.resolve("server.out");
       // compress the file at {inputDir}/server.out and temporarily save to
       // {tempSupportDir}/{uuid}_server.out.gz
@@ -553,9 +549,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
   private void getGCLog(long start, long end, Path inputDir, TarArchiveOutputStream taros) {
 
     try {
-      final Path tempSupportDir =
-          Paths.get(
-              sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+      final Path tempSupportDir = getTempSupportDir();
       // gather all gc logs
       final File[] allGcLogFiles =
           inputDir.toFile().listFiles((dir, name) -> name.startsWith("server.gc"));
@@ -585,9 +579,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
 
     try {
 
-      final Path tempSupportDir =
-          Paths.get(
-              sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
+      final Path tempSupportDir = getTempSupportDir();
       final Path outputPath = tempSupportDir.resolve(UUID.randomUUID().toString() + ".json.gz");
 
       try (GZIPOutputStream gzos =

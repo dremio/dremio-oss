@@ -41,8 +41,7 @@ public class TestUDFs extends BaseTestServer {
 
   @Before
   public void setUp() {
-    allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @After

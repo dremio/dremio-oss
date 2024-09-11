@@ -13,27 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .dragged-item-mixin() {
-  background-color: @ACTIVE_DRAG_AREA;
-  border: 1px solid @ACTIVE_DRAG_AREA_BORDER;
+  background-color: var(--fill--primary--selected);
+  border: 1px solid transparent;
 }
 
 .disabled-dragged-item-mixin() {
-  background-color: @DISABLED_DRAG_AREA;
-  border: 1px solid @DISABLED_DRAG_AREA_BORDER;
+  background-color: var(--border--neutral);
+  border: 1px solid transparent;
 }
 
 .formLabel() {
   font-weight: 500;
   font-size: 12px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .fontBody() {
   font-size: 12px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .h4-mixin() {
@@ -47,23 +46,25 @@
   font-family: var(--dremio--font-family);
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "calt" on, "cv08" on;
+  font-feature-settings:
+    "calt" on,
+    "cv08" on;
 }
 
 .unavailable-font() {
   font-size: 12px;
-  color: @font-color-disabled;
+  color: var(--text--disabled);
 }
 .fixedWidthSmall() {
   font-family: var(--dremio--font-family--monospace);
   font-size: 11px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 .fixedWidthDefault() {
   font-family: var(--dremio--font-family--monospace);
   font-size: 12px;
-  color: @font-color1;
+  color: var(--text--primary);
 }
 
 // grid system with overflow

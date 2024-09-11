@@ -1,18 +1,21 @@
 import clsx from "clsx";
-import * as React from "react";
+import React, { FC, InputHTMLAttributes } from "react";
 
 type RadioProps = {
   className?: string;
   label?: string;
 };
-
-export const Radio = (props: RadioProps) => (
-  <label>
-    <input
-      {...props}
-      className={clsx(props.className, "form-control")}
-      type="radio"
-    />
-    {props.label}
-  </label>
-);
+export const Radio: FC<RadioProps & InputHTMLAttributes<HTMLInputElement>> = (
+  props: RadioProps,
+) => {
+  return (
+    <label style={{ display: "flex", alignItems: "center" }}>
+      <input
+        {...props}
+        className={clsx(props.className, "form-control")}
+        type="radio"
+      />
+      {props.label && <span className="ml-1">{props.label}</span>}
+    </label>
+  );
+};

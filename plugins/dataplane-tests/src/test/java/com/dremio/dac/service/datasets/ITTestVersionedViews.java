@@ -20,8 +20,10 @@ import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createBranchAtBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.createEmptyTableQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.fullyQualifiedTableName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueBranchName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueViewName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.insertTableQuery;
@@ -31,20 +33,29 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.select
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.selectStarQueryWithSpecifier;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithSource;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static java.util.Collections.emptyList;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.api.CatalogEntity;
 import com.dremio.dac.api.Space;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.explore.model.DatasetUI;
+import com.dremio.dac.explore.model.DatasetUIWithHistory;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.exec.catalog.dataplane.ITBaseTestVersioned;
-import com.dremio.service.jobs.JobsService;
+import com.dremio.exec.store.iceberg.IcebergViewMetadata;
+import com.dremio.exec.store.iceberg.IcebergViewMetadata.SupportedViewDialectsForRead;
 import com.google.common.collect.ImmutableList;
-import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -53,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.jupiter.api.AfterEach;
@@ -70,8 +82,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
 
   @BeforeEach
   public void setUp() throws Exception {
-    allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
     createSpace(DEFAULT_SPACE_NAME);
   }
 
@@ -94,8 +105,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
         DATAPLANE_PLUGIN_NAME, tablePath, VersionContext.ofBranch(DEFAULT_BRANCH_NAME), null);
     runQuery(createEmptyTableQuery(tablePath));
     runQuery(insertTableQuery(tablePath));
-    runQueryCheckResults(
-        l(JobsService.class), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
+    runQueryCheckResults(getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
     createFoldersForTablePath(
         DATAPLANE_PLUGIN_NAME, viewPath, VersionContext.ofBranch(DEFAULT_BRANCH_NAME), null);
     createFoldersForTablePath(
@@ -120,8 +130,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
         DATAPLANE_PLUGIN_NAME, tablePath, VersionContext.ofBranch(DEFAULT_BRANCH_NAME), null);
     runQuery(createEmptyTableQuery(tablePath));
     runQuery(insertTableQuery(tablePath));
-    runQueryCheckResults(
-        l(JobsService.class), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
+    runQueryCheckResults(getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
     createFoldersForTablePath(
         DATAPLANE_PLUGIN_NAME, viewPath, VersionContext.ofBranch(DEFAULT_BRANCH_NAME), null);
 
@@ -141,8 +150,8 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
             emptyList(),
             DATAPLANE_PLUGIN_NAME,
             DEFAULT_BRANCH_NAME);
-    assertContains(
-        "The specified location already contains a view", errorMessage.getErrorMessage());
+    assertThat(errorMessage.getErrorMessage())
+        .contains("The specified location already contains a view");
   }
 
   @Test
@@ -158,8 +167,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
         DATAPLANE_PLUGIN_NAME, tablePath, VersionContext.ofBranch(DEFAULT_BRANCH_NAME), null);
     runQuery(createEmptyTableQuery(tablePath));
     runQuery(insertTableQuery(tablePath));
-    runQueryCheckResults(
-        l(JobsService.class), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
+    runQueryCheckResults(getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
     createFoldersForTablePath(
         DATAPLANE_PLUGIN_NAME, viewPath, VersionContext.ofBranch(DEFAULT_BRANCH_NAME), null);
     createFoldersForTablePath(
@@ -218,11 +226,11 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
 
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         createViewInSpaceFromQueryExpectError(viewQuery, DEFAULT_SPACE_NAME, newViewName);
-    assertContains(
+    String expectedContains =
         "Validation of view sql failed. Version context for table "
             + fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, tablePath)
-            + " must be specified using AT SQL syntax",
-        errorMessage.getErrorMessage());
+            + " must be specified using AT SQL syntax";
+    assertThat(errorMessage.getErrorMessage()).contains(expectedContains);
   }
 
   @Test
@@ -237,8 +245,7 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
     runQuery(createEmptyTableQuery(tablePath));
     runQuery(insertTableQuery(tablePath));
     String viewQuery = selectStarQueryWithSpecifier(tablePath, "BRANCH " + DEFAULT_BRANCH_NAME);
-    runQueryCheckResults(
-        l(JobsService.class), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
+    runQueryCheckResults(getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
 
     createViewInSpaceFromQuery(viewQuery, DEFAULT_SPACE_NAME, newViewName);
   }
@@ -273,11 +280,11 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
 
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         createViewInSpaceFromQueryExpectError(viewQuery, DEFAULT_SPACE_NAME, newViewName);
-    assertContains(
+    String expectedContains =
         "Validation of view sql failed. Version context for table "
             + fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, table2Path)
-            + " must be specified using AT SQL syntax",
-        errorMessage.getErrorMessage());
+            + " must be specified using AT SQL syntax";
+    assertThat(errorMessage.getErrorMessage()).contains(expectedContains);
   }
 
   @Test
@@ -323,11 +330,11 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
 
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         createViewFromPublicAPIExpectError(dataset);
-    assertContains(
+    String expectedContains =
         "Validation of view sql failed. Version context for table "
             + fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, table2Path)
-            + " must be specified using AT SQL syntax",
-        errorMessage.getErrorMessage());
+            + " must be specified using AT SQL syntax";
+    assertThat(errorMessage.getErrorMessage()).contains(expectedContains);
   }
 
   @Test
@@ -394,11 +401,100 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
 
     UserExceptionMapper.ErrorMessageWithContext errorMessage =
         updateViewFromPublicAPIExpectError(updatedDataset);
-    assertContains(
+    String expectedContains =
         "Validation of view sql failed. Version context for table "
             + fullyQualifiedTableName(DATAPLANE_PLUGIN_NAME, table2Path)
-            + " must be specified using AT SQL syntax",
-        errorMessage.getErrorMessage());
+            + " must be specified using AT SQL syntax";
+    assertThat(errorMessage.getErrorMessage()).contains(expectedContains);
+  }
+
+  @Test
+  public void testDropViewInDefaultBranch() throws Exception {
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = tablePathWithFolders(tableName);
+    final String viewName = generateUniqueViewName();
+    final List<String> viewPath = tablePathWithFolders(viewName);
+    runQuery(createEmptyTableQuery(tablePath));
+    runQuery(insertTableQuery(tablePath));
+    runQueryCheckResults(getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
+    InitialPreviewResponse createViewResponse =
+        createVersionedDatasetFromSQL(
+            selectStarQuery(tablePath), emptyList(), DATAPLANE_PLUGIN_NAME, DEFAULT_BRANCH_NAME);
+    DatasetPath targetViewPath =
+        new DatasetPath(tablePathWithSource(DATAPLANE_PLUGIN_NAME, viewPath));
+    DatasetUIWithHistory datasetUIWithHistory =
+        saveAsInBranch(createViewResponse.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
+    DatasetUI createdDataset = datasetUIWithHistory.getDataset();
+    delete(
+        resourcePath(createdDataset), createdDataset.getVersion(), "BRANCH", DEFAULT_BRANCH_NAME);
+    getDatasetWithVersionExpectError(
+        new DatasetPath(createdDataset.getFullPath()), "BRANCH", DEFAULT_BRANCH_NAME);
+  }
+
+  @Test
+  public void testDropViewInNonDefaultBranch() throws Exception {
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = tablePathWithFolders(tableName);
+    final String viewName = generateUniqueViewName();
+    final List<String> viewPath = tablePathWithFolders(viewName);
+    String devBranch = generateUniqueBranchName();
+    String sessionId =
+        runQueryAndGetSessionId(createBranchAtBranchQuery(devBranch, DEFAULT_BRANCH_NAME));
+    runQueryInSession(useBranchQuery(devBranch), sessionId);
+    runQueryInSession(createEmptyTableQuery(tablePath), sessionId);
+    runQueryInSession(insertTableQuery(tablePath), sessionId);
+    runQueryCheckResults(
+        getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, sessionId);
+    InitialPreviewResponse createViewResponse =
+        createVersionedDatasetFromSQL(
+            selectStarQuery(tablePath), emptyList(), DATAPLANE_PLUGIN_NAME, devBranch);
+    DatasetPath targetViewPath =
+        new DatasetPath(tablePathWithSource(DATAPLANE_PLUGIN_NAME, viewPath));
+    DatasetUIWithHistory datasetUIWithHistory =
+        saveAsInBranch(createViewResponse.getDataset(), targetViewPath, null, devBranch);
+    DatasetUI createdDataset = datasetUIWithHistory.getDataset();
+    delete(resourcePath(createdDataset), createdDataset.getVersion(), "BRANCH", devBranch);
+    getDatasetWithVersionExpectError(
+        new DatasetPath(createdDataset.getFullPath()), "BRANCH", devBranch);
+  }
+
+  @Test
+  public void testDatasetSummaryWithVersion() throws Exception {
+    final String tableName = generateUniqueTableName();
+    final List<String> tablePath = tablePathWithFolders(tableName);
+    final String viewName = generateUniqueViewName();
+    final List<String> viewPath = tablePathWithFolders(viewName);
+    final List<String> viewFullPath = tablePathWithSource(DATAPLANE_PLUGIN_NAME, viewPath);
+    runQuery(createEmptyTableQuery(tablePath));
+    runQuery(insertTableQuery(tablePath));
+
+    runQueryCheckResults(getJobsService(), DATAPLANE_PLUGIN_NAME, tablePath, 3, 3, allocator, null);
+    InitialPreviewResponse createViewResponse =
+        createVersionedDatasetFromSQL(
+            selectStarQuery(tablePath), emptyList(), DATAPLANE_PLUGIN_NAME, DEFAULT_BRANCH_NAME);
+    DatasetPath targetViewPath =
+        new DatasetPath(tablePathWithSource(DATAPLANE_PLUGIN_NAME, viewPath));
+    DatasetUIWithHistory datasetUIWithHistory =
+        saveAsInBranch(createViewResponse.getDataset(), targetViewPath, null, DEFAULT_BRANCH_NAME);
+    Map<String, VersionContextReq> references = new HashMap<>();
+    references.put(
+        DATAPLANE_PLUGIN_NAME,
+        new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, DEFAULT_BRANCH_NAME));
+    WebTarget webTarget =
+        getAPIv2()
+            .path(String.format("/datasets/summary/" + PathUtils.toFSPath(viewFullPath)))
+            .queryParam("refType", "BRANCH")
+            .queryParam("refValue", DEFAULT_BRANCH_NAME);
+    DatasetSummary summary = expectSuccess(getBuilder(webTarget).buildGet(), DatasetSummary.class);
+    assertEquals(0, (int) summary.getDescendants());
+    assertEquals(0, (int) summary.getJobCount());
+    assertEquals(3, summary.getFields().size());
+    assertNotNull(VersionedDatasetId.tryParse(summary.getEntityId()));
+    assertFalse(summary.getHasReflection());
+    assertEquals(
+        summary.getViewSpecVersion(),
+        IcebergViewMetadata.SupportedIcebergViewSpecVersion.V1.name());
+    assertEquals(summary.getViewDialect(), SupportedViewDialectsForRead.DREMIOSQL.toString());
   }
 
   protected void saveAsVersionedDataset(
@@ -458,33 +554,24 @@ public class ITTestVersionedViews extends ITBaseTestVersioned {
 
   private UserExceptionMapper.ErrorMessageWithContext updateViewFromPublicAPIExpectError(
       com.dremio.dac.api.Dataset dataset) {
-    try {
-      final Invocation invocation =
-          getBuilder(
-                  getPublicAPI(3)
-                      .path("catalog")
-                      .path(URLEncoder.encode(dataset.getId(), StandardCharsets.UTF_8.toString())))
-              .buildPut(Entity.json(dataset));
+    final Invocation invocation =
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(URLEncoder.encode(dataset.getId(), StandardCharsets.UTF_8)))
+            .buildPut(Entity.json(dataset));
 
-      return expectError(
-          CLIENT_ERROR, invocation, UserExceptionMapper.ErrorMessageWithContext.class);
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException(e);
-    }
+    return expectError(CLIENT_ERROR, invocation, UserExceptionMapper.ErrorMessageWithContext.class);
   }
 
   private CatalogEntity updateViewFromPublicAPI(com.dremio.dac.api.Dataset dataset) {
-    try {
-      final Invocation invocation =
-          getBuilder(
-                  getPublicAPI(3)
-                      .path("catalog")
-                      .path(URLEncoder.encode(dataset.getId(), StandardCharsets.UTF_8.toString())))
-              .buildPut(Entity.json(dataset));
+    final Invocation invocation =
+        getBuilder(
+                getPublicAPI(3)
+                    .path("catalog")
+                    .path(URLEncoder.encode(dataset.getId(), StandardCharsets.UTF_8)))
+            .buildPut(Entity.json(dataset));
 
-      return expectSuccess(invocation, CatalogEntity.class);
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException(e);
-    }
+    return expectSuccess(invocation, CatalogEntity.class);
   }
 }

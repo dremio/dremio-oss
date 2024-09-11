@@ -19,11 +19,14 @@ import com.dremio.exec.catalog.MetadataStatsCollector;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlKind;
 
 public interface DremioToRelContext {
   final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioToRelContext.class);
@@ -34,6 +37,10 @@ public interface DremioToRelContext {
     RelRoot expandView(ViewTable view);
 
     MetadataStatsCollector getMetadataStatsCollector();
+
+    SqlKind getSqlKind();
+
+    void setSqlKind(SqlKind operationType);
   }
 
   interface DremioSerializationToRelContext extends ToRelContext {}
@@ -63,6 +70,9 @@ public interface DremioToRelContext {
       RelOptCluster relOptCluster,
       ViewExpander viewExpander,
       MetadataStatsCollector metadataStatsCollector) {
+
+    ConcurrentMap<Object, SqlKind> commandType = new ConcurrentHashMap<>();
+
     return new DremioQueryToRelContext() {
 
       @Override
@@ -94,6 +104,16 @@ public interface DremioToRelContext {
       @Override
       public MetadataStatsCollector getMetadataStatsCollector() {
         return metadataStatsCollector;
+      }
+
+      @Override
+      public SqlKind getSqlKind() {
+        return commandType.getOrDefault(this, null);
+      }
+
+      @Override
+      public void setSqlKind(SqlKind operationType) {
+        commandType.put(this, operationType);
       }
     };
   }

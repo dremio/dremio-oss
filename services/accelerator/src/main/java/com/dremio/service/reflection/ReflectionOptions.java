@@ -17,7 +17,9 @@ package com.dremio.service.reflection;
 
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.TypeValidators.RangeLongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import java.util.concurrent.TimeUnit;
 
@@ -51,11 +53,16 @@ public interface ReflectionOptions {
           TimeUnit.SECONDS.toMillis(30));
   // how long the planner can block waiting on materialization cache initialization before
   // continuing without reflections
-  PositiveLongValidator MATERIALIZATION_CACHE_INIT_TIMEOUT =
+  PositiveLongValidator MATERIALIZATION_CACHE_INIT_TIMEOUT_SECONDS =
       new PositiveLongValidator(
-          "reflection.materialization.cache.init_timeout_seconds",
-          Long.MAX_VALUE,
-          TimeUnit.SECONDS.toMillis(60));
+          "reflection.materialization.cache.init_timeout_seconds", Long.MAX_VALUE, 60);
+  int MAX_RETRY_HOURS = 3;
+  // how long materialization cache will keep retrying a materialization before marking it as FAILED
+  PositiveLongValidator MATERIALIZATION_CACHE_RETRY_MINUTES =
+      new PositiveLongValidator(
+          "reflection.materialization.cache.retry.minutes",
+          TimeUnit.HOURS.toMinutes(MAX_RETRY_HOURS),
+          TimeUnit.MINUTES.toMinutes(60));
   // allows users to set sub-hour refresh and grace periods
   BooleanValidator ENABLE_SUBHOUR_POLICIES =
       new BooleanValidator("accelerator.enable.subhour.policies", false);
@@ -144,7 +151,31 @@ public interface ReflectionOptions {
   // Enable using schedule policies on datasets and sources for reflection refresh
   BooleanValidator REFLECTION_SCHEDULE_POLICY_ENABLED =
       new BooleanValidator("reflection.manager.refresh_schedule_policy.enabled", true);
+  // Enable LOAD MATERIALIZATION job to register metadata as an async process,
+  // or register table synchronously in handleMaterializationDone when the flag is off
+  BooleanValidator LOAD_MATERIALIZATION_JOB_ENABLED =
+      new BooleanValidator("reflection.manager.load_materialization_job.enabled", false);
   // Avoid redundant refreshes using table snapshots
   BooleanValidator REFLECTION_MANAGER_AVOID_REDUNDANT_REFRESH =
       new BooleanValidator("reflection.manager.avoid_redundant_refresh", true);
+  // Skip the async materialization deletion process of submitting a DROP TABLE job to clean up
+  // records and physical data for incremental refresh.
+  BooleanValidator SKIP_DROP_TABLE_JOB_FOR_INCREMENTAL_REFRESH =
+      new BooleanValidator("reflection.manager.skip_drop_table_job_for_incremental_refresh", true);
+  // The new code path in ReflectionSuggester and ReflectionAnalyzer allows us to suggest
+  // reflections base on the reflection type user provides.
+  BooleanValidator SUGGEST_REFLECTION_BASED_ON_TYPE =
+      new BooleanValidator("reflection.manager.suggest_reflection_based_on_type", true);
+  // Retry using retry backoff by default. Immediate retry when the support key is off.
+  BooleanValidator ENABLE_EXPONENTIAL_BACKOFF_FOR_RETRY_POLICY =
+      new BooleanValidator("reflection.manager.enable_exponential_backoff_for_retry_policy", true);
+  // Backoff retry policy as a feature.
+  BooleanValidator BACKOFF_RETRY_POLICY =
+      new BooleanValidator("reflection.manager.backoff_retry_policy", true);
+  // Enable the "reflection.max_num_reflections_limit" support key
+  BooleanValidator MAX_NUM_REFLECTIONS_LIMIT_ENABLED =
+      new BooleanValidator("reflection.max_num_reflections_limit.enabled", false);
+  // The maximum number of reflections allowed by Reflection Manager.
+  LongValidator MAX_NUM_REFLECTIONS_LIMIT =
+      new RangeLongValidator("reflection.max_num_reflections_limit", 0L, Long.MAX_VALUE, 500);
 }

@@ -15,11 +15,12 @@
  */
 package com.dremio.services.fabric;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.ssl.SSLEngineFactory;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.collect.Maps;
 import io.netty.channel.EventLoopGroup;
 import java.util.Optional;
@@ -52,7 +53,7 @@ final class ConnectionManagerRegistry implements AutoCloseable {
     this.handler = handler;
     this.engineFactory = engineFactory;
 
-    Metrics.newGauge(Metrics.join("rpc", "peers"), () -> registry.size());
+    newGauge("rpc.peers", registry::size);
   }
 
   FabricConnectionManager getConnectionManager(FabricIdentity remoteIdentity) {

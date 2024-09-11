@@ -16,9 +16,13 @@
 package com.dremio.services.credentials;
 
 import com.dremio.service.Service;
+import java.net.URI;
 
 /** CredentialsService operations */
 public interface CredentialsService extends Service {
+
+  /** Check if given URI can be resolved by a provider in this CredentialsService */
+  boolean isSupported(URI uri);
 
   /**
    * Returns the secret from the pattern through loaded providers

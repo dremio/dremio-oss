@@ -25,13 +25,13 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.NlsString;
 
 /** Rewrites CONVERT_TO(x, TYPE) to CONVERT_TOTYPE(x) */
-public final class ConvertToConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE = new ConvertToConvertlet();
+public final class ConvertToConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE = new ConvertToConvertlet();
 
   private ConvertToConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator() == CONVERT_TO;
   }
 

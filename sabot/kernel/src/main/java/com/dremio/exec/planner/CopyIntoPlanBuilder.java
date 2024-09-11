@@ -22,12 +22,14 @@ import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
+import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.easy.EasyScanTableFunctionPrel;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
 /** Expand plans for COPY INTO command */
@@ -35,13 +37,24 @@ public class CopyIntoPlanBuilder extends CopyIntoTablePlanBuilderBase {
 
   public CopyIntoPlanBuilder(
       RelOptTable targetTable,
+      RelNode relNode,
       RelDataType rowType,
+      RelDataType transformationRowType,
       RelOptCluster cluster,
       RelTraitSet traitSet,
       TableMetadata tableMetadata,
       OptimizerRulesContext context,
       CopyIntoTableContext copyIntoTableContext) {
-    super(targetTable, rowType, cluster, traitSet, tableMetadata, context, copyIntoTableContext);
+    super(
+        targetTable,
+        relNode,
+        rowType,
+        transformationRowType,
+        cluster,
+        traitSet,
+        tableMetadata,
+        context,
+        copyIntoTableContext);
   }
 
   @Override
@@ -52,7 +65,7 @@ public class CopyIntoPlanBuilder extends CopyIntoTablePlanBuilderBase {
             tableMetadata,
             null,
             targetTableSchema,
-            getSchemaPaths(targetTableSchema),
+            SchemaUtilities.allColPaths(targetTableSchema),
             format,
             extendedFormatOptions,
             storagePluginId,
@@ -81,7 +94,7 @@ public class CopyIntoPlanBuilder extends CopyIntoTablePlanBuilderBase {
             targetTableSchema,
             sourceLocationNSKey,
             storagePluginId,
-            getSchemaPaths(targetTableSchema),
+            SchemaUtilities.allColPaths(targetTableSchema),
             getExtendedProperties());
 
     TableFunctionConfig scanTableFunctionConfig =

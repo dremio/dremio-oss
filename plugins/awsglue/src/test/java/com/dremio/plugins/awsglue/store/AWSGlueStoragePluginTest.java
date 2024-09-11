@@ -18,11 +18,9 @@ package com.dremio.plugins.awsglue.store;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SecretRef;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.service.InitializerRegistry;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
 import io.findify.s3mock.S3Mock;
@@ -52,17 +50,11 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
   public static void setupDefaultTestCluster() throws Exception {
     BaseTestQuery.setupDefaultTestCluster();
 
-    { // start initializer, since sabotnode doesn't.
-      InitializerRegistry ir =
-          new InitializerRegistry(CLASSPATH_SCAN_RESULT, nodes[0].getBindingProvider());
-      ir.start();
-    }
-
     setupS3Mock();
 
     setupBucketAndFile();
 
-    addGlueTestPlugin("testglue", getSabotContext().getCatalogService());
+    addGlueTestPlugin("testglue", getCatalogService());
   }
 
   @AfterClass
@@ -211,7 +203,7 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
         StandardCopyOption.REPLACE_EXISTING);
   }
 
-  public static void addGlueTestPlugin(final String pluginName, final CatalogService pluginRegistry)
+  public static void addGlueTestPlugin(final String pluginName, final CatalogService catalogService)
       throws Exception {
     SourceConfig sc = new SourceConfig();
     sc.setName(pluginName);
@@ -250,6 +242,6 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
     sc.setType(conf.getType());
     sc.setConfig(conf.toBytesString());
     sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
-    ((CatalogServiceImpl) pluginRegistry).getSystemUserCatalog().createSource(sc);
+    catalogService.getSystemUserCatalog().createSource(sc);
   }
 }

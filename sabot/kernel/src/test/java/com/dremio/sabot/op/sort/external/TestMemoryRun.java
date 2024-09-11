@@ -72,10 +72,10 @@ public class TestMemoryRun extends BaseTestOperator {
 
   @Test
   public void testQuickSorterCloseToCopier() throws Exception {
-    final ExternalSortTracer tracer = new ExternalSortTracer();
+    final VectorSortTracer tracer = new VectorSortTracer();
     try (MemoryRun memoryRun =
         new MemoryRun(
-            externalSort,
+            externalSort.getOrderings(),
             producer,
             allocator,
             generator.getSchema(),
@@ -91,10 +91,10 @@ public class TestMemoryRun extends BaseTestOperator {
 
   @Test
   public void testQuickSorterCloseToDisk() throws Exception {
-    final ExternalSortTracer tracer = new ExternalSortTracer();
+    final VectorSortTracer tracer = new VectorSortTracer();
     try (MemoryRun memoryRun =
         new MemoryRun(
-            externalSort,
+            externalSort.getOrderings(),
             producer,
             allocator,
             generator.getSchema(),
@@ -110,10 +110,10 @@ public class TestMemoryRun extends BaseTestOperator {
 
   @Test
   public void testSplayTreeCloseToCopier() throws Exception {
-    final ExternalSortTracer tracer = new ExternalSortTracer();
+    final VectorSortTracer tracer = new VectorSortTracer();
     try (MemoryRun memoryRun =
         new MemoryRun(
-            externalSort,
+            externalSort.getOrderings(),
             producer,
             allocator,
             generator.getSchema(),
@@ -129,10 +129,10 @@ public class TestMemoryRun extends BaseTestOperator {
 
   @Test
   public void testSplayTreeCloseToDisk() throws Exception {
-    final ExternalSortTracer tracer = new ExternalSortTracer();
+    final VectorSortTracer tracer = new VectorSortTracer();
     try (MemoryRun memoryRun =
         new MemoryRun(
-            externalSort,
+            externalSort.getOrderings(),
             producer,
             allocator,
             generator.getSchema(),
@@ -157,10 +157,10 @@ public class TestMemoryRun extends BaseTestOperator {
   }
 
   private void testStartMicroSpilling(boolean useSplaySort) throws Exception {
-    final ExternalSortTracer tracer = new ExternalSortTracer();
+    final VectorSortTracer tracer = new VectorSortTracer();
     try (MemoryRun memoryRun =
         new MemoryRun(
-            externalSort,
+            externalSort.getOrderings(),
             producer,
             allocator,
             generator.getSchema(),

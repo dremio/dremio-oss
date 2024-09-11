@@ -42,17 +42,21 @@ public interface LinearizableHierarchicalStore {
     long getLastModifiedTime();
 
     int getNumChanges();
+
+    long getSessionId();
   }
 
   class PathCommand {
     private final CommandType commandType;
     private final String fullPath;
     private final byte[] data;
+    private String returnValue;
 
     public PathCommand(CommandType commandType, String fullPath, byte[] data) {
       this.commandType = commandType;
       this.fullPath = fullPath;
       this.data = data;
+      this.returnValue = null;
     }
 
     public PathCommand(CommandType commandType, String fullPath) {
@@ -69,6 +73,14 @@ public interface LinearizableHierarchicalStore {
 
     public byte[] getData() {
       return data;
+    }
+
+    public String getReturnValue() {
+      return returnValue;
+    }
+
+    public void setReturnValue(String returnValue) {
+      this.returnValue = returnValue;
     }
   }
 
@@ -103,6 +115,17 @@ public interface LinearizableHierarchicalStore {
    * @throws PathMissingException If given path was missing
    */
   byte[] getData(String path) throws PathMissingException;
+
+  /**
+   * Get data from a path and notify when data changes.
+   *
+   * @param fullPath node path
+   * @param onDataChanged future to complete when data changes
+   * @return current data
+   * @throws PathMissingException if given path was missing
+   */
+  byte[] getData(String fullPath, CompletableFuture<Void> onDataChanged)
+      throws PathMissingException;
 
   /**
    * Check if path exists.

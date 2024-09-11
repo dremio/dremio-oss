@@ -134,6 +134,8 @@ public class SqlVacuumCatalog extends SqlVacuum
         null,
         getCatalogSource().getSimple(),
         null,
+        null,
+        null,
         null);
   }
 }

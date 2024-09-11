@@ -1,5 +1,0 @@
-.cache
-dist
-docs
-node_modules
-!Makefile

@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.test.TemporarySystemProperties;
@@ -53,11 +52,7 @@ public class TestScratchSource extends BaseTestServer {
     submitJobAndWaitUntilCompletion(
         JobRequest.newBuilder().setSqlQuery(ctas).setQueryType(QueryType.UI_RUN).build());
 
-    final FileSystemPlugin<?> plugin =
-        getCurrentDremioDaemon()
-            .getBindingProvider()
-            .lookup(CatalogService.class)
-            .getSource("$scratch");
+    final FileSystemPlugin<?> plugin = getCatalogService().getSource("$scratch");
 
     // Make sure the table data files exist
     final File ctasTableDir = new File(plugin.getConfig().getPath().toString(), "ctas");
@@ -85,11 +80,7 @@ public class TestScratchSource extends BaseTestServer {
         "CREATE TABLE \"$scratch\".\"ctasonpdfs\" as select * from (VALUES (1))";
     runWithIcebergEnabled(ctasIceberg);
 
-    final FileSystemPlugin<?> plugin =
-        getCurrentDremioDaemon()
-            .getBindingProvider()
-            .lookup(CatalogService.class)
-            .getSource("$scratch");
+    final FileSystemPlugin<?> plugin = getCatalogService().getSource("$scratch");
 
     // Make sure the table data files exist
     final File ctasTableDir = new File(plugin.getConfig().getPath().toString(), "ctasonpdfs");

@@ -18,20 +18,20 @@ package com.dremio.exec.catalog.conf;
 import static com.dremio.exec.catalog.conf.ConnectionConf.USE_EXISTING_SECRET_VALUE;
 
 import com.dremio.service.namespace.SupportsDecoratingSecrets;
-import com.dremio.services.credentials.CredentialsException;
 import com.dremio.services.credentials.CredentialsService;
-import com.dremio.services.credentials.SecretsCreator;
+import com.dremio.services.credentials.CredentialsServiceUtils;
 import com.google.common.base.Strings;
 import io.protostuff.Tag;
 import io.protostuff.runtime.RuntimeEnv;
-import java.util.function.Predicate;
+import java.net.URI;
 
 /**
  * A Wrapper class for secret values to mask raw secret values. This has custom ser/de logic defined
  * by {@link SecretRefImplDelegate}. This should only be used to wrap raw secrets, not for secret
  * uris.
  */
-public abstract class AbstractSecretRef implements SecretRef, SupportsDecoratingSecrets {
+public abstract class AbstractSecretRef
+    implements SecretRef, SupportsDecoratingSecrets, RepresentableByURI {
 
   /**
    * Register SecretRef delegates here since Protostuff is configured statically. This should be
@@ -72,25 +72,6 @@ public abstract class AbstractSecretRef implements SecretRef, SupportsDecorating
     return credentialsService;
   }
 
-  /**
-   * @param secretsCreator a SecretCreator that wil always encrypt the password by the system
-   * @param filter condition to encrypt the secret
-   * @return true if any secret(s) have been encrypted. False if no plain-text secret to encrypt and
-   *     no error occurs.
-   */
-  public synchronized boolean encrypt(SecretsCreator secretsCreator, Predicate<String> filter)
-      throws CredentialsException {
-    if (Strings.isNullOrEmpty(secret) || USE_EXISTING_SECRET_VALUE.equals(secret)) {
-      return false;
-    }
-
-    if (filter.test(secret)) {
-      secret = secretsCreator.encrypt(secret).toString();
-      return true;
-    }
-    return false;
-  }
-
   @Override
   public boolean equals(Object obj) {
     if (SecretRef.EMPTY.equals(obj)) {
@@ -102,6 +83,28 @@ public abstract class AbstractSecretRef implements SecretRef, SupportsDecorating
       return getRaw().equals(((AbstractSecretRef) obj).getRaw());
     }
     return false;
+  }
+
+  @Override
+  public URI getURI() {
+    if (Strings.isNullOrEmpty(getRaw())) {
+      return null;
+    }
+    try {
+      final URI uri = CredentialsServiceUtils.safeURICreate(getRaw());
+      // No scheme, means plaintext
+      if (Strings.isNullOrEmpty(uri.getScheme())) {
+        return null;
+      }
+      // If the URI is not recognized by the credentials service, treat as plaintext
+      // null credentials service implies incoming secret from UI
+      if (getCredentialsService() == null || !getCredentialsService().isSupported(uri)) {
+        return null;
+      }
+      return uri;
+    } catch (IllegalArgumentException ignored) {
+      return null;
+    }
   }
 
   @Override

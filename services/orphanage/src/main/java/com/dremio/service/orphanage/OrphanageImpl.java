@@ -117,8 +117,8 @@ public class OrphanageImpl implements Orphanage {
 
     @Override
     public void convert(
-        DocumentWriter writer, OrphanEntry.OrphanId key, OrphanEntry.Orphan record) {
-      writer.write(ORPHAN_SCHEDULED_AT_INDEX_KEY, record.getScheduledAt());
+        DocumentWriter writer, OrphanEntry.OrphanId key, OrphanEntry.Orphan document) {
+      writer.write(ORPHAN_SCHEDULED_AT_INDEX_KEY, document.getScheduledAt());
     }
 
     @Override

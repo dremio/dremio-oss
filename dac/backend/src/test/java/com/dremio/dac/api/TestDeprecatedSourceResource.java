@@ -22,9 +22,11 @@ import static org.junit.Assert.assertTrue;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.APrivateSource;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ConnectionReaderImpl;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.proto.EntityId;
@@ -44,7 +46,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
   private static final String SOURCES_PATH = "/source/";
 
   private final ConnectionReader reader =
-      ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
+      ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, ConnectionReaderImpl.class);
 
   @Test
   public void testListSources() throws Exception {
@@ -52,7 +54,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
         expectSuccess(
             getBuilder(getPublicAPI(3).path(SOURCES_PATH)).buildGet(),
             new GenericType<ResponseList<DeprecatedSourceResource.SourceDeprecated>>() {});
-    assertEquals(sources.getData().size(), newSourceService().getSources().size());
+    assertEquals(sources.getData().size(), getSourceService().getSources().size());
   }
 
   @Test
@@ -139,15 +141,17 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     sourceConfig.setConfig(nasConfig.toBytesString());
 
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+    SourceConfig createdSourceConfig = getSourceService().registerSourceWithRuntime(sourceConfig);
 
     final AccelerationSettings settings =
         new AccelerationSettings()
             .setMethod(RefreshMethod.FULL)
             .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
+            .setNeverExpire(true)
             .setGracePeriod(TimeUnit.HOURS.toMillis(6));
     DeprecatedSourceResource.SourceDeprecated updatedSource =
-        new DeprecatedSourceResource.SourceDeprecated(createdSourceConfig, settings, reader, null);
+        new DeprecatedSourceResource.SourceDeprecated(
+            createdSourceConfig, settings, reader, null, null, SourceState.GOOD);
     updatedSource.setDescription("Desc");
 
     DeprecatedSourceResource.SourceDeprecated source =
@@ -159,6 +163,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
     assertEquals("Desc", source.getDescription());
     assertNotNull(source.getState());
     assertNotNull(source.getTag());
+    assertTrue(source.isAccelerationNeverExpire());
     deleteSource(source.getName());
   }
 
@@ -203,7 +208,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     sourceConfig.setConfig(nasConfig.toBytesString());
 
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+    SourceConfig createdSourceConfig = getSourceService().registerSourceWithRuntime(sourceConfig);
 
     final AccelerationSettings settings =
         new AccelerationSettings()
@@ -211,7 +216,8 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
             .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
             .setGracePeriod(TimeUnit.HOURS.toMillis(6));
     DeprecatedSourceResource.SourceDeprecated updatedSource =
-        new DeprecatedSourceResource.SourceDeprecated(createdSourceConfig, settings, reader, null);
+        new DeprecatedSourceResource.SourceDeprecated(
+            createdSourceConfig, settings, reader, null, null, SourceState.GOOD);
 
     // test updating non-existent source
     expectStatus(
@@ -247,7 +253,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     sourceConfig.setConfig(nasConfig.toBytesString());
 
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+    SourceConfig createdSourceConfig = getSourceService().registerSourceWithRuntime(sourceConfig);
 
     final AccelerationSettings settings =
         new AccelerationSettings()
@@ -256,7 +262,8 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
             .setGracePeriod(TimeUnit.HOURS.toMillis(6));
 
     DeprecatedSourceResource.SourceDeprecated updatedSource =
-        new DeprecatedSourceResource.SourceDeprecated(createdSourceConfig, settings, reader, null);
+        new DeprecatedSourceResource.SourceDeprecated(
+            createdSourceConfig, settings, reader, null, null, SourceState.GOOD);
     updatedSource.getMetadataPolicy().setDatasetRefreshAfterMs(MetadataPolicy.ONE_MINUTE_IN_MS);
     updatedSource.getMetadataPolicy().setAuthTTLMs(MetadataPolicy.ONE_MINUTE_IN_MS);
     updatedSource.getMetadataPolicy().setNamesRefreshMs(MetadataPolicy.ONE_MINUTE_IN_MS);
@@ -323,7 +330,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
     nasConfig.path = "/";
 
     sourceConfig.setConfig(nasConfig.toBytesString());
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+    SourceConfig createdSourceConfig = getSourceService().registerSourceWithRuntime(sourceConfig);
 
     DeprecatedSourceResource.SourceDeprecated source =
         expectSuccess(
@@ -353,7 +360,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     sourceConfig.setConfig(nasConfig.toBytesString());
 
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+    SourceConfig createdSourceConfig = getSourceService().registerSourceWithRuntime(sourceConfig);
 
     expectSuccess(
         getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId()))
@@ -381,7 +388,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
     config.setConnectionConf(priv);
 
     DeprecatedSourceResource deprecatedSourceResource =
-        new DeprecatedSourceResource(newSourceService(), null, null, null, null);
+        new DeprecatedSourceResource(getSourceService(), null, null, null);
     DeprecatedSourceResource.SourceDeprecated source =
         deprecatedSourceResource.fromSourceConfig(config);
     APrivateSource newConfig = (APrivateSource) source.getConfig();
@@ -477,7 +484,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
     sourceConfig.setConfig(nasConfig.toBytesString());
 
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+    SourceConfig createdSourceConfig = getSourceService().registerSourceWithRuntime(sourceConfig);
 
     try {
       final AccelerationSettings settings =
@@ -488,7 +495,7 @@ public class TestDeprecatedSourceResource extends BaseTestServer {
 
       DeprecatedSourceResource.SourceDeprecated updatedSource =
           new DeprecatedSourceResource.SourceDeprecated(
-              createdSourceConfig, settings, reader, null);
+              createdSourceConfig, settings, reader, null, null, SourceState.GOOD);
 
       updatedSource.getMetadataPolicy().setDatasetRefreshAfterMs(policy.getDatasetRefreshAfterMs());
       updatedSource.getMetadataPolicy().setDatasetExpireAfterMs(policy.getDatasetExpireAfterMs());

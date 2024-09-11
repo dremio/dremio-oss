@@ -20,12 +20,12 @@ import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static com.dremio.test.DremioTest.DEFAULT_SABOT_CONFIG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.memory.DremioRootAllocator;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC;
@@ -38,10 +38,14 @@ import com.dremio.exec.proto.CoordExecRPC.PlanFragmentSet;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.server.BootStrapContext;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators;
+import com.dremio.sabot.exec.context.FragmentStats;
+import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.task.AsyncTask;
@@ -54,15 +58,16 @@ import com.dremio.sabot.threads.AvailabilityCallback;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.typesafe.config.ConfigFactory;
 import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 
@@ -146,11 +151,18 @@ public class TestFragmentExecutors {
     }
   }
 
-  protected BufferAllocator mockedRootAlloc;
+  private static BootStrapContext bootStrapContext;
 
-  @Before
-  public void setup() {
-    mockedRootAlloc = DremioRootAllocator.create(Long.MAX_VALUE, Long.MAX_VALUE);
+  @BeforeClass
+  public static void setupClass() {
+    bootStrapContext =
+        new BootStrapContext(
+            DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT);
+  }
+
+  @AfterClass
+  public static void teardownClass() {
+    bootStrapContext.close();
   }
 
   @SuppressWarnings("unchecked") // needed for the unchecked cast below
@@ -159,6 +171,7 @@ public class TestFragmentExecutors {
   }
 
   private static class TestState implements AutoCloseable {
+    private final WorkloadTicketDepot ticketDepot;
     private final FragmentExecutors fragmentExecutors;
     private final InitializeFragments initializeFragments;
     private final List<AsyncTaskWrapper> runningTasks;
@@ -166,11 +179,12 @@ public class TestFragmentExecutors {
     private boolean started;
 
     TestState(
+        final WorkloadTicketDepot ticketDepot,
         final FragmentExecutors fragmentExecutors,
         final InitializeFragments initializeFragments,
         List<AsyncTaskWrapper> runningTasks,
-        MaestroProxy maestroProxy,
         Runnable actionOnStart) {
+      this.ticketDepot = ticketDepot;
       this.fragmentExecutors = fragmentExecutors;
       this.initializeFragments = initializeFragments;
       this.runningTasks = runningTasks;
@@ -199,9 +213,8 @@ public class TestFragmentExecutors {
 
     @Override
     public void close() throws Exception {
-      if (started) {
-        fragmentExecutors.close();
-      }
+      fragmentExecutors.close();
+      ticketDepot.close();
     }
   }
 
@@ -228,13 +241,14 @@ public class TestFragmentExecutors {
     when(mockTaskPool.getTaskMonitor()).thenReturn(TaskPool.NO_OP_TASK_MONITOR);
 
     WorkloadTicketDepot ticketDepot =
-        new WorkloadTicketDepot(mockedRootAlloc, mock(SabotConfig.class), DUMMY_GROUP_MANAGER);
+        new WorkloadTicketDepot(
+            bootStrapContext.getAllocator(), bootStrapContext.getConfig(), DUMMY_GROUP_MANAGER);
 
     final FragmentExecutors fe =
         new FragmentExecutors(
-            new BootStrapContext(
-                DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT),
-            new SabotConfig(ConfigFactory.empty()),
+            bootStrapContext,
+            mock(SabotContext.NodeDebugContextProviderImpl.class),
+            bootStrapContext.getConfig(),
             new QueriesClerk(ticketDepot),
             mockMaestroProxy,
             mock(FragmentWorkManager.ExitCallback.class),
@@ -312,6 +326,10 @@ public class TestFragmentExecutors {
           .when(listener)
           .cancel();
       when(fragmentExecutors[i].getListener()).thenReturn(listener);
+      Answer<Void> statsAnswer = getStatsAnswer(fragmentHandles[i]);
+      doAnswer(statsAnswer)
+          .when(fragmentExecutors[i])
+          .fillFragmentStats(any(), any(), anyBoolean());
     }
 
     doAnswer(
@@ -329,10 +347,10 @@ public class TestFragmentExecutors {
         .build(any(), any(), eq(1), eq(null), any(), any(), any());
 
     return new TestState(
+        ticketDepot,
         fe,
         initializeFragments,
         runningTasks,
-        mockMaestroProxy,
         new Runnable() {
           @Override
           public void run() {
@@ -347,6 +365,27 @@ public class TestFragmentExecutors {
             }
           }
         });
+  }
+
+  private Answer<Void> getStatsAnswer(FragmentHandle fragmentHandles) {
+    BufferAllocator rootAllocator = bootStrapContext.getAllocator();
+    FragmentStats stats = new FragmentStats(rootAllocator, fragmentHandles, null, 10);
+    stats.newOperatorStats(
+        new OpProfileDef(1, UserBitShared.CoreOperatorType.HASH_JOIN.getNumber(), 2, 0),
+        rootAllocator);
+    stats.newOperatorStats(
+        new OpProfileDef(2, UserBitShared.CoreOperatorType.PROJECT.getNumber(), 1, 0),
+        rootAllocator);
+    stats.setupStarted();
+    stats.setupEnded();
+    stats.runStarted();
+    stats.runEnded();
+    return invocationOnMock -> {
+      StringBuilder sb = invocationOnMock.getArgument(0, StringBuilder.class);
+      String id = invocationOnMock.getArgument(1, String.class);
+      stats.fillLogBuffer(sb, id, "RUNNING", "RUNNABLE", true);
+      return null;
+    };
   }
 
   private FragmentHandle getHandleForMinorFragment(
@@ -646,9 +685,17 @@ public class TestFragmentExecutors {
     Map<QueryId, QueryTracker> queryIdQueryTrackerMap = Maps.newHashMap();
     queryIdQueryTrackerMap.put(queryId, queryTracker);
 
+    QueryTicket queryTicket = mock(QueryTicket.class);
+    when(queryTicket.getQueryId()).thenReturn(queryId);
+    WorkloadTicket workloadTicket = mock(WorkloadTicket.class);
+    when(workloadTicket.getActiveQueryTickets()).thenReturn(Collections.singletonList(queryTicket));
     QueriesClerk queriesClerk = mock(QueriesClerk.class);
+    when(queriesClerk.getWorkloadTickets()).thenReturn(Collections.singletonList(workloadTicket));
     when(queriesClerk.getFragmentTickets(queryId)).thenReturn(fragmentTickets);
-
+    String dumpString = fe.activeQueriesToCsv(queriesClerk);
+    assertTrue(dumpString.contains(QueryIdHelper.getQueryId(queryId)));
+    String dumpString2 = fe.activeQueriesToCsv(queriesClerk);
+    assertTrue(dumpString2.contains(QueryIdHelper.getQueryId(queryId)));
     Set<QueryId> queryIdSet =
         MaestroProxy.reconcileActiveQueriesHelper(activeQueryList, queryIdQueryTrackerMap);
     fe.cancelFragments(queryIdSet, queriesClerk);
@@ -666,6 +713,8 @@ public class TestFragmentExecutors {
     // cleanup fragments using cancelFragments - this is teardown for this test case.
     tearDownReconcileActiveQueries(
         numFragments, testState, fe, initializeFragments, fragmentHandles);
+
+    testState.close();
   }
 
   /**
@@ -702,8 +751,6 @@ public class TestFragmentExecutors {
     }
     fe.checkAndEvict();
     assertEquals(0, fe.getNumHandlers());
-
-    testState.close();
   }
 
   private ActiveQueryList getActiveQueryList(

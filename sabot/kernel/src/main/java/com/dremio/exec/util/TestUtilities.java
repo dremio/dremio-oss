@@ -24,8 +24,10 @@ import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
@@ -37,6 +39,9 @@ import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
+import com.dremio.plugins.nodeshistory.NodeHistorySourceConfigFactory;
+import com.dremio.plugins.nodeshistory.NodesHistoryStoreConfig;
+import com.dremio.service.coordinator.proto.DataCredentials;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -81,12 +86,12 @@ public class TestUtilities {
   }
 
   public static void addDefaultTestPlugins(
-      CatalogService catalog, final String tmpDirPath, boolean addHadoopDataLakes) {
-    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) catalog;
+      CatalogService catalogService, final String tmpDirPath, boolean addHadoopDataLakes) {
     if (addHadoopDataLakes) {
-      addIcebergHadoopTables(catalog, tmpDirPath);
+      addIcebergHadoopTables(catalogService, tmpDirPath);
     }
     // add dfs.
+    Catalog systemUserCatalog = catalogService.getSystemUserCatalog();
     {
       SourceConfig c = new SourceConfig();
       InternalFileConf conf = new InternalFileConf();
@@ -99,7 +104,7 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dfs");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
     // add dfs_partition_inference.
     {
@@ -115,7 +120,7 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dfs_partition_inference");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
     // add dfs_test
     {
@@ -131,9 +136,9 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dfs_test");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
-    addClasspathSource(catalog);
+    addClasspathSource(catalogService);
     // add metadataSink.
     // add dfs_root
     {
@@ -144,7 +149,7 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dfs_root");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
 
     // add dacfs
@@ -156,10 +161,10 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dacfs");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
 
-    if (!pluginExists(catalogImpl, METADATA_STORAGE_PLUGIN_NAME)) {
+    if (!pluginExists(catalogService, METADATA_STORAGE_PLUGIN_NAME)) {
       SourceConfig c = new SourceConfig();
       MetadataStoragePluginConfig conf = new MetadataStoragePluginConfig();
       conf.connection = "file:///";
@@ -170,10 +175,10 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName(METADATA_STORAGE_PLUGIN_NAME);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
 
-    if (!pluginExists(catalogImpl, GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME)) {
+    if (!pluginExists(catalogService, GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME)) {
       SourceConfig c = new SourceConfig();
       GandivaPersistentCachePluginConfig conf = new GandivaPersistentCachePluginConfig();
       conf.connection = "file:///";
@@ -184,10 +189,10 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName(GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
 
-    if (!pluginExists(catalogImpl, SYSTEM_ICEBERG_TABLES_PLUGIN_NAME)) {
+    if (!pluginExists(catalogService, SYSTEM_ICEBERG_TABLES_PLUGIN_NAME)) {
       SourceConfig c = new SourceConfig();
       SystemIcebergTablesStoragePluginConfig conf = new SystemIcebergTablesStoragePluginConfig();
       conf.connection = "file:///";
@@ -198,13 +203,20 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName(SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
+    }
+
+    if (!pluginExists(catalogService, NodesHistoryStoreConfig.STORAGE_PLUGIN_NAME)) {
+      SourceConfig c =
+          NodeHistorySourceConfigFactory.newSourceConfig(
+              new File(tmpDirPath).toURI(), DataCredentials.newBuilder().build());
+      systemUserCatalog.createSource(c);
     }
   }
 
   private static void addIcebergHadoopTables(CatalogService catalog, final String tmpDirPath) {
-    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) catalog;
     // add dfs_hadoop.
+    Catalog systemUserCatalog = catalog.getSystemUserCatalog();
     {
       SourceConfig c = new SourceConfig();
       InternalFileConf conf = new InternalFileConf();
@@ -214,7 +226,7 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dfs_hadoop");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
     // dfs_hadoop_mutable
     {
@@ -227,7 +239,7 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dfs_hadoop_mutable");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
 
     // add dfs_test
@@ -241,7 +253,7 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dfs_test_hadoop");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
 
     // Need to create a new source `dfs_static_test_hadoop` rooted at a known location because:
@@ -258,13 +270,13 @@ public class TestUtilities {
       c.setConnectionConf(conf);
       c.setName("dfs_static_test_hadoop");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      catalogImpl.getSystemUserCatalog().createSource(c);
+      systemUserCatalog.createSource(c);
     }
   }
 
-  private static boolean pluginExists(CatalogServiceImpl catalogImp, String pluginName) {
+  private static boolean pluginExists(CatalogService catalogService, String pluginName) {
     try {
-      catalogImp.getSystemUserCatalog().getSource(pluginName);
+      catalogService.getSystemUserCatalog().getSource(pluginName);
       return true;
     } catch (UserException ex) {
       if (!ex.getMessage().contains("Tried to access non-existent source")) {
@@ -274,10 +286,9 @@ public class TestUtilities {
     }
   }
 
-  public static void addClasspathSource(CatalogService catalog) {
+  public static void addClasspathSource(CatalogService catalogService) {
     // add cp.
-    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) catalog;
-    catalogImpl.getSystemUserCatalog().createSource(cp());
+    catalogService.getSystemUserCatalog().createSource(cp());
   }
 
   private static SourceConfig cp() {
@@ -306,7 +317,8 @@ public class TestUtilities {
    * based on the list of items that should be maintained in savedPaths.
    *
    * @param catalogService CatalogService
-   * @param kvstore KVStoreProvider
+   * @param legacyKVStoreProvider Legacy KV store provider
+   * @param kvStoreProvider KV store provider
    * @param savedStores List of kvstores that should be maintained (in addition to namespace).
    * @param savedPaths List of root entities in namespace that should be maintained in addition to a
    *     standard set of internal entities.
@@ -315,7 +327,8 @@ public class TestUtilities {
    */
   public static void clear(
       CatalogService catalogService,
-      LegacyKVStoreProvider kvstore,
+      LegacyKVStoreProvider legacyKVStoreProvider,
+      KVStoreProvider kvStoreProvider,
       List<String> savedStores,
       List<String> savedPaths)
       throws NamespaceException, IOException {
@@ -335,11 +348,13 @@ public class TestUtilities {
       if (savedStores != null) {
         list.addAll(savedStores);
       }
-      kvstore.unwrap(LocalKVStoreProvider.class).deleteEverything(list.toArray(new String[0]));
+      legacyKVStoreProvider
+          .unwrap(LocalKVStoreProvider.class)
+          .deleteEverything(list.toArray(new String[0]));
     }
 
     final NamespaceService namespace =
-        new NamespaceServiceImpl(kvstore, new CatalogStatusEventsImpl());
+        new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
 
     List<String> list = new ArrayList<>();
     list.add("__jobResultsStore");
@@ -350,6 +365,7 @@ public class TestUtilities {
     list.add("__metadata");
     list.add("__gandiva_persistent_cache");
     list.add(SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
+    list.add(NodesHistoryStoreConfig.STORAGE_PLUGIN_NAME);
     list.add("$scratch");
     list.add("sys");
     list.add("INFORMATION_SCHEMA");
@@ -380,7 +396,7 @@ public class TestUtilities {
   }
 
   public static void updateDfsTestTmpSchemaLocation(
-      final CatalogServiceImpl catalog, final String tmpDirPath) throws ExecutionSetupException {
+      final CatalogService catalog, final String tmpDirPath) throws ExecutionSetupException {
     final ManagedStoragePlugin msp = catalog.getManagedSource(DFS_TEST_PLUGIN_NAME);
     final FileSystemPlugin plugin = (FileSystemPlugin) catalog.getSource(DFS_TEST_PLUGIN_NAME);
     SourceConfig newConfig = msp.getId().getClonedConfig();
@@ -389,5 +405,9 @@ public class TestUtilities {
     conf.mutability = SchemaMutability.ALL;
     newConfig.setConfig(conf.toBytesString());
     catalog.getSystemUserCatalog().updateSource(newConfig);
+  }
+
+  public static boolean isAArch64() {
+    return "aarch64".equals(System.getProperty("os.arch"));
   }
 }

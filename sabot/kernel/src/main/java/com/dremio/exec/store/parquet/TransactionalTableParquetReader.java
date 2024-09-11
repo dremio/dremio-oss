@@ -226,4 +226,9 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
   public void close() throws Exception {
     AutoCloseables.close(currentReader);
   }
+
+  @Override
+  public String getFilePath() {
+    return readEntry.getPath();
+  }
 }

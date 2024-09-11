@@ -99,7 +99,7 @@ public class TestSQLResource extends BaseTestServer {
           "expected job to fail", ensureJobIsRunningOrFinishedWith(JobState.FAILED, jobState));
 
       if (jobState == JobState.FAILED) {
-        Assert.assertNull(status.getRowCount());
+        Assert.assertTrue(status.getRowCount() == 0);
 
         // fetching details from a failed query should return 400
         expectStatus(

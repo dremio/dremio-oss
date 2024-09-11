@@ -35,5 +35,5 @@ public interface ReleasableCommandPool extends CommandPool {
    *
    * @return
    */
-  Closeable releaseAndReacquireSlot();
+  Closeable releaseAndReacquireSlot(Priority priority);
 }

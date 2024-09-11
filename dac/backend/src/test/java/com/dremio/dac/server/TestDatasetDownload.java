@@ -49,7 +49,7 @@ public class TestDatasetDownload extends BaseTestServer {
 
   private static VirtualDatasetUI dsg1;
   private static final DatasetPath dsg1DatasetPath = new DatasetPath("DG.dsg1");
-  private static final DatasetVersionMutator datasetService = newDatasetVersionMutator();
+  private static final DatasetVersionMutator datasetService = getDatasetVersionMutator();
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -135,13 +135,13 @@ public class TestDatasetDownload extends BaseTestServer {
   public void testDownloadWithRelativeDatasetPath() throws Exception {
     SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName("mySpace");
-    newNamespaceService().addOrUpdateSpace(new NamespaceKey("mySpace"), spaceConfig);
+    getNamespaceService().addOrUpdateSpace(new NamespaceKey("mySpace"), spaceConfig);
 
     FolderConfig folderConfig = new FolderConfig();
     List<String> path = Arrays.asList("mySpace", "folder");
     folderConfig.setFullPathList(path);
     folderConfig.setName("folder");
-    newNamespaceService().addOrUpdateFolder(new NamespaceKey(path), folderConfig);
+    getNamespaceService().addOrUpdateFolder(new NamespaceKey(path), folderConfig);
 
     final DatasetPath dsPath = new DatasetPath("mySpace.folder.testVDS");
 

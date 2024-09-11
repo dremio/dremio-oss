@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn.impl.array;
 
+import static com.dremio.exec.expr.fn.impl.comparator.ValueComparator.compareReaderValue;
+
 import java.util.Stack;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.ComplexCopier;
@@ -98,6 +100,24 @@ public final class ArrayHelper {
       }
     }
     listWriter.endList();
+  }
+
+  public static int getFirstListPosition(UnionListReader listReader) {
+    /*
+     * Need call next() to move the reader to the first element for array column with several rows.
+     * In this case values will be merged to one vector and need to get the first position for each row.
+     * This allows function always start from needed position.
+     */
+    listReader.next();
+    return listReader.reader().getPosition();
+  }
+
+  public static void resetReader(UnionListReader listReader, int startPosition) {
+    listReader.reader().setPosition(startPosition);
+  }
+
+  public static boolean isReaderValueEquals(FieldReader left, FieldReader right) {
+    return compareReaderValue(left, right) == 0;
   }
 
   public static final class ListSorter {

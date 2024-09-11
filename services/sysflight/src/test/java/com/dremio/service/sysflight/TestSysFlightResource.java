@@ -86,8 +86,8 @@ public class TestSysFlightResource extends ExternalResource {
     return ChronicleGrpc.newStub(channel);
   }
 
-  public Map<TABLES, SysFlightDataProvider> getTablesProvider() {
-    Map<TABLES, SysFlightDataProvider> tablesMap = Maps.newHashMap();
+  public Map<SystemTables, SysFlightDataProvider> getTablesProvider() {
+    Map<SystemTables, SysFlightDataProvider> tablesMap = Maps.newHashMap();
     tablesMap.put(TABLES.JOBS, new JobsTableProvider(getChronicleStub()));
     return tablesMap;
   }

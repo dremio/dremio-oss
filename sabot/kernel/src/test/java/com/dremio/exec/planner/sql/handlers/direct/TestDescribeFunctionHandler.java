@@ -16,14 +16,16 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.catalog.udf.UserDefinedFunctionCatalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.parser.SqlDescribeFunction;
+import com.dremio.exec.planner.sql.parser.SqlTableVersionSpec;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -43,6 +45,7 @@ public class TestDescribeFunctionHandler {
   private DescribeFunctionHandler describeFunctionHandler;
   @Mock private UserDefinedFunctionCatalog userDefinedFunctionCatalog;
   @Mock private QueryContext queryContext;
+  @Mock private UserSession userSession;
 
   private UserDefinedFunction udf1 =
       new UserDefinedFunction(
@@ -59,7 +62,9 @@ public class TestDescribeFunctionHandler {
   public void setup() throws IOException {
     describeFunctionHandler = new DescribeFunctionHandler(queryContext);
     when(queryContext.getUserDefinedFunctionCatalog()).thenReturn(userDefinedFunctionCatalog);
-    when(userDefinedFunctionCatalog.getFunction(new NamespaceKey("test1"))).thenReturn(udf1);
+    when(queryContext.getSession()).thenReturn(userSession);
+    when(userSession.getSessionVersionForSource(any())).thenReturn(null);
+    when(userDefinedFunctionCatalog.getFunction(any())).thenReturn(udf1);
   }
 
   @Test
@@ -67,7 +72,8 @@ public class TestDescribeFunctionHandler {
     SqlDescribeFunction describeFunction =
         new SqlDescribeFunction(
             SqlParserPos.ZERO,
-            new SqlIdentifier(Collections.singletonList("test1"), SqlParserPos.ZERO));
+            new SqlIdentifier(Collections.singletonList("test1"), SqlParserPos.ZERO),
+            SqlTableVersionSpec.NOT_SPECIFIED);
     final List<DescribeFunctionHandler.DescribeResult> actualResults =
         describeFunctionHandler.toResult("foo", describeFunction);
 

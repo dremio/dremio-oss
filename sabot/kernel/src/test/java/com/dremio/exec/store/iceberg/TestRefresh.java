@@ -87,77 +87,75 @@ public class TestRefresh extends BaseTestQuery {
 
   @Test
   public void testRefresh() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      Path rootPath = Paths.get(getDfsTestTmpSchemaLocation(), "iceberg", "metadata_refresh");
-      File tableRoot = rootPath.toFile();
-      IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
-      Files.createDirectories(rootPath);
-      String root = rootPath.toString();
-      String tableName = "dfs_test_hadoop.iceberg.metadata_refresh";
+    Path rootPath = Paths.get(getDfsTestTmpSchemaLocation(), "iceberg", "metadata_refresh");
+    File tableRoot = rootPath.toFile();
+    IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
+    Files.createDirectories(rootPath);
+    String root = rootPath.toString();
+    String tableName = "dfs_test_hadoop.iceberg.metadata_refresh";
 
-      HadoopTables tables = new HadoopTables(conf);
-      Table table = tables.create(schema, null, root);
+    HadoopTables tables = new HadoopTables(conf);
+    Table table = tables.create(schema, null, root);
 
-      IcebergTableInfo tableInfo =
-          new IcebergTableWrapper(getSabotContext(), HadoopFileSystem.get(fs), icebergModel, root)
-              .getTableInfo();
-      assertEquals(tableInfo.getRecordCount(), 0);
+    IcebergTableInfo tableInfo =
+        new IcebergTableWrapper(getSabotContext(), HadoopFileSystem.get(fs), icebergModel, root)
+            .getTableInfo();
+    assertEquals(tableInfo.getRecordCount(), 0);
 
-      // Append some data files.
-      Transaction transaction = table.newTransaction();
-      AppendFiles appendFiles = transaction.newAppend();
-      appendFiles.appendFile(createDataFile(rootPath.toFile(), "d1"));
-      appendFiles.commit();
-      transaction.commitTransaction();
+    // Append some data files.
+    Transaction transaction = table.newTransaction();
+    AppendFiles appendFiles = transaction.newAppend();
+    appendFiles.appendFile(createDataFile(rootPath.toFile(), "d1"));
+    appendFiles.commit();
+    transaction.commitTransaction();
 
-      testBuilder()
-          .sqlQuery("select count(*) c from " + tableName)
-          .unOrdered()
-          .baselineColumns("c")
-          .baselineValues(25L)
-          .build()
-          .run();
+    testBuilder()
+        .sqlQuery("select count(*) c from " + tableName)
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(25L)
+        .build()
+        .run();
 
-      // to detect an mtime change.
-      Thread.sleep(1000);
+    // to detect an mtime change.
+    Thread.sleep(1000);
 
-      // refresh without an update
-      testBuilder()
-          .sqlQuery("ALTER TABLE " + tableName + " REFRESH METADATA")
-          .unOrdered()
-          .baselineColumns("ok", "summary")
-          .baselineValues(
-              true,
-              String.format(
-                  "Table '%s' read signature reviewed but source stated metadata is unchanged, no refresh occurred.",
-                  tableName))
-          .build()
-          .run();
+    // refresh without an update
+    testBuilder()
+        .sqlQuery("ALTER TABLE " + tableName + " REFRESH METADATA")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(
+            true,
+            String.format(
+                "Table '%s' read signature reviewed but source stated metadata is unchanged, no refresh occurred.",
+                tableName))
+        .build()
+        .run();
 
-      // Do another append
-      transaction = table.newTransaction();
-      appendFiles = transaction.newAppend();
-      appendFiles.appendFile(createDataFile(rootPath.toFile(), "d2"));
-      appendFiles.commit();
-      transaction.commitTransaction();
+    // Do another append
+    transaction = table.newTransaction();
+    appendFiles = transaction.newAppend();
+    appendFiles.appendFile(createDataFile(rootPath.toFile(), "d2"));
+    appendFiles.commit();
+    transaction.commitTransaction();
 
-      // refresh
-      testBuilder()
-          .sqlQuery("ALTER TABLE " + tableName + " REFRESH METADATA")
-          .unOrdered()
-          .baselineColumns("ok", "summary")
-          .baselineValues(true, String.format("Metadata for table '%s' refreshed.", tableName))
-          .build()
-          .run();
+    // refresh
+    testBuilder()
+        .sqlQuery("ALTER TABLE " + tableName + " REFRESH METADATA")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, String.format("Metadata for table '%s' refreshed.", tableName))
+        .build()
+        .run();
 
-      // validate increased row count
-      testBuilder()
-          .sqlQuery("select count(*) c from " + tableName)
-          .unOrdered()
-          .baselineColumns("c")
-          .baselineValues(50L)
-          .build()
-          .run();
-    }
+    // validate increased row count
+    testBuilder()
+        .sqlQuery("select count(*) c from " + tableName)
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(50L)
+        .build()
+        .run();
   }
 }

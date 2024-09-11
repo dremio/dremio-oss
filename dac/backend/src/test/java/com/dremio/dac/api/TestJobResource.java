@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.api;
 
-import static com.dremio.service.jobs.JobsServiceUtil.finalJobStates;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -26,6 +25,7 @@ import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.users.SystemUser;
 import java.util.Arrays;
@@ -70,7 +70,7 @@ public class TestJobResource extends BaseTestServer {
 
       Assert.assertTrue(
           "expected job to complete successfully",
-          ensureJobIsRunningOrFinishedWith(JobState.COMPLETED, jobState));
+          JobsServiceUtil.ensureJobIsRunningOrFinishedWith(JobState.COMPLETED, jobState));
 
       if (jobState == JobState.COMPLETED) {
         expectStatus(
@@ -180,13 +180,5 @@ public class TestJobResource extends BaseTestServer {
     expectStatus(
         Response.Status.NOT_FOUND,
         getBuilder(getPublicAPI(3).path(JOB_PATH).path("bad-id")).buildGet());
-  }
-
-  private boolean ensureJobIsRunningOrFinishedWith(JobState expectedFinalState, JobState state) {
-    if (expectedFinalState.equals(state)) {
-      return true;
-    }
-
-    return !finalJobStates.contains(state);
   }
 }

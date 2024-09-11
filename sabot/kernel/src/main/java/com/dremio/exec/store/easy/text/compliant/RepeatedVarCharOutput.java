@@ -17,6 +17,7 @@ package com.dremio.exec.store.easy.text.compliant;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.common.expression.PathSegment.PathSegmentType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -103,14 +104,14 @@ class RepeatedVarCharOutput extends TextOutput {
     this.output = outputMutator;
     rootWriter = new VectorContainerWriter(outputMutator);
     listWriter = rootWriter.rootAsStruct().list(COL_NAME);
-    tmpBuf = outputMutator.getManagedBuffer();
 
     { // setup fields
       List<Integer> columnIds = new ArrayList<>();
       if (!isStarQuery) {
         String pathStr;
         for (SchemaPath path : columns) {
-          assert path.getRootSegment().isNamed() : "root segment should be named";
+          assert path.getRootSegment().getType().equals(PathSegmentType.NAME)
+              : "root segment should be named";
           pathStr = path.getRootSegment().getPath();
           Preconditions.checkArgument(
               pathStr.equals(COL_NAME)
@@ -120,7 +121,7 @@ class RepeatedVarCharOutput extends TextOutput {
 
           if (path.getRootSegment().getChild() != null) {
             Preconditions.checkArgument(
-                path.getRootSegment().getChild().isArray(),
+                path.getRootSegment().getChild().getType().equals(PathSegmentType.ARRAY_INDEX),
                 String.format("Selected column '%s' must be an array index", pathStr));
             int index = path.getRootSegment().getChild().getArraySegment().getOptionalIndex();
             columnIds.add(index);
@@ -143,6 +144,11 @@ class RepeatedVarCharOutput extends TextOutput {
     }
   }
 
+  @Override
+  public void init() {
+    this.tmpBuf = output.getManagedBuffer();
+  }
+
   /** Start a new record batch. Resets all the offsets and pointers that store buffer addresses */
   @Override
   public void startBatch() {
@@ -159,11 +165,16 @@ class RepeatedVarCharOutput extends TextOutput {
       return;
     }
 
-    byte[] tmp = new byte[LargeMemoryUtil.checkedCastToInt(tmpBuf.capacity())];
-    tmpBuf.getBytes(0, tmp);
-    tmpBuf = tmpBuf.reallocIfNeeded(Math.min(tmpBuf.capacity() * 2, maxCellLimit + 1));
-    tmpBuf.setBytes(0, tmp);
-    charLengthOffset = tmp.length;
+    ArrowBuf oldBuf = tmpBuf;
+    // addref
+    oldBuf.getReferenceManager().retain();
+    try {
+      tmpBuf = tmpBuf.reallocIfNeeded(Math.min(tmpBuf.capacity() * 2, maxCellLimit + 1));
+      tmpBuf.setBytes(0, oldBuf, 0, oldBuf.capacity());
+      charLengthOffset = LargeMemoryUtil.checkedCastToInt(oldBuf.capacity());
+    } finally {
+      oldBuf.getReferenceManager().release();
+    }
   }
 
   @Override
@@ -231,7 +242,9 @@ class RepeatedVarCharOutput extends TextOutput {
 
   @Override
   public void close() {
-    tmpBuf.clear();
+    if (tmpBuf != null) {
+      tmpBuf.clear();
+    }
   }
 
   /**

@@ -220,7 +220,8 @@ public class ExprCachePrewarmService implements Service {
         }
         javaCodeGenWatch.start();
         Projector projector = cg.getCodeGenerator().getImplementationClass();
-        projector.setup(context.getFunctionContext(), incoming, output, transfers, (name) -> null);
+        projector.setup(
+            context.getFunctionContext(), incoming, output, transfers, (name) -> null, null);
         javaCodeGenWatch.stop();
 
         logger.info("Successfully built the project expressions from file {}", path.toString());

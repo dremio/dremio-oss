@@ -21,6 +21,7 @@ import static com.dremio.dac.proto.model.dataset.OrderDirection.ASC;
 import static com.dremio.dac.proto.model.dataset.OrderDirection.DESC;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -95,7 +96,7 @@ public class TestServerWithInitialData extends BaseTestServer {
     doc("sort dataset by B");
     // transform and save
     DatasetUI dsTransform1 = transformAndValidate(dsGet, new TransformSort("B", ASC)).getDataset();
-    assertContains("order by b asc", dsTransform1.getSql().toLowerCase());
+    assertThat(dsTransform1.getSql().toLowerCase()).contains("order by b asc");
 
     doc("sort multiple columns");
     DatasetUI dsTransform2 =
@@ -104,7 +105,7 @@ public class TestServerWithInitialData extends BaseTestServer {
                 new TransformSorts()
                     .setColumnsList(asList(new Order("B", ASC), new Order("A", DESC))))
             .getDataset();
-    assertContains("order by b asc, a desc", dsTransform2.getSql().toLowerCase());
+    assertThat(dsTransform2.getSql().toLowerCase()).contains("order by b asc, a desc");
   }
 
   @Test
@@ -327,7 +328,7 @@ public class TestServerWithInitialData extends BaseTestServer {
     source.setConfig(nas);
     source.setMetadataPolicy(
         UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
-    final SourceService sourceService = newSourceService();
+    final SourceService sourceService = getSourceService();
     sourceService.registerSourceWithRuntime(source);
 
     // preview a file in NAS source, so that it will be added as a physical dataset

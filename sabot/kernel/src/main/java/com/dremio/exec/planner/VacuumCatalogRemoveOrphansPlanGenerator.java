@@ -23,35 +23,29 @@ import static com.dremio.exec.store.SystemSchemas.METADATA_FILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.METADATA_PATH_SCAN_SCHEMA;
 import static com.dremio.exec.store.iceberg.SnapshotsScanOptions.Mode.ALL_SNAPSHOTS;
 
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VacuumOptions;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.RoundRobinExchangePrel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.iceberg.IcebergLocationFinderPrel;
-import com.dremio.exec.store.iceberg.IcebergManifestScanPrel;
 import com.dremio.exec.store.iceberg.NessieCommitsScanPrel;
 import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
 import com.dremio.exec.store.iceberg.SnapshotsScanOptions.Mode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.iceberg.TableProperties;
 
 /** Expand plans for VACUUM CATALOG REMOVE ORPHANS flow. */
 public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOrphansPlanGenerator {
   private final VacuumOptions vacuumCatalogOptions;
+  private final String fsScheme;
 
   public VacuumCatalogRemoveOrphansPlanGenerator(
       RelOptCluster cluster,
@@ -59,7 +53,9 @@ public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOr
       VacuumOptions vacuumOptions,
       StoragePluginId storagePluginId,
       IcebergCostEstimates icebergCostEstimates,
-      String user) {
+      String user,
+      String fsScheme,
+      String schemeVariate) {
     super(
         cluster,
         traitSet,
@@ -69,8 +65,11 @@ public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOr
         storagePluginId,
         storagePluginId,
         user,
+        null,
         null);
     this.vacuumCatalogOptions = vacuumOptions;
+    this.fsScheme = fsScheme;
+    this.schemeVariate = schemeVariate;
   }
 
   @Override
@@ -89,7 +88,9 @@ public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOr
         user,
         storagePluginId,
         icebergCostEstimates.getSnapshotsCount(),
-        1);
+        1,
+        fsScheme,
+        getSchemeVariate());
   }
 
   @Override
@@ -103,36 +104,6 @@ public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOr
         new HashToRandomExchangePrel(
             cluster, traitSet, snapshotsScanPlan, distributionTrait.getFields());
     return super.getPartitionStatsScanPrel(hashToRandomExchangePrel);
-  }
-
-  @Override
-  protected Prel getManifestScanPrel(Prel input) {
-    RelTraitSet roundRobinTraitSet = input.getTraitSet().plus(DistributionTrait.ROUND_ROBIN);
-    Prel manifestSplitsExchange =
-        new RoundRobinExchangePrel(input.getCluster(), roundRobinTraitSet, input);
-
-    BatchSchema manifestFileReaderSchema = MANIFEST_SCAN_SCHEMA;
-    List<SchemaPath> manifestFileReaderColumns =
-        manifestFileReaderSchema.getFields().stream()
-            .map(f -> SchemaPath.getSimplePath(f.getName()))
-            .collect(Collectors.toList());
-
-    RelDataType rowType =
-        ScanRelBase.getRowTypeFromProjectedColumns(
-            manifestFileReaderColumns, manifestFileReaderSchema, cluster);
-
-    return new IcebergManifestScanPrel(
-        manifestSplitsExchange.getCluster(),
-        manifestSplitsExchange.getTraitSet().plus(DistributionTrait.ANY),
-        manifestSplitsExchange,
-        storagePluginId,
-        internalStoragePlugin,
-        manifestFileReaderColumns,
-        manifestFileReaderSchema,
-        rowType,
-        input.getEstimatedSize() + icebergCostEstimates.getDataFileEstimatedCount(),
-        user,
-        false);
   }
 
   @Override
@@ -151,7 +122,9 @@ public class VacuumCatalogRemoveOrphansPlanGenerator extends VacuumTableRemoveOr
         user,
         storagePluginId,
         icebergCostEstimates.getSnapshotsCount(),
-        1);
+        1,
+        fsScheme,
+        getSchemeVariate());
   }
 
   @Override

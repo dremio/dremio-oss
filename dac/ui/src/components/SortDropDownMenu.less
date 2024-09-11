@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .sortDropDownMenu {
@@ -23,7 +22,7 @@
 
       &:hover {
         .dropdownMenu__text {
-          color: var(--dremio--color--link);
+          color: var(--text--brand);
         }
       }
     }
@@ -40,7 +39,7 @@
       .--sortArrow {
         height: 24px;
         width: 24px;
-        color: var(--color--neutral--600);
+        color: var(--icon--primary);
       }
 
       .--desc {
@@ -52,7 +51,7 @@
           margin-top: 4px;
           height: 24px;
           width: 24px;
-          color: var(--color--neutral--600);
+          color: var(--icon--primary);
         }
 
         .--desc {
@@ -74,7 +73,7 @@
   }
   .menu-item-inner {
     &.--delete {
-      color: @FIGMA_STATUS_ERROR;
+      color: var(--fill--danger--solid);
     }
   }
 }

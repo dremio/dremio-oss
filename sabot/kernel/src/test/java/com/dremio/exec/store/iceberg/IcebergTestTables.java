@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import com.dremio.BaseTestQuery;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFileReader;
 import com.google.common.base.Strings;
@@ -81,6 +80,30 @@ public class IcebergTestTables {
                   + Strings.repeat("0", 100)
                   + "/multi_rowgroup_orders_with_deletes");
 
+  public static Supplier<Table> MERGE_ON_READ_TARGET =
+      () ->
+          getTable(
+              "iceberg/v2/Merge_On_Read_Target_Unpartitioned",
+              "dfs_static_test_hadoop",
+              "/tmp/iceberg-test-tables",
+              "/v2/Merge_On_Read_Target_Unpartitioned");
+
+  public static Supplier<Table> MERGE_ON_READ_TARGET_PARTITIONED =
+      () ->
+          getTable(
+              "iceberg/v2/Merge_On_Read_Target_Partitioned",
+              "dfs_static_test_hadoop",
+              "/tmp/iceberg-test-tables",
+              "/v2/Merge_On_Read_Target_Partitioned");
+
+  public static Supplier<Table> MERGE_ON_READ_SOURCE =
+      () ->
+          getTable(
+              "iceberg/v2/Merge_On_Read_Source_Partitioned",
+              "dfs_static_test_hadoop",
+              "/tmp/iceberg-test-tables",
+              "/v2/Merge_On_Read_Source_Partitioned");
+
   public static Supplier<Table> V2_ORDERS =
       () ->
           getTable(
@@ -138,7 +161,6 @@ public class IcebergTestTables {
     private final FileSystem fs;
     private final String location;
     private final String tableName;
-    private AutoCloseable icebergOptionsScope;
 
     public Table(String resourcePath, String source, String sourceRoot, String location)
         throws Exception {
@@ -149,10 +171,6 @@ public class IcebergTestTables {
       this.tableName = source + location.replace('/', '.');
 
       copyFromJar(resourcePath, sourceRoot + location);
-    }
-
-    public void enableIcebergSystemOptions() {
-      this.icebergOptionsScope = BaseTestQuery.enableIcebergTables();
     }
 
     public String getLocation() {
@@ -167,9 +185,6 @@ public class IcebergTestTables {
     public void close() throws Exception {
       if (location != null) {
         fs.delete(new Path(location), true);
-      }
-      if (icebergOptionsScope != null) {
-        icebergOptionsScope.close();
       }
     }
 

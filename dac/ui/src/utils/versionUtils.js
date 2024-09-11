@@ -28,4 +28,4 @@ export function isNotSoftware() {
 }
 
 export const getDocsLink = () =>
-  "https://docs.dremio.com/software/sql-reference/sql-functions/functions";
+  "https://docs.dremio.com/current/reference/sql/sql-functions/functions";

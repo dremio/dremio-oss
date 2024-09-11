@@ -20,9 +20,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
-import com.dremio.telemetry.api.metrics.Histogram;
-import com.dremio.telemetry.api.metrics.Metrics;
-import com.dremio.telemetry.api.metrics.Metrics.ResetType;
+import com.dremio.telemetry.api.metrics.SimpleDistributionSummary;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.protobuf.ByteString;
@@ -119,12 +117,12 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
 
   protected final RpcConfig rpcConfig;
 
-  private final Histogram sendDurations;
+  private final SimpleDistributionSummary sendDurations;
 
   public RpcBus(RpcConfig rpcConfig) {
     this.rpcConfig = rpcConfig;
     this.sendDurations =
-        Metrics.newHistogram(rpcConfig.getName() + "-send-durations-ms", ResetType.NEVER);
+        SimpleDistributionSummary.of(rpcConfig.getName().toLowerCase() + ".send_durations_ms");
   }
 
   <SEND extends MessageLite, RECEIVE extends MessageLite> RpcFuture<RECEIVE> send(
@@ -198,7 +196,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
       ChannelFuture channelFuture = connection.getChannel().writeAndFlush(m);
       channelFuture.addListener(futureListener);
       channelFuture.addListener(
-          future -> sendDurations.update(stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+          future -> sendDurations.recordAmount(stopwatch.elapsed(TimeUnit.MILLISECONDS)));
       completed = true;
     } catch (IllegalStateException e) {
       listener.failed(

@@ -29,5 +29,8 @@ export const refreshReflection = async (
 ): Promise<void> => {
   return getApiContext()
     .fetch(refreshReflectionUrl(params), { method: "POST" })
-    .then(() => undefined);
+    .then(() => undefined)
+    .catch((e) => {
+      throw e;
+    });
 };

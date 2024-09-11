@@ -33,7 +33,7 @@ export const convertISOStringWithTooltip = (
   commitTime: string,
   options?: {
     isRelative?: boolean;
-  }
+  },
 ): string | JSX.Element => {
   if (options?.isRelative) {
     const pastSevenDays = moment().subtract(6, "days").startOf("day");
@@ -49,7 +49,7 @@ export const convertISOStringWithTooltip = (
     }
     return formatDateSince(
       new Date(commitTime).toString(),
-      "MMM DD, YYYY, h:mmA"
+      "MMM DD, YYYY, h:mmA",
     );
   } else if (commitTime) {
     return formatDate(commitTime, DEFAULT_FORMAT_WITH_TIME_SECONDS);
@@ -59,7 +59,6 @@ export const convertISOStringWithTooltip = (
 };
 export const renderIcons = (
   branch: Reference,
-  renderIcon: boolean,
   isArcticSource: boolean,
   goToDataset: () => void,
   openCreateDialog: (arg: Reference, isDefault?: boolean) => void,
@@ -67,7 +66,7 @@ export const renderIcons = (
   openMergeDialog?: (arg: Reference) => void,
   isDefault?: boolean,
   openTagDialog?: (arg: Reference, isDefault?: boolean) => void,
-  catalogPrivileges?: any
+  catalogPrivileges?: any,
 ): JSX.Element => {
   const renderMenu = () => {
     return (
@@ -78,14 +77,14 @@ export const renderIcons = (
             openTagDialog && (
               <MenuItem onClick={() => openTagDialog(branch, isDefault)}>
                 <span className="branch-list-menu-item">
-                  {intl.formatMessage({ id: "ArcticCatalog.Tags.AddTag" })}
+                  {intl.formatMessage({ id: "VersionedEntity.Tags.AddTag" })}
                 </span>
               </MenuItem>
             )
           : openTagDialog && (
               <MenuItem onClick={() => openTagDialog(branch, isDefault)}>
                 <span className="branch-list-menu-item">
-                  {intl.formatMessage({ id: "ArcticCatalog.Tags.AddTag" })}
+                  {intl.formatMessage({ id: "VersionedEntity.Tags.AddTag" })}
                 </span>
               </MenuItem>
             )}
@@ -166,7 +165,7 @@ export const renderIcons = (
     );
   };
 
-  return isDefault && renderIcon ? (
+  return isDefault ? (
     <>
       {renderGoToDataset()}
       {renderMerge()}
@@ -177,7 +176,7 @@ export const renderIcons = (
         : renderCreateBranch(isDefault)}
       {renderSettings()}
     </>
-  ) : renderIcon ? (
+  ) : (
     <>
       {renderGoToDataset()}
       {renderMerge()}
@@ -188,7 +187,5 @@ export const renderIcons = (
         : renderCreateBranch()}
       {renderSettings()}
     </>
-  ) : (
-    <></>
   );
 };

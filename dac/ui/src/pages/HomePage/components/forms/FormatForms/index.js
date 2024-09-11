@@ -16,5 +16,6 @@
 import ExcelFormatForm from "./ExcelFormatForm";
 import TextFormatForm from "./TextFormatForm";
 import XLSFormatForm from "./XLSFormatForm";
+import ParquetFormatForm from "./ParquetFormatForm";
 
-export { ExcelFormatForm, TextFormatForm, XLSFormatForm };
+export { ExcelFormatForm, TextFormatForm, XLSFormatForm, ParquetFormatForm };

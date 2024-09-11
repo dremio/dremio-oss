@@ -21,10 +21,13 @@ import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.common.concurrent.bulk.BulkRequest;
+import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.datastore.SearchTypes;
-import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -47,10 +50,10 @@ import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
@@ -151,6 +154,18 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public BulkResponse<NamespaceKey, Optional<DremioTable>> bulkGetTables(
+      BulkRequest<NamespaceKey> keys) {
+    return delegate.bulkGetTables(keys);
+  }
+
+  @Override
+  public BulkResponse<NamespaceKey, Optional<DremioTable>> bulkGetTablesForQuery(
+      BulkRequest<NamespaceKey> keys) {
+    return delegate.bulkGetTablesForQuery(keys);
+  }
+
+  @Override
   public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
     return delegate.getColumnExtendedProperties(table);
   }
@@ -181,7 +196,7 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public Collection<Function> getFunctions(NamespaceKey path, FunctionType functionType) {
+  public Collection<Function> getFunctions(CatalogEntityKey path, FunctionType functionType) {
     return delegate.getFunctions(path, functionType);
   }
 
@@ -382,15 +397,18 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public CatalogAccessStats getCatalogAccessStats() {
+    return delegate.getCatalogAccessStats();
+  }
+
+  @Override
   public boolean createOrUpdateDataset(
-      NamespaceService userNamespaceService,
       NamespaceKey source,
       NamespaceKey datasetPath,
       DatasetConfig datasetConfig,
       NamespaceAttribute... attributes)
       throws NamespaceException {
-    return delegate.createOrUpdateDataset(
-        userNamespaceService, source, datasetPath, datasetConfig, attributes);
+    return delegate.createOrUpdateDataset(source, datasetPath, datasetConfig, attributes);
   }
 
   @Override
@@ -492,11 +510,6 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void addCatalogStats() {
-    delegate.addCatalogStats();
-  }
-
-  @Override
   public void clearDatasetCache(NamespaceKey dataset, final TableVersionContext context) {
     delegate.clearDatasetCache(dataset, context);
   }
@@ -512,6 +525,11 @@ public abstract class DelegatingCatalog implements Catalog {
     return delegate;
   }
 
+  @Override
+  public void clearPermissionCache(String sourceName) {
+    delegate.clearPermissionCache(sourceName);
+  }
+
   //// Begin: NamespacePassthrough Methods
   @Override
   public boolean existsById(CatalogEntityId id) {
@@ -519,8 +537,7 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys)
-      throws NamespaceNotFoundException {
+  public List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys) {
     return delegate.getEntities(lookupKeys);
   }
 
@@ -571,9 +588,13 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(
-      LegacyIndexedStore.LegacyFindByCondition condition) {
+  public Iterable<Document<NamespaceKey, NameSpaceContainer>> find(FindByCondition condition) {
     return delegate.find(condition);
+  }
+
+  @Override
+  public List<NameSpaceContainer> getEntitiesByIds(List<EntityId> ids) {
+    return delegate.getEntitiesByIds(ids);
   }
   //// End: NamespacePassthrough Methods
 }

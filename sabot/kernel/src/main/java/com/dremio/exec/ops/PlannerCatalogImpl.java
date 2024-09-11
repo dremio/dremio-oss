@@ -68,7 +68,7 @@ public class PlannerCatalogImpl implements PlannerCatalog {
   private Catalog metadataCatalog;
   private QueryContext context;
 
-  PlannerCatalogImpl(
+  public PlannerCatalogImpl(
       QueryContext context, ViewExpander viewExpander, OptionResolver optionResolver) {
     this.viewExpander = viewExpander;
     this.optionResolver = optionResolver;
@@ -126,7 +126,7 @@ public class PlannerCatalogImpl implements PlannerCatalog {
 
   @Override
   public Collection<Function> getFunctions(
-      NamespaceKey path, SimpleCatalog.FunctionType functionType) {
+      CatalogEntityKey path, SimpleCatalog.FunctionType functionType) {
     Collection<Function> f =
         metadataCatalog.getFunctions(path, functionType).stream()
             .map(

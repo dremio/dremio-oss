@@ -25,7 +25,7 @@ import java.io.IOException;
  * @param <T> The type of history information that this history event handler can handle, which must
  *     extend the {@link FileLoadInfo} interface.
  */
-public interface HistoryEventHandler<T extends FileLoadInfo> {
+public interface HistoryEventHandler<T extends FileLoadInfo> extends AutoCloseable {
 
   /**
    * Commit the processed history event information. Implementations should define the logic for
@@ -43,4 +43,12 @@ public interface HistoryEventHandler<T extends FileLoadInfo> {
    * @throws IOException If an I/O error occurs during the process operation.
    */
   void process(T fileLoadInfo) throws Exception;
+
+  /**
+   * Entries made through snapshots added by job with jobId are reverted from table.
+   *
+   * @param jobId Job ID to be reverted.
+   * @param ex The exception due to which tables have to be reverted.
+   */
+  void revert(String jobId, Exception ex);
 }

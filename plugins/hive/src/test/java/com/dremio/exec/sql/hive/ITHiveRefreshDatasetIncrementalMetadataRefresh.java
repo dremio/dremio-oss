@@ -478,7 +478,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         Types.NestedField.optional(2, "col2", new Types.StringType()),
         Types.NestedField.optional(3, "col3", new Types.IntegerType())));
 
-      verifyIcebergMetadata(finalIcebergMetadataLocation, 0, 0, expectedSchema, new HashSet<>(),1);
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema, new HashSet<>(),1);
 
       String selectQuery = "SELECT * from " + HIVE + tableName;
       testBuilder()
@@ -519,7 +519,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         Types.NestedField.optional(3, "col3", new Types.StringType()),
         Types.NestedField.optional(4, "year", new Types.IntegerType())));
 
-      verifyIcebergMetadata(finalIcebergMetadataLocation, 0, 0, expectedSchema, Sets.newHashSet("year"), 1);
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema, Sets.newHashSet("year"), 1);
 
       String selectQuery = "SELECT * from " + HIVE + tableName;
       testBuilder()

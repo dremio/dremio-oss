@@ -15,11 +15,11 @@
  */
 package com.dremio.service.coordinator.zk;
 
+import static com.dremio.service.coordinator.zk.ZKClusterConfig.COORDINATOR_ZK_SUPERVISOR;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.NamedThreadFactory;
-import com.dremio.configfeature.ConfigFeatureProvider;
-import com.dremio.configfeature.Features;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
 import com.dremio.service.coordinator.DistributedSemaphore;
@@ -27,8 +27,7 @@ import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.service.coordinator.LinearizableHierarchicalStore;
 import com.dremio.service.coordinator.ObservableConnectionLostHandler;
-import com.dremio.telemetry.api.metrics.Counter;
-import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.SimpleCounter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -53,6 +52,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.concurrent.ThreadSafe;
@@ -66,6 +66,7 @@ import org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import org.apache.curator.framework.recipes.leader.Participant;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.curator.utils.ZookeeperCompatibility;
 import org.apache.curator.utils.ZookeeperFactory;
 import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceDiscoveryBuilder;
@@ -75,24 +76,32 @@ import org.apache.zookeeper.ZooKeeper;
 public class ZKClusterClient implements com.dremio.service.Service {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(ZKClusterClient.class);
+
+  private static final ZookeeperCompatibility ZK_35_COMPATIBILITY =
+      ZookeeperCompatibility.builder().hasPersistentWatchers(false).build();
+
   private static final Pattern ZK_COMPLEX_STRING = Pattern.compile("(^[^/]*?)/(?:(.*)/)?([^/]*)$");
   public static final String ZK_LOST_HANDLER_MODULE_CLASS =
       "dremio.coordinator_lost_handle.module.class";
 
-  private static final Counter ZK_SUPERVISOR_FAILED_COUNTER =
-      Metrics.newCounter(
-          Metrics.join("ZKClusterClient", "supervisorProbeFailed"), Metrics.ResetType.NEVER);
-  private static final Counter ZK_SUPERVISOR_EXIT_APP_COUNTER =
-      Metrics.newCounter(
-          Metrics.join("ZKClusterClient", "supervisorExitApplication"), Metrics.ResetType.NEVER);
-  private static final Counter ZK_SESSION_LOST_COUNTER =
-      Metrics.newCounter(Metrics.join("ZKClusterClient", "sessionLost"), Metrics.ResetType.NEVER);
-  private static final Counter ZK_SESSION_SUSPENDED_COUNTER =
-      Metrics.newCounter(
-          Metrics.join("ZKClusterClient", "sessionSuspended"), Metrics.ResetType.NEVER);
-  private static final Counter ZK_RECONNECTED_COUNTER =
-      Metrics.newCounter(
-          Metrics.join("ZKClusterClient", "sessionRecovered"), Metrics.ResetType.NEVER);
+  private static final SimpleCounter ZK_SUPERVISOR_FAILED_COUNTER =
+      SimpleCounter.of(
+          "zk_cluster_client.supervisor_probe_failed",
+          "Number of failed attempts to probe the ZK supervisor");
+  private static final SimpleCounter ZK_SUPERVISOR_EXIT_APP_COUNTER =
+      SimpleCounter.of(
+          "zk_cluster_client.supervisor_exit_application",
+          "Number of times the application was terminated because of the ZK supervisor probe failures");
+  private static final SimpleCounter ZK_SESSION_LOST_COUNTER =
+      SimpleCounter.of(
+          "zk_cluster_client.session_lost", "Number of times connection to ZK was lost");
+  private static final SimpleCounter ZK_SESSION_SUSPENDED_COUNTER =
+      SimpleCounter.of(
+          "zk_cluster_client.session_suspended", "Number of times connection to ZK was suspended");
+  private static final SimpleCounter ZK_RECONNECTED_COUNTER =
+      SimpleCounter.of(
+          "zk_cluster_client.session_recovered",
+          "Number of times connection to ZK was successfully reestablished");
 
   private final String clusterId;
   private final CountDownLatch initialConnection = new CountDownLatch(1);
@@ -117,7 +126,7 @@ public class ZKClusterClient implements com.dremio.service.Service {
   private int currentNumberOfSupervisorProbeFailures = 0;
   private final String clusterIdPath;
 
-  private final ConfigFeatureProvider configFeatureProvider;
+  private final Predicate<String> featureEvaluator;
 
   public ZKClusterClient(ZKClusterConfig config, String connect) throws IOException {
     this(config, connect, null, new ZKClientFactory());
@@ -138,7 +147,7 @@ public class ZKClusterClient implements com.dremio.service.Service {
       Provider<Integer> localPort,
       ZookeeperFactory zkFactory)
       throws IOException {
-    this.configFeatureProvider = config.getConfigFeatureProvider();
+    this.featureEvaluator = config.getFeatureEvaluator();
     this.localPortProvider = localPort;
     this.connect = connect;
     this.config = config;
@@ -197,11 +206,12 @@ public class ZKClusterClient implements com.dremio.service.Service {
             .retryPolicy(rp)
             .connectString(connectionString)
             .zookeeperFactory(zkFactory)
+            .zookeeperCompatibility(ZK_35_COMPATIBILITY)
             .build();
     curator.getConnectionStateListenable().addListener(new InitialConnectionListener());
     curator.getConnectionStateListenable().addListener(new ConnectionListener());
     curator.start();
-    discovery = newDiscovery(clusterId);
+    discovery = newDiscovery(clusterIdPath);
 
     logger.info(
         "Starting ZKClusterClient, ZK_TIMEOUT:{}, ZK_SESSION_TIMEOUT:{}, ZK_RETRY_MAX_DELAY:{}, "
@@ -242,9 +252,8 @@ public class ZKClusterClient implements com.dremio.service.Service {
   }
 
   private void runSupervisorCheck() {
-    if (configFeatureProvider != null
-        && configFeatureProvider.isFeatureEnabled(
-            Features.COORDINATOR_ZK_SUPERVISOR.getFeatureName())) {
+    if (featureEvaluator != null
+        && featureEvaluator.test(COORDINATOR_ZK_SUPERVISOR.getOptionName())) {
       boolean isProbeSucceeded = false;
       if (isConnected == null || !isConnected) {
         logger.error("ZKClusterClient: Not connected to ZK.");
@@ -276,12 +285,15 @@ public class ZKClusterClient implements com.dremio.service.Service {
       if (!isProbeSucceeded) {
         ZK_SUPERVISOR_FAILED_COUNTER.increment();
         currentNumberOfSupervisorProbeFailures++;
+
         if (currentNumberOfSupervisorProbeFailures >= config.getZkSupervisorMaxFailures()) {
           ZK_SUPERVISOR_EXIT_APP_COUNTER.increment();
+
           logger.error(
               "ZKClusterClient: max number of failures has reached [{}/{}]. Calling probe action for out of service",
               currentNumberOfSupervisorProbeFailures,
               config.getZkSupervisorMaxFailures());
+
           Runtime.getRuntime().halt(1);
         } else {
           logger.warn(

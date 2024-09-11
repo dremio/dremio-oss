@@ -191,6 +191,11 @@ export function* waitForRunToComplete(
           if (index > -1 && !queryStatuses[index].error) {
             const newStatuses = cloneDeep(queryStatuses);
             newStatuses[index].error = response;
+
+            if (newStatuses[index].lazyLoad) {
+              newStatuses[index].lazyLoad = false;
+            }
+
             yield put(setQueryStatuses({ statuses: newStatuses }));
           }
         }

@@ -26,14 +26,17 @@ import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.common.PlannerMetrics;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils;
 import com.dremio.exec.planner.sql.parser.DremioHint;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Metrics;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +46,6 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -68,6 +70,7 @@ public class SqlValidatorAndToRelContext {
   private final RelOptTable.ToRelContext toRelContext;
   private final SqlRexConvertletTable sqlRexConvertletTable;
   private final ContextInformation contextInformation;
+  private final Meter.MeterProvider<Counter> ambiguousColumnCounter;
 
   public SqlValidatorAndToRelContext(
       SqlValidatorImpl sqlValidator,
@@ -88,13 +91,34 @@ public class SqlValidatorAndToRelContext {
     this.dremioStringToSqlNode = checkNotNull(dremioStringToSqlNode, "dremioStringToSqlNode");
     this.optionResolver = checkNotNull(optionResolver, "optionResolver");
     this.contextInformation = checkNotNull(contextInformation, "contextInformation");
+    this.ambiguousColumnCounter =
+        Counter.builder(
+                PlannerMetrics.createName(PlannerMetrics.PREFIX, PlannerMetrics.AMBIGUOUS_COLUMN))
+            .description("Tracks how queries with ambiguous columns are found")
+            .withRegistry(Metrics.globalRegistry);
   }
 
   public SqlNode validate(final SqlNode parsedNode) {
     resolveVersionedTableExpressions(parsedNode);
+    String sqlQuery = parsedNode.toString();
     SqlNode node = validator.validate(parsedNode);
+    checkAmbiguousColumn(validator, sqlQuery);
     dremioCatalogReader.validateSelection();
     return node;
+  }
+
+  public void checkAmbiguousColumn(SqlValidator validator, String sqlQuery) {
+    if (optionResolver.getOption(PlannerSettings.ALLOW_AMBIGUOUS_COLUMN)
+        && optionResolver.getOption(PlannerSettings.WARN_IF_AMBIGUOUS_COLUMN)) {
+      // Check only if configured to allow ambiguous columns
+      // Otherwise we throw an exception through Calcite.
+      if (validator.hasValidationMessage()
+          && validator.getValidationMessage().contains("ambiguous")) {
+        String msg = validator.getValidationMessage() + " in statement " + sqlQuery;
+        LOGGER.warn(msg);
+        ambiguousColumnCounter.withTags().increment();
+      }
+    }
   }
 
   public RelNode validateAndConvertForExpression(final SqlNode sqlNode) {
@@ -136,8 +160,7 @@ public class SqlValidatorAndToRelContext {
     final SqlToRelConverter.Config config =
         createDefaultSqlToRelConfigBuilder()
             .withInSubQueryThreshold((int) inSubQueryThreshold)
-            .withConvertTableAccess(
-                withConvertTableAccess && o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT))
+            .withConvertTableAccess(withConvertTableAccess)
             .withHintStrategyTable(DremioHint.buildHintStrategyTable())
             .build();
     final SqlToRelConverter sqlToRelConverter =
@@ -148,48 +171,28 @@ public class SqlValidatorAndToRelContext {
             validator,
             sqlRexConvertletTable,
             config);
-    final boolean isComplexTypeSupport = o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT);
     // Previously we had "top" = !innerQuery, but calcite only adds project if it is not a top
     // query.
     final RelRoot rel =
-        sqlToRelConverter.convertQuery(validatedNode, false /* needs validate */, false /* top */);
+        sqlToRelConverter.convertQuery(validatedNode, false /* needs validate */, true /* top */);
     if (!flatten) {
       return rel;
     }
 
-    final RelNode rel2;
-    if (isComplexTypeSupport) {
-      rel2 = MoreRelOptUtil.StructuredConditionRewriter.rewrite(rel.rel);
-    } else {
-      rel2 = sqlToRelConverter.flattenTypes(rel.rel, true);
-    }
-
-    final RelNode rel3;
-    if (!isComplexTypeSupport) {
-      rel3 = rel2.accept(new RexSubQueryUtils.RelsWithRexSubQueryFlattener(sqlToRelConverter));
-    } else {
-      rel3 = rel2;
-    }
-
+    final RelNode rel2 = MoreRelOptUtil.StructuredConditionRewriter.rewrite(rel.rel);
     if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug("ConvertQuery:\n{}", RelOptUtil.toString(rel3, SqlExplainLevel.ALL_ATTRIBUTES));
+      LOGGER.debug("ConvertQuery:\n{}", RelOptUtil.toString(rel2, SqlExplainLevel.ALL_ATTRIBUTES));
     }
 
-    return RelRoot.of(rel3, rel.validatedRowType, rel.kind);
+    return RelRoot.of(rel2, rel.validatedRowType, rel.kind);
   }
 
   public SqlNode parse(String sqlString) {
     return dremioStringToSqlNode.parse(sqlString);
   }
 
-  public RelDataType getValidatedRowType(String sql) {
-    SqlNode sqlNode = dremioStringToSqlNode.parse(sql);
-    SqlNode validatedNode = validate(sqlNode);
-    return validator.getValidatedNodeType(validatedNode);
-  }
-
-  public RelDataType getOutputType(SqlNode validatedNode) {
-    return validator.getValidatedNodeType(validatedNode);
+  public SqlValidatorImpl getValidator() {
+    return validator;
   }
 
   public DremioCatalogReader getDremioCatalogReader() {

@@ -28,7 +28,6 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.users.UserNotFoundException;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -56,7 +55,7 @@ public class PutSourceResource {
   @Inject
   public PutSourceResource(
       SourceService sourceService, @PathParam("sourceName") SourceName sourceName)
-      throws SourceNotFoundException, NamespaceException {
+      throws SourceNotFoundException {
     this.sourceService = sourceService;
     this.sourceName = sourceName;
     this.sourcePath = new SourcePath(sourceName);
@@ -65,8 +64,7 @@ public class PutSourceResource {
   @PUT
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public SourceUI putSource(SourceUI source)
-      throws NamespaceException, UserNotFoundException, SourceNotFoundException {
+  public SourceUI putSource(SourceUI source) throws NamespaceException, SourceNotFoundException {
 
     try {
       // Following are set at server side.

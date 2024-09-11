@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
-@import "~@app/uiTheme/less/variables.complex.less";
 @import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
 
 .section {
   composes: clear-fix from "~@app/uiTheme/less/layout.less";
   composes: row-of-inputs-spacing from "~@app/uiTheme/less/forms.less";
-  border-bottom: @collaboration-border;
+  border-bottom: 1px solid var(--border--neutral);
   display: flex;
   align-items: center;
   height: @wiki-title-height;
@@ -39,9 +37,9 @@
 }
 
 .custom-button {
-  @color: @FIGMA_TEXT_LESS_IMPORTANT;
+  @color: var(--text--faded);
   border-radius: 4px;
-  border: 1px solid @FIGMA_NEUTRAL_200;
+  border: 1px solid var(--border--neutral--solid);
   height: 28px;
   width: 34px;
   display: flex;
@@ -49,8 +47,8 @@
   justify-content: center;
   padding: 0;
   outline: none;
-  background: @WHITE;
+  background: var(--fill--primary);
   &:hover {
-    background: @FIGMA_NEUTRAL_100;
+    background: var(--fill--secondary);
   }
 }

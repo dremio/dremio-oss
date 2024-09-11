@@ -729,18 +729,18 @@ public class DremioTestWrapper {
               + totalRecords);
       totalRecords += loader.getRecordCount();
       for (int j = 0; j < loader.getRecordCount(); j++) {
-        Map<String, Object> record = new LinkedHashMap<>();
+        Map<String, Object> rec = new LinkedHashMap<>();
         for (VectorWrapper<?> w : loader) {
           Object obj = getVectorObject(w.getValueVector(), j);
           if (obj != null) {
             if (obj instanceof Text) {
               obj = obj.toString();
             }
-            record.put(SchemaPath.getSimplePath(w.getField().getName()).toExpr(), obj);
+            rec.put(SchemaPath.getSimplePath(w.getField().getName()).toExpr(), obj);
           }
-          record.put(SchemaPath.getSimplePath(w.getField().getName()).toExpr(), obj);
+          rec.put(SchemaPath.getSimplePath(w.getField().getName()).toExpr(), obj);
         }
-        materializedRecords.add(record);
+        materializedRecords.add(rec);
       }
       records.remove(0);
       batch.release();
@@ -1050,10 +1050,10 @@ public class DremioTestWrapper {
     return "Expected column(s) " + missingCols + " not found in result set: " + actual + ".";
   }
 
-  private static String printRecord(Map<String, ?> record) {
+  private static String printRecord(Map<String, ?> rec) {
     String ret = "";
-    for (String s : record.keySet()) {
-      ret += s + " : " + record.get(s) + ", ";
+    for (String s : rec.keySet()) {
+      ret += s + " : " + rec.get(s) + ", ";
     }
     return ret + "\n";
   }

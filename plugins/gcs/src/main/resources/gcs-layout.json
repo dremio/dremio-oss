@@ -39,12 +39,12 @@
                         },
                         {
                           "propName": "config.clientId",
-                          "size": "half",
+                          "size": "full",
                           "errMsg": "Client ID is required in service account credentials."
                         },
                         {
                           "propName": "config.privateKeyId",
-                          "size": "half",
+                          "size": "full",
                           "errMsg": "Private Key ID is required in service account credentials."
                         },
                         {

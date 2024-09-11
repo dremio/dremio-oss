@@ -63,7 +63,7 @@ type PrivilegesPageProps = {
     tableItems: GrantObject[],
     deletedTableItems: GrantObject[],
     cachedData: any,
-    setDirtyStateForLeaving: () => void
+    setDirtyStateForLeaving: () => void,
   ) => void;
   setChildDirtyState: any;
   pageType: "organization" | "catalog" | "entity";
@@ -73,6 +73,7 @@ type PrivilegesPageProps = {
     owner: string;
     type: "USER" | "ROLE";
     name: string;
+    canUpdateOwnership?: boolean;
   } | null;
   granteeError?: string;
   buttonPlacement?: "LEFT" | "RIGHT";
@@ -128,7 +129,7 @@ const PrivilegesPage = ({
     } else return [];
   }, [user]);
   const isCurrentUserAnOwner = currentRolesAndUserIds.includes(
-    ownership?.id ?? ""
+    ownership?.id ?? "",
   );
 
   const [tableItems, setTableItems] = useState<GrantObject[]>([]);
@@ -206,9 +207,9 @@ const PrivilegesPage = ({
       items.filter(
         (deleteItem) =>
           displayValues.find(
-            (updateItem) => updateItem.id === deleteItem.granteeId
-          ) === undefined
-      )
+            (updateItem) => updateItem.id === deleteItem.granteeId,
+          ) === undefined,
+      ),
     );
   };
 
@@ -242,9 +243,9 @@ const PrivilegesPage = ({
         handleOpenDialog,
         nameColumnLabel,
         privilegeTooltipIds,
-        ownership?.id
+        ownership?.id,
       ),
-    [ownership?.id, granteeData, nameColumnLabel, privilegeTooltipIds]
+    [ownership?.id, granteeData, nameColumnLabel, privilegeTooltipIds],
   );
 
   const disableSubmitButtons =
@@ -273,7 +274,9 @@ const PrivilegesPage = ({
           ownership={ownership}
           handleUpdateOwnership={handleUpdateOwnership}
           entityName={entityName}
-          canTransferOwnership={isCurrentUserAnOwner || isAdmin}
+          canTransferOwnership={
+            ownership?.canUpdateOwnership || isCurrentUserAnOwner || isAdmin
+          }
         />
         <AddToPrivileges
           ref={addPrivilegesRef}
@@ -292,8 +295,8 @@ const PrivilegesPage = ({
                 () =>
                   insideOfTab
                     ? setChildDirtyState(false)
-                    : setChildDirtyState(PRIVILEGES_KEY)(false)
-              )
+                    : setChildDirtyState(PRIVILEGES_KEY)(false),
+              ),
             )}
             className={classes["privileges__form"]}
           >
@@ -327,7 +330,8 @@ const PrivilegesPage = ({
         open={removeDialogState.openDialog}
         closeDialog={closeDialog}
         grantee={tableItems?.find(
-          (item: GrantObject) => item.granteeId === removeDialogState?.granteeId
+          (item: GrantObject) =>
+            item.granteeId === removeDialogState?.granteeId,
         )}
         className={classes["privileges__dialog"]}
         onRemove={handleDeleteTableItem}

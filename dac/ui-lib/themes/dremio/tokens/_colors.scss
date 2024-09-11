@@ -1,20 +1,15 @@
+//@deprecated
 @mixin colorsLight {
-  --color--sunken: #202124;
-  --color--default: #202124;
+  --color--sunken: var(--color--neutral--800);
+  --color--default: var(--color--neutral--800);
 
-  --color--deemphasized: #505862;
   --color--nav--sonar: white;
-
-  --color--link: #008489;
 }
 
+//@deprecated
 @mixin colorsDark {
-  --color--sunken: #e4e6e9;
-  --color--default: #e4e6e9;
+  --color--sunken: var(--text--faded);
+  --color--default: var(--text--primary);
 
-  --color--deemphasized: #d2d6da;
-  --color--nav--sonar: #e4e6e9;
-
-  --color--link: #26c8d1;
-  --dremio--color--link: var(--color--link);
+  --color--nav--sonar: var(--color--neutral--100);
 }

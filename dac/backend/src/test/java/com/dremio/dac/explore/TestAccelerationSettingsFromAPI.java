@@ -356,6 +356,17 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
     when(catalog.getTableSnapshot(any(CatalogEntityKey.class))).thenReturn(dremioTable);
     when(catalog.getTable(any(CatalogEntityKey.class))).thenReturn(dremioTable);
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+    when(reflectionServiceHelper.fromAccelerationSettingsDescriptor(
+            accelerationSettingsDescriptor, accelerationSettings, dremioTable.getDatasetConfig()))
+        .thenReturn(
+            new AccelerationSettings()
+                .setGracePeriod(accelerationSettingsDescriptor.getAccelerationGracePeriod())
+                .setMethod(accelerationSettingsDescriptor.getMethod())
+                .setRefreshField(accelerationSettingsDescriptor.getRefreshField())
+                .setNeverExpire(accelerationSettingsDescriptor.getAccelerationNeverExpire())
+                .setNeverRefresh(accelerationSettingsDescriptor.getAccelerationNeverRefresh())
+                .setRefreshPolicyType(
+                    accelerationSettingsDescriptor.getAccelerationActivePolicyType()));
 
     datasetResource.updateAccelerationSettings(accelerationSettingsDescriptor, "BRANCH", "main");
   }
@@ -379,6 +390,17 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
     when(catalog.getTableSnapshot(any(CatalogEntityKey.class))).thenReturn(dremioTable);
     when(catalog.getTable(any(CatalogEntityKey.class))).thenReturn(dremioTable);
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+    when(reflectionServiceHelper.fromAccelerationSettingsDescriptor(
+            accelerationSettingsDescriptor, accelerationSettings, dremioTable.getDatasetConfig()))
+        .thenReturn(
+            new AccelerationSettings()
+                .setGracePeriod(accelerationSettingsDescriptor.getAccelerationGracePeriod())
+                .setMethod(accelerationSettingsDescriptor.getMethod())
+                .setRefreshField(accelerationSettingsDescriptor.getRefreshField())
+                .setNeverExpire(accelerationSettingsDescriptor.getAccelerationNeverExpire())
+                .setNeverRefresh(accelerationSettingsDescriptor.getAccelerationNeverRefresh())
+                .setRefreshPolicyType(
+                    accelerationSettingsDescriptor.getAccelerationActivePolicyType()));
 
     datasetResource.updateAccelerationSettings(accelerationSettingsDescriptor, "BRANCH", "main");
   }
@@ -433,6 +455,17 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
     when(catalog.getTableSnapshot(any(CatalogEntityKey.class))).thenReturn(dremioTable);
     when(catalog.getTable(any(CatalogEntityKey.class))).thenReturn(dremioTable);
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+    when(reflectionServiceHelper.fromAccelerationSettingsDescriptor(
+            accelerationSettingsDescriptor, accelerationSettings, dremioTable.getDatasetConfig()))
+        .thenReturn(
+            new AccelerationSettings()
+                .setGracePeriod(accelerationSettingsDescriptor.getAccelerationGracePeriod())
+                .setMethod(accelerationSettingsDescriptor.getMethod())
+                .setRefreshField(accelerationSettingsDescriptor.getRefreshField())
+                .setNeverExpire(accelerationSettingsDescriptor.getAccelerationNeverExpire())
+                .setNeverRefresh(accelerationSettingsDescriptor.getAccelerationNeverRefresh())
+                .setRefreshPolicyType(
+                    accelerationSettingsDescriptor.getAccelerationActivePolicyType()));
 
     final AccelerationSettingsDescriptor descriptor =
         datasetResource.getAccelerationSettings("BRANCH", "main");
@@ -467,6 +500,17 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
 
     accelerationSettingsDescriptor.setMethod(RefreshMethod.AUTO);
+    when(reflectionServiceHelper.fromAccelerationSettingsDescriptor(
+            accelerationSettingsDescriptor, accelerationSettings, dremioTable.getDatasetConfig()))
+        .thenReturn(
+            new AccelerationSettings()
+                .setGracePeriod(accelerationSettingsDescriptor.getAccelerationGracePeriod())
+                .setMethod(accelerationSettingsDescriptor.getMethod())
+                .setRefreshField(accelerationSettingsDescriptor.getRefreshField())
+                .setNeverExpire(accelerationSettingsDescriptor.getAccelerationNeverExpire())
+                .setNeverRefresh(accelerationSettingsDescriptor.getAccelerationNeverRefresh())
+                .setRefreshPolicyType(
+                    accelerationSettingsDescriptor.getAccelerationActivePolicyType()));
 
     datasetResource.updateAccelerationSettings(accelerationSettingsDescriptor, "BRANCH", "main");
     assertThat(accelerationSettings.getMethod()).isEqualByComparingTo(RefreshMethod.AUTO);
@@ -493,6 +537,17 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
 
     accelerationSettingsDescriptor.setMethod(RefreshMethod.AUTO);
+    when(reflectionServiceHelper.fromAccelerationSettingsDescriptor(
+            accelerationSettingsDescriptor, accelerationSettings, dremioTable.getDatasetConfig()))
+        .thenReturn(
+            new AccelerationSettings()
+                .setGracePeriod(accelerationSettingsDescriptor.getAccelerationGracePeriod())
+                .setMethod(accelerationSettingsDescriptor.getMethod())
+                .setRefreshField(accelerationSettingsDescriptor.getRefreshField())
+                .setNeverExpire(accelerationSettingsDescriptor.getAccelerationNeverExpire())
+                .setNeverRefresh(accelerationSettingsDescriptor.getAccelerationNeverRefresh())
+                .setRefreshPolicyType(
+                    accelerationSettingsDescriptor.getAccelerationActivePolicyType()));
 
     datasetResource.updateAccelerationSettings(accelerationSettingsDescriptor, "BRANCH", "main");
     assertThat(accelerationSettings.getMethod()).isEqualByComparingTo(RefreshMethod.AUTO);
@@ -528,6 +583,17 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
             .setRefreshField("refresh")
             .setAccelerationNeverExpire(false)
             .setAccelerationNeverRefresh(false);
+    when(reflectionServiceHelper.fromAccelerationSettingsDescriptor(
+            accelerationSettingsDescriptor, accelerationSettings, dremioTable.getDatasetConfig()))
+        .thenReturn(
+            new AccelerationSettings()
+                .setGracePeriod(accelerationSettingsDescriptor.getAccelerationGracePeriod())
+                .setMethod(accelerationSettingsDescriptor.getMethod())
+                .setRefreshField(accelerationSettingsDescriptor.getRefreshField())
+                .setNeverExpire(accelerationSettingsDescriptor.getAccelerationNeverExpire())
+                .setNeverRefresh(accelerationSettingsDescriptor.getAccelerationNeverRefresh())
+                .setRefreshPolicyType(
+                    accelerationSettingsDescriptor.getAccelerationActivePolicyType()));
 
     datasetResource.updateAccelerationSettings(accelerationSettingsDescriptor, null, null);
     final AccelerationSettingsDescriptor retrievedAccelerationSettings =
@@ -575,6 +641,17 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
             .setRefreshField("refresh")
             .setAccelerationNeverExpire(false)
             .setAccelerationNeverRefresh(false);
+    when(reflectionServiceHelper.fromAccelerationSettingsDescriptor(
+            accelerationSettingsDescriptor, accelerationSettings, dremioTable.getDatasetConfig()))
+        .thenReturn(
+            new AccelerationSettings()
+                .setGracePeriod(accelerationSettingsDescriptor.getAccelerationGracePeriod())
+                .setMethod(accelerationSettingsDescriptor.getMethod())
+                .setRefreshField(accelerationSettingsDescriptor.getRefreshField())
+                .setNeverExpire(accelerationSettingsDescriptor.getAccelerationNeverExpire())
+                .setNeverRefresh(accelerationSettingsDescriptor.getAccelerationNeverRefresh())
+                .setRefreshPolicyType(
+                    accelerationSettingsDescriptor.getAccelerationActivePolicyType()));
 
     datasetResource.updateAccelerationSettings(
         accelerationSettingsDescriptor, "BRANCH", "testbranch");

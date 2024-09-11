@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.catalog.udf;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
-import com.dremio.service.namespace.NamespaceKey;
 
 public interface UserDefinedFunctionCatalog {
-  void createFunction(NamespaceKey key, UserDefinedFunction userDefinedFunction);
+  void createFunction(CatalogEntityKey key, UserDefinedFunction userDefinedFunction);
 
-  void updateFunction(NamespaceKey key, UserDefinedFunction userDefinedFunction);
+  void updateFunction(CatalogEntityKey key, UserDefinedFunction userDefinedFunction);
 
-  void dropFunction(NamespaceKey key);
+  void dropFunction(CatalogEntityKey key);
 
-  UserDefinedFunction getFunction(NamespaceKey key);
+  UserDefinedFunction getFunction(CatalogEntityKey key);
 
   Iterable<UserDefinedFunction> getAllFunctions();
 }

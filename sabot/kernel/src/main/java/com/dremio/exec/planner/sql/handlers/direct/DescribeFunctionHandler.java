@@ -16,6 +16,7 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.udf.UserDefinedFunctionCatalog;
 import com.dremio.exec.ops.QueryContext;
@@ -58,10 +59,15 @@ public class DescribeFunctionHandler
           context.getUserDefinedFunctionCatalog();
       final SqlIdentifier functionId = node.getFunction();
       final NamespaceKey namespaceKey = new NamespaceKey(functionId.names);
-      final UserDefinedFunction function = userDefinedFunctionCatalog.getFunction(namespaceKey);
+      CatalogEntityKey catalogEntityKey =
+          CatalogEntityKeyUtil.buildCatalogEntityKey(
+              namespaceKey,
+              node.getSqlTableVersionSpec(),
+              context.getSession().getSessionVersionForSource(namespaceKey.getRoot()));
+      final UserDefinedFunction function = userDefinedFunctionCatalog.getFunction(catalogEntityKey);
       if (function == null) {
         throw UserException.validationError()
-            .message("Unknown function [%s]", functionId)
+            .message("Unknown function [%s]", catalogEntityKey.toSql())
             .buildSilently();
       }
 
@@ -75,7 +81,7 @@ public class DescribeFunctionHandler
               function.getFunctionSql(),
               function.getCreatedAt(),
               function.getModifiedAt(),
-              getOwner(namespaceKey));
+              getOwner(catalogEntityKey));
 
       return Arrays.asList(describeResult);
     } catch (AccessControlException e) {
@@ -121,6 +127,11 @@ public class DescribeFunctionHandler
     return DescribeResult.class;
   }
 
+  @Nullable
+  protected String getOwner(CatalogEntityKey key) throws NamespaceException, UserNotFoundException {
+    return null;
+  }
+
   public static DescribeFunctionHandler create(QueryContext queryContext) {
     try {
       final Class<?> cl =
@@ -135,10 +146,5 @@ public class DescribeFunctionHandler
         | InvocationTargetException e2) {
       throw Throwables.propagate(e2);
     }
-  }
-
-  @Nullable
-  protected String getOwner(NamespaceKey key) throws NamespaceException, UserNotFoundException {
-    return null;
   }
 }

@@ -45,7 +45,7 @@ public class TestFragmentExecutorCancel extends BaseTestQuery {
     test("alter session set \"planner.slice_target\" = 10");
 
     // Inject an out of memory exception in the ScanBatch
-    CoordinationProtos.NodeEndpoint endpoint = nodes[0].getContext().getEndpoint();
+    CoordinationProtos.NodeEndpoint endpoint = nodes[0].getEndpoint();
     String controlsString =
         "{\"injections\":[{"
             + "\"address\":\""

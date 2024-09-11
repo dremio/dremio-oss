@@ -40,25 +40,25 @@ public class TestConstantFolding extends PlanTestBase {
     private final TemporaryFolder folder;
     private static final List<String> values = Lists.newArrayList("1", "2", "3");
     private static final String jsonRecord = "{\"col1\" : 1,\"col2\" : 2, \"col3\" : 3}";
-    private String record;
+    private String rec;
 
     public SmallFileCreator(TemporaryFolder folder) {
       this.folder = folder;
-      this.record = null;
+      this.rec = null;
     }
 
-    public SmallFileCreator setRecord(String record) {
-      this.record = record;
+    public SmallFileCreator setRecord(String rec) {
+      this.rec = rec;
       return this;
     }
 
     public void createFiles(
         int smallFileLines, int bigFileLines, String extension, String delimiter) throws Exception {
-      if (record == null) {
+      if (rec == null) {
         if ("csv".equals(extension) || "tsv".equals(extension)) {
-          record = Joiner.on(delimiter).join(values);
+          rec = Joiner.on(delimiter).join(values);
         } else if ("json".equals(extension)) {
-          record = jsonRecord;
+          rec = jsonRecord;
         } else {
           throw new UnsupportedOperationException(
               String.format(
@@ -72,7 +72,7 @@ public class TestConstantFolding extends PlanTestBase {
         File bigFile = new File(bigFolder, fileAndFolderName + "." + extension);
         out = new PrintWriter(bigFile);
         for (int i = 0; i < bigFileLines; i++) {
-          out.println(record);
+          out.println(rec);
         }
         out.close();
       }
@@ -82,7 +82,7 @@ public class TestConstantFolding extends PlanTestBase {
         File smallFile = new File(smallFolder, fileAndFolderName + "." + extension);
         out = new PrintWriter(smallFile);
         for (int i = 0; i < smallFileLines; i++) {
-          out.println(record);
+          out.println(rec);
         }
         out.close();
       }

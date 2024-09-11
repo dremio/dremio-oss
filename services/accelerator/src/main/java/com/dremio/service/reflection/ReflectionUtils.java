@@ -15,7 +15,6 @@
  */
 package com.dremio.service.reflection;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS;
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
 import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_REFLECTION_ICEBERG_TRANSFORMS;
 import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
@@ -23,18 +22,19 @@ import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_ST
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.VersionedDatasetId;
 import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.catalog.VersionedDatasetId;
-import com.dremio.exec.planner.acceleration.ExternalMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
 import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor.ReflectionInfo;
+import com.dremio.exec.planner.acceleration.descriptor.ExternalMaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.ReflectionInfo;
+import com.dremio.exec.planner.acceleration.descriptor.UnexpandedMaterializationDescriptor;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
@@ -78,6 +78,8 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
+import com.dremio.service.namespace.proto.RefreshPolicyType;
+import com.dremio.service.reflection.ReflectionStatus.REFRESH_STATUS;
 import com.dremio.service.reflection.materialization.AccelerationStoragePlugin;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
@@ -102,7 +104,6 @@ import com.dremio.service.reflection.proto.RefreshId;
 import com.dremio.service.reflection.proto.Transform;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -267,7 +268,7 @@ public class ReflectionUtils {
   }
 
   /** Creates and returns MaterializationDescriptor */
-  public static MaterializationDescriptor getMaterializationDescriptor(
+  public static UnexpandedMaterializationDescriptor getMaterializationDescriptor(
       final ReflectionGoal reflectionGoal,
       final ReflectionEntry reflectionEntry,
       final Materialization materialization,
@@ -279,7 +280,7 @@ public class ReflectionUtils {
             reflectionEntry.getRefreshMethod() == RefreshMethod.INCREMENTAL,
             reflectionEntry.getRefreshField(),
             reflectionEntry.getSnapshotBased());
-    return new MaterializationDescriptor(
+    return new UnexpandedMaterializationDescriptor(
         toReflectionInfo(reflectionGoal),
         materialization.getId().getId(),
         materialization.getTag(),
@@ -293,7 +294,8 @@ public class ReflectionUtils {
         JoinDependencyProperties.NONE,
         materialization.getStripVersion(),
         materialization.getDisableDefaultReflection() == Boolean.TRUE,
-        catalogService);
+        catalogService,
+        materialization.getIsStale());
   }
 
   public static List<String> getPartitionNames(List<DataPartition> partitions) {
@@ -318,9 +320,7 @@ public class ReflectionUtils {
   }
 
   public static MaterializationDescriptor getMaterializationDescriptor(
-      final ExternalReflection externalReflection,
-      final CatalogService catalogService,
-      final EntityExplorer catalog)
+      final ExternalReflection externalReflection, final EntityExplorer catalog)
       throws NamespaceException {
     DatasetConfig queryDatasetConfig =
         CatalogUtil.getDatasetConfig(catalog, externalReflection.getQueryDatasetId());
@@ -370,8 +370,7 @@ public class ReflectionUtils {
         externalReflection.getId(),
         Optional.ofNullable(externalReflection.getTag()).orElse("0"),
         queryDatasetConfig.getFullPathList(),
-        targetDatasetConfig.getFullPathList(),
-        catalogService);
+        targetDatasetConfig.getFullPathList());
   }
 
   public static Iterable<ReflectionGoal> getAllReflections(ReflectionGoalsStore userStore) {
@@ -382,11 +381,10 @@ public class ReflectionUtils {
     return store.getAllMaterializations();
   }
 
-  public static MaterializationDescriptor.ReflectionInfo toReflectionInfo(
-      ReflectionGoal reflectionGoal) {
+  public static ReflectionInfo toReflectionInfo(ReflectionGoal reflectionGoal) {
     String id = reflectionGoal.getId().getId();
     final ReflectionDetails details = reflectionGoal.getDetails();
-    return new MaterializationDescriptor.ReflectionInfo(
+    return new ReflectionInfo(
         id,
         reflectionGoal.getType() == com.dremio.service.reflection.proto.ReflectionType.RAW
             ? ReflectionType.RAW
@@ -664,12 +662,6 @@ public class ReflectionUtils {
 
   public static void validateNonIdentityTransformAllowed(
       OptionManager optionManager, String transformName) {
-    if (!optionManager.getOption(ENABLE_ICEBERG_PARTITION_TRANSFORMS)) {
-      throw new RuntimeException(
-          String.format(
-              "[%s] partition transform is present, but Iceberg partition support is disabled.",
-              transformName));
-    }
     if (!optionManager.getOption(ENABLE_REFLECTION_ICEBERG_TRANSFORMS)) {
       throw new RuntimeException(
           String.format(
@@ -977,22 +969,9 @@ public class ReflectionUtils {
     }
   }
 
-  public static VersionedDatasetId getVersionDatasetId(String datasetId) {
-    if (!VersionedDatasetId.isVersioned(datasetId)) {
-      return null;
-    }
-    VersionedDatasetId versionedDatasetId;
-    try {
-      versionedDatasetId = VersionedDatasetId.fromString(datasetId);
-    } catch (JsonProcessingException e) {
-      throw new IllegalStateException(e);
-    }
-    return versionedDatasetId;
-  }
-
   public static Map<String, VersionContext> buildVersionContext(String datasetId) {
     Map<String, VersionContext> sourceMappings = new HashMap<>();
-    VersionedDatasetId versionedDatasetId = getVersionDatasetId(datasetId);
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(datasetId);
     if (versionedDatasetId == null) {
       return sourceMappings;
     }
@@ -1069,7 +1048,7 @@ public class ReflectionUtils {
         icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
   }
 
-  // Returns true of underlying cause of exception is due to source being down
+  // Returns true if underlying cause of exception is due to source being down
   public static boolean isSourceDown(Throwable t) {
     final UserException uex = ErrorHelper.findWrappedCause(t, UserException.class);
     if (uex != null
@@ -1195,5 +1174,16 @@ public class ReflectionUtils {
                                       + reflection.getReflectionID()));
               return reflectionRelationship.getDataset().getPathList().equals(datasetPath);
             });
+  }
+
+  public REFRESH_STATUS getRefreshStatusForActiveReflection(
+      OptionManager optionManager, ReflectionEntry entry) {
+    if (entry.getRefreshPolicyTypeList() != null
+        && entry.getRefreshPolicyTypeList().size() == 1
+        && RefreshPolicyType.NEVER.equals(entry.getRefreshPolicyTypeList().get(0))) {
+      return REFRESH_STATUS.MANUAL;
+    } else {
+      return REFRESH_STATUS.SCHEDULED;
+    }
   }
 }

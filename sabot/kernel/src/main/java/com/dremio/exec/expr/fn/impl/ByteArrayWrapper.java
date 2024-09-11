@@ -15,11 +15,14 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import java.io.Serializable;
+import java.util.Arrays;
+
 /**
  * Thin wrapper around byte array. This class is used by aggregate functions which consume decimal,
  * variable width vectors as inputs.
  */
-public class ByteArrayWrapper {
+public class ByteArrayWrapper implements Serializable {
   private byte[] bytes;
   private int length;
 
@@ -56,5 +59,28 @@ public class ByteArrayWrapper {
   public void setBytes(byte[] bytes, int length) {
     this.bytes = bytes;
     this.length = length;
+  }
+
+  // Comparator for ByteArrayWrapper. Byte arrays must be compared by value, not reference.
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ByteArrayWrapper that = (ByteArrayWrapper) o;
+    return Arrays.equals(bytes, that.bytes);
+  }
+
+  @Override
+  public int hashCode() {
+    return Arrays.hashCode(bytes);
+  }
+
+  @Override
+  public String toString() {
+    return Arrays.toString(bytes);
   }
 }

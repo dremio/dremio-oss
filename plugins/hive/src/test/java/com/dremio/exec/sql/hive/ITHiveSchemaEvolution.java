@@ -19,7 +19,6 @@ import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.exec.store.hive.HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -31,22 +30,15 @@ import com.google.common.collect.ImmutableMap;
  * Tests for Schema Evolution scenarios on Iceberg tables in Hive catalog.
  */
 public class ITHiveSchemaEvolution extends LazyDataGeneratingHiveTestBase {
-  private static AutoCloseable enableIcebergDmlSupportFlags;
   private static final String SCHEME = "file:///";
   private static String WAREHOUSE_LOCATION;
 
   @BeforeClass
   public static void setup() throws Exception {
-    enableIcebergDmlSupportFlags = enableIcebergDmlSupportFlag();
     WAREHOUSE_LOCATION = dataGenerator.getWhDir() + "/";
-    dataGenerator.updatePluginConfig((getSabotContext().getCatalogService()),
+    dataGenerator.updatePluginConfig(getCatalogService(),
       ImmutableMap.of(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, SCHEME + WAREHOUSE_LOCATION,
         HiveConfFactory.ENABLE_DML_TESTS_WITHOUT_LOCKING, "true"));
-  }
-
-  @AfterClass
-  public static void close() throws Exception {
-    enableIcebergDmlSupportFlags.close();
   }
 
 

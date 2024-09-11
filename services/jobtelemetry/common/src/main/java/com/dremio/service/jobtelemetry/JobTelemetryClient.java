@@ -15,11 +15,22 @@
  */
 package com.dremio.service.jobtelemetry;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newCounterProvider;
+
+import com.dremio.common.util.Retryer;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
+import com.google.common.collect.ImmutableSet;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
+import java.util.Set;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 import javax.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +41,18 @@ import org.slf4j.LoggerFactory;
  */
 public class JobTelemetryClient implements Service {
   private static final Logger logger = LoggerFactory.getLogger(JobTelemetryClient.class);
+  private static final int MAX_RETRIES = 3;
+  private static final Set<Status.Code> retriableGrpcStatuses =
+      ImmutableSet.of(
+          Status.UNAVAILABLE.getCode(),
+          Status.UNKNOWN.getCode(),
+          Status.DEADLINE_EXCEEDED.getCode());
 
+  private final Retryer retryer;
+  private final Retryer exponentiaRetryer;
   private final GrpcChannelBuilderFactory grpcFactory;
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
+  private final Meter.MeterProvider<Counter> suppressedErrorCounter;
 
   private ManagedChannel channel;
   private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub blockingStub;
@@ -44,6 +64,21 @@ public class JobTelemetryClient implements Service {
       Provider<CoordinationProtos.NodeEndpoint> selfEndpoint) {
     this.grpcFactory = grpcFactory;
     this.selfEndpoint = selfEndpoint;
+    suppressedErrorCounter =
+        newCounterProvider(
+            "JobTelemetryService.error.suppressed", "Counts the number of JTS Suppressed errors.");
+    this.retryer =
+        Retryer.newBuilder()
+            .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1000, 1000)
+            .retryOnExceptionFunc(this::isRetriableException)
+            .setMaxRetries(MAX_RETRIES)
+            .build();
+    this.exponentiaRetryer =
+        Retryer.newBuilder()
+            .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 1000, 10_000)
+            .retryOnExceptionFunc(this::isRetriableException)
+            .setMaxRetries(MAX_RETRIES)
+            .build();
   }
 
   @Override
@@ -107,5 +142,43 @@ public class JobTelemetryClient implements Service {
    */
   public JobTelemetryServiceGrpc.JobTelemetryServiceFutureStub getFutureStub() {
     return futureStub;
+  }
+
+  public Retryer getRetryer() {
+    return retryer;
+  }
+
+  public Retryer getExponentiaRetryer() {
+    return exponentiaRetryer;
+  }
+
+  private boolean isRetriableException(Throwable e) {
+    if (e instanceof StatusRuntimeException) {
+      if (retriableGrpcStatuses.contains(((StatusRuntimeException) e).getStatus().getCode())) {
+        return true;
+      }
+    }
+    if (e instanceof CompletionException) {
+      if (e.getCause() instanceof TimeoutException) {
+        return true;
+      }
+
+      if (e.getCause() instanceof StatusRuntimeException) {
+        if (retriableGrpcStatuses.contains(
+            ((StatusRuntimeException) e.getCause()).getStatus().getCode())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Get the counter for Suppressed Error Metric
+   *
+   * @return counter
+   */
+  public Meter.MeterProvider<Counter> getSuppressedErrorCounter() {
+    return suppressedErrorCounter;
   }
 }

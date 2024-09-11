@@ -53,7 +53,9 @@ public class LeanIcebergManifestListRecordReader extends IcebergManifestListReco
       BatchSchema fullSchema,
       OpProps props,
       List<String> partitionCols,
-      Optional<Schema> icebergTableSchema)
+      Optional<Schema> icebergTableSchema,
+      String schemeVariate,
+      boolean appendManifestFileType)
       throws IOException {
     super(
         context,
@@ -66,7 +68,9 @@ public class LeanIcebergManifestListRecordReader extends IcebergManifestListReco
         partitionCols,
         createEmptyProp(),
         ManifestContentType.ALL,
-        false);
+        false,
+        schemeVariate,
+        appendManifestFileType);
 
     this.manifestListPath =
         ObjectUtils.requireNonEmpty(manifestListPath, "manifestListPath is null");
@@ -81,6 +85,7 @@ public class LeanIcebergManifestListRecordReader extends IcebergManifestListReco
     initializeOutVectors();
 
     FileIO io = createIO(manifestListPath);
+    initializeFileSystemScheme(io);
     manifestFileIterator = DremioManifestListReaderUtils.read(io, manifestListPath).iterator();
   }
 

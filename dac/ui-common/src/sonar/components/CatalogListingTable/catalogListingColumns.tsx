@@ -129,8 +129,7 @@ export const catalogListingColumns = ({
       : []),
     {
       id: CATALOG_LISTING_COLUMNS.actions,
-      class:
-        "leantable-row-hover-visibility leantable-sticky-column leantable-sticky-column--right actions-column",
+      class: "leantable-row-hover-visibility actions-column",
       renderHeaderCell: () =>
         catalogListingLabels[CATALOG_LISTING_COLUMNS.actions],
       renderCell: (row: any) => {

@@ -51,7 +51,7 @@ import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
-import com.dremio.sabot.RecordSet.Record;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -106,10 +106,10 @@ public class TestParquetScanTableFunction extends BaseTestParquetScanTableFuncti
         rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, inputRow(path, 30000, 100000));
 
     // ids in the file are sequential, with 10 values per rowgroup
-    List<Record> ids =
+    List<RsRecord> ids =
         Stream.iterate(250L, i -> i + 1L).limit(250).map(RecordSet::r).collect(Collectors.toList());
     RecordSet output =
-        rs(FIFTY_ROWGROUPS_SCHEMA.maskAndReorder(outputColumns), ids.toArray(new Record[0]));
+        rs(FIFTY_ROWGROUPS_SCHEMA.maskAndReorder(outputColumns), ids.toArray(new RsRecord[0]));
 
     // validate with TOTAL_HEAP_OBJ_SIZE set to 50, which in the case of this file, would try to
     // trim down to 5
@@ -352,7 +352,7 @@ public class TestParquetScanTableFunction extends BaseTestParquetScanTableFuncti
     }
   }
 
-  protected RecordSet.Record inputRow(String path, long offset, long length) throws Exception {
+  protected RsRecord inputRow(String path, long offset, long length) throws Exception {
     long fileSize = fs.getFileAttributes(Path.of(path)).size();
     if (length == -1) {
       length = fileSize;

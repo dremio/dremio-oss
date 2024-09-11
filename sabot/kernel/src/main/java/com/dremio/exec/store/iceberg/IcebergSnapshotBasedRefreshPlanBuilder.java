@@ -406,7 +406,7 @@ public final class IcebergSnapshotBasedRefreshPlanBuilder extends IcebergScanPla
     // this part of the plan is standard, just do Split Gen and Data file scan on the remaining
     // files
     output = buildSplitGen(output);
-    output = getIcebergScanPrel().buildDataFileScan(output);
+    output = getIcebergScanPrel().buildDataFileScan(output, false);
 
     return output;
   }

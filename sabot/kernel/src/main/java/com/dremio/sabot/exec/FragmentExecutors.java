@@ -17,9 +17,10 @@ package com.dremio.sabot.exec;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.ErrorHelper;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.DremioRootAllocator;
-import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.util.LoadingCacheWithExpiry;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
@@ -42,8 +43,10 @@ import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.exec.server.BootStrapContext;
+import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
+import com.dremio.sabot.exec.context.HeapAllocatedMXBeanWrapper;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
@@ -85,13 +88,13 @@ public class FragmentExecutors
     implements AutoCloseable, Iterable<FragmentExecutor>, TaskMonitorObserver {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(FragmentExecutors.class);
+  private static final int LOG_BUFFER_SIZE = 32 * 1024;
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
 
   private final LoadingCacheWithExpiry<FragmentHandle, FragmentHandler> handlers;
   private final Set<FragmentHandle> fragmentsRequestingCancellation =
       Collections.synchronizedSet(new HashSet<>());
   private final AtomicInteger numRunningFragments = new AtomicInteger();
-
   private final TaskPool pool;
   private final ExitCallback callback;
   private final long evictionDelayMillis;
@@ -101,9 +104,13 @@ public class FragmentExecutors
   private final MemoryArbiter memoryArbiter;
 
   private final BufferAllocator allocator;
+  // pre-allocate a 1MB log buffer to log during low mem
+  private final StringBuilder logBuffer;
+  private final NodeDebugContextProvider nodeDebugContext;
 
   public FragmentExecutors(
       final BootStrapContext context,
+      final NodeDebugContextProvider nodeDebugContext,
       final SabotConfig sabotConfig,
       final QueriesClerk clerk,
       final MaestroProxy maestroProxy,
@@ -115,7 +122,6 @@ public class FragmentExecutors
     this.pool = pool;
     this.evictionDelayMillis =
         TimeUnit.SECONDS.toMillis(options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
-
     this.handlers =
         new LoadingCacheWithExpiry<>(
             "fragment-handler",
@@ -144,6 +150,9 @@ public class FragmentExecutors
         MemoryArbiter.newInstance(
             sabotConfig, (DremioRootAllocator) this.allocator, this, clerk, options);
     this.pool.getTaskMonitor().addObserver(this);
+    this.logBuffer = new StringBuilder(LOG_BUFFER_SIZE);
+    SchedulerMetrics.registerActiveFragmentsCurrentCount(this);
+    this.nodeDebugContext = nodeDebugContext;
   }
 
   @VisibleForTesting
@@ -186,6 +195,69 @@ public class FragmentExecutors
 
       fragmentExecutor.logDebugInfoForCancelledTasks(currentTimeMs);
     }
+  }
+
+  private static final String COLUMN_HEADING =
+      "ID, State, Task State, Slices, Long Slices, Run Q Load,"
+          + "Setup Duration (ms), Run Duration (ms), Input 0 Records, Input 0 Batches, Input 0 Size (B),"
+          + "Input 1 Records, Input 1 Batches, Input 1 Size (B),"
+          + "Output Records, Output Batches, Output Size (B),"
+          + "Total Field Count, Direct Memory Allocated (KB), Other";
+
+  private static final String HEADING_EXTENSION_ON_HEAP_USAGE_ENABLED =
+      ", Heap Allocated (Setup)(KB), Average Heap Allocated (Eval)(KB), Peak Heap Allocated (Eval)(KB), "
+          + "Total Heap Allocated (Eval)(KB)";
+
+  public synchronized String activeQueriesToCsv(QueriesClerk queriesClerk) {
+    int totalActiveQueries = 0;
+    int totalActiveFragments = 0;
+    int totalOperators = 0;
+    logBuffer.append(COLUMN_HEADING);
+    boolean dumpHeapUsage = HeapAllocatedMXBeanWrapper.isFeatureSupported();
+    if (dumpHeapUsage) {
+      logBuffer.append(HEADING_EXTENSION_ON_HEAP_USAGE_ENABLED);
+    }
+    logBuffer.append(System.lineSeparator());
+    String ret = "";
+    try {
+
+      for (final WorkloadTicket workloadTicket : queriesClerk.getWorkloadTickets()) {
+        for (final QueryTicket queryTicket : workloadTicket.getActiveQueryTickets()) {
+          totalActiveQueries++;
+          for (FragmentTicket fragmentTicket :
+              queriesClerk.getFragmentTickets(queryTicket.getQueryId())) {
+            FragmentExecutor executor =
+                handlers.getUnchecked(fragmentTicket.getHandle()).getExecutor();
+            if (executor != null) {
+              totalActiveFragments++;
+              totalOperators +=
+                  executor.fillFragmentStats(
+                      logBuffer, QueryIdHelper.getQueryId(queryTicket.getQueryId()), dumpHeapUsage);
+            }
+          }
+        }
+      }
+      if (totalActiveQueries > 0) {
+        logBuffer
+            .append("Total Active Queries : ")
+            .append(totalActiveQueries)
+            .append(System.lineSeparator());
+        logBuffer
+            .append("Total Active Fragments : ")
+            .append(totalActiveFragments)
+            .append(System.lineSeparator());
+        logBuffer
+            .append("Total Active Operators : ")
+            .append(totalOperators)
+            .append(System.lineSeparator());
+        ret = logBuffer.toString();
+      }
+    } catch (Exception e) {
+      // if there is an exception here just ignore and continue
+      ret = "Unable to dump fragment CSV due to exception " + e.getMessage();
+    }
+    logBuffer.setLength(0);
+    return ret;
   }
 
   /**
@@ -277,9 +349,13 @@ public class FragmentExecutors
       QueriesClerk clerk,
       Throwable throwable,
       String failContext,
-      String extraDebugInfo) {
+      HeapClawBackContext.Trigger trigger) {
     for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
-      failFragment(fragmentTicket.getHandle(), throwable, failContext, extraDebugInfo);
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "Failing Fragment {}", QueryIdHelper.getFragmentId(fragmentTicket.getHandle()));
+      }
+      failFragment(fragmentTicket.getHandle(), throwable, failContext, trigger);
     }
   }
 
@@ -290,17 +366,26 @@ public class FragmentExecutors
   }
 
   void failFragment(
-      FragmentHandle handle, Throwable throwable, String failContext, String extraDebugInfo) {
-    UserException.Builder builder =
-        UserException.resourceError(throwable).message(UserException.MEMORY_ERROR_MSG);
-    if (failContext != null && !failContext.isEmpty()) {
-      builder = builder.addContext(failContext);
-    }
-    if (extraDebugInfo != null && !extraDebugInfo.isEmpty()) {
+      FragmentHandle handle,
+      Throwable throwable,
+      String failContext,
+      HeapClawBackContext.Trigger trigger) {
+    UserException.Builder builder;
+    if (trigger == HeapClawBackContext.Trigger.MEMORY_ARBITER
+        || ErrorHelper.isDirectMemoryException(throwable)) {
       builder =
-          builder.addContext(
-              "\nAllocator dominators:\n" + MemoryDebugInfo.getSummaryFromRoot(this.allocator, 2));
-      builder = builder.addContext(extraDebugInfo);
+          UserException.memoryError(throwable)
+              .setAdditionalExceptionContext(
+                  new OutOfMemoryOrResourceExceptionContext(
+                      OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY, failContext));
+      nodeDebugContext.addErrorOrigin(builder);
+    } else {
+      builder =
+          UserException.memoryError(throwable)
+              .setAdditionalExceptionContext(
+                  new OutOfMemoryOrResourceExceptionContext(
+                      OutOfMemoryOrResourceExceptionContext.MemoryType.HEAP_MEMORY, failContext));
+      nodeDebugContext.addErrorOrigin(builder);
     }
     handlers.getUnchecked(handle).fail(builder.buildSilently());
   }
@@ -420,6 +505,44 @@ public class FragmentExecutors
         .build();
   }
 
+  private void startFragment(final FragmentExecutor executor, final boolean useMemoryArbiter) {
+    final FragmentHandle fragmentHandle = executor.getHandle();
+    numRunningFragments.incrementAndGet();
+    final FragmentHandler handler = handlers.getUnchecked(fragmentHandle);
+
+    // Create the task wrapper before adding the fragment to the list
+    // of running fragments
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Starting fragment; Task weight W = {} H = {}",
+          executor.getFragmentWeight(),
+          QueryIdHelper.getQueryIdentifier(executor.getHandle()));
+    }
+    final AsyncTaskWrapper task =
+        new AsyncTaskWrapper(
+            executor.getSchedulingWeight(),
+            executor.getSchedulingGroup(),
+            executor.asAsyncTask(),
+            () -> {
+              fragmentsRequestingCancellation.remove(fragmentHandle);
+              numRunningFragments.decrementAndGet();
+              if (useMemoryArbiter) {
+                memoryArbiter.taskDone(executor);
+              }
+              handler.invalidate();
+
+              maestroProxy.markQueryAsDone(handler.getHandle().getQueryId());
+
+              if (callback != null) {
+                callback.indicateIfSafeToExit();
+              }
+            },
+            warnMaxTime);
+
+    handler.setExecutor(executor);
+    pool.execute(task);
+  }
+
   /** Initializes a query. Starts */
   private class QueryStarterImpl implements QueryStarter {
     final InitializeFragments initializeFragments;
@@ -536,7 +659,7 @@ public class FragmentExecutors
         // highest weight first with leaf fragments first bottom up
         fragmentExecutors.sort(weightBasedComparator());
         for (FragmentExecutor fe : fragmentExecutors) {
-          startFragment(fe);
+          startFragment(fe, useMemoryArbiter);
         }
         queryTicket.release();
 
@@ -641,48 +764,6 @@ public class FragmentExecutors
           throw t;
         }
       }
-    }
-
-    void startFragment(final FragmentExecutor executor) {
-      final FragmentHandle fragmentHandle = executor.getHandle();
-      numRunningFragments.incrementAndGet();
-      final FragmentHandler handler = handlers.getUnchecked(fragmentHandle);
-
-      // Create the task wrapper before adding the fragment to the list
-      // of running fragments
-      if (logger.isDebugEnabled()) {
-        logger.debug(
-            "Starting fragment; Task weight W = {} H = {}",
-            executor.getFragmentWeight(),
-            QueryIdHelper.getQueryIdentifier(executor.getHandle()));
-      }
-      final AsyncTaskWrapper task =
-          new AsyncTaskWrapper(
-              executor.getSchedulingWeight(),
-              executor.getSchedulingGroup(),
-              executor.asAsyncTask(),
-              new AutoCloseable() {
-
-                @Override
-                public void close() throws Exception {
-                  fragmentsRequestingCancellation.remove(fragmentHandle);
-                  numRunningFragments.decrementAndGet();
-                  if (useMemoryArbiter) {
-                    memoryArbiter.taskDone(executor);
-                  }
-                  handler.invalidate();
-
-                  maestroProxy.markQueryAsDone(handler.getHandle().getQueryId());
-
-                  if (callback != null) {
-                    callback.indicateIfSafeToExit();
-                  }
-                }
-              },
-              warnMaxTime);
-
-      handler.setExecutor(executor);
-      pool.execute(task);
     }
   }
 

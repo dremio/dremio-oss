@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
@@ -39,17 +38,14 @@ import com.dremio.exec.planner.sql.handlers.DrelTransformer;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
-import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.options.OptionValue;
 import com.dremio.resource.basic.QueueType;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.DirectProvider;
 import java.io.File;
 import java.util.List;
 import org.apache.calcite.rel.RelNode;
@@ -60,7 +56,6 @@ import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
-import org.mockito.Mockito;
 
 /** To test that Limit0 converter does not cause removal of the exchanges */
 public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
@@ -158,13 +153,7 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
     assertThat(postPhysicaltextPlan).contains("unordered-mux-exchange");
     assertThat(postPhysicaltextPlan).contains("hash-to-random-exchange");
 
-    PhysicalPlanReader pPlanReader =
-        new PhysicalPlanReader(
-            CLASSPATH_SCAN_RESULT,
-            new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT),
-            CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-            DirectProvider.wrap(Mockito.mock(CatalogService.class)),
-            context);
+    PhysicalPlanReader pPlanReader = context.getPlanReader();
 
     ExecutionPlan exec =
         ExecutionPlanCreator.getExecutionPlan(

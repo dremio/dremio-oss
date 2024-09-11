@@ -41,11 +41,11 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.MissingPluginConf;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.ischema.InfoSchemaConf;
 import com.dremio.options.OptionManager;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.coordinator.DistributedSemaphore.DistributedLease;
 import com.dremio.service.listing.DatasetListingService;
@@ -120,8 +120,6 @@ import org.slf4j.LoggerFactory;
 public class CatalogServiceImpl implements CatalogService {
   private static final Logger logger = LoggerFactory.getLogger(CatalogServiceImpl.class);
   public static final long CATALOG_SYNC = TimeUnit.MINUTES.toMillis(3);
-  private static final long CHANGE_COMMUNICATION_WAIT = TimeUnit.SECONDS.toMillis(10);
-
   public static final String CATALOG_SOURCE_DATA_NAMESPACE = "catalog-source-data";
 
   public static final String SYSTEM_TABLE_SOURCE_NAME = "sys";
@@ -373,9 +371,11 @@ public class CatalogServiceImpl implements CatalogService {
                     ProtobufIOUtil.toByteArray(
                         config, SourceConfig.getSchema(), LinkedBuffer.allocate())))
             .build();
+    ClusterCoordinator clusterCoordinator = this.sabotContext.get().getClusterCoordinator();
     for (NodeEndpoint e :
         Iterables.concat(
-            this.sabotContext.get().getCoordinators(), this.sabotContext.get().getExecutors())) {
+            clusterCoordinator.getCoordinatorEndpoints(),
+            clusterCoordinator.getExecutorEndpoints())) {
       if (!endpoints.add(e)) {
         continue;
       }
@@ -387,7 +387,10 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     try {
-      Futures.successfulAsList(futures).get(CHANGE_COMMUNICATION_WAIT, TimeUnit.MILLISECONDS);
+      Futures.successfulAsList(futures)
+          .get(
+              optionManager.get().getOption(CatalogOptions.CHANGE_COMMUNICATION_WAIT_SECONDS),
+              TimeUnit.SECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e1) {
       // Error is ignored here as plugin propagation is best effort
       logger.warn("Failure while communicating source change [{}].", config.getName(), e1);
@@ -813,7 +816,8 @@ public class CatalogServiceImpl implements CatalogService {
         identityProvider,
         new VersionContextResolverImpl(retriever),
         catalogStatusEventsProvider.get(),
-        versionedDatasetAdapterFactoryProvider.get());
+        versionedDatasetAdapterFactoryProvider.get(),
+        sabotContext.get().getMetadataIOPoolProvider().get());
   }
 
   @Override
@@ -888,12 +892,6 @@ public class CatalogServiceImpl implements CatalogService {
 
     ImmutableSet<RelOptRule> rulesSet = rules.build();
     return RuleSets.ofList(rulesSet);
-  }
-
-  public Catalog getSystemUserCatalog() {
-    return getCatalog(
-        MetadataRequestOptions.of(
-            SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
   }
 
   PluginsManager getPlugins() {
@@ -1007,7 +1005,10 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     try {
-      Futures.successfulAsList(futures).get(CHANGE_COMMUNICATION_WAIT, TimeUnit.MILLISECONDS);
+      Futures.successfulAsList(futures)
+          .get(
+              optionManager.get().getOption(CatalogOptions.CHANGE_COMMUNICATION_WAIT_SECONDS),
+              TimeUnit.SECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e1) {
       // Error is ignored here as plugin propagation is best effort
       logger.warn("Failure while communicating source change [{}].", config.getName(), e1);

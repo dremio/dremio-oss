@@ -16,9 +16,7 @@
 
 package com.dremio.exec.planner.sql.parser;
 
-import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.service.Pointer;
 import com.google.common.collect.Lists;
@@ -27,6 +25,7 @@ import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlWriterConfig;
@@ -38,6 +37,7 @@ import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.calcite.sql.util.SqlVisitor;
+import org.projectnessie.model.MergeBehavior;
 
 /** Helper methods or constants used in parsing a SQL query. */
 public class ParserUtil {
@@ -77,12 +77,7 @@ public class ParserUtil {
   }
 
   public static void validateViewQuery(String viewQuery) throws UserException {
-    ParserConfig PARSER_CONFIG =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            1000,
-            true,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig PARSER_CONFIG = new ParserConfig(Quoting.DOUBLE_QUOTE, 1000, true);
     SqlParser parser = SqlParser.create(viewQuery, PARSER_CONFIG);
     SqlNode sqlNode = null;
     try {
@@ -101,12 +96,7 @@ public class ParserUtil {
   }
 
   public static boolean checkTimeTravelOnView(String viewQuery) throws UserException {
-    ParserConfig PARSER_CONFIG =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            1000,
-            true,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig PARSER_CONFIG = new ParserConfig(Quoting.DOUBLE_QUOTE, 1000, true);
     SqlParser parser = SqlParser.create(viewQuery, PARSER_CONFIG);
     try {
       SqlNode sqlNode = parser.parseStmt();
@@ -130,16 +120,11 @@ public class ParserUtil {
           @Override
           public Void visit(SqlCall call) {
             if ((call instanceof SqlVersionedTableMacroCall)
-                && ((((SqlVersionedTableMacroCall) call)
-                            .getSqlTableVersionSpec()
-                            .getTableVersionSpec()
-                            .getTableVersionType()
-                        == TableVersionType.TIMESTAMP)
-                    || (((SqlVersionedTableMacroCall) call)
-                            .getSqlTableVersionSpec()
-                            .getTableVersionSpec()
-                            .getTableVersionType()
-                        == TableVersionType.SNAPSHOT_ID))) {
+                && ((SqlVersionedTableMacroCall) call)
+                    .getSqlTableVersionSpec()
+                    .getTableVersionSpec()
+                    .getTableVersionType()
+                    .isTimeTravel()) {
               timeTravel.value = true;
               return null;
             }
@@ -153,12 +138,7 @@ public class ParserUtil {
   }
 
   public static boolean isValidQuery(String query) throws UserException {
-    ParserConfig PARSER_CONFIG =
-        new ParserConfig(
-            Quoting.DOUBLE_QUOTE,
-            1000,
-            true,
-            PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    ParserConfig PARSER_CONFIG = new ParserConfig(Quoting.DOUBLE_QUOTE, 1000, true);
     SqlParser parser = SqlParser.create(query, PARSER_CONFIG);
     SqlNode sqlNode;
     try {
@@ -167,5 +147,34 @@ public class ParserUtil {
       return false;
     }
     return sqlNode != null;
+  }
+
+  public static String mergeBehaviorToSql(MergeBehavior mergeBehavior) {
+    switch (mergeBehavior) {
+      case FORCE:
+        return "OVERWRITE";
+      case DROP:
+        return "DISCARD";
+      case NORMAL:
+        return "CANCEL";
+      default:
+        throw UserException.validationError().message("Unexpected Token").buildSilently();
+    }
+  }
+
+  public static MergeBehavior sqlToMergeBehavior(SqlLiteral sql) {
+    if (sql == null || sql.toValue() == null) {
+      return null;
+    }
+    switch (sql.toValue()) {
+      case "OVERWRITE":
+        return MergeBehavior.FORCE;
+      case "DISCARD":
+        return MergeBehavior.DROP;
+      case "CANCEL":
+        return MergeBehavior.NORMAL;
+      default:
+        throw UserException.validationError().message("Unexpected Token").buildSilently();
+    }
   }
 }

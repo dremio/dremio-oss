@@ -92,6 +92,13 @@ public class MaterializationStore {
           .setOrder(SortOrder.DESCENDING)
           .build();
 
+  private static final SearchFieldSorting FIRST_REFRESH_SUBMIT =
+      SearchTypes.SearchFieldSorting.newBuilder()
+          .setType(FieldType.LONG)
+          .setField(ReflectionIndexKeys.MATERIALIZATION_INIT_REFRESH_SUBMIT.getIndexFieldName())
+          .setOrder(SortOrder.ASCENDING)
+          .build();
+
   private static final SearchFieldSorting MATERIALIZATION_MODIFIED_AT_SORT =
       SearchTypes.SearchFieldSorting.newBuilder()
           .setType(FieldType.LONG)
@@ -364,6 +371,23 @@ public class MaterializationStore {
     return value;
   }
 
+  /** Returns the first materialization for a reflection */
+  public Materialization getFirstRefreshMaterialization(final ReflectionId id) {
+    final LegacyFindByCondition condition =
+        new LegacyFindByCondition()
+            .addSorting(FIRST_REFRESH_SUBMIT)
+            .setLimit(1)
+            .setCondition(
+                and(newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId())));
+
+    Entry<MaterializationId, Materialization> entry =
+        Iterables.getFirst(materializationStore.get().find(condition), null);
+    if (entry == null || entry.getValue().getSeriesOrdinal() != 0) {
+      return null;
+    }
+    return entry.getValue();
+  }
+
   /**
    * Gets the previous materialization for a reflection. So if there is a materialization currently
    * executing, it will return not the currently running one but the previous run materialization
@@ -582,14 +606,14 @@ public class MaterializationStore {
     }
 
     @Override
-    public void convert(DocumentWriter writer, MaterializationId key, Materialization record) {
+    public void convert(DocumentWriter writer, MaterializationId key, Materialization document) {
       writer.write(MATERIALIZATION_ID, key.getId());
-      writer.write(MATERIALIZATION_STATE, record.getState().name());
-      writer.write(MATERIALIZATION_REFLECTION_ID, record.getReflectionId().getId());
-      writer.write(MATERIALIZATION_INIT_REFRESH_SUBMIT, record.getInitRefreshSubmit());
-      writer.write(MATERIALIZATION_SERIES_ID, record.getSeriesId());
-      writer.write(ReflectionIndexKeys.MATERIALIZATION_EXPIRATION, record.getExpiration());
-      writer.write(ReflectionIndexKeys.MATERIALIZATION_MODIFIED_AT, record.getModifiedAt());
+      writer.write(MATERIALIZATION_STATE, document.getState().name());
+      writer.write(MATERIALIZATION_REFLECTION_ID, document.getReflectionId().getId());
+      writer.write(MATERIALIZATION_INIT_REFRESH_SUBMIT, document.getInitRefreshSubmit());
+      writer.write(MATERIALIZATION_SERIES_ID, document.getSeriesId());
+      writer.write(ReflectionIndexKeys.MATERIALIZATION_EXPIRATION, document.getExpiration());
+      writer.write(ReflectionIndexKeys.MATERIALIZATION_MODIFIED_AT, document.getModifiedAt());
     }
   }
 
@@ -602,11 +626,11 @@ public class MaterializationStore {
     }
 
     @Override
-    public void convert(DocumentWriter writer, RefreshId key, Refresh record) {
-      writer.write(ReflectionIndexKeys.REFRESH_REFLECTION_ID, record.getReflectionId().getId());
-      writer.write(ReflectionIndexKeys.REFRESH_SERIES_ID, record.getSeriesId());
-      writer.write(ReflectionIndexKeys.REFRESH_CREATE, record.getCreatedAt());
-      writer.write(ReflectionIndexKeys.REFRESH_SERIES_ORDINAL, record.getSeriesOrdinal());
+    public void convert(DocumentWriter writer, RefreshId key, Refresh document) {
+      writer.write(ReflectionIndexKeys.REFRESH_REFLECTION_ID, document.getReflectionId().getId());
+      writer.write(ReflectionIndexKeys.REFRESH_SERIES_ID, document.getSeriesId());
+      writer.write(ReflectionIndexKeys.REFRESH_CREATE, document.getCreatedAt());
+      writer.write(ReflectionIndexKeys.REFRESH_SERIES_ORDINAL, document.getSeriesOrdinal());
     }
   }
 

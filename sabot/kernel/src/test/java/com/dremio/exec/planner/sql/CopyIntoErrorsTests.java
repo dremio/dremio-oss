@@ -73,7 +73,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
           createTableAndGenerateSourceFile(
               tableName, colNameTypePairs, inputFileName, inputFilesLocation, fileFormat);
 
-      runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileName, onErrorAction);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileName, onErrorAction);
 
       new TestBuilder(allocator)
           .sqlQuery(selectQuery)
@@ -118,7 +119,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
           createTableAndGenerateSourceFile(
               tableName, colNameTypePairs, inputFileName, inputFilesLocation, fileFormat);
 
-      runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileName, onErrorAction);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileName, onErrorAction);
 
       TestBuilder testBuilder =
           new TestBuilder(allocator)
@@ -171,7 +173,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
       File[] newSourceFiles =
           createTableAndGenerateSourceFiles(
               tableName, colNameTypePairs, inputFileNames, inputFilesLocation, fileFormat);
-      runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileNames, onErrorAction);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileNames, onErrorAction);
 
       String selectQuery = String.format("SELECT * FROM %s.%s", TEMP_SCHEMA, tableName);
       TestBuilder testBuilder =
@@ -230,7 +233,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
           createTableAndGenerateSourceFiles(
               tableName, colNameTypePairs, inputFileNames, inputFilesLocation, fileFormat);
 
-      runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileNames, onErrorAction);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileNames, onErrorAction);
 
       TestBuilder testBuilder =
           new TestBuilder(allocator).sqlQuery(selectQuery).unOrdered().baselineColumns(columns);
@@ -259,7 +263,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
       IntStream.range(0, inputFileNames2.length)
           .forEach(i -> inputFileNames2[i] += "." + fileFormat.name().toLowerCase());
       newSourceFiles = createCopyIntoSourceFiles(inputFileNames2, inputFilesLocation, fileFormat);
-      runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileNames2, onErrorAction);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileNames2, onErrorAction);
       testBuilder =
           new TestBuilder(allocator).sqlQuery(selectQuery).unOrdered().baselineColumns(columns);
       switch (onErrorAction) {
@@ -312,7 +317,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
     File newSourceFile =
         createTableAndGenerateSourceFile(
             tableName, colNameTypePairs, inputFileName, inputFilesLocation, JSON);
-    runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileName, CONTINUE);
+    runCopyIntoOnError(
+        source, inputFilesLocation, tableName, FileFormat.JSON, inputFileName, CONTINUE);
 
     String selectQuery = String.format("SELECT * FROM %s.%s", TEMP_SCHEMA, tableName);
     new TestBuilder(allocator)
@@ -328,7 +334,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
 
     inputFileName = "typeError1.csv";
     newSourceFile = createCopyIntoSourceFile(inputFileName, inputFilesLocation, CSV);
-    runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileName, CONTINUE);
+    runCopyIntoOnError(
+        source, inputFilesLocation, tableName, FileFormat.CSV, inputFileName, CONTINUE);
 
     new TestBuilder(allocator)
         .sqlQuery(selectQuery)
@@ -344,7 +351,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
 
     inputFileName = "typeError2.json";
     newSourceFile = createCopyIntoSourceFile(inputFileName, inputFilesLocation, JSON);
-    runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileName, CONTINUE);
+    runCopyIntoOnError(
+        source, inputFilesLocation, tableName, FileFormat.JSON, inputFileName, CONTINUE);
 
     new TestBuilder(allocator)
         .sqlQuery(selectQuery)
@@ -360,7 +368,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
 
     inputFileName = "typeError3.csv";
     newSourceFile = createCopyIntoSourceFile(inputFileName, inputFilesLocation, CSV);
-    runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileName, CONTINUE);
+    runCopyIntoOnError(
+        source, inputFilesLocation, tableName, FileFormat.CSV, inputFileName, CONTINUE);
     new TestBuilder(allocator)
         .sqlQuery(selectQuery)
         .unOrdered()
@@ -445,7 +454,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
           createTableAndGenerateSourceFiles(
               tableName, colNameTypePairs, inputFileNames, inputFilesLocation, fileFormat);
 
-      runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileNames, onErrorAction);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileNames, onErrorAction);
 
       TestBuilder testBuilder =
           new TestBuilder(allocator)
@@ -583,7 +593,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
               inputFileNames,
               inputFilesLocation,
               fileFormat);
-      runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileNames, onErrorAction);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileNames, onErrorAction);
 
       TestBuilder testBuilder =
           new TestBuilder(allocator).sqlQuery(selectQuery).unOrdered().baselineColumns(columns);
@@ -649,7 +660,8 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
               inputFileNames,
               inputFilesLocation,
               fileFormat);
-      runCopyIntoOnError(source, inputFilesLocation, tableName, inputFileNames, onErrorAction);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileNames, onErrorAction);
 
       TestBuilder testBuilder =
           new TestBuilder(allocator).sqlQuery(selectQuery).unOrdered().baselineColumns(columns);
@@ -813,6 +825,30 @@ public class CopyIntoErrorsTests extends ITCopyIntoBase {
 
     for (File file : newSourceFiles) {
       Assertions.assertTrue(file.delete());
+    }
+  }
+
+  public static void testOnErrorOnCorruptedInput(
+      BufferAllocator allocator,
+      String source,
+      OnErrorAction onErrorAction,
+      FileFormat... fileFormats)
+      throws Exception {
+    String tableName = "corruptedInput";
+    ImmutableList<Pair<String, String>> colNameTypePairs =
+        ImmutableList.of(Pair.of("name", "varchar"), Pair.of("age", "int"));
+    String selectQuery = String.format("SELECT * FROM %s.%s", TEMP_SCHEMA, tableName);
+    for (FileFormat fileFormat : fileFormats) {
+      String inputFileName = "corruptedInput." + fileFormat.name().toLowerCase();
+      File inputFilesLocation = createTempLocation();
+      File newSourceFile =
+          createTableAndGenerateSourceFile(
+              tableName, colNameTypePairs, inputFileName, inputFilesLocation, fileFormat);
+      runCopyIntoOnError(
+          source, inputFilesLocation, tableName, fileFormat, inputFileName, onErrorAction);
+      new TestBuilder(allocator).sqlQuery(selectQuery).unOrdered().expectsEmptyResultSet().go();
+      dropTable(tableName);
+      Assertions.assertTrue(newSourceFile.delete());
     }
   }
 }

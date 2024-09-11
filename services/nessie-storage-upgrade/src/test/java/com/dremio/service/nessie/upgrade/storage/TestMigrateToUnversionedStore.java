@@ -138,15 +138,15 @@ class TestMigrateToUnversionedStore {
 
     task.upgrade(storeProvider, 1);
 
-    assertThat(store.getValue(BranchName.of("main"), key1).content())
+    assertThat(store.getValue(BranchName.of("main"), key1, false).content())
         .asInstanceOf(type(IcebergTable.class))
         .extracting(IcebergTable::getMetadataLocation)
         .isEqualTo("loc111");
-    assertThat(store.getValue(BranchName.of("main"), key2).content())
+    assertThat(store.getValue(BranchName.of("main"), key2, false).content())
         .asInstanceOf(type(IcebergTable.class))
         .extracting(IcebergTable::getMetadataLocation)
         .isEqualTo("loc222");
-    assertThat(store.getValue(BranchName.of("main"), ns.toContentKey()).content())
+    assertThat(store.getValue(BranchName.of("main"), ns.toContentKey(), false).content())
         .asInstanceOf(type(Namespace.class))
         .extracting(Namespace::toContentKey)
         .isEqualTo(ns.toContentKey());

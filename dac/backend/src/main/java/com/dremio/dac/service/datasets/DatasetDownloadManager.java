@@ -128,6 +128,8 @@ public class DatasetDownloadManager {
                         DownloadSettings.newBuilder()
                             .setDownloadId(downloadId)
                             .setFilename(fileName)
+                            .setTriggeringJobId(jobId.getId())
+                            .setExtension(downloadFormat.name())
                             .build())
                     .setRunInSameThread(shouldDownloadFromJobsStore())
                     .setQueryType(QueryType.UI_EXPORT)

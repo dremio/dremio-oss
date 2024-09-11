@@ -18,6 +18,7 @@ package com.dremio.exec.store.iceberg;
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.CONCURRENT_MODIFICATION;
 
 import com.dremio.exec.catalog.RollbackOption;
+import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergDmlOperationCommitter;
@@ -32,19 +33,25 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.apache.commons.io.FileUtils;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.RowLevelOperationMode;
 import org.apache.iceberg.Table;
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
 
   @Test
-  public void testConcurrentDmlsFail() throws IOException {
+  public void testConcurrentOnTwoCowDmlsFail() throws IOException {
     final String tableName = UUID.randomUUID().toString();
     final File tableFolder = new File(folder, tableName);
     final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
@@ -62,9 +69,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
+      IcebergDmlOperationCommitter cowDmlCommitter1 = (IcebergDmlOperationCommitter) committer;
 
       IcebergOpCommitter committer2 =
           icebergModel.getDmlCommitter(
@@ -72,9 +80,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter2 = (IcebergDmlOperationCommitter) committer2;
+      IcebergDmlOperationCommitter cowDmlCommitter2 = (IcebergDmlOperationCommitter) committer2;
 
       // Add a new manifest list, and delete several previous datafiles
       String deleteDataFile1 = "books/add1.parquet";
@@ -83,27 +92,27 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       DataFile dataFile2 = getDatafile("books/add8.parquet");
 
       ManifestFile m1 = writeManifest(tableFolder, "manifestFileDmlDelete", dataFile1, dataFile2);
-      dmlCommitter.consumeManifestFile(m1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      cowDmlCommitter1.consumeManifestFile(m1);
+      cowDmlCommitter1.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter1.consumeDeleteDataFilePath(deleteDataFile2);
 
-      dmlCommitter2.consumeManifestFile(m1);
-      dmlCommitter2.consumeDeleteDataFilePath(deleteDataFile1);
-      dmlCommitter2.consumeDeleteDataFilePath(deleteDataFile2);
+      cowDmlCommitter2.consumeManifestFile(m1);
+      cowDmlCommitter2.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter2.consumeDeleteDataFilePath(deleteDataFile2);
 
       // start both commits
-      dmlCommitter.beginDmlOperationTransaction();
-      dmlCommitter2.beginDmlOperationTransaction();
+      cowDmlCommitter1.beginDmlOperationTransaction();
+      cowDmlCommitter2.beginDmlOperationTransaction();
 
       // end commit 1
-      dmlCommitter.performUpdates();
-      dmlCommitter.endDmlOperationTransaction();
+      cowDmlCommitter1.performCopyOnWriteTransaction();
+      cowDmlCommitter1.endDmlOperationTransaction();
 
       // end commit 2 should fail with CommitFailedException
       UserExceptionAssert.assertThatThrownBy(
               () -> {
                 // Don't need to start beginOperation, as it started.
-                dmlCommitter2.commitImpl(true);
+                cowDmlCommitter2.commitImpl(true);
               })
           .hasErrorType(CONCURRENT_MODIFICATION)
           .hasMessageContaining("Concurrent operation has updated the table, please retry.");
@@ -122,6 +131,325 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
         } else {
           Assert.assertEquals(2, (int) manifestFile.deletedFilesCount());
           Assert.assertEquals(3, (int) manifestFile.existingFilesCount());
+        }
+      }
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentOneCowOneMorDmlsFail() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      IcebergOpCommitter committer =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
+      Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer;
+
+      IcebergOpCommitter committer2 =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter = (IcebergDmlOperationCommitter) committer2;
+
+      // Copy On Write DML
+      // Add a new manifest list, and delete several previous datafiles
+      String deleteDataFile1 = "books/add1.parquet";
+      String deleteDataFile2 = "books/add2.parquet";
+      DataFile dataFile1Cow = getDatafile("books/add7.parquet");
+      DataFile dataFile2Cow = getDatafile("books/add8.parquet");
+
+      ManifestFile m1 =
+          writeManifest(tableFolder, "manifestFileCowDmlDelete", dataFile1Cow, dataFile2Cow);
+      cowDmlCommitter.consumeManifestFile(m1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+
+      // Merge On Read DML
+      DataFile dataFile1Mor = getDatafile("books/add9.parquet");
+      DataFile dataFile2Mor = getDatafile("books/add10.parquet");
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFiles = Lists.newArrayList(dataFile1Mor, dataFile2Mor);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      dataFiles.forEach(morDmlCommitter::consumeMergeOnReadAddDataFile);
+
+      morDmlCommitter.consumePositionalDeleteFile(
+          positionalDeleteFile, getReferencedDataFiles("books/add1.parquet"));
+      morDmlCommitter.consumePositionalDeleteFile(
+          positionalDeleteFile2, getReferencedDataFiles("books/add2.parquet"));
+
+      // start both commits
+      cowDmlCommitter.beginDmlOperationTransaction();
+      morDmlCommitter.beginDmlOperationTransaction();
+
+      // end COW commit
+      cowDmlCommitter.performCopyOnWriteTransaction();
+      cowDmlCommitter.endDmlOperationTransaction();
+
+      // end MOR commit. should fail with CommitFailedException
+      UserExceptionAssert.assertThatThrownBy(
+              () -> {
+                // Don't need to start beginOperation, as it started.
+                morDmlCommitter.commitImpl(true);
+              })
+          .hasErrorType(CONCURRENT_MODIFICATION)
+          .hasMessageContaining("Concurrent operation has updated the table, please retry.");
+
+      // After this operation, the manifestList was expected to have two manifest file.
+      // One is 'manifestFileDelete' and the other is the newly created due to delete data file.
+      // This newly created manifest
+      // is due to rewriting of 'manifestFile1' file. It is expected to 3 existing file account and
+      // 2 deleted file count.
+      Table table = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
+      Assert.assertEquals(2, manifestFileList.size());
+      for (ManifestFile manifestFile : manifestFileList) {
+        if (manifestFile.path().contains("manifestFileCowDmlDelete")) {
+          Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
+        } else {
+          Assert.assertEquals(2, (int) manifestFile.deletedFilesCount());
+          Assert.assertEquals(3, (int) manifestFile.existingFilesCount());
+        }
+      }
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentOneMorOneCowDmlsFails() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      IcebergOpCommitter committer =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter = (IcebergDmlOperationCommitter) committer;
+
+      IcebergOpCommitter committer2 =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
+      Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer2;
+
+      // Merge On Read DML
+      DataFile dataFile1Mor = getDatafile("books/add9.parquet");
+      DataFile dataFile2Mor = getDatafile("books/add10.parquet");
+      DataFile dataFile3Mor = getDatafile("books/add11.parquet");
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFiles = Lists.newArrayList(dataFile1Mor, dataFile2Mor, dataFile3Mor);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      dataFiles.forEach(morDmlCommitter::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFiles) {
+        morDmlCommitter.consumePositionalDeleteFile(deleteFile, Collections.emptySet());
+      }
+
+      // Copy On Write DML
+      // Add a new manifest list, and delete several previous datafiles
+      String deleteDataFile1 = "books/add1.parquet";
+      String deleteDataFile2 = "books/add2.parquet";
+      DataFile dataFile1Cow = getDatafile("books/add7.parquet");
+      DataFile dataFile2Cow = getDatafile("books/add8.parquet");
+
+      ManifestFile m1 =
+          writeManifest(tableFolder, "manifestFileCowDmlDelete", dataFile1Cow, dataFile2Cow);
+      cowDmlCommitter.consumeManifestFile(m1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+
+      // start both commits
+      morDmlCommitter.beginDmlOperationTransaction();
+      cowDmlCommitter.beginDmlOperationTransaction();
+
+      // end commit 1
+      morDmlCommitter.performMergeOnReadTransaction();
+      morDmlCommitter.endDmlOperationTransaction();
+
+      // end commit 2 should fail with CommitFailedException
+      UserExceptionAssert.assertThatThrownBy(
+              () -> {
+                // Don't need to start beginOperation, as it started.
+                cowDmlCommitter.commitImpl(true);
+              })
+          .hasErrorType(CONCURRENT_MODIFICATION)
+          .hasMessageContaining("Concurrent operation has updated the table, please retry.");
+
+      // After this operation, the manifestList was expected to have two manifest file.
+      // One is 'manifestFileDelete' and the other is the newly created due to delete data file.
+      // This newly created manifest
+      // is due to rewriting of 'manifestFile1' file. It is expected to 3 existing file account and
+      // 2 deleted file count.
+      Table table = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
+      Assert.assertEquals(3, manifestFileList.size());
+      for (ManifestFile manifestFile : manifestFileList) {
+        if (manifestFile.content() == ManifestContent.DELETES) {
+          Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
+        } else if (!manifestFile.path().contains("manifestFile1.avro")
+            && manifestFile.content() == ManifestContent.DATA) {
+          Assert.assertEquals(3, (int) manifestFile.addedFilesCount());
+        }
+      }
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentTwoMorDmlsFail() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      IcebergOpCommitter committer =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter1 = (IcebergDmlOperationCommitter) committer;
+
+      IcebergOpCommitter committer2 =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter2 = (IcebergDmlOperationCommitter) committer2;
+
+      // Merge On Read DML 1
+      // Add a new manifest list, and delete several previous datafiles
+      DataFile dataFile1Mor1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2Mor1 = getDatafile("books/add8.parquet");
+      DataFile dataFile3Mor1 = getDatafile("books/add9.parquet");
+
+      DeleteFile positionalDeleteFile1Mor1 = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2Mor1 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFilesMor1 =
+          Lists.newArrayList(dataFile1Mor1, dataFile2Mor1, dataFile3Mor1);
+      List<DeleteFile> deleteFilesMor1 =
+          Lists.newArrayList(positionalDeleteFile1Mor1, positionalDeleteFile2Mor1);
+
+      dataFilesMor1.forEach(morDmlCommitter1::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFilesMor1) {
+        morDmlCommitter1.consumePositionalDeleteFile(
+            deleteFile, getReferencedDataFiles("books/add1.parquet"));
+      }
+
+      // Merge On Read DML 2
+      DataFile dataFile1Mor2 = getDatafile("books/add7.parquet");
+      DataFile dataFile2Mor2 = getDatafile("books/add8.parquet");
+      DataFile dataFile3Mor2 = getDatafile("books/add9.parquet");
+
+      DeleteFile positionalDeleteFile1Mor2 = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2Mor2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFilesMor2 =
+          Lists.newArrayList(dataFile1Mor2, dataFile2Mor2, dataFile3Mor2);
+      List<DeleteFile> deleteFilesMor2 =
+          Lists.newArrayList(positionalDeleteFile1Mor2, positionalDeleteFile2Mor2);
+
+      dataFilesMor2.forEach(morDmlCommitter2::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFilesMor2) {
+        morDmlCommitter2.consumePositionalDeleteFile(
+            deleteFile, getReferencedDataFiles("books/add2.parquet"));
+      }
+
+      // start both commits
+      morDmlCommitter1.beginDmlOperationTransaction();
+      morDmlCommitter2.beginDmlOperationTransaction();
+
+      // end commit 1
+      morDmlCommitter1.performMergeOnReadTransaction();
+      morDmlCommitter1.endDmlOperationTransaction();
+
+      // end commit 2 should fail with CommitFailedException
+      UserExceptionAssert.assertThatThrownBy(
+              () -> {
+                // Don't need to start beginOperation, as it started.
+                morDmlCommitter2.commitImpl(true);
+              })
+          .hasErrorType(CONCURRENT_MODIFICATION)
+          .hasMessageContaining("Concurrent operation has updated the table, please retry.");
+
+      // After this operation, the manifestList was expected to have two manifest file.
+      // One is 'manifestFileDelete' and the other is the newly created due to delete data file.
+      // This newly created manifest
+      // is due to rewriting of 'manifestFile1' file. It is expected to 3 existing file account and
+      // 2 deleted file count.
+      Table table = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
+      Assert.assertEquals(3, manifestFileList.size());
+      for (ManifestFile manifestFile : manifestFileList) {
+        if (manifestFile.content() == ManifestContent.DELETES) {
+          Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
+        } else if (!manifestFile.path().contains("manifestFile1.avro")
+            && manifestFile.content() == ManifestContent.DATA) {
+          Assert.assertEquals(3, (int) manifestFile.addedFilesCount());
         }
       }
     } finally {
@@ -153,9 +481,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.DELETE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
+      IcebergDmlOperationCommitter cowDmlCommitter1 = (IcebergDmlOperationCommitter) committer;
 
       IcebergOpCommitter committer2 =
           icebergModel.getDmlCommitter(
@@ -163,9 +492,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.DELETE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter2 = (IcebergDmlOperationCommitter) committer2;
+      IcebergDmlOperationCommitter cowDmlCommitter2 = (IcebergDmlOperationCommitter) committer2;
 
       // Add a new manifest list, and delete several previous datafiles
       String deleteDataFile1 = "books/add1.parquet";
@@ -181,23 +511,23 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       // First DmlCommitter only commit the data files that will be removed from the table. But, it
       // does not commit
       // any new data files.
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      cowDmlCommitter1.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter1.consumeDeleteDataFilePath(deleteDataFile2);
 
       // The concurrent and second DmlCommitter could commit 1) only date files to delete; 2) date
       // files to delete and/or
       // new data files
-      dmlCommitter2.consumeManifestFile(m1);
-      dmlCommitter2.consumeDeleteDataFilePath(deleteDataFile3);
-      dmlCommitter2.consumeDeleteDataFilePath(deleteDataFile4);
+      cowDmlCommitter2.consumeManifestFile(m1);
+      cowDmlCommitter2.consumeDeleteDataFilePath(deleteDataFile3);
+      cowDmlCommitter2.consumeDeleteDataFilePath(deleteDataFile4);
 
       // start both commits
-      dmlCommitter.beginDmlOperationTransaction();
-      dmlCommitter2.beginDmlOperationTransaction();
+      cowDmlCommitter1.beginDmlOperationTransaction();
+      cowDmlCommitter2.beginDmlOperationTransaction();
 
       // First DML commits
-      dmlCommitter.performUpdates();
-      dmlCommitter.endDmlOperationTransaction();
+      cowDmlCommitter1.performCopyOnWriteTransaction();
+      cowDmlCommitter1.endDmlOperationTransaction();
       Table tableAfterFirstDml = getIcebergTable(icebergModel, tableFolder);
       Assert.assertNotEquals(
           "DML commit succeeds and increases table snapshots",
@@ -205,8 +535,8 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
           tableBefore.currentSnapshot().snapshotId());
 
       // Second DML commits and succeeds.
-      dmlCommitter2.performUpdates();
-      dmlCommitter2.endDmlOperationTransaction();
+      cowDmlCommitter2.performCopyOnWriteTransaction();
+      cowDmlCommitter2.endDmlOperationTransaction();
 
       Table tableAfterSecondDml = getIcebergTable(icebergModel, tableFolder);
       Assert.assertNotEquals(
@@ -242,7 +572,7 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
       Table tableBefore = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(3, Iterables.size(tableBefore.snapshots()));
+      Assert.assertEquals(2, Iterables.size(tableBefore.snapshots()));
 
       IcebergOpCommitter committer =
           icebergModel.getDmlCommitter(
@@ -250,9 +580,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer;
 
       IcebergOpCommitter committer2 =
           icebergModel.getInsertTableCommitter(
@@ -275,19 +606,19 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
           writeManifest(tableFolder, "manifestFileDml", dataFile1, dataFile2);
       ManifestFile manifestFile2 =
           writeManifest(tableFolder, "manifestFileInsert", dataFile3, dataFile4);
-      dmlCommitter.consumeManifestFile(manifestFile);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      cowDmlCommitter.consumeManifestFile(manifestFile);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
 
       insertCommitter.consumeManifestFile(manifestFile2);
 
       // Start the DML commit
-      dmlCommitter.beginDmlOperationTransaction();
+      cowDmlCommitter.beginDmlOperationTransaction();
 
       // Make insert commit to increase a new snapshot and update the metadata file version
       insertCommitter.commit();
       Table tableAfterInsert = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(4, Iterables.size(tableAfterInsert.snapshots()));
+      Assert.assertEquals(3, Iterables.size(tableAfterInsert.snapshots()));
 
       // DML commit fails as there are new data files added that conflicts the DML commit's
       // conflictDetectionFilter: Expressions.alwaysTrue()
@@ -295,7 +626,102 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       UserExceptionAssert.assertThatThrownBy(
               () -> {
                 // Don't need to start beginOperation, as it started.
-                dmlCommitter.commitImpl(true);
+                cowDmlCommitter.commitImpl(true);
+              })
+          .hasErrorType(CONCURRENT_MODIFICATION)
+          .hasMessageContaining("Concurrent operation has updated the table, please retry.");
+
+      // Insert commit succeeds and DML fails. The final table status should include the Insert's
+      // manifest,
+      // but not include DML's manifest.
+      Table finalTable = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList =
+          finalTable.currentSnapshot().allManifests(finalTable.io());
+      Assert.assertEquals(2, manifestFileList.size());
+      for (ManifestFile mFile : manifestFileList) {
+        Assert.assertFalse(mFile.path().contains("manifestFileDml"));
+        if (mFile.path().contains("manifestFileInsert")) {
+          Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
+        }
+      }
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentMorDmlFailAfterInsert() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(2, Iterables.size(tableBefore.snapshots()));
+
+      IcebergOpCommitter committer =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer;
+
+      IcebergOpCommitter committer2 =
+          icebergModel.getInsertTableCommitter(
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              operatorContext.getStats());
+      Assert.assertTrue(committer2 instanceof IcebergInsertOperationCommitter);
+      IcebergInsertOperationCommitter insertCommitter =
+          (IcebergInsertOperationCommitter) committer2;
+
+      // Merge On Read DML 1
+      // Add a new manifest list, and delete several previous datafiles
+      DataFile dataFile1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2 = getDatafile("books/add8.parquet");
+      DataFile dataFile3 = getDatafile("books/add9.parquet");
+      DataFile dataFile4 = getDatafile("books/add10.parquet");
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      ManifestFile manifestFile =
+          writeManifest(tableFolder, "manifestFileInsert", dataFile3, dataFile4);
+      insertCommitter.consumeManifestFile(manifestFile);
+
+      List<DataFile> dataFiles = Lists.newArrayList(dataFile1, dataFile2, dataFile3);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      Set<ByteArrayWrapper> referencedFilesAsBytes = getReferencedDataFiles("books/add1.parquet");
+      dataFiles.forEach(cowDmlCommitter::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFiles) {
+        cowDmlCommitter.consumePositionalDeleteFile(deleteFile, referencedFilesAsBytes);
+      }
+
+      // Start the DML commit
+      cowDmlCommitter.beginDmlOperationTransaction();
+
+      // Make insert commit to increase a new snapshot and update the metadata file version
+      insertCommitter.commit();
+      Table tableAfterInsert = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(3, Iterables.size(tableAfterInsert.snapshots()));
+
+      // DML commit fails as there are new data files added that conflicts the DML commit's
+      // conflictDetectionFilter: Expressions.alwaysTrue()
+
+      UserExceptionAssert.assertThatThrownBy(
+              () -> {
+                // Don't need to start beginOperation, as it started.
+                cowDmlCommitter.commitImpl(true);
               })
           .hasErrorType(CONCURRENT_MODIFICATION)
           .hasMessageContaining("Concurrent operation has updated the table, please retry.");
@@ -331,7 +757,7 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
       Table tableBefore = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(3, Iterables.size(tableBefore.snapshots()));
+      Assert.assertEquals(2, Iterables.size(tableBefore.snapshots()));
 
       IcebergOpCommitter committer =
           icebergModel.getDmlCommitter(
@@ -339,9 +765,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer;
 
       IcebergOpCommitter committer2 =
           icebergModel.getInsertTableCommitter(
@@ -364,20 +791,20 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
           writeManifest(tableFolder, "manifestFileDml", dataFile1, dataFile2);
       ManifestFile manifestFile2 =
           writeManifest(tableFolder, "manifestFileInsert", dataFile3, dataFile4);
-      dmlCommitter.consumeManifestFile(manifestFile);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      cowDmlCommitter.consumeManifestFile(manifestFile);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
       insertCommitter.consumeManifestFile(manifestFile2);
 
       // DML commits and increase snapshot and update metadata file.
-      dmlCommitter.commit();
+      cowDmlCommitter.commit();
       Table tableAfterDml = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(4, Iterables.size(tableAfterDml.snapshots()));
+      Assert.assertEquals(3, Iterables.size(tableAfterDml.snapshots()));
 
       // Insert commit should succeed and increase a new snapshot and update the metadata file.
       insertCommitter.commit();
       Table tableAfterInsert = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(5, Iterables.size(tableAfterInsert.snapshots()));
+      Assert.assertEquals(4, Iterables.size(tableAfterInsert.snapshots()));
 
       // Both DML and Insert commits succeed, as Insert commit happens after DML.
       Table finalTable = getIcebergTable(icebergModel, tableFolder);
@@ -400,6 +827,101 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
   }
 
   @Test
+  public void testConcurrentInsertSucceedAfterMorDml() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(2, Iterables.size(tableBefore.snapshots()));
+
+      IcebergOpCommitter committer =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer;
+
+      IcebergOpCommitter committer2 =
+          icebergModel.getInsertTableCommitter(
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              operatorContext.getStats());
+      Assert.assertTrue(committer2 instanceof IcebergInsertOperationCommitter);
+      IcebergInsertOperationCommitter insertCommitter =
+          (IcebergInsertOperationCommitter) committer2;
+
+      // Add a new manifest list, and delete several previous datafiles
+      DataFile dataFile1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2 = getDatafile("books/add8.parquet");
+
+      DataFile dataFile3 = getDatafile("books/add9.parquet");
+      DataFile dataFile4 = getDatafile("books/add10.parquet");
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFiles = Lists.newArrayList(dataFile1, dataFile2, dataFile3);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      Set<ByteArrayWrapper> referencedFilesAsBytes = getReferencedDataFiles("books/add1.parquet");
+      dataFiles.forEach(cowDmlCommitter::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFiles) {
+        cowDmlCommitter.consumePositionalDeleteFile(deleteFile, referencedFilesAsBytes);
+      }
+
+      ManifestFile manifestFile1 =
+          writeManifest(tableFolder, "manifestFileInsert", dataFile3, dataFile4);
+      insertCommitter.consumeManifestFile(manifestFile1);
+
+      // DML commits and increase snapshot and update metadata file.
+      cowDmlCommitter.commit();
+      Table tableAfterDml = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(3, Iterables.size(tableAfterDml.snapshots()));
+
+      // Insert commit should succeed and increase a new snapshot and update the metadata file.
+      insertCommitter.commit();
+      Table tableAfterInsert = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(4, Iterables.size(tableAfterInsert.snapshots()));
+
+      // Both DML and Insert commits succeed, as Insert commit happens after DML.
+      Table finalTable = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList =
+          finalTable.currentSnapshot().allManifests(finalTable.io());
+      Assert.assertEquals(4, manifestFileList.size());
+      boolean initialManifestFound = false;
+      boolean dmlDataFileManifestFound = false;
+      for (ManifestFile mFile : manifestFileList) {
+        if (mFile.path().contains("manifestFileInsert")) {
+          Assert.assertEquals(2, (int) mFile.addedFilesCount());
+        } else if (mFile.content() == ManifestContent.DELETES) {
+          Assert.assertEquals(2, (int) mFile.addedFilesCount());
+        } else {
+          if (mFile.addedFilesCount() == 5) {
+            initialManifestFound = true;
+          } else if (mFile.addedFilesCount() == 3) {
+            dmlDataFileManifestFound = true;
+          }
+        }
+      }
+      Assert.assertTrue(initialManifestFound);
+      Assert.assertTrue(dmlDataFileManifestFound);
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
   public void testConcurrentInsertsSucceed() throws IOException {
     final String tableName = UUID.randomUUID().toString();
     final File tableFolder = new File(folder, tableName);
@@ -412,7 +934,7 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
       Table tableBefore = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(3, Iterables.size(tableBefore.snapshots()));
+      Assert.assertEquals(2, Iterables.size(tableBefore.snapshots()));
 
       IcebergOpCommitter committer =
           icebergModel.getInsertTableCommitter(
@@ -446,13 +968,13 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       // First insert commits and increase the snapshot and update the metadata file version
       insertCommitter.commit();
       Table tableAfterInsert = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(4, Iterables.size(tableAfterInsert.snapshots()));
+      Assert.assertEquals(3, Iterables.size(tableAfterInsert.snapshots()));
 
       // Second insert commits successfully and increase the snapshot and update the metadata file
       // version
       insertCommitter2.commit();
       Table tableAfterInsert2 = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(5, Iterables.size(tableAfterInsert2.snapshots()));
+      Assert.assertEquals(4, Iterables.size(tableAfterInsert2.snapshots()));
 
       // Both insert commits should be successfully and the table should include both committed
       // manifest files.
@@ -492,9 +1014,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer;
 
       // Add a new manifest list, and delete several previous datafiles
       String deleteDataFile1 = "books/add1.parquet";
@@ -503,10 +1026,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       DataFile dataFile2 = getDatafile("books/add8.parquet");
 
       ManifestFile m1 = writeManifest(tableFolder, "manifestFileDmlDelete", dataFile1, dataFile2);
-      dmlCommitter.consumeManifestFile(m1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
-      dmlCommitter.beginDmlOperationTransaction();
+      cowDmlCommitter.consumeManifestFile(m1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      cowDmlCommitter.beginDmlOperationTransaction();
 
       // Change the table's column name to update its metadata file version
       IcebergTableIdentifier tableIdentifier =
@@ -515,8 +1038,8 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       icebergModel.renameColumn(tableIdentifier, secondColumnName, secondColumnName + "1");
 
       // DML commit could succeed, as metadata file update does not block concurrent DML commit.
-      dmlCommitter.performUpdates();
-      dmlCommitter.endDmlOperationTransaction();
+      cowDmlCommitter.performCopyOnWriteTransaction();
+      cowDmlCommitter.endDmlOperationTransaction();
 
       // After this operation, the manifestList was expected to have two manifest file.
       // One is 'manifestFileDelete' and the other is the newly created due to delete data file.
@@ -540,6 +1063,80 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
   }
 
   @Test
+  public void testConcurrentMorDmlSucceedAfterRenameColumn() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+
+      IcebergOpCommitter committer =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter = (IcebergDmlOperationCommitter) committer;
+
+      DataFile dataFile1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2 = getDatafile("books/add8.parquet");
+      DataFile dataFile3 = getDatafile("books/add9.parquet");
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFiles = Lists.newArrayList(dataFile1, dataFile2, dataFile3);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      Set<ByteArrayWrapper> referencedFilesAsBytes = getReferencedDataFiles("books/add1.parquet");
+      dataFiles.forEach(morDmlCommitter::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFiles) {
+        morDmlCommitter.consumePositionalDeleteFile(deleteFile, referencedFilesAsBytes);
+      }
+      morDmlCommitter.beginDmlOperationTransaction();
+
+      // Change the table's column name to update its metadata file version
+      IcebergTableIdentifier tableIdentifier =
+          icebergModel.getTableIdentifier(tableFolder.toPath().toString());
+      String secondColumnName = schema.getColumn(1).getName();
+      icebergModel.renameColumn(tableIdentifier, secondColumnName, secondColumnName + "1");
+
+      // DML commit could succeed, as metadata file update does not block concurrent DML commit.
+      morDmlCommitter.performMergeOnReadTransaction();
+      morDmlCommitter.endDmlOperationTransaction();
+
+      // After this operation, the manifestList was expected to have two manifest file.
+      // One is 'manifestFileDelete' and the other is the newly created due to delete data file.
+      // This newly created manifest
+      // is due to rewriting of 'manifestFile1' file. It is expected to 3 existing file account and
+      // 2 deleted file count.
+      Table table = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
+      Assert.assertEquals(3, manifestFileList.size());
+      for (ManifestFile manifestFile : manifestFileList) {
+        if (manifestFile.content() == ManifestContent.DELETES) {
+          Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
+        } else if (!manifestFile.path().contains("manifestFile1.avro")
+            && manifestFile.content() == ManifestContent.DATA) {
+          Assert.assertEquals(3, (int) manifestFile.addedFilesCount());
+        }
+      }
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
   public void testConcurrentDmlFailRollback() throws IOException {
     final String tableName = UUID.randomUUID().toString();
     final File tableFolder = new File(folder, tableName);
@@ -552,7 +1149,7 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
       Table tableBefore = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(3, Iterables.size(tableBefore.snapshots()));
+      Assert.assertEquals(2, Iterables.size(tableBefore.snapshots()));
       final long rollbackToSnapshotId = tableBefore.currentSnapshot().snapshotId();
 
       // Add a new manifest list, and delete several previous datafiles
@@ -581,7 +1178,7 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       // Make insert commit to increase a new snapshot and update the metadata file version
       insertCommitter.commit();
       Table tableAfterInsert = getIcebergTable(icebergModel, tableFolder);
-      Assert.assertEquals(4, Iterables.size(tableAfterInsert.snapshots()));
+      Assert.assertEquals(3, Iterables.size(tableAfterInsert.snapshots()));
       Assert.assertNotEquals(rollbackToSnapshotId, tableAfterInsert.currentSnapshot().snapshotId());
 
       IcebergOpCommitter committer2 =
@@ -590,15 +1187,16 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableAfterInsert.currentSnapshot().snapshotId());
+              tableAfterInsert.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer2;
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer2;
 
-      dmlCommitter.consumeManifestFile(manifestFile);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      cowDmlCommitter.consumeManifestFile(manifestFile);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
       // Start the DML commit
-      dmlCommitter.beginDmlOperationTransaction();
+      cowDmlCommitter.beginDmlOperationTransaction();
 
       // Rollback the table's status back to an old snapshot that will disturb DML commit.
       RollbackOption rollbackOption =
@@ -614,7 +1212,7 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       UserExceptionAssert.assertThatThrownBy(
               () -> {
                 // Don't need to start beginOperation, as it started.
-                dmlCommitter.commitImpl(true);
+                cowDmlCommitter.commitImpl(true);
               })
           .hasErrorType(CONCURRENT_MODIFICATION)
           .hasMessageContaining("Concurrent operation has updated the table, please retry.");
@@ -631,6 +1229,105 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
         if (mFile.path().contains("manifestFileInsert")) {
           Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
         }
+      }
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentMorDmlFailRollback() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(2, Iterables.size(tableBefore.snapshots()));
+      final long rollbackToSnapshotId = tableBefore.currentSnapshot().snapshotId();
+
+      DataFile dataFile1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2 = getDatafile("books/add8.parquet");
+      DataFile dataFile3 = getDatafile("books/add9.parquet");
+      DataFile dataFile4 = getDatafile("books/add10.parquet");
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      ManifestFile manifestFileIns =
+          writeManifest(tableFolder, "manifestFileInsert", dataFile3, dataFile4);
+
+      List<DataFile> dataFiles = Lists.newArrayList(dataFile1, dataFile2, dataFile3);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      IcebergTableIdentifier tableIdentifier =
+          icebergModel.getTableIdentifier(tableFolder.toPath().toString());
+      // Increase one more snapshot
+      IcebergOpCommitter committer =
+          icebergModel.getInsertTableCommitter(tableIdentifier, operatorContext.getStats());
+      Assert.assertTrue(committer instanceof IcebergInsertOperationCommitter);
+      IcebergInsertOperationCommitter insertCommitter = (IcebergInsertOperationCommitter) committer;
+
+      insertCommitter.consumeManifestFile(manifestFileIns);
+      // Make insert commit to increase a new snapshot and update the metadata file version
+      insertCommitter.commit();
+      Table tableAfterInsert = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(3, Iterables.size(tableAfterInsert.snapshots()));
+      Assert.assertNotEquals(rollbackToSnapshotId, tableAfterInsert.currentSnapshot().snapshotId());
+
+      IcebergOpCommitter committer2 =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableAfterInsert.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter = (IcebergDmlOperationCommitter) committer2;
+
+      Set<ByteArrayWrapper> referencedFilesAsBytes = getReferencedDataFiles("books/add1.parquet");
+      dataFiles.forEach(morDmlCommitter::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFiles) {
+        morDmlCommitter.consumePositionalDeleteFile(deleteFile, referencedFilesAsBytes);
+      }
+
+      // Start the DML commit
+      morDmlCommitter.beginDmlOperationTransaction();
+
+      // Rollback the table's status back to an old snapshot that will disturb DML commit.
+      RollbackOption rollbackOption =
+          new RollbackOption(
+              RollbackOption.Type.SNAPSHOT,
+              rollbackToSnapshotId,
+              String.valueOf(rollbackToSnapshotId));
+      icebergModel.rollbackTable(tableIdentifier, rollbackOption);
+      Table tableAfterRollback = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(rollbackToSnapshotId, tableAfterRollback.currentSnapshot().snapshotId());
+      // DML commit fails as Rollback disturbs the snapshot chain that DML originally has.
+      Assertions.assertThatThrownBy(
+              () -> {
+                // Don't need to start beginOperation, as it started.
+                morDmlCommitter.commitImpl(true);
+              })
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageMatching("^Snapshot \\d+ is not an ancestor of \\d+$");
+
+      // Insert commit succeeds and DML fails. The final table status should include the Insert's
+      // manifest,
+      // but not include DML's maxifest.
+      Table finalTable = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList =
+          finalTable.currentSnapshot().allManifests(finalTable.io());
+      Assert.assertEquals(1, manifestFileList.size());
+      for (ManifestFile mFile : manifestFileList) {
+        Assert.assertNotSame(mFile.content(), ManifestContent.DELETES);
       }
     } finally {
       FileUtils.deleteDirectory(tableFolder);
@@ -741,9 +1438,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer2;
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer2;
 
       // Add a new manifest list, and delete several previous datafiles
       DataFile deleteDataFile1 = getDatafile("books/add1.parquet");
@@ -767,21 +1465,18 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       optimizeCommitter.consumeDeleteDataFile(deleteDataFile4);
       optimizeCommitter.consumeDeleteDataFile(deleteDataFile5);
 
-      dmlCommitter.consumeManifestFile(manifestFile);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1.path().toString());
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2.path().toString());
+      cowDmlCommitter.consumeManifestFile(manifestFile);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1.path().toString());
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2.path().toString());
 
       // DML commit first to delete some data files that Optimize needs to use.
-      dmlCommitter.commit();
+      cowDmlCommitter.commit();
       Table tableAfterDml = getIcebergTable(icebergModel, tableFolder);
       Assert.assertNotEquals(
           tableBefore.currentSnapshot().snapshotId(), tableAfterDml.currentSnapshot().snapshotId());
 
       // Optimize commits and fails due to current DML commit.
-      UserExceptionAssert.assertThatThrownBy(
-              () -> {
-                optimizeCommitter.commit(null);
-              })
+      UserExceptionAssert.assertThatThrownBy(() -> optimizeCommitter.commit(null))
           .hasErrorType(CONCURRENT_MODIFICATION)
           .hasMessageContaining("Concurrent operation has updated the table, please retry.");
 
@@ -794,6 +1489,103 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       List<ManifestFile> manifestFileList =
           finalTable.currentSnapshot().allManifests(finalTable.io());
       Assert.assertEquals(2, manifestFileList.size());
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentMorOptimizeFailAfterDml() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      IcebergTableProps tableProps =
+          new IcebergTableProps(tableFolder.getAbsolutePath(), tableName);
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      IcebergTableIdentifier tableIdentifier =
+          icebergModel.getTableIdentifier(tableFolder.toPath().toString());
+      IcebergOpCommitter committer =
+          icebergModel.getOptimizeCommitter(
+              operatorContext.getStats(),
+              tableIdentifier,
+              datasetConfig,
+              2L,
+              tableBefore.currentSnapshot().snapshotId(),
+              tableProps,
+              localFs);
+      Assert.assertTrue(committer instanceof IcebergOptimizeOperationCommitter);
+      IcebergOptimizeOperationCommitter optimizeCommitter =
+          (IcebergOptimizeOperationCommitter) committer;
+
+      IcebergOpCommitter committer2 =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter = (IcebergDmlOperationCommitter) committer2;
+
+      // Add a new manifest list, and delete several previous datafiles
+      DataFile deleteDataFile1 = getDatafile("books/add1.parquet");
+      DataFile deleteDataFile2 = getDatafile("books/add2.parquet");
+      DataFile deleteDataFile3 = getDatafile("books/add3.parquet");
+      DataFile deleteDataFile4 = getDatafile("books/add4.parquet");
+      DataFile deleteDataFile5 = getDatafile("books/add5.parquet");
+      DataFile newDataFile1 = getDatafile("books/add7.parquet");
+      DataFile newDataFile2 = getDatafile("books/add8.parquet");
+      DataFile newDataFile3 = getDatafile("books/add9.parquet");
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFiles = Lists.newArrayList(newDataFile1, newDataFile2, newDataFile3);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      optimizeCommitter.consumeAddDataFile(newDataFile1);
+      optimizeCommitter.consumeAddDataFile(newDataFile2);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile1);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile2);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile3);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile4);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile5);
+
+      Set<ByteArrayWrapper> referencedFilesAsBytes = getReferencedDataFiles("books/add1.parquet");
+      dataFiles.forEach(morDmlCommitter::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFiles) {
+        morDmlCommitter.consumePositionalDeleteFile(deleteFile, referencedFilesAsBytes);
+      }
+
+      // DML commit first to delete some data files that Optimize needs to use.
+      morDmlCommitter.commit();
+      Table tableAfterDml = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertNotEquals(
+          tableBefore.currentSnapshot().snapshotId(), tableAfterDml.currentSnapshot().snapshotId());
+
+      // Optimize commits and fails due to current DML commit.
+      UserExceptionAssert.assertThatThrownBy(() -> optimizeCommitter.commit(null))
+          .hasErrorType(CONCURRENT_MODIFICATION)
+          .hasMessageContaining("Concurrent operation has updated the table, please retry.");
+
+      // After this operation, the manifestList was expected to have two manifest file.
+      Table finalTable = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(
+          "Optimize commit should not increase table snapshots",
+          tableAfterDml.currentSnapshot().snapshotId(),
+          finalTable.currentSnapshot().snapshotId());
+      List<ManifestFile> manifestFileList =
+          finalTable.currentSnapshot().allManifests(finalTable.io());
+      Assert.assertEquals(3, manifestFileList.size());
     } finally {
       FileUtils.deleteDirectory(tableFolder);
     }
@@ -872,10 +1664,7 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
           tableAfterFirstOptimize.currentSnapshot().snapshotId());
 
       // OptimizeCommitters commits and fails due to missing data file..
-      UserExceptionAssert.assertThatThrownBy(
-              () -> {
-                optimizeCommitter2.commit(null);
-              })
+      UserExceptionAssert.assertThatThrownBy(() -> optimizeCommitter2.commit(null))
           .hasErrorType(CONCURRENT_MODIFICATION)
           .hasMessageContaining("Concurrent operation has updated the table, please retry.");
 
@@ -933,9 +1722,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.DELETE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer2;
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer2;
 
       // Add a new manifest list, and delete several previous datafiles
       String deleteDataFile1 = "books/add1.parquet";
@@ -952,9 +1742,9 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
 
       // DmlCommitter could commit new data files and delete existing data files, which does not
       // affect the Optimize commit
-      dmlCommitter.consumeManifestFile(m1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      cowDmlCommitter.consumeManifestFile(m1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
 
       // OptimizeCommitter assumes to commit new data files and remove old data files from another
       // partitions, which
@@ -965,9 +1755,9 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       optimizeCommitter.consumeDeleteDataFile(deleteDataFile4);
 
       // Dmlcommiter commits first.
-      dmlCommitter.beginDmlOperationTransaction();
-      dmlCommitter.performUpdates();
-      dmlCommitter.endDmlOperationTransaction();
+      cowDmlCommitter.beginDmlOperationTransaction();
+      cowDmlCommitter.performCopyOnWriteTransaction();
+      cowDmlCommitter.endDmlOperationTransaction();
       Table tableAfterDml = getIcebergTable(icebergModel, tableFolder);
       Assert.assertNotEquals(
           "DML commit succeeds and increases table snapshots",
@@ -1045,9 +1835,6 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       DataFile newDataFile2 = getDatafile("books/add8.parquet");
       DataFile newDataFile3 = getDatafile("books/add9.parquet");
       DataFile newDataFile4 = getDatafile("books/add10.parquet");
-
-      ManifestFile m1 =
-          writeManifest(tableFolder, "newManifestFileDml", newDataFile1, newDataFile2);
 
       // Two OptimizeCommitters works on optimize different data files and don't overlap each other,
       // e.g., two different partitions.
@@ -1207,9 +1994,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer2;
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer2;
 
       // Add a new manifest list, and delete several previous datafiles
       DataFile deleteDataFile1 = getDatafile("books/add1.parquet");
@@ -1233,9 +2021,9 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       optimizeCommitter.consumeDeleteDataFile(deleteDataFile4);
       optimizeCommitter.consumeDeleteDataFile(deleteDataFile5);
 
-      dmlCommitter.consumeManifestFile(manifestFile);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1.path().toString());
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2.path().toString());
+      cowDmlCommitter.consumeManifestFile(manifestFile);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1.path().toString());
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2.path().toString());
 
       // Optimize commit first to delete some data files that DML needs to use.
       optimizeCommitter.commit(null);
@@ -1245,10 +2033,106 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
           tableAfterOptimize.currentSnapshot().snapshotId());
 
       // DML commits and fails due to current Optimize commit.
-      UserExceptionAssert.assertThatThrownBy(
-              () -> {
-                dmlCommitter.commit();
-              })
+      UserExceptionAssert.assertThatThrownBy(cowDmlCommitter::commit)
+          .hasErrorType(CONCURRENT_MODIFICATION)
+          .hasMessageContaining("Concurrent operation has updated the table, please retry.");
+
+      // After this operation, the manifestList was expected to have two manifest file.
+      Table finalTable = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(
+          "DML commit should not increase table snapshots",
+          tableAfterOptimize.currentSnapshot().snapshotId(),
+          finalTable.currentSnapshot().snapshotId());
+      List<ManifestFile> manifestFileList =
+          finalTable.currentSnapshot().allManifests(finalTable.io());
+      Assert.assertEquals(2, manifestFileList.size());
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentMorDmlFailAfterOptimize() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      IcebergTableProps tableProps =
+          new IcebergTableProps(tableFolder.getAbsolutePath(), tableName);
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      IcebergTableIdentifier tableIdentifier =
+          icebergModel.getTableIdentifier(tableFolder.toPath().toString());
+      IcebergOpCommitter committer =
+          icebergModel.getOptimizeCommitter(
+              operatorContext.getStats(),
+              tableIdentifier,
+              datasetConfig,
+              2L,
+              tableBefore.currentSnapshot().snapshotId(),
+              tableProps,
+              localFs);
+      Assert.assertTrue(committer instanceof IcebergOptimizeOperationCommitter);
+      IcebergOptimizeOperationCommitter optimizeCommitter =
+          (IcebergOptimizeOperationCommitter) committer;
+
+      IcebergOpCommitter committer2 =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter = (IcebergDmlOperationCommitter) committer2;
+
+      // Add a new manifest list, and delete several previous datafiles
+      DataFile deleteDataFile1 = getDatafile("books/add1.parquet");
+      DataFile deleteDataFile2 = getDatafile("books/add2.parquet");
+      DataFile deleteDataFile3 = getDatafile("books/add3.parquet");
+      DataFile deleteDataFile4 = getDatafile("books/add4.parquet");
+      DataFile deleteDataFile5 = getDatafile("books/add5.parquet");
+      DataFile newDataFile1 = getDatafile("books/add7.parquet");
+      DataFile newDataFile2 = getDatafile("books/add8.parquet");
+      DataFile newDataFile3 = getDatafile("books/add9.parquet");
+
+      optimizeCommitter.consumeAddDataFile(newDataFile1);
+      optimizeCommitter.consumeAddDataFile(newDataFile2);
+      optimizeCommitter.consumeAddDataFile(newDataFile3);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile1);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile2);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile3);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile4);
+      optimizeCommitter.consumeDeleteDataFile(deleteDataFile5);
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFiles = Lists.newArrayList(newDataFile1, newDataFile2, newDataFile3);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      Set<ByteArrayWrapper> referencedFilesAsBytes = getReferencedDataFiles("books/add1.parquet");
+      dataFiles.forEach(morDmlCommitter::consumeMergeOnReadAddDataFile);
+      for (DeleteFile deleteFile : deleteFiles) {
+        morDmlCommitter.consumePositionalDeleteFile(deleteFile, referencedFilesAsBytes);
+      }
+
+      // Optimize commit first to delete some data files that DML needs to use.
+      optimizeCommitter.commit(null);
+      Table tableAfterOptimize = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertNotEquals(
+          tableBefore.currentSnapshot().snapshotId(),
+          tableAfterOptimize.currentSnapshot().snapshotId());
+
+      // DML commits and fails due to current Optimize commit.
+      UserExceptionAssert.assertThatThrownBy(morDmlCommitter::commit)
           .hasErrorType(CONCURRENT_MODIFICATION)
           .hasMessageContaining("Concurrent operation has updated the table, please retry.");
 
@@ -1287,9 +2171,10 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               datasetConfig,
               IcebergCommandType.UPDATE,
-              tableBefore.currentSnapshot().snapshotId());
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.COPY_ON_WRITE);
       Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
-      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
+      IcebergDmlOperationCommitter cowDmlCommitter = (IcebergDmlOperationCommitter) committer;
 
       // Add a new manifest list, and delete several previous datafiles
       DataFile deleteDataFile1 = getDatafile("books/add1.parquet");
@@ -1299,9 +2184,9 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
 
       ManifestFile manifestFile =
           writeManifest(tableFolder, "manifestFileDml", newDataFile3, newDataFile4);
-      dmlCommitter.consumeManifestFile(manifestFile);
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1.path().toString());
-      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2.path().toString());
+      cowDmlCommitter.consumeManifestFile(manifestFile);
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile1.path().toString());
+      cowDmlCommitter.consumeDeleteDataFilePath(deleteDataFile2.path().toString());
 
       // Truncate the Iceberg table and the table is supposed to empty.
       icebergModel.truncateTable(tableIdentifier);
@@ -1311,10 +2196,7 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
           tableAfterTruncate.currentSnapshot().snapshotId());
 
       // DML commits and fails due to current Optimize commit.
-      UserExceptionAssert.assertThatThrownBy(
-              () -> {
-                dmlCommitter.commit();
-              })
+      UserExceptionAssert.assertThatThrownBy(cowDmlCommitter::commit)
           .hasErrorType(CONCURRENT_MODIFICATION)
           .hasMessageContaining("Concurrent operation has updated the table, please retry.");
 
@@ -1327,6 +2209,67 @@ public class TestIcebergCommitConcurrency extends TestIcebergCommitterBase {
       List<ManifestFile> manifestFileList =
           finalTable.currentSnapshot().allManifests(finalTable.io());
       Assert.assertEquals(1, manifestFileList.size());
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentMorDmlFailAfterTruncate() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
+      IcebergTableIdentifier tableIdentifier =
+          icebergModel.getTableIdentifier(tableFolder.toPath().toString());
+      IcebergOpCommitter committer =
+          icebergModel.getDmlCommitter(
+              operatorContext,
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+              datasetConfig,
+              IcebergCommandType.UPDATE,
+              tableBefore.currentSnapshot().snapshotId(),
+              RowLevelOperationMode.MERGE_ON_READ);
+      Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter morDmlCommitter = (IcebergDmlOperationCommitter) committer;
+
+      // Add a new manifest list, and delete several previous datafiles
+      DataFile dataFile1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2 = getDatafile("books/add8.parquet");
+      DataFile dataFile3 = getDatafile("books/add9.parquet");
+
+      // Truncate the Iceberg table and the table is supposed to empty.
+      icebergModel.truncateTable(tableIdentifier);
+      Table tableAfterTruncate = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertNotEquals(
+          tableBefore.currentSnapshot().snapshotId(),
+          tableAfterTruncate.currentSnapshot().snapshotId());
+
+      DeleteFile positionalDeleteFile = getPositionalDeleteFile("books/posDel1.parquet");
+      DeleteFile positionalDeleteFile2 = getPositionalDeleteFile("books/posDel2.parquet");
+
+      List<DataFile> dataFiles = Lists.newArrayList(dataFile1, dataFile2, dataFile3);
+      List<DeleteFile> deleteFiles =
+          Lists.newArrayList(positionalDeleteFile, positionalDeleteFile2);
+
+      dataFiles.forEach(morDmlCommitter::consumeMergeOnReadAddDataFile);
+
+      Set<ByteArrayWrapper> referencedFilesAsBytes = getReferencedDataFiles("books/add1.parquet");
+      for (DeleteFile deleteFile : deleteFiles) {
+        morDmlCommitter.consumePositionalDeleteFile(deleteFile, referencedFilesAsBytes);
+      }
+
+      // DML commits and fails due to current truncate commit.
+      UserExceptionAssert.assertThatThrownBy(morDmlCommitter::commit)
+          .hasErrorType(CONCURRENT_MODIFICATION)
+          .hasMessageContaining("Concurrent operation has updated the table, please retry.");
     } finally {
       FileUtils.deleteDirectory(tableFolder);
     }

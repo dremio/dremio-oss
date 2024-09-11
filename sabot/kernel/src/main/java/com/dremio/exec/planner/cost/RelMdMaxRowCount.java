@@ -45,7 +45,8 @@ public class RelMdMaxRowCount extends org.apache.calcite.rel.metadata.RelMdMaxRo
             .getDatasetConfig()
             .getReadDefinition()
             .getScanStats()
-            .getScanFactor();
+            .getRecordCount()
+            .doubleValue();
       }
     }
     return null;

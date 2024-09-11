@@ -23,7 +23,6 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.SchemaUtilities;
@@ -115,10 +114,7 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
             addLayout.isRaw() ? LayoutDefinition.Type.RAW : LayoutDefinition.Type.AGGREGATE,
             table.qualifyColumns(addLayout.getDisplayList()),
             qualifyColumnsWithGranularity(table.getTable(), addLayout.getDimensionList()),
-            qualifyColumnsWithMeasures(
-                table.getTable(),
-                addLayout.getMeasureList(),
-                optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT)),
+            qualifyColumnsWithMeasures(table.getTable(), addLayout.getMeasureList(), true),
             table.qualifyColumns(addLayout.getSortList()),
             table.qualifyColumns(addLayout.getDistributionList()),
             partitionTransformList,

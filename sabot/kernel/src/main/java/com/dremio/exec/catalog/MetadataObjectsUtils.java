@@ -24,6 +24,7 @@ import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.extensions.SupportsDeltaMetadata;
 import com.dremio.connector.metadata.extensions.SupportsIcebergMetadata;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.MetadataProtoUtils;
@@ -36,7 +37,6 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
-import com.dremio.service.namespace.dataset.proto.TableProperties;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
@@ -47,10 +47,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Spliterators;
 import java.util.UUID;
@@ -188,7 +185,7 @@ public final class MetadataObjectsUtils {
       icebergMetadata.setDefaultPartitionSpecId(newMetadata.getDefaultPartitionSpecId());
       icebergMetadata.setSortOrder(newMetadata.getSortOrder());
       icebergMetadata.setTablePropertiesList(
-          convertTablePropertiesToList(newMetadata.getTableProperties()));
+          IcebergUtils.convertMapToTablePropertiesList(newMetadata.getTableProperties()));
       if (newMetadata.getSnapshotId() > 0) {
         icebergMetadata.setSnapshotId(newMetadata.getSnapshotId());
       }
@@ -250,21 +247,6 @@ public final class MetadataObjectsUtils {
       datasetConfig.setPhysicalDataset(new PhysicalDataset());
     }
     return datasetConfig.getPhysicalDataset();
-  }
-
-  private static List<TableProperties> convertTablePropertiesToList(
-      Map<String, String> tablePropertiesMap) {
-    if (tablePropertiesMap == null || tablePropertiesMap.isEmpty()) {
-      return Collections.emptyList();
-    }
-    List<TableProperties> tablePropertiesList = new ArrayList<>();
-    for (Map.Entry<String, String> entry : tablePropertiesMap.entrySet()) {
-      TableProperties tableProperties = new TableProperties();
-      tableProperties.setTablePropertyName(entry.getKey());
-      tableProperties.setTablePropertyValue(entry.getValue());
-      tablePropertiesList.add(tableProperties);
-    }
-    return tablePropertiesList;
   }
 
   /**

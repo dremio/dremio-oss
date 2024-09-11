@@ -99,8 +99,8 @@ public class UserPreferenceStoreImpl implements UserPreferenceStore {
     private final Integer version = 0;
 
     @Override
-    public void convert(DocumentWriter writer, String key, UserPreference record) {
-      writer.write(USER_ID, record.getUserId());
+    public void convert(DocumentWriter writer, String key, UserPreference document) {
+      writer.write(USER_ID, document.getUserId());
     }
 
     @Override

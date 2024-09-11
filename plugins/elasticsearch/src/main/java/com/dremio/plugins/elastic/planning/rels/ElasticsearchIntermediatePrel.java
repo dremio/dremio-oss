@@ -128,7 +128,7 @@ public class ElasticsearchIntermediatePrel extends SinglePrel implements PrelFin
         (ElasticsearchPrel)
             getInput()
                 .accept(new MoreRelOptUtil.SubsetRemover())
-                .accept(new MoreRelOptUtil.NodeRemover(v -> predicate.apply(v))));
+                .accept(new MoreRelOptUtil.NodeRemover(predicate::apply)));
   }
 
   @Override

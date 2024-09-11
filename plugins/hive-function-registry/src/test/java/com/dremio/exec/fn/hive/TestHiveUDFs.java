@@ -37,7 +37,7 @@ public class TestHiveUDFs extends BaseTestQuery {
     String planString = readResourceAsString("functions/hive/GenericUDF.json");
     List<QueryDataBatch> results = testPhysicalWithResults(planString);
 
-    RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
     for (QueryDataBatch result : results) {
       batchLoader.load(result.getHeader().getDef(), result.getData());
       if (batchLoader.getRecordCount() <= 0) {
@@ -111,7 +111,7 @@ public class TestHiveUDFs extends BaseTestQuery {
     String planString = readResourceAsString("functions/hive/UDF.json");
     List<QueryDataBatch> results = testPhysicalWithResults(planString);
 
-    RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
+    RecordBatchLoader batchLoader = new RecordBatchLoader(getTestAllocator());
     for (QueryDataBatch result : results) {
       batchLoader.load(result.getHeader().getDef(), result.getData());
       if (batchLoader.getRecordCount() <= 0) {

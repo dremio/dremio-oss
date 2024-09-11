@@ -44,8 +44,11 @@ public class PlannerNormalizerComponentImpl implements PlannerNormalizerComponen
         plannerNormalizerModule.buildRelNormalizerTransformer(
             plannerBaseComponent.getHepPlannerRunner(),
             normalizerRuleSet,
+            plannerBaseComponent.getSqlConverter().getSubstitutionProvider(),
+            plannerBaseComponent.getSqlConverter().getViewExpansionContext(),
             plannerBaseComponent.getPlannerSettings(),
-            plannerBaseComponent.getPlannerCatalog());
+            plannerBaseComponent.getPlannerCatalog(),
+            plannerBaseComponent.getPlannerEventBus());
 
     return new PlannerNormalizerComponentImpl(relNormalizerTransformer);
   }

@@ -16,6 +16,7 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -25,6 +26,7 @@ import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.datastore.DatastoreException;
+import com.dremio.exec.maestro.MaestroServiceImpl;
 import com.dremio.exec.maestro.QueryTrackerImpl;
 import com.dremio.exec.maestro.ResourceTracker;
 import com.dremio.exec.proto.UserBitShared;
@@ -39,11 +41,14 @@ import com.dremio.exec.work.foreman.ForemanException;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.ChronicleGrpc.ChronicleBlockingStub;
+import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobState;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.JobsServiceGrpc;
 import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
+import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Preconditions;
 import io.grpc.ManagedChannel;
@@ -510,20 +515,33 @@ public class TestJobStatusV2 extends BaseTestServer {
 
     Assert.assertNotNull(jobId);
 
-    JobSummary jobSummary =
-        chronicleStub.getJobSummary(
-            JobSummaryRequest.newBuilder()
+    JobDetails jobDetails =
+        chronicleStub.getJobDetails(
+            JobDetailsRequest.newBuilder()
                 .setJobId(JobsProtoUtil.toBuf(jobId))
                 .setUserName(DEFAULT_USERNAME)
                 .build());
-
-    validateFailedJob(jobSummary);
+    Assert.assertTrue(
+        jobDetails.getAttempts(jobDetails.getAttemptsCount() - 1).getIsProfileIncomplete());
     Assert.assertEquals(
-        JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.COMPLETED);
+        jobDetails.getAttempts(jobDetails.getAttemptsCount() - 1).getState(),
+        com.dremio.service.job.proto.JobProtobuf.JobState.COMPLETED);
+
+    JobId finalJobId = jobId;
+    assertThatThrownBy(
+            () ->
+                chronicleStub.getProfile(
+                    QueryProfileRequest.newBuilder()
+                        .setJobId(JobsProtoUtil.toBuf(finalJobId))
+                        .setAttempt(0)
+                        .setUserName(DEFAULT_USERNAME)
+                        .build()))
+        .isInstanceOf(io.grpc.StatusRuntimeException.class)
+        .hasMessageContaining("Unable to fetch profile as it's incomplete");
   }
 
   @Test
-  public void testTailProfileFailedState() throws Exception {
+  public void testCompletedJobWithFailedTailProfile() throws Exception {
     final String controls =
         Controls.newBuilder()
             .addException(
@@ -533,6 +551,19 @@ public class TestJobStatusV2 extends BaseTestServer {
             .build();
 
     injectProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR);
+  }
+
+  @Test
+  public void testCompletedJobWithFailedFinalExecutorProfile() throws Exception {
+    final String controls =
+        Controls.newBuilder()
+            .addException(
+                MaestroServiceImpl.class,
+                MaestroServiceImpl.INJECTOR_FINAL_EXECUTOR_PROFILE_ERROR,
+                RuntimeException.class)
+            .build();
+
+    injectProfileException(controls, MaestroServiceImpl.INJECTOR_FINAL_EXECUTOR_PROFILE_ERROR);
   }
 
   private void injectAttemptCompletionException(String controls) throws Exception {

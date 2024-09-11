@@ -295,7 +295,7 @@ message ExecutorQueryProfile {
   optional NodeEndpoint endpoint = 2;
 
   // progress metrics
-  optional QueryProgressMetrics progress = 3;
+  optional QueryProgressMetrics progress = 3 [deprecated = true];
 
   // node level status
   optional NodeQueryStatus node_status = 4;

@@ -38,7 +38,7 @@ export const SQLCell = ({ sql }: { sql: string }) => {
     >
       <div className={clsx(classes["sql-cell"], "dremio-typography-monospace")}>
         <div className={classes["sql-cell__text"]}>{sql}</div>
-        <CopyButton contents={sql} className="copy-button" />
+        <CopyButton contents={sql} className="copy-button" size="L" />
       </div>
     </Tooltip>
   );

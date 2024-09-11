@@ -18,7 +18,7 @@ import {
   safePolygon,
   useClick,
   useDismiss,
-} from "@floating-ui/react-dom-interactions";
+} from "@floating-ui/react";
 import mergeRefs from "react-merge-refs";
 
 type PopoverProps = {
@@ -27,6 +27,7 @@ type PopoverProps = {
    * otherwise it defaults to a sibling of the hover target.
    */
   children: JSX.Element | ((popoverContent: JSX.Element) => JSX.Element);
+  className?: string;
   content:
     | (JSX.Element | string)
     | ((opts: { close: () => void }) => JSX.Element | string);
@@ -61,6 +62,7 @@ export const Popover = (props: PopoverProps) => {
   const [open, setOpen] = React.useState(false);
   const {
     children,
+    className,
     content,
     delay = 125,
     placement,
@@ -85,20 +87,19 @@ export const Popover = (props: PopoverProps) => {
     }
   };
 
-  const { x, y, context, floating, reference, strategy, middlewareData } =
-    useFloating({
-      middleware: [
-        offset(8),
-        flip(),
-        shift({ padding: 8 }),
-        arrow({ element: arrowElRef }),
-      ],
-      onOpenChange: handleOpenChange,
-      open,
-      placement,
-      strategy: "absolute",
-      whileElementsMounted: autoUpdate,
-    });
+  const { x, y, context, refs, strategy, middlewareData } = useFloating({
+    middleware: [
+      offset(8),
+      flip(),
+      shift({ padding: 8 }),
+      arrow({ element: arrowElRef }),
+    ],
+    onOpenChange: handleOpenChange,
+    open,
+    placement,
+    strategy: "absolute",
+    whileElementsMounted: autoUpdate,
+  });
 
   const hoverHooks = [
     useHover(context, {
@@ -119,8 +120,8 @@ export const Popover = (props: PopoverProps) => {
   ]);
 
   const ref = React.useMemo(
-    () => mergeRefs([reference, (children as any).ref]),
-    [reference, children],
+    () => mergeRefs([refs.setReference, (children as any).ref]),
+    [refs.setReference, children],
   );
 
   const staticSide = (
@@ -145,9 +146,9 @@ export const Popover = (props: PopoverProps) => {
       unmountOnExit
     >
       <div
-        className={clsx("popover", `popover--${staticSide}`)}
+        className={clsx("popover", `popover--${staticSide}`, className)}
         {...getFloatingProps({
-          ref: floating,
+          ref: refs.setFloating,
           style: {
             position: strategy,
             top: y ?? 0,

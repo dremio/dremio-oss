@@ -99,10 +99,7 @@ class MetadataJobStatusListener implements JobStatusListener {
 
   @Override
   public void jobCompleted() {
-    if (latch.getCount() > 0) {
-      error = new RuntimeException("Job completed before metadata collected is called.");
-      releaseLatch();
-    }
+    releaseLatch();
   }
 
   @Override

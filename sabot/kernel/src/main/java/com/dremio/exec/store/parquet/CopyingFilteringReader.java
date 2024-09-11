@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.LogicalExpression;
@@ -186,9 +187,14 @@ public class CopyingFilteringReader implements RecordReader {
     int copied = copier.copyRecords(0, recordCount);
     copyWatch.stop();
     if (copied != recordCount) { // copier may return earlier if it runs out of memory
-      throw UserException.memoryError()
-          .message("Ran out of memory while trying to copy the records.")
-          .build(logger);
+      UserException.Builder builder =
+          UserException.memoryError()
+              .setAdditionalExceptionContext(
+                  new OutOfMemoryOrResourceExceptionContext(
+                      OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY,
+                      "Ran out of memory while trying to copy the records."));
+      context.getNodeDebugContextProvider().addErrorOrigin(builder);
+      throw builder.build(logger);
     }
 
     copyOutput.setAllCount(recordCount);

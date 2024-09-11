@@ -52,6 +52,7 @@ org.apache.arrow.util.AutoCloseables @ Use com.dremio.common.AutoCloseables inst
 de.flapdoodle.embed.mongo.util.** @ Use Guava (com.google.common) or org.apache.commons.io instead
 autovalue.shaded.** @ Use original library instead (i.e. use com.google.common instead)
 org.apache.curator.utils.CloseableExecutorService @ Use com.dremio.common.concurrent.CloseableThreadPool instead
+org.assertj.core.util.** @ Use Guava (com.google.common) instead
 
 # Deprecated
 org.apache.commons.collections.map.HashedMap @ Use java.util.HashMap instead
@@ -69,12 +70,23 @@ javax.xml.parsers.SAXParserFactory#newInstance(**)
 javax.xml.stream.XMLInputFactory#newFactory(**)
 javax.xml.stream.XMLInputFactory#newInstance(**)
 javax.xml.transform.TransformerFactory#newInstance(**)
-# TODO: uncomment when we no longer have to support builds on jdk8
-# javax.xml.parsers.DocumentBuilderFactory#newDefaultInstance(**)
-# javax.xml.parsers.SAXParserFactory#newDefaultInstance(**)
-# javax.xml.stream.XMLInputFactory#newDefaultFactory(**)
-# javax.xml.transform.TransformerFactory#newDefaultInstance(**)
+javax.xml.parsers.DocumentBuilderFactory#newDefaultInstance(**)
+javax.xml.parsers.SAXParserFactory#newDefaultInstance(**)
+javax.xml.stream.XMLInputFactory#newDefaultFactory(**)
+javax.xml.transform.TransformerFactory#newDefaultInstance(**)
 
 # EC2MetadataUtil
 com.amazonaws.util.EC2MetadataUtils @ Do not use Amazon's EC2MetadataUtils, use Dremio's internal EC2MetadataUtils instead
 software.amazon.awssdk.regions.internal.** @ Forbidden AWS SDK's internal package. Use Dremio's internal EC2MetadataUtils instead
+
+# Micrometer
+io.micrometer.core.instrument.MeterRegistry#more(**) @ Use builders and MeterProvider<Counter>
+io.micrometer.core.instrument.Metrics#counter(**) @ Use builders and MeterProvider<Counter>
+io.micrometer.core.instrument.MeterRegistry#counter(**) @ Use builders and MeterProvider<Counter>
+io.micrometer.core.instrument.Counter$Builder#register(**) @ Use builders and MeterProvider<Counter>
+io.micrometer.core.instrument.Metrics#timer(**) @ Use builders and MeterProvider<Timer>
+io.micrometer.core.instrument.MeterRegistry#timer(**) @ Use builders and MeterProvider<Timer>
+io.micrometer.core.instrument.Timer$Builder#register(**) @ Use builders and MeterProvider<Timer>
+io.micrometer.core.instrument.Metrics#summary(**) @ Use builders and MeterProvider<DistributionSummary>
+io.micrometer.core.instrument.MeterRegistry#summary(**) @ Use builders and MeterProvider<DistributionSummary>
+io.micrometer.core.instrument.DistributionSummary$Builder#register(**) @ Use builders and MeterProvider<DistributionSummary>

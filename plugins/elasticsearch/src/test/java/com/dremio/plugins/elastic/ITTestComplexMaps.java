@@ -1075,8 +1075,8 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
               + "  }\n"
               + "}]"
         });
-    String col1 = isComplexTypeSupport() ? "`street number`" : "EXPR$0";
-    String col2 = isComplexTypeSupport() ? "`@street name`" : "EXPR$1";
+    String col1 = "`street number`";
+    String col2 = "`@street name`";
     testBuilder()
         .sqlQuery(sqlQuery)
         .unOrdered()

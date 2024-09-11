@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
+import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_DYNAMIC_PARAM_PREPARE;
 import static com.dremio.exec.planner.physical.PlannerSettings.REUSE_PREPARE_HANDLES;
 import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESULTS;
 
@@ -26,9 +27,11 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.observer.AttemptObservers;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.AccelAddExternalReflectionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AccelCreateReflectionHandler;
@@ -90,12 +93,14 @@ import com.dremio.exec.planner.sql.parser.SqlAlterTableSetOption;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableSortOrder;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableToggleSchemaLearning;
 import com.dremio.exec.planner.sql.parser.SqlAnalyzeTableStatistics;
+import com.dremio.exec.planner.sql.parser.SqlClearSourcePermissionCache;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateFolder;
 import com.dremio.exec.planner.sql.parser.SqlCreateFunction;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
 import com.dremio.exec.planner.sql.parser.SqlCreateTable;
+import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlDescribeFunction;
 import com.dremio.exec.planner.sql.parser.SqlDescribePipe;
 import com.dremio.exec.planner.sql.parser.SqlDropFolder;
@@ -104,7 +109,9 @@ import com.dremio.exec.planner.sql.parser.SqlDropPipe;
 import com.dremio.exec.planner.sql.parser.SqlDropReflection;
 import com.dremio.exec.planner.sql.parser.SqlExplainJson;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
+import com.dremio.exec.planner.sql.parser.SqlInsertTable;
 import com.dremio.exec.planner.sql.parser.SqlManagePipe;
+import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflectionsForDataset;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
@@ -112,11 +119,11 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.planner.sql.parser.SqlSetApprox;
 import com.dremio.exec.planner.sql.parser.SqlShowCreate;
 import com.dremio.exec.planner.sql.parser.SqlShowFunctions;
-import com.dremio.exec.planner.sql.parser.SqlShowPipes;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
 import com.dremio.exec.planner.sql.parser.SqlShowTableProperties;
 import com.dremio.exec.planner.sql.parser.SqlTriggerPipe;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
+import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
 import com.dremio.exec.planner.sql.parser.SqlVacuum;
 import com.dremio.exec.planner.sql.parser.SqlVersionBase;
@@ -129,6 +136,7 @@ import com.dremio.exec.proto.UserProtos.GetColumnsReq;
 import com.dremio.exec.proto.UserProtos.GetSchemasReq;
 import com.dremio.exec.proto.UserProtos.GetServerMetaReq;
 import com.dremio.exec.proto.UserProtos.GetTablesReq;
+import com.dremio.exec.proto.UserProtos.PreparedStatementParameterValue;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.testing.ControlsInjector;
@@ -143,13 +151,29 @@ import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.opentelemetry.api.trace.Span;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.MathContext;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.SqlDynamicParam;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSetOption;
 import org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.calcite.sql.util.SqlShuttle;
+import org.apache.calcite.util.DateString;
+import org.apache.calcite.util.TimeString;
+import org.apache.calcite.util.TimestampString;
 import org.jetbrains.annotations.NotNull;
 
 /** Takes a request and creates the appropriate type of command. */
@@ -162,11 +186,11 @@ public class CommandCreator {
   private static final String QUERY_ID_SPAN_ATTRIBUTE_NAME = "dremio.query.id";
   private static final String QUERY_KIND_SPAN_ATTRIBUTE_NAME = "dremio.query.kind";
 
-  private final QueryContext context;
+  protected final QueryContext context;
   private final UserRequest request;
-  private final AttemptObservers observer;
+  protected final AttemptObservers observer;
   private final SabotContext dbContext;
-  private final Cache<Long, PreparedPlan> preparedPlans;
+  protected final Cache<Long, PreparedPlan> preparedPlans;
   private final int attemptNumber;
   private final AttemptReason attemptReason;
   private final Pointer<QueryId> prepareId;
@@ -200,11 +224,20 @@ public class CommandCreator {
   }
 
   private void applyQueryLabel(SqlNode sqlNode) {
-    // Only support COPYINTO, OPTIMIZE & VACUUM for now
+    // Only support COPYINTO, OPTIMIZE, VACUUM, CTAS,
+    // INSERT, UPDATE, DELETE, MERGE & TRUNCATE for now
     if (sqlNode instanceof SqlCopyIntoTable) {
       context.getSession().setQueryLabel("COPY");
     } else if (sqlNode instanceof SqlOptimize || sqlNode instanceof SqlVacuum) {
       context.getSession().setQueryLabel("OPTIMIZATION");
+    } else if (sqlNode instanceof SqlCreateTable) {
+      context.getSession().setQueryLabel("CTAS");
+    } else if (sqlNode instanceof SqlInsertTable
+        || sqlNode instanceof SqlUpdateTable
+        || sqlNode instanceof SqlDeleteFromTable
+        || sqlNode instanceof SqlMergeIntoTable
+        || sqlNode instanceof SqlTruncateTable) {
+      context.getSession().setQueryLabel("DML");
     } else {
       // set the default Query Label to None
       context.getSession().setQueryLabel("NONE");
@@ -243,14 +276,14 @@ public class CommandCreator {
       case CREATE_PREPARED_STATEMENT:
         {
           final CreatePreparedStatementReq req = request.unwrap(CreatePreparedStatementReq.class);
-          return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.USER_RPC);
+          return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.USER_RPC, ImmutableList.of());
         }
 
       case CREATE_PREPARED_STATEMENT_ARROW:
         {
           final CreatePreparedStatementArrowReq req =
               request.unwrap(CreatePreparedStatementArrowReq.class);
-          return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.ARROW);
+          return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.ARROW, ImmutableList.of());
         }
 
       case GET_SERVER_META:
@@ -298,7 +331,10 @@ public class CommandCreator {
                 }
               }
 
-              return getSqlCommand(preparedStatement.getSqlQuery(), PrepareMetadataType.NONE);
+              return getSqlCommand(
+                  preparedStatement.getSqlQuery(),
+                  PrepareMetadataType.NONE,
+                  query.getParametersList());
 
             } catch (InvalidProtocolBufferException e) {
               throw UserException.connectionError(e)
@@ -309,7 +345,7 @@ public class CommandCreator {
             }
 
           case SQL:
-            return getSqlCommand(query.getPlan(), PrepareMetadataType.NONE);
+            return getSqlCommand(query.getPlan(), PrepareMetadataType.NONE, ImmutableList.of());
 
           case PHYSICAL: // should be deprecated once tests are removed.
             return new PhysicalPlanCommand(dbContext.getPlanReader(), query.getPlanBytes());
@@ -328,7 +364,10 @@ public class CommandCreator {
   }
 
   @VisibleForTesting
-  CommandRunner<?> getSqlCommand(String sql, PrepareMetadataType prepareMetadataType) {
+  CommandRunner<?> getSqlCommand(
+      String sql,
+      PrepareMetadataType prepareMetadataType,
+      List<PreparedStatementParameterValue> parameterList) {
     try {
       final SqlConverter parser =
           new SqlConverter(
@@ -346,9 +385,12 @@ public class CommandCreator {
 
       injector.injectChecked(
           context.getExecutionControls(), "sql-parsing", ForemanSetupException.class);
-      final SqlNode sqlNode = parser.parse(sql);
+
       final SqlHandlerConfig config =
           new SqlHandlerConfig(context, parser, observer, parser.getMaterializations());
+
+      final SqlNode sqlNode =
+          validateAndApplyParameterValues(parser.parse(sql), parameterList, config);
 
       Span.current()
           .setAttribute(
@@ -357,7 +399,7 @@ public class CommandCreator {
           .setAttribute(QUERY_KIND_SPAN_ATTRIBUTE_NAME, SqlNodeUtil.getQueryKind(sqlNode));
 
       final DirectBuilder direct = new DirectBuilder(sql, sqlNode, prepareMetadataType);
-      final AsyncBuilder async = new AsyncBuilder(sql, sqlNode, prepareMetadataType);
+      final AsyncBuilder async = getAsyncBuilder(sql, prepareMetadataType, sqlNode);
 
       if (context.getOptions().getOption(ExecConstants.ENABLE_QUERY_LABEL)) {
         applyQueryLabel(sqlNode);
@@ -378,13 +420,139 @@ public class CommandCreator {
     }
   }
 
+  protected AsyncBuilder getAsyncBuilder(
+      String sql, PrepareMetadataType prepareMetadataType, SqlNode sqlNode) {
+    return new AsyncBuilder(sql, sqlNode, prepareMetadataType);
+  }
+
+  /**
+   * Validates the parameter values' types with the parameter row type and substitutes parameter
+   * values in it.
+   *
+   * @param sqlNode - sql node of the given prepared statement query
+   * @param parameterList - parameter value list
+   * @param config - sql handler config
+   * @return - sql node with substituted parameter values.
+   */
+  private SqlNode validateAndApplyParameterValues(
+      SqlNode sqlNode,
+      List<PreparedStatementParameterValue> parameterList,
+      SqlHandlerConfig config) {
+
+    if (parameterList.isEmpty()) {
+      return sqlNode;
+    }
+    if (!context.getOptions().getOption(ENABLE_DYNAMIC_PARAM_PREPARE)) {
+      // Throw a user exception as a prepared statement is not supposed to have parameter values
+      // when the parameterized prepared statements are disabled.
+      throw UserException.validationError()
+          .message(
+              "Parameter values are provided despite parameterized prepared statements being disabled.")
+          .buildSilently();
+    }
+
+    // Compute row type of the parameters from the given sql node.
+    SqlValidatorAndToRelContext sqlValidatorAndToRelContext =
+        config
+            .getConverter()
+            .getUserQuerySqlValidatorAndToRelContextBuilderFactory()
+            .builder()
+            .build();
+
+    sqlNode = sqlValidatorAndToRelContext.validate(sqlNode);
+
+    RelDataType parameterDataType =
+        sqlValidatorAndToRelContext.getValidator().getParameterRowType(sqlNode);
+
+    return sqlNode.accept(
+        new SqlShuttle() {
+          @Override
+          public SqlNode visit(SqlDynamicParam param) {
+            return createSqlLiteralFromPreparedParameter(
+                parameterList.get(param.getIndex()),
+                param,
+                parameterDataType.getFieldList().get(param.getIndex()));
+          }
+        });
+  }
+
+  /**
+   * create sql literals from primitive parameter values and returns sql node with substituted
+   * literals.
+   *
+   * @param value - prepared statement parameter value
+   * @param param - dynamic sql param (a Sql Node)
+   * @param field - rel data type of the given parameter
+   * @return sql node
+   */
+  private SqlNode createSqlLiteralFromPreparedParameter(
+      PreparedStatementParameterValue value, SqlDynamicParam param, RelDataTypeField field) {
+    if (value.hasBoolValue()) {
+      return SqlLiteral.createBoolean(value.getBoolValue(), param.getParserPosition());
+    } else if (value.hasIsNullValue()) {
+      return SqlLiteral.createNull(param.getParserPosition());
+    } else if (value.hasIntValue()) {
+      return SqlLiteral.createExactNumeric(
+          String.valueOf(value.getIntValue()), param.getParserPosition());
+    } else if (value.hasShortValue()) {
+      return SqlLiteral.createExactNumeric(
+          String.valueOf(value.getShortValue()), param.getParserPosition());
+    } else if (value.hasLongValue()) {
+      return SqlLiteral.createExactNumeric(
+          String.valueOf(value.getLongValue()), param.getParserPosition());
+    } else if (value.hasBigDecimalValue()) {
+      return SqlLiteral.createExactNumeric(
+          String.valueOf(
+              new BigDecimal(
+                  new BigInteger(value.getBigDecimalValue().getValue().toByteArray()),
+                  value.getBigDecimalValue().getScale(),
+                  new MathContext(value.getBigDecimalValue().getPrecision()))),
+          param.getParserPosition());
+    } else if (value.hasDoubleValue()) {
+      return SqlLiteral.createExactNumeric(
+          String.valueOf(value.getDoubleValue()), param.getParserPosition());
+    } else if (value.hasFloatValue()) {
+      return SqlLiteral.createCharString(
+          String.valueOf(value.getFloatValue()), param.getParserPosition());
+    } else if (value.hasStringValue()) {
+      return SqlLiteral.createCharString(value.getStringValue(), param.getParserPosition());
+    } else if (value.hasDateValue()) {
+      return SqlLiteral.createDate(
+          new DateString(new Date(value.getDateValue()).toString()), param.getParserPosition());
+    } else if (value.hasTimeValue()) {
+      return SqlLiteral.createTime(
+          new TimeString(new Time(value.getTimeValue()).toString()),
+          field.getType().getPrecision(),
+          param.getParserPosition());
+    } else if (value.hasTimestampValue()) {
+      Timestamp timestamp = new Timestamp(value.getTimestampValue().getSeconds());
+      timestamp.setNanos(value.getTimestampValue().getNanos());
+      return SqlLiteral.createTimestamp(
+          new TimestampString(removeTrailingZerosFromTimeStamp(timestamp.toString())),
+          field.getType().getPrecision(),
+          param.getParserPosition());
+    } else if (value.hasByteArrayValue()) {
+      return SqlLiteral.createCharString(
+          value.getByteArrayValue().toStringUtf8(), param.getParserPosition());
+    }
+    return param;
+  }
+
+  private String removeTrailingZerosFromTimeStamp(String timeStamp) {
+    // for instance removes .00 from 2024-02-20 12:34:56.00
+    if (timeStamp.matches(".*\\.[0]*")) {
+      return timeStamp.substring(0, timeStamp.indexOf("."));
+    }
+    return timeStamp;
+  }
+
   @NotNull
   protected CommandRunner<?> getCommandRunner(
       SqlNode sqlNode, SqlHandlerConfig config, DirectBuilder direct, AsyncBuilder async)
       throws ForemanException, SqlParseException {
     final Catalog catalog = context.getCatalog();
 
-    // TODO DX-10976 refactor all handlers to use similar Creator interfaces
+    // TODO: DX-10976 refactor all handlers to use similar Creator interfaces
     if (sqlNode instanceof SqlToPlanHandler.Creator) {
       SqlToPlanHandler.Creator creator = (SqlToPlanHandler.Creator) sqlNode;
       return async.create(creator.toPlanHandler(), config);
@@ -471,15 +639,20 @@ public class CommandCreator {
         if (sqlNode instanceof SqlManagePipe
             || sqlNode instanceof SqlDescribePipe
             || sqlNode instanceof SqlDropPipe
-            || sqlNode instanceof SqlShowPipes
             || sqlNode instanceof SqlTriggerPipe) {
           throw UserException.unsupportedError()
-              .message("PIPE actions are not supported.")
+              .message("This edition of Dremio does not support PIPE statements.")
               .buildSilently();
         }
         if (sqlNode instanceof SqlRefreshReflectionsForDataset) {
           throw UserException.unsupportedError()
               .message("REFRESH REFLECTIONS command is not supported.")
+              .buildSilently();
+        }
+
+        if (sqlNode instanceof SqlClearSourcePermissionCache) {
+          throw UserException.unsupportedError()
+              .message("Permission cache clearing is not supported.")
               .buildSilently();
         }
 
@@ -505,7 +678,9 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlRefreshTable) {
           return direct.create(
               new RefreshTableHandler(
-                  catalog, context.getNamespaceService(), context.getQueryUserName()));
+                  catalog,
+                  context.getNamespaceService(),
+                  context.getOptions().getOption(PlannerSettings.ERROR_ON_CONCURRENT_REFRESH)));
         } else if (sqlNode instanceof SqlRefreshSourceStatus) {
           return direct.create(new RefreshSourceStatusHandler(catalog));
         } else if (sqlNode instanceof SqlSetApprox) {
@@ -549,8 +724,13 @@ public class CommandCreator {
 
         // fallthrough
       default:
-        return async.create(new NormalHandler(), config);
+        return getDefaultCommandRunner(config, async);
     }
+  }
+
+  @NotNull
+  protected CommandRunner<?> getDefaultCommandRunner(SqlHandlerConfig config, AsyncBuilder async) {
+    return async.create(new NormalHandler(), config);
   }
 
   protected void checkIfAllowedToSetOption(SqlNode sqlNode) throws ForemanSetupException {
@@ -595,9 +775,9 @@ public class CommandCreator {
   }
 
   protected class AsyncBuilder {
-    private final SqlNode sqlNode;
-    private final String sql;
-    private final PrepareMetadataType prepareMetadataType;
+    protected final SqlNode sqlNode;
+    protected final String sql;
+    protected final PrepareMetadataType prepareMetadataType;
 
     AsyncBuilder(String sql, SqlNode sqlNode, PrepareMetadataType prepareMetadataType) {
       this.sqlNode = sqlNode;

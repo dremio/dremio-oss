@@ -53,8 +53,7 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
 
   @Before
   public void prepare() {
-    allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    allocator = getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @After
@@ -86,7 +85,7 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
       }
     }
 
-    final NamespaceService namespaceService = newNamespaceService();
+    final NamespaceService namespaceService = getNamespaceService();
     clearAllDataExceptUser();
     getPopulator().populateSources();
     SpaceConfig config = new SpaceConfig();
@@ -177,8 +176,8 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
                 .wrap());
   }
 
-  public static void cleanup(DACDaemon dremioDaemon) throws Exception {
-    final NamespaceService namespaceService = newNamespaceService();
+  public static void cleanup() throws Exception {
+    final NamespaceService namespaceService = getNamespaceService();
     namespaceService.deleteSpace(
         new SpacePath("testA").toNamespaceKey(),
         namespaceService.getSpace(new SpacePath("testA").toNamespaceKey()).getTag());
@@ -282,7 +281,7 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
         assertEquals(10, results.getReturnedRowCount());
       }
 
-      cleanup(getCurrentDremioDaemon());
+      cleanup();
     }
   }
 }

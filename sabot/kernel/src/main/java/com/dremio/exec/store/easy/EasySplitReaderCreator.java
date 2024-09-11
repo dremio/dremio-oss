@@ -156,14 +156,14 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
           fs,
           easySplitXAttr,
           columns,
-          getExtendedEasyReaderProperties(),
-          extendedProperty);
+          new ExtendedEasyReaderProperties(true, extendedFormatOptions),
+          getExtendedProperty());
     } catch (ExecutionSetupException e) {
       throw UserException.dataReadError(e).message("Unable to get record reader").buildSilently();
     }
   }
 
-  private ExtendedEasyReaderProperties getExtendedEasyReaderProperties() {
-    return new ExtendedEasyReaderProperties.Builder(true, extendedFormatOptions).build();
+  protected ByteString getExtendedProperty() {
+    return extendedProperty;
   }
 }

@@ -18,12 +18,10 @@ package com.dremio.service.sqlrunner;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.options.OptionManager;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.events.UserDeletionEvent;
 import com.dremio.service.users.proto.UID;
@@ -32,17 +30,9 @@ import com.dremio.service.users.proto.UserInfo;
 import com.dremio.service.users.proto.UserType;
 import com.dremio.test.DremioTest;
 import java.util.UUID;
-import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 public class TestSQLRunnerSessionUserDeletionSubscriber {
-
-  @Before
-  public void setUp() throws Exception {
-    OptionManager mockOptionManager = Mockito.mock(OptionManager.class);
-    when(mockOptionManager.getOption(SQLRunnerOptions.SQLRUNNER_TABS)).thenReturn(true);
-  }
 
   @Test
   public void testSQLRunnerSessionDeletedAfterDeleteUser() throws Exception {

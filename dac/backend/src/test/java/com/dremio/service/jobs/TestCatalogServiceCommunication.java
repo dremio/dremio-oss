@@ -19,7 +19,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TestCatalogServiceImpl;
 import com.dremio.exec.catalog.TestCatalogServiceImpl.MockUpPlugin;
@@ -56,8 +56,7 @@ public class TestCatalogServiceCommunication extends BaseTestServer {
       return;
     }
 
-    CatalogServiceImpl catalogServiceImpl = (CatalogServiceImpl) l(CatalogService.class);
-
+    Catalog systemUserCatalog = getCatalogService().getSystemUserCatalog();
     {
       final SourceConfig mockUpConfig =
           new SourceConfig()
@@ -69,11 +68,11 @@ public class TestCatalogServiceCommunication extends BaseTestServer {
 
       doMockDatasets(mockUpPlugin, ImmutableList.of());
 
-      catalogServiceImpl.getSystemUserCatalog().createSource(mockUpConfig);
+      systemUserCatalog.createSource(mockUpConfig);
 
       assertTrue(
-          ((CatalogServiceImpl)
-                  getExecutorDaemon().getBindingProvider().lookup(CatalogService.class))
+          getExecutorDaemon()
+              .getInstance(CatalogService.class)
               .getManagedSource(MOCK_UP)
               .matches(mockUpConfig));
     }
@@ -90,15 +89,15 @@ public class TestCatalogServiceCommunication extends BaseTestServer {
               .setConfigOrdinal(source.getConfigOrdinal())
               .setConnectionConf(new MockUpConfig());
 
-      catalogServiceImpl.getSystemUserCatalog().updateSource(mockUpConfig);
+      systemUserCatalog.updateSource(mockUpConfig);
 
       assertTrue(
-          ((CatalogServiceImpl)
-                  getExecutorDaemon().getBindingProvider().lookup(CatalogService.class))
+          getExecutorDaemon()
+              .getInstance(CatalogService.class)
               .getManagedSource(MOCK_UP)
               .matches(mockUpConfig));
 
-      catalogServiceImpl.getSystemUserCatalog().deleteSource(mockUpConfig);
+      systemUserCatalog.deleteSource(mockUpConfig);
     }
   }
 

@@ -15,12 +15,12 @@
  */
 package com.dremio.datastore.indexed;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
 import static java.lang.String.format;
 
 import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.datastore.indexed.CommitWrapper.CommitCloser;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -222,8 +222,6 @@ public class LuceneSearchIndex implements AutoCloseable {
   private final BaseDirectory directory;
   private final SearcherManager searcherManager;
   private final String name;
-  private final String liveRecordsMetricName;
-  private final String deletedRecordsMetricsName;
 
   private volatile boolean reindexing = false;
 
@@ -305,10 +303,8 @@ public class LuceneSearchIndex implements AutoCloseable {
       throw Throwables.propagate(ex);
     }
 
-    liveRecordsMetricName = Metrics.join(METRIC_PREFIX, name, "live-records");
-    deletedRecordsMetricsName = Metrics.join(METRIC_PREFIX, name, "deleted-records");
-    Metrics.newGauge(liveRecordsMetricName, this::getLiveRecords);
-    Metrics.newGauge(deletedRecordsMetricsName, this::getDeletedRecords);
+    newGauge("kvstore.lucene." + name.toLowerCase() + ".live_records", this::getLiveRecords);
+    newGauge("kvstore.lucene." + name.toLowerCase() + ".deleted_records", this::getDeletedRecords);
 
     searcherCache =
         CacheBuilder.newBuilder()
@@ -529,8 +525,6 @@ public class LuceneSearchIndex implements AutoCloseable {
   @Override
   public void close() throws IOException {
     committerThread.close();
-    Metrics.unregister(deletedRecordsMetricsName);
-    Metrics.unregister(liveRecordsMetricName);
     // commit will fail if writer is closed
     if (writer.isOpen()) {
       // flush first

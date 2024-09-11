@@ -17,19 +17,21 @@ package com.dremio.dac.resource;
 
 import static java.lang.String.format;
 
-import com.dremio.common.utils.ProtobufUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobProfileOperatorInfo;
 import com.dremio.dac.model.job.JobProfileVisualizerUI;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.serialization.InstanceSerializer;
+import com.dremio.exec.serialization.ProtoSerializer;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobAnalysis.proto.PhaseData;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -51,6 +53,8 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Resource for getting Phase Level information from Dremio. */
 @RestResource
@@ -60,7 +64,8 @@ import org.apache.http.impl.client.HttpClientBuilder;
 public class JobProfileResource {
   private final SecurityContext securityContext;
   private final JobsService jobsService;
-  private final ProjectOptionManager projectOptionManager;
+  private final InstanceSerializer<QueryProfile> serializer;
+  private static final Logger LOGGER = LoggerFactory.getLogger(JobProfileResource.class);
 
   @Inject
   public JobProfileResource(
@@ -69,7 +74,10 @@ public class JobProfileResource {
       ProjectOptionManager projectOptionManager) {
     this.securityContext = securityContext;
     this.jobsService = jobsService;
-    this.projectOptionManager = projectOptionManager;
+    this.serializer =
+        ProtoSerializer.of(
+            QueryProfile.class,
+            (int) projectOptionManager.getOption(ExecConstants.QUERY_PROFILE_MAX_FIELD_SIZE));
   }
 
   @WithSpan
@@ -77,8 +85,7 @@ public class JobProfileResource {
   @Path("/{jobId}/JobProfile")
   @Produces(MediaType.APPLICATION_JSON)
   public List<PhaseData> getJobProfile(
-      @PathParam("jobId") String jobId, @QueryParam("attempt") @DefaultValue("1") int attempt)
-      throws JsonProcessingException, ClassNotFoundException {
+      @PathParam("jobId") String jobId, @QueryParam("attempt") @DefaultValue("1") int attempt) {
     final UserBitShared.QueryProfile profile;
     int attemptIndex = attempt - 1;
     try {
@@ -144,7 +151,7 @@ public class JobProfileResource {
   @Path("/GetJobProfileFromURL")
   @Produces(MediaType.APPLICATION_JSON)
   public List<PhaseData> getJobProfile(@QueryParam("profileJsonFileURL") String profileJsonFileURL)
-      throws IOException, JsonProcessingException, ClassNotFoundException {
+      throws IOException {
     final UserBitShared.QueryProfile profile = getProfileFromURL(profileJsonFileURL);
     JobProfileVisualizerUI jobProfileVisualizerUI = new JobProfileVisualizerUI(profile);
     return jobProfileVisualizerUI.getJobProfileInfo();
@@ -185,9 +192,10 @@ public class JobProfileResource {
       }
       bytes = sb.toString().getBytes();
     } catch (IOException e) {
-      throw new IOException("Failed to parse the profileJsonFileURL");
+      LOGGER.error("Failed to parse the profileJsonFileURL for URL : {}", profileJsonFileURL, e);
+      throw new IOException("Failed to parse the profileJsonFileURL", e);
     }
-    return ProtobufUtils.fromJSONString(UserBitShared.QueryProfile.class, new String(bytes));
+    return serializer.deserialize(bytes);
   }
 
   /** This method is to fetch the http response from the url provided */

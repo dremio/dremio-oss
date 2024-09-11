@@ -27,6 +27,7 @@ import { openTableau, openPowerBI } from "actions/explore/download";
 import RenderStat from "./RenderStat";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
 import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
+import { Button } from "dremio-ui-lib/components";
 
 type SummaryStatsProps = {
   dataset: Immutable.Map<string, any>;
@@ -83,6 +84,9 @@ const SummaryStats = ({
 
   return (
     <div className={classes["summary-stats-container"]}>
+      {dataset.get("viewDialect") && (
+        <RenderStat title="Common.Dialect" data={dataset.get("viewDialect")} />
+      )}
       {!versionContext && (
         <RenderStat
           title="Jobs.Jobs.LastMonth"
@@ -135,30 +139,32 @@ const SummaryStats = ({
             <span className={classes["analyze-container"]}>
               {analyzeButtonsConfig["client.tools.tableau"] && (
                 <Tooltip title="Dataset.Tableau" placement="top">
-                  <div
+                  <Button
+                    variant="secondary"
                     className={classes["analyze-button"]}
-                    // @ts-ignore
                     onClick={() => dispatch(openTableau(dataset))}
+                    style={{ minWidth: 32 }}
                   >
                     <dremio-icon
                       name="corporate/tableau"
                       class={classes["analyze-button__icon"]}
                     />
-                  </div>
+                  </Button>
                 </Tooltip>
               )}
               {analyzeButtonsConfig["client.tools.powerbi"] && (
                 <Tooltip title="Dataset.PowerBI" placement="top">
-                  <div
+                  <Button
                     className={classes["analyze-button"]}
-                    // @ts-ignore
                     onClick={() => dispatch(openPowerBI(dataset))}
+                    variant="secondary"
+                    style={{ minWidth: 32 }}
                   >
                     <img
                       src={getIconPath("corporate/power-bi")}
                       className={classes["analyze-button__icon"]}
                     />
-                  </div>
+                  </Button>
                 </Tooltip>
               )}
             </span>

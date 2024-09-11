@@ -110,7 +110,7 @@
       </unpackOptions>
     </dependencySet>
     <dependencySet>
-      <outputDirectory>PF4J-INF/native-libs</outputDirectory>
+      <outputDirectory>PF4J-INF/native-libs/x86_64</outputDirectory>
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
         <!-- include native libraries -->

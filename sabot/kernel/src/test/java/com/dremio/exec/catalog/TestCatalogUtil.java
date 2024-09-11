@@ -23,7 +23,7 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.sample.SampleSourceMetadata;
-import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceKey;
@@ -52,9 +52,12 @@ public class TestCatalogUtil {
 
   @Before
   public void setup() throws Exception {
-    kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    LocalKVStoreProvider storeProvider =
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    storeProvider.start();
+    kvStoreProvider = storeProvider.asLegacy();
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
   }
 
   @After

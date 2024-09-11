@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.catalog.factory;
 
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
-
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -43,12 +41,5 @@ public class CatalogFactory implements CatalogSupplier {
         MetadataRequestOptions.of(
             SchemaConfig.newBuilder(CatalogUser.from(context.getUserPrincipal().getName()))
                 .build()));
-  }
-
-  @Override
-  public Catalog getSystemCatalog() {
-    return catalogService.getCatalog(
-        MetadataRequestOptions.of(
-            SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
   }
 }

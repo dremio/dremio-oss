@@ -95,7 +95,7 @@ type SetReferenceFailureAction = {
 } & SourceType;
 export function setReference(
   payload: SetReferenceAction["payload"],
-  source: string
+  source: string,
 ): NessieActionTypes {
   return {
     type: SET_REF,
@@ -182,7 +182,7 @@ function fetchDefaultReference(source: string, api: V2BetaApi) {
       dispatch({
         type: DEFAULT_REF_REQUEST_FAILURE,
         source,
-        payload: "There was an error fetching the arctic entity.",
+        payload: "There was an error fetching the versioned entity.",
       });
     }
   };
@@ -191,7 +191,7 @@ function fetchDefaultReference(source: string, api: V2BetaApi) {
 export function fetchBranchReference(
   source: string,
   api: V2BetaApi,
-  initialRef?: Branch
+  initialRef?: Branch,
 ) {
   return async (dispatch: any) => {
     dispatch({ type: SET_REF_REQUEST, source });
@@ -222,7 +222,7 @@ export function fetchBranchReference(
         meta: {
           notification: {
             message: laDeprecated(
-              `There was an error fetching the reference: ${initialRef?.name}.`
+              `There was an error fetching the reference: ${initialRef?.name}.`,
             ),
             level: "error",
           },
@@ -236,7 +236,7 @@ export function fetchCommitBeforeTime(
   reference: Reference | null,
   date: Date,
   source: string,
-  api: V2BetaApi
+  api: V2BetaApi,
 ) {
   return async (dispatch: any) => {
     let result = null;

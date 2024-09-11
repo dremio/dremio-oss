@@ -151,6 +151,7 @@ public class DatasetsUtil {
     datasetConfig.setOwner(virtualDatasetUI.getOwner());
     datasetConfig.setType(DatasetType.VIRTUAL_DATASET);
     datasetConfig.setCreatedAt(virtualDatasetUI.getCreatedAt());
+    datasetConfig.setLastModified(System.currentTimeMillis());
     datasetConfig.setFullPathList(virtualDatasetUI.getFullPathList());
     datasetConfig.setTag(virtualDatasetUI.getSavedTag());
     datasetConfig.setVirtualDataset(virtualDataset);

@@ -13,20 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .searchDatasetsPopover {
     align-items: center;
     display: flex;
     margin: 8px 10px;
-    border: 1px solid #d2d6da;
+    border: 1px solid var(--border--neutral--solid);
     box-sizing: border-box;
     border-radius: 4px;
     padding-left: 8px;
 
     &.--focused {
-      border-color: var(--color--brand--300);
+      border-color: var(--border--focused);
     }
 
     .searchInput {

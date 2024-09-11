@@ -27,6 +27,7 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
+import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.proto.model.backup.BackupFileInfo;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.CheckpointInfo;
@@ -36,12 +37,14 @@ import com.dremio.datastore.KVStoreTuple;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore.PutOption;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.dfs.PseudoDistributedFileSystem;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
 import com.dremio.io.file.Path;
 import com.dremio.io.file.PathFilters;
+import com.dremio.security.SecurityFolder;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.tokens.TokenStoreCreator;
@@ -69,6 +72,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.AccessControlException;
+import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -86,6 +90,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -94,6 +99,7 @@ import javax.ws.rs.core.UriBuilder;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
@@ -120,6 +126,7 @@ public final class BackupRestoreUtil {
       PathFilters.endsWith(BACKUP_FILE_SUFFIX_BINARY);
   private static final Predicate<Path> BACKUP_INFO_FILES_FILTER =
       PathFilters.endsWith(BACKUP_INFO_FILE_SUFFIX);
+  public static final String SECURITY_FOLDER = "security";
 
   private static String getTableName(String fileName, String suffix) {
     return fileName.substring(0, fileName.length() - suffix.length());
@@ -145,14 +152,23 @@ public final class BackupRestoreUtil {
   }
 
   public static CheckpointInfo createCheckpoint(
-      final BackupOptions options, FileSystem fs, final LocalKVStoreProvider localKVStoreProvider)
+      com.dremio.io.file.Path backupDirPath, LocalKVStoreProvider kvStoreProvider)
+      throws IOException {
+    final FileSystem fs = HadoopFileSystem.get(backupDirPath, new Configuration());
+    // Checking if directory already exists and that the daemon can access it
+    BackupRestoreUtil.checkOrCreateDirectory(fs, backupDirPath);
+    return BackupRestoreUtil.createCheckpoint(backupDirPath, fs, kvStoreProvider);
+  }
+
+  public static CheckpointInfo createCheckpoint(
+      final Path backupDirAsPath, FileSystem fs, final LocalKVStoreProvider localKVStoreProvider)
       throws IOException {
     logger.info("Backup Checkpoint has started");
 
     try {
       final LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
       final String backupDirName = backupDestinationDirName(now);
-      final Path backupDestinationDir = options.getBackupDirAsPath().resolve(backupDirName);
+      final Path backupDestinationDir = backupDirAsPath.resolve(backupDirName);
       fs.mkdirs(backupDestinationDir, DEFAULT_PERMISSIONS);
 
       return localKVStoreProvider.newCheckpoint(Paths.get(backupDestinationDir.toURI()));
@@ -274,10 +290,10 @@ public final class BackupRestoreUtil {
       String line;
       while ((line = reader.readLine()) != null) {
         final KVStoreTuple<K> key = coreKVStore.newKey();
-        final BackupRecord record = objectMapper.readValue(line, BackupRecord.class);
-        key.setObject(key.fromJson(record.getKey()));
+        final BackupRecord rec = objectMapper.readValue(line, BackupRecord.class);
+        key.setObject(key.fromJson(rec.getKey()));
         final KVStoreTuple<V> value = coreKVStore.newValue();
-        value.setObject(value.fromJson(record.getValue()));
+        value.setObject(value.fromJson(rec.getValue()));
         // Use the create flag to ensure OCC-enabled KVStore tables can retrieve an initial version.
         // For non-OCC tables, this start version will get ignored and overwritten.
         coreKVStore.put(key, value, PutOption.CREATE);
@@ -345,9 +361,38 @@ public final class BackupRestoreUtil {
     return tableToBackupData;
   }
 
-  public static void backupUploadedFiles(
+  /** Backup all non KVStore files. */
+  public static BackupStats backupFiles(
+      DremioConfig dremioConfig, String backupDestination, HomeFileTool fileStore)
+      throws IOException, GeneralSecurityException {
+
+    final com.dremio.io.file.Path backupDestinationDir =
+        com.dremio.io.file.Path.of(backupDestination);
+    final com.dremio.io.file.Path backupRootDirPath = backupDestinationDir.getParent();
+    final FileSystem bkpFs = HadoopFileSystem.get(backupRootDirPath, new Configuration());
+    final BackupStats backupStats = new BackupStats(backupDestination, 0, 0);
+    BackupRestoreUtil.backupFiles(
+        dremioConfig, bkpFs, backupDestinationDir, fileStore.getConfForBackup(), backupStats);
+    return backupStats;
+  }
+
+  /** Backup all non KVStore files. */
+  public static void backupFiles(
+      DremioConfig dremioConfig,
+      FileSystem bkpFs,
+      Path backupDir,
+      HomeFileConf homeFileStore,
+      BackupStats backupStats)
+      throws IOException, GeneralSecurityException {
+    backupUploadedFiles(bkpFs, backupDir, homeFileStore, backupStats);
+    if (SecurityFolder.securityFolderExists(dremioConfig)) {
+      backupSecurity(bkpFs, backupDir, SecurityFolder.of(dremioConfig), backupStats);
+    }
+  }
+
+  private static void backupUploadedFiles(
       FileSystem fs, Path backupDir, HomeFileConf homeFileStore, BackupStats backupStats)
-      throws IOException, NamespaceException {
+      throws IOException {
     final Path uploadsBackupDir = Path.withoutSchemeAndAuthority(backupDir).resolve("uploads");
     fs.mkdirs(uploadsBackupDir);
     final Path uploadsDir = homeFileStore.getInnerUploads();
@@ -358,6 +403,20 @@ public final class BackupRestoreUtil {
         uploadsBackupDir,
         homeFileStore.isPdfsBased(),
         backupStats);
+  }
+
+  private static void backupSecurity(
+      FileSystem dstFs, Path backupDir, SecurityFolder securityFolder, BackupStats backupStats)
+      throws IOException {
+    java.nio.file.Path securityDirectoryPath = securityFolder.getSecurityDirectory();
+    FileSystem srcFs =
+        HadoopFileSystem.get(
+            Path.of(securityDirectoryPath.getParent().toUri()), new Configuration());
+    Path securitySrcDir = Path.of(securityDirectoryPath.toUri());
+
+    Path securityDestDir = Path.withoutSchemeAndAuthority(backupDir).resolve(SECURITY_FOLDER);
+    dstFs.mkdirs(securityDestDir);
+    copyFiles(srcFs, securitySrcDir, dstFs, securityDestDir, false, backupStats);
   }
 
   private static void copyFiles(
@@ -409,6 +468,40 @@ public final class BackupRestoreUtil {
           backupStats.incrementFiles();
         }
       }
+    }
+  }
+
+  public static void restoreSecurityFiles(
+      FileSystem bkpFs, Path backupDir, SecurityFolder securityFolder, BackupStats backupStats)
+      throws IOException {
+    Path securityBackupDir = Path.withoutSchemeAndAuthority(backupDir).resolve(SECURITY_FOLDER);
+    java.nio.file.Path securityDirectory = securityFolder.getSecurityDirectory();
+    Path rootRestoreDir = Path.of(securityDirectory.getParent().toUri());
+
+    try (FileSystem restoreFs = HadoopFileSystem.get(rootRestoreDir, new Configuration())) {
+      Path restoredSecurityFolder = Path.of(securityDirectory.toUri());
+      // When restoring the files it is expected that the destination folder does not exist.
+      // As SecureFolder creates the folder on disk when it is instantiated, it is deleted here.
+      // Its permission is restored later.
+      restoreFs.delete(restoredSecurityFolder, true);
+      FileSystemUtils.copy(bkpFs, securityBackupDir, restoreFs, rootRestoreDir, false, true);
+
+      try (DirectoryStream<FileAttributes> directoryStream =
+          FileSystemUtils.listRecursive(restoreFs, restoredSecurityFolder, PathFilters.ALL_FILES)) {
+        for (FileAttributes fileAttributes : directoryStream) {
+          if (fileAttributes.isRegularFile()) {
+            // For all files restored to the `security` folder need to have the correct permission.
+            // As SecurityFolder owns the permission logic, the permissions statically defined for
+            // files are applied to each file restored.
+            restoreFs.setPermission(
+                fileAttributes.getPath(), SecurityFolder.SECURITY_FILE_PERMISSIONS);
+            backupStats.incrementFiles();
+          }
+        }
+      }
+
+      restoreFs.setPermission(
+          restoredSecurityFolder, SecurityFolder.SECURITY_DIRECTORY_PERMISSIONS);
     }
   }
 
@@ -478,8 +571,10 @@ public final class BackupRestoreUtil {
       FileSystem fs,
       BackupOptions options,
       LocalKVStoreProvider localKVStoreProvider,
-      HomeFileConf homeFileStore,
-      @Nullable CheckpointInfo checkpointInfo)
+      @Nullable HomeFileConf homeFileStore,
+      DremioConfig dremioConfig,
+      @Nullable CheckpointInfo checkpointInfo,
+      boolean shouldBackupFiles)
       throws IOException, NamespaceException {
     String msg = checkpointInfo == null ? "Tables and uploads" : "Tables";
     if (options.getCompression() == (null) || options.getCompression().equals("")) {
@@ -511,17 +606,23 @@ public final class BackupRestoreUtil {
       localKVStoreProvider.getStores().entrySet().stream()
           .map((entry) -> asFuture(svc, entry, fs, backupDir, options, backupStats))
           .forEach(futures::add);
-      if (homeFileStore != null) {
-        futures.add(
-            CompletableFuture.runAsync(
-                () -> {
-                  try {
-                    backupUploadedFiles(fs, backupDir, homeFileStore, backupStats);
-                  } catch (IOException | NamespaceException ex) {
-                    throw new CompletionException(ex);
-                  }
-                },
-                svc));
+
+      // Files should not be backed up if the caller is performing an out-of-server process backup.
+      // In this scenario the backup is done in two states to not consume over consume Dremio server
+      // memory that could lead to Zookeeper disconnections and later Dremio server restart.
+      // (this usecase is done by `-s` flag on dremio-admin CLI and is going to change after
+      // DX-91211)
+      if (shouldBackupFiles) {
+        if (homeFileStore != null) {
+          futures.add(
+              runAsync(() -> backupUploadedFiles(fs, backupDir, homeFileStore, backupStats), svc));
+        }
+        if (SecurityFolder.securityFolderExists(dremioConfig)) {
+          futures.add(
+              runAsync(
+                  () -> backupSecurity(fs, backupDir, SecurityFolder.of(dremioConfig), backupStats),
+                  svc));
+        }
       }
       checkFutures(futures);
     } finally {
@@ -615,12 +716,11 @@ public final class BackupRestoreUtil {
     private List<Exception> exceptions;
   }
 
-  public static RestorationResults restore(FileSystem fs, Path backupDir, DACConfig dacConfig)
+  public static RestorationResults restore(FileSystem bkpFs, Path backupDir, DACConfig dacConfig)
       throws Exception {
     final String dbDir = dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING);
     URI uploads = dacConfig.getConfig().getURI(DremioConfig.UPLOADS_PATH_STRING);
     File dbPath = new File(dbDir);
-
     if (!isGoodRestoreLocation(dbPath)) {
       throw new IllegalArgumentException(format("Path %s must be an empty directory.", dbDir));
     }
@@ -639,8 +739,8 @@ public final class BackupRestoreUtil {
 
       final HomeFileConf homeFileConf = new HomeFileConf(uploads.toString());
       homeFileConf.getFilesystemAndCreatePaths(null);
-      Map<String, BackupFileInfo> tableToInfo = scanInfoFiles(fs, backupDir);
-      Map<String, Path> tableToBackupFiles = scanBackupFiles(fs, backupDir, tableToInfo);
+      Map<String, BackupFileInfo> tableToInfo = scanInfoFiles(bkpFs, backupDir);
+      Map<String, Path> tableToBackupFiles = scanBackupFiles(bkpFs, backupDir, tableToInfo);
       final BackupStats backupStats = new BackupStats();
       backupStats.backupPath = backupDir.toURI().getPath();
       List<Exception> restoreTableExceptions = new ArrayList<>();
@@ -657,7 +757,7 @@ public final class BackupRestoreUtil {
                           localKVStoreProvider.getStore(info.getKvstoreInfo());
                       try {
                         restoreTable(
-                            fs,
+                            bkpFs,
                             store,
                             tableToBackupFiles.get(tableName),
                             info.getBinary(),
@@ -678,20 +778,31 @@ public final class BackupRestoreUtil {
         }
         futureMap.put(
             "restore uploads",
-            CompletableFuture.runAsync(
-                () -> {
-                  try {
+            runAsync(
+                () ->
                     restoreUploadedFiles(
-                        fs,
+                        bkpFs,
                         backupDir,
                         homeFileConf,
                         backupStats,
-                        dacConfig.getConfig().getThisNode());
-                  } catch (IOException e) {
-                    restoreTableExceptions.add(new CompletionException(e));
-                  }
-                },
+                        dacConfig.getConfig().getThisNode()),
+                e -> restoreTableExceptions.add(new CompletionException(e)),
                 ctp));
+
+        // Only try to restore the security folder if the folder exists in the backup source that
+        // is being restored.
+        if (bkpFs.exists(backupDir.resolve(SECURITY_FOLDER))) {
+          futureMap.put(
+              "restore security",
+              runAsync(
+                  () -> {
+                    SecurityFolder securityFolder = SecurityFolder.of(dacConfig.getConfig());
+                    restoreSecurityFiles(bkpFs, backupDir, securityFolder, backupStats);
+                  },
+                  e -> restoreTableExceptions.add(new CompletionException(e)),
+                  ctp));
+        }
+
         checkFutures(futureMap.values().stream().collect(Collectors.toList()));
       }
       return new RestorationResults(backupStats, restoreTableExceptions);
@@ -819,5 +930,31 @@ public final class BackupRestoreUtil {
     public OutputStream getOutputStream(OutputStream out) {
       return this.outputStreamFunction.apply(out);
     }
+  }
+
+  @FunctionalInterface
+  private interface ThrowingRunnable {
+    void run() throws Exception;
+  }
+
+  private static CompletableFuture<Void> runAsync(
+      ThrowingRunnable task, Consumer<Throwable> exceptionHandler, Executor executor) {
+    return CompletableFuture.runAsync(
+        () -> {
+          try {
+            task.run();
+          } catch (Exception e) {
+            if (exceptionHandler != null) {
+              exceptionHandler.accept(e);
+            } else {
+              throw new CompletionException(e);
+            }
+          }
+        },
+        executor);
+  }
+
+  private static CompletableFuture<Void> runAsync(ThrowingRunnable task, Executor executor) {
+    return runAsync(task, null, executor);
   }
 }

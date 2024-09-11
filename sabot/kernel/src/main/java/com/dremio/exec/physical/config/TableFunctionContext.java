@@ -51,9 +51,6 @@ import java.util.Map;
       name = "optimize-manifests"),
   @JsonSubTypes.Type(value = DirListingTableFunctionContext.class, name = "dir-listing"),
   @JsonSubTypes.Type(
-      value = IcebergSnapshotsScanTableFunctionContext.class,
-      name = "snapshots-scan"),
-  @JsonSubTypes.Type(
       value = CarryForwardAwareTableFunctionContext.class,
       name = "carry-forward-enabled-context"),
   @JsonSubTypes.Type(value = IcebergLocationFinderFunctionContext.class, name = "location-finder"),
@@ -63,7 +60,10 @@ import java.util.Map;
   @JsonSubTypes.Type(
       value = OrphanFileDeleteTableFunctionContext.class,
       name = "orphan-file-delete"),
-  @JsonSubTypes.Type(value = SplitProducerTableFunctionContext.class, name = "split-production")
+  @JsonSubTypes.Type(value = SplitProducerTableFunctionContext.class, name = "split-production"),
+  @JsonSubTypes.Type(
+      value = MergeOnReadRowSplitterTableFunctionContext.class,
+      name = "merge-on-read-row-splitter")
 })
 public class TableFunctionContext {
   private final List<SchemaPath> columns;

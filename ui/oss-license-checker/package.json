@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "name": "@dremio/oss-license-checker",
+  "main": "./dist/index.js",
+  "bin": {
+    "dremio-oss-license-checker": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prepare": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5"
+  },
+  "packageManager": "pnpm@9.3.0"
+}

@@ -64,9 +64,9 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
   private static final Logger logger =
       LoggerFactory.getLogger(DeltaLogCheckpointParquetRecordReader.class);
 
-  protected final RecordReader delegate;
-  protected final OperatorContext context;
-  protected SimpleProjector projector;
+  private final RecordReader delegate;
+  private final OperatorContext context;
+  private SimpleProjector projector;
   private final List<Field> partitionCols;
   private SampleMutator innerReaderOutput;
   private final ParquetSubScan scanConfig;
@@ -211,8 +211,7 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
     if (projector == null) {
       createPartitionColumnIndexMap(count);
       if (partitionColumnIndexMap.isEmpty()) {
-        logger.debug("No valid record found in the delta batch for this checkpoint parquet.");
-        return 0;
+        return count;
       }
       this.createAndSetupProjector();
     }

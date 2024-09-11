@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.gcs;
 
+import static com.dremio.hadoop.security.alias.DremioCredentialProvider.DREMIO_SCHEME_PREFIX;
 import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
 import static com.dremio.plugins.gcs.GCSOptions.ASYNC_READS;
 
@@ -40,7 +41,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.inject.Provider;
-import org.apache.commons.lang3.function.Suppliers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +101,8 @@ public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin
             new Property(GoogleBucketFileSystem.DREMIO_PRIVATE_KEY_ID, conf.privateKeyId));
         properties.add(
             new Property(
-                GoogleBucketFileSystem.DREMIO_PRIVATE_KEY, Suppliers.get(conf.privateKey)));
+                GoogleBucketFileSystem.DREMIO_PRIVATE_KEY,
+                SecretRef.toConfiguration(conf.privateKey, DREMIO_SCHEME_PREFIX)));
         break;
       case AUTO:
       default:

@@ -23,9 +23,5 @@
 }
 
 .dremio-avatar-group .dremio-avatar {
-  border: 2px solid white;
-}
-
-.dremio-dark .dremio-avatar-group .dremio-avatar {
-  border: 2px solid lch(19% 8 242);
+  border: 2px solid var(--bg);
 }

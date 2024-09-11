@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.impl.join;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -25,6 +26,7 @@ public class TestHashJoinWithExtraConditionSpill extends TestHashJoinWithExtraCo
   @BeforeClass
   public static void beforeClass() throws Exception {
     setSystemOption(HashJoinOperator.ENABLE_SPILL, "true");
+    setSystemOption(PlannerSettings.USE_MAX_ROWCOUNT, "false");
   }
 
   @AfterClass
@@ -32,5 +34,8 @@ public class TestHashJoinWithExtraConditionSpill extends TestHashJoinWithExtraCo
     setSystemOption(
         HashJoinOperator.ENABLE_SPILL,
         HashJoinOperator.ENABLE_SPILL.getDefault().getBoolVal().toString());
+    setSystemOption(
+        PlannerSettings.USE_MAX_ROWCOUNT,
+        PlannerSettings.USE_MAX_ROWCOUNT.getDefault().getBoolVal().toString());
   }
 }

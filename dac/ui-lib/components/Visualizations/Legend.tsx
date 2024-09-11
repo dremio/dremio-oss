@@ -18,20 +18,44 @@ import clsx from "clsx";
 
 export const Legend = (props: {
   series: { class?: string; label: string }[];
+  onSeriesClick?: (seriesIndex: number) => void;
+  disabledSeries?: Set<number>;
 }) => {
   return (
     <div className="visualization-legend">
-      {props.series.map((segment) => (
-        <div className="visualization-legend__segment">
+      {props.series.map((segment, i) => {
+        const isDisabled = props.disabledSeries?.has(i);
+        return (
           <div
-            className={clsx(
-              "visualization-legend__segment__chip",
-              segment.class,
-            )}
-          />
-          <div>{segment.label}</div>
-        </div>
-      ))}
+            className="visualization-legend__segment"
+            key={i}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onSeriesClick?.(i);
+            }}
+            style={{ cursor: props.onSeriesClick ? "pointer" : "default" }}
+          >
+            <div
+              className={clsx(
+                "visualization-legend__segment__chip",
+                segment.class && {
+                  [segment.class]: !isDisabled,
+                },
+              )}
+              style={isDisabled ? { background: "var(--fill--disabled)" } : {}}
+            />
+            <div>
+              {isDisabled ? (
+                <span style={{ color: "var(--text--disabled)" }}>
+                  {segment.label}
+                </span>
+              ) : (
+                segment.label
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

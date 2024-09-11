@@ -34,7 +34,6 @@
     <module>backend</module>
     <module>common</module>
     <module>daemon</module>
-    <module>dremio-js</module>
     <module>ui</module>
     <module>ui-common</module>
     <module>ui-lib</module>

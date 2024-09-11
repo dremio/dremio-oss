@@ -19,6 +19,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.service.Service;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.Schedule.ClusteredSingletonBuilder;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
 import java.util.concurrent.TimeUnit;
@@ -83,14 +84,17 @@ public class SplitOrphansCleanerService implements Service {
                 optionManager.getOption(NamespaceOptions.DATASET_METADATA_AUTO_EXPIRE_AFTER_HOURS))
             : PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS;
 
+    ClusteredSingletonBuilder scheduleBuilder =
+        Schedule.Builder.everyHours(splitOrphansCleanPeriodHour)
+            .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+            .releaseOwnershipAfter(splitOrphansReleaseLeadershipHour, TimeUnit.MILLISECONDS);
+    Schedule schedule = buildSchedule(scheduleBuilder);
+
     cleanerTask =
         scheduler
             .get()
             .schedule(
-                Schedule.Builder.everyHours(splitOrphansCleanPeriodHour)
-                    .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
-                    .releaseOwnershipAfter(splitOrphansReleaseLeadershipHour, TimeUnit.MILLISECONDS)
-                    .build(),
+                schedule,
                 () -> {
                   logger.info("Search for expired dataset splits");
                   final int expired =
@@ -100,6 +104,10 @@ public class SplitOrphansCleanerService implements Service {
                               NamespaceOptions.DATASET_METADATA_CONSISTENCY_VALIDATE));
                   logger.info("Deleted {} expired/orphan dataset splits", expired);
                 });
+  }
+
+  protected Schedule buildSchedule(ClusteredSingletonBuilder baseBuilder) {
+    return baseBuilder.build();
   }
 
   @Override

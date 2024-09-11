@@ -31,13 +31,12 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
 import com.dremio.exec.planner.sql.parser.SqlCreateFolder;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
-import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
+import com.dremio.exec.store.NamespaceAlreadyExistsException;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.plugins.s3.store.S3StoragePlugin;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.test.DremioTest;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -52,7 +51,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.projectnessie.model.ContentKey;
 
 @ExtendWith(MockitoExtension.class)
-public class TestCreateFolderHandler extends DremioTest {
+public class TestCreateFolderHandler {
   private static final String DEFAULT_CONTEXT = "@dremio";
   private static final String NON_EXISTENT_SOURCE_NAME = "non_exist";
   private static final String DEFAULT_SOURCE_NAME = "dataplane_source_1";
@@ -274,8 +273,8 @@ public class TestCreateFolderHandler extends DremioTest {
   @Test
   public void createFolderWithIfNotExists() throws Exception {
     ContentKey contentKey = ContentKey.of(WITHOUT_IF_NOT_EXISTS.getPath().getPathComponents());
-    NessieNamespaceAlreadyExistsException nessieNamespaceAlreadyExistsException =
-        new NessieNamespaceAlreadyExistsException(
+    NamespaceAlreadyExistsException namespaceAlreadyExistsException =
+        new NamespaceAlreadyExistsException(
             String.format("Folder %s already exists", contentKey.toPathString()));
     when(catalog.resolveSingle(extractNamespaceKeyFromSqlNode(WITHOUT_IF_NOT_EXISTS)))
         .thenReturn(extractNamespaceKeyFromSqlNode(WITH_IF_NOT_EXISTS));
@@ -283,7 +282,7 @@ public class TestCreateFolderHandler extends DremioTest {
     when(catalog.getSource(DEFAULT_SOURCE_NAME)).thenReturn(dataplanePlugin);
     when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
     when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
-    doThrow(nessieNamespaceAlreadyExistsException)
+    doThrow(namespaceAlreadyExistsException)
         .when(dataplanePlugin)
         .createNamespace(new NamespaceKey(DEFAULT_FOLDER_PATH), DEV_VERSION);
 
@@ -300,8 +299,8 @@ public class TestCreateFolderHandler extends DremioTest {
   @Test
   public void createFolderWithoutIfNotExists() throws Exception {
     ContentKey contentKey = ContentKey.of(WITHOUT_IF_NOT_EXISTS.getPath().getPathComponents());
-    NessieNamespaceAlreadyExistsException nessieNamespaceAlreadyExistsException =
-        new NessieNamespaceAlreadyExistsException(
+    NamespaceAlreadyExistsException namespaceAlreadyExistsException =
+        new NamespaceAlreadyExistsException(
             String.format("Folder %s already exists", contentKey.toPathString()));
     when(catalog.resolveSingle(extractNamespaceKeyFromSqlNode(WITHOUT_IF_NOT_EXISTS)))
         .thenReturn(extractNamespaceKeyFromSqlNode(WITHOUT_IF_NOT_EXISTS));
@@ -309,7 +308,7 @@ public class TestCreateFolderHandler extends DremioTest {
     when(catalog.getSource(DEFAULT_SOURCE_NAME)).thenReturn(dataplanePlugin);
     when(dataplanePlugin.isWrapperFor(VersionedPlugin.class)).thenReturn(true);
     when(dataplanePlugin.unwrap(VersionedPlugin.class)).thenReturn(dataplanePlugin);
-    doThrow(nessieNamespaceAlreadyExistsException)
+    doThrow(namespaceAlreadyExistsException)
         .when(dataplanePlugin)
         .createNamespace(new NamespaceKey(DEFAULT_FOLDER_PATH), DEV_VERSION);
 

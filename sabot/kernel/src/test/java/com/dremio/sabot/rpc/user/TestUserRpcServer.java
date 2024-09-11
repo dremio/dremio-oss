@@ -24,7 +24,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -242,6 +244,10 @@ public class TestUserRpcServer {
     // create a UserClientConnection, create an associated SessionOptionManager
     final UserClientConnectionImpl userClientConnection =
         server.initRemoteConnection(socketChannel);
+    final UserClientConnectionImpl spy = spy(userClientConnection);
+    UserSession session = new UserSession();
+    doReturn(session).when(spy).getSession();
+
     final String uuid = userClientConnection.getUuid().toString();
     server.getSessionOptionManagerFactory().getOrCreate(uuid);
 
@@ -250,9 +256,7 @@ public class TestUserRpcServer {
     assertTrue(containsSessionOptionManager(uuid));
 
     // close the UserClientConnection
-    server
-        .newCloseListener(socketChannel, userClientConnection)
-        .operationComplete(mock(ChannelFuture.class));
+    server.newCloseListener(socketChannel, spy).operationComplete(mock(ChannelFuture.class));
 
     // closing this connection should delete the SessionOptionManager associated with it.
     assertFalse(containsSessionOptionManager(uuid));

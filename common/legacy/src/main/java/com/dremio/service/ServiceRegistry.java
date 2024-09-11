@@ -16,6 +16,7 @@
 package com.dremio.service;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.google.common.annotations.VisibleForTesting;
@@ -66,6 +67,9 @@ public class ServiceRegistry implements Service {
           // Closing service in case some resources are already allocated
           s.close();
         } catch (Exception e) {
+          if (VM.areAssertsEnabled()) {
+            throw new RuntimeException("Failed to close replaced service: " + s, e);
+          }
           logger.warn("Exception when closing service {}", s, e);
         }
         it.add(toReplace);

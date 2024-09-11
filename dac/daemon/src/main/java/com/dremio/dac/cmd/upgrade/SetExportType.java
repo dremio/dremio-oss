@@ -21,6 +21,7 @@ import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.support.BasicSupportService;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.SystemOptionManagerImpl;
 import com.dremio.options.OptionValue;
 import com.dremio.service.DirectProvider;
 import com.google.common.annotations.VisibleForTesting;
@@ -56,7 +57,7 @@ public class SetExportType extends UpgradeTask {
     final Supplier<SystemOptionManager> optionManagerSupplier =
         Suppliers.memoize(
             () ->
-                new SystemOptionManager(
+                new SystemOptionManagerImpl(
                     new OptionValidatorListingImpl(context.getScanResult()),
                     context.getLpPersistence(),
                     DirectProvider.wrap(context.getLegacyKVStoreProvider()),

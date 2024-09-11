@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.exec;
 
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.common.concurrent.CloseableThreadPool;
@@ -23,6 +25,10 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.compile.CodeCompiler;
+import com.dremio.exec.expr.ExpressionSplitCache;
+import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
@@ -30,6 +36,7 @@ import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.exec.server.BootStrapContext;
+import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.service.executor.ExecutorServiceImpl;
 import com.dremio.exec.store.CatalogService;
@@ -46,17 +53,18 @@ import com.dremio.sabot.exec.rpc.ExecProtocol;
 import com.dremio.sabot.exec.rpc.ExecTunnel;
 import com.dremio.sabot.exec.rpc.FabricExecTunnel;
 import com.dremio.sabot.exec.rpc.InProcessExecTunnel;
-import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
 import com.dremio.service.maestroservice.MaestroClientFactory;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.spill.SpillService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
-import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
@@ -64,10 +72,13 @@ import com.google.common.collect.Sets;
 import java.sql.Timestamp;
 import java.util.Iterator;
 import java.util.Set;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import org.apache.arrow.memory.BufferAllocator;
 
 /** Service managing fragment execution. */
+@Singleton
 public class FragmentWorkManager implements Service, SafeExit {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(FragmentWorkManager.class);
@@ -85,7 +96,6 @@ public class FragmentWorkManager implements Service, SafeExit {
   private ThreadsStatsCollector statsCollectorThread;
 
   private final Provider<TaskPool> pool;
-  private MemoryArbiter memoryArbiter;
   private FragmentExecutors fragmentExecutors;
   private MaestroProxy maestroProxy;
   private SabotContext bitContext;
@@ -105,6 +115,7 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   private SabotConfig sabotConfig;
 
+  @Inject
   public FragmentWorkManager(
       final BootStrapContext context,
       final SabotConfig sabotConfig,
@@ -295,8 +306,6 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   @Override
   public void start() {
-
-    Metrics.newGauge(Metrics.join("fragments", "active"), () -> fragmentExecutors.size());
     bitContext = dbContext.get();
 
     this.executor = new CloseableThreadPool("fragment-work-executor-");
@@ -328,15 +337,19 @@ public class FragmentWorkManager implements Service, SafeExit {
             bitContext.getClusterCoordinator(),
             identity,
             bitContext.getOptionManager());
+
     fragmentExecutors =
         new FragmentExecutors(
             context,
+            bitContext.getNodeDebugContext(),
             sabotConfig,
             clerk,
             maestroProxy,
             callback,
             pool.get(),
             bitContext.getOptionManager());
+
+    newGauge("fragments.active", fragmentExecutors::size);
 
     final ExecConnectionCreator connectionCreator =
         new ExecConnectionCreator(
@@ -351,7 +364,7 @@ public class FragmentWorkManager implements Service, SafeExit {
     }
 
     final FragmentExecutorBuilder builder =
-        new FragmentExecutorBuilder(
+        getFragmentExecutorBuilder(
             clerk,
             fragmentExecutors,
             bitContext.getEndpoint(),
@@ -369,7 +382,7 @@ public class FragmentWorkManager implements Service, SafeExit {
             contextInformationFactory.get(),
             bitContext.getFunctionImplementationRegistry(),
             bitContext.getDecimalFunctionImplementationRegistry(),
-            context.getNodeDebugContextProvider(),
+            bitContext.getNodeDebugContext(),
             bitContext.getSpillService(),
             bitContext.getCompiler(),
             ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
@@ -380,7 +393,9 @@ public class FragmentWorkManager implements Service, SafeExit {
 
     executorService = new ExecutorServiceImpl(fragmentExecutors, bitContext, builder);
 
-    statusThread = new FragmentStatusThread(fragmentExecutors, clerk, maestroProxy);
+    statusThread =
+        new FragmentStatusThread(
+            fragmentExecutors, clerk, maestroProxy, bitContext.getOptionManager());
     statusThread.start();
     Iterable<TaskPool.ThreadInfo> slicingThreads = pool.get().getSlicingThreads();
     Set<Long> slicingThreadIds = Sets.newHashSet();
@@ -391,21 +406,76 @@ public class FragmentWorkManager implements Service, SafeExit {
     statsCollectorThread.start();
 
     if (bitContext.isExecutor()) {
-      HeapClawBackStrategy heapClawBackStrategy =
-          new FailGreediestQueriesStrategy(fragmentExecutors, clerk);
+      FailGreediestQueriesStrategy heapClawBackStrategy =
+          new FailGreediestQueriesStrategy(fragmentExecutors, clerk, 25);
       logger.info("Starting heap monitor manager in executor");
       heapMonitorManager =
           new HeapMonitorManager(
               () -> bitContext.getOptionManager(),
               heapClawBackStrategy,
+              heapClawBackStrategy,
               ClusterCoordinator.Role.EXECUTOR);
       heapMonitorManager.addLowMemListener(heapLowMemController.getLowMemListener());
+      heapMonitorManager.addLowMemListener(heapClawBackStrategy);
       heapMonitorManager.start();
     }
 
-    final String prefix = "rpc";
-    Metrics.newGauge(Metrics.join(prefix, "bit.data.current"), allocator::getAllocatedMemory);
-    Metrics.newGauge(Metrics.join(prefix, "bit.data.peak"), allocator::getPeakMemoryAllocation);
+    newGauge("rpc.bit.data_current", allocator::getAllocatedMemory);
+    newGauge("rpc.bit.data_peak", allocator::getPeakMemoryAllocation);
+  }
+
+  protected FragmentExecutorBuilder getFragmentExecutorBuilder(
+      QueriesClerk clerk,
+      FragmentExecutors fragmentExecutors,
+      NodeEndpoint endpoint,
+      MaestroProxy maestroProxy,
+      SabotConfig config,
+      DremioConfig dremioConfig,
+      ClusterCoordinator clusterCoordinator,
+      CloseableExecutorService executor,
+      OptionManager optionManager,
+      ExecConnectionCreator connectionCreator,
+      OperatorCreatorRegistry operatorCreatorRegistry,
+      PhysicalPlanReader planReader,
+      NamespaceService namespaceService,
+      CatalogService catalogService,
+      ContextInformationFactory contextInformationFactory,
+      FunctionImplementationRegistry functionImplementationRegistry,
+      FunctionImplementationRegistry decimalFunctionImplementationRegistry,
+      NodeDebugContextProvider nodeDebugContext,
+      SpillService spillService,
+      CodeCompiler compiler,
+      Set<Role> roles,
+      Provider<JobResultsClientFactory> jobResultsClientFactoryProvider,
+      Provider<NodeEndpoint> identity,
+      ExpressionSplitCache expressionSplitCache,
+      SpillingOperatorHeapController heapLowMemController) {
+    return new FragmentExecutorBuilder(
+        clerk,
+        fragmentExecutors,
+        endpoint,
+        maestroProxy,
+        config,
+        dremioConfig,
+        clusterCoordinator,
+        executor,
+        optionManager,
+        connectionCreator,
+        operatorCreatorRegistry,
+        planReader,
+        namespaceService,
+        catalogService,
+        contextInformationFactory,
+        functionImplementationRegistry,
+        decimalFunctionImplementationRegistry,
+        nodeDebugContext,
+        spillService,
+        compiler,
+        roles,
+        jobResultsClientFactoryProvider,
+        identity,
+        expressionSplitCache,
+        heapLowMemController);
   }
 
   public class ExecConnectionCreator {

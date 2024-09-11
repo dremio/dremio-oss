@@ -16,15 +16,76 @@
 package com.dremio.dac.server;
 
 import static com.dremio.dac.server.FamilyExpectation.SUCCESS;
+import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 
+import com.dremio.common.SentinelSecure;
 import com.dremio.common.perf.Timer;
+import com.dremio.dac.explore.model.DataPOJO;
+import com.dremio.dac.explore.model.ViewFieldTypeMixin;
+import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.service.namespace.dataset.proto.ViewFieldType;
+import com.dremio.test.DremioTest;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import java.io.IOException;
 import javax.ws.rs.ProcessingException;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 /** Utils for web client. */
 public class BaseClientUtils {
+
+  protected static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
+  protected static final String API_LOCATION = "apiv2";
+
+  protected static <T> JsonDeserializer<T> newJsonDeserializer(final Class<? extends T> clazz) {
+    return new JsonDeserializer<T>() {
+      @Override
+      public T deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+        return p.readValueAs(clazz);
+      }
+    };
+  }
+
+  public static ObjectMapper newClientObjectMapper() {
+    ObjectMapper objectMapper = JSONUtil.prettyMapper();
+    JSONUtil.registerStorageTypes(
+        objectMapper,
+        DremioTest.CLASSPATH_SCAN_RESULT,
+        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG));
+    objectMapper
+        .registerModule(
+            new SimpleModule()
+                .addDeserializer(JobDataFragment.class, newJsonDeserializer(DataPOJO.class)))
+        .addMixIn(ViewFieldType.class, ViewFieldTypeMixin.class);
+    objectMapper.setFilterProvider(
+        new SimpleFilterProvider()
+            .addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
+    return objectMapper;
+  }
+
+  public static Client newClient(ObjectMapper mapper) {
+    final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
+    provider.setMapper(mapper);
+
+    return ClientBuilder.newBuilder()
+        .property(FEATURE_AUTO_DISCOVERY_DISABLE, true)
+        .register(provider)
+        .register(MultiPartFeature.class)
+        .build();
+  }
 
   protected Response expectStatus(Response.StatusType status, Invocation i) {
     return expect(new StatusExpectation(status), i);

@@ -27,6 +27,7 @@ import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory.DeleteFileInfo;
 import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.collect.ImmutableList;
@@ -264,27 +265,27 @@ public class TestParquetScanTableFunctionWithEqualityDeletes
             SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA,
             inputRow(DATA_WIDGET_00, ImmutableList.of(EQ_DELETE_WIDGET_01)));
 
-    RecordSet.Record[] outputRecords =
+    RsRecord[] outputRecords =
         Stream.iterate(0, i -> i + 1)
             .limit(200)
             .filter(FILTER_EQ_DELETE_WIDGET_01)
             .map(RecordSet::r)
-            .toArray(RecordSet.Record[]::new);
+            .toArray(RsRecord[]::new);
     RecordSet output = rs(IcebergTestTables.PRODUCTS_SCHEMA.maskAndReorder(columns), outputRecords);
 
     validate(input, output, columns);
   }
 
-  private RecordSet.Record inputRow(String relativePath) throws Exception {
+  private RsRecord inputRow(String relativePath) throws Exception {
     return inputRow(relativePath, 0, -1, ImmutableList.of());
   }
 
-  private RecordSet.Record inputRow(String relativePath, List<DeleteFileInfo> deleteFiles)
+  private RsRecord inputRow(String relativePath, List<DeleteFileInfo> deleteFiles)
       throws Exception {
     return inputRow(relativePath, 0, -1, deleteFiles);
   }
 
-  private RecordSet.Record inputRow(
+  private RsRecord inputRow(
       String relativePath, long offset, long length, List<DeleteFileInfo> deleteFiles)
       throws Exception {
     String fullPath = "file:" + table.getLocation() + "/data/" + relativePath;
@@ -305,7 +306,7 @@ public class TestParquetScanTableFunctionWithEqualityDeletes
   }
 
   private RecordSet outputRecordSet(Iterator<Integer> expectedProductIds) {
-    List<RecordSet.Record> rows = new ArrayList<>();
+    List<RsRecord> rows = new ArrayList<>();
     while (expectedProductIds.hasNext()) {
       int productId = expectedProductIds.next();
       String category;
@@ -320,7 +321,7 @@ public class TestParquetScanTableFunctionWithEqualityDeletes
 
       rows.add(r(productId, category, color));
     }
-    return rs(OUTPUT_SCHEMA, rows.toArray(new RecordSet.Record[0]));
+    return rs(OUTPUT_SCHEMA, rows.toArray(new RsRecord[0]));
   }
 
   private void validate(RecordSet input, RecordSet output) throws Exception {

@@ -20,7 +20,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.EMPTY_EXPECTED_DATA;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.PARTITION_COLUMN_ONE_INDEX_SET;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Table;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Tables;
-import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.configureDmlWriteModeProperties;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createRandomId;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createTable;
@@ -32,6 +32,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQuer
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.verifyData;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.exec.planner.sql.DmlQueryTestUtils.DmlRowwiseOperationWriteMode;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.ArrayUtils;
@@ -79,22 +80,30 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteAll(BufferAllocator allocator, String source) throws Exception {
+  public static void testDeleteAll(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator, "DELETE FROM %s", new Object[] {table.fqn}, table, 10, EMPTY_EXPECTED_DATA);
       }
     }
   }
 
-  public static void testDeleteById(BufferAllocator allocator, String source) throws Exception {
+  public static void testDeleteById(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s WHERE id = %s",
@@ -106,13 +115,16 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteByIdWithEqualNull(BufferAllocator allocator, String source)
+  public static void testDeleteByIdWithEqualNull(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     // column = null should return false and no data should be deleted
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s WHERE id = %s",
@@ -125,12 +137,15 @@ public class DeleteTests {
   }
 
   public static void testDeleteTargetTableWithAndWithoutAlias(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     // without target table aliasing
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s WHERE id = %s",
@@ -143,9 +158,11 @@ public class DeleteTests {
 
     //  with target table aliasing
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s as t WHERE t.id = %s",
@@ -157,12 +174,15 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteByIdInEquality(BufferAllocator allocator, String source)
+  public static void testDeleteByIdInEquality(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s WHERE id > 4",
@@ -174,12 +194,15 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteByEvenIds(BufferAllocator allocator, String source)
+  public static void testDeleteByEvenIds(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s WHERE id %% 2 = 0",
@@ -195,12 +218,15 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteByIdAndColumn0(BufferAllocator allocator, String source)
+  public static void testDeleteByIdAndColumn0(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s WHERE id > 0 AND column_0 = '%s'",
@@ -214,12 +240,15 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteByIdOrColumn0(BufferAllocator allocator, String source)
+  public static void testDeleteByIdOrColumn0(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Tables tables =
-        createBasicNonPartitionedAndPartitionedTables(
-            source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+        DmlQueryTestUtils
+            .createBasicNonPartitionedAndPartitionedTablesWithAndWithoutIcebergSortOrder(
+                source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
+        configureDmlWriteModeProperties(table, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s WHERE id = %s OR column_0 = '%s'",
@@ -233,10 +262,12 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithOneSourceTable(BufferAllocator allocator, String source)
+  public static void testDeleteWithOneSourceTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 5);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using %s where t.id = %s.id",
@@ -248,10 +279,12 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithOneSourceTableWithoutFullPath(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 5);
         Table targetTable = createBasicTable(source, 2, 10);
         AutoCloseable ignored = setContext(allocator, source)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using %s where t.id = %s.id",
@@ -262,11 +295,13 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithViewUsedAsSourceTable(BufferAllocator allocator, String source)
+  public static void testDeleteWithViewUsedAsSourceTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     String viewName = createRandomId();
     try (Table targetTable = createBasicTable(source, 3, 5);
         AutoCloseable ignore = createViewFromTable(source, viewName, targetTable.fqn)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using %s.%s where t.id = %s.%s.id",
@@ -278,9 +313,11 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithOneSourceTableQueryUsingSource(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 4);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using (SELECT id from %s WHERE id < 4) AS s where t.id = s.id",
@@ -292,8 +329,10 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithSourceTableAsQueryUsingTarget(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using (SELECT id from %s WHERE id < 4) AS s where t.id = s.id",
@@ -304,10 +343,12 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithOneUnusedSourceTable(BufferAllocator allocator, String source)
+  public static void testDeleteWithOneUnusedSourceTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 4);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -322,14 +363,16 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithUnrelatedConditionToSourceTable(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 4);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
                       allocator,
-                      "DELETE FROM %s AS t using %s where t.id < 2",
+                      "DELETE FROM %s AS t using %s where t.id < 4",
                       new Object[] {targetTable.fqn, sourceTable.fqn},
                       targetTable,
                       -1))
@@ -339,9 +382,11 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithPartialUnrelatedConditionToSourceTable(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 4);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -356,11 +401,13 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithTwoSourceTables(BufferAllocator allocator, String source)
+  public static void testDeleteWithTwoSourceTables(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable1 = createBasicTable(source, 3, 4);
         Table sourceTable2 = createBasicTable(source, 3, 5);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using %s, %s where t.id = %s.id and t.id = %s.id",
@@ -374,11 +421,13 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithTwoSourceTableOneSourceQuery(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable1 = createBasicTable(source, 3, 4);
         Table sourceTable2 = createBasicTable(source, 3, 5);
         Table sourceTable3 = createBasicTable(source, 3, 6);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using %s as s1, %s as s2, (select id from %s) s3"
@@ -391,11 +440,13 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithTwoSourceTableTwoSourceQuery(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable1 = createBasicTable(source, 3, 4);
         Table sourceTable2 = createBasicTable(source, 3, 5);
         Table sourceTable3 = createBasicTable(source, 3, 6);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using %s as s1, (select id from %s WHERE id < 4) as s2, (select id from %s) s3"
@@ -407,10 +458,12 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithSourceTableWithSubquery(BufferAllocator allocator, String source)
+  public static void testDeleteWithSourceTableWithSubquery(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 5);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using (select * from %s where %s.id < 3) as s where t.id = s.id",
@@ -422,9 +475,11 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithSourceTableMultipleConditions(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 5);
         Table targetTable = createBasicTable(source, 2, 10)) {
+      configureDmlWriteModeProperties(targetTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s AS t using (select * from %s) as s where t.id = s.id and t.%s = s.%s",
@@ -438,9 +493,11 @@ public class DeleteTests {
   }
 
   // BEGIN: Contexts + Paths
-  public static void testDeleteWithWrongContextWithFqn(BufferAllocator allocator, String source)
+  public static void testDeleteWithWrongContextWithFqn(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s WHERE id = %s",
@@ -452,8 +509,10 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithWrongContextWithPathTable(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -467,9 +526,11 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithWrongContextWithTable(BufferAllocator allocator, String source)
+  public static void testDeleteWithWrongContextWithTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -483,10 +544,12 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithContextWithFqn(BufferAllocator allocator, String source)
+  public static void testDeleteWithContextWithFqn(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2);
         AutoCloseable ignored = setContext(allocator, source)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s WHERE id = %s",
@@ -497,10 +560,12 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithContextWithPathTable(BufferAllocator allocator, String source)
+  public static void testDeleteWithContextWithPathTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2);
         AutoCloseable ignored = setContext(allocator, source)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s.%s WHERE id = %s",
@@ -511,10 +576,12 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithContextWithTable(BufferAllocator allocator, String source)
+  public static void testDeleteWithContextWithTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2);
         AutoCloseable ignored = setContext(allocator, source)) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -528,10 +595,12 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithContextPathWithFqn(BufferAllocator allocator, String source)
+  public static void testDeleteWithContextPathWithFqn(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2);
         AutoCloseable ignored = setContext(allocator, source + "." + table.paths[0])) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s WHERE id = %s",
@@ -543,9 +612,11 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithContextPathWithPathTable(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2);
         AutoCloseable ignored = setContext(allocator, source + "." + table.paths[0])) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       assertThatThrownBy(
               () ->
                   testDmlQuery(
@@ -559,10 +630,12 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithContextPathWithTable(BufferAllocator allocator, String source)
+  public static void testDeleteWithContextPathWithTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (Table table = createBasicTable(source, 1, 2, 2);
         AutoCloseable ignored = setContext(allocator, source + "." + table.paths[0])) {
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s WHERE id = %s",
@@ -581,15 +654,16 @@ public class DeleteTests {
   // Context: source
   //  Query: DELETE source.table => table 1
   public static void testDeleteWithSourceAsPathTableWithWrongContextWithPathTable(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     String tableName = createRandomId();
     try (Table sourceTable =
             createTable(
                 source,
                 tableName,
                 new ColumnInfo[] {
-                  new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new ColumnInfo("data", SqlTypeName.VARCHAR, false)
+                  new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new ColumnInfo("data", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {0, "zero"},
@@ -601,13 +675,14 @@ public class DeleteTests {
                 new String[] {source},
                 tableName,
                 new ColumnInfo[] {
-                  new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                  new ColumnInfo("data", SqlTypeName.VARCHAR, false)
+                  new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                  new ColumnInfo("data", SqlTypeName.VARCHAR, false, false)
                 },
                 new Object[][] {
                   new Object[] {0, "zero"},
                   new Object[] {1, "one"}
                 })) {
+      configureDmlWriteModeProperties(sourceTable, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s.%s WHERE id = %s",
@@ -620,15 +695,16 @@ public class DeleteTests {
   }
 
   public static void testDeleteWithSourceAsPathTableWithContextWithPathTable(
-      BufferAllocator allocator, String source) throws Exception {
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
+      throws Exception {
     String tableName = createRandomId();
     try (Table sourceTable =
         createTable(
             source,
             tableName,
             new ColumnInfo[] {
-              new ColumnInfo("id", SqlTypeName.INTEGER, false),
-              new ColumnInfo("data", SqlTypeName.VARCHAR, false)
+              new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+              new ColumnInfo("data", SqlTypeName.VARCHAR, false, false)
             },
             new Object[][] {
               new Object[] {0, "zero"},
@@ -640,14 +716,15 @@ public class DeleteTests {
                   new String[] {source},
                   tableName,
                   new ColumnInfo[] {
-                    new ColumnInfo("id", SqlTypeName.INTEGER, false),
-                    new ColumnInfo("data", SqlTypeName.VARCHAR, false)
+                    new ColumnInfo("id", SqlTypeName.INTEGER, false, false),
+                    new ColumnInfo("data", SqlTypeName.VARCHAR, false, false)
                   },
                   new Object[][] {
                     new Object[] {0, "zero"},
                     new Object[] {1, "one"}
                   });
           AutoCloseable ignored = setContext(allocator, source)) {
+        configureDmlWriteModeProperties(sourceSourceTable, dmlWriteMode);
         testDmlQuery(
             allocator,
             "DELETE FROM %s.%s WHERE id = %s",
@@ -660,13 +737,15 @@ public class DeleteTests {
     }
   }
 
-  public static void testDeleteWithStockIcebergTable(BufferAllocator allocator, String source)
+  public static void testDeleteWithStockIcebergTable(
+      BufferAllocator allocator, String source, DmlRowwiseOperationWriteMode dmlWriteMode)
       throws Exception {
     try (DmlQueryTestUtils.Table table =
             DmlQueryTestUtils.createStockIcebergTable(
                 source, 2, 2, "test_delete_into_stock_iceberg");
         AutoCloseable ignored = setContext(allocator, source)) {
 
+      configureDmlWriteModeProperties(table, dmlWriteMode);
       testDmlQuery(
           allocator,
           "DELETE FROM %s WHERE id = 1",

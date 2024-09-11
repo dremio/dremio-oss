@@ -21,9 +21,14 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
+import com.dremio.sabot.exec.SchedulerMetrics;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
+import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.Lists;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Metrics;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -34,8 +39,19 @@ import org.apache.arrow.memory.BufferAllocator;
 public class FragmentStats {
   private static final long MIN_RUNTIME_THRESHOLD = MILLISECONDS.toNanos(20);
   private static final long MAX_RUNTIME_THRESHOLD = MILLISECONDS.toNanos(200);
+  private static final String PREFIX = "fragment_stats";
 
-  private List<OperatorStats> operators = Lists.newArrayList();
+  private static final Meter.MeterProvider<Counter> fragmentEvalHeapAllocatedTotal =
+      Counter.builder(Joiner.on(".").join(PREFIX, "eval_heap_allocated"))
+          .description("Tracks total heap allocation during eval by a minor fragment")
+          .withRegistry(Metrics.globalRegistry);
+
+  private static final Meter.MeterProvider<Counter> fragmentSetupHeapAllocatedTotal =
+      Counter.builder(Joiner.on(".").join(PREFIX, "setup_heap_allocated"))
+          .description("Tracks total heap allocation during setup by a minor fragment")
+          .withRegistry(Metrics.globalRegistry);
+
+  private final List<OperatorStats> operators = new ArrayList<>();
   private final long startTime;
   private long firstRun;
   private final NodeEndpoint endpoint;
@@ -57,13 +73,16 @@ public class FragmentStats {
   private long recentSliceStartTime;
   private long lastSliceStartTime;
   private long cancelStartTime;
-
+  private long avgAllocatedHeap;
+  private long peakAllocatedHeap;
+  private long setupAllocatedHeap;
+  private long totalAllocatedHeap;
+  private long startHeapAllocation = -1;
   private final Stopwatch runWatch = Stopwatch.createUnstarted();
   private final Stopwatch setupWatch = Stopwatch.createUnstarted();
   private final Stopwatch finishWatch = Stopwatch.createUnstarted();
-  private Map<SharedResourceType, Long> perResourceBlockedDurations;
+  private final Map<SharedResourceType, Long> perResourceBlockedDurations;
   private final long warnIOTimeThreshold;
-
   private boolean notStartedYet = true;
 
   public FragmentStats(
@@ -189,6 +208,7 @@ public class FragmentStats {
     numInRunQ += runQLoad;
     recentSliceStartTime = System.currentTimeMillis();
     lastSliceStartTime = recentSliceStartTime;
+    startHeapAllocation = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
   }
 
   public void runStarted() {
@@ -202,9 +222,21 @@ public class FragmentStats {
 
   public void sliceEnded(long runTimeNanos) {
     if (runTimeNanos > MAX_RUNTIME_THRESHOLD) {
+      SchedulerMetrics.getLongSlicesCounter().increment();
       numLongSlices++;
     } else if (runTimeNanos < MIN_RUNTIME_THRESHOLD) {
       numShortSlices++;
+    }
+    if (startHeapAllocation >= 0) {
+      long currentHeapAllocation = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
+      long lastAllocatedHeap = currentHeapAllocation - startHeapAllocation;
+      totalAllocatedHeap += lastAllocatedHeap;
+      fragmentEvalHeapAllocatedTotal.withTags().increment(lastAllocatedHeap);
+      double avg =
+          (double) avgAllocatedHeap
+              + ((double) (lastAllocatedHeap - avgAllocatedHeap) / (double) numSlices);
+      avgAllocatedHeap = Math.round(avg);
+      peakAllocatedHeap = Math.max(lastAllocatedHeap, peakAllocatedHeap);
     }
     recentSliceStartTime = 0;
   }
@@ -223,6 +255,12 @@ public class FragmentStats {
   }
 
   public void setupEnded() {
+    if (startHeapAllocation >= 0) {
+      final long current = HeapAllocatedMXBeanWrapper.getCurrentThreadAllocatedBytes();
+      setupAllocatedHeap = current - startHeapAllocation;
+      startHeapAllocation = current;
+      fragmentSetupHeapAllocatedTotal.withTags().increment(setupAllocatedHeap);
+    }
     setupWatch.stop();
   }
 
@@ -259,5 +297,58 @@ public class FragmentStats {
       blockedDuration += oldDuration;
     }
     perResourceBlockedDurations.put(resource, blockedDuration);
+  }
+
+  /**
+   * Builds a log friendly string of current fragment stats.
+   *
+   * <p>Typically used to dump memory usage data under low memory situations
+   */
+  private static final int KB = 1024;
+
+  private static final String COL_DELIMITER = ",";
+
+  public int fillLogBuffer(
+      StringBuilder sb, String id, String state, String taskState, boolean dumpHeapUsage) {
+    sb.append(id)
+        .append(COL_DELIMITER)
+        .append(state)
+        .append(COL_DELIMITER)
+        .append(taskState)
+        .append(COL_DELIMITER)
+        .append(numSlices)
+        .append(COL_DELIMITER)
+        .append(numLongSlices)
+        .append(COL_DELIMITER)
+        .append(numInRunQ)
+        .append(COL_DELIMITER)
+        .append(setupWatch.elapsed(MILLISECONDS))
+        .append(COL_DELIMITER)
+        .append(runWatch.elapsed(MILLISECONDS))
+        .append(COL_DELIMITER.repeat(11))
+        .append(allocator.getPeakMemoryAllocation() / KB)
+        .append(COL_DELIMITER);
+    if (startHeapAllocation >= 0 && dumpHeapUsage) {
+      sb.append(COL_DELIMITER)
+          .append(setupAllocatedHeap / KB)
+          .append(COL_DELIMITER)
+          .append(avgAllocatedHeap / KB)
+          .append(COL_DELIMITER)
+          .append(peakAllocatedHeap / KB)
+          .append(COL_DELIMITER)
+          .append(totalAllocatedHeap / KB);
+    } else {
+      if (dumpHeapUsage) {
+        sb.append(COL_DELIMITER.repeat(4));
+      }
+    }
+    sb.append(System.lineSeparator());
+    if (numSlices > 0) {
+      // log operator stats if and only if there was a long slice
+      for (OperatorStats o : operators) {
+        o.fillLogBuffer(sb, id, dumpHeapUsage);
+      }
+    }
+    return operators.size();
   }
 }

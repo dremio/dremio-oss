@@ -32,6 +32,6 @@ public class TestJoinPlanning extends PlanTestBase {
     // Projects to drop unneeded
     // join keys
     testPlanMatchingPatterns(
-        sql, new String[] {"(?s)HashJoin.*Project.*Project.*HashJoin.*Project.*Project.*HashJoin"});
+        sql, new String[] {"(?s)HashJoin.*Project.*HashJoin.*Project.*HashJoin"});
   }
 }

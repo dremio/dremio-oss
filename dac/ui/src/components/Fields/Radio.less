@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .dummy {
   @size: 18px;
@@ -21,12 +20,12 @@
   width: @size;
   height: @size;
   margin-right: 7px;
-  border: 1px solid #d0d0d0;
+  border: 1px solid var(--border--neutral--solid);
   border-radius: 100%;
   background: #fff;
   position: relative;
   &.checked {
-    background: @BLUE;
+    background: var(--fill--brand--solid);
   }
 }
 

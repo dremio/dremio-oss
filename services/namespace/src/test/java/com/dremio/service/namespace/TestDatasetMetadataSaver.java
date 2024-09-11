@@ -27,8 +27,8 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.sample.SampleSourceMetadata;
-import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
-import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -58,9 +58,12 @@ public class TestDatasetMetadataSaver {
 
   @Before
   public void setup() throws Exception {
-    kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
+    LocalKVStoreProvider storeProvider =
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    storeProvider.start();
+    kvStoreProvider = storeProvider.asLegacy();
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
+    namespaceService = new NamespaceServiceImpl(storeProvider, new CatalogStatusEventsImpl());
   }
 
   @After
@@ -95,8 +98,9 @@ public class TestDatasetMetadataSaver {
     List<PartitionChunkMetadata> result =
         ImmutableList.copyOf(
             namespaceService.findSplits(
-                new LegacyIndexedStore.LegacyFindByCondition()
-                    .setCondition(PartitionChunkId.getSplitsQuery(dataset))));
+                new ImmutableFindByCondition.Builder()
+                    .setCondition(PartitionChunkId.getSplitsQuery(dataset))
+                    .build()));
     assertEquals(numPartitionChunksPerDataset, result.size());
     Set<String> expectedSplits = new HashSet<>();
     for (int p = 0; p < numPartitionChunksPerDataset; p++) {
@@ -489,8 +493,9 @@ public class TestDatasetMetadataSaver {
     List<PartitionChunkMetadata> partitionChunks =
         ImmutableList.copyOf(
             namespaceService.findSplits(
-                new LegacyIndexedStore.LegacyFindByCondition()
-                    .setCondition(PartitionChunkId.getSplitsQuery(dsConfig))));
+                new ImmutableFindByCondition.Builder()
+                    .setCondition(PartitionChunkId.getSplitsQuery(dsConfig))
+                    .build()));
 
     // ensure only 5 partition chunks are saved with split
     assertEquals(partitionChunks.size(), 10);

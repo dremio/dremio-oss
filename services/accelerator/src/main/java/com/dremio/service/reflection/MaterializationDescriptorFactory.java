@@ -15,7 +15,7 @@
  */
 package com.dremio.service.reflection;
 
-import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.descriptor.UnexpandedMaterializationDescriptor;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationPlan;
@@ -25,7 +25,7 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 /** A factory to create {@code MaterializationDescriptor} instances */
 public interface MaterializationDescriptorFactory {
   /** Create a new materialization descriptor */
-  MaterializationDescriptor getMaterializationDescriptor(
+  UnexpandedMaterializationDescriptor getMaterializationDescriptor(
       final ReflectionGoal reflectionGoal,
       final ReflectionEntry reflectionEntry,
       final Materialization materialization,

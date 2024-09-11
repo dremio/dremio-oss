@@ -16,8 +16,8 @@
 package com.dremio.dac.server.models;
 
 import com.dremio.dac.explore.bi.QlikResource;
-import com.dremio.dac.resource.PowerBIResource;
-import com.dremio.dac.resource.TableauResource;
+import com.dremio.dac.options.PowerBIResourceOptions;
+import com.dremio.dac.options.TableauResourceOptions;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -48,8 +48,8 @@ public final class AnalyzeTools {
 
   public static AnalyzeTools from(OptionManager optionManager) {
     return new AnalyzeTools(
-        new BITool(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU)),
-        new BITool(optionManager.getOption(PowerBIResource.CLIENT_TOOLS_POWERBI)),
+        new BITool(optionManager.getOption(TableauResourceOptions.CLIENT_TOOLS_TABLEAU)),
+        new BITool(optionManager.getOption(PowerBIResourceOptions.CLIENT_TOOLS_POWERBI)),
         new BITool(optionManager.getOption(QlikResource.CLIENT_TOOLS_QLIK)));
   }
 

@@ -147,7 +147,7 @@ public class TestSpillSerDe extends ExecTest {
       String... columns)
       throws Exception {
     Fixtures.Table expected =
-        TpchGenerator.singleGenerator(table, scale, getAllocator(), columns).toTable(batchSize);
+        TpchGenerator.singleGenerator(table, scale, getTestAllocator(), columns).toTable(batchSize);
     check(
         expected,
         pageSize,
@@ -192,7 +192,7 @@ public class TestSpillSerDe extends ExecTest {
       ImmutableBitSet unpivotedBitSet =
           ImmutableBitSet.range(numPivotColumns, generator.getOutput().getSchema().getFieldCount());
 
-      final PagePool pool = rc.add(new PagePool(getAllocator(), pageSize, 0));
+      final PagePool pool = rc.add(new PagePool(getTestAllocator(), pageSize, 0));
 
       // stream data to spill file
       SpillManager.SpillFile spillFile =
@@ -236,7 +236,7 @@ public class TestSpillSerDe extends ExecTest {
             combined.buildSchema();
             combined.setRecordCount(chunk.getNumRecords());
 
-            RecordBatchData batchData = rc.add(new RecordBatchData(combined, getAllocator()));
+            RecordBatchData batchData = rc.add(new RecordBatchData(combined, getTestAllocator()));
             actual.add(batchData);
           });
 
@@ -253,32 +253,34 @@ public class TestSpillSerDe extends ExecTest {
       ImmutableBitSet unpivotedColumns,
       PagePool pool)
       throws Exception {
-    try (ArrowBuf sv2Buf = getFilledSV2(getAllocator(), batchSize);
-        FixedBlockVector pivotedFixed =
-            new FixedBlockVector(getAllocator(), pivotDef.getBlockWidth());
-        VariableBlockVector pivotedVariable =
-            new VariableBlockVector(getAllocator(), pivotDef.getVariableCount())) {
+    try (ArrowBuf sv2Buf = getFilledSV2(getTestAllocator(), batchSize)) {
+      try (FixedBlockVector pivotedFixed =
+          new FixedBlockVector(getTestAllocator(), pivotDef.getBlockWidth())) {
+        try (VariableBlockVector pivotedVariable =
+            new VariableBlockVector(getTestAllocator(), pivotDef.getVariableCount())) {
 
-      try (SpillWriter writer =
-          new SpillWriter(
-              spillManager,
-              new SpillSerializableImpl(),
-              fileName,
-              pool,
-              sv2Buf,
-              generator.getOutput(),
-              unpivotedColumns,
-              pivotedFixed,
-              pivotedVariable)) {
-        int records;
-        while ((records = generator.next(batchSize)) != 0) {
-          pivotedFixed.reset();
-          pivotedVariable.reset();
-          Pivots.pivot(pivotDef, batchSize, pivotedFixed, pivotedVariable);
-          writer.writeBatch(0, records);
+          try (SpillWriter writer =
+              new SpillWriter(
+                  spillManager,
+                  new SpillSerializableImpl(),
+                  fileName,
+                  pool,
+                  sv2Buf,
+                  generator.getOutput(),
+                  unpivotedColumns,
+                  pivotedFixed,
+                  pivotedVariable)) {
+            int records;
+            while ((records = generator.next(batchSize)) != 0) {
+              pivotedFixed.reset();
+              pivotedVariable.reset();
+              Pivots.pivot(pivotDef, batchSize, pivotedFixed, pivotedVariable);
+              writer.writeBatch(0, records);
+            }
+
+            return writer.getSpillFileDescriptor().getFile();
+          }
         }
-
-        return writer.getSpillFileDescriptor().getFile();
       }
     }
   }

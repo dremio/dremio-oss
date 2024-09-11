@@ -35,6 +35,7 @@ import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.sabot.RecordBatchValidator;
 import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
@@ -264,8 +265,8 @@ public class TestEasyScanTableFunction extends BaseTestEasyScanTableFunction {
     mockJsonFormatPlugin();
     RecordSet input =
         rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, inputRow(JSON_DATA_FILE_COMPLEX_TYPE));
-    RecordSet.Record r1 = r("abc", st(106, "str1"), li(5, 6, 7));
-    RecordSet.Record r2 = r("pqr", st(108, "str2"), li(8, 9, 99));
+    RsRecord r1 = r("abc", st(106, "str1"), li(5, 6, 7));
+    RsRecord r2 = r("pqr", st(108, "str2"), li(8, 9, 99));
     RecordSet output = rs(JSON_COMPLEX_OUTPUT_SCHEMA, r1, r2);
     validate(
         input,
@@ -294,8 +295,8 @@ public class TestEasyScanTableFunction extends BaseTestEasyScanTableFunction {
     mockJsonFormatPlugin();
     RecordSet input =
         rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, inputRow(JSON_DATA_FILE_COMPLEX_TYPE));
-    RecordSet.Record r1 = r("abc", st(106, "str1"));
-    RecordSet.Record r2 = r("pqr", st(108, "str2"));
+    RsRecord r1 = r("abc", st(106, "str1"));
+    RsRecord r2 = r("pqr", st(108, "str2"));
     RecordSet output = rs(fields, r1, r2);
     boolean exception = false;
     try {
@@ -313,8 +314,8 @@ public class TestEasyScanTableFunction extends BaseTestEasyScanTableFunction {
     mockJsonFormatPlugin();
     RecordSet input =
         rs(SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, inputRow(EXTRA_COLUMN_JSON_DATA_FILE));
-    RecordSet.Record r1 = r("abc", st(106, "str1"), li(5, 6, 7));
-    RecordSet.Record r2 = r("pqr", st(108, "str2"), li(8, 9, 99));
+    RsRecord r1 = r("abc", st(106, "str1"), li(5, 6, 7));
+    RsRecord r2 = r("pqr", st(108, "str2"), li(8, 9, 99));
     RecordSet output = rs(JSON_COMPLEX_OUTPUT_SCHEMA, r1, r2);
     RecordBatchValidatorDefaultImpl validator = new RecordBatchValidatorDefaultImpl(output);
     validate(input, validator, JSON_COMPLEX, JSON_COMPLEX_OUTPUT_SCHEMA, FileType.JSON);

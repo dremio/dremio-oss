@@ -53,10 +53,7 @@ public class IcebergSplitGenPrel extends TableFunctionPrel {
         null,
         TableFunctionUtil.getIcebergSplitGenTableFunctionConfig(
             outputSchema, tablePath, pluginId, extendedProperty),
-        CalciteArrowHelper.wrap(outputSchema)
-            .toCalciteRecordType(
-                cluster.getTypeFactory(),
-                PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()));
+        CalciteArrowHelper.wrap(outputSchema).toCalciteRecordType(cluster.getTypeFactory(), true));
   }
 
   public IcebergSplitGenPrel(
@@ -73,12 +70,29 @@ public class IcebergSplitGenPrel extends TableFunctionPrel {
         table,
         child,
         tableMetadata,
+        outputSchema,
+        isConvertedIcebergDataset,
+        false);
+  }
+
+  public IcebergSplitGenPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      RelNode child,
+      TableMetadata tableMetadata,
+      BatchSchema outputSchema,
+      boolean isConvertedIcebergDataset,
+      boolean isOneSplitPerFile) {
+    this(
+        cluster,
+        traitSet,
+        table,
+        child,
+        tableMetadata,
         TableFunctionUtil.getIcebergSplitGenTableFunctionConfig(
-            tableMetadata, outputSchema, isConvertedIcebergDataset),
-        CalciteArrowHelper.wrap(outputSchema)
-            .toCalciteRecordType(
-                cluster.getTypeFactory(),
-                PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()));
+            tableMetadata, outputSchema, isConvertedIcebergDataset, isOneSplitPerFile),
+        CalciteArrowHelper.wrap(outputSchema).toCalciteRecordType(cluster.getTypeFactory(), true));
   }
 
   private IcebergSplitGenPrel(

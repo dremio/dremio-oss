@@ -31,7 +31,7 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.logical.TableModifyRel;
 import com.dremio.exec.planner.logical.TableOptimizeRel;
 import com.dremio.exec.planner.logical.WriterRel;
-import com.dremio.exec.planner.sql.AncestorsVisitor;
+import com.dremio.exec.planner.sql.TableIdentifierCollector;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
@@ -366,7 +366,7 @@ public class QueryMetadata {
             });
       } else if (sql != null) {
         ancestors.addAll(
-            AncestorsVisitor.extractAncestors(sql).stream()
+            TableIdentifierCollector.collect(sql).stream()
                 .filter(input -> !RESERVED_PARENT_NAMES.contains(input.toString()))
                 .collect(Collectors.toList()));
       }
@@ -435,32 +435,29 @@ public class QueryMetadata {
         parentKeys.add(parentKey);
       }
 
-      try {
-        // add parents of parents.
-        if (!parentKeys.isEmpty()) {
-          for (NameSpaceContainer container : namespace.getEntities(parentKeys)) {
-            if (container != null && container.getType() == Type.DATASET) { // missing parent
-              if (container.getDataset() != null) {
-                final VirtualDataset virtualDataset = container.getDataset().getVirtualDataset();
-                if (virtualDataset != null) {
-                  if (virtualDataset.getParentsList() != null) {
-                    // add parents of parents
-                    for (ParentDataset parentDataset : virtualDataset.getParentsList()) {
-                      final NamespaceKey parentKey =
-                          new NamespaceKey(parentDataset.getDatasetPathList());
-                      if (!parentsToLevelMap.containsKey(parentKey)) {
-                        parentsToLevelMap.put(parentKey, parentDataset.getLevel() + 1);
-                      }
+      // add parents of parents.
+      if (!parentKeys.isEmpty()) {
+        for (NameSpaceContainer container : namespace.getEntities(parentKeys)) {
+          if (container != null && container.getType() == Type.DATASET) { // missing parent
+            if (container.getDataset() != null) {
+              final VirtualDataset virtualDataset = container.getDataset().getVirtualDataset();
+              if (virtualDataset != null) {
+                if (virtualDataset.getParentsList() != null) {
+                  // add parents of parents
+                  for (ParentDataset parentDataset : virtualDataset.getParentsList()) {
+                    final NamespaceKey parentKey =
+                        new NamespaceKey(parentDataset.getDatasetPathList());
+                    if (!parentsToLevelMap.containsKey(parentKey)) {
+                      parentsToLevelMap.put(parentKey, parentDataset.getLevel() + 1);
                     }
-                    // add grand parents of parent too
-                    if (virtualDataset.getGrandParentsList() != null) {
-                      for (ParentDataset grandParentDataset :
-                          virtualDataset.getGrandParentsList()) {
-                        final NamespaceKey parentKey =
-                            new NamespaceKey(grandParentDataset.getDatasetPathList());
-                        if (!parentsToLevelMap.containsKey(parentKey)) {
-                          parentsToLevelMap.put(parentKey, grandParentDataset.getLevel() + 1);
-                        }
+                  }
+                  // add grand parents of parent too
+                  if (virtualDataset.getGrandParentsList() != null) {
+                    for (ParentDataset grandParentDataset : virtualDataset.getGrandParentsList()) {
+                      final NamespaceKey parentKey =
+                          new NamespaceKey(grandParentDataset.getDatasetPathList());
+                      if (!parentsToLevelMap.containsKey(parentKey)) {
+                        parentsToLevelMap.put(parentKey, grandParentDataset.getLevel() + 1);
                       }
                     }
                   }
@@ -469,8 +466,6 @@ public class QueryMetadata {
             }
           }
         }
-      } catch (NamespaceException ne) {
-        logger.error("Failed to get list of grand parents", ne);
       }
 
       for (Map.Entry<NamespaceKey, Integer> entry : parentsToLevelMap.entrySet()) {
@@ -562,20 +557,16 @@ public class QueryMetadata {
 
       // try the original path and then try the cleaned path.
       for (List<String> paths : Arrays.asList(path.getPathComponents(), cleanedPathComponents)) {
-        try {
-          List<NameSpaceContainer> containers =
-              namespace.getEntities(Collections.singletonList(new NamespaceKey(paths)));
-          if (!containers.isEmpty()) {
-            final NameSpaceContainer container = containers.get(0);
-            if (container != null && container.getType() == Type.DATASET) {
-              DatasetConfig config = container.getDataset();
-              return new ParentDatasetInfo()
-                  .setDatasetPathList(config.getFullPathList())
-                  .setType(config.getType());
-            }
+        List<NameSpaceContainer> containers =
+            namespace.getEntities(Collections.singletonList(new NamespaceKey(paths)));
+        if (!containers.isEmpty()) {
+          final NameSpaceContainer container = containers.get(0);
+          if (container != null && container.getType() == Type.DATASET) {
+            DatasetConfig config = container.getDataset();
+            return new ParentDatasetInfo()
+                .setDatasetPathList(config.getFullPathList())
+                .setType(config.getType());
           }
-        } catch (NamespaceException | IllegalArgumentException e) {
-          // Ignore
         }
       }
 

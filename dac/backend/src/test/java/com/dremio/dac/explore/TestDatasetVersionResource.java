@@ -67,15 +67,15 @@ public class TestDatasetVersionResource extends BaseTestServer {
     NamespaceKey key = new NamespaceKey("dsvTest");
     SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName("dsvTest");
-    newNamespaceService().addOrUpdateSpace(key, spaceConfig);
+    getNamespaceService().addOrUpdateSpace(key, spaceConfig);
   }
 
   @AfterClass
   public static void shutdown() throws Exception {
     // setup space
     NamespaceKey key = new NamespaceKey("dsvTest");
-    SpaceConfig space = newNamespaceService().getSpace(key);
-    newNamespaceService().deleteSpace(key, space.getTag());
+    SpaceConfig space = getNamespaceService().getSpace(key);
+    getNamespaceService().deleteSpace(key, space.getTag());
   }
 
   @Test
@@ -849,7 +849,6 @@ public class TestDatasetVersionResource extends BaseTestServer {
   // Ensure DDL statements won't work with save
   @Test
   public void testSaveWithInvalidCreateSqlInitial() throws Exception {
-    enableVersionedViews();
     Dataset newVDS =
         createVDS(
             Arrays.asList("dsvTest", "saveInvalidVDS"),
@@ -860,7 +859,6 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
   @Test
   public void testSaveAfterTransformWithInvalidSql() throws Exception {
-    enableVersionedViews();
     Dataset newVDS =
         createVDS(Arrays.asList("dsvTest", "initalSaveVDS"), "select * from sys.version");
     Dataset vds =
@@ -937,7 +935,7 @@ public class TestDatasetVersionResource extends BaseTestServer {
   @Test
   public void testDuplicateColumns() {
     BufferAllocator allocator =
-        getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+        getRootAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
     Dataset newVDS =
         createVDS(
             Arrays.asList("dsvTest", "testDuplicateColumns"),

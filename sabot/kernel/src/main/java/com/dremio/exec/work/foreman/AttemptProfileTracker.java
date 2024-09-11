@@ -27,7 +27,6 @@ import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
-import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.record.BatchSchema;
@@ -37,7 +36,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
-import com.dremio.service.jobtelemetry.GetQueryProgressMetricsRequest;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.PutPlanningProfileRequest;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
@@ -57,7 +55,7 @@ import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
 
 /** Tracker for the profile of a query attempt. */
-class AttemptProfileTracker {
+public class AttemptProfileTracker {
   private static final Logger logger =
       org.slf4j.LoggerFactory.getLogger(AttemptProfileTracker.class);
   private static final ObjectWriter JSON_PRETTY_SERIALIZER =
@@ -91,7 +89,7 @@ class AttemptProfileTracker {
   private volatile ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
   private final Context grpcContext;
 
-  AttemptProfileTracker(
+  protected AttemptProfileTracker(
       UserBitShared.QueryId queryId,
       QueryContext queryContext,
       String queryDescription,
@@ -105,15 +103,7 @@ class AttemptProfileTracker {
     this.jobTelemetryClient = jobTelemetryClient;
 
     // add additional observers.
-    final OptionManager optionManager = queryContext.getOptions();
-    capturer =
-        new PlanCaptureAttemptObserver(
-            optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
-            optionManager.getOption(PlannerSettings.INCLUDE_DATASET_PROFILE),
-            queryContext.getFunctionRegistry(),
-            queryContext.getAccelerationManager().newPopulator(),
-            RelSerializerFactory.getProfileFactory(
-                queryContext.getConfig(), queryContext.getScanResult()));
+    capturer = newCapturerObserver();
 
     mergedObserver = AttemptObservers.of(observer, capturer, new TimeMarker());
     // separate out grpc context for jts
@@ -121,8 +111,23 @@ class AttemptProfileTracker {
     cancelStartTime = -1;
   }
 
-  AttemptObservers getObserver() {
+  protected AttemptObservers getObserver() {
     return mergedObserver;
+  }
+
+  protected QueryContext getQueryContext() {
+    return queryContext;
+  }
+
+  protected PlanCaptureAttemptObserver newCapturerObserver() {
+    final OptionManager optionManager = queryContext.getOptions();
+    return new PlanCaptureAttemptObserver(
+        optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
+        optionManager.getOption(PlannerSettings.INCLUDE_DATASET_PROFILE),
+        queryContext.getFunctionRegistry(),
+        queryContext.getAccelerationManager().newPopulator(),
+        RelSerializerFactory.getProfileFactory(
+            queryContext.getConfig(), queryContext.getScanResult()));
   }
 
   void setPrepareId(UserBitShared.QueryId prepareId) {
@@ -144,12 +149,16 @@ class AttemptProfileTracker {
       return grpcContext.call(
           () -> {
             return jobTelemetryClient
-                .getFutureStub()
-                .putQueryPlanningProfile(
-                    PutPlanningProfileRequest.newBuilder()
-                        .setQueryId(queryId)
-                        .setProfile(getPlanningProfile())
-                        .build());
+                .getRetryer()
+                .call(
+                    () ->
+                        jobTelemetryClient
+                            .getFutureStub()
+                            .putQueryPlanningProfile(
+                                PutPlanningProfileRequest.newBuilder()
+                                    .setQueryId(queryId)
+                                    .setProfile(getPlanningProfile())
+                                    .build()));
           });
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -158,11 +167,7 @@ class AttemptProfileTracker {
 
   // Send tail profile to JTS (used after query terminates).
   UserBitShared.QueryProfile sendTailProfile(UserException userException) throws Exception {
-    // fetch latest progress metrics before publishing tail profile, as they'll be deleted in
-    // putQueryTailProfile
-    getLatestQueryProgressMetrics();
     this.userException = userException;
-
     // DX-28440 : when query is cancelled from flight service
     // sometimes the original context might not be valid.
     // fork a new context always.
@@ -170,32 +175,18 @@ class AttemptProfileTracker {
     grpcContext.run(
         () -> {
           jobTelemetryClient
-              .getBlockingStub()
-              .putQueryTailProfile(
-                  PutTailProfileRequest.newBuilder()
-                      .setQueryId(queryId)
-                      .setProfile(profile)
-                      .build());
+              .getExponentiaRetryer()
+              .call(
+                  () ->
+                      jobTelemetryClient
+                          .getBlockingStub()
+                          .putQueryTailProfile(
+                              PutTailProfileRequest.newBuilder()
+                                  .setQueryId(queryId)
+                                  .setProfile(profile)
+                                  .build()));
         });
     return profile;
-  }
-
-  private void getLatestQueryProgressMetrics() throws Exception {
-    QueryProgressMetrics metrics =
-        grpcContext.call(
-            () -> {
-              return jobTelemetryClient
-                  .getBlockingStub()
-                  .getQueryProgressMetricsUnary(
-                      GetQueryProgressMetricsRequest.newBuilder().setQueryId(queryId).build())
-                  .getMetrics();
-            });
-    if (metrics.getRowsProcessed() >= 0) {
-      mergedObserver.recordsProcessed(metrics.getRowsProcessed());
-    }
-    if (metrics.getOutputRecords() >= 0) {
-      mergedObserver.recordsOutput(metrics.getOutputRecords());
-    }
   }
 
   private UserBitShared.QueryProfile getPlanningProfileFunction(boolean ignoreExceptions)
@@ -240,12 +231,16 @@ class AttemptProfileTracker {
   UserBitShared.QueryProfile getFullProfile() {
     try {
       return grpcContext.call(
-          () -> {
-            return jobTelemetryClient
-                .getBlockingStub()
-                .getQueryProfile(GetQueryProfileRequest.newBuilder().setQueryId(queryId).build())
-                .getProfile();
-          });
+          () ->
+              jobTelemetryClient
+                  .getExponentiaRetryer()
+                  .call(
+                      () ->
+                          jobTelemetryClient
+                              .getBlockingStub()
+                              .getQueryProfile(
+                                  GetQueryProfileRequest.newBuilder().setQueryId(queryId).build())
+                              .getProfile()));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -333,7 +328,8 @@ class AttemptProfileTracker {
 
     // Adds final planning stats for catalog access
     if (endPlanningTime > 0) {
-      queryContext.getCatalog().addCatalogStats();
+      // Adds stats for individual table access (does not include versioned sources)
+      addCatalogStats(builder);
     }
     // Populates source version mapping and marks the ones relevant to the current datasets in the
     // query
@@ -356,10 +352,6 @@ class AttemptProfileTracker {
       builder.setContextInfo(contextInfo);
     }
 
-    // Adds stats for individual table access (does not include versioned sources)
-    builder.addAllPlanPhases(
-        queryContext.getCatalog().getMetadataStatsCollector().getPlanPhaseProfiles());
-
     if (prepareId != null) {
       builder.setPrepareId(prepareId);
     }
@@ -370,6 +362,13 @@ class AttemptProfileTracker {
     if (resourceSchedulingDecisionInfo != null) {
       builder.setResourceSchedulingProfile(getResourceSchedulingProfile());
     }
+  }
+
+  protected void addCatalogStats(UserBitShared.QueryProfile.Builder builder) {
+    builder.addAllPlanPhases(
+        queryContext.getCatalog().getMetadataStatsCollector().getPlanPhaseProfiles());
+    builder.addAllPlanPhases(
+        queryContext.getCatalog().getCatalogAccessStats().toPlanPhaseProfiles());
   }
 
   private void populateGlobalVersionContextMapping(

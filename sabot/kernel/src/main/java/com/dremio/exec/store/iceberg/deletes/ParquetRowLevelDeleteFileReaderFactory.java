@@ -33,6 +33,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -102,10 +103,16 @@ public class ParquetRowLevelDeleteFileReaderFactory implements RowLevelDeleteFil
       Path deleteFilePath,
       long recordCount,
       List<Integer> equalityIds,
-      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds) {
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds,
+      List<DefaultNameMapping> icebergDefaultNameMapping) {
     ParquetScanProjectedColumns projectedColumns =
         getProjectedColumnsFromEqualityIds(
-            context, deleteFilePath, equalityIds, icebergColumnIds, tableSchema);
+            context,
+            deleteFilePath,
+            equalityIds,
+            icebergColumnIds,
+            icebergDefaultNameMapping,
+            tableSchema);
     // mask the schema to contain only the equality deletes projected columns
     BatchSchema maskedSchema =
         tableSchema.maskAndReorder(projectedColumns.getBatchSchemaProjectedColumns());
@@ -135,6 +142,7 @@ public class ParquetRowLevelDeleteFileReaderFactory implements RowLevelDeleteFil
       Path deleteFilePath,
       List<Integer> equalityIds,
       List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds,
+      List<DefaultNameMapping> icebergDefaultNameMapping,
       BatchSchema tableSchema) {
     // TODO: make this work with nested fields.. does icebergColumnIds even have the nested field
     // info?
@@ -156,6 +164,6 @@ public class ParquetRowLevelDeleteFileReaderFactory implements RowLevelDeleteFil
     }
 
     return ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(
-        columns, icebergColumnIds, false, context, tableSchema);
+        columns, icebergColumnIds, icebergDefaultNameMapping, false, context, tableSchema);
   }
 }

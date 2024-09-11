@@ -17,6 +17,7 @@
 package com.dremio.dac.api;
 
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -274,7 +275,7 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
 
     // Test / Verify
     Response response = expectStatus(status, invocation);
-    assertContains(expResponse, response.readEntity(String.class));
+    assertThat(response.readEntity(String.class)).contains(expResponse);
   }
 
   private void runRequestRefreshForReflectionOnViewRest(
@@ -286,7 +287,7 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
 
     // Test / Verify
     Response response = expectStatus(status, invocation);
-    assertContains(expResponse, response.readEntity(String.class));
+    assertThat(response.readEntity(String.class)).contains(expResponse);
   }
 
   private void runRequestRefreshForReflectionOnViewWithJoinRest(
@@ -298,6 +299,6 @@ public class TestRequestRefreshReflections extends BaseTestReflection {
 
     // Test / Verify
     Response response = expectStatus(status, invocation);
-    assertContains(expResponse, response.readEntity(String.class));
+    assertThat(response.readEntity(String.class)).contains(expResponse);
   }
 }

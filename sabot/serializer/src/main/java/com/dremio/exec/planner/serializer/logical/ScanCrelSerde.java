@@ -61,10 +61,7 @@ public final class ScanCrelSerde implements RelNodeSerde<ScanCrel, PScanCrel> {
       CatalogEntityKey catalogEntityKey =
           CatalogEntityKey.newBuilder()
               .keyComponents(node.getPathList())
-              .tableVersionContext(
-                  node.getVersionContext() == null
-                      ? null
-                      : TableVersionContext.deserialize(node.getVersionContext()))
+              .tableVersionContext(TableVersionContext.deserialize(node.getVersionContext()))
               .build();
       DremioTranslatableTable table = s.tables().getTableSnapshot(catalogEntityKey);
       if (table == null) {

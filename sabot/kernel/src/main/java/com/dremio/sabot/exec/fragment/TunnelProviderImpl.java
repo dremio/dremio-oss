@@ -37,7 +37,7 @@ import java.io.IOException;
 import java.util.Map;
 
 /** Provides tunnels to an execution pipeline. */
-class TunnelProviderImpl implements TunnelProvider {
+public class TunnelProviderImpl implements TunnelProvider {
 
   private final Map<NodeEndpoint, AccountingExecTunnel> tunnels = Maps.newHashMap();
 

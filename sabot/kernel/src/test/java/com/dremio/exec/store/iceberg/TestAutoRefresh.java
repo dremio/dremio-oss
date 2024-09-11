@@ -16,10 +16,10 @@
 package com.dremio.exec.store.iceberg;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -49,9 +49,8 @@ public class TestAutoRefresh extends BaseTestQuery {
   private static void addSubPathDfsPlugin() throws Exception {
     File storageBase = testFolder.newFolder("base");
 
-    final CatalogServiceImpl pluginRegistry =
-        (CatalogServiceImpl) getSabotContext().getCatalogService();
-    final ManagedStoragePlugin msp = pluginRegistry.getManagedSource("dfs_test");
+    final CatalogService catalogService = getCatalogService();
+    final ManagedStoragePlugin msp = catalogService.getManagedSource("dfs_test");
     StoragePluginId pluginId = msp.getId();
     InternalFileConf nasConf = pluginId.getConnectionConf();
     nasConf.path = storageBase.getPath();
@@ -73,14 +72,14 @@ public class TestAutoRefresh extends BaseTestQuery {
             .setNamesRefreshMs(0L)
             .setDatasetDefinitionExpireAfterMs(Long.MAX_VALUE));
     config.setConfig(nasConf.toBytesString());
-    pluginRegistry.getSystemUserCatalog().createSource(config);
+    catalogService.getSystemUserCatalog().createSource(config);
   }
 
   @Test
   public void CTAS() throws Exception {
     final String tableName = "nation_ctas_auto_refresh";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String ctasQuery =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -105,7 +104,7 @@ public class TestAutoRefresh extends BaseTestQuery {
   public void Insert() throws Exception {
     final String tableName = "nation_insert_auto_refresh";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String ctasQuery =
           String.format(
               "CREATE TABLE %s.%s  "
@@ -140,7 +139,7 @@ public class TestAutoRefresh extends BaseTestQuery {
   public void createEmpty() throws Exception {
     final String newTblName = "create_empty_auto_refresh";
 
-    try (AutoCloseable c = enableIcebergTables()) {
+    try {
       final String ctasQuery =
           String.format(
               "CREATE TABLE %s.%s (id int, name varchar, distance Decimal(38, 3))",

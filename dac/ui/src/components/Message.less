@@ -24,18 +24,23 @@
     width: 24px;
     height: 24px;
     cursor: pointer;
+    color: var(--icon--primary);
+
+    &:hover {
+      color: var(--icon--hover);
+    }
   }
   .custom-button {
     display: "flex";
     align-items: "center";
     justify-content: "center";
     font-weight: 600;
-    color: var(--dremio--color--status--information--foreground);
+    color: var(--fill--info--solid);
     &.error {
-      color: var(--dremio--color--status--error--foreground);
+      color: var(--fill--danger--solid);
     }
     &.success {
-      color: var(--dremio--color--status--success--foreground);
+      color: var(--fill--success--solid);
     }
   }
 

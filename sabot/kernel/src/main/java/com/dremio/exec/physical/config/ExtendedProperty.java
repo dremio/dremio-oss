@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public interface ExtendedProperty {
 
-  final class Util {
+  public final class Util {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -38,7 +38,7 @@ public interface ExtendedProperty {
      * @return The JSON representation of the extended property.
      * @throws IllegalStateException If there is an error during serialization.
      */
-    static <T extends ExtendedProperty> String serialize(T property) {
+    public static <T extends ExtendedProperty> String serialize(T property) {
       try {
         return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(property);
       } catch (JsonProcessingException e) {
@@ -56,7 +56,7 @@ public interface ExtendedProperty {
      * @return The deserialized extended property object.
      * @throws IllegalStateException If there is an error during deserialization.
      */
-    static <T extends ExtendedProperty> T deserialize(String json, Class<T> paramClass) {
+    public static <T extends ExtendedProperty> T deserialize(String json, Class<T> paramClass) {
       try {
         return MAPPER.readValue(json, paramClass);
       } catch (JsonProcessingException e) {

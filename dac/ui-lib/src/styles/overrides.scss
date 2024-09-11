@@ -16,10 +16,15 @@
 @import "./constants/index.scss";
 
 .MuiTooltip-arrow::before {
-  background-color: $tooltip-color !important;
+  background-color: var(--color--neutral--700) !important;
+}
+
+.MuiMenuItem-root {
+  background-color: var(--fill--popover) !important;
+  color: var(--text--primary) !important;
 }
 
 .MuiMenuItem-root:hover,
 .MuiListItem-root:hover {
-  background-color: $aliceBlue !important;
+  background-color: var(--fill--primary--hover) !important;
 }

@@ -25,12 +25,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -56,6 +62,7 @@ import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.plugins.NessieClient;
 import com.dremio.plugins.NessieClientImpl;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
+import com.dremio.plugins.util.ContainerNotFoundException;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -73,6 +80,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -116,12 +124,10 @@ import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.Reference;
 import org.projectnessie.tools.compatibility.api.NessieAPI;
-import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
 
 /** Tests for {@link NessieIcebergExpirySnapshotsReader} */
 @ExtendWith(OlderNessieServersExtension.class)
-@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")
 @NotThreadSafe
 public class TestNessieIcebergExpirySnapshotsReader {
   private static final String workingBranchName = "test";
@@ -132,6 +138,7 @@ public class TestNessieIcebergExpirySnapshotsReader {
   private static NessieCatalog nessieIcebergCatalog;
   private static FileIO io;
   private static ExecutorService executorService;
+  private static String scheme = "file";
 
   private final BufferAllocator allocator = new RootAllocator();
 
@@ -185,7 +192,8 @@ public class TestNessieIcebergExpirySnapshotsReader {
     SnapshotsScanOptions scanOptions =
         new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
     NessieIcebergExpirySnapshotsReader reader =
-        new NessieIcebergExpirySnapshotsReader(operatorContext(), plugin(), props(), scanOptions);
+        new NessieIcebergExpirySnapshotsReader(
+            operatorContext(), plugin(), props(), scanOptions, scheme, scheme);
 
     OutputMutator outputMutator = outputMutator();
     reader.setup(outputMutator);
@@ -206,7 +214,8 @@ public class TestNessieIcebergExpirySnapshotsReader {
     SnapshotsScanOptions scanOptions =
         new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
     NessieIcebergExpirySnapshotsReader reader =
-        new NessieIcebergExpirySnapshotsReader(operatorContext(), plugin(), props(), scanOptions);
+        new NessieIcebergExpirySnapshotsReader(
+            operatorContext(), plugin(), props(), scanOptions, scheme, scheme);
 
     Results results = getResults(reader);
 
@@ -239,18 +248,13 @@ public class TestNessieIcebergExpirySnapshotsReader {
     table2.updateProperties().set(GC_ENABLED, "true").set(COMMIT_NUM_RETRIES, "5").commit();
 
     NessieIcebergExpirySnapshotsReader reader =
-        new NessieIcebergExpirySnapshotsReader(operatorContext(), plugin(), props(), scanOptions);
-    table1.refresh();
-    table2.refresh();
-
-    String meta1 = ((BaseTable) table1).operations().current().metadataFileLocation();
-    String meta2 = ((BaseTable) table2).operations().current().metadataFileLocation();
-
-    Results results = getResults(reader);
+        new NessieIcebergExpirySnapshotsReader(
+            operatorContext(), plugin(), props(), scanOptions, scheme, scheme);
 
     List<String> expectedMeta = new ArrayList<>();
-    expectedMeta.add(meta1);
-    expectedMeta.add(meta2);
+    Results results = getResults(reader);
+
+    addMetaPaths(expectedMeta, table1, table2);
     ((BaseTable) table1)
         .operations().current().previousFiles().stream()
             .filter(f -> f.timestampMillis() >= cutoff)
@@ -260,11 +264,19 @@ public class TestNessieIcebergExpirySnapshotsReader {
             .filter(f -> f.timestampMillis() >= cutoff)
             .forEach(f -> expectedMeta.add(f.file()));
 
-    assertThat(results.rowCount)
-        .isEqualTo((noOfSnapshots * 2) + 2); // additional 2 metadata due to properties update
+    int expectedCountPerTable =
+        noOfSnapshots + 1 + 1; // one per snapshot, one for prop update and one for expiry
+    assertThat(results.rowCount).isEqualTo(expectedCountPerTable * 2); // two tables
     assertThat(results.metadataPaths).containsExactlyInAnyOrderElementsOf(expectedMeta);
 
     assertThat(results.snapshotEntries).isEmpty();
+  }
+
+  private void addMetaPaths(List<String> expectedMeta, Table... tables) {
+    for (Table table : tables) {
+      table.refresh();
+      expectedMeta.add(((BaseTable) table).operations().current().metadataFileLocation());
+    }
   }
 
   @Test
@@ -287,17 +299,14 @@ public class TestNessieIcebergExpirySnapshotsReader {
         t -> t.updateProperties().set(GC_ENABLED, "true").set(COMMIT_NUM_RETRIES, "5").commit());
 
     NessieIcebergExpirySnapshotsReader reader =
-        new NessieIcebergExpirySnapshotsReader(operatorContext(), plugin(), props(), scanOptions);
+        new NessieIcebergExpirySnapshotsReader(
+            operatorContext(), plugin(), props(), scanOptions, scheme, scheme);
     tables.forEach(Table::refresh);
-
-    List<String> metas =
-        tables.stream()
-            .map(t -> ((BaseTable) t).operations().current().metadataFileLocation())
-            .collect(Collectors.toList());
 
     Results results = getResults(reader);
 
-    List<String> expectedMeta = new ArrayList<>(metas);
+    List<String> expectedMeta = new ArrayList<>();
+    tables.forEach(t -> addMetaPaths(expectedMeta, t));
     tables.forEach(
         t ->
             ((BaseTable) t)
@@ -305,7 +314,9 @@ public class TestNessieIcebergExpirySnapshotsReader {
                     .filter(f -> f.timestampMillis() >= cutoff)
                     .forEach(f -> expectedMeta.add(f.file())));
 
-    assertThat(results.rowCount).isEqualTo((noOfSnapshots * noOfTables) + noOfTables);
+    int expectedCountPerTable =
+        noOfSnapshots + 1 + 1; // one per snapshot, one for prop update and one for expiry
+    assertThat(results.rowCount).isEqualTo(expectedCountPerTable * noOfTables);
     assertThat(results.metadataPaths).containsExactlyInAnyOrderElementsOf(expectedMeta);
 
     assertThat(results.snapshotEntries).isEmpty();
@@ -329,7 +340,8 @@ public class TestNessieIcebergExpirySnapshotsReader {
         t -> t.updateProperties().set(GC_ENABLED, "false").set(COMMIT_NUM_RETRIES, "5").commit());
 
     NessieIcebergExpirySnapshotsReader reader =
-        new NessieIcebergExpirySnapshotsReader(operatorContext(), plugin(), props(), scanOptions);
+        new NessieIcebergExpirySnapshotsReader(
+            operatorContext(), plugin(), props(), scanOptions, scheme, scheme);
     tables.forEach(Table::refresh);
 
     List<String> expectedMeta =
@@ -379,7 +391,8 @@ public class TestNessieIcebergExpirySnapshotsReader {
         t -> t.updateProperties().set(GC_ENABLED, "true").set(MIN_SNAPSHOTS_TO_KEEP, "4").commit());
 
     NessieIcebergExpirySnapshotsReader reader =
-        new NessieIcebergExpirySnapshotsReader(operatorContext(), plugin(), props(), scanOptions);
+        new NessieIcebergExpirySnapshotsReader(
+            operatorContext(), plugin(), props(), scanOptions, scheme, scheme);
     tables.forEach(Table::refresh);
 
     List<String> expectedMeta =
@@ -394,7 +407,7 @@ public class TestNessieIcebergExpirySnapshotsReader {
                     .skip(2)
                     .forEach(f -> expectedMeta.add(f.file())));
 
-    List<SnapshotEntry> expected =
+    Set<Long> expectedSnapshotIds =
         tables.stream()
             .map(t -> ((BaseTable) t).operations().current())
             .flatMap(
@@ -404,13 +417,64 @@ public class TestNessieIcebergExpirySnapshotsReader {
                         .sorted(Comparator.comparing(Snapshot::timestampMillis).reversed())
                         .limit(4)
                         .skip(1) // min snapshots to keep excluding the latest one = 4-1
-                        .map(s -> new SnapshotEntry(t.metadataFileLocation(), s)))
-            .collect(Collectors.toList());
+                        .map(Snapshot::snapshotId))
+            .collect(Collectors.toSet());
 
     Results results = getResults(reader);
+    tables.forEach(t -> addMetaPaths(expectedMeta, t));
 
     assertThat(results.metadataPaths).containsExactlyInAnyOrderElementsOf(expectedMeta);
-    assertThat(results.snapshotEntries).containsExactlyInAnyOrderElementsOf(expected);
+
+    Set<Long> actualSnapshotIds =
+        results.snapshotEntries.stream()
+            .map(SnapshotEntry::getSnapshotId)
+            .collect(Collectors.toSet());
+    assertThat(actualSnapshotIds).containsExactlyInAnyOrderElementsOf(expectedSnapshotIds);
+  }
+
+  @Test
+  public void testContainerNotFoundException() throws Exception {
+    // Create a table for which ContainerNotFoundExceptions will be thrown on metadata access
+    // The choice of brokenSnaps is arbitrary (exact value does not matter to the assertions)
+    final int brokenSnaps = 2;
+    final String noContainer = "nocontainer";
+    createTable(brokenSnaps, "-" + noContainer);
+
+    // Create a table intended for normal read behavior
+    // The choice of workingSnaps is arbitrary (exact value does not matter to the assertions)
+    final int workingSnaps = 6;
+    final Table workingTable = createTable(workingSnaps);
+    final String workingMeta =
+        ((BaseTable) workingTable).operations().current().metadataFileLocation();
+
+    final String exceptionMessageFragment = "Simulated exception for testing";
+
+    /* Spy on FileIO to produce a ContainerNotFoundException for newInputFile(...) calls involving
+     * the first table created above, while handling the second table normally.
+     * newInputFile(...) is called by the static method TableMetadata.read(...), where the latter
+     * is called from the system under test.
+     */
+    final FileIO exceptionalIO = spy(io);
+    doThrow(
+            UserException.ioExceptionError(new ContainerNotFoundException(exceptionMessageFragment))
+                .build())
+        .when(exceptionalIO)
+        .newInputFile(contains(noContainer));
+
+    final SnapshotsScanOptions scanOptions =
+        new SnapshotsScanOptions(LIVE_SNAPSHOTS, System.currentTimeMillis(), 1);
+    final NessieIcebergExpirySnapshotsReader reader =
+        new NessieIcebergExpirySnapshotsReader(
+            operatorContext(), plugin(exceptionalIO), props(), scanOptions, scheme, scheme);
+    final Results results = getResults(reader);
+
+    verify(exceptionalIO, times(1)).newInputFile(contains(noContainer));
+
+    assertThat(results.rowCount).isEqualTo(workingSnaps * 2);
+    assertThat(results.metadataPaths).contains(workingMeta);
+    assertThat(results.metadataPaths).hasSize(workingSnaps + 1);
+    assertThat(results.snapshotEntries).isNotEmpty();
+    assertThat(results.snapshotEntries).hasSize(workingSnaps - 1);
   }
 
   private static void setupIO() {
@@ -514,18 +578,25 @@ public class TestNessieIcebergExpirySnapshotsReader {
   }
 
   private SupportsIcebergMutablePlugin plugin() throws IOException {
+    return plugin(io);
+  }
+
+  private SupportsIcebergMutablePlugin plugin(final FileIO icebergFileIO) throws IOException {
     DataplanePlugin plugin = mock(DataplanePlugin.class);
     when(plugin.createFS(anyString(), anyString(), any(OperatorContext.class))).thenReturn(fs);
     when(plugin.getNessieApi()).thenReturn(nessieApi);
 
-    when(plugin.createIcebergFileIO(any(), any(), any(), any(), any())).thenReturn(io);
+    when(plugin.createIcebergFileIO(any(), any(), any(), any(), any())).thenReturn(icebergFileIO);
     when(plugin.getSystemUserFS()).thenReturn(fs);
     when(plugin.getFsConfCopy()).thenReturn(CONF);
 
     OptionManager optionManager = optionManager();
     NessieClient nessieClient = new NessieClientImpl(nessieApi, optionManager);
     when(plugin.getIcebergModel(
-            any(IcebergTableProps.class), anyString(), any(OperatorContext.class), eq(io)))
+            any(IcebergTableProps.class),
+            anyString(),
+            any(OperatorContext.class),
+            eq(icebergFileIO)))
         .then(
             (Answer<IcebergModel>)
                 invocation -> {
@@ -541,12 +612,13 @@ public class TestNessieIcebergExpirySnapshotsReader {
                   return new IcebergNessieVersionedModel(
                       tableKeyAsList,
                       CONF,
-                      io,
+                      icebergFileIO,
                       nessieClient,
                       operatorContext,
                       version,
                       plugin,
-                      user);
+                      user,
+                      s -> s);
                 });
 
     return plugin;
@@ -587,9 +659,13 @@ public class TestNessieIcebergExpirySnapshotsReader {
   }
 
   private Table createTable(int numberOfSnapshots) {
+    return createTable(numberOfSnapshots, "");
+  }
+
+  private Table createTable(int numberOfSnapshots, String suffix) {
     Schema icebergTableSchema =
         new Schema(ImmutableList.of(Types.NestedField.required(0, "id", new Types.IntegerType())));
-    String tableName = generateUniqueTableName();
+    String tableName = generateUniqueTableName() + suffix;
     String table1QualifiedName = String.format("%s@%s", tableName, workingBranchName);
     Table table =
         nessieIcebergCatalog.createTable(

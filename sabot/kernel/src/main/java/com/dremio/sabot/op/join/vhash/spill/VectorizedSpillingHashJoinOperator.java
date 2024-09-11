@@ -945,6 +945,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       partitionStats = partition.getStats();
     }
     if (partitionStats != null) {
+      stats.setLongStat(Metric.IS_SPILLING, 1L);
       stats.setLongStat(Metric.NUM_ENTRIES, partitionStats.getBuildNumEntries());
       stats.setLongStat(Metric.NUM_BUCKETS, partitionStats.getBuildNumBuckets());
       stats.setLongStat(Metric.NUM_RESIZING, partitionStats.getBuildNumResizing());

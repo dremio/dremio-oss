@@ -26,14 +26,21 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.holders.NullableIntervalDayHolder;
 
 public final class IntervalDayArrayAggAccumulator
-    extends BaseArrayAggAccumulator<NullableIntervalDayHolder, IntervalDayVector> {
+    extends ArrayAggAccumulator<NullableIntervalDayHolder> {
   public IntervalDayArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
-      BufferAllocator allocator) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
+      BufferAllocator allocator,
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
+    super(
+        input,
+        transferVector,
+        tempAccumulatorHolder,
+        allocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
   }
 
   @Override
@@ -47,9 +54,9 @@ public final class IntervalDayArrayAggAccumulator
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<NullableIntervalDayHolder, IntervalDayVector>
-      getAccumulatorHolder(int maxValuesPerBatch, BufferAllocator allocator) {
-    return new IntervalDayArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<NullableIntervalDayHolder> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new IntervalDayArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

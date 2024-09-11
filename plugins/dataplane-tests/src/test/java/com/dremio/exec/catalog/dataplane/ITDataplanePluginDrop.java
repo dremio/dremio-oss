@@ -35,14 +35,16 @@ import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.genera
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueFolderName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.generateUniqueTagName;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.joinedTableKey;
+import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.pathWithoutTableName;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.selectCountQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.tablePathWithFolders;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useBranchQuery;
 import static com.dremio.exec.catalog.dataplane.test.DataplaneTestDefines.useTagQuery;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertIcebergTableExistsAtSubPath;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertLastCommitMadeBySpecifiedAuthor;
+import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveEntity;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveNamespace;
-import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieDoesNotHaveTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasCommitForTable;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasNamespace;
 import static com.dremio.exec.catalog.dataplane.test.TestDataplaneAssertions.assertNessieHasTable;
@@ -71,7 +73,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
 
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Delete.class, DEFAULT_BRANCH_NAME, this);
-    assertNessieDoesNotHaveTable(tablePath, DEFAULT_BRANCH_NAME, this);
+    assertNessieDoesNotHaveEntity(tablePath, DEFAULT_BRANCH_NAME, this);
     // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in
     // the future.
     assertIcebergTableExistsAtSubPath(tablePath);
@@ -90,7 +92,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
 
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Delete.class, DEFAULT_BRANCH_NAME, this);
-    assertNessieDoesNotHaveTable(tablePath, DEFAULT_BRANCH_NAME, this);
+    assertNessieDoesNotHaveEntity(tablePath, DEFAULT_BRANCH_NAME, this);
     // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in
     // the future.
     assertIcebergTableExistsAtSubPath(tablePath);
@@ -113,7 +115,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
 
     // Assert
     assertNessieHasCommitForTable(tablePath, Operation.Delete.class, devBranch, this);
-    assertNessieDoesNotHaveTable(tablePath, devBranch, this);
+    assertNessieDoesNotHaveEntity(tablePath, devBranch, this);
     // TODO For now, we aren't doing filesystem cleanup, so this check is correct. Might change in
     // the future.
     assertIcebergTableExistsAtSubPath(tablePath);
@@ -171,7 +173,7 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     // First drop
     runSQL(dropTableQuery(tablePath));
     // Assert removal of key from Nessie
-    assertNessieDoesNotHaveTable(tablePath, DEFAULT_BRANCH_NAME, this);
+    assertNessieDoesNotHaveEntity(tablePath, DEFAULT_BRANCH_NAME, this);
     // Contents must still exist
     assertIcebergTableExistsAtSubPath(tablePath);
 
@@ -210,7 +212,10 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     assertQueryThrowsExpectedError(
         selectCountQuery(tablePath, DEFAULT_COUNT_COLUMN),
         String.format(
-            "Object '%s' not found within '%s'", tablePath.get(0), DATAPLANE_PLUGIN_NAME));
+            "Object '%s' not found within '%s.%s'",
+            tablePath.get(tablePath.size() - 1),
+            DATAPLANE_PLUGIN_NAME,
+            joinedTableKey(pathWithoutTableName(tablePath))));
     // Switch back to main
     runSQL(useBranchQuery(DEFAULT_BRANCH_NAME));
 
@@ -223,7 +228,10 @@ public class ITDataplanePluginDrop extends ITDataplanePluginTestSetup {
     assertQueryThrowsExpectedError(
         selectCountQuery(tablePath, DEFAULT_COUNT_COLUMN),
         String.format(
-            "Object '%s' not found within '%s'", tablePath.get(0), DATAPLANE_PLUGIN_NAME));
+            "Object '%s' not found within '%s.%s'",
+            tablePath.get(tablePath.size() - 1),
+            DATAPLANE_PLUGIN_NAME,
+            joinedTableKey(pathWithoutTableName(tablePath))));
   }
 
   @Test

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/variables.less";
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 
 @horizontal-padding: 8px; // should be >= @_margin value below
@@ -26,10 +25,10 @@
 .common {
   composes: border-radius-default from "~@app/uiTheme/less/layout.less";
 
-  border: @border-width solid @TABLE_BORDER;
+  border: @border-width solid var(--border--neutral);
   min-height: @form-row-height-default;
   outline: none;
-  background: white;
+  background: var(--fill--primary);
   min-height: 42px;
 }
 
@@ -76,7 +75,7 @@
 
   height: 90%;
   width: @cursor-width;
-  background: @font-color1;
+  background: var(--text--primary);
 
   // IMPORTANT!!! do not use shorthand property 'animation'. Css modules does not work with it corretly (see https://github.com/css-modules/css-modules/issues/141#issuecomment-379242211)
   animation-name: blink;
@@ -136,5 +135,5 @@
 
 .unique-tags-error {
   margin-top: var(--dremio--spacing--05);
-  color: var(--dremio--color--status--error--foreground);
+  color: var(--fill--danger--solid);
 }

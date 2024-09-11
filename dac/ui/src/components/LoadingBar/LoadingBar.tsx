@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Lottie from "react-lottie";
-// @ts-ignore
-import loadingAnimation from "./loadingBar.json";
+import "@dotlottie/player-component";
+import loadingAnimation from "./loadingBar.lottie";
 
 type LoadingBarProps = {
   width?: number;
@@ -27,21 +26,19 @@ const LoadingBar = ({
   width = 24,
   height = 24,
   className,
-}: LoadingBarProps) => {
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: loadingAnimation,
-    rendererSettings: {
-      preserveAspectRatio: "xMidYMid slice",
-    },
-  };
-
-  return (
-    <div className={className}>
-      <Lottie options={defaultOptions} width={width} height={height} />
-    </div>
-  );
-};
+}: LoadingBarProps) => (
+  <div className={className}>
+    <dotlottie-player
+      src={loadingAnimation}
+      loop
+      autoplay
+      mode="normal"
+      style={{
+        ...(width && { width: `${width}px` }),
+        ...(height && { height: `${height}px` }),
+      }}
+    ></dotlottie-player>
+  </div>
+);
 
 export default LoadingBar;

@@ -22,12 +22,14 @@ import Immutable from "immutable";
 
 export const useEntityPanelDetails = (
   entity: any,
-  handleEntityDetails: any
+  handleEntityDetails: any,
 ) => {
   const [entityResource, entityError] =
     useResourceSnapshot(EntityPanelResource);
   const entityStatus = useResourceStatus(EntityPanelResource);
-  const entityUrl = entity?.get("entityUrl");
+  const getEntityUrl = entity?.get("getEntityUrl");
+  // Lazily fetch the entity URL so that TreeNodes don't have to compute it
+  const entityUrl = getEntityUrl ? getEntityUrl() : entity?.get("entityUrl");
   const entityId = entity?.get("entityId");
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export const useEntityPanelDetails = (
   useEffect(() => {
     if (entityResource) {
       handleEntityDetails(
-        Immutable.fromJS({ ...transformEntity(entityResource), entityId })
+        Immutable.fromJS({ ...transformEntity(entityResource), entityId }),
       );
     }
   }, [entityResource, handleEntityDetails, entityId]);

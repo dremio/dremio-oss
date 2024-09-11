@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   #admin-user {
     .add-users {
       background: #eee;
-      border: 1px solid @CONTAINER_BORDER;
+      border: 1px solid var(--color--neutral--200);
       width: 150px;
       border-radius: 2px;
       height: 35px;
@@ -34,7 +33,7 @@
       opacity: 0;
       .grey-button {
         background: #eee;
-        border: 1px solid @CONTAINER_BORDER;
+        border: 1px solid var(--color--neutral--200);
         width: 60px;
         margin: 1px 5px 0 0;
         border-radius: 2px;

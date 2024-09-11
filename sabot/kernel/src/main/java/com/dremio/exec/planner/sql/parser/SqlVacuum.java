@@ -40,7 +40,10 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Creator {
-  public static final long MAX_FILE_AGE_MS_DEFAULT = TimeUnit.DAYS.toMillis(3); // 3 days
+  // The default minimum file age it needs to keep the files. Because, there might be in-fight
+  // queries that generates
+  // new files in the table's location. We don't really want to delete those files.
+  public static final long MIN_FILE_AGE_MS_DEFAULT = TimeUnit.DAYS.toMillis(5); // 5 days
 
   protected final SqlNodeList optionsList;
   protected final SqlNodeList optionsValueList;
@@ -104,8 +107,8 @@ public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Crea
         olderThanInMillis = SqlHandlerUtil.convertToTimeInMillis(olderThanTimestamp, pos);
       } else {
         long currentTime = System.currentTimeMillis();
-        // By default, try to clean orphan files which are at least 3 days old.
-        olderThanInMillis = currentTime - MAX_FILE_AGE_MS_DEFAULT;
+        // By default, try to clean orphan files which are at least 5 days old.
+        olderThanInMillis = currentTime - MIN_FILE_AGE_MS_DEFAULT;
       }
 
       return new VacuumOptions(

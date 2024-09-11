@@ -83,15 +83,16 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
   }
 
   @Override
-  public RelNode wrapDefaultExpansionNode(
+  public Optional<RelNode> wrapDefaultExpansionNode(
       NamespaceKey path,
       final RelNode query,
       DremioMaterialization materialization,
       RelDataType rowType,
       TableVersionContext versionContext,
-      ViewExpansionContext viewExpansionContext) {
+      ViewExpansionContext viewExpansionContext,
+      ViewTable viewTable) {
     return delegate.wrapDefaultExpansionNode(
-        path, query, materialization, rowType, versionContext, viewExpansionContext);
+        path, query, materialization, rowType, versionContext, viewExpansionContext, viewTable);
   }
 
   @Override

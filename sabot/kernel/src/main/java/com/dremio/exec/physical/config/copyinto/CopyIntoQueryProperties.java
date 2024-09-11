@@ -24,6 +24,8 @@ public class CopyIntoQueryProperties implements ExtendedProperty {
   private OnErrorOption onErrorOption;
   private String storageLocation;
   private Set<CopyIntoFileLoadInfo.CopyIntoFileState> recordStateEvents = new HashSet<>();
+  private String branch;
+  private boolean isTriggerPipe = false;
 
   public CopyIntoQueryProperties() {
     // Needed for serialization-deserialization
@@ -48,6 +50,10 @@ public class CopyIntoQueryProperties implements ExtendedProperty {
     }
   }
 
+  public void setBranch(String branch) {
+    this.branch = branch;
+  }
+
   public void setOnErrorOption(OnErrorOption onErrorOption) {
     this.onErrorOption = onErrorOption;
   }
@@ -62,6 +68,10 @@ public class CopyIntoQueryProperties implements ExtendedProperty {
 
   public String getStorageLocation() {
     return storageLocation;
+  }
+
+  public String getBranch() {
+    return branch;
   }
 
   public void addEventHistoryRecordsForState(CopyIntoFileLoadInfo.CopyIntoFileState state) {
@@ -80,6 +90,14 @@ public class CopyIntoQueryProperties implements ExtendedProperty {
     this.recordStateEvents = recordStateEvents;
   }
 
+  public boolean isTriggerPipe() {
+    return isTriggerPipe;
+  }
+
+  public void setTriggerPipe(boolean triggerPipe) {
+    isTriggerPipe = triggerPipe;
+  }
+
   @Override
   public String toString() {
     return "CopyIntoQueryProperties{"
@@ -90,6 +108,11 @@ public class CopyIntoQueryProperties implements ExtendedProperty {
         + '\''
         + ", recordStateEvents="
         + recordStateEvents
+        + ", branch='"
+        + branch
+        + '\''
+        + ", isTriggerPipe="
+        + isTriggerPipe
         + '}';
   }
 

@@ -22,9 +22,12 @@ import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.ServiceSet;
 import java.util.Collection;
 import java.util.Set;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 /** Resource information including all executors in the cluster, for software. */
+@Singleton
 public class ClusterResourceInformation implements GroupResourceInformation {
   private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private volatile ServiceSet executorSet;
@@ -32,6 +35,7 @@ public class ClusterResourceInformation implements GroupResourceInformation {
   private volatile int averageExecutorCores = 0;
   private volatile int executorCount = 0;
 
+  @Inject
   public ClusterResourceInformation(Provider<ClusterCoordinator> clusterCoordinatorProvider) {
     this.clusterCoordinatorProvider = clusterCoordinatorProvider;
   }
@@ -57,9 +61,10 @@ public class ClusterResourceInformation implements GroupResourceInformation {
   }
 
   private void refreshInfo() {
-    computeAverageMemory(executorSet.getAvailableEndpoints());
-    computeAverageExecutorCores(executorSet.getAvailableEndpoints());
-    executorCount = executorSet.getAvailableEndpoints().size();
+    Collection<NodeEndpoint> executorEndpoints = executorSet.getAvailableEndpoints();
+    computeAverageMemory(executorEndpoints);
+    computeAverageExecutorCores(executorEndpoints);
+    executorCount = executorEndpoints.size();
   }
 
   private void computeAverageMemory(final Collection<NodeEndpoint> executors) {

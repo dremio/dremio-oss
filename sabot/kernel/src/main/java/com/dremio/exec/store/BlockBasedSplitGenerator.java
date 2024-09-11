@@ -27,13 +27,24 @@ public class BlockBasedSplitGenerator {
 
   private final SplitCreator splitCreator;
   private long currentOffset;
+  private final boolean isOneSplitPerFile;
 
   public BlockBasedSplitGenerator(
       OperatorContext context,
       SupportsInternalIcebergTable plugin,
       byte[] extendedBytes,
       boolean isInternalIcebergTable) {
+    this(context, plugin, extendedBytes, isInternalIcebergTable, false);
+  }
+
+  public BlockBasedSplitGenerator(
+      OperatorContext context,
+      SupportsInternalIcebergTable plugin,
+      byte[] extendedBytes,
+      boolean isInternalIcebergTable,
+      boolean isOneSplitPerFile) {
     this.splitCreator = plugin.createSplitCreator(context, extendedBytes, isInternalIcebergTable);
+    this.isOneSplitPerFile = isOneSplitPerFile;
   }
 
   public long getCurrentOffset() {
@@ -53,7 +64,8 @@ public class BlockBasedSplitGenerator {
     int splitCount = 0;
     currentOffset = offset;
     List<SplitAndPartitionInfo> splits = new ArrayList<>();
-    long targetSplitSize = splitCreator.getTargetSplitSize(fileFormat);
+    long targetSplitSize =
+        isOneSplitPerFile ? fileSize : splitCreator.getTargetSplitSize(fileFormat);
 
     while (splitCount < maxOutputCount && currentOffset < fileSize) {
       long curBlockSize = Math.min(targetSplitSize, fileSize - currentOffset);

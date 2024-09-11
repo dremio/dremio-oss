@@ -19,6 +19,7 @@ import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactor
 import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactory.ASSUMED_ROLE_CREDENTIALS_PROVIDER;
 import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactory.DREMIO_ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactory.EC2_METADATA_PROVIDER;
+import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactory.GLUE_ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactory.GLUE_DREMIO_ASSUME_ROLE_PROVIDER;
 
 import com.amazonaws.ClientConfiguration;
@@ -37,7 +38,6 @@ import java.util.UUID;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.S3AUtils;
-import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +56,8 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
 
     switch (assumeRoleProvider) {
       case ACCESS_KEY_PROVIDER:
-        awsCredentialsProvider = new SimpleAWSCredentialsProvider(null, conf);
+      case GLUE_ACCESS_KEY_PROVIDER:
+        awsCredentialsProvider = new GlueAWSCredentialsProvider(null, conf);
         break;
       case EC2_METADATA_PROVIDER:
         awsCredentialsProvider = InstanceProfileCredentialsProvider.getInstance();

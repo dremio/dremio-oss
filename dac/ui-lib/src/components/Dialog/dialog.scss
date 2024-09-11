@@ -18,7 +18,8 @@
 
 .dremioDialog {
   &__backdrop {
-    background-color: $dialog_backdrop !important;
+    background-color: var(--color--neutral--700) !important;
+    opacity: 0.3 !important;
   }
   overflow-x: auto;
   &__container {
@@ -29,6 +30,8 @@
     }
   }
   &__paper {
+    background-color: var(--fill--primary) !important;
+    color: var(--text--primary) !important;
     border-radius: 4px !important;
     width: 600px;
   }

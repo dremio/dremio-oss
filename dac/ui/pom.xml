@@ -37,12 +37,32 @@
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
+      <artifactId>dremio-ui-design-system</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-ui-icons</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
       <artifactId>dremio-ui-common</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-js</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-ui-browserslist-config</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-ui-oss-license-checker</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>
@@ -122,22 +142,22 @@
           <execution>
             <id>run js linter and unit tests</id>
             <goals>
-              <goal>npm</goal>
+              <goal>pnpm</goal>
             </goals>
             <phase>process-sources</phase>
             <configuration>
-              <arguments>run test:only -- --reporter mocha-multi-reporters --reporter-options configFile=${project.basedir}/mochaReporters.json,cmrOutput=mocha-junit-reporter+mochaFile+${project.build.directory}:mocha-junit-reporter+testsuitesTitle+dac-ui</arguments>
+              <arguments>run test:only --reporter mocha-multi-reporters --reporter-options configFile=${project.basedir}/mochaReporters.json,cmrOutput=mocha-junit-reporter+mochaFile+${project.build.directory}:mocha-junit-reporter+testsuitesTitle+dac-ui</arguments>
               <skip>${skipTests}</skip>
             </configuration>
           </execution>
           <execution>
             <id>make sure there is no outdated/GPL OSS</id>
             <goals>
-              <goal>npm</goal>
+              <goal>pnpm</goal>
             </goals>
             <phase>process-sources</phase>
             <configuration>
-              <arguments>run report:oss -- --no-write</arguments>
+              <arguments>run report:oss --no-write</arguments>
               <!-- <skip>${skipTests}</skip> -->
               <skip>true</skip>
             </configuration>
@@ -145,22 +165,22 @@
           <execution>
             <id>build minimized webpack bundle</id>
             <goals>
-              <goal>npm</goal>
+              <goal>pnpm</goal>
             </goals>
             <phase>generate-resources</phase>
             <configuration>
-              <arguments>run ${npm.buildscript} -- --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
+              <arguments>run ${npm.buildscript} --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
               <skip>${skip.uibundle}</skip>
             </configuration>
           </execution>
           <execution>
             <id>overwrite sourcemaps</id>
             <goals>
-              <goal>npm</goal>
+              <goal>pnpm</goal>
             </goals>
             <phase>generate-resources</phase>
             <configuration>
-              <arguments>run overwrite-sourcemaps -- --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
+              <arguments>run overwrite-sourcemaps --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
               <skip>${skip.uibundle}</skip>
             </configuration>
           </execution>

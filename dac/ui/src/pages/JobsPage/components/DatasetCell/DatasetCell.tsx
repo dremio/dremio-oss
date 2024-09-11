@@ -16,12 +16,12 @@
 
 import { useCallback, useMemo } from "react";
 import Immutable from "immutable";
-import FontIcon from "@app/components/Icon/FontIcon";
 import { checkTypeToShowOverlay } from "@app/utils/datasetUtils";
 import { getIconByEntityType } from "@app/utils/iconUtils";
 // @ts-ignore
 import VersionContext from "dremio-ui-common/components/VersionContext.js";
 import { Popover } from "dremio-ui-lib/components";
+import { Tooltip as DremioTooltip } from "dremio-ui-lib";
 import DatasetSummaryOverlay from "@app/components/Dataset/DatasetSummaryOverlay";
 
 import * as classes from "./DatasetCell.module.less";
@@ -65,23 +65,25 @@ export const DatasetCell = ({ job }: DatasetCellProps) => {
   const datasetPathList = job.queriedDatasets?.[0]?.datasetPathsList;
   const datasetArrayImmutable = useMemo(
     () => Immutable.fromJS(datasetPathList),
-    [datasetPathList]
+    [datasetPathList],
   );
 
   const renderDatasetIconAndName = useCallback(() => {
     return (
       <div className={classes["datasetCell"]}>
         <span className={classes["datasetCell__icon"]}>
-          <FontIcon
-            type={getIconByEntityType(
-              !isInternalQuery ? datasetType : "OTHER",
-              !!versionContext
-            )}
-            iconStyle={{
-              verticalAlign: "middle",
-              flexShrink: 0,
-            }}
-          />
+          <div className="shrink-0">
+            <dremio-icon
+              style={{
+                inlineSize: 24,
+                blockSize: 24,
+              }}
+              name={getIconByEntityType(
+                !isInternalQuery ? datasetType : "OTHER",
+                !!versionContext,
+              )}
+            ></dremio-icon>
+          </div>
         </span>
         <div className={classes["datasetCell__name"]}>
           {datasetName}
@@ -101,8 +103,8 @@ export const DatasetCell = ({ job }: DatasetCellProps) => {
     return null;
   }
 
-  return (
-    <>
+  if (hasSummary) {
+    return (
       <Popover
         role="tooltip"
         placement="right"
@@ -111,25 +113,34 @@ export const DatasetCell = ({ job }: DatasetCellProps) => {
         showArrow
         portal
         content={
-          hasSummary ? (
-            <DatasetSummaryOverlay
-              inheritedTitle={datasetName}
-              datasetType={datasetType}
-              fullPath={datasetArrayImmutable}
-              openWikiDrawer={() => {}}
-              showColumns
-              versionContext={versionContext}
-              hideMainActionButtons
-            />
-          ) : (
-            <div className={classes["datasetCell__wrapper"]}>
-              {renderDatasetIconAndName()}
-            </div>
-          )
+          <DatasetSummaryOverlay
+            inheritedTitle={datasetName}
+            datasetType={datasetType}
+            fullPath={datasetArrayImmutable}
+            openWikiDrawer={() => {}}
+            showColumns
+            versionContext={versionContext}
+            hideMainActionButtons
+          />
         }
       >
         {renderDatasetIconAndName()}
       </Popover>
-    </>
-  );
+    );
+  } else {
+    return (
+      <DremioTooltip
+        interactive
+        type="richTooltip"
+        enterDelay={1000}
+        title={
+          <div className={classes["datasetCell__wrapper"]}>
+            {renderDatasetIconAndName()}
+          </div>
+        }
+      >
+        {renderDatasetIconAndName()}
+      </DremioTooltip>
+    );
+  }
 };

@@ -15,16 +15,24 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static org.apache.calcite.sql.type.ReturnTypes.cascade;
+
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.expr.fn.arrayagg.ArrayAggInternalOperators;
 import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.expr.fn.impl.MapFunctions;
 import com.dremio.exec.expr.fn.listagg.ListAgg;
 import com.dremio.exec.expr.fn.tdigest.TDigest;
+import com.dremio.exec.planner.logical.RelDataTypeEqualityUtil;
 import com.dremio.exec.planner.sql.parser.SqlContains;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -73,14 +81,6 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   // ---------------------
   public static final SqlAggFunction LISTAGG_MERGE = new ListAgg.SqlListAggMergeFunction();
   public static final SqlAggFunction LOCAL_LISTAGG = new ListAgg.SqlLocalListAggFunction();
-
-  // ---------------------
-  // ARRAY_AGG Functions
-  // ---------------------
-  public static final SqlAggFunction PHASE1_ARRAY_AGG =
-      new ArrayAggInternalOperators.Phase1ArrayAgg();
-  public static final SqlAggFunction PHASE2_ARRAY_AGG =
-      new ArrayAggInternalOperators.Phase2ArrayAgg();
 
   // ---------------
   // GEO functions
@@ -567,16 +567,295 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   // Array Functions
   // ---------------------
 
+  private static ImplicitCoercionStrategy ARRAY_ELEMENT_COERCION =
+      new ImplicitCoercionStrategy() {
+        @Override
+        public Map<Integer, RelDataType> coerce(SqlCallBinding sqlCallBinding) {
+          RelDataType arrayType = sqlCallBinding.getOperandType(0);
+          if (arrayType.getSqlTypeName() != SqlTypeName.ARRAY) {
+            return Collections.emptyMap();
+          }
+
+          RelDataType elementType = sqlCallBinding.getOperandType(1);
+
+          List<RelDataType> elementTypes =
+              ImmutableList.of(arrayType.getComponentType(), elementType);
+          RelDataTypeFactory relDataTypeFactory = sqlCallBinding.getTypeFactory();
+          RelDataType coercedElementType = relDataTypeFactory.leastRestrictive(elementTypes);
+          if (coercedElementType == null) {
+            return Collections.emptyMap();
+          }
+
+          RelDataType coercedArrayType = relDataTypeFactory.createArrayType(coercedElementType, -1);
+          coercedArrayType =
+              relDataTypeFactory.createTypeWithNullability(
+                  coercedArrayType, arrayType.isNullable());
+
+          Map<Integer, RelDataType> coercionMap = new HashMap<>();
+          coercionMap.put(0, coercedArrayType);
+          coercionMap.put(1, coercedElementType);
+
+          return coercionMap;
+        }
+      };
+
+  private static ImplicitCoercionStrategy ELEMENT_ARRAY_COERCION =
+      new ImplicitCoercionStrategy() {
+        @Override
+        public Map<Integer, RelDataType> coerce(SqlCallBinding sqlCallBinding) {
+          RelDataType elementType = sqlCallBinding.getOperandType(0);
+
+          RelDataType arrayType = sqlCallBinding.getOperandType(1);
+          if (arrayType.getSqlTypeName() != SqlTypeName.ARRAY) {
+            return Collections.emptyMap();
+          }
+
+          List<RelDataType> elementTypes =
+              ImmutableList.of(arrayType.getComponentType(), elementType);
+          RelDataTypeFactory relDataTypeFactory = sqlCallBinding.getTypeFactory();
+          RelDataType coercedElementType = relDataTypeFactory.leastRestrictive(elementTypes);
+          if (coercedElementType == null) {
+            return Collections.emptyMap();
+          }
+
+          RelDataType coercedArrayType = relDataTypeFactory.createArrayType(coercedElementType, -1);
+          coercedArrayType =
+              relDataTypeFactory.createTypeWithNullability(
+                  coercedArrayType, arrayType.isNullable());
+
+          Map<Integer, RelDataType> coercionMap = new HashMap<>();
+          coercionMap.put(0, coercedElementType);
+          coercionMap.put(1, coercedArrayType);
+
+          return coercionMap;
+        }
+      };
+
+  private static final ImplicitCoercionStrategy ARRAY_ARRAY_COERCION =
+      new ImplicitCoercionStrategy() {
+        @Override
+        public Map<Integer, RelDataType> coerce(SqlCallBinding sqlCallBinding) {
+          List<RelDataType> argumentTypes = sqlCallBinding.collectOperandTypes();
+          if (argumentTypes.stream().anyMatch(arg -> arg.getSqlTypeName() != SqlTypeName.ARRAY)) {
+            // If any are not arrays, then there isn't anything we can do.
+            return Collections.emptyMap();
+          }
+
+          // Calcite has a bug where it doesn't properly take the least restrictive of ARRAY<STRING>
+          // but it does do STRING properly
+          // Basically the largest precision isn't taken.
+          List<RelDataType> componentTypes =
+              argumentTypes.stream()
+                  .map(RelDataType::getComponentType)
+                  .collect(Collectors.toList());
+          RelDataTypeFactory typeFactory = sqlCallBinding.getTypeFactory();
+          RelDataType leastRestrictiveComponentType = typeFactory.leastRestrictive(componentTypes);
+          if (leastRestrictiveComponentType == null) {
+            return Collections.emptyMap();
+          }
+
+          RelDataType leastRestrictiveArrayType =
+              typeFactory.createArrayType(leastRestrictiveComponentType, -1);
+          if (leastRestrictiveArrayType == null) {
+            return Collections.emptyMap();
+          }
+
+          Map<Integer, RelDataType> coercionMap = new HashMap<>();
+          for (int i = 0; i < argumentTypes.size(); i++) {
+            if (argumentTypes.get(i) != leastRestrictiveArrayType) {
+              coercionMap.put(i, leastRestrictiveArrayType);
+            }
+          }
+
+          return coercionMap;
+        }
+      };
+
+  private static final SqlOperandTypeChecker ARRAY_ELEMENT_OPERAND_CHECKER =
+      arrayPrependAppendOperandChecker(true);
+  private static final SqlOperandTypeChecker ELEMENT_ARRAY_OPERAND_CHECKER =
+      arrayPrependAppendOperandChecker(false);
+
+  private static SqlOperandTypeChecker arrayPrependAppendOperandChecker(boolean append) {
+    return new SqlOperandTypeChecker() {
+      @Override
+      public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+        int elementIndex = 0;
+        int arrayIndex = 1;
+        if (append) {
+          int temp = elementIndex;
+          elementIndex = arrayIndex;
+          arrayIndex = temp;
+        }
+
+        RelDataType elementType = callBinding.getOperandType(elementIndex);
+        RelDataType arrayType = callBinding.getOperandType(arrayIndex);
+
+        if (arrayType.getSqlTypeName() != SqlTypeName.ARRAY) {
+          if (throwOnFailure) {
+            throw UserException.validationError()
+                .message(
+                    "'"
+                        + callBinding.getOperator().getName()
+                        + "' expects an ARRAY, but instead got: "
+                        + arrayType)
+                .buildSilently();
+          }
+
+          return false;
+        }
+
+        boolean elementTypeMatchesArrayType =
+            RelDataTypeEqualityUtil.areEquals(
+                arrayType.getComponentType(), elementType, true, false);
+
+        if (!elementTypeMatchesArrayType) {
+          if (throwOnFailure) {
+            throw UserException.validationError()
+                .message(
+                    "'"
+                        + callBinding.getOperator().getName()
+                        + "' expects 'T' to equal 'E' for "
+                        + callBinding.getOperator().getName()
+                        + "(T item, ARRAY<E> arr).")
+                .buildSilently();
+          }
+
+          return false;
+        }
+
+        return true;
+      }
+
+      @Override
+      public SqlOperandCountRange getOperandCountRange() {
+        return SqlOperandCountRanges.of(2);
+      }
+
+      @Override
+      public String getAllowedSignatures(SqlOperator op, String opName) {
+        return null;
+      }
+
+      @Override
+      public Consistency getConsistency() {
+        return null;
+      }
+
+      @Override
+      public boolean isOptional(int i) {
+        return false;
+      }
+    };
+  }
+
+  private static final SqlReturnTypeInference ARRAY_ELEMENT_RETURN_TYPE_INFERENCE =
+      arrayPrependAppendReturnTypeInference(true);
+  private static final SqlReturnTypeInference ELEMENT_ARRAY_RETURN_TYPE_INFERENCE =
+      arrayPrependAppendReturnTypeInference(false);
+
+  private static SqlReturnTypeInference arrayPrependAppendReturnTypeInference(boolean append) {
+    return new SqlReturnTypeInference() {
+      @Override
+      public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+        // Resulting concat needs to agree with the element and array type:
+        int arrayIndex = append ? 0 : 1;
+        return opBinding.getOperandType(arrayIndex);
+      }
+    };
+  }
+
   /**
    * The "ARRAY_AGG(value) WITHIN GROUP(...) OVER (...)" aggregate function with gathers values into
    * an array.
    */
   public static final SqlAggFunction ARRAY_AGG =
       SqlBasicAggFunction.create(
-              "ARRAY_AGG", SqlKind.LISTAGG, DremioReturnTypes.TO_ARRAY, OperandTypes.ANY)
+              "ARRAY_AGG",
+              SqlKind.LISTAGG,
+              opBinding -> {
+                if (opBinding.getOperandCount() != 1) {
+                  throw new UnsupportedOperationException("Expected to have exactly 1 arg type.");
+                }
+
+                try {
+                  RelDataType arrayItemType = opBinding.collectOperandTypes().get(0);
+                  RelDataType arrayType =
+                      opBinding.getTypeFactory().createArrayType(arrayItemType, -1);
+                  RelDataType nonNullable =
+                      opBinding.getTypeFactory().createTypeWithNullability(arrayType, false);
+                  return nonNullable;
+                } catch (Exception ex) {
+                  throw ex;
+                }
+              },
+              OperandTypes.ANY)
           .withFunctionType(SqlFunctionCategory.SYSTEM)
           .withGroupOrder(Optionality.OPTIONAL)
           .withAllowsNullTreatment(true);
+
+  public static final SqlOperator EMPTY_ARRAY =
+      SqlOperatorBuilder.name("EMPTY_ARRAY")
+          .returnType(cascade(ReturnTypes.ARG0, SqlTypeTransforms.TO_NOT_NULLABLE))
+          .operandTypes(OperandTypes.ARRAY)
+          .build();
+
+  private static final SqlOperandTypeChecker COMPARABLE_ARRAY_TYPE_CHECKER =
+      new SqlOperandTypeChecker() {
+        @Override
+        public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+          RelDataType operandType = callBinding.getOperandType(0);
+          if (operandType.getSqlTypeName() != SqlTypeName.ARRAY) {
+            if (throwOnFailure) {
+              throw UserException.validationError()
+                  .message("Expected argument to be an ARRAY.")
+                  .build();
+            }
+
+            return false;
+          }
+
+          List<SqlTypeName> comparableTypes =
+              new ImmutableList.Builder<SqlTypeName>()
+                  .addAll(SqlTypeName.BOOLEAN_TYPES)
+                  .addAll(SqlTypeName.NUMERIC_TYPES)
+                  .addAll(SqlTypeName.CHAR_TYPES)
+                  .addAll(SqlTypeName.DATETIME_TYPES)
+                  .build();
+
+          if (!comparableTypes.contains(operandType.getComponentType().getSqlTypeName())) {
+            if (throwOnFailure) {
+              throw UserException.validationError()
+                  .message("Expected argument to be an ARRAY of comparable types.")
+                  .build();
+            }
+
+            return false;
+          }
+
+          return true;
+        }
+
+        @Override
+        public SqlOperandCountRange getOperandCountRange() {
+          return SqlOperandCountRanges.of(1);
+        }
+
+        @Override
+        public String getAllowedSignatures(SqlOperator op, String opName) {
+          return null;
+        }
+
+        @Override
+        public Consistency getConsistency() {
+          return null;
+        }
+
+        @Override
+        public boolean isOptional(int i) {
+          return false;
+        }
+      };
 
   private static final SqlOperandTypeChecker NUMERIC_ARRAY_TYPE_CHECKER =
       new SqlOperandTypeChecker() {
@@ -655,43 +934,70 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   public static final SqlOperator ARRAY_CONTAINS =
       SqlOperatorBuilder.name("ARRAY_CONTAINS")
           .returnType(ReturnTypes.BOOLEAN_NULLABLE)
-          .operandTypes(SqlOperands.ARRAY, SqlOperands.ANY)
+          .operandTypes(ARRAY_ELEMENT_OPERAND_CHECKER)
+          .withImplicitCoercionStrategy(ARRAY_ELEMENT_COERCION)
           .build();
 
   public static final SqlOperator ARRAY_REMOVE =
       SqlOperatorBuilder.name("ARRAY_REMOVE")
           .returnType(ReturnTypes.ARG0)
-          .operandTypes(SqlOperands.ARRAY, SqlOperands.ANY)
+          .operandTypes(ARRAY_ELEMENT_OPERAND_CHECKER)
+          .withImplicitCoercionStrategy(ARRAY_ELEMENT_COERCION)
           .build();
 
-  private static SqlOperandTypeChecker arraysOfCoercibleType(
+  private static SqlReturnTypeInference LEAST_RESTRICTIVE_ARRAY =
+      new SqlReturnTypeInference() {
+        @Override
+        public RelDataType inferReturnType(SqlOperatorBinding sqlOperatorBinding) {
+          List<RelDataType> operandTypes = sqlOperatorBinding.collectOperandTypes();
+          // For some reason least restrictive data type doesn't look into the array, so have to
+          // manully do that:
+          List<RelDataType> componentTypes =
+              operandTypes.stream().map(x -> x.getComponentType()).collect(Collectors.toList());
+          RelDataType leastRestrictiveComponentType =
+              sqlOperatorBinding.getTypeFactory().leastRestrictive(componentTypes);
+          RelDataType leastRestricitveArrayType =
+              sqlOperatorBinding.getTypeFactory().leastRestrictive(operandTypes);
+          RelDataType arrayType =
+              sqlOperatorBinding
+                  .getTypeFactory()
+                  .createArrayType(leastRestrictiveComponentType, -1);
+          return sqlOperatorBinding
+              .getTypeFactory()
+              .createTypeWithNullability(arrayType, leastRestricitveArrayType.isNullable());
+        }
+      };
+
+  private static SqlOperandTypeChecker arraysOfSameType(
       String functionName, boolean allowVariadic) {
     return new SqlOperandTypeChecker() {
       @Override
       public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-        for (RelDataType operandType : callBinding.collectOperandTypes()) {
+        List<RelDataType> operandTypes = callBinding.collectOperandTypes();
+        for (RelDataType operandType : operandTypes) {
           if (operandType.getSqlTypeName() != SqlTypeName.ARRAY) {
             if (throwOnFailure) {
               throw UserException.validationError()
                   .message("'" + functionName + "' expects all operands to be ARRAYs.")
-                  .build();
+                  .buildSilently();
             }
 
             return false;
           }
         }
 
-        RelDataType leastRestrictiveType =
-            callBinding.getTypeFactory().leastRestrictive(callBinding.collectOperandTypes());
+        RelDataType first = operandTypes.get(0);
+        for (int i = 1; i < operandTypes.size(); i++) {
+          if (!RelDataTypeEqualityUtil.areEquals(first, operandTypes.get(i), false, false)) {
+            if (throwOnFailure) {
+              throw UserException.validationError()
+                  .message(
+                      "'" + functionName + "' expects all ARRAYs to be the same coercible type.")
+                  .buildSilently();
+            }
 
-        if (leastRestrictiveType == null) {
-          if (throwOnFailure) {
-            throw UserException.validationError()
-                .message("'" + functionName + "' expects all ARRAYs to be the same coercible type.")
-                .build();
+            return false;
           }
-
-          return false;
         }
 
         return true;
@@ -719,95 +1025,87 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
     };
   }
 
-  private static final SqlReturnTypeInference leastRestrictiveArray =
-      new SqlReturnTypeInference() {
-        @Override
-        public RelDataType inferReturnType(SqlOperatorBinding sqlOperatorBinding) {
-          // Calcite has a bug where it doesn't properly take the least restrictive of ARRAY<STRING>
-          // but it does do STRING properly
-          // Basically the largest precision isn't taken.
-          RelDataTypeFactory typeFactory = sqlOperatorBinding.getTypeFactory();
-          List<RelDataType> componentTypes =
-              sqlOperatorBinding.collectOperandTypes().stream()
-                  .map(RelDataType::getComponentType)
-                  .collect(Collectors.toList());
-          RelDataType leastRestrictiveComponentType = typeFactory.leastRestrictive(componentTypes);
-
-          RelDataType arrayType = typeFactory.createArrayType(leastRestrictiveComponentType, -1);
-          boolean anyOperandsNullable =
-              sqlOperatorBinding.collectOperandTypes().stream().anyMatch(RelDataType::isNullable);
-          RelDataType arrayTypeWithNullability =
-              typeFactory.createTypeWithNullability(arrayType, anyOperandsNullable);
-          return arrayTypeWithNullability;
-        }
-      };
-
-  public static final SqlOperator ARRAY_CONCAT =
-      SqlOperatorBuilder.name("ARRAY_CONCAT")
-          .returnType(leastRestrictiveArray)
-          .operandTypes(arraysOfCoercibleType("ARRAY_CONCAT", true))
-          .build();
-
-  public static final SqlOperator ARRAY_CAT = SqlOperatorBuilder.alias("ARRAY_CAT", ARRAY_CONCAT);
-
-  public static final SqlOperator ARRAY_DISTINCT =
-      SqlOperatorBuilder.name("ARRAY_DISTINCT")
-          .returnType(ReturnTypes.ARG0)
-          .operandTypes(SqlOperands.ARRAY)
-          .build();
-
-  public static final SqlOperator ARRAY_SORT =
-      SqlOperatorBuilder.name("ARRAY_SORT")
-          .returnType(ReturnTypes.ARG0)
-          .operandTypes(SqlOperands.ARRAY)
-          .build();
-
-  private static SqlOperandTypeChecker arrayPrependAppendOperandChecker(boolean append) {
+  private static SqlOperandTypeChecker mapKeyValueTypeChecker(String functionName) {
     return new SqlOperandTypeChecker() {
+      private final List<SqlTypeFamily> SUPPORTED_FAMILIES =
+          Arrays.asList(SqlTypeFamily.BOOLEAN, SqlTypeFamily.NUMERIC, SqlTypeFamily.STRING);
+
       @Override
       public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-        int elementIndex = 0;
-        int arrayIndex = 1;
-        if (append) {
-          int temp = elementIndex;
-          elementIndex = arrayIndex;
-          arrayIndex = temp;
+        List<RelDataType> relDataTypes = callBinding.collectOperandTypes();
+        RelDataType valueType = null;
+        List<RelDataType> valuesTypes = new LinkedList<>();
+
+        for (int i = 0; i < relDataTypes.size(); i++) {
+          if (!callBinding.operand(i).isA(EnumSet.of(SqlKind.LITERAL, SqlKind.CAST))) {
+            if (throwOnFailure) {
+              throw UserException.validationError()
+                  .message("'" + functionName + "' expects all arguments to be literals.")
+                  .build();
+            }
+            return false;
+          }
         }
 
-        RelDataType elementType = callBinding.getOperandType(elementIndex);
-        RelDataType arrayType = callBinding.getOperandType(arrayIndex);
+        for (int i = 0; i < relDataTypes.size(); i += 2) {
+          RelDataType relDataType = relDataTypes.get(i);
+          if (!SqlTypeFamily.STRING.contains(relDataType)) {
+            if (throwOnFailure) {
+              throw UserException.validationError()
+                  .message("'" + functionName + "' expects keys to be Characters.")
+                  .build();
+            }
+            return false;
+          }
+        }
 
-        if (arrayType.getSqlTypeName() != SqlTypeName.ARRAY) {
+        for (int i = 1; i < relDataTypes.size(); i += 2) {
+          RelDataType relDataType = relDataTypes.get(i);
+          if (!SUPPORTED_FAMILIES.stream().anyMatch(type -> type.contains(relDataType))) {
+            if (throwOnFailure) {
+              throw UserException.validationError()
+                  .message(
+                      "'"
+                          + functionName
+                          + "' expects values to be Numbers, Booleans or Characters.")
+                  .build();
+            }
+
+            return false;
+          }
+          valuesTypes.add(relDataType);
+        }
+
+        valueType = callBinding.getTypeFactory().leastRestrictive(valuesTypes);
+        if (valueType == null) {
           if (throwOnFailure) {
             throw UserException.validationError()
-                .message("'ARRAY_APPEND/PREPEND' expects an ARRAY, but instead got: " + arrayType)
-                .buildSilently();
+                .message("'" + functionName + "' expects all values to have coercible types.")
+                .build();
           }
-
           return false;
         }
-
-        RelDataType leastRestrictiveElementType =
-            callBinding
-                .getTypeFactory()
-                .leastRestrictive(ImmutableList.of(arrayType.getComponentType(), elementType));
-        if (leastRestrictiveElementType == null) {
-          if (throwOnFailure) {
-            throw UserException.validationError()
-                .message(
-                    "'ARRAY_APPEND/PREPEND' expects 'T' to equal 'E' for ARRAY_APPEND(T item, ARRAY<E> arr).")
-                .buildSilently();
-          }
-
-          return false;
-        }
-
         return true;
       }
 
       @Override
       public SqlOperandCountRange getOperandCountRange() {
-        return SqlOperandCountRanges.of(2);
+        return new SqlOperandCountRange() {
+          @Override
+          public boolean isValidCount(int count) {
+            return count >= 2 && count % 2 == 0;
+          }
+
+          @Override
+          public int getMin() {
+            return 2;
+          }
+
+          @Override
+          public int getMax() {
+            return -1;
+          }
+        };
       }
 
       @Override
@@ -827,43 +1125,39 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
     };
   }
 
-  private static SqlReturnTypeInference arrayPrependAppendReturnTypeInference(boolean append) {
-    return new SqlReturnTypeInference() {
-      @Override
-      public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        // Resulting concat needs to agree with the element and array type:
-        RelDataType elementType = opBinding.getOperandType(0);
-        RelDataType arrayType = opBinding.getOperandType(1);
-        if (append) {
-          RelDataType temp = elementType;
-          elementType = arrayType;
-          arrayType = temp;
-        }
+  public static final SqlOperator ARRAY_CONCAT =
+      SqlOperatorBuilder.name("ARRAY_CONCAT")
+          .returnType(LEAST_RESTRICTIVE_ARRAY)
+          .operandTypes(arraysOfSameType("ARRAY_CONCAT", true))
+          .withImplicitCoercionStrategy(ARRAY_ARRAY_COERCION)
+          .build();
 
-        // Use larger precision and nullability
-        RelDataType newElementType =
-            opBinding
-                .getTypeFactory()
-                .leastRestrictive(ImmutableList.of(elementType, arrayType.getComponentType()));
-        return opBinding
-            .getTypeFactory()
-            .createTypeWithNullability(
-                opBinding.getTypeFactory().createArrayType(newElementType, -1),
-                arrayType.isNullable());
-      }
-    };
-  }
+  public static final SqlOperator ARRAY_CAT = SqlOperatorBuilder.alias("ARRAY_CAT", ARRAY_CONCAT);
+
+  public static final SqlOperator ARRAY_DISTINCT =
+      SqlOperatorBuilder.name("ARRAY_DISTINCT")
+          .returnType(ReturnTypes.ARG0)
+          .operandTypes(SqlOperands.ARRAY)
+          .build();
+
+  public static final SqlOperator ARRAY_SORT =
+      SqlOperatorBuilder.name("ARRAY_SORT")
+          .returnType(ReturnTypes.ARG0)
+          .operandTypes(COMPARABLE_ARRAY_TYPE_CHECKER)
+          .build();
 
   public static final SqlOperator ARRAY_PREPEND =
       SqlOperatorBuilder.name("ARRAY_PREPEND")
-          .returnType(arrayPrependAppendReturnTypeInference(false))
-          .operandTypes(arrayPrependAppendOperandChecker(false))
+          .returnType(ELEMENT_ARRAY_RETURN_TYPE_INFERENCE)
+          .operandTypes(ELEMENT_ARRAY_OPERAND_CHECKER)
+          .withImplicitCoercionStrategy(ELEMENT_ARRAY_COERCION)
           .build();
 
   public static final SqlOperator ARRAY_APPEND =
       SqlOperatorBuilder.name("ARRAY_APPEND")
-          .returnType(arrayPrependAppendReturnTypeInference(true))
-          .operandTypes(arrayPrependAppendOperandChecker(true))
+          .returnType(ARRAY_ELEMENT_RETURN_TYPE_INFERENCE)
+          .operandTypes(ARRAY_ELEMENT_OPERAND_CHECKER)
+          .withImplicitCoercionStrategy(ARRAY_ELEMENT_COERCION)
           .build();
 
   public static final SqlOperator ARRAY_REMOVE_AT =
@@ -884,28 +1178,25 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   public static final SqlOperator ARRAY_POSITION =
       SqlOperatorBuilder.name("ARRAY_POSITION")
           .returnType(ReturnTypes.INTEGER_NULLABLE)
-          .operandTypes(SqlOperands.ANY, SqlOperands.ARRAY)
+          .operandTypes(ELEMENT_ARRAY_OPERAND_CHECKER)
+          .withImplicitCoercionStrategy(ELEMENT_ARRAY_COERCION)
           .build();
-
-  private static SqlReturnTypeInference integerArrayReturnTypeInference() {
-    return new SqlReturnTypeInference() {
-      @Override
-      public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
-
-        RelDataType withoutNullability =
-            opBinding
-                .getTypeFactory()
-                .createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.INTEGER), false);
-        RelDataType asArray = opBinding.getTypeFactory().createArrayType(withoutNullability, -1);
-        return asArray;
-      }
-    };
-  }
 
   public static final SqlOperator ARRAY_GENERATE_RANGE =
       SqlOperatorBuilder.name("ARRAY_GENERATE_RANGE")
-          .returnType(integerArrayReturnTypeInference())
+          .returnType(
+              opBinding -> {
+                RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
+
+                RelDataType withoutNullability =
+                    opBinding
+                        .getTypeFactory()
+                        .createTypeWithNullability(
+                            typeFactory.createSqlType(SqlTypeName.INTEGER), false);
+                RelDataType asArray =
+                    opBinding.getTypeFactory().createArrayType(withoutNullability, -1);
+                return asArray;
+              })
           .operandTypes(SqlOperands.INTEGER, SqlOperands.INTEGER, SqlOperands.INTEGER_OPTIONAL)
           .build();
 
@@ -915,29 +1206,28 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
           .operandTypes(SqlOperands.ARRAY, SqlOperands.INTEGER, SqlOperands.INTEGER)
           .build();
 
-  private static SqlReturnTypeInference arrayRemoveNullsTypeInference() {
-    return new SqlReturnTypeInference() {
-      @Override
-      public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        RelDataType arrayType = opBinding.getOperandType(0);
-
-        RelDataType baseType =
-            opBinding.getTypeFactory().createSqlType(arrayType.getComponentType().getSqlTypeName());
-        RelDataType withoutNullability =
-            opBinding.getTypeFactory().createTypeWithNullability(baseType, false);
-        RelDataType asArray = opBinding.getTypeFactory().createArrayType(withoutNullability, -1);
-
-        RelDataType asArrayWithNullability =
-            opBinding.getTypeFactory().createTypeWithNullability(asArray, arrayType.isNullable());
-
-        return asArrayWithNullability;
-      }
-    };
-  }
-
   public static final SqlOperator ARRAY_COMPACT =
       SqlOperatorBuilder.name("ARRAY_COMPACT")
-          .returnType(arrayRemoveNullsTypeInference())
+          .returnType(
+              opBinding -> {
+                RelDataType arrayType = opBinding.getOperandType(0);
+
+                RelDataType baseType =
+                    opBinding
+                        .getTypeFactory()
+                        .createSqlType(arrayType.getComponentType().getSqlTypeName());
+                RelDataType withoutNullability =
+                    opBinding.getTypeFactory().createTypeWithNullability(baseType, false);
+                RelDataType asArray =
+                    opBinding.getTypeFactory().createArrayType(withoutNullability, -1);
+
+                RelDataType asArrayWithNullability =
+                    opBinding
+                        .getTypeFactory()
+                        .createTypeWithNullability(asArray, arrayType.isNullable());
+
+                return asArrayWithNullability;
+              })
           .operandTypes(SqlOperands.ARRAY)
           .build();
 
@@ -1015,19 +1305,22 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   public static final SqlOperator ARRAYS_OVERLAP =
       SqlOperatorBuilder.name("ARRAYS_OVERLAP")
           .returnType(ReturnTypes.BOOLEAN_NULLABLE)
-          .operandTypes(arraysOfCoercibleType("ARRAYS_OVERLAP", false))
+          .operandTypes(arraysOfSameType("ARRAYS_OVERLAP", false))
+          .withImplicitCoercionStrategy(ARRAY_ARRAY_COERCION)
           .build();
 
   public static final SqlOperator SET_UNION =
       SqlOperatorBuilder.name("SET_UNION")
-          .returnType(leastRestrictiveArray)
-          .operandTypes(arraysOfCoercibleType("SET_UNION", false))
+          .returnType(LEAST_RESTRICTIVE_ARRAY)
+          .operandTypes(arraysOfSameType("SET_UNION", false))
+          .withImplicitCoercionStrategy(ARRAY_ARRAY_COERCION)
           .build();
 
   public static final SqlOperator ARRAY_INTERSECTION =
       SqlOperatorBuilder.name("ARRAY_INTERSECTION")
-          .returnType(leastRestrictiveArray)
-          .operandTypes(arraysOfCoercibleType("ARRAY_INTERSECTION", false))
+          .returnType(LEAST_RESTRICTIVE_ARRAY)
+          .operandTypes(arraysOfSameType("ARRAY_INTERSECTION", false))
+          .withImplicitCoercionStrategy(ARRAY_ARRAY_COERCION)
           .build();
 
   public static final SqlOperator ARRAY_TO_STRING =
@@ -1222,6 +1515,21 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
           .operandTypes(SqlOperands.MAP)
           .build();
 
+  public static final SqlOperator MAP_CONSTRUCT =
+      SqlOperatorBuilder.name("MAP_CONSTRUCT")
+          .returnType(DremioReturnTypes.TO_MAP)
+          .operandTypes(mapKeyValueTypeChecker("MAP_CONSTRUCT"))
+          .build();
+
+  private static final SqlOperator MAP = SqlOperatorBuilder.alias("MAP", MAP_CONSTRUCT);
+
+  public static final SqlOperator DREMIO_INTERNAL_BUILDMAP =
+      SqlOperatorBuilder.name("DREMIO_INTERNAL_BUILDMAP")
+          .returnType(DremioReturnTypes.ARRAYS_TO_MAP)
+          .operandTypes(
+              OperandTypes.sequence("<array>, <array>", OperandTypes.ARRAY, OperandTypes.ARRAY))
+          .build();
+
   // ---------------------
   // TDigest Functions
   // ---------------------
@@ -1233,25 +1541,23 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   // ---------------------
   // OVERRIDE Behavior
   // ---------------------
-
   public static final SqlOperator DATE_TRUNC =
       SqlOperatorBuilder.name("DATE_TRUNC")
-          .returnType(
-              new SqlReturnTypeInference() {
-                @Override
-                public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-                  RelDataType operandRelDataType = opBinding.getOperandType(1);
-                  SqlTypeName operandType = operandRelDataType.getSqlTypeName();
-                  if (!SqlTypeName.CHAR_TYPES.contains(operandType)) {
-                    return operandRelDataType;
-                  }
-
-                  return opBinding.getTypeFactory().createSqlType(SqlTypeName.DATE);
-                }
-              })
+          .returnType(ReturnTypes.ARG1)
           .operandTypes(
               SqlOperands.CHAR_TYPES,
-              SqlOperand.union(SqlOperands.DATETIME_TYPES, SqlOperands.INTERVAL_TYPES))
+              SqlOperand.union(SqlOperands.INTERVAL_TYPES, SqlOperands.DATETIME_TYPES))
+          .withImplicitCoercionStrategy(
+              (sqlCallBinding) -> {
+                if (!SqlTypeName.CHAR_TYPES.contains(
+                    sqlCallBinding.getOperandType(1).getSqlTypeName())) {
+                  return Collections.emptyMap();
+                }
+
+                Map<Integer, RelDataType> coercions = new HashMap<>();
+                coercions.put(1, sqlCallBinding.getTypeFactory().createSqlType(SqlTypeName.DATE));
+                return coercions;
+              })
           .build();
 
   public static final SqlOperator NEXT_DAY =
@@ -1275,7 +1581,6 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   // ---------------------
   // Dynamic Function
   // ---------------------
-
   public static final SqlOperator NOW =
       SqlOperatorBuilder.alias("NOW", SqlStdOperatorTable.CURRENT_TIMESTAMP);
   public static final SqlOperator STATEMENT_TIMESTAMP =
@@ -1314,7 +1619,7 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   public static final SqlOperator LAST_QUERY_ID =
       new SqlBaseContextVariable(
           "LAST_QUERY_ID",
-          ReturnTypes.cascade(ReturnTypes.VARCHAR_2000, SqlTypeTransforms.FORCE_NULLABLE),
+          cascade(ReturnTypes.VARCHAR_2000, SqlTypeTransforms.FORCE_NULLABLE),
           SqlFunctionCategory.SYSTEM) {};
 
   public static final SqlOperator CURRENT_DATE_UTC =

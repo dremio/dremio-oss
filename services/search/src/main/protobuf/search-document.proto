@@ -1,0 +1,100 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+package com.dremio.search;
+
+import "google/protobuf/timestamp.proto";
+
+option java_package = "com.dremio.service.search";
+option java_outer_classname = "SearchDocumentProto";
+
+// The message represents document stored in search index. What fields
+// are indexed or can be filtered by, or how they map to the search index schema
+// is implementation dependent. To customize the behavior per field, add annotations
+// to the fields.
+message SearchDocument {
+  // Optional context fields pertinent to all document types.
+  map<string, string> context = 1;
+
+  // Oneof choice defines document type.
+  oneof document {
+    CatalogObject catalog_object = 2;
+  }
+}
+
+message CatalogObject {
+  // Dot-separated path
+  //   - if dot is part of a name that name is double-quoted.
+  //   - if double quote is part of a name, the quote is duplicated.
+  string path = 1;
+
+  // Versioned catalog branch name.
+  optional string branch = 2;
+
+  // Versioned catalog tags.
+  repeated string tags = 3;
+
+  // There is no meaningful action search components can take on
+  // meaning of this field, catalog publisher decides what to put here.
+  string type = 4;
+
+  // Description of catalog object in mark-down.
+  optional string wiki = 5;
+
+  // Labels (a.k.a. tags) associated with the object.
+  repeated string labels = 6;
+
+  // Column names for views and tables.
+  repeated string columns = 7;
+
+  // UDF SQL definition.
+  optional string udf_sql = 8;
+
+  // Owner of the object.
+  UserOrRole owner = 9;
+
+  // Creation timestamp.
+  google.protobuf.Timestamp created = 11;
+
+  // Last modified timestamp.
+  google.protobuf.Timestamp last_modified = 12;
+}
+
+message UserOrRole {
+  enum UserType {
+    USER_TYPE_UNSPECIFIED = 0;
+
+    USER_TYPE_USER = 1;
+
+    USER_TYPE_ROLE = 2;
+  }
+
+  // Id of the user or role.
+  string id = 1;
+
+  // Type of the user.
+  UserType type = 2;
+
+  // Space separated full name.
+  optional string full_name = 3;
+
+  // Username of the user.
+  optional string username = 4;
+
+  // Role name.
+  optional string role_name = 5;
+}

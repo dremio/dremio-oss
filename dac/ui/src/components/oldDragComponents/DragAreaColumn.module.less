@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 
 .base {
   display: flex;
@@ -30,7 +29,7 @@
   padding: 5px;
   cursor: pointer;
   &:hover {
-    background-color: @PALE_BLUE;
+    background-color: var(--color--brand--50);
   }
 }
 .popover {
@@ -47,8 +46,8 @@
 .largeColumn {
   width: 100%;
   margin-top: 0px;
-  background-color: @ACTIVE_DRAG_AREA;
-  border: 1px solid @ACTIVE_DRAG_AREA_BORDER;
+  background-color: var(--color--brand--50);
+  border: 1px solid transparent;
 }
 .content {
   display: flex;
@@ -62,8 +61,8 @@
   align-items: center;
   width: 100%;
   min-height: 28px;
-  background-color: @LEGACY_TEAL;
-  border: 1px solid @LEGACY_DARKER_TEAL;
+  background-color: var(--color--brand--50);
+  border: 1px solid var(--color--brand--300);
   border-radius: 1px;
   margin-left: 5px;
 }
@@ -80,11 +79,11 @@
   border-top: 1px dotted gray;
   border-left: 1px dotted gray;
   border-right: 1px dotted gray;
-  background-color: white;
+  background-color: var(--fill--primary);
   height: 26px;
-  background-color: @ACTIVE_DRAG_AREA;
+  background-color: var(--fill--primary--selected);
   &--empty {
-    background-color: white;
+    background-color: var(--fill--secondary);
   }
 }
 .empty {
@@ -102,7 +101,7 @@
   padding: 4px 4px 3px 4px;
 }
 .search {
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: var(--border--neutral);
   width: 100%;
   padding: 2px 10px;
   outline: 0;

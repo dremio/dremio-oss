@@ -50,7 +50,7 @@ public class DremioJoinCommuteRule extends JoinCommuteRule {
   @Override
   public boolean matches(RelOptRuleCall call) {
     Join join = call.rel(0);
-    RelMetadataQuery mq = join.getCluster().getMetadataQuery();
+    RelMetadataQuery mq = call.getMetadataQuery();
 
     // Check if we need to force a broadcast exchange.
     MoreRelOptUtil.BroadcastHintCollector leftHintCollector =

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .sqlScripts {
@@ -36,7 +35,7 @@
 
         &__content {
           &:hover {
-            color: var(--dremio--color--link);
+            color: var(--text--brand);
           }
         }
       }
@@ -52,14 +51,12 @@
     }
 
     .MuiList-root {
-      max-height: calc(100vh - 269px);
-      min-height: 490px;
       overflow-y: auto !important;
       width: 100%;
     }
 
     &__menu-item {
-      border-bottom: 1px solid @solitude;
+      border-bottom: 1px solid var(--border--neutral);
       height: 48px !important;
       display: flex;
       padding-left: 8px !important;
@@ -93,11 +90,19 @@
 
         .scriptName {
           font-size: 14px;
-          color: @MAIN_TEXT;
+          color: var(--text--primary);
         }
         .scriptCreator {
           font-size: 12px;
-          color: @TROUT;
+          color: var(--icon--primary);
+        }
+      }
+
+      &__leftContent,
+      &__nameContent {
+        &.--with-checkbox {
+          width: 100%;
+          min-width: 0;
         }
       }
 
@@ -111,21 +116,22 @@
         dremio-icon {
           height: 24px;
           width: 24px;
-          color: var(--color--neutral--600);
+          color: var(--icon--primary);
         }
       }
     }
   }
 
-  .TreeBrowser.--withTabs .sqlScripts {
-    .MuiList-root {
-      max-height: calc(100vh - 205px);
-    }
-  }
-
   .menu-item-inner {
     &.--delete {
-      color: @FIGMA_STATUS_ERROR;
+      color: var(--fill--danger--solid);
+    }
+
+    label {
+      height: 100%;
+      padding-inline: var(--dremio--spacing--05);
+      display: flex;
+      align-items: center;
     }
   }
 }

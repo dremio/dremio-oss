@@ -31,7 +31,7 @@ const modulesStateReducer = (state = {}, action) => {
       // But it is ok, if we would like to reset state to default using ADD_MODULE action
       if (module && module.reducer !== reducer) {
         throw new Error(
-          `Invalid module usage. Most likely module key '${moduleKey}' is used for different components`
+          `Invalid module usage. Most likely module key '${moduleKey}' is used for different components`,
         );
       }
       return {
@@ -48,7 +48,10 @@ const modulesStateReducer = (state = {}, action) => {
         ...rest
       } = state;
 
-      console.info("modules is removed", removedModule);
+      console.info(
+        `"RESET_MODULE_STATE" called for key "${moduleKey}"`,
+        removedModule,
+      );
 
       return rest;
     }

@@ -30,7 +30,6 @@ import io.protostuff.Tag;
 import java.util.List;
 import javax.inject.Provider;
 import javax.validation.constraints.NotEmpty;
-import org.apache.commons.lang3.function.Suppliers;
 
 /** Configuration for regular Elasticsearch storage plugin. */
 @SourceType(value = "ELASTIC", label = "Elasticsearch", uiConfig = "elastic-storage-layout.json")
@@ -152,9 +151,9 @@ public class ElasticStoragePluginConfig
         new ElasticsearchConf(
             elasticStoragePluginConfig.hostList,
             elasticStoragePluginConfig.username,
-            Suppliers.get(elasticStoragePluginConfig.password),
+            elasticStoragePluginConfig.password,
             "",
-            "",
+            null,
             "",
             "",
             authenticationType,

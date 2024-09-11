@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import * as monaco from "monaco-editor";
 import { SimpleDataType } from "../../../sonar/catalog/SimpleDataType.type";
 import { assertNever } from "../../../utilities/typeUtils";
 import type { SQLFunction } from "../types/SQLFunction";
@@ -28,11 +29,14 @@ import type { SuggestionInfo } from "./TokenSuggestions";
 
 const MAX_SUGGESTIONS_EXP = 4; // 10^4 max suggestions
 
+// `range` is not optional but will default to the current position if omitted
+export type CompletionItem = Omit<monaco.languages.CompletionItem, "range">;
+
 export function createMonacoCompletions(
   tokenSuggestions: SuggestionInfo,
   identifierSuggestions: GetIdentifierSuggestionsResult | undefined,
-): monaco.languages.CompletionItem[] {
-  const completionItems: monaco.languages.CompletionItem[] = [];
+): CompletionItem[] {
+  const completionItems: CompletionItem[] = [];
   let itemNum = { num: 0 };
 
   if (identifierSuggestions) {
@@ -58,7 +62,7 @@ export function createMonacoCompletions(
 function createCatalogCompletions(
   suggestions: GetIdentifierSuggestionsResult | undefined,
   itemNum: { num: number },
-): monaco.languages.CompletionItem[] {
+): CompletionItem[] {
   if (!suggestions) {
     return [];
   }
@@ -84,7 +88,7 @@ function createCatalogCompletions(
       ),
     );
   };
-  const completions: monaco.languages.CompletionItem[] = [];
+  const completions: CompletionItem[] = [];
   switch (suggestions.type) {
     case "containers": {
       const sortedContainers = suggestions.containers.sort((a, b) =>
@@ -129,17 +133,16 @@ function createCatalogCompletions(
 function createFunctionCompletion(
   func: SQLFunction,
   itemNum: { num: number },
-): monaco.languages.CompletionItem {
+): CompletionItem {
   const label = `${func.name}${func.label}`;
-  const insertText: monaco.languages.SnippetString = {
-    value: `${func.name}${func.snippet}`,
-  };
+  const insertText = `${func.name}${func.snippet}`;
   const completionItem = createMonacoCompletionItem(
     label,
     getCompletionItemKind("Function"),
     itemNum.num,
     func.description?.trim(),
     insertText,
+    getInsertTextRules("InsertAsSnippet"),
   );
   itemNum.num += 1;
   return completionItem;
@@ -150,7 +153,7 @@ function createContainerCompletion(
   type: ContainerType,
   itemNum: { num: number },
   insertText?: string,
-): monaco.languages.CompletionItem {
+): CompletionItem {
   const kind = getContainerCompletionItemKind(type);
   const completionItem = createMonacoCompletionItem(
     containerName,
@@ -169,7 +172,7 @@ function createColumnCompletion(
   tableName: string,
   itemNum: { num: number },
   insertText?: string,
-): monaco.languages.CompletionItem {
+): CompletionItem {
   const kind = getColumnCompletionItemKind(dataType);
   const detail = `column (${SimpleDataType[dataType]}) in ${tableName}`;
   const completionItem = createMonacoCompletionItem(
@@ -186,7 +189,7 @@ function createColumnCompletion(
 function createKeywordCompletion(
   keyword: KeywordSuggestion,
   itemNum: { num: number },
-): monaco.languages.CompletionItem {
+): CompletionItem {
   const completionItem = createMonacoCompletionItem(
     keyword.toString(),
     getCompletionItemKind("Keyword"),
@@ -201,8 +204,9 @@ function createMonacoCompletionItem(
   kind: monaco.languages.CompletionItemKind,
   sortNum: number,
   detail?: string,
-  insertText?: string | monaco.languages.SnippetString,
-): monaco.languages.CompletionItem {
+  insertText?: string,
+  insertTextRules?: monaco.languages.CompletionItemInsertTextRule,
+): CompletionItem {
   // Fixed-length string so "030" < "200"
   const sortText = sortNum.toString().padStart(MAX_SUGGESTIONS_EXP, "0");
   return {
@@ -210,37 +214,74 @@ function createMonacoCompletionItem(
     kind,
     sortText,
     detail,
-    insertText,
+    insertText: insertText ?? label,
+    insertTextRules,
   };
+}
+
+function getInsertTextRules(
+  key: keyof typeof monaco.languages.CompletionItemInsertTextRule,
+): monaco.languages.CompletionItemInsertTextRule {
+  // Type-safe hack to avoid importing CompletionItemInsertTextRule enum from editor.api.d.ts
+  enum CompletionItemInsertTextRule {
+    None = 0,
+    /**
+     * Adjust whitespace/indentation of multiline insert texts to
+     * match the current line indentation.
+     */
+    KeepWhitespace = 1,
+    /**
+     * `insertText` is a snippet.
+     */
+    InsertAsSnippet = 4,
+  }
+
+  return CompletionItemInsertTextRule[key];
 }
 
 function getCompletionItemKind(
   key: keyof typeof monaco.languages.CompletionItemKind,
 ): monaco.languages.CompletionItemKind {
-  // Type-safe hack to work around not being able to import CompletionItemKind enum from monaco.d.ts
+  if (key === "Text") {
+    throw new Error(
+      "'Text' is reserved for Monaco's default suggestions and should not be used",
+    );
+  }
+
+  // Type-safe hack to work around not being able to import CompletionItemKind enum from editor.api.d.ts
   // This will not compile if there are missing enum keys or mismatched values
-  const completionItemKindMap: typeof monaco.languages.CompletionItemKind = {
-    Text: 0,
-    Method: 1,
-    Function: 2,
-    Constructor: 3,
-    Field: 4,
-    Variable: 5,
-    Class: 6,
-    Interface: 7,
-    Module: 8,
-    Property: 9,
-    Unit: 10,
-    Value: 11,
-    Enum: 12,
-    Keyword: 13,
-    Snippet: 14,
-    Color: 15,
-    File: 16,
-    Reference: 17,
-    Folder: 18,
-  };
-  return completionItemKindMap[key];
+  enum CompletionItemKind {
+    Method = 0,
+    Function = 1,
+    Constructor = 2,
+    Field = 3,
+    Variable = 4,
+    Class = 5,
+    Struct = 6,
+    Interface = 7,
+    Module = 8,
+    Property = 9,
+    Event = 10, // unused
+    Operator = 11, // unused
+    Unit = 12,
+    Value = 13,
+    Constant = 14, // unused
+    Enum = 15,
+    EnumMember = 16, //unused
+    Keyword = 17,
+    Text = 18,
+    Color = 19,
+    File = 20, // unused
+    Reference = 21,
+    Customcolor = 22, // unused
+    Folder = 23,
+    TypeParameter = 24, // unused
+    User = 25, // unused
+    Issue = 26, // unused
+    Snippet = 27,
+  }
+
+  return CompletionItemKind[key];
 }
 
 function getContainerCompletionItemKind(
@@ -271,10 +312,10 @@ function getColumnCompletionItemKind(
   dataType: SimpleDataType,
 ): monaco.languages.CompletionItemKind {
   // We hijack the monaco completionitemkind meaning based on our own data types
-  // These only matter for the purpose of the custom icons we show, see SQLEditor.less
+  // These only matter for the purpose of the custom icons we show, see SQLEditor.module.less
   switch (dataType) {
     case SimpleDataType.TEXT:
-      return getCompletionItemKind("Text");
+      return getCompletionItemKind("Struct");
     case SimpleDataType.BINARY:
       return getCompletionItemKind("Method");
     case SimpleDataType.BOOLEAN:

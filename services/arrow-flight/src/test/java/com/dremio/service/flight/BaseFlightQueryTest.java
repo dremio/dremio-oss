@@ -28,6 +28,7 @@ import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
 import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
@@ -189,19 +190,19 @@ public class BaseFlightQueryTest extends BaseTestQuery {
     flightService =
         new DremioFlightService(
             Providers.of(dremioConfig),
-            Providers.of(getSabotContext().getAllocator()),
-            getBindingProvider().provider(UserWorker.class),
+            Providers.of(getDremioRootAllocator()),
+            getProvider(UserWorker.class),
             Providers.of(getSabotContext()),
-            getBindingProvider().provider(TokenManager.class),
-            getBindingProvider().provider(OptionManager.class),
+            getProvider(TokenManager.class),
+            getProvider(OptionManager.class),
             userSessionServiceProvider,
             () ->
                 new DremioFlightAuthProviderImpl(
                     Providers.of(dremioConfig),
-                    getBindingProvider().provider(UserService.class),
-                    getBindingProvider().provider(TokenManager.class)),
+                    getProvider(UserService.class),
+                    getProvider(TokenManager.class)),
             Providers.of(FlightRequestContextDecorator.DEFAULT),
-            getBindingProvider().provider(CredentialsService.class),
+            getProvider(CredentialsService.class),
             runQueryResponseHandlerFactory);
 
     flightService.start();
@@ -305,14 +306,15 @@ public class BaseFlightQueryTest extends BaseTestQuery {
             .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort)
             .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode);
 
+    SabotContext sabotContext = BaseTestQuery.getSabotContext();
     flightService =
         new DremioFlightService(
             Providers.of(dremioConfig),
-            Providers.of(BaseTestQuery.getSabotContext().getAllocator()),
-            BaseTestQuery.getBindingProvider().provider(UserWorker.class),
-            Providers.of(BaseTestQuery.getSabotContext()),
-            BaseTestQuery.getBindingProvider().provider(TokenManager.class),
-            BaseTestQuery.getBindingProvider().provider(OptionManager.class),
+            Providers.of(sabotContext.getAllocator()),
+            getProvider(UserWorker.class),
+            Providers.of(sabotContext),
+            getProvider(TokenManager.class),
+            getProvider(OptionManager.class),
             userSessionServiceProvider,
             () ->
                 (builder, dremioFlightSessionsManager) ->
@@ -330,7 +332,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
                               }
                             })),
             Providers.of(FlightRequestContextDecorator.DEFAULT),
-            getBindingProvider().provider(CredentialsService.class),
+            getProvider(CredentialsService.class),
             runQueryResponseHandlerFactory) {
 
           @Override

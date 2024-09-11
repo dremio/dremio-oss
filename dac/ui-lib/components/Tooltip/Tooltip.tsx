@@ -31,7 +31,7 @@ import {
   shift,
   arrow,
   safePolygon,
-} from "@floating-ui/react-dom-interactions";
+} from "@floating-ui/react";
 import clsx from "clsx";
 import mergeRefs from "react-merge-refs";
 
@@ -49,7 +49,11 @@ type TooltipProps = {
   placement?: Placement;
   style?: Record<string, any>;
   portal?: boolean;
-
+  id?: string;
+  /**
+   *  Use for white tooltip
+   */
+  rich?: boolean;
   /**
    * Use when a disabled element does not show the tooltip
    */
@@ -79,6 +83,8 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
     onClose,
     onOpen,
     style,
+    id,
+    rich,
   } = props;
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -93,20 +99,19 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
     }
   };
 
-  const { x, y, context, floating, reference, strategy, middlewareData } =
-    useFloating({
-      middleware: [
-        offset(8),
-        flip(),
-        shift({ padding: 8 }),
-        arrow({ element: arrowElRef }),
-      ],
-      onOpenChange: handleOpenChange,
-      open,
-      placement,
-      strategy: "absolute",
-      whileElementsMounted: autoUpdate,
-    });
+  const { x, y, context, refs, strategy, middlewareData } = useFloating({
+    middleware: [
+      offset(8),
+      flip(),
+      shift({ padding: 8 }),
+      arrow({ element: arrowElRef }),
+    ],
+    onOpenChange: handleOpenChange,
+    open,
+    placement,
+    strategy: "absolute",
+    whileElementsMounted: autoUpdate,
+  });
 
   const { getReferenceProps, getFloatingProps } = useInteractions([
     useHover(context, {
@@ -122,8 +127,8 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
   ]);
 
   const ref = React.useMemo(
-    () => mergeRefs([reference, (children as any).ref]),
-    [reference, children],
+    () => mergeRefs([refs.setReference, (children as any).ref]),
+    [refs.setReference, children],
   );
 
   const staticSide = (
@@ -149,9 +154,13 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
       unmountOnExit
     >
       <div
-        className={clsx("dremio-tooltip", `dremio-tooltip--${staticSide}`)}
+        className={clsx(
+          "dremio-tooltip",
+          `dremio-tooltip--${staticSide}`,
+          rich && "dremio-tooltip-rich",
+        )}
         {...getFloatingProps({
-          ref: floating,
+          ref: refs.setFloating,
           style: {
             position: strategy,
             top: y ?? 0,
@@ -159,6 +168,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
             ...(style || {}),
           },
         })}
+        id={id || ""}
       >
         {content}
         <div

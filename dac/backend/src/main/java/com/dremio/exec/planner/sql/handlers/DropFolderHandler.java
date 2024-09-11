@@ -25,8 +25,8 @@ import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlDropFolder;
-import com.dremio.exec.store.NessieNamespaceNotEmptyException;
-import com.dremio.exec.store.NessieNamespaceNotFoundException;
+import com.dremio.exec.store.NamespaceNotEmptyException;
+import com.dremio.exec.store.NamespaceNotFoundException;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
@@ -69,12 +69,12 @@ public class DropFolderHandler extends BaseVersionHandler<SimpleCommandResult> {
 
     try {
       versionedPlugin.deleteFolder(path, sourceVersion);
-    } catch (NessieNamespaceNotFoundException e) {
+    } catch (NamespaceNotFoundException e) {
       if (existenceCheck) {
         return Collections.singletonList(SimpleCommandResult.successful(e.getMessage()));
       }
       throw UserException.validationError(e).message(e.getMessage()).buildSilently();
-    } catch (NessieNamespaceNotEmptyException e) {
+    } catch (NamespaceNotEmptyException e) {
       throw UserException.validationError(e).message(e.getMessage()).buildSilently();
     } catch (ReferenceNotFoundException e) {
       throw UserException.validationError(e)

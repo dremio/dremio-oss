@@ -21,19 +21,19 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
 
 public final class BigDecimalArrayAggAccumulatorHolder
-    extends BaseArrayAggAccumulatorHolder<BigDecimal, DecimalVector> {
+    extends ArrayAggAccumulatorHolder<BigDecimal> {
   private final DecimalVector vector;
 
   public BigDecimalArrayAggAccumulatorHolder(
-      final int maxValuesPerBatch, final BufferAllocator allocator, DecimalVector inputVector) {
-    super(maxValuesPerBatch, allocator);
+      final BufferAllocator allocator, DecimalVector inputVector, int initialCapacity) {
+    super(allocator, initialCapacity);
     vector =
         new DecimalVector(
             "array_agg BigDecimalArrayAggAccumulatorHolder",
             allocator,
             inputVector.getPrecision(),
             inputVector.getScale());
-    vector.allocateNew(maxValuesPerBatch);
+    vector.allocateNew(initialCapacity);
   }
 
   @Override
@@ -57,5 +57,18 @@ public final class BigDecimalArrayAggAccumulatorHolder
   @Override
   public BigDecimal getItem(int index) {
     return vector.getObject(index);
+  }
+
+  @Override
+  public double getSizeOfElement(BigDecimal element) {
+    return DecimalVector.TYPE_WIDTH;
+  }
+
+  @Override
+  public void reAllocIfNeeded(BigDecimal data) {
+    super.reAllocIfNeeded(data);
+    if (numItems + 1 >= vector.getValueCapacity()) {
+      vector.reAlloc();
+    }
   }
 }

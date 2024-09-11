@@ -51,6 +51,18 @@ public final class CatalogOptions {
   public static final LongValidator MAX_NESTED_LEVELS =
       new PositiveLongValidator("store.plugin.max_nested_levels", 64, 16);
 
+  // Timeout in seconds for plugin.getState() call.
+  public static final TypeValidators.LongValidator GET_STATE_TIMEOUT_SECONDS =
+      new TypeValidators.LongValidator("store.plugin.get_state_timeout_seconds", 10);
+  public static final TypeValidators.BooleanValidator ENABLE_ASYNC_GET_STATE =
+      new TypeValidators.BooleanValidator("store.plugin.enable_async_get_state", true);
+
+  // How long catalog service waits when communicating to other coordinator(s). This
+  // must be greater than the getState timeout as otherwise the interrupted wait on one
+  // coordinator may leave the other coordinator in a bad state.
+  public static final TypeValidators.LongValidator CHANGE_COMMUNICATION_WAIT_SECONDS =
+      new TypeValidators.LongValidator("catalog.change_communication_wait_seconds", 30);
+
   // ORC ACID table factor for leaf columns
   public static final LongValidator ORC_DELTA_LEAF_COLUMN_FACTOR =
       new PositiveLongValidator("store.hive.orc_delta_leaf_column_factor", Integer.MAX_VALUE, 5);
@@ -72,12 +84,6 @@ public final class CatalogOptions {
   // Disable inline refresh
   public static final BooleanValidator SHOW_METADATA_VALIDITY_CHECKBOX =
       new BooleanValidator("store.plugin.show_metadata_validity_checkbox", false);
-  // Enable secrets field look up/resolution on sources
-  public static final TypeValidators.BooleanValidator SOURCE_SECRETS_RESOLUTION_ENABLED =
-      new TypeValidators.BooleanValidator("auth.source-secrets-resolution.enabled", false);
-  // Enable in-line encryption of all source secrets.
-  public static final TypeValidators.BooleanValidator SOURCE_SECRETS_ENCRYPTION_ENABLED =
-      new TypeValidators.BooleanValidator("auth.source-secrets-encryption.enabled", true);
   // Enable reflection tab in any versioned source dialogs
   public static final BooleanValidator REFLECTION_VERSIONED_SOURCE_ENABLED =
       new BooleanValidator("reflection.arctic.enabled", true);
@@ -91,6 +97,20 @@ public final class CatalogOptions {
   // View delegation for a versioned source
   public static final BooleanValidator VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED =
       new BooleanValidator("versioned.source.view_delegation.enabled", false);
+
+  public static final BooleanValidator RETRY_CONNECTION_ON_FAILURE =
+      new TypeValidators.BooleanValidator("store.plugin.retry_connection_on_failure", true);
+
+  // Support key to use by test only for doing V0 writes. Used mainly  for testing.
+  public static final BooleanValidator V0_ICEBERG_VIEW_WRITES =
+      new BooleanValidator("versioned.iceberg.view.write.v0", false);
+
+  public static final BooleanValidator SUPPORT_V1_ICEBERG_VIEWS =
+      new BooleanValidator("versioned.iceberg.view_v1.enabled", true);
+
+  // Support key for UDFs API.
+  public static final BooleanValidator SUPPORT_UDF_API =
+      new BooleanValidator("catalog.udf.api.enabled", true);
 
   // Do not instantiate
   private CatalogOptions() {}

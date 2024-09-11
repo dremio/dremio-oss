@@ -50,6 +50,7 @@ import com.dremio.io.file.Path;
 import com.dremio.sabot.BaseTestTableFunction;
 import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
+import com.dremio.sabot.RecordSet.RsRecord;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
@@ -788,7 +789,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
         inputRow(deleteManifestFile2, COL_IDS));
   }
 
-  private RecordSet.Record inputRow(ManifestFile manifestFile, byte[] colIds) {
+  private RsRecord inputRow(ManifestFile manifestFile, byte[] colIds) {
     return r(
         st(manifestFile.path(), 0L, manifestFile.length(), manifestFile.length()),
         IcebergSerDe.serializeManifestFile(manifestFile),
@@ -886,7 +887,8 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
                 SystemSchemas.FILE_TYPE,
                 IcebergFileType.MANIFEST.name(),
                 true,
-                false)));
+                false,
+                IcebergUtils.getDefaultPathScheme(fs.getScheme()))));
   }
 
   private static ManifestFile createDataManifest(

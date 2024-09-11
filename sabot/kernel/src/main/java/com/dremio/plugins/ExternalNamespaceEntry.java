@@ -19,6 +19,7 @@ import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.projectnessie.model.Content;
@@ -28,7 +29,8 @@ public final class ExternalNamespaceEntry {
     UNKNOWN,
     FOLDER,
     ICEBERG_TABLE,
-    ICEBERG_VIEW;
+    ICEBERG_VIEW,
+    UDF;
 
     public Content.Type toNessieContentType() {
       switch (this) {
@@ -38,6 +40,8 @@ public final class ExternalNamespaceEntry {
           return Content.Type.ICEBERG_VIEW;
         case FOLDER:
           return Content.Type.NAMESPACE;
+        case UDF:
+          return Content.Type.UDF;
         default:
           throw new IllegalArgumentException("toNessieContentType failed: " + this);
       }
@@ -53,6 +57,9 @@ public final class ExternalNamespaceEntry {
       }
       if (Content.Type.NAMESPACE.equals(nessieContentType)) {
         return Type.FOLDER;
+      }
+      if (Content.Type.UDF.equals(nessieContentType)) {
+        return Type.UDF;
       }
       return Type.UNKNOWN;
     }
@@ -149,5 +156,50 @@ public final class ExternalNamespaceEntry {
         + ", nessieContent="
         + nessieContent
         + '}';
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(type, Objects.hash(nameElements.toArray()), id, tableVersionContext);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof ExternalNamespaceEntry)) {
+      return false;
+    }
+    ExternalNamespaceEntry other = (ExternalNamespaceEntry) obj;
+    if (this.type != other.type) {
+      return false;
+    }
+    if (!this.nameElements.equals(other.nameElements)) {
+      return false;
+    }
+    if ((this.id == null) ^ (other.id == null)) {
+      return false;
+    }
+    if (this.id != null && !this.id.equals(other.id)) {
+      return false;
+    }
+    if ((this.tableVersionContext == null) ^ (other.tableVersionContext == null)) {
+      return false;
+    }
+    if (this.tableVersionContext != null
+        && !this.tableVersionContext.equals(other.tableVersionContext)) {
+      return false;
+    }
+    if ((this.nessieContent == null) ^ (other.nessieContent == null)) {
+      return false;
+    }
+    if (this.nessieContent != null) {
+      if (this.nessieContent.isPresent() ^ other.nessieContent.isPresent()) {
+        return false;
+      }
+      if (this.nessieContent.isPresent()
+          && !this.nessieContent.get().equals(other.nessieContent.get())) {
+        return false;
+      }
+    }
+    return true;
   }
 }

@@ -15,11 +15,14 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
+import static com.dremio.exec.planner.sql.CalciteArrowHelper.fromCalciteRowType;
+
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
+import com.dremio.exec.record.BatchSchema;
 import com.google.common.cache.Cache;
 import org.apache.calcite.sql.SqlNode;
 
@@ -40,11 +43,21 @@ public class HandlerToPreparePlan extends HandlerToPreparePlanBase<CreatePrepare
   @Override
   public CreatePreparedStatementResp execute() {
     final QueryContext context = getContext();
+    if (isParameterEnabled()) {
+      return PreparedStatementProvider.build(
+          fromCalciteRowType(getRowType()),
+          getState(),
+          context.getQueryId(),
+          context.getSession().getCatalogName(),
+          context.getSession().getRecordBatchFormat(),
+          fromCalciteRowType(getPreparedRowType()));
+    }
     return PreparedStatementProvider.build(
         getPlan().getRoot().getProps().getSchema(),
         getState(),
         context.getQueryId(),
         context.getSession().getCatalogName(),
-        context.getSession().getRecordBatchFormat());
+        context.getSession().getRecordBatchFormat(),
+        BatchSchema.EMPTY);
   }
 }

@@ -125,7 +125,7 @@ const SelectOwnership = (props: SelectOwnershipProps) => {
               name: ownership?.name || "",
             })}
             {ownership?.name || (
-              <span style={{ color: "var(--dremio--color--text--disabled)" }}>
+              <span style={{ color: "var(--text--disabled)" }}>
                 {t("Admin.Privileges.NoOwner")}
               </span>
             )}

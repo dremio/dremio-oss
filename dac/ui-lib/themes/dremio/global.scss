@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@use "../utilities/bg";
 @use "../utilities/text";
 
 :root {
@@ -29,16 +28,57 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.dremio-auto-system {
+  @supports not (prefers-color-scheme: light) {
+    color-scheme: light;
+    ::selection {
+      background: var(--color--brand--100);
+      color: var(--text--primary);
+    }
+  }
+  @media (prefers-color-scheme: light) {
+    color-scheme: light;
+    ::selection {
+      background: var(--color--brand--100);
+      color: var(--text--primary);
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+    ::selection {
+      background: var(--color--brand--600);
+      color: var(--text--primary);
+    }
+  }
+  @media (prefers-contrast: more) {
+    color-scheme: light;
+    ::selection {
+      background: var(--color--brand--100);
+      color: var(--text--primary);
+    }
+  }
+}
+
 .dremio-light {
   color-scheme: light;
   ::selection {
-    @extend .bg-brand-100;
+    background: var(--color--brand--100);
+    color: var(--text--primary);
   }
 }
 
 .dremio-dark {
   color-scheme: dark;
   ::selection {
-    @extend .bg-brand-800;
+    background: var(--color--brand--600);
+    color: var(--text--primary);
+  }
+}
+
+.dremio-high-contrast {
+  color-scheme: light;
+  ::selection {
+    background: var(--color--brand--200);
+    color: var(--text--primary);
   }
 }

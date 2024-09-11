@@ -35,6 +35,8 @@ interface SchedulerEvents {
 
   void runSetSize(int currentSize);
 
+  void computedWeight(int currentWeight);
+
   PerTaskEvents addTask(PerTaskSchedule schedule);
 
   void hitUnexpectedError();
@@ -42,9 +44,15 @@ interface SchedulerEvents {
   interface PerTaskMainEvents {
     void bookingAttempted();
 
-    void bookingAcquired();
+    void bookingAcquired(long bookingOwnerSessionId);
 
     void bookingReleased();
+
+    void bookingLost();
+
+    void bookingRechecked();
+
+    void bookingRegained();
 
     void contractError();
 
@@ -67,6 +75,10 @@ interface SchedulerEvents {
     void crossedThreshold();
 
     void removedFromRunSet(long cTime);
+
+    void weightShed(int weight);
+
+    void weightGained(int weight);
   }
 
   enum RecoveryRejectReason {

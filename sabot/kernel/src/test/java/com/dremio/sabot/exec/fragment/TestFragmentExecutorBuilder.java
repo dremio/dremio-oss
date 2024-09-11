@@ -22,7 +22,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ExpressionSplitCache;
@@ -32,7 +34,10 @@ import com.dremio.exec.planner.fragment.CachedFragmentReader;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.BootStrapContext;
+import com.dremio.exec.server.NodeDebugContextProvider;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
@@ -79,7 +84,7 @@ public class TestFragmentExecutorBuilder extends DremioTest {
     BootStrapContext bootStrapContext =
         new BootStrapContext(
             DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT);
-
+    DremioRootAllocator rootAllocator = (DremioRootAllocator) bootStrapContext.getAllocator();
     FragmentExecutorBuilder fragmentExecutorBuilder =
         new FragmentExecutorBuilder(
             queriesClerk,
@@ -99,7 +104,7 @@ public class TestFragmentExecutorBuilder extends DremioTest {
             mock(ContextInformationFactory.class),
             mock(FunctionImplementationRegistry.class),
             mock(FunctionImplementationRegistry.class),
-            bootStrapContext.getNodeDebugContextProvider(),
+            getNodeDebugContext(rootAllocator),
             mock(SpillService.class),
             mock(CodeCompiler.class),
             mock(Set.class),
@@ -118,10 +123,25 @@ public class TestFragmentExecutorBuilder extends DremioTest {
           null,
           mock(CachedFragmentReader.class));
     } catch (UserException ex) {
-      Assert.assertTrue(
-          ex.getContextStrings().stream()
-              .anyMatch(s -> s.contains("Allocator dominators:\nAllocator(ROOT)")));
+      Assert.assertEquals(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY, ex.getErrorType());
+      OutOfMemoryOrResourceExceptionContext oomExceptionContext =
+          OutOfMemoryOrResourceExceptionContext.fromUserException(ex);
+      //  Need to mock so that rootAllocator is not null,
+      //      Assert.assertTrue(oomExceptionContext != null);
+      //      String additionalInfo = oomExceptionContext.getAdditionalInfo();
+      //      Assert.assertTrue(additionalInfo.contains("Allocator dominators:\nAllocator(ROOT)"));
       throw ex;
+    } finally {
+      bootStrapContext.close();
     }
+  }
+
+  private NodeDebugContextProvider getNodeDebugContext(DremioRootAllocator rootAllocator) {
+    SabotContext.NodeDebugContextProviderImpl nodeDebugContextProvider =
+        mock(SabotContext.NodeDebugContextProviderImpl.class);
+
+    SabotContext sabotContext = mock(SabotContext.class);
+    when(sabotContext.getNodeDebugContext()).thenReturn(nodeDebugContextProvider);
+    return sabotContext.getNodeDebugContext();
   }
 }

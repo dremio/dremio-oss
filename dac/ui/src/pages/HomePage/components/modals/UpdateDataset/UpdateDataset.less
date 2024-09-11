@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/mixins.less";
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -57,7 +56,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background-color: #fff;
+    background-color: var(--fill--primary);
 
     .error-message-updateDataset {
       position: absolute;

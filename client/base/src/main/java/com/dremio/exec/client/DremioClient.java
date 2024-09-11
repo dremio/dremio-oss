@@ -51,6 +51,7 @@ import com.dremio.exec.proto.UserProtos.GetTablesReq;
 import com.dremio.exec.proto.UserProtos.GetTablesResp;
 import com.dremio.exec.proto.UserProtos.LikeFilter;
 import com.dremio.exec.proto.UserProtos.PreparedStatementHandle;
+import com.dremio.exec.proto.UserProtos.PreparedStatementParameterValue;
 import com.dremio.exec.proto.UserProtos.Property;
 import com.dremio.exec.proto.UserProtos.QueryPlanFragments;
 import com.dremio.exec.proto.UserProtos.RpcType;
@@ -358,10 +359,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
       }
 
       final ArrayList<NodeEndpoint> endpoints =
-          new ArrayList<>(
-              clusterCoordinator
-                  .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-                  .getAvailableEndpoints());
+          new ArrayList<>(clusterCoordinator.getCoordinatorEndpoints());
       checkState(!endpoints.isEmpty(), "No NodeEndpoint can be found");
       // shuffle the collection then get the first endpoint
       Collections.shuffle(endpoints);
@@ -427,10 +425,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
       try {
         Thread.sleep(this.reconnectDelay);
         final ArrayList<NodeEndpoint> endpoints =
-            new ArrayList<>(
-                clusterCoordinator
-                    .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-                    .getAvailableEndpoints());
+            new ArrayList<>(clusterCoordinator.getCoordinatorEndpoints());
         if (endpoints.isEmpty()) {
           continue;
         }
@@ -770,12 +765,14 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    */
   public void executePreparedStatement(
       final PreparedStatementHandle preparedStatementHandle,
+      final List<PreparedStatementParameterValue> parameters,
       final UserResultsListener resultsListener) {
     final RunQuery runQuery =
         newBuilder()
             .setResultsMode(STREAM_FULL)
             .setType(QueryType.PREPARED_STATEMENT)
             .setPreparedStatementHandle(preparedStatementHandle)
+            .addAllParameters(parameters)
             .build();
     client.submitQuery(resultsListener, runQuery);
   }
@@ -790,12 +787,15 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    * @throws RpcException
    */
   public List<QueryDataBatch> executePreparedStatement(
-      final PreparedStatementHandle preparedStatementHandle) throws RpcException {
+      final PreparedStatementHandle preparedStatementHandle,
+      final List<PreparedStatementParameterValue> parameters)
+      throws RpcException {
     final RunQuery runQuery =
         newBuilder()
             .setResultsMode(STREAM_FULL)
             .setType(QueryType.PREPARED_STATEMENT)
             .setPreparedStatementHandle(preparedStatementHandle)
+            .addAllParameters(parameters)
             .build();
 
     final ListHoldingResultsListener resultsListener = new ListHoldingResultsListener(runQuery);

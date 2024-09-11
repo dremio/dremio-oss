@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.store.dfs.system;
 
+import static com.dremio.exec.ExecConstants.SYSTEM_ICEBERG_TABLES_COMMIT_NUM_RETRIES;
+
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableMetadata;
-import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableMetadata;
-import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
 import com.dremio.options.OptionManager;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.iceberg.Schema;
 import org.apache.iceberg.exceptions.NotFoundException;
 
 /** Utility class for initializing the table metadata for system iceberg tables. */
@@ -42,14 +41,13 @@ public final class SystemIcebergTableMetadataFactory {
       List<String> tableSchemaPath) {
     long schemaVersion =
         optionManager.getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
+    long commitRetries = optionManager.getOption(SYSTEM_ICEBERG_TABLES_COMMIT_NUM_RETRIES);
     if (tableSchemaPath.stream().anyMatch(COPY_JOB_HISTORY_TABLE_NAME::equalsIgnoreCase)) {
-      Schema schema = CopyJobHistoryTableSchemaProvider.getSchema(schemaVersion);
       return new CopyJobHistoryTableMetadata(
-          schemaVersion, schema, pluginName, pluginPath, COPY_JOB_HISTORY_TABLE_NAME);
+          schemaVersion, commitRetries, pluginName, pluginPath, COPY_JOB_HISTORY_TABLE_NAME);
     } else if (tableSchemaPath.stream().anyMatch(COPY_FILE_HISTORY_TABLE_NAME::equalsIgnoreCase)) {
-      Schema schema = CopyFileHistoryTableSchemaProvider.getSchema(schemaVersion);
       return new CopyFileHistoryTableMetadata(
-          schemaVersion, schema, pluginName, pluginPath, COPY_FILE_HISTORY_TABLE_NAME);
+          schemaVersion, commitRetries, pluginName, pluginPath, COPY_FILE_HISTORY_TABLE_NAME);
     }
     throw new NotFoundException("Invalid system iceberg table : %s", tableSchemaPath);
   }
@@ -61,6 +59,7 @@ public final class SystemIcebergTableMetadataFactory {
   public static boolean isSupportedTablePath(List<String> tableSchemaPath) {
     return SUPPORTED_TABLES.stream()
         .anyMatch(
-            supportedTableName -> tableSchemaPath.stream().anyMatch(supportedTableName::equals));
+            supportedTableName ->
+                tableSchemaPath.stream().anyMatch(supportedTableName::equalsIgnoreCase));
   }
 }

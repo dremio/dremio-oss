@@ -30,10 +30,13 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.users.SystemUser;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
@@ -45,12 +48,14 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class RefreshTableHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
+  private final boolean errorOnConcurrentRefresh;
   private final NamespaceService namespaceService;
 
   public RefreshTableHandler(
-      Catalog catalog, NamespaceService namespaceService, String queryUserName) {
+      Catalog catalog, NamespaceService namespaceService, boolean errorOnConcurrentRefresh) {
     this.catalog = catalog;
     this.namespaceService = namespaceService;
+    this.errorOnConcurrentRefresh = errorOnConcurrentRefresh;
   }
 
   @Override
@@ -90,7 +95,13 @@ public class RefreshTableHandler extends SimpleDirectHandler {
 
     builder.setRefreshQuery(
         new MetadataRefreshQuery(
-            sqlRefreshTable.toRefreshDatasetQuery(tableNSKey.getPathComponents()),
+            sqlRefreshTable.toRefreshDatasetQuery(
+                tableNSKey.getPathComponents(),
+                Optional.ofNullable(datasetConfig)
+                    .map(DatasetConfig::getPhysicalDataset)
+                    .map(PhysicalDataset::getFormatSettings)
+                    .map(FileConfig::getFileNameRegex),
+                errorOnConcurrentRefresh),
             SystemUser.SYSTEM_USERNAME));
 
     UpdateStatus status = catalog.refreshDataset(tableNSKey, builder.build(), false);

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.iceberg.IcebergUtils.getPartitionStatsFiles;
 import static com.dremio.exec.store.iceberg.model.IcebergCommandType.INCREMENTAL_METADATA_REFRESH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -25,6 +26,7 @@ import static org.mockito.Mockito.when;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.expr.fn.impl.ByteArrayWrapper;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
@@ -47,24 +49,35 @@ import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionStatsFileLocations;
+import org.apache.iceberg.PartitionStatsMetadata;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
 import org.junit.Before;
 
@@ -156,7 +169,9 @@ public class TestIcebergCommitterBase extends BaseTestQuery
             localFs,
             null,
             INCREMENTAL_METADATA_REFRESH,
-            null);
+            null,
+            table.currentSnapshot().snapshotId(),
+            false);
 
     ManifestFile m1 =
         writeManifest(
@@ -205,6 +220,24 @@ public class TestIcebergCommitterBase extends BaseTestQuery
     return dataFile;
   }
 
+  protected DeleteFile getPositionalDeleteFile(String path) {
+    DeleteFile deleteFile =
+        FileMetadata.deleteFileBuilder(PartitionSpec.unpartitioned())
+            .ofPositionDeletes()
+            .withPath(path)
+            .withFileSizeInBytes(40)
+            .withRecordCount(9)
+            .build();
+    return deleteFile;
+  }
+
+  // build Set of referenced data files within the positional deletes "file_path" column.
+  protected Set<ByteArrayWrapper> getReferencedDataFiles(String referenceFile) {
+    Set<ByteArrayWrapper> referencedFilesAsBytes = new HashSet<>();
+    referencedFilesAsBytes.add(new ByteArrayWrapper(referenceFile.getBytes()));
+    return referencedFilesAsBytes;
+  }
+
   protected DataFile getDatafileWithPartitionSpec(String path) {
     SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     PartitionSpec spec_id_and_data_column =
@@ -242,5 +275,47 @@ public class TestIcebergCommitterBase extends BaseTestQuery
 
     datasetConfig.getPhysicalDataset().setInternalSchemaSettings(new UserDefinedSchemaSettings());
     return datasetConfig;
+  }
+
+  protected static String getManifestCrcFileName(String manifestFilePath) {
+    com.dremio.io.file.Path p = com.dremio.io.file.Path.of(manifestFilePath);
+    String fileName = p.getName();
+    com.dremio.io.file.Path parentPath = p.getParent();
+    return parentPath + com.dremio.io.file.Path.SEPARATOR + "." + fileName + ".crc";
+  }
+
+  protected static Set<String> collectAllFilesFromSnapshot(Snapshot snapshot, FileIO io) {
+    Set<String> files = Sets.newHashSet();
+    files.addAll(pathSet(snapshot.addedDataFiles(io)));
+    files.add(snapshot.manifestListLocation());
+    files.addAll(manifestPaths(snapshot.allManifests(io)));
+    files.addAll(partitionStatsPaths(snapshot.partitionStatsMetadata(), io));
+    return files;
+  }
+
+  protected static Set<String> pathSet(Iterable<DataFile> files) {
+    return Sets.newHashSet(Iterables.transform(files, file -> file.path().toString()));
+  }
+
+  protected static Set<String> manifestPaths(Iterable<ManifestFile> files) {
+    return Sets.newHashSet(Iterables.transform(files, file -> file.path().toString()));
+  }
+
+  protected static Set<String> partitionStatsPaths(
+      PartitionStatsMetadata partitionStatsMetadata, FileIO io) {
+    Set<String> partitionStatsFiles = Sets.newHashSet();
+    if (partitionStatsMetadata != null) {
+      String partitionStatsMetadataLocation = partitionStatsMetadata.metadataFileLocation();
+      PartitionStatsFileLocations partitionStatsLocations =
+          getPartitionStatsFiles(io, partitionStatsMetadataLocation);
+      if (partitionStatsLocations != null) {
+        // Partition stats have metadata file and partition files.
+        partitionStatsFiles.add(partitionStatsMetadataLocation);
+        partitionStatsFiles.addAll(
+            partitionStatsLocations.all().values().stream().collect(Collectors.toList()));
+      }
+    }
+
+    return partitionStatsFiles;
   }
 }

@@ -18,13 +18,16 @@ package com.dremio.exec.store.parquet;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.CopyIntoExtendedProperties;
+import com.dremio.exec.physical.config.CopyIntoExtendedProperties.PropertyKey;
 import com.dremio.exec.physical.config.SimpleQueryContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.copyinto.CopyIntoHistoryExtendedProperties;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
-import com.dremio.exec.planner.CopyIntoTablePlanBuilderBase;
+import com.dremio.exec.physical.config.copyinto.IngestionProperties;
+import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.store.dfs.EmptySplitReaderCreator;
 import com.dremio.exec.store.dfs.SplitReaderCreator;
+import com.dremio.exec.store.dfs.copyinto.CopyIntoExceptionUtils;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.io.file.Path;
@@ -35,8 +38,10 @@ import com.dremio.sabot.op.scan.ScanOperator.Metric;
 import com.google.common.base.Preconditions;
 import java.io.FileNotFoundException;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Set;
 
@@ -61,6 +66,10 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
   private boolean isCopyIntoSkip = false;
   private boolean isValidationMode = false;
   private final Set<Path> failedFilePaths = new HashSet<>();
+  private long processingStartTime;
+  private List<IngestionProperties> splitsIngestionProperties;
+  private Iterator<IngestionProperties> ingestionPropertiesIterator;
+  private IngestionProperties currIngestionProperties;
 
   public CopyIntoSkipParquetSplitReaderCreatorIterator(
       FragmentExecutionContext fragmentExecContext,
@@ -87,8 +96,7 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
         copyIntoExtendedPropertiesOptional.get();
     this.copyIntoQueryProperties =
         copyIntoExtendedProperties.getProperty(
-            CopyIntoExtendedProperties.PropertyKey.COPY_INTO_QUERY_PROPERTIES,
-            CopyIntoQueryProperties.class);
+            PropertyKey.COPY_INTO_QUERY_PROPERTIES, CopyIntoQueryProperties.class);
     if (this.copyIntoQueryProperties != null) {
       this.isCopyIntoSkip =
           CopyIntoQueryProperties.OnErrorOption.SKIP_FILE.equals(
@@ -96,13 +104,11 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
     }
 
     this.copyIntoQueryContext =
-        copyIntoExtendedProperties.getProperty(
-            CopyIntoExtendedProperties.PropertyKey.QUERY_CONTEXT, SimpleQueryContext.class);
+        copyIntoExtendedProperties.getProperty(PropertyKey.QUERY_CONTEXT, SimpleQueryContext.class);
 
     this.copyIntoHistoryExtendedProperties =
         copyIntoExtendedProperties.getProperty(
-            CopyIntoExtendedProperties.PropertyKey.COPY_INTO_HISTORY_PROPERTIES,
-            CopyIntoHistoryExtendedProperties.class);
+            PropertyKey.COPY_INTO_HISTORY_PROPERTIES, CopyIntoHistoryExtendedProperties.class);
 
     if (copyIntoHistoryExtendedProperties != null) {
       // in case of validation mode, the given output schema is that of copy_errors() result schema
@@ -111,8 +117,7 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
       // to override the following schema dependant constructs that are used by the Parquet reader
       this.isValidationMode = true;
       this.columns =
-          CopyIntoTablePlanBuilderBase.getSchemaPaths(
-              copyIntoHistoryExtendedProperties.getValidatedTableSchema());
+          SchemaUtilities.allColPaths(copyIntoHistoryExtendedProperties.getValidatedTableSchema());
       this.realFields =
           new ImplicitFilesystemColumnFinder(
                   context.getOptions(),
@@ -129,7 +134,19 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
   }
 
   @Override
+  protected void processSplits() {
+    super.processSplits();
+    if (splitsIngestionProperties == null) {
+      return;
+    }
+    ingestionPropertiesIterator = splitsIngestionProperties.iterator();
+    currIngestionProperties =
+        ingestionPropertiesIterator.hasNext() ? ingestionPropertiesIterator.next() : null;
+  }
+
+  @Override
   protected void initSplits(SplitReaderCreator curr, int splitsAhead) {
+    processingStartTime = System.currentTimeMillis();
     while (splitsAhead > 0) {
       filterRowGroupSplits();
       SplitExpansionErrorInfo splitExpansionErrorInfo = null;
@@ -141,17 +158,13 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
         ParquetBlockBasedSplit blockSplit = sortedBlockSplitsIterator.next();
         try {
           expandBlockSplit(blockSplit);
-        } catch (FileNotFoundException fnfe) {
-          logger.error("One or more of the referred data files are absent.", fnfe);
-          throw new RuntimeException(
-              String.format(
-                  "One or more of the referred data files are absent [%s].", fnfe.getMessage()),
-              fnfe);
         } catch (Exception e) {
           splitExpansionErrorInfo =
               new SplitExpansionErrorInfo(
                   Path.getContainerSpecificRelativePath(Path.of(blockSplit.getPath())),
-                  e.getMessage());
+                  blockSplit.getFileLength(),
+                  CopyIntoExceptionUtils.redactMessage(e.getMessage()),
+                  e instanceof FileNotFoundException ? 0 : 1);
           break;
         }
       }
@@ -175,6 +188,10 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
         filterRowGroupSplits();
       }
     }
+  }
+
+  public void addSplitsIngestionProperties(List<IngestionProperties> splitsIngestionProperties) {
+    this.splitsIngestionProperties = splitsIngestionProperties;
   }
 
   @Override
@@ -205,12 +222,14 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
         trimRowGroups,
         vectorize,
         currentSplitInfo,
+        currIngestionProperties,
         tablePath,
         filtersForCurrentRowGroup,
         columns,
         fullSchema,
         formatSettings,
         icebergSchemaFields,
+        icebergDefaultNameMapping,
         pathToRowGroupsMap,
         this,
         splitScanXAttr,
@@ -227,10 +246,14 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
       return new ParquetCopyIntoSkipUtils.CopyIntoSkipErrorRecordReaderCreator(
           copyIntoQueryContext,
           copyIntoQueryProperties,
+          currIngestionProperties,
           splitExpansionErrorInfo.filePath,
+          splitExpansionErrorInfo.fileSize,
+          splitExpansionErrorInfo.recordsRejectedCount,
           splitExpansionErrorInfo.errorMessage,
           copyIntoHistoryExtendedProperties,
-          isValidationMode);
+          isValidationMode,
+          processingStartTime);
     }
     return super.createSplitReaderCreator();
   }
@@ -267,7 +290,7 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
 
   @Override
   protected List<ParquetProtobuf.ParquetDatasetSplitScanXAttr> createRowGroupSplitList(
-      List<Integer> rowGroupNums,
+      NavigableMap<Integer, Long> rowGroupNums,
       Path splitPath,
       ParquetBlockBasedSplit blockSplit,
       long fileLength,
@@ -275,10 +298,11 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
     List<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitAttrs = new LinkedList<>();
 
     // Add dry run splits first
-    for (int rowGroupNum : rowGroupNums) {
+    for (int rowGroupNum : rowGroupNums.keySet()) {
       rowGroupSplitAttrs.add(
           ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
               .setRowGroupIndex(rowGroupNum)
+              .setRowIndexOffset(rowGroupNums.get(rowGroupNum))
               .setPath(splitPath.toString())
               .setStart(0L)
               .setLength(blockSplit.getLength()) // max row group size possible
@@ -286,6 +310,8 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
               .setLastModificationTime(fileLastModificationTime)
               .setOriginalPath(blockSplit.getPath())
               .setIsDryRun(true)
+              .setWriteSuccessEvent(
+                  (rowGroupNum == rowGroupNums.lastKey())) // Only write success on the last split
               .build());
     }
     // Add normal run splits
@@ -297,6 +323,20 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
     return rowGroupSplitAttrs;
   }
 
+  @Override
+  protected SplitReaderCreator createSplitReaderCreator() {
+    SplitReaderCreator creator = super.createSplitReaderCreator();
+    if (fromRowGroupBasedSplit) {
+      if (ingestionPropertiesIterator.hasNext()) {
+        currIngestionProperties = ingestionPropertiesIterator.next();
+      } else {
+        Preconditions.checkArgument(!rowGroupSplitIterator.hasNext());
+        currIngestionProperties = null;
+      }
+    }
+    return creator;
+  }
+
   /**
    * Adds the file path to known set of files with errors
    *
@@ -306,14 +346,28 @@ public class CopyIntoSkipParquetSplitReaderCreatorIterator
     failedFilePaths.add(path);
   }
 
+  /**
+   * Returns the timestamp in millis when the split initializations was started.
+   *
+   * @return timestamp in millis
+   */
+  public long getProcessingStartTime() {
+    return processingStartTime;
+  }
+
   /** Describes error that happened during initialization e.g. footer reading, schema comparison */
   private static class SplitExpansionErrorInfo {
-    String filePath;
-    String errorMessage;
+    private final String filePath;
+    private final long fileSize;
+    private final String errorMessage;
+    private final long recordsRejectedCount;
 
-    public SplitExpansionErrorInfo(String filePath, String errorMessage) {
+    public SplitExpansionErrorInfo(
+        String filePath, long fileSize, String errorMessage, long recordsRejectedCount) {
       this.filePath = filePath;
+      this.fileSize = fileSize;
       this.errorMessage = errorMessage;
+      this.recordsRejectedCount = recordsRejectedCount;
     }
   }
 }

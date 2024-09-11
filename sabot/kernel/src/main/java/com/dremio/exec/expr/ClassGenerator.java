@@ -33,6 +33,8 @@ import com.dremio.exec.expr.fn.BaseFunctionHolder.WorkspaceReference;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.record.TypedFieldId;
+import com.dremio.sabot.exec.context.CompilationOptions;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -57,6 +59,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class ClassGenerator<T> {
 
@@ -72,7 +75,7 @@ public class ClassGenerator<T> {
     CLEANUP
   }
 
-  private static final int MAX_EXPRESSIONS_IN_FUNCTION = 50;
+  private final long maxExpressionsInFunction;
   // It is impossible (and hence a safe limit) for a single expression to have 100000 functions and
   // not hit
   // code size limits
@@ -110,7 +113,8 @@ public class ClassGenerator<T> {
       SignatureHolder signature,
       EvaluationVisitor eval,
       JDefinedClass clazz,
-      JCodeModel model)
+      JCodeModel model,
+      FunctionContext functionContext)
       throws JClassAlreadyExistsException {
     this.codeGenerator = codeGenerator;
     this.clazz = clazz;
@@ -119,6 +123,14 @@ public class ClassGenerator<T> {
     this.evaluationVisitor = eval;
     this.model = Preconditions.checkNotNull(model, "Code model object cannot be null.");
     this.cgen = new ConstantGenerator(this.clazz);
+    this.maxExpressionsInFunction =
+        Optional.ofNullable(functionContext)
+            .map(FunctionContext::getCompilationOptions)
+            .map(CompilationOptions::getFunctionExpressionCountThreshold)
+            .orElse(
+                ExecConstants.CODE_GEN_FUNCTION_EXPRESSION_COUNT_THRESHOLD
+                    .getDefault()
+                    .getNumVal());
     blocks = new LinkedList[sig.size()];
 
     for (int i = 0; i < sig.size(); i++) {
@@ -149,7 +161,8 @@ public class ClassGenerator<T> {
 
       innerClasses.put(
           innerClassName,
-          new ClassGenerator<>(codeGenerator, mappingSet, child, eval, innerClazz, model));
+          new ClassGenerator<>(
+              codeGenerator, mappingSet, child, eval, innerClazz, model, functionContext));
     }
   }
 
@@ -465,7 +478,7 @@ public class ClassGenerator<T> {
     for (LinkedList<SizedJBlock> b : blocks) {
       if (mode == BlockCreateMode.NEW_BLOCK
           || (mode == BlockCreateMode.NEW_IF_TOO_LARGE
-              && b.getLast().getCount() > MAX_EXPRESSIONS_IN_FUNCTION)) {
+              && b.getLast().getCount() > maxExpressionsInFunction)) {
         b.add(new SizedJBlock(new JBlock(true, true)));
         blockRotated = true;
       }
@@ -478,48 +491,49 @@ public class ClassGenerator<T> {
   void flushCode() {
     int i = 0;
     for (CodeGeneratorMethod method : sig) {
-      JMethod outer =
+      JMethod topMethod =
           clazz.method(JMod.PUBLIC, model._ref(method.getReturnType()), method.getMethodName());
       for (CodeGeneratorArgument arg : method) {
-        outer.param(arg.getType(), arg.getName());
+        topMethod.param(arg.getType(), arg.getName());
       }
       for (Class<?> c : method.getThrowsIterable()) {
-        outer._throws(model.ref(c));
+        topMethod._throws(model.ref(c));
       }
-      outer._throws(SchemaChangeException.class);
+      topMethod._throws(SchemaChangeException.class);
 
+      JMethod currentMethod = topMethod;
       int methodIndex = 0;
       int exprsInMethod = 0;
       boolean isVoidMethod = method.getReturnType() == void.class;
       for (SizedJBlock sb : blocks[i++]) {
         JBlock b = sb.getBlock();
         if (!b.isEmpty()) {
-          if (exprsInMethod > MAX_EXPRESSIONS_IN_FUNCTION) {
-            JMethod inner =
+          if (exprsInMethod > maxExpressionsInFunction) {
+            JMethod newMethod =
                 clazz.method(
                     JMod.PUBLIC,
                     model._ref(method.getReturnType()),
                     method.getMethodName() + methodIndex);
-            JInvocation methodCall = JExpr.invoke(inner);
+            JInvocation methodCall = JExpr.invoke(newMethod);
             for (CodeGeneratorArgument arg : method) {
-              inner.param(arg.getType(), arg.getName());
+              newMethod.param(arg.getType(), arg.getName());
               methodCall.arg(JExpr.direct(arg.getName()));
             }
             for (Class<?> c : method.getThrowsIterable()) {
-              inner._throws(model.ref(c));
+              newMethod._throws(model.ref(c));
             }
-            inner._throws(SchemaChangeException.class);
+            newMethod._throws(SchemaChangeException.class);
 
             if (isVoidMethod) {
-              outer.body().add(methodCall);
+              topMethod.body().add(methodCall);
             } else {
-              outer.body()._return(methodCall);
+              currentMethod.body()._return(methodCall);
             }
-            outer = inner;
+            currentMethod = newMethod;
             exprsInMethod = 0;
             ++methodIndex;
           }
-          outer.body().add(b);
+          currentMethod.body().add(b);
           exprsInMethod += sb.getCount();
         }
       }
@@ -560,14 +574,14 @@ public class ClassGenerator<T> {
 
   public HoldingContainer declare(CompleteType t, boolean includeNewInstance) {
     JType holderType = CodeModelArrowHelper.getHolderType(t, model);
-    JVar var;
+    JVar jvar;
     if (includeNewInstance) {
-      var = getEvalBlock().decl(holderType, "out" + index, JExpr._new(holderType));
+      jvar = getEvalBlock().decl(holderType, "out" + index, JExpr._new(holderType));
     } else {
-      var = getEvalBlock().decl(holderType, "out" + index);
+      jvar = getEvalBlock().decl(holderType, "out" + index);
     }
     index++;
-    return new HoldingContainer(t, var, var.ref("value"), var.ref("isSet"));
+    return new HoldingContainer(t, jvar, jvar.ref("value"), jvar.ref("isSet"));
   }
 
   public List<TypedFieldId> getWorkspaceTypes() {

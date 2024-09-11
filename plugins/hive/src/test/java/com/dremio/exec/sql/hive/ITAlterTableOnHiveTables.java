@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -36,22 +35,15 @@ import com.google.common.collect.ImmutableMap;
  * Tests for Alter Table commands on Iceberg tables in Hive catalog.
  */
 public class ITAlterTableOnHiveTables extends LazyDataGeneratingHiveTestBase {
-  private static AutoCloseable enableIcebergDmlSupportFlags;
   private static final String SCHEME = "file:///";
   private static String WAREHOUSE_LOCATION;
 
   @BeforeClass
   public static void setup() throws Exception {
-    enableIcebergDmlSupportFlags = enableIcebergDmlSupportFlag();
     WAREHOUSE_LOCATION = dataGenerator.getWhDir() + "/";
-    dataGenerator.updatePluginConfig((getSabotContext().getCatalogService()),
+    dataGenerator.updatePluginConfig(getCatalogService(),
       ImmutableMap.of(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, SCHEME + WAREHOUSE_LOCATION,
         HiveConfFactory.ENABLE_DML_TESTS_WITHOUT_LOCKING, "true"));
-  }
-
-  @AfterClass
-  public static void close() throws Exception {
-    enableIcebergDmlSupportFlags.close();
   }
 
   private static void setupTable(String tableName) throws Exception {

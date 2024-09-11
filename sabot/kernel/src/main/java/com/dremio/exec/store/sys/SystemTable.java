@@ -94,14 +94,14 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
   MEMORY(true, MemoryIterator.MemoryInfo.class, "memory") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return new MemoryIterator(sContext, context);
+      return new MemoryIterator(sContext);
     }
   },
 
   THREADS(true, ThreadsIterator.ThreadSummary.class, "threads") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return new ThreadsIterator(sContext, context);
+      return new ThreadsIterator(sContext);
     }
   },
 

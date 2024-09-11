@@ -18,7 +18,6 @@ package com.dremio.exec.maestro;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.PlanOnlyTestBase;
 import com.dremio.exec.maestro.planner.ExecutionPlanCreator;
@@ -28,9 +27,7 @@ import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.ExecutionPlanningResources;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.fragment.PlanningSet;
-import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
@@ -46,7 +43,6 @@ import com.dremio.service.execselector.ExecutorSelectorProvider;
 import java.util.List;
 import javax.inject.Provider;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 /** To test BasicResourceAllocator Foreman interactions */
 public class ResourceAllocationsTest extends PlanOnlyTestBase {
@@ -87,13 +83,7 @@ public class ResourceAllocationsTest extends PlanOnlyTestBase {
     final QueryContext queryContext = createContext(context);
     final PhysicalPlan plan = createPlan(sql, queryContext);
 
-    final PhysicalPlanReader pPlanReader =
-        new PhysicalPlanReader(
-            CLASSPATH_SCAN_RESULT,
-            new LogicalPlanPersistence(CLASSPATH_SCAN_RESULT),
-            CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-            DirectProvider.wrap(Mockito.mock(CatalogService.class)),
-            context);
+    final PhysicalPlanReader pPlanReader = context.getPlanReader();
 
     Provider<ClusterCoordinator> clusterCoordinatorProvider =
         DirectProvider.wrap(clusterCoordinator);

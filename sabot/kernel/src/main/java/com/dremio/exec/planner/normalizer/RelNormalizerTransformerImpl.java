@@ -16,11 +16,13 @@
 package com.dremio.exec.planner.normalizer;
 
 import com.dremio.exec.ops.PlannerCatalog;
+import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.HepPlannerRunner;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.events.NonIncrementalRefreshFunctionEvent;
+import com.dremio.exec.planner.events.FunctionDetectedEvent;
 import com.dremio.exec.planner.events.PlannerEventBus;
 import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.RedundantSortEliminator;
@@ -28,12 +30,16 @@ import com.dremio.exec.planner.logical.UncollectToFlattenConverter;
 import com.dremio.exec.planner.logical.ValuesRewriteShuttle;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.NonCacheableFunctionDetector;
-import com.dremio.exec.planner.sql.handlers.EmptyRelPropagator;
+import com.dremio.exec.planner.sql.RexCorrelVariableSchemaFixer;
+import com.dremio.exec.planner.sql.RexShuttleRelShuttle;
 import com.dremio.exec.planner.sql.handlers.PlanLogUtil;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.sql.SqlOperator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,59 +47,59 @@ public class RelNormalizerTransformerImpl implements RelNormalizerTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(RelNormalizerTransformerImpl.class);
   private final HepPlannerRunner hepPlannerRunner;
   private final NormalizerRuleSets normalizerRuleSets;
+  private final SubstitutionProvider substitutionProvider;
+  private final ViewExpansionContext viewExpansionContext;
   private final PlannerSettings plannerSettings;
   private final PlannerCatalog plannerCatalog;
+  private final PlannerEventBus plannerEventBus;
 
   public RelNormalizerTransformerImpl(
       HepPlannerRunner hepPlannerRunner,
       NormalizerRuleSets normalizerRuleSets,
+      SubstitutionProvider substitutionProvider,
+      ViewExpansionContext viewExpansionContext,
       PlannerSettings plannerSettings,
-      PlannerCatalog plannerCatalog) {
+      PlannerCatalog plannerCatalog,
+      PlannerEventBus plannerEventBus) {
     this.hepPlannerRunner = hepPlannerRunner;
     this.normalizerRuleSets = normalizerRuleSets;
+    this.substitutionProvider = substitutionProvider;
+    this.viewExpansionContext = viewExpansionContext;
     this.plannerSettings = plannerSettings;
     this.plannerCatalog = plannerCatalog;
+    this.plannerEventBus = plannerEventBus;
   }
 
   @Override
-  public PreSerializedQuery transform(RelNode relNode, AttemptObserver attemptObserver)
+  public RelNode transform(RelNode relNode, AttemptObserver attemptObserver)
       throws SqlUnsupportedException {
 
     try {
-      final PreSerializedQuery normalizedRel = transformPreSerialization(relNode);
+      final RelNode normalizedRel = transformPreSerialization(relNode, attemptObserver);
 
-      attemptObserver.planSerializable(normalizedRel.getPlan());
-      updateOriginalRoot(normalizedRel.getPlan());
+      attemptObserver.planSerializable(normalizedRel);
+      updateOriginalRoot(normalizedRel);
 
-      final RelNode expansionNodesRemoved = ExpansionNode.removeFromTree(normalizedRel.getPlan());
+      final RelNode expansionNodesRemoved = ExpansionNode.removeFromTree(normalizedRel);
       final RelNode normalizedRel2 = transformPostSerialization(expansionNodesRemoved);
 
       PlanLogUtil.log("INITIAL", normalizedRel2, LOGGER, null);
       attemptObserver.setNumJoinsInUserQuery(MoreRelOptUtil.countJoins(normalizedRel2));
 
-      return normalizedRel.withNewPlan(normalizedRel2);
+      return normalizedRel2;
     } finally {
       attemptObserver.tablesCollected(plannerCatalog.getAllRequestedTables());
     }
   }
 
   @Override
-  public PreSerializedQuery transformForCompactAndMaterializations(
-      RelNode relNode,
-      RelTransformer relTransformer,
-      AttemptObserver attemptObserver,
-      PlannerEventBus plannerEventBus)
+  public RelNode transformForReflection(
+      RelNode relNode, RelTransformer relTransformer, AttemptObserver attemptObserver)
       throws SqlUnsupportedException {
     try {
-      final PreSerializedQuery normalizedRel = transformPreSerialization(relNode);
+      final RelNode normalizedRel = transformPreSerialization(relNode, attemptObserver);
 
-      if (!normalizedRel
-          .getNonCacheableFunctionDetectorResults()
-          .isReflectionIncrementalRefreshable()) {
-        plannerEventBus.dispatch(NonIncrementalRefreshFunctionEvent.INSTANCE);
-      }
-
-      final RelNode transformed = relTransformer.transform(normalizedRel.getPlan());
+      final RelNode transformed = relTransformer.transform(normalizedRel);
 
       attemptObserver.planSerializable(transformed);
       updateOriginalRoot(transformed);
@@ -104,30 +110,38 @@ public class RelNormalizerTransformerImpl implements RelNormalizerTransformer {
       PlanLogUtil.log("INITIAL", normalizedRel2, LOGGER, null);
       attemptObserver.setNumJoinsInUserQuery(MoreRelOptUtil.countJoins(normalizedRel2));
 
-      return normalizedRel.withNewPlan(normalizedRel2);
+      return normalizedRel2;
     } finally {
       attemptObserver.tablesCollected(plannerCatalog.getAllRequestedTables());
     }
   }
 
   @Override
-  public PreSerializedQuery transformPreSerialization(RelNode relNode) {
+  public RelNode transformPreSerialization(RelNode relNode, AttemptObserver attemptObserver) {
     // This has to be the very first step, since it will expand RexSubqueries to Correlates and all
     // the other
     // transformations can't operate on the RelNode inside of RexSubquery.
     RelNode expanded =
         hepPlannerRunner.transform(relNode, normalizerRuleSets.createEntityExpansion());
-    RelNode valuesRewritten = ValuesRewriteShuttle.rewrite(expanded);
+    if (plannerSettings.options.getOption(PlannerSettings.FIX_CORRELATE_VARIABLE_SCHEMA)) {
+      expanded = RexCorrelVariableSchemaFixer.fixSchema(expanded);
+    }
+
+    RelNode drrsMatched =
+        DRRMatcher.match(expanded, substitutionProvider, viewExpansionContext, attemptObserver);
+    RelNode valuesRewritten = ValuesRewriteShuttle.rewrite(drrsMatched);
     // We don't have an execution for uncollect, so flatten needs to be part of the normalized
     // query.
     RelNode uncollectsReplaced = UncollectToFlattenConverter.convert(valuesRewritten);
     RelNode aggregateRewritten =
         hepPlannerRunner.transform(uncollectsReplaced, normalizerRuleSets.createAggregateRewrite());
-    NonCacheableFunctionDetector.Result result =
-        NonCacheableFunctionDetector.detect(aggregateRewritten);
+    // We need to do all this detection analysis before the reduce rules fire, since the function
+    // might get converted to a literal.
+    RelNode expandedButNotReduced = aggregateRewritten;
+    dispatchFunctions(expandedButNotReduced, plannerEventBus);
     RelNode reduced = reduce(aggregateRewritten);
 
-    return new PreSerializedQuery(reduced, result);
+    return reduced;
   }
 
   @Override
@@ -149,7 +163,7 @@ public class RelNormalizerTransformerImpl implements RelNormalizerTransformer {
         plannerSettings.isSortInJoinRemoverEnabled()
             ? RedundantSortEliminator.apply(reduced)
             : reduced;
-    return EmptyRelPropagator.propagateEmptyRel(reduced);
+    return reduced;
   }
 
   private RelNode preprocess(RelNode relNode) throws SqlUnsupportedException {
@@ -166,5 +180,21 @@ public class RelNormalizerTransformerImpl implements RelNormalizerTransformer {
     final DremioVolcanoPlanner volcanoPlanner =
         (DremioVolcanoPlanner) relNode.getCluster().getPlanner();
     volcanoPlanner.setOriginalRoot(relNode);
+  }
+
+  private static void dispatchFunctions(RelNode relNode, PlannerEventBus plannerEventBus) {
+    RexShuttleRelShuttle relShuttle =
+        new RexShuttleRelShuttle(
+            new RexShuttle() {
+              @Override
+              public RexNode visitCall(RexCall call) {
+                SqlOperator sqlOperator = call.getOperator();
+                FunctionDetectedEvent functionDetectedEvent =
+                    new FunctionDetectedEvent(sqlOperator);
+                plannerEventBus.dispatch(functionDetectedEvent);
+                return super.visitCall(call);
+              }
+            });
+    relNode.accept(relShuttle);
   }
 }

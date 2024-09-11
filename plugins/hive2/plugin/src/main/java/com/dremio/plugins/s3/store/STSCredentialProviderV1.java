@@ -19,6 +19,7 @@ import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.ACCESS_KEY_PR
 import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.ASSUMED_ROLE_CREDENTIALS_PROVIDER;
 import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.DREMIO_ASSUME_ROLE_PROVIDER;
 import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.EC2_METADATA_PROVIDER;
+import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.GLUE_ACCESS_KEY_PROVIDER;
 import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.GLUE_DREMIO_ASSUME_ROLE_PROVIDER;
 
 import com.amazonaws.auth.AWSCredentials;
@@ -29,6 +30,7 @@ import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.dremio.common.FSConstants;
 import com.dremio.exec.store.hive.GlueAWSCredentialsFactory;
+import com.dremio.exec.store.hive.GlueAWSCredentialsProvider;
 import com.dremio.exec.store.hive.GlueDremioAssumeRoleCredentialsProviderV1;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1;
 import com.google.common.base.Preconditions;
@@ -36,7 +38,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.UUID;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +56,8 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
 
     switch (assumeRoleProvider) {
       case ACCESS_KEY_PROVIDER:
-        awsCredentialsProvider = new SimpleAWSCredentialsProvider(conf);
+      case GLUE_ACCESS_KEY_PROVIDER:
+        awsCredentialsProvider = new GlueAWSCredentialsProvider(null, conf);
         break;
       case EC2_METADATA_PROVIDER:
         awsCredentialsProvider = InstanceProfileCredentialsProvider.getInstance();

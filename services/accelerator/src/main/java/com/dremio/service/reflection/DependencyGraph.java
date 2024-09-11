@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection;
 
+import com.dremio.service.reflection.DependencyEntry.DatasetDependency;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
 import com.dremio.service.reflection.proto.DependencyType;
 import com.dremio.service.reflection.proto.ReflectionDependencies;
@@ -23,8 +24,12 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.store.DependenciesStore;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.google.common.collect.MultimapBuilder;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
@@ -34,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Represents dependencies between reflections and datasets.
@@ -49,8 +55,11 @@ public class DependencyGraph {
 
   private final SetMultimap<ReflectionId, DependencyEntry> predecessors =
       MultimapBuilder.hashKeys().hashSetValues().build();
-  // note that we don't store successors of datasets
+  // note that we don't store successors of datasets in successors map
   private final SetMultimap<ReflectionId, ReflectionId> successors =
+      MultimapBuilder.hashKeys().hashSetValues().build();
+  // store successors of datasets in datasetSuccessors map
+  private final SetMultimap<String, ReflectionId> datasetSuccessors =
       MultimapBuilder.hashKeys().hashSetValues().build();
 
   DependencyGraph(DependenciesStore dependenciesStore) {
@@ -103,8 +112,20 @@ public class DependencyGraph {
     return ImmutableList.copyOf(predecessors.get(reflectionId));
   }
 
+  synchronized Set<DatasetDependency> getAllDatasetDependencies() {
+    return ImmutableSet.copyOf(
+        this.predecessors.values().stream()
+            .filter(entry -> entry.getType() == DependencyType.DATASET)
+            .map(entry -> ((DatasetDependency) entry))
+            .collect(Collectors.toSet()));
+  }
+
   synchronized List<ReflectionId> getSuccessors(final ReflectionId reflectionId) {
     return ImmutableList.copyOf(successors.get(reflectionId));
+  }
+
+  synchronized List<ReflectionId> getDatasetSuccessors(final String datasetId) {
+    return ImmutableList.copyOf(datasetSuccessors.get(datasetId));
   }
 
   synchronized Set<ReflectionId> getSubGraph(final ReflectionId reflectionId) {
@@ -122,7 +143,7 @@ public class DependencyGraph {
     return subGraph;
   }
 
-  private synchronized void setPredecessors(
+  synchronized void setPredecessors(
       final ReflectionId reflectionId, Set<DependencyEntry> dependencies)
       throws DependencyException {
     // make sure we are not causing any cyclic dependency.
@@ -145,12 +166,16 @@ public class DependencyGraph {
     for (DependencyEntry entry : removed) {
       if (entry.getType() == DependencyType.REFLECTION) {
         successors.remove(((ReflectionDependency) entry).getReflectionId(), reflectionId);
+      } else if (entry.getType() == DependencyType.DATASET) {
+        datasetSuccessors.remove(entry.getId(), reflectionId);
       }
     }
     final Set<DependencyEntry> added = Sets.difference(dependencies, previousPredecessors);
     for (DependencyEntry entry : added) {
       if (entry.getType() == DependencyType.REFLECTION) {
         successors.put(((ReflectionDependency) entry).getReflectionId(), reflectionId);
+      } else if (entry.getType() == DependencyType.DATASET) {
+        datasetSuccessors.put(entry.getId(), reflectionId);
       }
     }
 
@@ -194,12 +219,73 @@ public class DependencyGraph {
         successors.remove(((ReflectionDependency) predecessor).getReflectionId(), id);
         // successor depends on all id predecessors
         successors.putAll(((ReflectionDependency) predecessor).getReflectionId(), sc);
+      } else if (predecessor.getType() == DependencyType.DATASET) {
+        datasetSuccessors.remove(predecessor.getId(), id);
+        datasetSuccessors.putAll(predecessor.getId(), sc);
       }
     }
 
     successors.removeAll(id);
     predecessors.removeAll(id);
     dependenciesStore.delete(id);
+  }
+
+  /**
+   * Computes all reflections that will be refreshed if a refresh request is placed for given
+   * reflectionId. Also calculates the batch number for each output reflection, representing the
+   * depth from reflection's upstream base tables in the Dependency Graph.
+   *
+   * @param reflectionId
+   * @return Map of reflectionId and its batch number
+   */
+  public ImmutableMap<ReflectionId, Integer> computeReflectionLineage(ReflectionId reflectionId) {
+    Set<ReflectionId> bottomReflections = Sets.newHashSet();
+    Map<ReflectionId, Integer> batchNumbers = Maps.newHashMap();
+    Queue<ReflectionId> queue = new ArrayDeque<>();
+
+    // Get the successors of all base tables (reflections that directly depend on base tables).
+    queue.add(reflectionId);
+    while (!queue.isEmpty()) {
+      final ReflectionId current = queue.remove();
+      List<DependencyEntry> dependencies = getPredecessors(current);
+      for (DependencyEntry dependency : dependencies) {
+        if (dependency.getType() == DependencyType.REFLECTION) {
+          queue.add(((ReflectionDependency) dependency).getReflectionId());
+        } else if (dependency.getType() == DependencyType.DATASET) {
+          bottomReflections.addAll(getDatasetSuccessors(dependency.getId()));
+        }
+      }
+    }
+
+    // Compute the batch number as the topology sort order for each reflection:
+    // - Initially, reflections that directly depend on base tables have batch number of 0
+    // - Reflection's batch number = max(reflection's predecessors' batch number) + 1
+    bottomReflections.forEach(rId -> batchNumbers.put(rId, 0));
+    queue.addAll(bottomReflections);
+    while (!queue.isEmpty()) {
+      final ReflectionId current = queue.remove();
+      List<ReflectionId> successors = getSuccessors(current);
+      for (ReflectionId successor : successors) {
+        batchNumbers.compute(
+            successor,
+            (k, v) -> {
+              int maxParent =
+                  getPredecessors(k).stream()
+                      .filter(
+                          (Predicate<DependencyEntry>)
+                              entry -> entry.getType() == DependencyType.REFLECTION)
+                      .map(entry -> ((ReflectionDependency) entry).getReflectionId())
+                      .map(reflection -> batchNumbers.getOrDefault(reflection, 0))
+                      .mapToInt(Integer::intValue)
+                      .max()
+                      .orElse(0);
+              return maxParent + 1;
+            });
+        queue.add(successor);
+      }
+    }
+
+    return ImmutableMap.copyOf(batchNumbers);
   }
 
   /** Something went wrong while dealing with dependencies */

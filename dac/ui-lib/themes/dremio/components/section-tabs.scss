@@ -27,10 +27,15 @@
   padding-inline: 8px;
   text-decoration: none !important;
 
+  &:hover {
+    color: var(--text--brand);
+  }
+
   &[aria-current="true"],
-  &[aria-current="page"] {
-    border-bottom-color: var(--dremio--color--link);
-    color: var(--dremio--color--link);
+  &[aria-current="page"],
+  &[aria-selected="true"] {
+    border-bottom-color: var(--border--brand--solid);
+    color: var(--text--brand);
     font-weight: 600;
   }
 }

@@ -21,6 +21,7 @@ import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -53,7 +54,9 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
               (SqlLiteral) operands[6],
               (SqlLiteral) operands[7],
               (SqlNodeList) operands[8],
-              (SqlNodeList) operands[9]);
+              (SqlNodeList) operands[9],
+              operands[10],
+              (SqlLiteral) operands[11]);
         }
       };
   private SqlIdentifier table;
@@ -66,6 +69,8 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
   private SqlLiteral partitionRefresh;
   private SqlNodeList filesList;
   private SqlNodeList partitionList;
+  private SqlNode fileNameRegex;
+  private SqlLiteral errorOnConcurrentRefresh;
   private Map<String, String> partitionKVMap;
 
   /** Creates a SqlRefreshDataset. */
@@ -80,7 +85,9 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
       SqlLiteral fileRefresh,
       SqlLiteral partitionRefresh,
       SqlNodeList filesList,
-      SqlNodeList partitionList) {
+      SqlNodeList partitionList,
+      SqlNode fileNameRegex,
+      SqlLiteral errorOnConcurrentRefresh) {
     super(pos);
     this.table = table;
     this.deleteUnavail = deleteUnavail;
@@ -92,6 +99,8 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
     this.partitionRefresh = partitionRefresh;
     this.filesList = filesList;
     this.partitionList = partitionList;
+    this.fileNameRegex = fileNameRegex;
+    this.errorOnConcurrentRefresh = errorOnConcurrentRefresh;
     setPartitionKVMap();
   }
 
@@ -138,6 +147,11 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
         }
       }
     }
+    if (getFileNameRegex().isPresent()) {
+      writer.keyword("FOR");
+      writer.keyword("REGEX");
+      fileNameRegex.unparse(writer, leftPrec, rightPrec);
+    }
 
     if (promotion.getValue() != null) {
       if (promotion.booleanValue()) {
@@ -165,6 +179,15 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
       }
       writer.keyword("WHEN");
       writer.keyword("MISSING");
+    }
+
+    if (errorOnConcurrentRefresh.getValue() != null) {
+      if (errorOnConcurrentRefresh.booleanValue()) {
+        writer.keyword("ERROR");
+        writer.keyword("ON");
+        writer.keyword("CONCURRENT");
+        writer.keyword("REFRESH");
+      }
     }
   }
 
@@ -209,6 +232,12 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
         partitionList = (SqlNodeList) operand;
         setPartitionKVMap();
         break;
+      case 10:
+        fileNameRegex = (SqlLiteral) operand;
+        break;
+      case 11:
+        errorOnConcurrentRefresh = (SqlLiteral) operand;
+        break;
       default:
         throw new AssertionError(i);
     }
@@ -231,7 +260,9 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
         fileRefresh,
         partitionRefresh,
         filesList,
-        partitionList);
+        partitionList,
+        fileNameRegex,
+        errorOnConcurrentRefresh);
   }
 
   public SqlIdentifier getTable() {
@@ -274,6 +305,10 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
     return partitionList;
   }
 
+  public Optional<String> getFileNameRegex() {
+    return Optional.ofNullable(fileNameRegex).map(p -> ((SqlLiteral) p).toValue());
+  }
+
   public List<String> getFileNames() {
     List<String> fileNames =
         filesList.getList().stream()
@@ -304,6 +339,10 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
 
   public boolean isPartialRefresh() {
     return !getFileNames().isEmpty() || !getPartition().isEmpty();
+  }
+
+  public boolean errorOnConcurrentRefresh() {
+    return errorOnConcurrentRefresh.getValue() != null && errorOnConcurrentRefresh.booleanValue();
   }
 
   @Override

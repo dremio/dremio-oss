@@ -94,7 +94,12 @@ public class SimpleProjector implements AutoCloseable {
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
     this.projector.setup(
-        context.getFunctionContext(), inputVectors, outputVectors, transfers, name -> null);
+        context.getFunctionContext(),
+        inputVectors,
+        outputVectors,
+        transfers,
+        name -> null,
+        projectorOptions);
     javaCodeGenWatch.stop();
     OperatorStats stats = context.getStats();
     stats.addLongStat(

@@ -29,7 +29,6 @@ import {
   PARTITION_TRANSFORMATION_UPPER_LIMIT,
 } from "@app/exports/components/PartitionTransformation/PartitionTransformationUtils";
 import { typeToIconType } from "@app/constants/DataTypes";
-import FontIcon from "@app/components/Icon/FontIcon";
 
 type PartitionTransformationDialogProps = {
   columnName: string;
@@ -40,7 +39,7 @@ type PartitionTransformationDialogProps = {
   defaultValue?: number;
   setPartitionTransformation: (
     transformType: PartitionTransformations,
-    count?: number
+    count?: number,
   ) => void;
   modalContainer: {
     open: () => void;
@@ -89,7 +88,9 @@ function PartitionTransformationDialog({
                   : "Truncate"
               }`}
             />
-            <FontIcon type={typeToIconType[columnType]} />
+            <dremio-icon
+              name={`data-types/${typeToIconType[columnType]}`}
+            ></dremio-icon>
             <span>{columnName}</span>
           </>
         }

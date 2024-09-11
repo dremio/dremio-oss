@@ -53,6 +53,10 @@ public class ZkTestServerRule extends ExternalResource {
     testingServer.closeServer();
   }
 
+  public void stopServer() throws IOException {
+    testingServer.stopServer();
+  }
+
   public int getPort() {
     return testingServer.getPort();
   }

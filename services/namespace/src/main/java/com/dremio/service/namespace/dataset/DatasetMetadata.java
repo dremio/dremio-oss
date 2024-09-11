@@ -21,6 +21,7 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.EntityId;
+import com.google.common.base.Objects;
 import io.protostuff.ByteString;
 import java.util.List;
 
@@ -104,5 +105,39 @@ public final class DatasetMetadata {
 
   public ByteString getRecordSchema() {
     return recordSchema;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    DatasetMetadata that = (DatasetMetadata) o;
+    return Objects.equal(id, that.id)
+        && Objects.equal(name, that.name)
+        && Objects.equal(owner, that.owner)
+        && type == that.type
+        && Objects.equal(fullPath, that.fullPath)
+        && Objects.equal(virtualDataset, that.virtualDataset)
+        && Objects.equal(physicalDataset, that.physicalDataset)
+        && Objects.equal(readDefinition, that.readDefinition)
+        && Objects.equal(recordSchema, that.recordSchema);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(
+        id,
+        name,
+        owner,
+        type,
+        fullPath,
+        virtualDataset,
+        physicalDataset,
+        readDefinition,
+        recordSchema);
   }
 }

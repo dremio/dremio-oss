@@ -21,6 +21,8 @@ const numbersInWeek = ["1", "2", "3", "4", "5", "6", "7"];
 export const cronParser = (cron: string) => {
   let scheduleType;
   const cronValues = cron.split(" ");
+
+  if (cronValues.length === 5) cronValues.unshift("0"); // convert Unix cron to Spring cron
   let [, cronMinute, cronHour, , , cronDayOfWeek] = cronValues;
 
   if (cronDayOfWeek !== "*" && cronDayOfWeek !== "?") {
@@ -88,19 +90,24 @@ type CronGeneratorProps = {
 };
 
 // Generate the cron, evaluating the time and day of week
-export const cronGenerator = (options: CronGeneratorProps) => {
+export const cronGenerator = (
+  options: CronGeneratorProps,
+  isUnixCron?: boolean,
+) => {
   const { minute, hour, weekValues, scheduleType } = options;
 
+  const seconds = isUnixCron ? "" : "0 "; // Unix cron doesn't have seconds value, Spring cron does- https://stackoverflow.com/a/57426242
+
   if (scheduleType === "@day") {
-    return `0 ${minute} ${hour} * * *`;
+    return `${seconds}${minute} ${hour} * * *`;
   }
 
   if (scheduleType === "@week") {
     const weekdays = weekValues && weekValues.join();
     const star = "*";
     const value = weekdays ? weekdays : star;
-    return `0 ${minute} ${hour} * * ${value}`;
+    return `${seconds}${minute} ${hour} * * ${value}`;
   }
 
-  return "0 * * * * *";
+  return `${seconds}* * * * *`;
 };

@@ -40,7 +40,6 @@ public class ITCreateViewHandler extends BaseTestQuery {
   @BeforeClass
   public static void beforeClass() {
     table = IcebergTestTables.NATION.get();
-    table.enableIcebergSystemOptions();
   }
 
   @AfterClass

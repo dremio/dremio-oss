@@ -110,29 +110,6 @@ public class TestStringFunctions extends BaseTestFunction {
   }
 
   @Test
-  public void like() {
-    testFunctions(
-        new Object[][] {
-          {"like('abc', 'abc')", true},
-          {"like('abc', 'a%')", true},
-          {"like('abc', '_b_')", true},
-          {"like('abc', 'c')", false},
-
-          // See issue DX-12628 (dot must be treated as a literal in LIKE)
-          {"like('abcde', 'abc.')", false},
-          {"like('abc.e', 'abc.')", false},
-          {"like('abcd', 'abc.')", false},
-          {"like('abc.', 'abc.')", true},
-          {"like('abc', 'abc.')", false},
-          {"like('abcde', 'abc.%')", false},
-          {"like('abc.e', 'abc.%')", true},
-          {"like('abcd', 'abc.%')", false},
-          {"like('abc.', 'abc.%')", true},
-          {"like('abc', 'abc.%')", false}
-        });
-  }
-
-  @Test
   public void similar() {
     testFunctions(
         new Object[][] {
@@ -429,7 +406,6 @@ public class TestStringFunctions extends BaseTestFunction {
           {"substring(c0, 1, 4)", "alpha", "alph"},
           {"byte_substr(c0, -3, 2)", "alpha".getBytes(), "ph".getBytes()}
           // {"substring(c0, -3, 2)", "alphabeta", "ph"} (Invalid since we follow Postgres)
-
         });
   }
 

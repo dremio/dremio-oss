@@ -667,7 +667,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
         }
         t.append(OVERFLOW_STRING.getBytes(), 0, OVERFLOW_STRING.getBytes().length);
       }
-      outVector.set(targetStartIndex + rowGroup, t.getBytes(), 0, t.getLength());
+      outVector.set(targetStartIndex + rowGroup, t.getBytes(), 0, (int) t.getLength());
     }
     outVector.setValueCount(targetStartIndex + numRecords);
   }

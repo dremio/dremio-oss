@@ -67,7 +67,11 @@ public class AccelerationWrapper {
   }
 
   public Long getRefreshChainStartTime(String layoutId) {
-    return relationshipMap.get(layoutId).getMaterialization().getRefreshChainStartTime();
+    ReflectionRelationship relationship = relationshipMap.getOrDefault(layoutId, null);
+    if (relationship == null || relationship.getMaterialization() == null) {
+      return null;
+    }
+    return relationship.getMaterialization().getRefreshChainStartTime();
   }
 
   public List<ReflectionExplanationUI> getHintsForLayoutId(String layoutId) {

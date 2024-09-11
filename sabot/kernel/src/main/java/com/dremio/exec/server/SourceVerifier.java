@@ -15,15 +15,15 @@
  */
 package com.dremio.exec.server;
 
-import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionManager;
 
 /** Interface which verifies a source type is supported or not. */
 public interface SourceVerifier {
-  boolean isSourceSupported(String sourceName, SystemOptionManager systemOptionManager);
+  boolean isSourceSupported(String sourceName, OptionManager optionManager);
 
   /** NO_OP implementation */
   SourceVerifier NO_OP =
-      (sourceName, systemOptionManager) -> {
+      (sourceName, optionManager) -> {
         return true;
       };
 }

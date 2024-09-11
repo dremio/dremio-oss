@@ -24,7 +24,7 @@ import java.util.List;
 /** a parent class and its implementations that was specifically searched for during scanning */
 public final class ParentClassDescriptor {
   private final String name;
-  private final List<ChildClassDescriptor> children;
+  private List<ChildClassDescriptor> children;
 
   @JsonCreator
   public ParentClassDescriptor(
@@ -46,6 +46,10 @@ public final class ParentClassDescriptor {
    */
   public List<ChildClassDescriptor> getChildren() {
     return children;
+  }
+
+  public void updateChildren(List<ChildClassDescriptor> children) {
+    this.children = unmodifiableList(children);
   }
 
   @Override

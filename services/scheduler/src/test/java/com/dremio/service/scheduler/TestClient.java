@@ -41,10 +41,23 @@ final class TestClient implements AutoCloseable {
   private final ClusteredSingletonTaskScheduler singletonScheduler;
 
   TestClient(int clientNum, String connectString) {
-    this(clientNum, connectString, "test-version");
+    this(clientNum, connectString, "test-version", 0, 0);
+  }
+
+  TestClient(int clientNum, String connectString, int weightTolerance, int balancingPeriod) {
+    this(clientNum, connectString, "test-version", weightTolerance, balancingPeriod);
   }
 
   TestClient(int clientNum, String connectString, String dremioVersion) {
+    this(clientNum, connectString, dremioVersion, 0, 0);
+  }
+
+  TestClient(
+      int clientNum,
+      String connectString,
+      String dremioVersion,
+      int weightTolerance,
+      int balancingPeriod) {
     try {
       clusterCoordinator =
           new ZKClusterCoordinator(
@@ -62,12 +75,23 @@ final class TestClient implements AutoCloseable {
               .build();
       final ScheduleTaskGroup defaultConfig = ScheduleTaskGroup.create("scheduler", 10);
       singletonScheduler =
-          new ClusteredSingletonTaskScheduler(
-              defaultConfig,
-              SERVICE_ROOT_PATH,
-              DirectProvider.wrap(clusterCoordinator),
-              DirectProvider.wrap(endpoint),
-              1);
+          (weightTolerance <= 0)
+              ? new ClusteredSingletonTaskScheduler(
+                  defaultConfig,
+                  SERVICE_ROOT_PATH,
+                  DirectProvider.wrap(clusterCoordinator),
+                  DirectProvider.wrap(endpoint),
+                  1)
+              : new ClusteredSingletonTaskScheduler(
+                  defaultConfig,
+                  SERVICE_ROOT_PATH,
+                  DirectProvider.wrap(clusterCoordinator),
+                  DirectProvider.wrap(endpoint),
+                  false,
+                  1,
+                  balancingPeriod,
+                  weightTolerance);
+
       singletonScheduler.start();
     } catch (Exception e) {
       throw new RuntimeException(e);

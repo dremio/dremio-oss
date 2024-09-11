@@ -12,6 +12,7 @@
     "noEmit": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
+      "#oss/*": ["./src/*"],
       "@app/*": ["./src/*"],
       "@inject/*": ["./src/*", "./src/stubModule.js"],
       "dyn-load/*": ["./src/*"]

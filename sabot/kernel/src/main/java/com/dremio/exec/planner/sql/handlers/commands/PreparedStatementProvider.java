@@ -94,7 +94,8 @@ public class PreparedStatementProvider {
       ServerPreparedStatementState handle,
       QueryId queryId,
       String catalogName,
-      UserProtos.RecordBatchFormat recordBatchFormat) {
+      UserProtos.RecordBatchFormat recordBatchFormat,
+      BatchSchema parameterList) {
     final CreatePreparedStatementResp.Builder respBuilder =
         CreatePreparedStatementResp.newBuilder();
     final PreparedStatement.Builder prepStmtBuilder = PreparedStatement.newBuilder();
@@ -119,6 +120,12 @@ public class PreparedStatementProvider {
 
     for (Field field : batchSchema) {
       prepStmtBuilder.addColumns(serializeColumn(field, catalogName, completeTypeToSqlTypeNameMap));
+    }
+
+    // get serialized column type for all the parameters
+    for (Field field : parameterList) {
+      prepStmtBuilder.addParameters(
+          serializeColumn(field, catalogName, completeTypeToSqlTypeNameMap));
     }
 
     respBuilder.setStatus(RequestStatus.OK);

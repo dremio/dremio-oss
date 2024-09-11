@@ -31,6 +31,7 @@ export * from "./IconButton";
 export * from "./Input";
 export * from "./FloatingContainer";
 export * from "./mantineTheme";
+export * from "./MultiCheckboxPopover/MultiCheckboxPopover";
 export * from "./PasswordInput";
 export * from "./Popover";
 export * from "./ModalContainer/ModalContainer";

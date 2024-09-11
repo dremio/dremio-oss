@@ -41,18 +41,16 @@ import org.apache.calcite.sql.util.SqlVisitor;
 public class CompoundIdentifierConverter extends SqlShuttle {
 
   private boolean enableComplex = false;
-  private final boolean withCalciteComplexTypeSupport;
 
-  public CompoundIdentifierConverter(boolean withCalciteComplexTypeSupport) {
+  public CompoundIdentifierConverter() {
     super();
-    this.withCalciteComplexTypeSupport = withCalciteComplexTypeSupport;
   }
 
   @Override
   public SqlNode visit(SqlIdentifier id) {
     if (id instanceof CompoundIdentifier) {
       if (enableComplex) {
-        return ((CompoundIdentifier) id).getAsSqlNode(withCalciteComplexTypeSupport);
+        return ((CompoundIdentifier) id).getAsSqlNode();
       }
       return ((CompoundIdentifier) id).getAsCompoundIdentifier();
     } else {
@@ -116,7 +114,6 @@ public class CompoundIdentifierConverter extends SqlShuttle {
       if (operand == null) {
         return null;
       }
-
       boolean localEnableComplex = enableComplex;
       if (rewriteTypes != null) {
         switch (rewriteTypes[i]) {
@@ -189,7 +186,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlDropReflection.class, R(D, D, D));
     rules.put(SqlAccelToggle.class, R(D, D, D, D));
     rules.put(SqlForgetTable.class, R(D));
-    rules.put(SqlRefreshDataset.class, R(D, D, D, D, D, D, D, D, D, D));
+    rules.put(SqlRefreshDataset.class, R(D, D, D, D, D, D, D, D, D, D, D, D));
     rules.put(SqlRefreshTable.class, R(D, D, D, D, D, D, D, D, D, D));
     rules.put(SqlAddExternalReflection.class, R(D, D, D));
     rules.put(SqlRefreshSourceStatus.class, R(D));
@@ -206,6 +203,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlAnalyzeTableStatistics.class, R(D, D, D));
     rules.put(SqlAlterDatasetReflectionRouting.class, R(D, D, D, D, D));
     rules.put(SqlOptimize.class, R(D, D, D, D, D, D, E));
+    rules.put(SqlClearSourcePermissionCache.class, R(D));
 
     REWRITE_RULES = ImmutableMap.copyOf(rules);
   }

@@ -24,6 +24,7 @@
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true
@@ -36,6 +37,7 @@
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true
@@ -48,6 +50,7 @@
      -
       className: "SqlStringContextVariable"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -60,12 +63,14 @@
      -
       className: "SqlCurrentDateFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -78,12 +83,14 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -96,6 +103,7 @@
      -
       className: "SqlStringContextVariable"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -108,6 +116,7 @@
      -
       className: "SqlStringContextVariable"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -120,12 +129,14 @@
      -
       className: "SqlStringContextVariable"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -138,12 +149,14 @@
      -
       className: "SqlAbstractTimeFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -156,12 +169,14 @@
      -
       className: "SqlAbstractTimeFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -174,12 +189,14 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -192,12 +209,14 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -210,6 +229,7 @@
      -
       className: "SqlStringContextVariable"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -222,6 +242,7 @@
      -
       className: "SqlFlattenOperator"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: true
       reflectionAllowed: true
@@ -234,6 +255,7 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -246,12 +268,14 @@
      -
       className: ""
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -264,12 +288,14 @@
      -
       className: "SqlAbstractTimeFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -282,12 +308,14 @@
      -
       className: "SqlAbstractTimeFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -300,12 +328,14 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -318,12 +348,14 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -336,30 +368,35 @@
      -
       className: "DremioSqlFunction"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "SqlRandFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "GANDIVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: false
       planCacheAllowed: true
       reflectionAllowed: true
@@ -372,18 +409,21 @@
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "GANDIVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: false
       planCacheAllowed: true
       reflectionAllowed: true
@@ -396,6 +436,7 @@
      -
       className: "SqlRandIntegerFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -408,6 +449,7 @@
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true
@@ -420,18 +462,21 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "SqlStringContextVariable"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -444,12 +489,14 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -462,18 +509,21 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "SqlStringContextVariable"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -486,12 +536,14 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -504,12 +556,14 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -522,24 +576,28 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: true
@@ -552,18 +610,21 @@
      -
       className: "DremioSqlFunction"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "SqlStringContextVariable"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: true
+      incrementalRefreshAllowed: false
       nonDeterministic: false
       planCacheAllowed: false
       reflectionAllowed: false
@@ -576,6 +637,7 @@
      -
       className: "JAVA - SqlFunctionImpl"
       dynamic: false
+      incrementalRefreshAllowed: true
       nonDeterministic: true
       planCacheAllowed: false
       reflectionAllowed: true

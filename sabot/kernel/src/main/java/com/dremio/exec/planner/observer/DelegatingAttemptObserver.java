@@ -17,13 +17,14 @@ package com.dremio.exec.planner.observer;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.plancache.CachedPlan;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
@@ -37,6 +38,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import java.util.List;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -71,6 +73,11 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   @Override
   public void planStart(String rawPlan) {
     observer.planStart(rawPlan);
+  }
+
+  @Override
+  public void resourcesPlanned(GroupResourceInformation resourceInformation, long millisTaken) {
+    observer.resourcesPlanned(resourceInformation, millisTaken);
   }
 
   @Override
@@ -233,13 +240,13 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void recordsProcessed(long recordCount) {
-    observer.recordsProcessed(recordCount);
+  public void recordsOutput(CoordinationProtos.NodeEndpoint endpoint, long recordCount) {
+    observer.recordsOutput(endpoint, recordCount);
   }
 
   @Override
-  public void recordsOutput(long recordCount) {
-    observer.recordsOutput(recordCount);
+  public void outputLimited() {
+    observer.outputLimited();
   }
 
   @Override
@@ -296,5 +303,10 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   @Override
   public void setNumJoinsInFinalPrel(Integer joins) {
     observer.setNumJoinsInFinalPrel(joins);
+  }
+
+  @Override
+  public void putProfileFailed() {
+    observer.putProfileFailed();
   }
 }

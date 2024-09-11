@@ -16,7 +16,7 @@
 package com.dremio.exec.store.iceberg.manifestwriter;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -146,7 +146,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               any(),
               operationType.capture(),
               any(),
-              rejectedRecordsCaptor.capture());
+              rejectedRecordsCaptor.capture(),
+              any());
 
       assertThat(
               operationType.getAllValues().stream()
@@ -288,7 +289,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               any(),
               operationType.capture(),
               any(),
-              rejectedRecordsCaptor.capture());
+              rejectedRecordsCaptor.capture(),
+              any());
 
       refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
       for (int i = 0; i < 3; i++) {
@@ -308,7 +310,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               any(),
               operationType.capture(),
               any(),
-              rejectedRecordsCaptor.capture());
+              rejectedRecordsCaptor.capture(),
+              any());
 
       ManifestFile manifestFile2 =
           getManifestFile(icebergMetadataCaptor.getValue(), operationType.getValue());
@@ -385,7 +388,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               any(),
               any(),
               any(),
-              rejectedRecordsCaptor.capture());
+              rejectedRecordsCaptor.capture(),
+              any());
 
       refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
       for (int i = 0; i < 3; i++) {
@@ -454,7 +458,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               any(),
               operationType.capture(),
               any(),
-              rejectedRecordsCaptor.capture());
+              rejectedRecordsCaptor.capture(),
+              any());
 
       ManifestFile manifestFile =
           getManifestFile(icebergMetadataCaptor.getValue(), operationType.getValue());
@@ -537,7 +542,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               any(),
               any(),
               any(),
-              rejectedRecordsCaptor.capture());
+              rejectedRecordsCaptor.capture(),
+              any());
 
       File metadataFolder = new File(tempFolderLoc, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
@@ -830,7 +836,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               partition,
               operationTypeValue,
               partitionValue,
-              rejectedRecordCount) -> {
+              rejectedRecordCount,
+              referencedDataFiles) -> {
             try {
               IcebergMetadataInformation icebergMetadata =
                   IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
@@ -897,7 +904,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               partition,
               operationTypeValue,
               partitionValue,
-              rejectedRecordCount) -> {
+              rejectedRecordCount,
+              referencedDataFiles) -> {
             try {
               assertNull(schemaBytes);
               IcebergMetadataInformation icebergMetadata =
@@ -958,7 +966,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               partition,
               operationTypeValue,
               partitionValue,
-              rejectedRecordCount) -> {
+              rejectedRecordCount,
+              referencedDataFiles) -> {
             try {
               IcebergMetadataInformation icebergMetadata =
                   IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
@@ -1042,7 +1051,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               partition,
               operationTypeValue,
               partitionValue,
-              rejectedRecordCount) -> {
+              rejectedRecordCount,
+              referencedDataFiles) -> {
             try {
               IcebergMetadataInformation icebergMetadata =
                   IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);

@@ -363,7 +363,7 @@ public class SimpleUserService implements UserService, Service {
       }
 
       return AuthResult.builder()
-          .setUserName(userName)
+          .setUserName(userInfo.getConfig().getUserName())
           .setUserId(userInfo.getConfig().getUid().getId())
           .build();
     } catch (InvalidKeySpecException ikse) {
@@ -661,7 +661,7 @@ public class SimpleUserService implements UserService, Service {
     userStore
         .get()
         .find()
-        .forEach(record -> userStore.get().put(record.getKey(), record.getValue()));
+        .forEach(document -> userStore.get().put(document.getKey(), document.getValue()));
   }
 
   private static final class UserVersionExtractor implements VersionExtractor<UserInfo> {

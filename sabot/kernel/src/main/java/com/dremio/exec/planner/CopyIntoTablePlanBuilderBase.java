@@ -19,13 +19,17 @@ import static com.dremio.common.utils.PathUtils.parseFullPath;
 import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.CopyOption.ON_ERROR;
 import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.OnErrorAction.CONTINUE;
 import static com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext.OnErrorAction.SKIP_FILE;
+import static com.dremio.exec.store.metadatarefresh.dirlisting.DirListingUtils.addFileNameRegexFilter;
 import static java.util.stream.Collectors.toList;
 
+import com.dremio.catalog.exception.SourceDoesNotExistException;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.connector.metadata.DatasetNotFoundException;
 import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
@@ -37,15 +41,17 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.config.CopyIntoExtendedProperties;
+import com.dremio.exec.physical.config.CopyIntoExtendedProperties.PropertyKey;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.physical.config.SimpleQueryContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
-import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.physical.config.copyinto.CopyIntoTransformationProperties;
 import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.planner.logical.ParseContext;
+import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.DistributionTrait;
-import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
@@ -56,6 +62,7 @@ import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.PartitionChunkListingImpl;
+import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.TableMetadata;
@@ -64,7 +71,6 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
 import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
-import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.exec.store.metadatarefresh.RefreshExecTableMetadata;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingScanPrel;
 import com.dremio.io.file.FileSystem;
@@ -92,25 +98,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.util.Pair;
 
 public abstract class CopyIntoTablePlanBuilderBase {
   private static final org.slf4j.Logger logger =
@@ -136,13 +135,16 @@ public abstract class CopyIntoTablePlanBuilderBase {
   protected final ExtendedFormatOptions extendedFormatOptions;
   protected final CopyIntoQueryProperties queryProperties;
   protected final SimpleQueryContext queryContext;
+  protected final CopyIntoTransformationProperties transformationProperties;
 
   /***
    * Expand plans for 'COPY INTO' command
    */
   public CopyIntoTablePlanBuilderBase(
       RelOptTable targetTable,
+      RelNode relNode,
       RelDataType rowType,
+      RelDataType transformationsRowType,
       RelOptCluster cluster,
       RelTraitSet traitSet,
       TableMetadata tableMetadata,
@@ -170,15 +172,11 @@ public abstract class CopyIntoTablePlanBuilderBase {
     ManagedStoragePlugin storagePlugin =
         context.getCatalogService().getManagedSource(sourceLocationNSKey.getRoot());
     if (storagePlugin == null) {
-      throw UserException.invalidMetadataError()
-          .message("Source '%s' not found.", sourceLocationNSKey.getRoot())
-          .buildSilently();
+      throw getSourceNotFoundException(sourceLocationNSKey.getRoot());
     }
     this.storagePluginId = storagePlugin.getId();
     if (storagePluginId == null) {
-      throw UserException.invalidMetadataError()
-          .message("Source '%s' not found.", sourceLocationNSKey.getRoot())
-          .buildSilently();
+      throw getSourceNotFoundException(sourceLocationNSKey.getRoot());
     }
 
     this.plugin = AbstractRefreshPlanBuilder.getPlugin(catalog, sourceLocationNSKey);
@@ -225,9 +223,90 @@ public abstract class CopyIntoTablePlanBuilderBase {
           .setOption(
               OptionValue.createBoolean(
                   OptionValue.OptionType.QUERY,
-                  ExecConstants.DISABLE_C3_CACHE.getOptionName(),
-                  true));
+                  ExecConstants.ENABLE_USING_C3_CACHE.getOptionName(),
+                  false));
     }
+
+    this.transformationProperties =
+        getTransformationProperties(
+            context,
+            relNode,
+            transformationsRowType,
+            copyIntoTableContext.getTransformationColNames(),
+            copyIntoTableContext.getMappings(),
+            cluster.getRexBuilder());
+  }
+
+  /**
+   * Retrieves the transformation properties for the "Copy Into" operation. This method prepares the
+   * transformation expressions and schema based on the provided {@link RelNode} and {@link
+   * RelDataType} if the transformations are enabled in the context options.
+   *
+   * @param context The optimizer rules context containing planner settings and options.
+   * @param relNode The relational node representing the logical plan.
+   * @param transformationRowType The row type for the transformations.
+   * @param transformationColNames The name of the columns involved in transformations
+   * @param mappings The list of mappings for the transformations.
+   * @param rexBuilder The RexBuilder used to construct RexNodes.
+   * @return An instance of {@link CopyIntoTransformationProperties} containing the transformation
+   *     expressions and schema.
+   * @throws UserException If transformations are not supported and the row type is provided.
+   */
+  private CopyIntoTransformationProperties getTransformationProperties(
+      OptimizerRulesContext context,
+      RelNode relNode,
+      RelDataType transformationRowType,
+      List<String> transformationColNames,
+      List<String> mappings,
+      RexBuilder rexBuilder) {
+    if (transformationRowType == null || !(relNode instanceof LogicalProject)) {
+      return null;
+    }
+
+    if (!context.getOptions().getOption(ExecConstants.COPY_INTO_ENABLE_TRANSFORMATIONS)) {
+      throw UserException.unsupportedError()
+          .message("Copy Into with transformations is not supported")
+          .buildSilently();
+    }
+
+    // validate column mappings
+    if (!targetTableSchema.getFields().stream()
+        .map(field -> field.getName().toLowerCase())
+        .collect(toList())
+        .containsAll(mappings)) {
+      throw UserException.parseError()
+          .message(
+              "Incorrect transformation mapping definition. Some column names are not found in target table schema.")
+          .buildSilently();
+    }
+    // convert relation expressions to logical expressions
+    List<LogicalExpression> logicalExpressions =
+        ((LogicalProject) relNode)
+            .getChildExps().stream()
+                .map(
+                    rexNode ->
+                        RexToExpr.toExpr(
+                            new ParseContext(context.getPlannerSettings()),
+                            transformationRowType,
+                            rexBuilder,
+                            rexNode))
+                .collect(toList());
+
+    // build a batchschema using the transformation rowtype
+    SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
+    transformationRowType.getFieldList().stream()
+        .map(field -> field.getName().toLowerCase())
+        .filter(transformationColNames::contains)
+        .forEach(name -> schemaBuilder.addField(Field.nullable(name, Utf8.INSTANCE)));
+
+    return new CopyIntoTransformationProperties(
+        logicalExpressions, mappings, schemaBuilder.build());
+  }
+
+  private UserException getSourceNotFoundException(final String sourceName) {
+    final Throwable cause = new SourceDoesNotExistException(sourceName);
+
+    return UserException.validationError(cause).message(cause.getMessage()).buildSilently();
   }
 
   /**
@@ -277,9 +356,9 @@ public abstract class CopyIntoTablePlanBuilderBase {
 
   /**
    * To establish the target table schema, take into account the copy into options. If the copy
-   * options include an ON_ERROR 'continue' pair, the schema needs to be augmented with an
-   * additional "error" column. In such cases, the input parameter {@code rowType} already contains
-   * the enhanced schema, which is then translated into a {@link BatchSchema} object. The
+   * options include an ON_ERROR 'continue'/'skip' pair, the schema needs to be augmented with an
+   * additional "history" column. In such cases, the input parameter {@code rowType} already
+   * contains the enhanced schema, which is then translated into a {@link BatchSchema} object. The
    * preparation of {@code rowType} object is handled by {@link
    * SqlCopyIntoTable#extendTableWithDataFileSystemColumns()}
    *
@@ -328,6 +407,7 @@ public abstract class CopyIntoTablePlanBuilderBase {
       Map<CopyIntoTableContext.CopyOption, Object> copyOptions) {
     CopyIntoQueryProperties properties = new CopyIntoQueryProperties();
     properties.setStorageLocation(copyIntoTableContext.getStorageLocation());
+    properties.setBranch(copyIntoTableContext.getBranch());
     if (!copyOptions.isEmpty()) {
       for (Map.Entry<CopyIntoTableContext.CopyOption, Object> option : copyOptions.entrySet()) {
         if (option.getKey() == ON_ERROR) {
@@ -374,6 +454,8 @@ public abstract class CopyIntoTablePlanBuilderBase {
     properties.setProperty(CopyIntoExtendedProperties.PropertyKey.QUERY_CONTEXT, queryContext);
     properties.setProperty(
         CopyIntoExtendedProperties.PropertyKey.COPY_INTO_QUERY_PROPERTIES, queryProperties);
+    properties.setProperty(
+        PropertyKey.COPY_INTO_TRANSFORMATION_PROPERTIES, transformationProperties);
     return CopyIntoExtendedProperties.Util.getByteString(properties);
   }
 
@@ -459,12 +541,20 @@ public abstract class CopyIntoTablePlanBuilderBase {
         Path.of(
             fileSelectionOptional
                 .orElseThrow(
-                    () ->
-                        UserException.invalidMetadataError()
-                            .message(
-                                "Resource not found at path %s",
-                                this.copyIntoTableContext.getProvidedStorageLocation())
-                            .buildSilently())
+                    () -> {
+                      final String errorMessage =
+                          String.format(
+                              "Resource not found at path %s",
+                              this.copyIntoTableContext.getProvidedStorageLocation());
+                      final EntityPath entityPath =
+                          new EntityPath(
+                              PathUtils.toPathComponents(
+                                  copyIntoTableContext.getProvidedStorageLocation()));
+
+                      return UserException.validationError(new DatasetNotFoundException(entityPath))
+                          .message(errorMessage)
+                          .buildSilently();
+                    })
                 .getSelectionRoot());
 
     if (!fileSelectionOptional.get().isRootPathDirectory() && filesOrRegexPresent) {
@@ -560,7 +650,10 @@ public abstract class CopyIntoTablePlanBuilderBase {
     final Prel dirListingPrel = getDataFileListingPrel();
     return copyIntoTableContext
         .getFilePattern()
-        .map(pattern -> addRegexFilter(cluster.getRexBuilder(), dirListingPrel, pattern))
+        .map(
+            pattern ->
+                addFileNameRegexFilter(
+                    cluster.getRexBuilder(), dirListingPrel, pattern, datasetPath))
         .orElse(dirListingPrel);
   }
 
@@ -577,12 +670,16 @@ public abstract class CopyIntoTablePlanBuilderBase {
    * @return {@link TableFunctionPrel} representing a physical plan executing a dir listing followed
    *     by split generation.
    */
-  private TableFunctionPrel buildSplitGenTableFunction(Prel dirListingPrel) {
+  protected TableFunctionPrel buildSplitGenTableFunction(Prel dirListingPrel) {
     boolean oneBlockSplitForWholeParquetFile = isSkipFile();
-
     TableFunctionContext tableFunctionContext =
         TableFunctionUtil.getSplitProducerTableFunctionContext(
-            tableMetadata, null, false, oneBlockSplitForWholeParquetFile);
+            tableMetadata,
+            RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA,
+            TableFunctionUtil.getSplitGenSchemaColumns(),
+            null,
+            false,
+            oneBlockSplitForWholeParquetFile);
     TableFunctionConfig.FunctionType functionType =
         format.getType() == FileType.PARQUET
             ? TableFunctionConfig.FunctionType.DIR_LISTING_SPLIT_GENERATION
@@ -598,19 +695,6 @@ public abstract class CopyIntoTablePlanBuilderBase {
         tableFunctionConfig,
         TableFunctionUtil.getSplitRowType(cluster),
         rm -> rm.getRowCount(dirListingPrel));
-  }
-
-  /**
-   * Create a list of schema paths from the given schema.
-   *
-   * @param schema input schema
-   * @return list of schema paths contained in the provided schema
-   */
-  public static List<SchemaPath> getSchemaPaths(BatchSchema schema) {
-    return schema.getFields().stream()
-        .map(Field::getName)
-        .map(SchemaPath::getSimplePath)
-        .collect(Collectors.toList());
   }
 
   /**
@@ -849,79 +933,6 @@ public abstract class CopyIntoTablePlanBuilderBase {
             tableMetadata, targetTableSchema, true, storagePluginId));
   }
 
-  protected Prel addRegexFilter(
-      RexBuilder rexBuilder, Prel dirListingChildPrel, String regexString) {
-
-    final SqlFunction regexpMatches =
-        new SqlFunction(
-            "REGEXP_MATCHES",
-            SqlKind.OTHER_FUNCTION,
-            ReturnTypes.BOOLEAN,
-            null,
-            OperandTypes.STRING_STRING,
-            SqlFunctionCategory.STRING);
-
-    final SqlFunction strPos =
-        new SqlFunction(
-            "STRPOS",
-            SqlKind.OTHER_FUNCTION,
-            ReturnTypes.explicit(SqlTypeName.INTEGER),
-            null,
-            OperandTypes.STRING_STRING,
-            SqlFunctionCategory.STRING);
-
-    final SqlFunction substring =
-        new SqlFunction(
-            "SUBSTRING",
-            SqlKind.OTHER_FUNCTION,
-            ReturnTypes.explicit(SqlTypeName.VARCHAR),
-            null,
-            OperandTypes.STRING_INTEGER,
-            SqlFunctionCategory.STRING);
-
-    final SqlFunction add =
-        new SqlFunction(
-            "ADD",
-            SqlKind.OTHER_FUNCTION,
-            ReturnTypes.explicit(SqlTypeName.INTEGER),
-            null,
-            OperandTypes.NUMERIC_NUMERIC,
-            SqlFunctionCategory.NUMERIC);
-
-    /**
-     * logic here is to first get starting position of dataset path in full file path. then
-     * calculate ending position of first occurrence dataset path in full file path. Get substring
-     * after ending position which is relative path to storage location. and finally apply regex
-     * match on it.
-     */
-    String storageLocation = datasetPath.toString() + "/";
-    Pair<Integer, RelDataTypeField> fieldWithIndex =
-        MoreRelOptUtil.findFieldWithIndex(
-            dirListingChildPrel.getRowType().getFieldList(),
-            MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH);
-    RexNode startAt =
-        rexBuilder.makeCall(
-            strPos,
-            rexBuilder.makeInputRef(fieldWithIndex.right.getType(), fieldWithIndex.left),
-            rexBuilder.makeLiteral(storageLocation));
-    RexNode endsAt =
-        rexBuilder.makeCall(
-            add, startAt, rexBuilder.makeLiteral(String.valueOf(storageLocation.length())));
-    RexNode remainingPart =
-        rexBuilder.makeCall(
-            substring,
-            rexBuilder.makeInputRef(fieldWithIndex.right.getType(), fieldWithIndex.left),
-            endsAt);
-    RexNode regexCondition =
-        rexBuilder.makeCall(regexpMatches, remainingPart, rexBuilder.makeLiteral(regexString));
-
-    return FilterPrel.create(
-        dirListingChildPrel.getCluster(),
-        dirListingChildPrel.getTraitSet(),
-        dirListingChildPrel,
-        regexCondition);
-  }
-
   /**
    * Creates system Iceberg tables if they do not already exist based on the provided {@link
    * SystemIcebergTablesStoragePlugin} instance. The method checks if the processing context
@@ -937,8 +948,12 @@ public abstract class CopyIntoTablePlanBuilderBase {
     }
   }
 
-  private boolean isSkipFile() {
+  protected boolean isSkipFile() {
     return CopyIntoQueryProperties.OnErrorOption.SKIP_FILE.equals(
         queryProperties.getOnErrorOption());
+  }
+
+  protected Path getDatasetPath() {
+    return datasetPath;
   }
 }

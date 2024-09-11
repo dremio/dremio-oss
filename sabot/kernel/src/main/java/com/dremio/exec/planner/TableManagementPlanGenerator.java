@@ -66,7 +66,6 @@ import org.apache.calcite.util.Pair;
 
 /** Abstract to generate physical plan for DML and OPTIMIZE */
 public abstract class TableManagementPlanGenerator {
-
   protected static final List<String> deleteFilesMetadataInputCols =
       ImmutableList.of(
           ColumnUtils.ROW_COUNT_COLUMN_NAME, ColumnUtils.FILE_PATH_COLUMN_NAME, ICEBERG_METADATA);
@@ -119,6 +118,16 @@ public abstract class TableManagementPlanGenerator {
                 throw new RuntimeException(e);
               }
             });
+  }
+
+  protected Prel getMergeOnReadDataWriterPlan(RelNode mergeOnReadResultsPlan) {
+    return (new WriterPrule())
+        .createWriter(
+            mergeOnReadResultsPlan,
+            mergeOnReadResultsPlan.getRowType(),
+            tableMetadata.getDatasetConfig(),
+            createTableEntry,
+            null);
   }
 
   /**

@@ -33,6 +33,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.TableMutationOptions;
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -80,7 +81,6 @@ import org.projectnessie.model.NessieConfiguration;
 import org.projectnessie.model.Operation;
 import org.projectnessie.tools.compatibility.api.NessieAPI;
 import org.projectnessie.tools.compatibility.api.NessieBaseUri;
-import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
 
 /**
@@ -94,7 +94,6 @@ import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtensio
  * of: - {@link TestDataplanePlugin} for unit tests - ITDataplanePlugin for integration tests
  */
 @ExtendWith(OlderNessieServersExtension.class)
-@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")
 public class TestDataplanePlugin2 {
   // Constants
   private static final String S3_PREFIX = "s3://";
@@ -198,6 +197,8 @@ public class TestDataplanePlugin2 {
     nessiePluginConfig.nessieEndpoint = nessieUri;
     nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
     nessiePluginConfig.secure = false;
+    nessiePluginConfig.credentialType =
+        AWSAuthenticationType.ACCESS_KEY; // Unused, just needs to be set
     nessiePluginConfig.awsAccessKey = "foo"; // Unused, just needs to be set
     nessiePluginConfig.awsAccessSecret = () -> "bar"; // Unused, just needs to be set
     nessiePluginConfig.awsRootPath = BUCKET_NAME;

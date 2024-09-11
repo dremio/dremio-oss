@@ -102,7 +102,11 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
                 join.getJoinType(),
                 join.isSemiJoinDone());
         RelNode topProject = pushProject.createNewProject(newJoinRel, adjustments);
-        call.transformTo(RexFieldAccessUtils.unwrap(topProject));
+        // fix and issue where the nullability can be changed if we have LEFT/RIGHT/OUTER join
+        // resulting in validation error due to different row types
+        if (topProject.getRowType().equals(origProj.getRowType())) {
+          call.transformTo(RexFieldAccessUtils.unwrap(topProject));
+        }
       }
     }
   }

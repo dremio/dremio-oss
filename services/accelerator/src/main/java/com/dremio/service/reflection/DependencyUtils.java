@@ -145,7 +145,7 @@ public class DependencyUtils {
     final List<ScanPath> jobScanPaths = jobInfo.getScanPathsList();
     if (jobScanPaths != null) {
       for (ScanPath scanPath : jobScanPaths) {
-        TableVersionContext versionContext = null;
+        TableVersionContext versionContext = TableVersionContext.NOT_SPECIFIED;
         if (scanPath.getVersionContext() != null) {
           versionContext = TableVersionContext.deserialize(scanPath.getVersionContext());
         }
@@ -197,7 +197,7 @@ public class DependencyUtils {
     final List<ScanPath> scanPaths = decision.getScanPathsList();
     if (scanPaths != null) {
       for (ScanPath scanPath : scanPaths) {
-        TableVersionContext versionContext = null;
+        TableVersionContext versionContext = TableVersionContext.NOT_SPECIFIED;
         if (scanPath.getVersionContext() != null) {
           versionContext = TableVersionContext.deserialize(scanPath.getVersionContext());
         }

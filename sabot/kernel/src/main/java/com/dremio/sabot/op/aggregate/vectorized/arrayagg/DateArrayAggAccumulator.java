@@ -24,14 +24,21 @@ import org.apache.arrow.vector.DateMilliVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 
-public final class DateArrayAggAccumulator extends BaseArrayAggAccumulator<Long, DateMilliVector> {
+public final class DateArrayAggAccumulator extends ArrayAggAccumulator<Long> {
   public DateArrayAggAccumulator(
       FieldVector input,
       FieldVector transferVector,
-      int maxValuesPerBatch,
       BaseValueVector tempAccumulatorHolder,
-      BufferAllocator allocator) {
-    super(input, transferVector, maxValuesPerBatch, tempAccumulatorHolder, allocator);
+      BufferAllocator allocator,
+      int maxFieldSizeBytes,
+      int initialVectorSize) {
+    super(
+        input,
+        transferVector,
+        tempAccumulatorHolder,
+        allocator,
+        maxFieldSizeBytes,
+        initialVectorSize);
   }
 
   @Override
@@ -45,9 +52,9 @@ public final class DateArrayAggAccumulator extends BaseArrayAggAccumulator<Long,
   }
 
   @Override
-  protected BaseArrayAggAccumulatorHolder<Long, DateMilliVector> getAccumulatorHolder(
-      int maxValuesPerBatch, BufferAllocator allocator) {
-    return new DateArrayAggAccumulatorHolder(maxValuesPerBatch, allocator);
+  protected ArrayAggAccumulatorHolder<Long> getAccumulatorHolder(
+      int maxFieldSizeBytes, BufferAllocator allocator, int initialCapacity) {
+    return new DateArrayAggAccumulatorHolder(allocator, initialCapacity);
   }
 
   @Override

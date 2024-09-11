@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.namespace.NamespacePassthrough;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
@@ -35,7 +36,8 @@ public interface Catalog
         SourceCatalog,
         InformationSchemaCatalog,
         VersionContextResolver,
-        NamespacePassthrough {
+        NamespacePassthrough,
+        BulkEntityExplorer {
   /**
    * Resolve an ambiguous reference using the following rules: if the reference is a single value
    * and a default schema is defined, resolve using the default schema. Otherwise, resolve using the
@@ -83,9 +85,31 @@ public interface Catalog
       NamespaceKey key, List<String> partitionColumns, List<String> partitionValues)
       throws PartitionNotFoundException;
 
-  default void addCatalogStats() {}
+  default CatalogAccessStats getCatalogAccessStats() {
+    return new CatalogAccessStats();
+  }
 
   default void invalidateNamespaceCache(final NamespaceKey key) {}
 
   MetadataRequestOptions getMetadataRequestOptions();
+
+  /**
+   * Visits each catalog in a depth first order.
+   *
+   * @param catalogRewrite function for transforming the catalog
+   * @return resulting transformed catalog
+   */
+  Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite);
+
+  /**
+   * @return all tables that have been requested from this catalog.
+   */
+  Iterable<DremioTable> getAllRequestedTables();
+
+  /**
+   * Clears all caches associated to a particular dataset
+   *
+   * @param dataset
+   */
+  default void clearDatasetCache(final NamespaceKey dataset, final TableVersionContext context) {}
 }

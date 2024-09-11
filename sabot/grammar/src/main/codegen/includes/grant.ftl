@@ -97,10 +97,18 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
         ]
       )
       |
-      (<FUNCTION>) {
-        grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FUNCTION, getPos()));
-        entity = CompoundIdentifier();
-      }
+      (
+        <FUNCTION> {
+          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FUNCTION, getPos()));
+          entity = CompoundIdentifier();
+        }
+        [
+          <AT> {
+            refType = ParseReferenceType();
+            refValue = SimpleIdentifier();
+          }
+        ]
+      )
       |
       (
         <FOLDER> {
@@ -186,6 +194,14 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
         isScript = true;
       }
       |
+      <ALL> <FOLDERS> <IN>
+        (<CATALOG> | <FOLDER>) {
+          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+          entity = CompoundIdentifier();
+          isGrantOnAll = true;
+          isGrantOnProjectEntities = true;
+        }
+      |
       <ALL> <DATASETS> <IN>
       (
         (<FOLDER> | <SCHEMA>) {
@@ -223,7 +239,7 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
       }
       if (isGrantOnProjectEntities) {
         if (isGrantOnAll) {
-          return new SqlGrantOnAllCatalogDatasets(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
+          return new SqlGrantOnAllCatalogChildren(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
         }
         return new SqlGrantOnProjectEntities(pos, privilegeList, grantOnProjectEntities.getType(), entity, granteeType, grantee);
       }
@@ -329,6 +345,9 @@ void Privilege(List<SqlNode> list) :
     <CREATE> <FOLDER>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.CREATE_FOLDER, getPos())); }
     |
+    <CREATE> <FUNCTION>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.CREATE_FUNCTION, getPos())); }
+    |
     <DROP>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.DROP, getPos())); }
     |
@@ -401,6 +420,12 @@ void Privilege(List<SqlNode> list) :
     <WRITE>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.WRITE, getPos())); }
     |
+    <SHOW>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.SHOW, getPos())); }
+    |
+    <EXPORT> <DIAGNOSTICS>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.EXPORT_DIAGNOSTICS, getPos())); }
+    |
     <ALL>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.ALL, getPos())); }
   )
@@ -466,10 +491,18 @@ SqlNode SqlRevoke() :
         ]
       )
       |
-      (<FUNCTION>) {
-        grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FUNCTION, getPos()));
-        entity = CompoundIdentifier();
-      }
+      (
+        <FUNCTION> {
+          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FUNCTION, getPos()));
+          entity = CompoundIdentifier();
+        }
+        [
+          <AT> {
+            refType = ParseReferenceType();
+            refValue = SimpleIdentifier();
+          }
+        ]
+      )
       |
       (
         <FOLDER> {
@@ -555,6 +588,14 @@ SqlNode SqlRevoke() :
         isScript = true;
       }
       |
+      <ALL> <FOLDERS> <IN>
+        (<CATALOG> | <FOLDER>) {
+          grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
+          entity = CompoundIdentifier();
+          isGrantOnAll = true;
+          isGrantOnProjectEntities = true;
+        }
+      |
       <ALL> <DATASETS> <IN>
       (
         (<FOLDER> | <SCHEMA>) {
@@ -592,7 +633,7 @@ SqlNode SqlRevoke() :
       }
       if (isGrantOnProjectEntities) {
         if (isGrantOnAll) {
-          return new SqlRevokeOnAllCatalogDatasets(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
+          return new SqlRevokeOnAllCatalogChildren(pos, privilegeList, grant.getType(), entity, granteeType, grantee);
         }
         return new SqlRevokeOnProjectEntities(pos, privilegeList, revokeOnProjectEntities.getType(), entity, granteeType, grantee);
       }

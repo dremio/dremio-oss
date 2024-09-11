@@ -103,7 +103,6 @@ public class TestDatasetMetadataState {
    */
   @Test
   public void testDatasetMetadataStateForNonIcebergDatasets() {
-    when(datasetConfig.getFullPathList()).thenReturn(TABLE);
     when(datasetConfig.getLastModified()).thenReturn(1000L);
 
     final SourceMetadataManager sourceMetadataManager =
@@ -129,7 +128,7 @@ public class TestDatasetMetadataState {
 
   /**
    * If no validity checks have been run on dataset yet, {@link
-   * SourceMetadataManager#getDatasetMetadataState} should reflect when dataset was last modified.
+   * SourceMetadataManager#getDatasetMetadataState} should return an expired state.
    */
   @Test
   public void testDatasetMetadataStateWhenNoValidityCheck() {
@@ -138,7 +137,6 @@ public class TestDatasetMetadataState {
         .thenReturn(
             new PhysicalDataset()
                 .setIcebergMetadata(new IcebergMetadata().setFileType(FileType.ICEBERG)));
-    when(datasetConfig.getLastModified()).thenReturn(1000L);
 
     final SourceMetadataManager sourceMetadataManager =
         new SourceMetadataManager(
@@ -151,90 +149,36 @@ public class TestDatasetMetadataState {
             CatalogServiceMonitor.DEFAULT,
             () -> broadcaster);
 
-    final DatasetMetadataState metadataState =
-        sourceMetadataManager.getDatasetMetadataState(datasetConfig, storagePlugin);
-
-    assertAll(
-        () -> assertFalse(metadataState.isExpired()),
-        () ->
-            assertEquals(
-                datasetConfig.getLastModified(), metadataState.lastRefreshTimeMillis().orElse(0L)));
-  }
-
-  /**
-   * If there has been a validity check run on the dataset since the metadata was last updated
-   * internally, {@link SourceMetadataManager#getDatasetMetadataState} should reflect the state of
-   * the last validity check.
-   */
-  @Test
-  public void testDatasetMetadataStateWhenValidityCheckIsNew() {
-    when(datasetConfig.getFullPathList()).thenReturn(TABLE);
-    when(datasetConfig.getPhysicalDataset())
-        .thenReturn(
-            new PhysicalDataset()
-                .setIcebergMetadata(new IcebergMetadata().setFileType(FileType.ICEBERG)));
-    when(datasetConfig.getLastModified()).thenReturn(1000L);
-
-    when(metadataRequestOptions.checkValidity()).thenReturn(true);
-    when(metadataRequestOptions.newerThan()).thenReturn(Long.MAX_VALUE);
-    when(metadataRequestOptions.getSchemaConfig()).thenReturn(schemaConfig);
-    when(schemaConfig.getDatasetValidityChecker()).thenReturn(config -> true);
-
-    MetadataPolicy metadataPolicy = new MetadataPolicy();
-    metadataPolicy.setDatasetDefinitionExpireAfterMs(Long.MAX_VALUE);
-    when(bridge.getMetadataPolicy()).thenReturn(metadataPolicy);
-
-    when(storagePlugin.isMetadataValidityCheckRecentEnough(any(), any(), any())).thenReturn(false);
-    when(storagePlugin.isIcebergMetadataValid(any(), any())).thenReturn(false);
-
-    final SourceMetadataManager sourceMetadataManager =
-        new SourceMetadataManager(
-            new NamespaceKey("SOURCE"),
-            modifiableSchedulerService,
-            true,
-            kvStore,
-            bridge,
-            optionManager,
-            CatalogServiceMonitor.DEFAULT,
-            () -> broadcaster);
-
-    // Run validity check to update SourceMetadataManager's internal state
-    sourceMetadataManager.isStillValid(metadataRequestOptions, datasetConfig, storagePlugin);
     final DatasetMetadataState metadataState =
         sourceMetadataManager.getDatasetMetadataState(datasetConfig, storagePlugin);
 
     assertAll(
         () -> assertTrue(metadataState.isExpired()),
-        () ->
-            assertTrue(
-                metadataState.lastRefreshTimeMillis().orElse(0L)
-                    > datasetConfig.getLastModified()));
+        () -> assertTrue(metadataState.lastRefreshTimeMillis().isEmpty()));
   }
 
   /**
-   * If the dataset metadata has been updated internally after the last validity check, {@link
-   * SourceMetadataManager#getDatasetMetadataState} should reflect the state of the last update.
+   * If there has been a validity check run on the dataset, {@link
+   * SourceMetadataManager#getDatasetMetadataState} should reflect the state of the last validity
+   * check.
    */
   @Test
-  public void testDatasetMetadataStateWhenValidityCheckIsOld() {
+  public void testDatasetMetadataStateWhenValidityCheckIsPresent() {
     when(datasetConfig.getFullPathList()).thenReturn(TABLE);
     when(datasetConfig.getPhysicalDataset())
         .thenReturn(
             new PhysicalDataset()
                 .setIcebergMetadata(new IcebergMetadata().setFileType(FileType.ICEBERG)));
-    when(datasetConfig.getLastModified()).thenReturn(Long.MAX_VALUE);
 
     when(metadataRequestOptions.checkValidity()).thenReturn(true);
-    when(metadataRequestOptions.newerThan()).thenReturn(Long.MAX_VALUE);
-    when(metadataRequestOptions.getSchemaConfig()).thenReturn(schemaConfig);
-    when(schemaConfig.getDatasetValidityChecker()).thenReturn(config -> true);
 
     MetadataPolicy metadataPolicy = new MetadataPolicy();
     metadataPolicy.setDatasetDefinitionExpireAfterMs(Long.MAX_VALUE);
     when(bridge.getMetadataPolicy()).thenReturn(metadataPolicy);
 
+    final boolean isValid = false;
     when(storagePlugin.isMetadataValidityCheckRecentEnough(any(), any(), any())).thenReturn(false);
-    when(storagePlugin.isIcebergMetadataValid(any(), any())).thenReturn(false);
+    when(storagePlugin.isIcebergMetadataValid(any(), any())).thenReturn(isValid);
 
     final SourceMetadataManager sourceMetadataManager =
         new SourceMetadataManager(
@@ -248,15 +192,14 @@ public class TestDatasetMetadataState {
             () -> broadcaster);
 
     // Run validity check to update SourceMetadataManager's internal state
+    final long ts = System.currentTimeMillis();
     sourceMetadataManager.isStillValid(metadataRequestOptions, datasetConfig, storagePlugin);
     final DatasetMetadataState metadataState =
         sourceMetadataManager.getDatasetMetadataState(datasetConfig, storagePlugin);
 
     assertAll(
-        () -> assertFalse(metadataState.isExpired()),
-        () ->
-            assertEquals(
-                datasetConfig.getLastModified(), metadataState.lastRefreshTimeMillis().orElse(0L)));
+        () -> assertTrue(isValid != metadataState.isExpired()),
+        () -> assertTrue(metadataState.lastRefreshTimeMillis().orElse(0L) >= ts));
   }
 
   private VersionedDatasetAdapter initVersionedDatasetAdapter() throws Exception {

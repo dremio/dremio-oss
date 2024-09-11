@@ -16,10 +16,16 @@
 package com.dremio.exec.catalog;
 
 import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.common.concurrent.bulk.BulkRequest;
+import com.dremio.common.concurrent.bulk.BulkResponse;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.EntityPathWithOptions;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.ImmutableEntityPathWithOptions;
+import com.dremio.exec.store.BulkSourceMetadata;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.VersionedDatasetAccessOptions;
@@ -30,8 +36,10 @@ import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Preconditions;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 public class VersionedDatasetAdapterFactory {
@@ -82,6 +90,63 @@ public class VersionedDatasetAdapterFactory {
         optionManager,
         datasetHandle,
         versionedDatasetConfig);
+  }
+
+  public BulkResponse<VersionedTableKey, Optional<VersionedDatasetAdapter>> bulkCreateInstances(
+      BulkRequest<VersionedTableKey> tableKeys,
+      StoragePlugin storagePlugin,
+      StoragePluginId storagePluginId,
+      OptionManager optionManager,
+      MetadataRequestOptions requestOptions) {
+    Preconditions.checkArgument(
+        storagePlugin instanceof BulkSourceMetadata,
+        "StoragePlugin must implement BulkSourceMetadata");
+    BulkSourceMetadata bulkSourceMetadata = (BulkSourceMetadata) storagePlugin;
+
+    // keep a map of created DatasetConfigs as they are used when building the bulk request to the
+    // plugin, and when we need to create the VersionedDatasetAdapter based on the resulting
+    // DatasetHandle
+    Map<VersionedTableKey, DatasetConfig> datasetConfigs =
+        tableKeys.requests().stream()
+            .collect(
+                Collectors.toMap(
+                    k -> k, k -> createShallowIcebergDatasetConfig(k.versionedTableKey())));
+
+    // call into the plugin's bulkGetDatasetHandles, wrapping any returned DatasetHandle with
+    // a VersionedDatasetAdapter
+    return tableKeys.bulkTransformAndHandleRequests(
+        bulkSourceMetadata::bulkGetDatasetHandles,
+        versionedTableKey ->
+            getEntityPathWithOptionsFromVersionedTableKey(
+                versionedTableKey, datasetConfigs.get(versionedTableKey), requestOptions),
+        (entityPathWithOptions, versionedTableKey, optHandle) ->
+            optHandle.map(
+                handle ->
+                    newInstance(
+                        versionedTableKey.versionedTableKey(),
+                        versionedTableKey.versionContext(),
+                        storagePlugin,
+                        storagePluginId,
+                        optionManager,
+                        handle,
+                        datasetConfigs.get(versionedTableKey))));
+  }
+
+  private EntityPathWithOptions getEntityPathWithOptionsFromVersionedTableKey(
+      VersionedTableKey key, DatasetConfig datasetConfig, MetadataRequestOptions requestOptions) {
+    EntityPath entityPath = new EntityPath(key.versionedTableKey());
+    GetDatasetOption[] options =
+        DatasetRetrievalOptions.DEFAULT.toBuilder()
+            .setVersionedDatasetAccessOptions(
+                new VersionedDatasetAccessOptions.Builder()
+                    .setVersionContext(key.versionContext())
+                    .build())
+            .build()
+            .asGetDatasetOptions(datasetConfig);
+
+    EntityPathWithOptions result =
+        ImmutableEntityPathWithOptions.builder().entityPath(entityPath).options(options).build();
+    return result;
   }
 
   /**

@@ -20,14 +20,12 @@ import static com.dremio.exec.util.TestUtilities.DFS_TEST_PLUGIN_NAME;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.JobsServiceTestUtils;
-import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.Pointer;
 import com.dremio.service.job.proto.QueryType;
@@ -47,16 +45,11 @@ import org.junit.rules.TemporaryFolder;
 /** WriterCommitter tests */
 public class TestWriter extends BaseTestServer {
 
-  public JobsService getJobsService() {
-    return l(JobsService.class);
-  }
-
   @Rule public final TemporaryFolder temp = new TemporaryFolder();
 
   @Before
   public void setup() throws Exception {
-    TestUtilities.updateDfsTestTmpSchemaLocation(
-        (CatalogServiceImpl) l(CatalogService.class), temp.getRoot().toString());
+    TestUtilities.updateDfsTestTmpSchemaLocation(getCatalogService(), temp.getRoot().toString());
   }
 
   @Test

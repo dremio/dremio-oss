@@ -15,7 +15,10 @@
  */
 package com.dremio.service.coordinator;
 
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.Service;
+import java.util.Collection;
+import java.util.Optional;
 
 /** Interface to cluster service set manager. */
 public interface ClusterServiceSetManager extends Service {
@@ -51,4 +54,26 @@ public interface ClusterServiceSetManager extends Service {
    * @return An Iterable of service names.
    */
   Iterable<String> getServiceNames() throws Exception;
+
+  default ServiceSet getCoordinators() {
+    return getServiceSet(ClusterCoordinator.Role.COORDINATOR);
+  }
+
+  default ServiceSet getExecutors() {
+    return getServiceSet(ClusterCoordinator.Role.EXECUTOR);
+  }
+
+  default Collection<NodeEndpoint> getCoordinatorEndpoints() {
+    return getCoordinators().getAvailableEndpoints();
+  }
+
+  default Collection<NodeEndpoint> getExecutorEndpoints() {
+    return getExecutors().getAvailableEndpoints();
+  }
+
+  default Optional<NodeEndpoint> getMasterEndpoint() {
+    return Optional.ofNullable(
+            getServiceSet(ClusterCoordinator.Role.MASTER).getAvailableEndpoints())
+        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
+  }
 }

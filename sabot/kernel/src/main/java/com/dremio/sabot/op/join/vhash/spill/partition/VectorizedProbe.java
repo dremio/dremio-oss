@@ -71,8 +71,8 @@ public class VectorizedProbe implements AutoCloseable {
   private final PivotDef buildKeyUnpivot;
 
   private final ProbeBuffers buffers;
-  private final ArrowBuf sv2;
-  private final ArrowBuf tableHash4B;
+  private ArrowBuf sv2;
+  private ArrowBuf tableHash4B;
   private final FixedBlockVector pivotedFixedBlock;
   private final VariableBlockVector pivotedVariableBlock;
   private int probeInRecords;
@@ -339,6 +339,15 @@ public class VectorizedProbe implements AutoCloseable {
 
   public long getUnmatchedBuildKeyCount() {
     return unmatchedCursor == null ? 0 : unmatchedCursor.getUnmatchedBuildKeyCount();
+  }
+
+  public void updateTableHashBuffer(ArrowBuf newBuf) {
+    tableHash4B = newBuf;
+  }
+
+  public void updateSv2(ArrowBuf sv2) {
+    this.sv2 = sv2;
+    this.cursor.updateSv2(sv2);
   }
 
   public long getEvaluationCount() {

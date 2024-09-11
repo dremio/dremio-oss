@@ -251,13 +251,13 @@ public final class ClassPathScanner {
    * fields
    */
   @SuppressForbidden
-  private static final class AnnotationScanner implements Scanner {
+  public static final class AnnotationScanner implements Scanner {
 
     private final List<AnnotatedClassDescriptor> functions = new ArrayList<>();
 
     private final Set<String> annotationsToScan;
 
-    AnnotationScanner(Collection<String> annotationsToScan) {
+    public AnnotationScanner(Collection<String> annotationsToScan) {
       super();
       this.annotationsToScan = Collections.unmodifiableSet(new HashSet<>(annotationsToScan));
     }
@@ -436,6 +436,12 @@ public final class ClassPathScanner {
       }
       List<AnnotatedClassDescriptor> annotated = annotationScanner.getAnnotatedClasses();
       verifyClassUnicity(annotated, pathsToScan);
+      logger.debug(
+          "Scanned Result: {}, {}, {}, {}",
+          packagePrefixes,
+          scannedClasses,
+          scannedAnnotations,
+          annotated);
       return new ScanResult(
           packagePrefixes, scannedClasses, scannedAnnotations, annotated, implementations);
     } finally {

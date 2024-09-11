@@ -20,7 +20,6 @@ import static org.junit.Assert.assertEquals;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlShowTableProperties;
 import com.dremio.exec.proto.UserBitShared;
 import com.google.common.collect.Sets;
@@ -37,11 +36,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class TestSqlShowTableProperties extends BaseTestQuery {
-  private final ParserConfig parserConfig =
-      new ParserConfig(
-          ParserConfig.QUOTING,
-          100,
-          PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
 
   @Test
   public void testParseMalformedQueries() throws Exception {

@@ -17,10 +17,10 @@ package com.dremio.sabot.op.sort.external;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ClassProducer;
-import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
@@ -60,7 +60,6 @@ class MemoryRun implements AutoCloseable {
   @VisibleForTesting public static final String INJECTOR_OOM_ON_SORT = "injectOOMSort";
   public static final long INITIAL_COPY_ALLOCATOR_RESERVATION = 1 << 16;
 
-  private final ExternalSort sortConfig;
   private final ClassProducer classProducer;
   private final Schema schema;
   private final BufferAllocator allocator;
@@ -75,7 +74,7 @@ class MemoryRun implements AutoCloseable {
 
   private BufferAllocator copyTargetAllocator;
   private long copyTargetSize;
-  private final ExternalSortTracer tracer;
+  private final VectorSortTracer tracer;
   private final int batchsizeMultiplier;
   private final int targetBatchSize;
   private final ExecutionControls executionControls;
@@ -84,17 +83,16 @@ class MemoryRun implements AutoCloseable {
   // private Sv4HyperContainer sv4HyperContainer = null;
 
   public MemoryRun(
-      ExternalSort sortConfig,
+      List<Ordering> sortOrderings,
       ClassProducer classProducer,
       BufferAllocator allocator,
       Schema schema,
-      ExternalSortTracer tracer,
+      VectorSortTracer tracer,
       int batchsizeMultiplier,
       boolean useSplaySort,
       int targetBatchSize,
       ExecutionControls executionControls) {
     this.schema = schema;
-    this.sortConfig = sortConfig;
     this.allocator = allocator;
     this.classProducer = classProducer;
     this.tracer = tracer;
@@ -103,9 +101,9 @@ class MemoryRun implements AutoCloseable {
     this.executionControls = executionControls;
     try {
       if (useSplaySort) {
-        this.sorter = new SplaySorter(sortConfig, classProducer, schema, allocator);
+        this.sorter = new SplaySorter(sortOrderings, classProducer, schema, allocator);
       } else {
-        this.sorter = new QuickSorter(sortConfig, classProducer, schema, allocator);
+        this.sorter = new QuickSorter(sortOrderings, classProducer, schema, allocator);
       }
     } catch (OutOfMemoryException ex) {
       this.sorter = null;
@@ -169,8 +167,8 @@ class MemoryRun implements AutoCloseable {
     }
 
     // Make sure we are not already over max batches we are allowed to hold in memory.
-    if (sorter.getHyperBatchSize() >= ExternalSortOperator.MAX_BATCHES_PER_HYPERBATCH
-        || size >= ExternalSortOperator.MAX_BATCHES_PER_MEMORY_RUN) {
+    if (sorter.getHyperBatchSize() >= VectorSorter.MAX_BATCHES_PER_HYPERBATCH
+        || size >= VectorSorter.MAX_BATCHES_PER_MEMORY_RUN) {
       logger.debug(
           "Memory Run: no room for storing new batch, current size = {}, failed to add batch",
           size);
@@ -230,6 +228,10 @@ class MemoryRun implements AutoCloseable {
 
   public int getNumberOfBatches() {
     return size;
+  }
+
+  public int getRecordLength() {
+    return recordLength;
   }
 
   @Override

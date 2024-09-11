@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 
-@import "~@app/uiTheme/less/color-schema.less";
-@import "~@app/components/colors.less";
-
 :global {
   .branch-list {
-    border: 1px solid @TABLE_BORDER;
+    border: 1px solid var(--border--neutral);
     border-radius: 4px;
     height: 100%;
     position: relative;
 
     &-empty-state-trigger {
-      color: var(--dremio--color--link);
+      color: var(--text--brand);
       cursor: pointer;
+      font-weight: 400;
+      height: 18px;
+
+      &:hover,
+      &:focus-visible {
+        text-decoration: underline;
+        background: none !important;
+      }
     }
 
     &-no-results {
@@ -44,41 +49,53 @@
       border-top-left-radius: 4px;
       border-top-right-radius: 4px;
       padding: 8px;
-      background: @alice-blue;
+      background: var(--fill--secondary);
       font-size: 14px;
       font-weight: 600;
     }
 
     &-container {
       height: calc(100% - 36px);
-
-      & > div:nth-child(1) {
-        height: 100% !important;
-        width: 100% !important;
-      }
     }
     &-menu-item {
       width: 160px;
       &-delete {
-        color: var(--dremio--color--status--error--foreground);
+        color: var(--fill--danger--solid);
       }
     }
 
     &-item {
       padding: 16px;
+      display: flex;
+      height: 100%;
 
       &-divider {
         width: 1px;
         height: 24px;
         margin: 0 8px;
-        background-color: var(--color--neutral--50);
+        background-color: var(--border--neutral);
       }
       &-container {
         cursor: pointer;
-        &:last-child {
-          .MuiMenuItem-root {
-            border-bottom: none;
+        border-bottom: 1px solid var(--border--neutral);
+        height: 82px;
+
+        &:hover,
+        &:focus-visible {
+          background-color: var(--fill--primary--hover);
+          .branch-list-item-icons {
+            opacity: 1;
           }
+        }
+
+        &:focus-within {
+          .branch-list-item-icons {
+            opacity: 1;
+          }
+        }
+
+        &:last-child {
+          border-bottom: none;
         }
       }
 
@@ -90,6 +107,7 @@
         display: flex;
         font-size: 14px;
         flex-direction: column;
+        justify-content: center;
         &-bottom {
           display: flex;
           align-items: center;
@@ -106,7 +124,7 @@
       }
 
       &-name {
-        color: var(--dremio--color--text--main);
+        color: var(--text--primary);
         font-weight: 600;
         text-decoration: none;
         &:hover,
@@ -126,13 +144,10 @@
         }
         width: auto;
         max-width: 440px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
       }
 
       &-by {
-        color: var(--dremio--color--text--faded);
+        color: var(--text--faded);
         margin-left: 2px;
         margin-right: 6px;
       }
@@ -144,29 +159,15 @@
         background: transparent;
         border: none;
         &:hover {
-          color: var(--dremio--color--link);
+          color: var(--icon--hover);
         }
       }
       &-icons {
         display: flex;
         align-items: center;
         white-space: nowrap;
-        color: var(--dremio--color--text--faded);
-      }
-    }
-
-    .MuiMenuItem-root {
-      height: 82px;
-      border-bottom: 1px solid @TABLE_BORDER;
-    }
-
-    .ReactVirtualized__Grid {
-      border-radius: 4px;
-      width: auto !important;
-
-      .ReactVirtualized__Grid__innerScrollContainer {
-        max-width: none !important;
-        width: auto !important;
+        color: var(--icon--primary);
+        opacity: 0;
       }
     }
   }

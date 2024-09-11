@@ -26,6 +26,7 @@ import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_PERIODI
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.collect.Iterables.isEmpty;
 import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,22 +40,15 @@ import com.dremio.dac.server.BaseTestServerJunit5;
 import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.QueryProfileRequest;
-import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.QueryType;
@@ -96,7 +90,6 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.store.MaterializationStore;
-import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -106,7 +99,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.ws.rs.client.Entity;
@@ -122,7 +114,6 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
   protected static final String TEST_SPACE = "refl_test";
 
   private static MaterializationStore materializationStore;
-  private static ReflectionEntriesStore entriesStore;
 
   @BeforeAll
   public static void reflectionSetup() throws Exception {
@@ -133,7 +124,6 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
     nsService.addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
 
     materializationStore = new MaterializationStore(p(LegacyKVStoreProvider.class));
-    entriesStore = new ReflectionEntriesStore(p(LegacyKVStoreProvider.class));
     setSystemOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
     setMaterializationCacheSettings(false, 1000);
   }
@@ -150,8 +140,7 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
 
   private static void clearReflections() {
     final ReflectionService reflectionService = getReflectionService();
-    final ReflectionMonitor reflectionMonitor =
-        newReflectionMonitor(TimeUnit.SECONDS.toMillis(5), TimeUnit.MINUTES.toMillis(2));
+    final ReflectionMonitor reflectionMonitor = newReflectionMonitor();
     reflectionService.clearAll();
     reflectionMonitor.waitUntilNoMaterializationsAvailable();
   }
@@ -160,31 +149,16 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
     return materializationStore;
   }
 
-  protected static ReflectionEntriesStore getReflectionEntriesStore() {
-    return entriesStore;
-  }
-
-  protected Catalog cat() {
-    return l(CatalogService.class)
-        .getCatalog(
-            MetadataRequestOptions.of(
-                SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
-  }
-
-  protected static NamespaceService getNamespaceService() {
-    return p(NamespaceService.class).get();
-  }
-
   protected static ReflectionServiceImpl getReflectionService() {
-    return (ReflectionServiceImpl) p(ReflectionService.class).get();
+    return (ReflectionServiceImpl) l(ReflectionService.class);
   }
 
   protected static ReflectionStatusService getReflectionStatusService() {
-    return p(ReflectionStatusService.class).get();
+    return l(ReflectionStatusService.class);
   }
 
   protected static MaterializationDescriptorProvider getMaterializationDescriptorProvider() {
-    return p(MaterializationDescriptorProvider.class).get();
+    return l(MaterializationDescriptorProvider.class);
   }
 
   protected static long requestRefresh(NamespaceKey datasetKey) throws NamespaceException {
@@ -214,7 +188,7 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
     return requestTime;
   }
 
-  protected static ReflectionMonitor newReflectionMonitor(long delay, long maxWait) {
+  protected static ReflectionMonitor newReflectionMonitor() {
     final MaterializationStore materializationStore =
         new MaterializationStore(p(LegacyKVStoreProvider.class));
     return new ReflectionMonitor(
@@ -223,12 +197,9 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
         getMaterializationDescriptorProvider(),
         getJobsService(),
         materializationStore,
-        delay,
-        maxWait);
-  }
-
-  protected static JobsService getJobsService() {
-    return p(JobsService.class).get();
+        getOptionManager(),
+        500,
+        SECONDS.toMillis(60));
   }
 
   protected static DatasetConfig addJson(DatasetPath path) throws Exception {
@@ -342,8 +313,7 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
   }
 
   protected void onlyAllowPeriodicWakeup(boolean periodicOnly) {
-    getSabotContext()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 SYSTEM, REFLECTION_PERIODIC_WAKEUP_ONLY.getOptionName(), periodicOnly));
@@ -358,15 +328,11 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
 
   protected static void setMaterializationCacheSettings(
       boolean enabled, long refreshDelayInSeconds) {
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 SYSTEM, MATERIALIZATION_CACHE_ENABLED.getOptionName(), enabled));
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createLong(
                 SYSTEM,
@@ -375,9 +341,7 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
   }
 
   protected static void setEnableReAttempts(boolean enableReAttempts) {
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createBoolean(
                 SYSTEM, ExecConstants.ENABLE_REATTEMPTS.getOptionName(), enableReAttempts));
@@ -388,18 +352,14 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
   }
 
   protected static void setManagerRefreshDelayMs(long delayInMillis) {
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createLong(
                 SYSTEM, REFLECTION_MANAGER_REFRESH_DELAY_MILLIS.getOptionName(), delayInMillis));
   }
 
   protected static void setDeletionGracePeriod(long periodInSeconds) {
-    l(ContextService.class)
-        .get()
-        .getOptionManager()
+    getOptionManager()
         .setOption(
             OptionValue.createLong(
                 SYSTEM, REFLECTION_DELETION_GRACE_PERIOD.getOptionName(), periodInSeconds));
@@ -603,8 +563,7 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
     JobDetailsRequest request =
         JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(refreshJobId)).build();
     final com.dremio.service.job.JobDetails refreshJob = getJobsService().getJobDetails(request);
-    final JobDetails jobDetails = JobsProtoUtil.getLastAttempt(refreshJob).getDetails();
-    return jobDetails.getOutputRecords();
+    return JobsProtoUtil.getLastAttempt(refreshJob).getStats().getOutputRecords();
   }
 
   /**

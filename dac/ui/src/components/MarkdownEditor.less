@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
-@import "~@app/uiTheme/less/variables.complex.less";
 @import "~@app/uiTheme/less/mixins.less";
 @import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
 @import "./MarkdownEditor.mixins.less";
@@ -22,7 +20,7 @@
 @_toolbar-content-height: 40px;
 
 .editor {
-  background: white;
+  background: var(--fill--primary);
 
   // markdown element styles -------------------
 
@@ -90,9 +88,9 @@
     .editor-toolbar {
       display: flex;
       align-items: center;
-      background: white;
+      background: var(--fill--primary);
       padding: 0;
-      border: 1px solid var(--color--neutral--100);
+      border: 1px solid var(--border--neutral);
       border-bottom: none;
       height: @_toolbar-content-height;
       &:before {
@@ -112,7 +110,7 @@
       }
 
       i.separator {
-        background: @icon-button-hover-bg;
+        background: var(--border--neutral);
         margin: 0;
         border: none;
         padding: 0 2px;
@@ -130,7 +128,7 @@
           top: 50%;
           transform: translateY(-50%);
           //---------------------------
-          background: @COLLABORATION_BORDER;
+          background: var(--border--neutral);
         }
       }
 
@@ -158,7 +156,8 @@
     @native-scroll-size: 16px; // manually calculated value
 
     .CodeMirror {
-      border: @collaboration-border;
+      color: var(--text--primary);
+      border: 1px solid var(--border--neutral);
       padding: 0; // reset pading in container. Padding would be applied to CodeMirror-lines
     }
 
@@ -194,7 +193,7 @@
       transform: scaleY(0.65);
     }
 
-    .mde-background-mixin(#FFF);
+    .mde-background-mixin(var(--fill--primary));
   }
 }
 

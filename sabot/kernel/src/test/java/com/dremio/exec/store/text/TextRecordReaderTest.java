@@ -52,7 +52,7 @@ public class TextRecordReaderTest extends PopUnitTestBase {
                           .toURI()
                           .toString()));
       int count = 0;
-      RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
+      RecordBatchLoader loader = new RecordBatchLoader(getTestAllocator());
       for (QueryDataBatch b : results) {
         if (b.getHeader().getRowCount() != 0) {
           count += b.getHeader().getRowCount();

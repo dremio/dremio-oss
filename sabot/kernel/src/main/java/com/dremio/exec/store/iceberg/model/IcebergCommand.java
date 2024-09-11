@@ -31,10 +31,12 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.CharSequenceSet;
 
 /** represents an Iceberg catalog */
 public interface IcebergCommand {
@@ -56,6 +58,9 @@ public interface IcebergCommand {
       PartitionSpec partitionSpec,
       SortOrder sortOrder);
 
+  /** Registers an existing table to the catalog */
+  void registerTable(TableMetadata tableMetadata);
+
   /** Start of a tansaction */
   void beginTransaction();
 
@@ -65,11 +70,23 @@ public interface IcebergCommand {
   /** Start the overwrite operation */
   void beginOverwrite(long snapshotId);
 
+  /** start the RowDelta operation */
+  void beginRowDelta(Long startingSnapshotId);
+
   /** Start overwrite operation with Serializable-level Isolation */
   void beginSerializableIsolationOverwrite(long snapshotId, Expression conflictDetectionFilter);
 
+  /** Start row delta operation with Serializable-level Isolation */
+  void beginSerializableIsolationRowDelta(
+      CharSequenceSet referencedDataFiles,
+      Long startingSnapshotId,
+      Expression conflictDetectionFilter);
+
   /** Commit the overwrite operation */
-  Snapshot finishOverwrite();
+  void finishOverwrite();
+
+  /** commit the RowDelta operation */
+  void finishRowDelta();
 
   /**
    * Performs rewrite operation and commits the transaction
@@ -118,14 +135,8 @@ public interface IcebergCommand {
    *
    * @return Live snapshots and their manifest list file paths
    */
-  List<SnapshotEntry> expireSnapshots(long olderThanInMillis, int retainLast);
-
-  /**
-   * Collect the expired snapshot ids, but not actually make table snapshots expired.
-   *
-   * @return Exipired snapshots and their timestamp
-   */
-  List<SnapshotEntry> collectExpiredSnapshots(long olderThanInMillis, int retainLast);
+  List<SnapshotEntry> expireSnapshots(
+      long olderThanInMillis, int retainLast, boolean throwIcebergException);
 
   /**
    * Roll a table's data back to a specific snapshot identified either by id or before a given
@@ -148,6 +159,22 @@ public interface IcebergCommand {
    * @param filesList list of DataFile entries
    */
   void consumeDeleteDataFiles(List<DataFile> filesList);
+
+  /**
+   * consumes list of positional-delete files to be added as a part of the current transaction
+   *
+   * @param deleteFileList list of positional-DeleteFile entries
+   */
+  void consumePositionalDeleteFiles(List<DeleteFile> deleteFileList);
+
+  /**
+   * consumes list of data files to be added as a part of the current transaction.
+   *
+   * <p>Used during rowDelta operation (for Merge-On-Read)
+   *
+   * @param dataFileList
+   */
+  void consumeMergeOnReadDataFiles(List<DataFile> dataFileList);
 
   /**
    * consumes list of deleted data files by file paths as a part of the current transaction
@@ -221,17 +248,6 @@ public interface IcebergCommand {
    * @param columns primary key column fields
    */
   void updatePrimaryKey(List<Field> columns);
-
-  /**
-   * Marks the transaction as a read-modify-write transaction. The transaction is expected to add
-   * validation checks to ensure that the Iceberg table has not modified since the read of the table
-   *
-   * <p>Note: This should be the first update to the transaction. This should be invoked before
-   * adding/deleting files or changing the schema of the table
-   *
-   * @param snapshotId The snapshotId that was used to read the transaction
-   */
-  Snapshot setIsReadModifyWriteTransaction(long snapshotId);
 
   /** Update table's properties in a transaction */
   void updatePropertiesInTransaction(Map<String, String> tblProperties);

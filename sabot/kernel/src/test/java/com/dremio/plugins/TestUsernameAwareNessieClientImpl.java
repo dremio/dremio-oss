@@ -22,7 +22,6 @@ import static org.mockito.Mockito.when;
 import com.dremio.catalog.model.VersionContext;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
-import com.dremio.context.UsernameContext;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
@@ -61,7 +60,10 @@ public class TestUsernameAwareNessieClientImpl {
     when(user.getUserName()).thenReturn(USER_NAME);
     doAnswer(
             (unused) -> {
-              assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName())
+              assertThat(
+                      RequestContext.current()
+                          .get(NessieCommitUsernameContext.CTX_KEY)
+                          .getUserName())
                   .isEqualTo(USER_NAME);
               return null;
             })
@@ -81,7 +83,10 @@ public class TestUsernameAwareNessieClientImpl {
     when(user.getUserName()).thenReturn(USER_NAME);
     doAnswer(
             (unused) -> {
-              assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName())
+              assertThat(
+                      RequestContext.current()
+                          .get(NessieCommitUsernameContext.CTX_KEY)
+                          .getUserName())
                   .isEqualTo(USER_NAME);
               return null;
             })
@@ -103,7 +108,10 @@ public class TestUsernameAwareNessieClientImpl {
     when(user.getUserName()).thenReturn(USER_NAME);
     doAnswer(
             (unused) -> {
-              assertThat(RequestContext.current().get(UsernameContext.CTX_KEY).getUserName())
+              assertThat(
+                      RequestContext.current()
+                          .get(NessieCommitUsernameContext.CTX_KEY)
+                          .getUserName())
                   .isEqualTo(USER_NAME);
               return null;
             })
@@ -124,7 +132,8 @@ public class TestUsernameAwareNessieClientImpl {
     when(userService.getUser(new UID(userId))).thenThrow(UserNotFoundException.class);
     doAnswer(
             (unused) -> {
-              assertThat(RequestContext.current().get(UsernameContext.CTX_KEY)).isNull();
+              assertThat(RequestContext.current().get(NessieCommitUsernameContext.CTX_KEY))
+                  .isNull();
               return null;
             })
         .when(nessieClient)

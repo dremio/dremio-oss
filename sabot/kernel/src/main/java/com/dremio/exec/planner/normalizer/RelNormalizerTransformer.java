@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.normalizer;
 
-import com.dremio.exec.planner.events.PlannerEventBus;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
@@ -23,7 +22,7 @@ import org.apache.calcite.rel.RelNode;
 
 public interface RelNormalizerTransformer {
 
-  PreSerializedQuery transform(RelNode relNode, AttemptObserver attemptObserver)
+  RelNode transform(RelNode relNode, AttemptObserver attemptObserver)
       throws SqlUnsupportedException;
 
   /**
@@ -34,18 +33,14 @@ public interface RelNormalizerTransformer {
    * @param relNode
    * @param relTransformer post-processing for reflections
    * @param attemptObserver
-   * @param plannerEventBus
    * @return
    * @throws SqlUnsupportedException
    */
-  PreSerializedQuery transformForCompactAndMaterializations(
-      RelNode relNode,
-      RelTransformer relTransformer,
-      AttemptObserver attemptObserver,
-      PlannerEventBus plannerEventBus)
+  RelNode transformForReflection(
+      RelNode relNode, RelTransformer relTransformer, AttemptObserver attemptObserver)
       throws SqlUnsupportedException, NormalizerException;
 
-  PreSerializedQuery transformPreSerialization(RelNode relNode);
+  RelNode transformPreSerialization(RelNode relNode, AttemptObserver attemptObserver);
 
   RelNode transformPostSerialization(RelNode relNode) throws SqlUnsupportedException;
 }

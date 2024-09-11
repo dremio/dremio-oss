@@ -26,14 +26,14 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /** Convertlet to rewrite ARRAY_AVG(arr) as ARRAY_SUM(arr) / ARRAY_LENGTH(arr) */
-public final class ArrayAvgConvertlet implements FunctionConvertlet {
-  public static final FunctionConvertlet INSTANCE =
-      new NullableArrayFunctionConvertlet(new ArrayAvgConvertlet());
+public final class ArrayAvgConvertlet extends RexCallConvertlet {
+  public static final RexCallConvertlet INSTANCE =
+      new NullableArrayRexCallConvertlet(new ArrayAvgConvertlet());
 
   private ArrayAvgConvertlet() {}
 
   @Override
-  public boolean matches(RexCall call) {
+  public boolean matchesCall(RexCall call) {
     return call.getOperator() == ARRAY_AVG;
   }
 

@@ -18,6 +18,7 @@ package com.dremio.exec.store.iceberg.deletes;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.DefaultNameMapping;
 import java.util.List;
 
 /**
@@ -33,5 +34,6 @@ public interface RowLevelDeleteFileReaderFactory {
       Path deleteFilePath,
       long recordCount,
       List<Integer> equalityIds,
-      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds);
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIds,
+      List<DefaultNameMapping> icebergDefaultNameMapping);
 }

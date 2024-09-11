@@ -83,7 +83,7 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
     return clazz.cast(v);
   }
 
-  private void addVectorForFieldName(ValueVector v, String fieldName) {
+  public void addVectorForFieldName(ValueVector v, String fieldName) {
     final ValueVector old = fieldVectorMap.put(fieldName.toLowerCase(), v);
     if (old != null) {
       container.replace(old, v);

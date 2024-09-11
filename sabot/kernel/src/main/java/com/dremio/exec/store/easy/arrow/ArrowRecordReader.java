@@ -188,7 +188,7 @@ public class ArrowRecordReader extends AbstractRecordReader {
         // If the batch has no records, go to the next non-zero record batch. Returning a zero
         // record batch to ScanBatch
         // ends up closing the RecordReader as it assumes there are no more records in the reader.
-        if (nextBatchIndex == footer.getBatchCount()) {
+        if (nextBatchIndex >= footer.getBatchCount() - 1) {
           // no more batches in the file
           return 0;
         }

@@ -17,6 +17,7 @@ package com.dremio.sabot.op.sort.topn;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.OutOfMemoryOrResourceExceptionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.Order.Ordering;
@@ -156,7 +157,10 @@ public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
     final int copied = copier.copyRecords(0, targetCount);
     if (copied != targetCount) {
       throw UserException.memoryError()
-          .message("Ran out of memory while trying to output records.")
+          .setAdditionalExceptionContext(
+              new OutOfMemoryOrResourceExceptionContext(
+                  OutOfMemoryOrResourceExceptionContext.MemoryType.DIRECT_MEMORY,
+                  "Ran out of memory while trying to output records."))
           .build(logger);
     }
 

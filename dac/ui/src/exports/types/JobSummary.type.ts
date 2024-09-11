@@ -28,6 +28,7 @@ export type JobSummary = {
   cancellationInfo?: {
     message: string;
   };
+  datasetVersion: string;
   description: string;
   failureInfo: FailureInfo;
   id: string;

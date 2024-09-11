@@ -15,8 +15,9 @@
  */
 package com.dremio.service.scheduler;
 
-import com.dremio.telemetry.api.metrics.Counter;
-import com.dremio.telemetry.api.metrics.Metrics;
+import static com.dremio.telemetry.api.metrics.MeterProviders.newGauge;
+
+import com.dremio.telemetry.api.metrics.SimpleCounter;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -33,30 +34,35 @@ final class TaskStatsCollector implements SchedulerEvents {
   private static final int LOG_INTERVAL_SECONDS = 600;
   private final ClusteredSingletonCommon schedulerCommon;
   private final Map<String, PerTaskStatsCollector> allTasks;
-  private final Counter totalTasks;
-  private final Counter totalOneShotTasks;
-  private final Counter totalDoneTasks;
-  private final Counter totalUnexpectedErrors;
+  private final SimpleCounter totalTasks;
+  private final SimpleCounter totalOneShotTasks;
+  private final SimpleCounter totalDoneTasks;
+  private final SimpleCounter totalUnexpectedErrors;
   private final MembershipStats groupMembershipStats;
   private volatile int currentRunSetTasks;
+  private volatile int lastComputedWeight;
 
   TaskStatsCollector(ClusteredSingletonCommon schedulerCommon) {
     this.schedulerCommon = schedulerCommon;
     this.allTasks = new ConcurrentHashMap<>();
-    this.totalTasks = Metrics.newCounter(getRootMetricsName("tasks"), Metrics.ResetType.NEVER);
+    this.totalTasks = SimpleCounter.of(getRootMetricsName("tasks"), "Tracks number of tasks");
     this.totalDoneTasks =
-        Metrics.newCounter(getRootMetricsName("done_tasks"), Metrics.ResetType.NEVER);
+        SimpleCounter.of(getRootMetricsName("done_tasks"), "Tracks number of done tasks");
     this.totalOneShotTasks =
-        Metrics.newCounter(getRootMetricsName("single_shot_tasks"), Metrics.ResetType.NEVER);
+        SimpleCounter.of(
+            getRootMetricsName("single_shot_tasks"), "Tracks number of single shot tasks");
     this.totalUnexpectedErrors =
-        Metrics.newCounter(getRootMetricsName("total_unexpected_errors"), Metrics.ResetType.NEVER);
+        SimpleCounter.of(
+            getRootMetricsName("total_unexpected_errors"),
+            "Tracks number of unexpected errors encountered (Ideally zero)");
     this.groupMembershipStats = new MembershipStats();
-    Metrics.newGauge(getRootMetricsName("active_tasks"), allTasks::size);
-    Metrics.newGauge(getRootMetricsName("run_q_size"), () -> currentRunSetTasks);
+    newGauge(getRootMetricsName("active_tasks"), allTasks::size);
+    newGauge(getRootMetricsName("run_q_size"), () -> currentRunSetTasks);
+    newGauge(getRootMetricsName("computed_weight"), () -> lastComputedWeight);
   }
 
   private static String getRootMetricsName(String metricName) {
-    return Metrics.join(BASE_METRIC_NAME, metricName);
+    return BASE_METRIC_NAME + "." + metricName;
   }
 
   void start() {
@@ -122,6 +128,11 @@ final class TaskStatsCollector implements SchedulerEvents {
   }
 
   @Override
+  public void computedWeight(int currentWeight) {
+    lastComputedWeight = currentWeight;
+  }
+
+  @Override
   public String toString() {
     String mainStats =
         "Total Tasks : "
@@ -161,9 +172,9 @@ final class TaskStatsCollector implements SchedulerEvents {
       currentMembershipCount = new AtomicInteger(0);
       currentOwnedTasks = new AtomicInteger(0);
       lastDisownedTasks = new AtomicInteger(0);
-      Metrics.newGauge(getRootMetricsName("instances"), currentMembershipCount::get);
-      Metrics.newGauge(getRootMetricsName("owned_tasks"), currentOwnedTasks::get);
-      Metrics.newGauge(getRootMetricsName("disowned_tasks"), lastDisownedTasks::get);
+      newGauge(getRootMetricsName("instances"), currentMembershipCount::get);
+      newGauge(getRootMetricsName("owned_tasks"), currentOwnedTasks::get);
+      newGauge(getRootMetricsName("disowned_tasks"), lastDisownedTasks::get);
     }
 
     public void newMemberShip(int newCount) {

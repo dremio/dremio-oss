@@ -16,14 +16,17 @@
 
 package com.dremio.exec.store;
 
+import org.joda.time.DateTime;
+
 /** Change info used to support versioning. */
 public final class ChangeInfo {
   public final String commitHash;
   public final String authorName;
-  public final String authorTimeStamp;
+  public final DateTime authorTimeStamp;
   public final String message;
 
-  public ChangeInfo(String commitHash, String authorName, String authorTimeStamp, String message) {
+  public ChangeInfo(
+      String commitHash, String authorName, DateTime authorTimeStamp, String message) {
     this.commitHash = commitHash;
     this.authorName = authorName;
     this.authorTimeStamp = authorTimeStamp;

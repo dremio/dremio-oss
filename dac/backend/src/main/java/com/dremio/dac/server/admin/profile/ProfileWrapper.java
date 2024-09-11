@@ -616,12 +616,18 @@ public class ProfileWrapper {
   public Long getEarliestReflectionRefresh() {
     long ret = Long.MAX_VALUE;
     if (profile.hasAccelerationProfile()
-        && profile.getAccelerationProfile().getLayoutProfilesCount() > 0) {
+        && profile.getAccelerationProfile().getLayoutProfilesCount() > 0
+        && accelerationDetails != null) {
       UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
       for (UserBitShared.LayoutMaterializedViewProfile profile :
           accelerationProfile.getLayoutProfilesList()) {
-        if (profile.hasLayoutId() && profile.hasNumUsed() && profile.getNumUsed() > 0) {
-          ret = Math.min(ret, accelerationDetails.getRefreshChainStartTime(profile.getLayoutId()));
+        Long refreshChainStartTime =
+            accelerationDetails.getRefreshChainStartTime(profile.getLayoutId());
+        if (profile.hasLayoutId()
+            && profile.hasNumUsed()
+            && profile.getNumUsed() > 0
+            && refreshChainStartTime != null) {
+          ret = Math.min(ret, refreshChainStartTime);
         }
       }
     }

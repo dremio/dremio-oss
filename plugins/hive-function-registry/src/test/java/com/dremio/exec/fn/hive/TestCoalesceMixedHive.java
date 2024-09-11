@@ -16,13 +16,21 @@
 package com.dremio.exec.fn.hive;
 
 import com.dremio.PlanTestBase;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
+import java.util.concurrent.TimeUnit;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
 public class TestCoalesceMixedHive extends PlanTestBase {
   private static final String PLACEHOLDER = "---LARGESTRING---";
+
+  @Rule
+  public final TestRule timeoutRule =
+      TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -139,7 +147,8 @@ public class TestCoalesceMixedHive extends PlanTestBase {
             + "   (  SELECT "
             + "     CASE WHEN s.ctid IS NULL OR t.ctid IS NULL THEN '[ALL columns differ]' ELSE "
             + "     COALESCE(NULLIF( "
-            + "     CONCAT_WS(', ', ---LARGESTRING--- "
+            + "     CONCAT_WS(', ', "
+            + PLACEHOLDER
             + "     ),''),'ALL OK') END as col_diff "
             + "  "
             + "   FROM "

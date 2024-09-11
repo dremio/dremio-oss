@@ -17,7 +17,6 @@ import Immutable from "immutable";
 import $ from "jquery";
 import { v4 as uuidv4 } from "uuid";
 import { HISTORY_PANEL_SIZE } from "uiTheme/radium/sizes";
-import { HIGHLIGHTED_TABLE, PALE_ORANGE } from "uiTheme/radium/colors";
 
 const MARGIN_LEFT = 0;
 
@@ -33,9 +32,9 @@ class GridMap {
     // it can be changed later to color other operations.
     function getColumnColor(code) {
       const hash = {
-        HIGHLIGHTED: HIGHLIGHTED_TABLE,
-        DELETED: PALE_ORANGE,
-        DELETION_MARKER: PALE_ORANGE,
+        HIGHLIGHTED: "var(--color--brand--100)",
+        DELETED: "var(--color--orange--50)",
+        DELETION_MARKER: "var(--color--orange--50)",
       };
       return hash[code] || "none";
     }
@@ -211,7 +210,7 @@ class GridMap {
         type: child.type,
         connectedToThis: this._getNumberOfItemsConnectedToItem(
           layers,
-          child.path
+          child.path,
         ),
         parentIds: child.parents.map((parent) => {
           return nextLayerKey !== "nextChildren"

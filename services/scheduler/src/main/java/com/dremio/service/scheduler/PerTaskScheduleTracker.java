@@ -26,6 +26,7 @@ import static com.dremio.service.scheduler.TaskRecoveryMonitor.PerTaskRecoveryIn
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.io.file.Path;
+import com.dremio.service.coordinator.LinearizableHierarchicalStore.Stats;
 import com.dremio.service.coordinator.exceptions.PathExistsException;
 import com.dremio.service.coordinator.exceptions.PathMissingException;
 import com.google.common.base.Preconditions;
@@ -57,7 +58,12 @@ import java.util.function.Consumer;
  * visibility
  */
 final class PerTaskScheduleTracker
-    implements Runnable, Cancellable, PerTaskRecoveryInfo, PerTaskDoneInfo, PerTaskLoadInfo {
+    implements Runnable,
+        Cancellable,
+        PerTaskRecoveryInfo,
+        PerTaskDoneInfo,
+        PerTaskLoadInfo,
+        WeightBalancer.PerTaskWeightInfo {
   private static final org.slf4j.Logger LOGGER =
       org.slf4j.LoggerFactory.getLogger(PerTaskScheduleTracker.class);
   private static final String BOOK_PATH_NAME = "book";
@@ -66,7 +72,6 @@ final class PerTaskScheduleTracker
   private static final int WAIT_TIME_FOR_DONE_SECONDS = 60;
   // Amount of time to wait at each iteration to check if a cancelled task is complete
   private static final int MAX_RUN_WAIT_TIME_MILLIS = 50;
-  // Keep the booking even after a schedule is cancelled for these many seconds
 
   private final String taskName;
   private final Runnable actualTask;
@@ -81,12 +86,14 @@ final class PerTaskScheduleTracker
   private final TaskRecoveryMonitor.PerTaskRecoveryMonitor recoveryMonitor;
   private final TaskLoadController.PerTaskLoadController loadController;
   private final SchedulerEvents.PerTaskEvents eventsCollector;
+  private final WeightBalancer weightBalancer;
   private final Consumer<PerTaskScheduleTracker> cancelHandler;
   // this needs to be volatile as isCancelled check is not under a lock
   private volatile boolean cancelled;
-  private volatile boolean bookingOwner;
+  private volatile long bookingOwnerSessionId;
   private volatile boolean taskDone;
   private volatile Instant lastRun;
+  private volatile long sessionIdWhenLost;
   private ScheduledFuture<?> scheduledTaskFuture;
   private Future<?> runningTaskFuture;
   private Instant firstRun;
@@ -98,7 +105,7 @@ final class PerTaskScheduleTracker
       Runnable task,
       String taskFqPath,
       String taskFqPathForBook,
-      boolean bookingOwner,
+      long bookingOwnerSessionId,
       String taskName,
       CloseableThreadPool runningPool,
       ClusteredSingletonCommon schedulerCommon,
@@ -106,7 +113,9 @@ final class PerTaskScheduleTracker
       TaskLoadController loadControllerManager,
       TaskCompositeEventCollector eventCollectorManager,
       TaskRecoveryMonitor recoveryMonitorManager,
-      TaskDoneHandler doneHandlerManager) {
+      TaskDoneHandler doneHandlerManager,
+      WeightBalancer weightBalancer) {
+    this.weightBalancer = weightBalancer;
     this.schedulerCommon = schedulerCommon;
     this.cancelHandler = cancelHandler;
     this.currentSchedule = schedule;
@@ -124,13 +133,14 @@ final class PerTaskScheduleTracker
     this.cancelLock = new ReentrantLock();
     this.doneCondition = cancelLock.newCondition();
     this.cancelTime = null;
-    this.bookingOwner = bookingOwner;
+    this.bookingOwnerSessionId = bookingOwnerSessionId;
     // Order is important as event call backs may arrive as soon as each of these managers know
     // about this task
     this.eventsCollector = eventCollectorManager.addTask(this);
     this.recoveryMonitor = recoveryMonitorManager.addTask(this, eventsCollector);
     this.loadController = loadControllerManager.addTask(this, eventsCollector);
     this.doneHandler = doneHandlerManager.addTask(this);
+    this.sessionIdWhenLost = PerTaskInfo.INVALID_SESSION_ID;
   }
 
   PerTaskScheduleTracker(
@@ -143,13 +153,14 @@ final class PerTaskScheduleTracker
       TaskLoadController loadControllerManager,
       TaskCompositeEventCollector eventCollectorManager,
       TaskRecoveryMonitor recoveryMonitorManager,
-      TaskDoneHandler doneHandlerManager) {
+      TaskDoneHandler doneHandlerManager,
+      WeightBalancer weightBalancer) {
     this(
         schedule,
         task,
         taskFqPath,
         taskFqPath,
-        false,
+        PerTaskInfo.INVALID_SESSION_ID,
         schedule.getTaskName(),
         runningPool,
         schedulerCommon,
@@ -157,7 +168,8 @@ final class PerTaskScheduleTracker
         loadControllerManager,
         eventCollectorManager,
         recoveryMonitorManager,
-        doneHandlerManager);
+        doneHandlerManager,
+        weightBalancer);
   }
 
   @Override
@@ -182,7 +194,12 @@ final class PerTaskScheduleTracker
 
   @Override
   public boolean isBookingOwner() {
-    return bookingOwner;
+    return bookingOwnerSessionId != PerTaskInfo.INVALID_SESSION_ID;
+  }
+
+  @Override
+  public long getBookingOwnerSessionId() {
+    return bookingOwnerSessionId;
   }
 
   /**
@@ -197,8 +214,9 @@ final class PerTaskScheduleTracker
    */
   void startRun(boolean recover) {
     // try booking. Create the schedule only if we can book successfully.
-    final boolean booked = tryBook();
-    if (booked) {
+    tryBook();
+    if (isBookingOwner()) {
+      weightBalancer.addTask(this, false, eventsCollector);
       // now we are the task owner and we loose ownership only if we die or explicitly relinquish.
       // remove from run set, if it is still in run set
       loadController.removeFromRunSet();
@@ -269,7 +287,8 @@ final class PerTaskScheduleTracker
       boolean addToRunSet = false;
       cancelLock.lock();
       try {
-        if (!bookingOwner) {
+        if (!isBookingOwner()) {
+          weightBalancer.removeTask(this.taskName);
           LOGGER.info("Lost booking ownership for task {}", taskName);
           return;
         }
@@ -375,7 +394,7 @@ final class PerTaskScheduleTracker
     boolean propogateCancel = false;
     cancelLock.lock();
     try {
-      if (taskDone) {
+      if (cancelled) {
         return;
       }
       cancelled = true;
@@ -413,14 +432,14 @@ final class PerTaskScheduleTracker
 
   @Override
   public boolean isScheduled() {
-    return bookingOwner && !taskDone;
+    return isBookingOwner() && !taskDone;
   }
 
   @Override
   public SchedulerEvents.RecoveryRejectReason tryRecover() {
     if (!loadController.isInRunSet()) {
       startRun(true);
-      return bookingOwner ? null : SchedulerEvents.RecoveryRejectReason.CANNOT_BOOK;
+      return isBookingOwner() ? null : SchedulerEvents.RecoveryRejectReason.CANNOT_BOOK;
     }
     return SchedulerEvents.RecoveryRejectReason.IN_RUN_QUEUE;
   }
@@ -452,8 +471,9 @@ final class PerTaskScheduleTracker
   @Override
   public void runImmediate() {
     // try booking. Create the schedule only if we can book successfully.
-    boolean booked = tryBook();
-    if (booked) {
+    tryBook();
+    if (isBookingOwner()) {
+      weightBalancer.addTask(this, true, eventsCollector);
       // save the last schedule time for recovery of lastRun
       recoveryMonitor.storeScheduleTime();
       cancelLock.lock();
@@ -461,6 +481,10 @@ final class PerTaskScheduleTracker
         if (!taskDone) {
           // still use schedule instead of submit to make it cancellable once cancel lock is
           // released
+          // if we are not a periodic schedule and running immediate read of next instant
+          if (currentSchedule.getPeriod() == null) {
+            nextInstant();
+          }
           scheduledTaskFuture =
               schedulerCommon.getSchedulePool().schedule(this, 0, TimeUnit.MILLISECONDS);
         } else {
@@ -475,10 +499,21 @@ final class PerTaskScheduleTracker
   }
 
   @Override
+  public boolean isEligibleToRun(long millisInRunSet) {
+    return weightBalancer.isEligibleForInMigrations(millisInRunSet);
+  }
+
+  @Override
+  public void setRecoveryWatchIfRecoveryOwner() {
+    recoveryMonitor.setRecoveryWatch();
+  }
+
+  @Override
   public boolean runDeferredForce() {
     // try booking. Create the schedule only if we can book successfully.
-    boolean booked = tryBook();
-    if (booked) {
+    tryBook();
+    if (isBookingOwner()) {
+      weightBalancer.addTask(this, false, eventsCollector);
       // save the last schedule time for recovery of lastRun
       recoveryMonitor.storeScheduleTime();
       cancelLock.lock();
@@ -489,7 +524,7 @@ final class PerTaskScheduleTracker
         cancelLock.unlock();
       }
     }
-    return booked;
+    return isBookingOwner();
   }
 
   /**
@@ -561,12 +596,12 @@ final class PerTaskScheduleTracker
   }
 
   /**
-   * Handles a session loss.
+   * Handles a potential session loss.
    *
    * <p>Since session loss is rare, it is better to do a dirty check for whether the job is still
    * running.
    */
-  public void handleSessionLoss() {
+  public void handlePotentialSessionLoss() {
     cancelLock.lock();
     try {
       if (scheduledTaskFuture != null) {
@@ -580,7 +615,38 @@ final class PerTaskScheduleTracker
     while (!done) {
       done = i++ > 10 || checkCurrentRunCompleted();
     }
-    releaseBookingLocalState();
+    releaseBookingLocalState(true);
+  }
+
+  public void tryRecoverSession() {
+    if (sessionIdWhenLost == PerTaskInfo.INVALID_SESSION_ID) {
+      // nothing to recover
+      return;
+    }
+    eventsCollector.bookingRechecked();
+    Stats stats = this.schedulerCommon.getTaskStore().getStats(bookFqPathLocal);
+    if (stats == null || stats.getSessionId() != sessionIdWhenLost) {
+      // we have confirmed loss of session.
+      sessionIdWhenLost = PerTaskInfo.INVALID_SESSION_ID;
+      eventsCollector.bookingLost();
+      return;
+    }
+    bookingOwnerSessionId = stats.getSessionId();
+    eventsCollector.bookingRegained();
+    sessionIdWhenLost = PerTaskInfo.INVALID_SESSION_ID;
+    if (!taskDone) {
+      // session is not lost and we are still the booking owner
+      // save the last schedule time for recovery of lastRun
+      recoveryMonitor.storeScheduleTime();
+      long delay = ChronoUnit.MILLIS.between(Instant.now(), nextInstant());
+      cancelLock.lock();
+      try {
+        scheduledTaskFuture =
+            schedulerCommon.getSchedulePool().schedule(this, delay, TimeUnit.MILLISECONDS);
+      } finally {
+        cancelLock.unlock();
+      }
+    }
   }
 
   private void awaitImmediateTaskCompletion() {
@@ -634,8 +700,10 @@ final class PerTaskScheduleTracker
           }
         }
         endTask = true;
-        taskDone = true;
-        doneCondition.signal();
+        if (getSchedule().getSingleShotType() != null) {
+          taskDone = true;
+          doneCondition.signal();
+        }
       } else {
         long delay = ChronoUnit.MILLIS.between(Instant.now(), instant);
         if (e != null) {
@@ -645,7 +713,13 @@ final class PerTaskScheduleTracker
               delay,
               e);
         } else {
-          LOGGER.debug("Task {} is scheduled to run in {} milliseconds", taskName, delay);
+          if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                "{}: Task {} is scheduled to run in {} milliseconds",
+                this.schedulerCommon.getThisEndpoint().getAddress(),
+                taskName,
+                delay);
+          }
         }
         scheduledTaskFuture =
             schedulerCommon.getSchedulePool().schedule(this, delay, TimeUnit.MILLISECONDS);
@@ -654,7 +728,7 @@ final class PerTaskScheduleTracker
       if (endTask && RUN_ONCE_EVERY_MEMBER_DEATH.equals(currentSchedule.getSingleShotType())) {
         // ask recovery monitor to keep triggering a run even if task is done
         recoveryMonitor.addToDeathWatchLocal(true);
-        releaseBookingLocalState();
+        releaseBookingLocalState(false);
       }
       cancelLock.unlock();
       if (taskDone) {
@@ -681,9 +755,6 @@ final class PerTaskScheduleTracker
 
   private Instant nextInstant() {
     Instant result = null;
-    if (lastRun.equals(Instant.MIN)) {
-      lastRun = Instant.now();
-    }
     final Iterator<Instant> instants = instantsRef.get();
     while (instants.hasNext()) {
       result = instants.next();
@@ -691,13 +762,17 @@ final class PerTaskScheduleTracker
         break;
       }
     }
+    if (lastRun.equals(Instant.MIN)) {
+      // if we still have not initialized last run; good time to initialize to current
+      lastRun = Instant.now();
+    }
     return result;
   }
 
-  private boolean tryBook() {
+  private void tryBook() {
     try {
       eventsCollector.bookingAttempted();
-      if (!bookingOwner) {
+      if (!isBookingOwner()) {
         this.schedulerCommon
             .getTaskStore()
             .executeSingle(
@@ -705,10 +780,10 @@ final class PerTaskScheduleTracker
                     CREATE_EPHEMERAL,
                     bookFqPathLocal,
                     schedulerCommon.getThisEndpoint().toByteArray()));
-        eventsCollector.bookingAcquired();
-        bookingOwner = true;
+        bookingOwnerSessionId =
+            this.schedulerCommon.getTaskStore().getStats(bookFqPathLocal).getSessionId();
+        eventsCollector.bookingAcquired(bookingOwnerSessionId);
       }
-      return true;
     } catch (PathExistsException ignored) {
       LOGGER.debug("Booking failed. Ephemeral path {} already exists", bookFqPathLocal);
     } catch (Exception e) {
@@ -718,32 +793,45 @@ final class PerTaskScheduleTracker
           this,
           e);
     }
-    return false;
   }
 
   private void releaseBooking() {
-    if (bookingOwner) {
+    if (currentSchedule.getPeriod() == null) {
+      // prepare for next re-mastering of schedules that has no periodicity
+      this.instantsRef.set(currentSchedule.iterator());
+    }
+    if (isBookingOwner()) {
       try {
-        if (!cancelled) {
-          currentSchedule.getCleanupListener().cleanup();
-        }
+        weightBalancer.removeTask(this.taskName);
+        currentSchedule.getCleanupListener().cleanup();
         schedulerCommon.getTaskStore().executeSingle(new PathCommand(DELETE, bookFqPathLocal));
         eventsCollector.bookingReleased();
       } catch (PathExistsException | PathMissingException e) {
         LOGGER.warn("Unexpected error. Booking should have been held by this task {}", this);
         eventsCollector.contractError();
       }
-      bookingOwner = false;
+      bookingOwnerSessionId = PerTaskInfo.INVALID_SESSION_ID;
     }
   }
 
-  private void releaseBookingLocalState() {
-    if (bookingOwner) {
+  private void releaseBookingLocalState(boolean onPotentialSessionLoss) {
+    if (currentSchedule.getPeriod() == null) {
+      // prepare for next re-mastering of schedules that has no periodicity
+      this.instantsRef.set(currentSchedule.iterator());
+    }
+    if (isBookingOwner()) {
+      weightBalancer.removeTask(this.taskName);
+      if (onPotentialSessionLoss) {
+        // defer cleanup until we are certain we actually lost the session
+        sessionIdWhenLost = bookingOwnerSessionId;
+      } else {
+        eventsCollector.bookingReleased();
+      }
       if (!cancelled) {
         currentSchedule.getCleanupListener().cleanup();
       }
-      eventsCollector.bookingReleased();
-      bookingOwner = false;
+      // we are unsure of booking ownership so release ownership
+      bookingOwnerSessionId = PerTaskInfo.INVALID_SESSION_ID;
     }
   }
 
@@ -758,5 +846,20 @@ final class PerTaskScheduleTracker
   private boolean isTaskReallyDone() {
     return cancelled
         || (taskDone && !RUN_ONCE_EVERY_MEMBER_DEATH.equals(currentSchedule.getSingleShotType()));
+  }
+
+  @Override
+  public boolean migrateOut() {
+    if (isBookingOwner() && currentSchedule.getWeightProvider() != null) {
+      releaseBooking();
+      loadController.addToRunSet();
+      return true;
+    }
+    return false;
+  }
+
+  @Override
+  public boolean notInRunSet() {
+    return !loadController.isInRunSet();
   }
 }

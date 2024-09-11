@@ -30,7 +30,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 
 /**
  * An implementation of the {@link ExecutorSelectionService}.
@@ -52,6 +54,7 @@ import javax.inject.Provider;
  * (an {@link EndpointEvent}, below), and the separate thread takes the w-lock and processes the
  * actual node addition/removal.
  */
+@Singleton
 public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(ExecutorSelectionServiceImpl.class);
@@ -97,6 +100,7 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
   // Listener for updates from the cluster coordinator
   private final NodeStatusListener nodeStatusListener;
 
+  @Inject
   public ExecutorSelectionServiceImpl(
       final Provider<ExecutorSetService> execSetService,
       final Provider<OptionManager> optionsProvider,

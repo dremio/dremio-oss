@@ -15,14 +15,21 @@
  */
 package com.dremio.sabot.op.project;
 
+import com.dremio.common.expression.BasePath;
 import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.expr.ExpressionEvaluationOptions;
+import com.dremio.exec.expr.VectorResolver;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector2;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import javax.inject.Named;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 
 public abstract class ProjectorTemplate implements Projector {
@@ -31,6 +38,8 @@ public abstract class ProjectorTemplate implements Projector {
   private ImmutableList<TransferPair> transfers;
   private SelectionVector2 vector2;
   private SelectionVectorMode svMode;
+  private boolean trackRecordLevelErrors = false;
+  private VarCharVector errorVector = null;
 
   public ProjectorTemplate() throws SchemaChangeException {}
 
@@ -38,14 +47,34 @@ public abstract class ProjectorTemplate implements Projector {
   public final void projectRecords(final int recordCount) {
     switch (svMode) {
       case TWO_BYTE:
-        for (int i = 0; i < recordCount; i++) {
-          doEval(vector2.getIndex(i), i);
+        if (!trackRecordLevelErrors) {
+          for (int i = 0; i < recordCount; i++) {
+            doEval(vector2.getIndex(i), i);
+          }
+        } else {
+          for (int i = 0; i < recordCount; i++) {
+            try {
+              doEval(vector2.getIndex(i), i);
+            } catch (Exception exception) {
+              errorVector.setSafe(i, new Text(exception.getMessage()));
+            }
+          }
         }
         return;
 
       case NONE:
-        for (int i = 0; i < recordCount; i++) {
-          doEval(i, i);
+        if (!trackRecordLevelErrors) {
+          for (int i = 0; i < recordCount; i++) {
+            doEval(i, i);
+          }
+        } else {
+          for (int i = 0; i < recordCount; i++) {
+            try {
+              doEval(i, i);
+            } catch (Exception exception) {
+              errorVector.setSafe(i, new Text(exception.getMessage()));
+            }
+          }
         }
         for (TransferPair t : transfers) {
           t.transfer();
@@ -64,7 +93,8 @@ public abstract class ProjectorTemplate implements Projector {
       VectorAccessible incoming,
       VectorAccessible outgoing,
       List<TransferPair> transfers,
-      ComplexWriterCreator writerCreator)
+      ComplexWriterCreator writerCreator,
+      ExpressionEvaluationOptions projectorOptions)
       throws SchemaChangeException {
 
     this.svMode = incoming.getSchema().getSelectionVectorMode();
@@ -77,6 +107,17 @@ public abstract class ProjectorTemplate implements Projector {
       default:
         throw new UnsupportedOperationException(
             "Unsupported selection vector mode " + svMode.name());
+    }
+    if (outgoing != null
+        && projectorOptions != null
+        && projectorOptions.isTrackRecordLevelErrors()) {
+      TypedFieldId errorFieldId =
+          outgoing.getValueVectorId(BasePath.getSimple(ColumnUtils.COPY_HISTORY_COLUMN_NAME));
+      if (errorFieldId != null) {
+        errorVector =
+            VectorResolver.simple(outgoing, VarCharVector.class, errorFieldId.getFieldIds());
+        trackRecordLevelErrors = true;
+      }
     }
     this.transfers = ImmutableList.copyOf(transfers);
     doSetup(context, incoming, outgoing, writerCreator);

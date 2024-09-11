@@ -29,7 +29,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.apache.parquet.SemanticVersion;
 import org.apache.parquet.VersionParser;
@@ -392,21 +394,30 @@ public final class ParquetReaderUtility {
   public static List<Integer> getRowGroupNumbersFromFileSplit(
       final long splitStart, final long splitLength, final MutableParquetMetadata footer)
       throws IOException {
+    // note: keySet here is ordered as provided by a TreeMap
+    return Lists.newLinkedList(
+        getRowGroupNumbersWithRowIndexOffsetsFromFileSplit(splitStart, splitLength, footer)
+            .keySet());
+  }
+
+  public static NavigableMap<Integer, Long> getRowGroupNumbersWithRowIndexOffsetsFromFileSplit(
+      final long splitStart, final long splitLength, final MutableParquetMetadata footer)
+      throws IOException {
     final List<BlockMetaData> blocks = footer.getBlocks();
-    final List<Integer> rowGroupNums = Lists.newArrayList();
+    final NavigableMap<Integer, Long> map = new TreeMap<>();
 
     int i = 0;
     for (final BlockMetaData block : blocks) {
       if (block != null) {
         final long firstDataPage = getFirstPageOffset(block.getColumns().get(0));
         if (firstDataPage >= splitStart && firstDataPage < splitStart + splitLength) {
-          rowGroupNums.add(i);
+          map.put(i, block.getRowIndexOffset());
         }
       }
       i++;
     }
 
-    return rowGroupNums;
+    return map;
   }
 
   /**

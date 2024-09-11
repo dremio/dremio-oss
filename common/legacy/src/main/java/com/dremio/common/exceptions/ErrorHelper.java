@@ -198,4 +198,18 @@ public class ErrorHelper {
               oom.getMessage().contains("direct buffer memory"));
     }
   }
+
+  public static boolean isJavaHeapOutOfMemory(Throwable ex) {
+    OutOfHeapMemoryException oohm = findWrappedCause(ex, OutOfHeapMemoryException.class);
+    if (oohm != null) {
+      return true;
+    } else {
+      OutOfMemoryError oom = findWrappedCause(ex, OutOfMemoryError.class);
+      return oom != null
+          && !((oom.getMessage().contains("Direct buffer memory")
+              ||
+              // from java-13 & later
+              oom.getMessage().contains("direct buffer memory")));
+    }
+  }
 }

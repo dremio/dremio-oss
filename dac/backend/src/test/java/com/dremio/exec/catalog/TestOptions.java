@@ -59,7 +59,9 @@ public class TestOptions extends BaseTestQuery {
                     new SysFlightProducer(
                         () ->
                             new SystemTableManagerImpl(
-                                testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)),
+                                testAllocator,
+                                SYS_FLIGHT_RESOURCE::getTablesProvider,
+                                SYS_FLIGHT_RESOURCE::getTableFunctionsProvider)),
                     null,
                     null);
             conduitServiceRegistry.registerService(flightService);

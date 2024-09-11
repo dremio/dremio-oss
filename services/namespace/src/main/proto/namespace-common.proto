@@ -43,4 +43,5 @@ enum RefreshPolicyType {
   PERIOD = 1;
   SCHEDULE = 2;
   NEVER = 3;
+  REFRESH_ON_DATA_CHANGES = 4;
 }

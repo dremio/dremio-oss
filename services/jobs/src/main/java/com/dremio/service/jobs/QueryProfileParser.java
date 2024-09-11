@@ -619,7 +619,9 @@ class QueryProfileParser {
               if (operatorProfile.getOperatorSubtype()
                       == TableFunctionConfig.FunctionType.DATA_FILE_SCAN.ordinal()
                   || operatorProfile.getOperatorSubtype()
-                      == TableFunctionConfig.FunctionType.EASY_DATA_FILE_SCAN.ordinal()) {
+                      == TableFunctionConfig.FunctionType.EASY_DATA_FILE_SCAN.ordinal()
+                  || operatorProfile.getOperatorSubtype()
+                      == TableFunctionConfig.FunctionType.TRIGGER_PIPE_EASY_DATA_SCAN.ordinal()) {
                 setScanStats(operatorType, operatorProfile, majorFragment);
               }
               break;
@@ -667,8 +669,6 @@ class QueryProfileParser {
     if (jobStats.getIsOutputLimited() == null) {
       jobStats.setIsOutputLimited(queryOutputLimited);
     }
-
-    jobDetails.setOutputRecords(jobStats.getOutputRecords());
     jobDetails.setDataVolume(jobStats.getOutputBytes());
     jobDetails.setFsDatasetProfilesList(new ArrayList<>(fileSystemDatasetProfileMap.values()));
     jobDetails.setTableDatasetProfilesList(new ArrayList<>(tableDatasetProfileMap.values()));

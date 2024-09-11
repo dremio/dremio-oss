@@ -40,6 +40,10 @@
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-jmx</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
     </dependency>
@@ -112,16 +116,6 @@
       <artifactId>opentelemetry-semconv</artifactId>
     </dependency>
     <dependency>
-      <!--
-      old artifact name is discontinued but atm still needed by nessie-client 0.72.0
-      (this workaround can be removed when newer nessie versions properly declare the dependency
-      or also switch to use the new artifact name)
-      -->
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-semconv</artifactId>
-      <version>1.30.0-alpha</version>
-    </dependency>
-    <dependency>
       <groupId>io.opentracing</groupId>
       <artifactId>opentracing-api</artifactId>
     </dependency>
@@ -172,6 +166,11 @@
     <dependency>
       <groupId>org.glassfish.jersey.inject</groupId>
       <artifactId>jersey-hk2</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

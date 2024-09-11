@@ -163,10 +163,12 @@ class FragmentStarter {
     PlanFragmentStats stats = new PlanFragmentStats();
     Stopwatch stopwatch = Stopwatch.createStarted();
 
-    sendStartFragmentMessages(plan, fragmentMap, stats);
-
-    stopwatch.stop();
-    observer.fragmentsStarted(stopwatch.elapsed(TimeUnit.MILLISECONDS), stats.getSummary());
+    try {
+      sendStartFragmentMessages(plan, fragmentMap, stats);
+    } finally {
+      stopwatch.stop();
+      observer.fragmentsStarted(stopwatch.elapsed(TimeUnit.MILLISECONDS), stats.getSummary());
+    }
 
     stopwatch.reset();
 
@@ -177,15 +179,17 @@ class FragmentStarter {
     stopwatch.start();
     injector.injectPause(executionControls, INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_PAUSE, logger);
 
-    sendActivateFragmentMessages(plan, fragmentMap);
+    try {
+      sendActivateFragmentMessages(plan, fragmentMap);
+    } finally {
+      stopwatch.stop();
 
-    stopwatch.stop();
+      // No waiting on acks of sent activate fragment rpcs; so this number is not reliable
+      observer.fragmentsActivated(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    }
 
     injector.injectChecked(
         executionControls, INJECTOR_AFTER_ACTIVATE_FRAGMENTS_ERROR, IllegalStateException.class);
-
-    // No waiting on acks of sent activate fragment rpcs; so this number is not reliable
-    observer.fragmentsActivated(stopwatch.elapsed(TimeUnit.MILLISECONDS));
   }
 
   @WithSpan("send-start-fragments")
