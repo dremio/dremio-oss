@@ -38,10 +38,12 @@ type ExploreJobsActionTypes =
   | {
       type: typeof FETCH_JOB_SUMMARY;
       summary: JobSummary;
+      tabId?: string;
     }
   | {
       type: typeof FETCH_JOB_DETAILS;
       details: JobDetails;
+      tabId?: string;
     }
   | {
       type: typeof UPDATE_JOB_STATE;
@@ -56,10 +58,20 @@ type ExploreJobsActionTypes =
       type: typeof CLEAR_EXPLORE_JOBS;
     };
 
+const hasTabId = (action: ExploreJobsActionTypes) => {
+  if ("tabId" in action) {
+    return !!action.tabId;
+  }
+
+  return false;
+};
+
 export default function exploreJobs(
   state = initialExploreJobsState,
   action: ExploreJobsActionTypes,
 ): ExploreJobsState {
+  if (hasTabId(action)) return state;
+
   switch (action.type) {
     case FETCH_JOB_SUMMARY:
       return {

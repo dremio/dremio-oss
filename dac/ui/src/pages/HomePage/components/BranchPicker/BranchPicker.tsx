@@ -218,7 +218,7 @@ function BranchPicker({
           rightContent={<dremio-icon name="interface/right-chevron" />}
         />
       </div>
-      {reference && state.defaultReference && (
+      {reference && state.defaultReference && popupState.isOpen && (
         <ClickAwayListener onClickAway={cancel}>
           <Popover
             {...bindPopper(popupState)}

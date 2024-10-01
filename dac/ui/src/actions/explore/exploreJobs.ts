@@ -20,20 +20,34 @@ import { getJobDetails } from "@app/exports/endpoints/JobsListing/getJobDetails"
 
 export const FETCH_JOB_SUMMARY = "FETCH_JOB_SUMMARY";
 
-export function fetchJobSummary(jobId: string, maxSqlLength?: number) {
+export function fetchJobSummary({
+  jobId,
+  maxSqlLength,
+  tabId,
+}: {
+  jobId: string;
+  maxSqlLength?: number;
+  tabId?: string;
+}) {
   return async (dispatch: Dispatch) => {
     const summary = await getJobSummary(jobId, maxSqlLength);
-    dispatch({ type: FETCH_JOB_SUMMARY, summary });
+    dispatch({ type: FETCH_JOB_SUMMARY, summary, tabId });
     return summary;
   };
 }
 
 export const FETCH_JOB_DETAILS = "FETCH_JOB_DETAILS";
 
-export function fetchJobDetails(jobId: string) {
+export function fetchJobDetails({
+  jobId,
+  tabId,
+}: {
+  jobId: string;
+  tabId?: string;
+}) {
   return async (dispatch: Dispatch) => {
     const details = await getJobDetails(jobId);
-    dispatch({ type: FETCH_JOB_DETAILS, details });
+    dispatch({ type: FETCH_JOB_DETAILS, details, tabId });
     return details;
   };
 }

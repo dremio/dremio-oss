@@ -18,6 +18,7 @@ package com.dremio.dac.daemon;
 import static com.dremio.dac.service.datasets.DatasetDownloadManager.DATASET_DOWNLOAD_STORAGE_PLUGIN;
 import static com.dremio.dac.support.SupportService.*;
 import static com.dremio.exec.ExecConstants.METADATA_CLOUD_CACHING_ENABLED;
+import static com.dremio.exec.ExecConstants.NODE_HISTORY_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.CLOUD_CACHING_ENABLED;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
@@ -27,13 +28,11 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
 import com.dremio.dac.service.nodeshistory.NodesHistoryPluginInitializer;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemConf;
-import com.dremio.exec.store.dfs.GandivaPersistentCachePluginConfig;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
@@ -174,8 +173,6 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
         projectConfig.getAcceleratorConfig();
     final ProjectConfig.DistPathConfig scratchPathConfig = projectConfig.getScratchConfig();
     final ProjectConfig.DistPathConfig metadataPathConfig = projectConfig.getMetadataConfig();
-    final ProjectConfig.DistPathConfig gandivaCachePathConfig =
-        projectConfig.getGandivaPersistentCacheConfig();
     final ProjectConfig.DistPathConfig nodeHistoryPathConfig = projectConfig.getNodeHistoryConfig();
     final URI downloadPath = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
     final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
@@ -282,20 +279,6 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
             metadataPathConfig.getDataCredentials()),
         deferred);
 
-    if (sabotContext.getOptionManager().getOption(ExecConstants.ENABLE_GANDIVA_PERSISTENT_CACHE)) {
-      final boolean enableAsyncForGandivaCache =
-          enable(config, DremioConfig.DEBUG_GANDIVA_CACHE_ASYNC_ENABLED);
-      createSafe(
-          catalogService,
-          ns,
-          GandivaPersistentCachePluginConfig.create(
-              gandivaCachePathConfig.getUri(),
-              enableAsyncForGandivaCache,
-              isEnableS3FileStatusCheck(config, metadataPathConfig),
-              gandivaCachePathConfig.getDataCredentials()),
-          deferred);
-    }
-
     final boolean enableAsyncForLogs = enable(config, DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
     createSafe(
         catalogService,
@@ -322,7 +305,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
             null),
         deferred);
 
-    if (sabotContext.getOptionManager().getOption(ExecConstants.NODE_HISTORY_ENABLED)) {
+    if (sabotContext.getOptionManager().getOption(NODE_HISTORY_ENABLED)) {
       NodesHistoryPluginInitializer nodesHistoryPluginInitializer =
           provider.lookup(NodesHistoryPluginInitializer.class);
       createSafe(

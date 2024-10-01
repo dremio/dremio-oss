@@ -59,7 +59,10 @@ public final class ExternalResourceTreeUtils {
 
           switch (entry.getType()) {
             case UNKNOWN:
-              break; // Unknown sources are ignored
+            case UDF:
+              // TODO(DX-92549): To list functions in a nessie source(sub-folders), we need to
+              // implement for UDF.
+              break; // Unknown types or UDF are ignored
             case FOLDER:
               final String url = "/resourcetree/" + path.toUrlEncodedString();
               resources.add(

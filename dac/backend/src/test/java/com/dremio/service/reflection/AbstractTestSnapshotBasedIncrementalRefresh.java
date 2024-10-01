@@ -106,7 +106,7 @@ public abstract class AbstractTestSnapshotBasedIncrementalRefresh extends BaseTe
     assumeFalse(isMultinode());
     setDeletionGracePeriod();
     setManagerRefreshDelay(5);
-    setMaterializationCacheSettings(false, 1);
+    setMaterializationCacheSettings(false);
   }
 
   @Before

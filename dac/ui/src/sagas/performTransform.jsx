@@ -69,7 +69,11 @@ import {
 
 import apiUtils from "utils/apiUtils/apiUtils";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
-import { needsTransform } from "sagas/utils";
+import {
+  getActiveScriptId,
+  getTabForActions,
+  needsTransform,
+} from "@app/sagas/utils";
 import {
   extractSelections,
   extractStatements,
@@ -137,19 +141,6 @@ export function* handlePerformTransformAndRun({ payload }) {
 
 export function* handlePerformTransform({ payload }) {
   yield* performTransform(payload);
-}
-
-function* getActiveScriptId() {
-  return (yield select(getExploreState))?.view?.activeScript?.id;
-}
-
-// Checks the passed in script ID agains the current activeScriptId in the explorePage.view.activeScript
-// Returns the passed in tab (for the actions when originally dispatched) if they differ
-function* getTabForActions(activeScriptId) {
-  const id = yield getActiveScriptId();
-
-  if (id !== activeScriptId) return activeScriptId;
-  else return "";
 }
 
 // wrapper for multiple queries
@@ -736,8 +727,8 @@ export function* handlePerformTransformFailure({
     yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
 
     if (jobIdObj.id) {
-      yield put(fetchJobDetails(jobIdObj.id));
-      yield put(fetchJobSummary(jobIdObj.id, 0));
+      yield put(fetchJobDetails({ jobId: jobIdObj.id }));
+      yield put(fetchJobSummary({ jobId: jobIdObj.id, maxSqlLength: 0 }));
     }
   }
 

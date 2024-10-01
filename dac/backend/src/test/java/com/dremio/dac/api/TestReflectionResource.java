@@ -29,7 +29,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.HomeName;
@@ -309,10 +308,12 @@ public class TestReflectionResource extends AccelerationTestUtil {
       assertNotNull(createResponse.getPartitionFields());
 
       // Verify reflection fails
-      ReflectionEntry entry =
-          monitor.waitForState(new ReflectionId(createResponse.getId()), ReflectionState.ACTIVE);
+      final ReflectionId reflectionId = new ReflectionId(createResponse.getId());
+      final Materialization m1 = monitor.waitUntilMaterializationFails(reflectionId);
+
+      ReflectionEntry entry = monitor.waitForState(reflectionId, ReflectionState.ACTIVE);
       ReflectionStatusUI status =
-          getReflectionServiceHelper().getStatusForReflection(createResponse.getId());
+          getReflectionServiceHelper().getStatusForReflection(reflectionId.getId());
       assertEquals(1, entry.getNumFailures().intValue());
       assertEquals(RefreshPolicyType.NEVER, entry.getRefreshPolicyTypeList().get(0));
       assertEquals(NONE, status.getAvailability());
@@ -323,19 +324,11 @@ public class TestReflectionResource extends AccelerationTestUtil {
       assertEquals(Response.Status.NO_CONTENT.getStatusCode(), retryResponse.getStatus());
 
       // Verify a new materialization is generated and it fails as well
-      boolean expectedException = false;
-      try {
-        monitor.waitUntilMaterialized(new ReflectionId(createResponse.getId()));
-      } catch (RuntimeException e) {
-        expectedException = true;
-      }
-      if (!expectedException) {
-        fail("Refresh job should fail");
-      }
-      ReflectionEntry entry2 =
-          monitor.waitForState(new ReflectionId(createResponse.getId()), ReflectionState.ACTIVE);
+      final Materialization m2 = monitor.waitUntilMaterializationFails(reflectionId, m1);
+      final ReflectionEntry entry2 =
+          monitor.waitForState(new ReflectionId(reflectionId.getId()), ReflectionState.ACTIVE);
       ReflectionStatusUI status2 =
-          getReflectionServiceHelper().getStatusForReflection(createResponse.getId());
+          getReflectionServiceHelper().getStatusForReflection(reflectionId.getId());
       assertEquals(1, entry2.getNumFailures().intValue());
       assertEquals(RefreshPolicyType.NEVER, entry2.getRefreshPolicyTypeList().get(0));
       assertEquals(NONE, status2.getAvailability());

@@ -18,6 +18,10 @@
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .treeNode {
+    height: 32px;
+    contain-intrinsic-size: auto 32px;
+    content-visibility: auto;
+
     &--isBaseNode {
       padding: 0;
     }
@@ -45,6 +49,10 @@
       .resourceTreeNode__starIcon {
         width: 24px;
         height: 24px;
+      }
+
+      &.hide {
+        display: none;
       }
     }
   }

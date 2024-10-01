@@ -61,7 +61,10 @@ public final class ExternalNamespaceTreeUtils {
 
           switch (entry.getType()) {
             case UNKNOWN:
-              break; // Unknown types are ignored
+            case UDF:
+              // TODO(DX-92549): To list functions in a nessie source(sub-folders), we need to
+              // implement for UDF.
+              break; // Unknown types or UDF are ignored
             case FOLDER:
               namespaceTree.addFolder(
                   Folder.newInstance(

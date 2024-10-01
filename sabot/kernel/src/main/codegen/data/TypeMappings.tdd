@@ -36,5 +36,7 @@
   "LargeVarBinary":   { supported: false },
   "LargeVarList":     { supported: false },
   "Decimal256":       { supported: false },
+  # Consider supporting half float. https://github.com/apache/arrow/pull/15169
+  "Float2":           { supported: false },
 }
 

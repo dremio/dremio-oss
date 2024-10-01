@@ -125,7 +125,7 @@ public abstract class DependencyEntry {
 
     @Override
     public String toString() {
-      return "ReflectionId: " + reflectionId.getId();
+      return "ReflectionId: " + reflectionId.getId() + ", SnapshotId: " + snapshotId;
     }
   }
 
@@ -211,7 +211,7 @@ public abstract class DependencyEntry {
 
     @Override
     public String toString() {
-      return "DatasetId: " + id + ", Path: " + path;
+      return "DatasetId: " + id + ", Path: " + path + ", SnapshotId: " + snapshotId;
     }
   }
 

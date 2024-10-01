@@ -29,9 +29,7 @@ import {
 } from "redux-saga/effects";
 // @ts-expect-error ui-common type missing
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-// @ts-expect-error ui-common type missing
 import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
-// @ts-expect-error ui-common type missing
 import { NotFoundError } from "dremio-ui-common/errors/NotFoundError";
 // @ts-expect-error ui-common type missing
 import { replaceScript } from "dremio-ui-common/sonar/scripts/endpoints/replaceScript.js";
@@ -73,6 +71,7 @@ import {
   jobUpdateWatchers,
 } from "@app/sagas/runDataset";
 import { transformThenNavigate } from "@app/sagas/transformWatcher";
+import { getTabForActions } from "@app/sagas/utils";
 import { getQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
 import { getTableDataRaw } from "@app/selectors/explore";
 import { getAllJobDetails } from "@app/selectors/exploreJobs";
@@ -144,15 +143,25 @@ function* handleLoadJobTabs({
   yield put(
     setQuerySelections({
       selections,
-      tabId: undefined,
+      tabId: yield getTabForActions(id),
     }),
   );
 
   try {
+    const summaryTabId: string = yield getTabForActions(id);
+
     const jobSummaries: JobSummary[] = yield all(
       yield all(
-        // @ts-expect-error return type of fetchJobSummary is not an action
-        jobIds.map((jobId) => put(fetchJobSummary(jobId, 0))),
+        jobIds.map((jobId) =>
+          put(
+            // @ts-expect-error return type of fetchJobSummary is not an action
+            fetchJobSummary({
+              jobId,
+              maxSqlLength: 0,
+              tabId: summaryTabId,
+            }),
+          ),
+        ),
       ),
     );
 
@@ -180,11 +189,17 @@ function* handleLoadJobTabs({
       return;
     }
 
+    const detailsTabId: string = yield getTabForActions(id);
+
     // needed to fill in the jobs table
     yield all(
       yield all(
-        // @ts-expect-error return type of fetchJobDetails is not an action
-        jobIds.map((jobId) => put(fetchJobDetails(jobId))),
+        jobIds.map((jobId) =>
+          put(
+            // @ts-expect-error return type of fetchJobDetails is not an action
+            fetchJobDetails({ jobId, tabId: detailsTabId }),
+          ),
+        ),
       ),
     );
 
@@ -216,10 +231,13 @@ function* handleLoadJobTabs({
     });
 
     // initialize query statuses to display query tabs
-    yield put(setQueryTabNumber({ tabNumber: 0 }));
+    yield put(
+      setQueryTabNumber({ tabNumber: 0, tabId: yield getTabForActions(id) }),
+    );
     yield put(
       setQueryStatuses({
         statuses: [...queryStatuses],
+        tabId: yield getTabForActions(id),
       }),
     );
 

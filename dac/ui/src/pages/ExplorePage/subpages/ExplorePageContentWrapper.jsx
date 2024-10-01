@@ -156,7 +156,10 @@ import {
   handleOpenTabScript,
   fetchAllAndMineScripts,
 } from "@app/components/SQLScripts/sqlScriptsUtils";
-import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import {
+  $SqlRunnerSession,
+  newTab,
+} from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 import {
@@ -174,6 +177,7 @@ import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 import {
   isTemporaryScript,
   addTemporaryPrefix,
+  stripTemporaryPrefix,
 } from "dremio-ui-common/sonar/SqlRunnerSession/utilities/temporaryTabs.js";
 import { ModalContainer } from "dremio-ui-lib/components";
 import { TemporaryTabConfirmDeleteDialog } from "dremio-ui-common/sonar/SqlRunnerSession/components/TemporaryTabConfirmDialog.js";
@@ -196,7 +200,7 @@ const ScriptDocumentTitle = (props) => {
   if (!script?.name) {
     return <DocumentTitle title={null} />;
   }
-  return <DocumentTitle title={script.name} />;
+  return <DocumentTitle title={stripTemporaryPrefix(script.name)} />;
 };
 
 const resizeColumn = new ResizeObserver(
@@ -580,8 +584,8 @@ export class ExplorePageContentWrapper extends PureComponent {
         (isTabbableUrl(location) && dataset.get("sql")))
     ) {
       queryStatuses.forEach((status) => {
-        this.props.fetchJobDetails(status.jobId);
-        this.props.fetchJobSummary(status.jobId, 0);
+        this.props.fetchJobDetails({ jobId: status.jobId });
+        this.props.fetchJobSummary({ jobId: status.jobId, maxSqlLength: 0 });
       });
     }
 
@@ -1947,20 +1951,36 @@ export class ExplorePageContentWrapper extends PureComponent {
                                 },
                               ];
                             }}
-                            onNewTabCreated={async () => {
-                              await ScriptsResource.fetch();
-                              await fetchAllAndMineScripts(
-                                this.props.fetchScripts,
-                                null,
-                              );
-                              handleOpenTabScript(this.props.router)(
-                                ScriptsResource.getResource().value.find(
-                                  (script) =>
-                                    script.id ===
-                                    $SqlRunnerSession.$source.value
-                                      .currentScriptId,
-                                ),
-                              );
+                            customNewTabHandler={() => {
+                              const createNewTab = async () => {
+                                await newTab();
+                                await ScriptsResource.fetch();
+                                await fetchAllAndMineScripts(
+                                  this.props.fetchScripts,
+                                  null,
+                                );
+                                handleOpenTabScript(this.props.router)(
+                                  ScriptsResource.getResource().value.find(
+                                    (script) =>
+                                      script.id ===
+                                      $SqlRunnerSession.$source.value
+                                        .currentScriptId,
+                                  ),
+                                );
+                              };
+
+                              if (
+                                isMultiQueryRunning &&
+                                exploreUtils.hasUnsubmittedQueries(
+                                  this.props.queryStatuses,
+                                )
+                              ) {
+                                this.onLeaveTabWhileQueriesRunning(() => {
+                                  createNewTab();
+                                });
+                              } else {
+                                createNewTab();
+                              }
                             }}
                           />
                         )}

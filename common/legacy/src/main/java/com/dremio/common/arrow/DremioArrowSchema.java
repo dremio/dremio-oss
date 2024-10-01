@@ -19,6 +19,8 @@ import com.dremio.common.serde.BackwardCompatibleSchemaDe;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Map;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 /**
@@ -60,12 +62,30 @@ public final class DremioArrowSchema {
     // if found - it is 2.1.0+ generated file - use it
 
     if (jsonArrowSchema != null) {
-      return fromJSON(jsonArrowSchema);
+      return discardSchemaWithNullTypeUnits(fromJSON(jsonArrowSchema));
     }
     if (jsonArrowSchema2_1 != null) {
-      return fromJSON(jsonArrowSchema2_1);
+      return discardSchemaWithNullTypeUnits(fromJSON(jsonArrowSchema2_1));
     }
     return null;
+  }
+
+  private static Schema discardSchemaWithNullTypeUnits(Schema arrowSchema) {
+    if (arrowSchema != null) {
+      for (Field f : arrowSchema.getFields()) {
+        if (f.getType().getTypeID() == ArrowType.ArrowTypeID.Date
+            && ((ArrowType.Date) f.getType()).getUnit() == null) {
+          return null;
+        } else if (f.getType().getTypeID() == ArrowType.ArrowTypeID.Timestamp
+            && ((ArrowType.Timestamp) f.getType()).getUnit() == null) {
+          return null;
+        } else if (f.getType().getTypeID() == ArrowType.ArrowTypeID.Time
+            && ((ArrowType.Time) f.getType()).getUnit() == null) {
+          return null;
+        }
+      }
+    }
+    return arrowSchema;
   }
 
   /**

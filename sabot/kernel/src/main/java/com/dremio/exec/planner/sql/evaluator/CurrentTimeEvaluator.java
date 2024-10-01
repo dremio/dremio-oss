@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.planner.sql.evaluator;
 
-import com.dremio.common.util.DateTimes;
-import com.dremio.common.util.JodaDateUtility;
-import org.apache.arrow.vector.util.DateUtility;
+import static com.dremio.common.util.LocalTimeUtility.getMillis;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDateTime;
+import org.apache.calcite.util.TimeString;
 
 public final class CurrentTimeEvaluator implements FunctionEval {
   public static final CurrentTimeEvaluator INSTANCE = new CurrentTimeEvaluator();
@@ -30,20 +28,13 @@ public final class CurrentTimeEvaluator implements FunctionEval {
 
   @Override
   public RexNode evaluate(EvaluationContext cx, RexCall call) {
-    final int timeZoneIndex = cx.getContextInformation().getRootFragmentTimeZone();
-    final DateTimeZone timeZone = DateTimeZone.forID(JodaDateUtility.getTimeZone(timeZoneIndex));
-    final LocalDateTime dateTime =
-        new LocalDateTime(cx.getContextInformation().getQueryStartTime(), timeZone);
-    final long queryStartTime =
-        ((long) dateTime.getHourOfDay() * DateUtility.hoursToMillis)
-            + ((long) dateTime.getMinuteOfHour() * DateUtility.minutesToMillis)
-            + ((long) dateTime.getSecondOfMinute() * DateUtility.secondsToMillis)
-            + (dateTime.getMillisOfSecond());
-
-    return cx.getRexBuilder()
-        .makeTimeLiteral(
-            DateTimes.toDateTime(new LocalDateTime(queryStartTime, timeZone))
-                .toCalendar(null), // null sets locale to default locale
-            call.getType().getPrecision());
+    java.time.ZoneId zone = com.dremio.common.util.LocalTimeUtility.getTimeZoneId();
+    java.time.LocalTime currentTime =
+        com.dremio.common.util.LocalTimeUtility.getTimeFromMillis(
+            cx.getContextInformation().getQueryStartTime(), zone);
+    TimeString timeString =
+        new TimeString(currentTime.getHour(), currentTime.getMinute(), currentTime.getSecond());
+    timeString.withMillis(getMillis(currentTime));
+    return cx.getRexBuilder().makeTimeLiteral(timeString, call.getType().getPrecision());
   }
 }

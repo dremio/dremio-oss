@@ -51,4 +51,8 @@ public class LocalTimeUtility {
   public static int getMillisFromTime(LocalTime time) {
     return (int) (time.toNanoOfDay() / 1_000_000);
   }
+
+  public static int getMillis(LocalTime time) {
+    return time.getNano() / 1_000_000;
+  }
 }

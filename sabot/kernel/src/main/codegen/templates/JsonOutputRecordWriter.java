@@ -84,6 +84,7 @@ public abstract class JSONOutputRecordWriter extends AbstractRowBasedRecordWrite
   <#case "UInt2">
   <#case "UInt4">
   <#case "UInt8">
+  <#case "Float2">
   <#case "TimeStampSec">
   <#case "TimeStampMicro">
   <#case "TimeStampNano">

@@ -29,8 +29,8 @@ import com.google.protobuf.MessageLite;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.patch.ArrowByteBufAllocator;
 
 /** Fabric server that accepts connection. */
 class FabricServer extends BasicServer<RpcType, FabricConnection> {

@@ -25,7 +25,7 @@ import {
 import { ENTITY_TYPES } from "@app/constants/Constants";
 import { getEntity } from "@app/selectors/resources";
 import { getRootEntityTypeByIdV3 } from "@app/selectors/home";
-import { Tooltip } from "dremio-ui-lib";
+import { Tooltip } from "dremio-ui-lib/components";
 
 import { isVersionedSource } from "@app/utils/sourceUtils";
 
@@ -81,20 +81,22 @@ export class EntityIcon extends PureComponent {
 
 export class PureEntityIcon extends PureComponent {
   static propTypes = {
-    disableHoverListener: PropTypes.bool,
     entityType: PropTypes.string.isRequired,
     sourceStatus: PropTypes.string,
     sourceType: PropTypes.string,
     style: PropTypes.object,
+    enableTooltip: PropTypes.bool,
+    tooltipPortal: PropTypes.bool,
   };
 
   render() {
     const {
-      disableHoverListener,
       entityType,
       sourceStatus,
       sourceType,
       style,
+      enableTooltip = true,
+      tooltipPortal,
     } = this.props;
     const isSource = entityType?.toLowerCase() === "source";
     const iconType = isSource
@@ -105,22 +107,30 @@ export class PureEntityIcon extends PureComponent {
         ? getIconAltTextBySourceType(sourceType)
         : getIconAltTextByEntityType(entityType)) || "";
 
-    return (
-      <Tooltip disableHoverListener={disableHoverListener} title={iconAltText}>
-        <div className="dremio-icon-label mr-05">
-          <dremio-icon
-            name={iconType}
-            style={{
-              ...(style?.width && {
-                inlineSize: style.width,
-              }),
-              ...(style?.height && {
-                blockSize: style.height,
-              }),
-            }}
-          />
-        </div>
-      </Tooltip>
+    const Content = (
+      <div className="dremio-icon-label mr-05">
+        <dremio-icon
+          name={iconType}
+          style={{
+            ...(style?.width && {
+              inlineSize: style.width,
+            }),
+            ...(style?.height && {
+              blockSize: style.height,
+            }),
+          }}
+        />
+      </div>
     );
+
+    if (!enableTooltip) {
+      return Content;
+    } else {
+      return (
+        <Tooltip content={iconAltText} portal={tooltipPortal}>
+          {Content}
+        </Tooltip>
+      );
+    }
   }
 }

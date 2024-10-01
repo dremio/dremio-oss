@@ -249,7 +249,6 @@ const waitingForJobResults = (state = null, action) => {
 };
 
 const isExploreTableLoading = (state = false, action) => {
-  // should clear the loading state on tab change
   if (hasTabId(action)) return state;
 
   const { type, isLoading } = action;

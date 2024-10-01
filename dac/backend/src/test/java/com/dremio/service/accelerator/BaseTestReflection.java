@@ -159,6 +159,8 @@ public class BaseTestReflection extends BaseTestServer {
     dependenciesStore = new DependenciesStore(p(LegacyKVStoreProvider.class));
     entriesStore = new ReflectionEntriesStore(p(LegacyKVStoreProvider.class));
     setSystemOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
+    setSystemOption(
+        ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS.getOptionName(), "100");
   }
 
   @AfterClass
@@ -403,8 +405,7 @@ public class BaseTestReflection extends BaseTestServer {
     return createRawOnVds(datasetUI.getId(), reflectionName, rawFields);
   }
 
-  protected static void setMaterializationCacheSettings(
-      boolean enabled, long refreshDelayInSeconds) {
+  protected static void setMaterializationCacheSettings(boolean enabled) {
     getOptionManager()
         .setOption(
             OptionValue.createBoolean(
@@ -414,7 +415,7 @@ public class BaseTestReflection extends BaseTestServer {
             OptionValue.createLong(
                 SYSTEM,
                 ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS.getOptionName(),
-                refreshDelayInSeconds * 1000));
+                100));
   }
 
   protected static void setEnableReAttempts(boolean enableReAttempts) {

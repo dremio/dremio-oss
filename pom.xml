@@ -21,7 +21,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>25.1.0-202409042012430619-15cc6471</version>
+  <version>25.1.1-202409260159070462-716c0676</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -64,7 +64,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>15.0.1-20240515140359-ae1df93709-dremio</arrow.version>
+    <arrow.version>16.1.0-20240904212746-09241242ea-dremio</arrow.version>
     <avatica.version>1.23.0</avatica.version>
     <calcite.version>1.21.0-202407031545000155-8abd078f</calcite.version>
     <derby.version>10.14.2.0</derby.version>
@@ -1085,11 +1085,6 @@ ${errorprone.module.args}
             <artifactId>netty-transport-native-epoll</artifactId>
           </exclusion>
         </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.arrow</groupId>
-        <artifactId>flight-grpc</artifactId>
-        <version>${arrow.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.calcite.avatica</groupId>

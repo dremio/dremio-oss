@@ -18,13 +18,11 @@ package com.dremio.service.reflection;
 import static com.dremio.service.job.JobState.METADATA_RETRIEVAL;
 import static com.dremio.service.job.JobState.PENDING;
 import static com.dremio.service.job.JobState.PLANNING;
-import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
 import static com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS.AVAILABLE;
 import static com.dremio.service.reflection.ReflectionUtils.isTerminal;
 import static com.dremio.service.reflection.proto.MaterializationState.DEPRECATED;
 import static com.dremio.service.reflection.proto.MaterializationState.DONE;
 import static com.dremio.service.reflection.proto.MaterializationState.FAILED;
-import static com.dremio.service.reflection.proto.ReflectionState.ACTIVE;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
@@ -111,11 +109,6 @@ public class ReflectionMonitor {
         maxWait);
   }
 
-  public void waitUntilRefreshed(final ReflectionId reflectionId) {
-    waitForState(reflectionId, REFRESHING);
-    waitForState(reflectionId, ACTIVE);
-  }
-
   public ReflectionEntry waitForState(
       final ReflectionId reflectionId, final ReflectionState state) {
     Optional<ReflectionEntry> reflection;
@@ -182,66 +175,14 @@ public class ReflectionMonitor {
   }
 
   /**
-   * Wait until any materialization is done after a specific materialization
+   * Waits until the reflection has a materialization that is available to the planner (i.e.
+   * possibly in the materialization cache).
    *
    * @param reflectionId reflection id
-   * @param materialization the specific materialization
-   * @return the materialization which is done after the specific materialization
+   * @param materialization previous materialization that should be deprecated
+   * @return latest available materialization
    */
   public Materialization waitUntilMaterialized(
-      final ReflectionId reflectionId, final Materialization materialization) {
-    final MaterializationId materializationId =
-        (materialization == null) ? null : materialization.getId();
-    Wait w = new Wait();
-    String status =
-        String.format(
-            "Waiting for reflection %s (predecessor materialization %s) to materialize. Current state is UNKNOWN",
-            reflectionId, materializationId);
-    while (w.loop(status)) {
-      // Get the last materialization done and return it if it's done after the specific
-      // materialization.
-      // Throw materialization fail error if there is a failed materialization after the specific
-      // materialization.
-      final Materialization lastMaterialization =
-          materializationStore.getLastMaterialization(reflectionId);
-      if (lastMaterialization != null
-          && !Objects.equals(materializationId, lastMaterialization.getId())
-          && (materialization == null
-              || lastMaterialization.getInitRefreshSubmit()
-                  > materialization.getInitRefreshSubmit())) {
-        MaterializationState current = lastMaterialization.getState();
-        if (current == DONE) {
-          w.log(
-              "waitUntilMaterialized "
-                  + ReflectionUtils.getId(reflectionId)
-                  + " and not "
-                  + (materialization == null ? "any" : ReflectionUtils.getId(materialization)));
-
-          return lastMaterialization;
-        } else if (lastMaterialization.getState() == FAILED) {
-          throwMaterializationError(lastMaterialization);
-        }
-        status =
-            String.format(
-                "Waiting for reflection %s (predecessor materialization %s) to materialize. Current state is %s",
-                reflectionId, materializationId, current);
-      }
-    }
-
-    throw new IllegalStateException();
-  }
-
-  /**
-   * Wait until any materialization is done and cached after a specific materialization
-   *
-   * <p>Use it to avoid the case when reflection entry is active but materialization cache is still
-   * pending (DX-88983)
-   *
-   * @param reflectionId reflection id
-   * @param materialization the specific materialization
-   * @return the materialization which is done after the specific materialization
-   */
-  public Materialization waitUntilMaterializedAndCached(
       final ReflectionId reflectionId, final Materialization materialization) {
     final MaterializationId materializationId =
         (materialization == null) ? null : materialization.getId();
@@ -270,15 +211,8 @@ public class ReflectionMonitor {
                   + " and not "
                   + (materialization == null ? "any" : ReflectionUtils.getId(materialization)));
 
-          // check if materialization cache is ready to avoid test flakiness caused by the case when
-          // reflection entry is active but materialization cache is still pending (DX-88983)
-          if (optionManager.getOption(MATERIALIZATION_CACHE_ENABLED)
-              && lastMaterialization != null) {
-            waitUntilCached(lastMaterialization);
-          }
+          waitUntilCached(lastMaterialization);
           return lastMaterialization;
-        } else if (lastMaterialization.getState() == FAILED) {
-          throwMaterializationError(lastMaterialization);
         }
         status =
             String.format(
@@ -352,7 +286,7 @@ public class ReflectionMonitor {
     }
   }
 
-  public void waitUntilCached(Materialization m) {
+  private void waitUntilCached(Materialization m) {
     Wait w = new Wait();
     final CacheViewer cacheViewer = reflections.getCacheViewerProvider().get();
     String status = String.format("waitUntilCached for %s", ReflectionUtils.getId(m));
@@ -549,11 +483,6 @@ public class ReflectionMonitor {
     }
 
     throw new IllegalStateException();
-  }
-
-  public Materialization waitUntilMaterializationFinished(
-      final ReflectionId id, Materialization m) {
-    return waitUntilMaterializationFinished(id, m != null ? m.getId() : null);
   }
 
   public Materialization waitUntilMaterializationFinished(

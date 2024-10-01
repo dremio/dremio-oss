@@ -33,9 +33,9 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.PromisingMessageToMessageEncoder;
 import java.io.OutputStream;
 import java.util.List;
-import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.memory.patch.ArrowByteBufAllocator;
 
 /** Converts an RPCMessage into wire format. */
 class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage> {

@@ -446,7 +446,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
                     Optional<Materialization> materialization =
                         Optional.ofNullable(
-                            materializationStore.getLastMaterialization(goal.getId()));
+                            materializationStore.getLastMaterializationDone(goal.getId()));
                     long currentSize = 0;
                     long recordCount = -1;
                     long lastRefreshFromTable = 0;

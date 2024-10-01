@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-nessie-grpc</artifactId>
-    <version>25.1.0-202409042012430619-15cc6471</version>
+    <version>25.1.1-202409260159070462-716c0676</version>
   </parent>
 
   <artifactId>dremio-services-nessie-grpc-common</artifactId>

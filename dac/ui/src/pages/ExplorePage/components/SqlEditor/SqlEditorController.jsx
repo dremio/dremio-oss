@@ -473,9 +473,10 @@ export class SqlEditorController extends PureComponent {
   });
 
   getDefaultValue = () => {
-    const { previousMultiSql, dataset, isViewingHistory } = this.props;
+    const { previousMultiSql, dataset, isViewingHistory, location } =
+      this.props;
 
-    if (previousMultiSql) {
+    if (previousMultiSql && isTabbableUrl(location)) {
       return previousMultiSql;
     } else if (isViewingHistory) {
       // Don't overwrite editor content with the script if viewing history

@@ -429,33 +429,42 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     HeadObjectRequest reqHeadObject =
         HeadObjectRequest.builder().bucket(bucket).key(onlyPath).build();
 
-    HeadObjectResponse respHeadObject;
-    try (FSOutputStream fos = fileSystem.create(fileSystem.canonicalizePath(path), true)) {
+    final HeadObjectResponse[] respHeadObject = new HeadObjectResponse[1];
+    try (FSOutputStream fos = fileSystem.create(fileSystem.canonicalizePath(path), true);
+        S3AsyncClient asyncClient = getAsyncClient(bucket)) {
       fos.close();
-      // Adding lifecycle rules may take some time for the configuration to be updated.
-      // SyncClient is used to minimize latency.
-      respHeadObject = getSyncClient(bucket).acquireRef().headObject(reqHeadObject);
+
+      retryer.call(
+          () -> {
+            respHeadObject[0] = asyncClient.headObject(reqHeadObject).get();
+            return true;
+          });
       fileSystem.delete(path, false);
-    } catch (Exception ex) {
+    } catch (Retryer.OperationFailedAfterRetriesException | IOException ex) {
       logger.info("Failed to get head object for {}", path, ex);
       return -1;
     }
 
-    if (respHeadObject.expiration() == null) {
+    if (respHeadObject[0] == null) {
+      logger.info("Unable to retrieve head object for {}", path.getParent());
+      return -1;
+    }
+
+    if (respHeadObject[0].expiration() == null) {
       logger.info("No expiration lifecycle rules set for {}", path.getParent());
       return -1;
     }
 
-    String[] parts = respHeadObject.expiration().split("\"");
+    String[] parts = respHeadObject[0].expiration().split("\"");
     if (parts.length != 4) {
-      logger.error("Unexpected expiration metadata:" + respHeadObject.expiration());
+      logger.error("Unexpected expiration metadata:" + respHeadObject[0].expiration());
       return -1;
     }
 
     logger.info("TTL based on{}{}", parts[2], parts[3]);
     Instant expireInstant = Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(parts[1]));
 
-    return Duration.between(respHeadObject.lastModified(), expireInstant).toDays();
+    return Duration.between(respHeadObject[0].lastModified(), expireInstant).toDays();
   }
 
   private CloseableRef<S3Client> getSyncClient(String bucket) throws IOException {

@@ -89,6 +89,11 @@ import { ENABLED_SCRIPTS_API_V3 } from "@app/exports/endpoints/SupportFlags/supp
 import { deleteQuerySelectionsFromStorage } from "@app/sagas/utils/querySelections";
 
 export const VIEW_ID = "ScriptsPrivileges";
+const CE_PERMISSIONS = ["VIEW", "MODIFY", "DELETE"];
+
+const getPermissions = (script: any) => {
+  return script.permissions ?? CE_PERMISSIONS;
+};
 
 export type SQLScriptsProps = {
   scripts: any[];
@@ -290,7 +295,6 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
       scriptAction.onClick(props, script, userId, searchTerm, nextScript);
       closeMenu();
     };
-    const CE_PERMISSIONS = ["VIEW", "MODIFY", "DELETE"];
 
     return (
       <Menu>
@@ -324,8 +328,8 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
 
   const selectableScripts = useMemo(
     () =>
-      currentScriptsList.filter(({ permissions }) =>
-        permissions.includes("DELETE"),
+      currentScriptsList.filter((script) =>
+        getPermissions(script).includes("DELETE"),
       ),
     [currentScriptsList],
   );
@@ -357,7 +361,7 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
           >
             {hasScriptsV3Api && (
               <ScriptCheckbox
-                disabled={!script.permissions.includes("DELETE")}
+                disabled={!getPermissions(script).includes("DELETE")}
                 checked={selectedScripts.includes(script)}
                 onClick={onCheckboxClick(script)}
               />

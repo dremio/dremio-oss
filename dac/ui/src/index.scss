@@ -49,3 +49,11 @@
   @include variables.high_contrast_light;
   color-scheme: light;
 }
+
+.treeNode {
+  @for $i from 0 through 10 {
+    &[aria-level="#{$i}"] {
+      padding-left: #{$i * 12}px;
+    }
+  }
+}

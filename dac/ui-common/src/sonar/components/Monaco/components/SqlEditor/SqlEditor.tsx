@@ -122,11 +122,17 @@ export const SqlEditor = forwardRef<SqlEditorRef, SqlEditorProps>(
     }, [getEditorInstance, onChange]);
 
     useEffect(() => {
+      const editorInstance = getEditorInstance();
+
+      if (!editorInstance) {
+        return;
+      }
+
       const shortcutsDisposers: monaco.IDisposable[] = [];
 
       keyboardShortcuts?.forEach((shortcut) => {
         shortcutsDisposers.push(
-          monaco.editor.addEditorAction({
+          editorInstance.addAction({
             id: shortcut.id,
             keybindings: shortcut.keybindings,
             run: shortcut.run,
@@ -136,7 +142,7 @@ export const SqlEditor = forwardRef<SqlEditorRef, SqlEditorProps>(
       });
 
       return () => shortcutsDisposers.forEach((disposer) => disposer.dispose());
-    }, [keyboardShortcuts]);
+    }, [getEditorInstance, keyboardShortcuts]);
 
     useImperativeHandle(
       ref,

@@ -21,7 +21,6 @@ import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.arrow.DremioArrowSchema;
@@ -133,31 +132,6 @@ public class TestParquetReader extends BaseTestQuery {
     Schema schema210 = DremioArrowSchema.fromMetaData(metadata210);
 
     assertNotNull(schema210);
-  }
-
-  @Test
-  public void testArrowSchemaOldInFooter() throws Exception {
-    URL badparquet = getClass().getResource("/types.parquet");
-
-    Path filePathBad = Path.of(badparquet.toURI());
-    ParquetMetadata parquetMetadataBad =
-        SingletonParquetFooterCache.readFooter(
-            localFs,
-            filePathBad,
-            ParquetMetadataConverter.NO_FILTER,
-            ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
-    Map<String, String> metadataBad = parquetMetadataBad.getFileMetaData().getKeyValueMetaData();
-
-    // should have DREMIO_ARROW_SCHEMA field, but no DREMIO_ARROW_SCHEMA_2_1
-    assertTrue(metadataBad.containsKey(DREMIO_ARROW_SCHEMA));
-    assertFalse(metadataBad.containsKey(DREMIO_ARROW_SCHEMA_2_1));
-
-    try {
-      DremioArrowSchema.fromMetaData(metadataBad);
-      fail("Should not be able to process arrow schema");
-    } catch (Exception e) {
-      // ok
-    }
   }
 
   @Test

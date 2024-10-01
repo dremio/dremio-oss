@@ -24,6 +24,8 @@ import { EXPLORE_PAGE_LOCATION_CHANGED } from "@app/actions/explore/dataset/data
 import { log } from "@app/utils/logger";
 import exploreUtils from "@app/utils/explore/exploreUtils";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { select } from "redux-saga/effects";
+import { getExploreState } from "@app/selectors/explore";
 
 export const LOCATION_CHANGE = "@@router/LOCATION_CHANGE";
 
@@ -182,4 +184,22 @@ export function needsTransform(dataset, queryContext, currentSql) {
     isContextChanged ||
     !(dataset && dataset.get("datasetVersion"))
   );
+}
+
+export function* getActiveScriptId() {
+  return (yield select(getExploreState))?.view?.activeScript?.id;
+}
+
+/**
+ * Checks the passed in script ID agains the current activeScriptId in {explorePage.view.activeScript}.
+ *
+ * Returns the passed in ID (for the actions when originally dispatched) if they differ
+ *
+ * @param {string} activeScriptId
+ */
+export function* getTabForActions(activeScriptId) {
+  const id = yield getActiveScriptId();
+
+  if (id !== activeScriptId) return activeScriptId;
+  else return "";
 }

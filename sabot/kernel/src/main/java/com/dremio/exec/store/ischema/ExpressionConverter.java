@@ -388,7 +388,10 @@ public final class ExpressionConverter {
         return false;
       }
       String funcName = rexCall.op.getName();
-      return INDEX_COMPATIBLE_FUNCTIONS.contains(funcName.toUpperCase());
+      if (!INDEX_COMPATIBLE_FUNCTIONS.contains(funcName.toUpperCase())) {
+        return false;
+      }
+      return rexCall.getOperands().get(0) instanceof RexInputRef;
     }
 
     /** An input that is a combination of two values, a literal and an index key. */

@@ -37,8 +37,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.patch.ArrowByteBufAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 /**

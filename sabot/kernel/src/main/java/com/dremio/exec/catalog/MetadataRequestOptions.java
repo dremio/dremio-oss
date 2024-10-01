@@ -20,6 +20,7 @@ import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import java.util.Map;
 import org.immutables.value.Value;
@@ -71,6 +72,17 @@ public abstract class MetadataRequestOptions {
   @Value.Default
   public boolean checkIcebergValidity() {
     return checkValidity();
+  }
+
+  /**
+   * When {@link MetadataRequestOptions#checkIcebergValidity()} is true, whether to perform the
+   * extra check of {@link
+   * com.dremio.exec.store.iceberg.SupportsIcebergRootPointer#isMetadataValidityCheckRecentEnough(Long,
+   * Long, OptionManager) }
+   */
+  @Value.Default
+  public boolean shouldCheckIsMetadataValidityCheckRecentEnough() {
+    return true;
   }
 
   /**

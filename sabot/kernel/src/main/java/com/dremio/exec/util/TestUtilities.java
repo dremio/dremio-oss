@@ -16,7 +16,6 @@
 package com.dremio.exec.util;
 
 import static com.dremio.exec.ExecConstants.ICEBERG_NAMESPACE_KEY;
-import static com.dremio.exec.store.dfs.GandivaPersistentCachePluginConfig.GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME;
 import static com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME;
 import static com.dremio.exec.store.iceberg.IcebergModelCreator.DREMIO_NESSIE_DEFAULT_NAMESPACE;
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
@@ -34,7 +33,6 @@ import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.GandivaPersistentCachePluginConfig;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
@@ -174,20 +172,6 @@ public class TestUtilities {
               new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
       c.setConnectionConf(conf);
       c.setName(METADATA_STORAGE_PLUGIN_NAME);
-      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-      systemUserCatalog.createSource(c);
-    }
-
-    if (!pluginExists(catalogService, GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME)) {
-      SourceConfig c = new SourceConfig();
-      GandivaPersistentCachePluginConfig conf = new GandivaPersistentCachePluginConfig();
-      conf.connection = "file:///";
-      conf.path = tmpDirPath;
-      conf.propertyList =
-          Collections.singletonList(
-              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
-      c.setConnectionConf(conf);
-      c.setName(GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       systemUserCatalog.createSource(c);
     }
@@ -363,7 +347,6 @@ public class TestUtilities {
     list.add("__datasetDownload");
     list.add("__support");
     list.add("__metadata");
-    list.add("__gandiva_persistent_cache");
     list.add(SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
     list.add(NodesHistoryStoreConfig.STORAGE_PLUGIN_NAME);
     list.add("$scratch");

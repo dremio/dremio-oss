@@ -351,9 +351,9 @@ export function* watchUpdateJobRecords(jobId, datasetVersion) {
 
 export function* genLoadJobSummary(jobId) {
   // need to fetch jobDetails on job success to get the total job duration and attempt details
-  yield put(fetchJobDetails(jobId));
+  yield put(fetchJobDetails({ jobId }));
 
-  const summaryPromise = yield put(fetchJobSummary(jobId, 0));
+  const summaryPromise = yield put(fetchJobSummary({ jobId, maxSqlLength: 0 }));
   const jobSummary = yield summaryPromise;
 
   getJobStateEvents().updateJobState(jobSummary.id, jobSummary);

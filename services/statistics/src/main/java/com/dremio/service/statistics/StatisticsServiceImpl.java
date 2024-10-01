@@ -131,10 +131,9 @@ public class StatisticsServiceImpl implements StatisticsService {
   private SqlTypeName getSqlTypeNameFromColumn(String column, BatchSchema schema)
       throws IllegalArgumentException {
     Optional<Field> field = schema.findFieldIgnoreCase(column);
-    if (!field.isPresent()) {
+    if (field.isEmpty()) {
       throw new IllegalArgumentException(
-          String.format(
-              "Failed to find field, %s, from schema, %s.", field.toString(), schema.toString()));
+          String.format("Failed to find field, %s, from schema, %s.", field, schema));
     }
 
     CompleteType completeType = new CompleteType(field.get().getType(), new ArrayList<>());
@@ -381,8 +380,8 @@ public class StatisticsServiceImpl implements StatisticsService {
     updateStatistic(key.toString(), ROW_COUNT_IDENTIFIER, Statistic.StatisticType.RCOUNT, val);
   }
 
-  private String getColumnName(Statistic.StatisticType type, String name) {
-    return type + "_" + name;
+  private void populateColumnName(StringBuilder sb, Statistic.StatisticType type, String name) {
+    sb.append(type).append("_").append(name);
   }
 
   public String getSql(List<Field> fields, String table, Double samplingRate) {
@@ -393,20 +392,20 @@ public class StatisticsServiceImpl implements StatisticsService {
     populateCountColumnSql(stringBuilder, fields);
     populateTDigestSql(stringBuilder, fields, samplingRate != null);
     populateItemsSketchSql(stringBuilder, fields);
-    stringBuilder.append(getFromClause(fields, table, samplingRate));
+    populateFromClause(stringBuilder, fields, table, samplingRate);
     return stringBuilder.toString();
   }
 
-  private String getNonSampleColName(String name) {
-    return String.format("\"%s_%s\"", NON_SAMPLE_COL_PREFIX, name);
+  private void populateNonSampleColName(StringBuilder sb, String name) {
+    sb.append("\"").append(NON_SAMPLE_COL_PREFIX).append("_").append(name).append("\"");
   }
 
-  private String getFromClause(List<Field> fields, String table, Double samplingRate) {
-    StringBuilder sb = new StringBuilder("FROM (Select ");
+  private void populateFromClause(
+      StringBuilder sb, List<Field> fields, String table, Double samplingRate) {
+    sb.append("FROM (Select ");
     for (int i = 0; i < fields.size(); i++) {
-      sb.append(fields.get(i).getName())
-          .append(" as ")
-          .append(getNonSampleColName(fields.get(i).getName()));
+      sb.append("\"").append(fields.get(i).getName()).append("\"").append(" as ");
+      populateNonSampleColName(sb, fields.get(i).getName());
       if (i != fields.size() - 1) {
         sb.append(", ");
       }
@@ -416,7 +415,6 @@ public class StatisticsServiceImpl implements StatisticsService {
     } else {
       sb.append("from ").append(table).append(")");
     }
-    return sb.toString();
   }
 
   private OptionManager getOptionManager() {
@@ -430,10 +428,11 @@ public class StatisticsServiceImpl implements StatisticsService {
     for (Field field : fields) {
       String column = field.getName();
       stringBuilder.append(", ");
-      stringBuilder.append(
-          String.format(
-              "ndv(%s) as \"%s\" ",
-              getNonSampleColName(column), getColumnName(Statistic.StatisticType.NDV, column)));
+      stringBuilder.append("ndv(");
+      populateNonSampleColName(stringBuilder, column);
+      stringBuilder.append(") as \"");
+      populateColumnName(stringBuilder, Statistic.StatisticType.NDV, column);
+      stringBuilder.append("\" ");
     }
   }
 
@@ -442,10 +441,9 @@ public class StatisticsServiceImpl implements StatisticsService {
       return;
     }
     stringBuilder.append(", ");
-    stringBuilder.append(
-        String.format(
-            "count(*) as \"%s\" ",
-            getColumnName(Statistic.StatisticType.RCOUNT, ROW_COUNT_IDENTIFIER)));
+    stringBuilder.append("count(*) as \"");
+    populateColumnName(stringBuilder, Statistic.StatisticType.RCOUNT, ROW_COUNT_IDENTIFIER);
+    stringBuilder.append("\" ");
   }
 
   private void populateCountColumnSql(StringBuilder stringBuilder, List<Field> fields) {
@@ -455,11 +453,11 @@ public class StatisticsServiceImpl implements StatisticsService {
     for (Field field : fields) {
       String column = field.getName();
       stringBuilder.append(", ");
-      stringBuilder.append(
-          String.format(
-              "count(%s) as \"%s\" ",
-              getNonSampleColName(column),
-              getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
+      stringBuilder.append("count(");
+      populateNonSampleColName(stringBuilder, column);
+      stringBuilder.append(") as \"");
+      populateColumnName(stringBuilder, Statistic.StatisticType.COLRCOUNT, column);
+      stringBuilder.append("\" ");
     }
   }
 
@@ -475,18 +473,17 @@ public class StatisticsServiceImpl implements StatisticsService {
       }
       stringBuilder.append(", ");
       if (sample) {
-        stringBuilder.append(
-            String.format(
-                "tdigest(%s, %s) as \"%s\" ",
-                getNonSampleColName(column),
-                SAMPLE_COL_NAME,
-                getColumnName(Statistic.StatisticType.TDIGEST, column)));
+        stringBuilder.append("tdigest(");
+        populateNonSampleColName(stringBuilder, column);
+        stringBuilder.append(", ").append(SAMPLE_COL_NAME).append(") as \"");
+        populateColumnName(stringBuilder, Statistic.StatisticType.TDIGEST, column);
+        stringBuilder.append("\" ");
       } else {
-        stringBuilder.append(
-            String.format(
-                "tdigest(%s, true) as \"%s\" ",
-                getNonSampleColName(column),
-                getColumnName(Statistic.StatisticType.TDIGEST, column)));
+        stringBuilder.append("tdigest(");
+        populateNonSampleColName(stringBuilder, column);
+        stringBuilder.append(", true) as \"");
+        populateColumnName(stringBuilder, Statistic.StatisticType.TDIGEST, column);
+        stringBuilder.append("\" ");
       }
     }
   }
@@ -502,11 +499,11 @@ public class StatisticsServiceImpl implements StatisticsService {
         continue;
       }
       stringBuilder.append(", ");
-      stringBuilder.append(
-          String.format(
-              "ITEMS_SKETCH(%s) as \"%s\" ",
-              getNonSampleColName(column),
-              getColumnName(Statistic.StatisticType.ITEMSSKETCH, column)));
+      stringBuilder.append("ITEMS_SKETCH(");
+      populateNonSampleColName(stringBuilder, column);
+      stringBuilder.append(") as \"");
+      populateColumnName(stringBuilder, Statistic.StatisticType.ITEMSSKETCH, column);
+      stringBuilder.append("\" ");
     }
   }
 
@@ -650,7 +647,7 @@ public class StatisticsServiceImpl implements StatisticsService {
   public void close() throws Exception {}
 
   /** Statistics Input Builder */
-  public class StatisticsInputBuilder {
+  public static class StatisticsInputBuilder {
     private final String table;
     private final Map<StatisticId, Statistic.StatisticBuilder> builderMap;
 

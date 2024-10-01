@@ -105,8 +105,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Provider;
 import javax.net.ssl.SSLException;
-import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.patch.ArrowByteBufAllocator;
 import org.apache.calcite.avatica.util.Quoting;
 
 public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClientConnectionImpl> {

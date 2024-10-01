@@ -216,6 +216,15 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
     testHelper(query, scan, true);
   }
 
+  @Test
+  public void testNoPushdownPlanningSucceeds_DX93900() throws Exception {
+    final String query =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+            + "UPPER(CASE WHEN TABLE_SCHEMA = 'nessie' THEN NULL ELSE UPPER(TABLE_SCHEMA) END) = 'TEST0'";
+    // Validate does not throw
+    getPlanInString("EXPLAIN PLAN FOR " + query, OPTIQ_FORMAT);
+  }
+
   private void testHelper(final String query, String filterInScan, boolean filterPrelExpected)
       throws Exception {
     final String plan = getPlanInString("EXPLAIN PLAN FOR " + query, OPTIQ_FORMAT);

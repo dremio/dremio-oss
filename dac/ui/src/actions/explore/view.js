@@ -87,8 +87,8 @@ export function setQueryStatuses({ statuses = [], tabId = "" }) {
   return { type: SET_QUERY_STATUSES, statuses, tabId };
 }
 
-export function setQueryTabNumber({ tabNumber = 0 }) {
-  return { type: SET_QUERY_TAB_NUMBER, tabNumber };
+export function setQueryTabNumber({ tabNumber = 0, tabId = "" }) {
+  return { type: SET_QUERY_TAB_NUMBER, tabNumber, tabId };
 }
 
 export function setQuerySelections({ selections = [], tabId }) {

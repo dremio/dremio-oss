@@ -210,7 +210,7 @@ public class TestReflectionJob extends BaseTestReflection {
     setDeletionGracePeriod();
     setManagerRefreshDelay(REFRESH_DELAY_IN_SECONDS);
 
-    setMaterializationCacheSettings(false, 1000);
+    setMaterializationCacheSettings(false);
 
     dataFile = createDataFile(DATA1).getAbsolutePath();
     datasetKey = new DatasetPath(ImmutableList.of("dfs", dataFile)).toNamespaceKey();

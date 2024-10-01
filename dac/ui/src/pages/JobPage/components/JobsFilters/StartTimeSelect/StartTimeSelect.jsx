@@ -89,12 +89,14 @@ class StartTimeSelect extends Component {
   getOptions(selectedInterval) {
     return Immutable.fromJS({
       range: {
-        startMoment: selectedInterval
-          ? selectedInterval.getIn(["time", 0])
-          : moment(this.props.startTime),
-        endMoment: selectedInterval
-          ? selectedInterval.getIn(["time", 1])
-          : moment(this.props.endTime),
+        startMoment:
+          this.props.startTime != null
+            ? moment(this.props.startTime)
+            : selectedInterval.getIn(["time", 0]),
+        endMoment:
+          this.props.endTime != null
+            ? moment(this.props.endTime)
+            : selectedInterval.getIn(["time", 1]),
       },
     });
   }

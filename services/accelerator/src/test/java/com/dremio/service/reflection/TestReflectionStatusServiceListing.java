@@ -37,7 +37,10 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationMetrics;
+import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionField;
@@ -58,6 +61,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.apache.calcite.util.Pair;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -154,7 +158,15 @@ public class TestReflectionStatusServiceListing {
             .setName("myReflection")
             .setType(ReflectionType.RAW)
             .setDetails(details);
+    MaterializationMetrics metrics = new MaterializationMetrics().setFootprint(70L);
+    final Materialization m1 =
+        new Materialization().setId(new MaterializationId("m1")).setLastRefreshFromPds(10L);
+    final Materialization m2 = new Materialization().setState(MaterializationState.FAILED);
+
     when(goalsStore.getAllNotDeleted()).thenReturn(Arrays.asList(goal));
+    when(materializationStore.getLastMaterializationDone(reflectionId)).thenReturn(m1);
+    when(materializationStore.getMetrics(m1)).thenReturn(new Pair<>(metrics, 5L));
+    when(materializationStore.getLastMaterialization(reflectionId)).thenReturn(m2);
     final Refresh refresh =
         new Refresh().setMetrics(new MaterializationMetrics().setFootprint(99L));
     when(materializationStore.getRefreshesByReflectionId(reflectionId))
@@ -175,8 +187,10 @@ public class TestReflectionStatusServiceListing {
     assertEquals(new Timestamp(createAtMillis), info.createdAt);
     assertNull(info.updatedAt);
     assertEquals(-1, info.lastRefreshDurationMillis);
-    assertNull(info.lastRefreshFromTable);
+    assertEquals(new Timestamp(m1.getLastRefreshFromPds()), info.lastRefreshFromTable);
+    assertEquals(70L, info.currentFootprintBytes);
     assertEquals(99L, info.totalFootprintBytes);
+    assertEquals(5L, info.recordCount);
     assertEquals(
         -1, info.consideredCount); // flag PlannerSettings.ENABLE_JOB_COUNT_CONSIDERED is off
     assertEquals(-1, info.matchedCount); // flag PlannerSettings.ENABLE_JOB_COUNT_MATCHED is off

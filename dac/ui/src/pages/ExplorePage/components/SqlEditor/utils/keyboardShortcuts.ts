@@ -30,18 +30,28 @@ export type MonacoShortcut = {
   run: (...args: any[]) => void | Promise<void>;
 };
 
-const previewAction = (editorInstance: Record<string, unknown>) => {
+const previewAction = (editorInstance: Record<string, any>) => {
+  const position = editorInstance.getPosition();
+
   store.dispatch(setActionState({ actionState: ExploreHeaderActions.PREVIEW }));
   store.dispatch(
     previewDatasetSql({ selectedSql: getSelectedSql(editorInstance) }),
   );
+
+  // workaround to prevent the cursor from resetting
+  editorInstance.setPosition(position);
 };
 
-const runAction = (editorInstance: Record<string, unknown>) => {
+const runAction = (editorInstance: Record<string, any>) => {
+  const position = editorInstance.getPosition();
+
   store.dispatch(setActionState({ actionState: ExploreHeaderActions.RUN }));
   store.dispatch(
     runDatasetSql({ selectedSql: getSelectedSql(editorInstance) }),
   );
+
+  // workaround to prevent the cursor from resetting
+  editorInstance.setPosition(position);
 };
 
 /**
@@ -65,7 +75,7 @@ export const getKeyboardShortcuts = ({
     label: "Preview",
     keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
     run: () => previewAction(editor),
-  });
+  } as MonacoShortcut);
 
   shortcuts.push({
     id: "editor.action.run",
@@ -74,7 +84,7 @@ export const getKeyboardShortcuts = ({
       monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter,
     ],
     run: () => runAction(editor),
-  });
+  } as MonacoShortcut);
 
   return shortcuts;
 };

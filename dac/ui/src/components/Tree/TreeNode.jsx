@@ -37,8 +37,7 @@ import { PureEntityIcon } from "@app/pages/HomePage/components/EntityIcon";
 import { icon as iconCls } from "@app/uiTheme/less/DragComponents/ColumnMenuItem.less";
 import { selectState } from "@app/selectors/nessie/nessie";
 
-import { IconButton, Tooltip } from "dremio-ui-lib";
-import { Popover } from "dremio-ui-lib/components";
+import { Popover, IconButton, Tooltip } from "dremio-ui-lib/components";
 import Spinner from "../Spinner";
 import Message from "../Message";
 
@@ -55,6 +54,23 @@ import SourceBranchPicker from "@app/pages/HomePage/components/SourceBranchPicke
 import { TreeConfigContext } from "./treeConfigContext";
 import { getSourceMap } from "@app/selectors/home";
 import EntitySummaryOverlay from "../EntitySummaryOverlay/EntitySummaryOverlay";
+
+// Rendering the popover is slow when there are many tree nodes, only render when focused or hovered
+const WrappedPopover = ({ children, ...rest }) => {
+  const [shouldRender, setShouldRender] = useState(false);
+
+  return (
+    <div
+      onFocus={() => !shouldRender && setShouldRender(true)}
+      onMouseEnter={() => !shouldRender && setShouldRender(true)}
+      style={{
+        display: "contents",
+      }}
+    >
+      {shouldRender ? <Popover {...rest}>{children}</Popover> : children}
+    </div>
+  );
+};
 
 export const TreeNode = (props) => {
   const {
@@ -87,8 +103,8 @@ export const TreeNode = (props) => {
     hideHomes,
     clearResourceTreeByName,
     isMultiQueryRunning,
+    level = 0,
   } = props;
-
   const nessieSource = useMemo(() => {
     // Pass the toJS'd version to children so that this doesn't have to be called again
     if (nessieSourceProp && "toJS" in nessieSourceProp) {
@@ -111,6 +127,8 @@ export const TreeNode = (props) => {
   );
   const [loadingTimer, setLoadingtimer] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [hideIcons, setHideIcons] = useState(false);
 
   useEffect(() => {
     handleLoadingState();
@@ -216,6 +234,7 @@ export const TreeNode = (props) => {
               branchName={branchName}
               isMultiQueryRunning={isMultiQueryRunning}
               openDatasetDetails={openDatasetDetails}
+              level={level + 1}
             />
           );
         },
@@ -275,108 +294,114 @@ export const TreeNode = (props) => {
 
     const hideDatasetPanelIcon = node.get("isColumnItem");
 
-    const iconBlock = shouldAllowAdd ? (
-      <>
-        {node.get("isColumnItem") && node.get("isSorted") && (
-          <Tooltip title="Tooltip.Icon.Sorted">
-            <dremio-icon
-              name="interface/sort"
-              dataQa="is-partitioned"
-              alt="sorted"
-              class={iconCls}
-            />
-          </Tooltip>
-        )}
-        {node.get("isColumnItem") && node.get("isPartitioned") && (
-          <Tooltip title="Tooltip.Icon.Partitioned">
-            <dremio-icon
-              name="sql-editor/partition"
-              dataQa="is-partitioned"
-              alt="partitioned"
-              class={iconCls}
-            />
-          </Tooltip>
-        )}
-        {
-          // need to add a empty placeholder for partition icon to keep alignment
-          node.get("isColumnItem") &&
-            node.get("isSorted") &&
-            !node.get("isPartitioned") && <div className={iconCls}></div>
-        }
+    const iconBlock =
+      hovered && shouldAllowAdd ? (
+        <>
+          {node.get("isColumnItem") && node.get("isSorted") && (
+            <Tooltip title="Tooltip.Icon.Sorted">
+              <dremio-icon
+                name="interface/sort"
+                dataQa="is-partitioned"
+                alt="sorted"
+                class={iconCls}
+              />
+            </Tooltip>
+          )}
+          {node.get("isColumnItem") && node.get("isPartitioned") && (
+            <Tooltip title="Tooltip.Icon.Partitioned">
+              <dremio-icon
+                name="sql-editor/partition"
+                dataQa="is-partitioned"
+                alt="partitioned"
+                class={iconCls}
+              />
+            </Tooltip>
+          )}
+          {
+            // need to add a empty placeholder for partition icon to keep alignment
+            node.get("isColumnItem") &&
+              node.get("isSorted") &&
+              !node.get("isPartitioned") && <div className={iconCls}></div>
+          }
 
-        {!hideDatasetPanelIcon && (
+          {!hideDatasetPanelIcon && (
+            <IconButton
+              tooltipPortal
+              tooltip={intl.formatMessage({ id: "Open.Details" })}
+              onClick={() => {
+                openDatasetDetails(
+                  Immutable.fromJS({
+                    ...nodeQueryInfo,
+                  }),
+                );
+              }}
+              className="resourceTreeNode__add"
+            >
+              <dremio-icon name="interface/meta" />
+            </IconButton>
+          )}
+
           <IconButton
-            tooltip={intl.formatMessage({ id: "Open.Details" })}
+            tooltipPortal
+            tooltip={intl.formatMessage({ id: "Tooltip.SQL.Editor.Add" })}
             onClick={() => {
-              openDatasetDetails(
-                Immutable.fromJS({
-                  ...nodeQueryInfo,
-                }),
-              );
+              const elementToAdd = node.get("isColumnItem")
+                ? node.get("name")
+                : nodeToRender.get("fullPath");
+              addtoEditor(elementToAdd);
             }}
+            disabled={isMultiQueryRunning}
             className="resourceTreeNode__add"
           >
-            <dremio-icon name="interface/meta" />
+            <dremio-icon name="interface/add-small" />
           </IconButton>
-        )}
-
-        <IconButton
-          tooltip="Tooltip.SQL.Editor.Add"
-          onClick={() => {
-            const elementToAdd = node.get("isColumnItem")
-              ? node.get("name")
-              : nodeToRender.get("fullPath");
-            addtoEditor(elementToAdd);
-          }}
-          disabled={isMultiQueryRunning}
-          className="resourceTreeNode__add"
-        >
-          <dremio-icon name="interface/add-small" />
-        </IconButton>
-        <ARSFeatureSwitch
-          renderEnabled={() => null}
-          renderDisabled={() =>
-            isNodeExpandable(nodeToRender) &&
-            nodeToRender.get("id") && (
-              <IconButton
-                tooltip={
-                  isStarred
-                    ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
-                    : unstarredWording
-                }
-                onClick={() => {
-                  if (!isStarred && !isStarredLimitReached) {
-                    starNode(nodeToRender.get("id"));
-                  } else if (isStarred) {
-                    unstarNode(nodeToRender.get("id"));
-                  }
-                }}
-                className={
-                  isStarred
-                    ? "resourceTreeNode__starIcon"
-                    : `resourceTreeNode__starIcon resourceTreeNode${
-                        isStarredLimitReached ? "--limitReached" : "--unstarred"
-                      }`
-                }
-              >
-                <dremio-icon
-                  name={
-                    isStarred
-                      ? "interface/star-starred"
-                      : "interface/star-unstarred"
-                  }
-                  alt={
+          <ARSFeatureSwitch
+            renderEnabled={() => null}
+            renderDisabled={() =>
+              isNodeExpandable(nodeToRender) &&
+              nodeToRender.get("id") && (
+                <IconButton
+                  tooltipPortal
+                  tooltip={
                     isStarred
                       ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
-                      : unstarredAltText
+                      : unstarredWording
                   }
-                />
-              </IconButton>
-            )
-          }
-        />
-      </>
-    ) : null;
+                  onClick={() => {
+                    if (!isStarred && !isStarredLimitReached) {
+                      starNode(nodeToRender.get("id"));
+                    } else if (isStarred) {
+                      unstarNode(nodeToRender.get("id"));
+                    }
+                  }}
+                  className={
+                    isStarred
+                      ? "resourceTreeNode__starIcon"
+                      : `resourceTreeNode__starIcon resourceTreeNode${
+                          isStarredLimitReached
+                            ? "--limitReached"
+                            : "--unstarred"
+                        }`
+                  }
+                >
+                  <dremio-icon
+                    name={
+                      isStarred
+                        ? "interface/star-starred"
+                        : "interface/star-unstarred"
+                    }
+                    alt={
+                      isStarred
+                        ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
+                        : unstarredAltText
+                    }
+                  />
+                </IconButton>
+              )
+            }
+          />
+        </>
+      ) : null;
 
     const activeClass = selectedNodeId === nodeId ? "active-node" : "";
     const nodeStatus = nodeToRender.getIn(["state", "status"], null);
@@ -386,52 +411,60 @@ export const TreeNode = (props) => {
     const treeNodeContent = (
       <div
         {...(isDisabledNode && {
-          style: {
-            ...style.disabled,
-            pointerEvents: "all",
-            background: "transparent",
-          },
+          style: style.disabledNode,
         })}
         className="resourceTreeNode-nameWrapper"
       >
         {isColumnItem ? (
           <dremio-icon
             name={`data-types/${typeToIconType[node.get("type")]}`}
-            style={{
-              inlineSize: 24,
-              blockSize: 24,
-            }}
+            style={style.icon24}
           ></dremio-icon>
         ) : (
           <PureEntityIcon
-            disableHoverListener={nessieDisabled || showSummaryOverlay}
+            tooltipPortal
+            disableHoverListener={
+              !hovered || nessieDisabled || showSummaryOverlay
+            }
             entityType={node.get("type")}
             sourceStatus={nodeStatus}
             sourceType={nessieSource?.type}
             style={style.icon}
+            enableTooltip={hovered}
           />
         )}
-        <Tooltip
-          placement="top"
-          disableHoverListener={nessieDisabled || showSummaryOverlay}
-          title={node.get("name")}
-        >
+        {nessieDisabled || showSummaryOverlay ? (
           <EllipsedText
             className="node-text ml-05"
             style={style.text}
             text={node.get("name")}
           />
-        </Tooltip>
+        ) : hovered ? (
+          <Tooltip placement="top" content={node.get("name")}>
+            <EllipsedText
+              className="node-text ml-05"
+              style={style.text}
+              text={node.get("name")}
+            />
+          </Tooltip>
+        ) : (
+          <EllipsedText
+            className="node-text ml-05"
+            style={style.text}
+            text={node.get("name")}
+          />
+        )}
       </div>
     );
 
-    const hideOverlay = fromModal || hideDatasets;
+    const hideOverlay = !hovered || fromModal || hideDatasets;
 
     const tooltipElement = (
       <>
         {!isDragging && !hideOverlay ? (
           !showSummaryOverlay ? (
             <Tooltip
+              shouldWrapChildren
               placement="bottom"
               title={
                 isBadState
@@ -447,7 +480,9 @@ export const TreeNode = (props) => {
               {treeNodeContent}
             </Tooltip>
           ) : (
-            <Popover
+            <WrappedPopover
+              onOpen={() => setHideIcons(true)}
+              onClose={() => setHideIcons(false)}
               role="tooltip"
               showArrow
               delay={750}
@@ -477,7 +512,7 @@ export const TreeNode = (props) => {
               }
             >
               {treeNodeContent}
-            </Popover>
+            </WrappedPopover>
           )
         ) : (
           <>{treeNodeContent}</>
@@ -564,7 +599,14 @@ export const TreeNode = (props) => {
           </IconButton>
         )}
         {nodeElement}
-        <div className="resourceTreeNode__iconBlock">{iconBlock}</div>
+        <div
+          className={classNames(
+            "resourceTreeNode__iconBlock",
+            hideIcons && "hide",
+          )}
+        >
+          {iconBlock}
+        </div>
       </div>
     );
 
@@ -592,18 +634,25 @@ export const TreeNode = (props) => {
   );
 
   return (
-    <div
-      className={classNames("treeNode", {
-        "treeNode--hasResources": isDataset,
-        "treeNode--isBaseNode": isBaseNode,
-        "treeNode--isLeafNode": !isBaseNode,
-        "treeNode--isColumnItem": !!node.get("isColumnItem"),
-        "treeNode--isDisabledNode": isDisabledNode,
-      })}
-    >
-      <span ref={nodeRef}>{renderNode(node, nodeRef)}</span>
+    <>
+      <div
+        {...(!hideIcons && {
+          onMouseEnter: () => setHovered(true),
+          onMouseLeave: () => setHovered(false),
+        })}
+        aria-level={level}
+        className={classNames("treeNode", {
+          "treeNode--hasResources": isDataset,
+          "treeNode--isBaseNode": isBaseNode,
+          "treeNode--isLeafNode": !isBaseNode,
+          "treeNode--isColumnItem": !!node.get("isColumnItem"),
+          "treeNode--isDisabledNode": isDisabledNode,
+        })}
+      >
+        <span ref={nodeRef}>{renderNode(node, nodeRef)}</span>
+      </div>
       {isNodeExpanded(node) && renderResources()}
-    </div>
+    </>
   );
 };
 
@@ -663,6 +712,10 @@ const mapDispatchToProps = {
 export default connect(mapStateToProps, mapDispatchToProps)(TreeNodeMemo);
 
 const style = {
+  icon24: {
+    inlineSize: 24,
+    blockSize: 24,
+  },
   arrow: {
     width: 24,
     height: 24,
@@ -688,6 +741,14 @@ const style = {
     pointerEvents: "none",
     color: "rgb(153, 153, 153)",
     background: "rgb(255, 255, 255)",
+  },
+  disabledNode: {
+    opacity: 0.7,
+    pointerEvents: "none",
+    color: "rgb(153, 153, 153)",
+    background: "rgb(255, 255, 255)",
+    pointerEvents: "all",
+    background: "transparent",
   },
   node: {
     display: "inline-flex",

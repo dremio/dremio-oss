@@ -32,8 +32,8 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import java.util.Optional;
-import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.patch.ArrowByteBufAllocator;
 
 /** Client used to connect to server. */
 class FabricClient

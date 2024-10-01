@@ -45,7 +45,8 @@ const syncUpdatedScript = async (action: any) => {
   );
   if (
     !originalScriptContents ||
-    !originalScriptContents.permissions.includes("MODIFY")
+    (originalScriptContents.permissions &&
+      !originalScriptContents.permissions?.includes("MODIFY"))
   ) {
     return;
   }

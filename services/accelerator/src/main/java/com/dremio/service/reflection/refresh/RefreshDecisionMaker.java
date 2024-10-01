@@ -253,12 +253,12 @@ class RefreshDecisionMaker {
     }
 
     String dependencyRefreshReason = "";
+    List<DependencyEntry> dependencies = dependencyStore.get(entry.getId());
     if (settings.getMethod() == RefreshMethod.FULL) {
       // before doing a full refresh, check if we can skip refreshing due to no new data
       if (optionManager.getOption(ReflectionOptions.REFLECTION_MANAGER_AVOID_REDUNDANT_REFRESH)) {
         dependencyRefreshReason =
-            hasNewSnapshotsForRefresh(
-                entry, catalog, dependencyStore.get(entry.getId()), materializationStore);
+            hasNewSnapshotsForRefresh(entry, catalog, dependencies, materializationStore);
         // reflections containing dynamic functions cannot noop refresh
         if (dependencyRefreshReason.isEmpty() && nonIncrementalRefreshFunctions.isEmpty()) {
           logger.trace("Noop refresh due to no new snapshots");
@@ -269,7 +269,7 @@ class RefreshDecisionMaker {
                   .setUpdateId(refresh.getUpdateId())
                   .setNoOpRefresh(true),
               null,
-              "No changes were detected in dependencies since the last refresh. The reflection will not be updated.",
+              getNoOpRefreshDecisionMessage(dependencies),
               stopwatch.elapsed(TimeUnit.MILLISECONDS));
         }
       }
@@ -380,7 +380,8 @@ class RefreshDecisionMaker {
             tableMetadataPointer.value,
             tableMetadataCurrentSnapshotID.value,
             previousRefreshSnapshotID.value,
-            canNoOpRefresh),
+            canNoOpRefresh,
+            dependencies),
         stopwatch.elapsed(TimeUnit.MILLISECONDS));
   }
 
@@ -447,7 +448,8 @@ class RefreshDecisionMaker {
       TableMetadata tableMetadata,
       String currentSnapshotId,
       String oldSnapshotID,
-      boolean canNoOpRefresh) {
+      boolean canNoOpRefresh,
+      List<DependencyEntry> dependencies) {
     if (snapshotDiffContext == null) {
       return "Incremental Refresh";
     }
@@ -455,7 +457,7 @@ class RefreshDecisionMaker {
       case FILTER_DATA_FILES:
         {
           if (canNoOpRefresh) {
-            return "No changes are detected in the base dataset since the last refresh. The reflection will not be updated.";
+            return getNoOpRefreshDecisionMessage(dependencies);
           }
           return "Snapshot Based Incremental Refresh for Append Only workflows. \n"
               + getAnchorDatasetDetails(tableMetadata, currentSnapshotId, oldSnapshotID);
@@ -585,5 +587,15 @@ class RefreshDecisionMaker {
       }
     }
     return "";
+  }
+
+  private static String getNoOpRefreshDecisionMessage(List<DependencyEntry> dependencies) {
+    StringBuilder builder =
+        new StringBuilder(
+            "No changes were detected in dependencies since the last refresh. The reflection will not be updated. Dependencies:");
+    for (DependencyEntry dependency : dependencies) {
+      builder.append("\n").append(dependency.toString());
+    }
+    return builder.toString();
   }
 }

@@ -36,6 +36,7 @@ import {
 
 type SqlRunnerTabsProps = {
   canClose?: () => boolean;
+  customNewTabHandler?: () => void;
   onNewTabCreated?: () => void;
   onTabSelected?: (tabId: string) => void;
   onTabClosed?: (tabId: string) => void;
@@ -89,6 +90,9 @@ export const SqlRunnerTabs = (props: SqlRunnerTabsProps) => {
   const canCloseTabs =
     typeof props.canClose === "function" ? props.canClose() : true;
 
+  const customNewTabHandlerRef = useRef(props.customNewTabHandler);
+  customNewTabHandlerRef.current = props.customNewTabHandler;
+
   const onNewTabCreatedRef = useRef(props.onNewTabCreated);
   onNewTabCreatedRef.current = props.onNewTabCreated;
 
@@ -98,15 +102,17 @@ export const SqlRunnerTabs = (props: SqlRunnerTabsProps) => {
   const handleNewTabButton = useMemo(() => {
     return throttle(
       () =>
-        newTabRef
-          .current()
-          .then(() => {
-            onNewTabCreatedRef.current?.();
-            return;
-          })
-          .catch((e) => {
-            console.error(e);
-          }),
+        customNewTabHandlerRef.current
+          ? customNewTabHandlerRef.current()
+          : newTabRef
+              .current()
+              .then(() => {
+                onNewTabCreatedRef.current?.();
+                return;
+              })
+              .catch((e) => {
+                console.error(e);
+              }),
       1000,
     );
   }, []);

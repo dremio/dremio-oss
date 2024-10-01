@@ -25,24 +25,27 @@ import ReflectionIcon from "./ReflectionIcon";
 import ColumnCell from "./ColumnCell";
 import DurationCell from "./DurationCell";
 import RealTimeTimer from "@app/components/RealTimeTimer";
+import { memoDeep } from "@app/utils/memoUtils";
 
 const getFilteredSummaries = (
   jobSummaries: JobSummary[],
   queryFilter: string,
 ) => {
   if (!queryFilter) {
-    return jobSummaries;
+    return [...jobSummaries].sort((a, b) => a.startTime - b.startTime);
   }
 
-  return jobSummaries.filter(
-    (summary) =>
-      summary.id
-        .toLocaleLowerCase()
-        .includes(queryFilter.toLocaleLowerCase()) ||
-      summary.description
-        .toLocaleLowerCase()
-        .includes(queryFilter.toLocaleLowerCase()),
-  );
+  return jobSummaries
+    .filter(
+      (summary) =>
+        summary.id
+          .toLocaleLowerCase()
+          .includes(queryFilter.toLocaleLowerCase()) ||
+        summary.description
+          .toLocaleLowerCase()
+          .includes(queryFilter.toLocaleLowerCase()),
+    )
+    .sort((a, b) => a.startTime - b.startTime);
 };
 
 const getExploreJobIndex = (
@@ -76,91 +79,93 @@ const renderDuration = (duration: string | JSX.Element, isSpilled: boolean) => (
     isFromExplorePage
   />
 );
-export const getExplorePageTableData = (
-  jobSummaries: ExploreJobsState["jobSummaries"],
-  allJobDetails: ExploreJobsState["jobDetails"],
-  jobIdArray: [string, number][],
-  queryFilter: string,
-  renderButtons: (
-    status: string,
-    jobId: string,
-    jobAttempts?: number,
-  ) => JSX.Element,
-  intl: IntlShape,
-) => {
-  return getFilteredSummaries(
-    Object.values(jobSummaries) as JobSummary[],
-    queryFilter,
-  ).map((summary, index) => {
-    const currentJobDetails = allJobDetails[summary.id];
+export const getExplorePageTableData = memoDeep(
+  (
+    jobSummaries: ExploreJobsState["jobSummaries"],
+    allJobDetails: ExploreJobsState["jobDetails"],
+    jobIdArray: [string, number][],
+    queryFilter: string,
+    renderButtons: (
+      status: string,
+      jobId: string,
+      jobAttempts?: number,
+    ) => JSX.Element,
+    intl: IntlShape,
+  ) => {
+    return getFilteredSummaries(
+      Object.values(jobSummaries) as JobSummary[],
+      queryFilter,
+    ).map((summary, index) => {
+      const currentJobDetails = allJobDetails[summary.id];
 
-    const jobDuration = currentJobDetails?.isComplete ? (
-      jobsUtils.formatJobDuration(currentJobDetails.duration, true)
-    ) : (
-      <RealTimeTimer
-        startTime={summary.startTime}
-        formatter={jobsUtils.formatJobDuration}
-      />
-    );
+      const jobDuration = currentJobDetails?.isComplete ? (
+        jobsUtils.formatJobDuration(currentJobDetails.duration, true)
+      ) : (
+        <RealTimeTimer
+          startTime={summary.startTime}
+          formatter={jobsUtils.formatJobDuration}
+        />
+      );
 
-    return {
-      data: {
-        jobStatus: {
-          node: () => renderJobStatus(summary.state),
-          value: summary.state,
-        },
-        sql: {
-          node: () => renderSQL(summary.description),
-          value: summary.description,
-          tabIndex: getExploreJobIndex(jobIdArray, summary.id, index),
-        },
-        acceleration: {
-          node: () => renderAcceleration(summary.accelerated),
-          value: renderAcceleration(summary.accelerated),
-        },
-        qt: {
-          node: () =>
-            renderColumn(
-              intl.formatMessage({
-                id:
-                  currentJobDetails?.queryType === "UI_RUN"
-                    ? "Job.UIRun"
-                    : "Job.UIPreview",
-              }),
-              false,
-              "fullHeight",
-            ),
-          value: currentJobDetails?.queryType,
-        },
-        st: {
-          node: () =>
-            renderColumn(
-              timeUtils.formatTime(summary.startTime),
-              true,
-              "leftAlign",
-            ),
-          value: timeUtils.formatTime(summary.startTime),
-        },
-        dur: {
-          node: () => renderDuration(jobDuration, summary.spilled),
-          value: {
-            jobDuration,
-            isSpilled: summary.spilled,
+      return {
+        data: {
+          jobStatus: {
+            node: () => renderJobStatus(summary.state),
+            value: summary.state,
+          },
+          sql: {
+            node: () => renderSQL(summary.description),
+            value: summary.description,
+            tabIndex: getExploreJobIndex(jobIdArray, summary.id, index),
+          },
+          acceleration: {
+            node: () => renderAcceleration(summary.accelerated),
+            value: renderAcceleration(summary.accelerated),
+          },
+          qt: {
+            node: () =>
+              renderColumn(
+                intl.formatMessage({
+                  id:
+                    currentJobDetails?.queryType === "UI_RUN"
+                      ? "Job.UIRun"
+                      : "Job.UIPreview",
+                }),
+                false,
+                "fullHeight",
+              ),
+            value: currentJobDetails?.queryType,
+          },
+          st: {
+            node: () =>
+              renderColumn(
+                timeUtils.formatTime(summary.startTime),
+                true,
+                "leftAlign",
+              ),
+            value: timeUtils.formatTime(summary.startTime),
+          },
+          dur: {
+            node: () => renderDuration(jobDuration, summary.spilled),
+            value: {
+              jobDuration,
+              isSpilled: summary.spilled,
+            },
+          },
+          job: {
+            node: () => renderColumn(summary.id, false, "fullHeight"),
+            value: summary.id,
+          },
+          buttons: {
+            node: () =>
+              renderButtons(
+                summary.state,
+                summary.id,
+                currentJobDetails?.attemptDetails.length,
+              ),
           },
         },
-        job: {
-          node: () => renderColumn(summary.id, false, "fullHeight"),
-          value: summary.id,
-        },
-        buttons: {
-          node: () =>
-            renderButtons(
-              summary.state,
-              summary.id,
-              currentJobDetails?.attemptDetails.length,
-            ),
-        },
-      },
-    };
-  });
-};
+      };
+    });
+  },
+);
