@@ -43,6 +43,9 @@ public class MissingSourceTypeException extends RuntimeException {
       case "HBASE":
         return "HBase source type is not installed. Please download it from Dremio Hub: https://github.com/dremio-hub.";
 
+      case "VASTDATA":
+        return "VASTDATA source type is not installed.";
+
       case "ADL":
         if ("true"
             .equals(ResourceBundle.getBundle("mapr-distribution").getString("maprDistribution"))) {

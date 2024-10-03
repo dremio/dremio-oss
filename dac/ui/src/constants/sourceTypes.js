@@ -19,6 +19,7 @@ export const REDSHIFT = "REDSHIFT";
 export const S3 = "S3";
 export const ELASTIC = "ELASTIC";
 export const HBASE = "HBASE";
+export const VASTDATA = "VASTDATA";
 export const HDFS = "HDFS";
 export const HIVE = "HIVE";
 export const HIVE3 = "HIVE3";
@@ -63,6 +64,7 @@ export const sourceProperties = [
   { label: "Amazon OpenSearch Service", sourceType: AMAZONELASTIC },
   { label: "Elasticsearch", sourceType: ELASTIC },
   { label: "HBase", sourceType: HBASE, beta: true },
+  { label: "VASTDATA", sourceType: VASTDATA, beta: true },
   { label: "HDFS", sourceType: HDFS },
   { label: "Hive 2.x", sourceType: HIVE },
   { label: "Hive 3.x", sourceType: HIVE3 },
