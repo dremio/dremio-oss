@@ -2752,6 +2752,10 @@ ${errorprone.module.args}
       <id>dremio-public</id>
       <url>https://maven.dremio.com/public/</url>
     </repository>
+    <repository>
+      <id>dremio-free</id>
+      <url>https://maven.dremio.com/free/</url>
+    </repository>
   </repositories>
 
   <build>
